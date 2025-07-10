@@ -1,73 +1,49 @@
-# Welcome to your Lovable project
+# 📚 SanarFlix – Guia de Estudos
 
-## Project info
+Este repositório abriga o projeto **Guia de Estudos da SanarFlix**, uma aplicação desenvolvida para oferecer uma experiência personalizada de estudos para alunos de instituições de ensino superior parceiras da Sanar.
 
-**URL**: https://lovable.dev/projects/0567bb51-c70e-4f66-a5f1-67d7783d65ce
+A proposta é simples: ajudar o aluno a navegar pelos conteúdos da SanarFlix de acordo com o semestre em que ele está, destacando os materiais mais relevantes e organizando-os de forma clara e didática.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🚀 Objetivo do Projeto
 
-**Use Lovable**
+A plataforma foi criada para:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/0567bb51-c70e-4f66-a5f1-67d7783d65ce) and start prompting.
+- Organizar os conteúdos da SanarFlix conforme o semestre de cada curso.
+- Oferecer uma trilha de estudos clara e objetiva.
+- Aumentar o engajamento dos alunos com os materiais disponíveis.
+- Apoiar as instituições de ensino na jornada de aprendizagem dos alunos.
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🧰 Tecnologias Utilizadas
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Este projeto foi construído com:
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- [React](https://reactjs.org/) – biblioteca principal para construção da interface
+- [TypeScript](https://www.typescriptlang.org/) – tipagem estática para JavaScript
+- [Vite](https://vitejs.dev/) – bundler moderno para desenvolvimento rápido
+- [Tailwind CSS](https://tailwindcss.com/) – framework utilitário de estilos
+- [shadcn/ui](https://ui.shadcn.dev/) – componentes acessíveis e com design moderno
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🔧 Como rodar o projeto localmente
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Antes de começar, certifique-se de ter o [Node.js](https://nodejs.org/) instalado (preferencialmente usando o [nvm](https://github.com/nvm-sh/nvm)).
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Passo a passo:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+# 1. Clone o repositório
+git clone https://github.com/felipesanar/sanarflix-study-guide.git
+
+# 2. Acesse o diretório do projeto
+cd sanarflix-study-guide
+
+# 3. Instale as dependências
+npm install
+
+# 4. Inicie o servidor de desenvolvimento
 npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/0567bb51-c70e-4f66-a5f1-67d7783d65ce) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
