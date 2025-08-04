@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookOpen, BarChart3, LogOut, User, GraduationCap } from 'lucide-react';
+import { BookOpen, BarChart3, LogOut, User, GraduationCap, Zap } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -28,6 +28,11 @@ const menuItems = [
     title: 'Dashboard',
     url: '/dashboard',
     icon: BarChart3,
+  },
+  {
+    title: 'Intensivão ENAMED',
+    url: '/intensivao-enamed',
+    icon: Zap,
   },
 ];
 

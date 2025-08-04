@@ -10,6 +10,7 @@ import { LoginForm } from "./components/LoginForm";
 import { Layout } from "./components/Layout";
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
+import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,16 @@ const AppContent = () => {
             <ProtectedRoute>
               <Layout>
                 <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/intensivao-enamed"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <IntensivaoEnamed />
               </Layout>
             </ProtectedRoute>
           }
