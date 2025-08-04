@@ -11,14 +11,14 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50">
+      <div className="min-h-screen flex w-full bg-neutral-50">
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
           {/* Header with trigger */}
-          <header className="h-14 bg-white border-b shadow-sm flex items-center px-4">
-            <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-md transition-colors">
-              <Menu className="h-5 w-5" />
+          <header className="h-14 bg-white border-b border-neutral-200 shadow-sm flex items-center px-4">
+            <SidebarTrigger className="p-2 hover:bg-neutral-100 rounded-md transition-colors-smooth">
+              <Menu className="h-5 w-5 text-neutral-700" />
             </SidebarTrigger>
           </header>
 

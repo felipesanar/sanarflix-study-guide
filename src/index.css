@@ -5,44 +5,53 @@
 
 @layer base {
   :root {
+    /* Background colors - using neutral light tones */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 0 0% 7%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 7%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 7%;
 
-    --primary: 214 100% 40%;
+    /* Primary palette - reds */
+    --primary: 0 83% 38%; /* #B21212 */
     --primary-foreground: 0 0% 98%;
+    --primary-dark: 0 83% 24%; /* #7D0C0C */
+    --primary-light: 0 100% 79%; /* #FF9494 */
+    --primary-lighter: 0 100% 93%; /* #FFE8E8 */
+    --primary-lightest: 0 100% 98%; /* #FFF7F7 */
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary palette - neutrals */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 210 3% 16%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 14% 89%;
+    --muted-foreground: 210 6% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 14% 89%;
+    --accent-foreground: 210 3% 16%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 83% 38%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 214 100% 40%;
+    /* Neutral borders and inputs */
+    --border: 210 14% 89%;
+    --input: 210 14% 89%;
+    --ring: 0 83% 38%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 214 100% 97%;
-    --sidebar-foreground: 214 100% 15%;
-    --sidebar-primary: 214 100% 40%;
+    /* Sidebar - dark theme */
+    --sidebar-background: 0 0% 7%; /* #121313 */
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 0 83% 38%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 214 95% 93%;
-    --sidebar-accent-foreground: 214 100% 15%;
-    --sidebar-border: 214 31.8% 91.4%;
-    --sidebar-ring: 214 100% 40%;
+    --sidebar-accent: 210 3% 16%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 210 3% 16%;
+    --sidebar-ring: 0 83% 38%;
   }
 
   .dark {
@@ -97,11 +106,24 @@
 }
 
 @layer components {
-  .gradient-medical {
-    background: linear-gradient(135deg, hsl(214 100% 40%) 0%, hsl(214 100% 50%) 100%);
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(0 83% 38%) 0%, hsl(0 83% 45%) 100%);
   }
   
-  .gradient-success {
-    background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 76% 46%) 100%);
+  .gradient-primary-light {
+    background: linear-gradient(135deg, hsl(0 100% 93%) 0%, hsl(0 100% 96%) 100%);
+  }
+
+  .gradient-sidebar {
+    background: linear-gradient(180deg, hsl(0 0% 7%) 0%, hsl(210 3% 16%) 100%);
+  }
+
+  /* Smooth transitions for all interactive elements */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-colors-smooth {
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
   }
 }
