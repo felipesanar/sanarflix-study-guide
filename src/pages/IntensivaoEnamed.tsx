@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Video, FileText, Clock, Calendar, Target } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BookOpen, Video, FileText, Clock, Calendar, Target, Heart, Brain, Activity, Stethoscope, Users, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 
 // Dados do cronograma do Intensivão ENAMED
 const cronogramaDados = {
@@ -162,16 +164,107 @@ export const IntensivaoEnamed: React.FC = () => {
   const { user } = useAuth();
   const [selectedWeek, setSelectedWeek] = useState<string>('all');
   const [selectedDay, setSelectedDay] = useState<string>('all');
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
+  // Função para extrair disciplina do nome do dia
+  const extractDiscipline = (diaName: string): string => {
+    if (diaName.includes('Ginecologia')) return 'Ginecologia e Obstetrícia';
+    if (diaName.includes('Pediatria')) return 'Pediatria';
+    if (diaName.includes('Clínica Médica')) return 'Clínica Médica';
+    if (diaName.includes('Clínica Cirúrgica')) return 'Clínica Cirúrgica';
+    if (diaName.includes('MFC')) return 'MFC e Saúde Coletiva';
+    if (diaName.includes('Revisão')) return 'Revisão';
+    if (diaName.includes('Prova')) return 'Avaliação';
+    return 'Outros';
+  };
+
+  // Marcar/desmarcar item como concluído
+  const toggleItemCompletion = useCallback((itemKey: string) => {
+    setCompletedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemKey)) {
+        newSet.delete(itemKey);
+      } else {
+        newSet.add(itemKey);
+      }
+      return newSet;
+    });
+  }, []);
 
   // Calcular dados de progresso
   const progressData = useMemo(() => {
     const totalItems = cronogramaDados.semanas.reduce((acc, semana) => 
       acc + semana.dias.reduce((dayAcc, dia) => dayAcc + dia.temas.length, 0), 0
     );
-    const completedItems = Math.floor(totalItems * 0.3); // Mock: 30% completo
-    const percentage = Math.round((completedItems / totalItems) * 100);
+    const completedCount = completedItems.size;
+    const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
     
-    return { totalItems, completedItems, percentage };
+    return { totalItems, completedItems: completedCount, percentage };
+  }, [completedItems]);
+
+  // Calcular progresso por disciplina
+  const progressByDiscipline = useMemo(() => {
+    const disciplineStats: Record<string, { total: number; completed: number }> = {};
+    
+    cronogramaDados.semanas.forEach(semana => {
+      semana.dias.forEach(dia => {
+        const discipline = extractDiscipline(dia.nome);
+        if (!disciplineStats[discipline]) {
+          disciplineStats[discipline] = { total: 0, completed: 0 };
+        }
+        
+        dia.temas.forEach(tema => {
+          const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
+          disciplineStats[discipline].total++;
+          if (completedItems.has(itemKey)) {
+            disciplineStats[discipline].completed++;
+          }
+        });
+      });
+    });
+    
+    return disciplineStats;
+  }, [completedItems]);
+
+  // Calcular semanas concluídas
+  const weekProgress = useMemo(() => {
+    let completedWeeks = 0;
+    
+    cronogramaDados.semanas.forEach(semana => {
+      let weekTotal = 0;
+      let weekCompleted = 0;
+      
+      semana.dias.forEach(dia => {
+        dia.temas.forEach(tema => {
+          const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
+          weekTotal++;
+          if (completedItems.has(itemKey)) {
+            weekCompleted++;
+          }
+        });
+      });
+      
+      if (weekTotal > 0 && weekCompleted === weekTotal) {
+        completedWeeks++;
+      }
+    });
+    
+    const totalWeeks = cronogramaDados.semanas.length;
+    const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+    
+    return { completedWeeks, totalWeeks, percentage };
+  }, [completedItems]);
+
+  // Lista de disciplinas disponíveis
+  const availableDisciplines = useMemo(() => {
+    const disciplines = new Set<string>();
+    cronogramaDados.semanas.forEach(semana => {
+      semana.dias.forEach(dia => {
+        disciplines.add(extractDiscipline(dia.nome));
+      });
+    });
+    return Array.from(disciplines).sort();
   }, []);
 
   // Filtrar dados por semana selecionada
@@ -188,6 +281,8 @@ export const IntensivaoEnamed: React.FC = () => {
       dia: string;
       tema: string;
       completed: boolean;
+      itemKey: string;
+      discipline: string;
     }> = [];
 
     cronogramaDados.semanas.forEach(semana => {
@@ -195,20 +290,26 @@ export const IntensivaoEnamed: React.FC = () => {
 
       semana.dias.forEach(dia => {
         if (selectedDay !== 'all' && dia.nome !== selectedDay) return;
+        
+        const discipline = extractDiscipline(dia.nome);
+        if (selectedDiscipline !== 'all' && discipline !== selectedDiscipline) return;
 
         dia.temas.forEach(tema => {
+          const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
           content.push({
             semana: semana.numero,
             dia: dia.nome,
             tema,
-            completed: Math.random() > 0.7 // Mock random completion
+            completed: completedItems.has(itemKey),
+            itemKey,
+            discipline
           });
         });
       });
     });
 
     return content;
-  }, [selectedWeek, selectedDay]);
+  }, [selectedWeek, selectedDay, selectedDiscipline, completedItems]);
 
   // Calcular dias restantes para o ENAMED (mock)
   const diasRestantes = 85;
@@ -237,29 +338,58 @@ export const IntensivaoEnamed: React.FC = () => {
           </div>
         </div>
 
-        {/* Barra de progresso geral */}
-        <Card className="border-red-dark shadow-lg">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-red-darkest flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Progresso Geral do Intensivão
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-medium">
-                  {progressData.completedItems} de {progressData.totalItems} itens concluídos
-                </span>
-                <span className="font-semibold text-red-dark">{progressData.percentage}%</span>
-              </div>
-              <Progress 
-                value={progressData.percentage} 
-                className="h-3 bg-red-lightest"
+        {/* Cards de Progresso */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Card de Progresso Geral */}
+          <ProgressAreaCard
+            title="Progresso Geral"
+            current={progressData.completedItems}
+            total={progressData.totalItems}
+            percentage={progressData.percentage}
+            icon={<Target className="h-5 w-5" />}
+            variant="general"
+          />
+
+          {/* Card de Semanas Concluídas */}
+          <ProgressAreaCard
+            title="Semanas Concluídas"
+            current={weekProgress.completedWeeks}
+            total={weekProgress.totalWeeks}
+            percentage={weekProgress.percentage}
+            icon={<Calendar className="h-5 w-5" />}
+            variant="weeks"
+          />
+
+          {/* Cards por Disciplina */}
+          {Object.entries(progressByDiscipline).map(([discipline, stats]) => {
+            const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+            
+            const getIcon = (disc: string) => {
+              switch (disc) {
+                case 'Ginecologia e Obstetrícia': return <Heart className="h-4 w-4" />;
+                case 'Pediatria': return <Users className="h-4 w-4" />;
+                case 'Clínica Médica': return <Stethoscope className="h-4 w-4" />;
+                case 'Clínica Cirúrgica': return <Activity className="h-4 w-4" />;
+                case 'MFC e Saúde Coletiva': return <Brain className="h-4 w-4" />;
+                case 'Revisão': return <BookOpen className="h-4 w-4" />;
+                case 'Avaliação': return <FileText className="h-4 w-4" />;
+                default: return <Video className="h-4 w-4" />;
+              }
+            };
+
+            return (
+              <ProgressAreaCard
+                key={discipline}
+                title={discipline}
+                current={stats.completed}
+                total={stats.total}
+                percentage={percentage}
+                icon={getIcon(discipline)}
+                variant="area"
               />
-            </div>
-          </CardContent>
-        </Card>
+            );
+          })}
+        </div>
 
         {/* Filtros */}
         <Card className="border-red-dark shadow-lg">
@@ -268,6 +398,20 @@ export const IntensivaoEnamed: React.FC = () => {
               <span className="font-medium text-red-darkest">Filtros:</span>
               
               <div className="flex gap-3 flex-wrap flex-1">
+                <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
+                  <SelectTrigger className="w-56 bg-blue-600 text-white border-blue-700 focus:ring-blue-500">
+                    <SelectValue placeholder="Filtrar por disciplina" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as disciplinas</SelectItem>
+                    {availableDisciplines.map(discipline => (
+                      <SelectItem key={discipline} value={discipline}>
+                        {discipline}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
                 <Select value={selectedWeek} onValueChange={setSelectedWeek}>
                   <SelectTrigger className="w-48 border-red-light focus:ring-red-dark">
                     <SelectValue placeholder="Selecionar semana" />
@@ -298,9 +442,10 @@ export const IntensivaoEnamed: React.FC = () => {
                   </Select>
                 )}
 
-                {(selectedWeek !== 'all' || selectedDay !== 'all') && (
+                {(selectedDiscipline !== 'all' || selectedWeek !== 'all' || selectedDay !== 'all') && (
                   <Button
                     onClick={() => {
+                      setSelectedDiscipline('all');
                       setSelectedWeek('all');
                       setSelectedDay('all');
                     }}
@@ -329,15 +474,24 @@ export const IntensivaoEnamed: React.FC = () => {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 flex-1">
-                    <div className={`p-2 rounded-lg ${
-                      item.completed ? 'bg-green-100 text-green-600' : 'bg-red-lightest text-red-dark'
-                    }`}>
-                      {getContentIcon(item.tema)}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={item.completed}
+                        onCheckedChange={() => toggleItemCompletion(item.itemKey)}
+                        className="data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
+                      />
+                      <div className={`p-2 rounded-lg ${
+                        item.completed ? 'bg-green-100 text-green-600' : 'bg-[#FDD] text-[#600606]'
+                      }`}>
+                        {item.completed ? <CheckCircle2 className="h-4 w-4" /> : getContentIcon(item.tema)}
+                      </div>
                     </div>
                     
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-neutral-darkest text-lg">
+                        <h3 className={`font-semibold text-lg ${
+                          item.completed ? 'text-green-600 line-through' : 'text-neutral-darkest'
+                        }`}>
                           {item.tema}
                         </h3>
                         {getContentTypeBadge(item.tema)}
@@ -347,19 +501,22 @@ export const IntensivaoEnamed: React.FC = () => {
                         <span className="font-medium">{item.semana}</span>
                         <span>•</span>
                         <span>{item.dia}</span>
+                        <span>•</span>
+                        <span className="text-blue-600 font-medium">{item.discipline}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {item.completed ? (
-                      <Badge className="bg-green-500 hover:bg-green-600">
+                      <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
                         Concluído
                       </Badge>
                     ) : (
                       <Button
                         variant="default"
-                        className="bg-red-dark hover:bg-red-darkest text-white transition-smooth"
+                        className="bg-[#600606] hover:bg-[#7D0C0C] text-white transition-smooth"
                       >
                         Acessar
                       </Button>
