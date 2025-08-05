@@ -43,7 +43,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       };
 
     case 'FAME':
-    case 'CLARETIANO':
+    case 'Claretiano':
       return {
         studyGuide: true,
         enamed: false,
