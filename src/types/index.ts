@@ -6,6 +6,12 @@ export interface User {
   semester: number;
 }
 
+export interface AccessRules {
+  studyGuide: boolean;
+  enamed: boolean;
+  dashboard: boolean;
+}
+
 export interface StudyContent {
   id: string;
   name: string;

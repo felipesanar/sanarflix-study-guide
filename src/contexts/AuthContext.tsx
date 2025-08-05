@@ -10,14 +10,26 @@ const mockUserData: Record<string, User> = {
   'estudante@medicina.com': {
     email: 'estudante@medicina.com',
     name: 'Ana Silva',
-    faculty: 'Claretiano',
+    faculty: 'CLARETIANO',
     semester: 3
   },
   'joao@medicina.com': {
     email: 'joao@medicina.com',
     name: 'João Santos',
-    faculty: 'USP',
+    faculty: 'FUNEPE',
     semester: 2
+  },
+  'unifeso@medicina.com': {
+    email: 'unifeso@medicina.com',
+    name: 'Carlos Silva',
+    faculty: 'UNIFESO',
+    semester: 5
+  },
+  'barao11@medicina.com': {
+    email: 'barao11@medicina.com',
+    name: 'Maria Santos',
+    faculty: 'BARÃO',
+    semester: 11
   }
 };
 

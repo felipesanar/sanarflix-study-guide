@@ -17,22 +17,26 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { getAccessRules } from '@/utils/accessRules';
 
 const menuItems = [
-  {
-    title: 'Guia de Estudos',
-    url: '/guia-estudos',
-    icon: BookOpen,
-  },
   {
     title: 'Dashboard',
     url: '/dashboard',
     icon: BarChart3,
+    accessKey: 'dashboard' as const,
+  },
+  {
+    title: 'Guia de Estudos',
+    url: '/guia-estudos',
+    icon: BookOpen,
+    accessKey: 'studyGuide' as const,
   },
   {
     title: 'Intensivão ENAMED',
     url: '/intensivao-enamed',
     icon: Zap,
+    accessKey: 'enamed' as const,
   },
 ];
 
@@ -42,6 +46,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === 'collapsed';
+  const accessRules = getAccessRules(user);
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
@@ -97,7 +102,7 @@ export function AppSidebar() {
           
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {menuItems.filter(item => accessRules[item.accessKey]).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink 

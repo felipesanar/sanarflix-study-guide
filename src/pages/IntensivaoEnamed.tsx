@@ -1,13 +1,14 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BookOpen, Video, FileText, Clock, Calendar, Target, Heart, Brain, Activity, Stethoscope, Users, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Video, FileText, Clock, Calendar, Target, Heart, Brain, Activity, Stethoscope, Users, CheckCircle2, List, CalendarDays } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
+import { CalendarView } from '@/components/CalendarView';
 
 // Dados do cronograma do Intensivão ENAMED
 const cronogramaDados = {
@@ -166,6 +167,22 @@ export const IntensivaoEnamed: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('enamed-view-mode') as 'list' | 'calendar';
+    if (savedViewMode) {
+      setViewMode(savedViewMode);
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  const toggleViewMode = () => {
+    const newMode = viewMode === 'list' ? 'calendar' : 'list';
+    setViewMode(newMode);
+    localStorage.setItem('enamed-view-mode', newMode);
+  };
 
   // Função para extrair disciplina do nome do dia
   const extractDiscipline = (diaName: string): string => {
@@ -391,11 +408,12 @@ export const IntensivaoEnamed: React.FC = () => {
           })}
         </div>
 
-        {/* Filtros */}
+        {/* Filtros e Controles de Visualização */}
         <Card className="border-red-dark shadow-lg">
           <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 items-center">
-              <span className="font-medium text-red-darkest">Filtros:</span>
+            <div className="flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex flex-wrap gap-4 items-center">
+                <span className="font-medium text-red-darkest">Filtros:</span>
               
               <div className="flex gap-3 flex-wrap flex-1">
                 <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
@@ -455,78 +473,109 @@ export const IntensivaoEnamed: React.FC = () => {
                     Limpar Filtros
                   </Button>
                 )}
+                </div>
+              </div>
+
+              {/* Controles de Visualização */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-neutral-medium">Visualização:</span>
+                <Button
+                  onClick={toggleViewMode}
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                >
+                  {viewMode === 'list' ? (
+                    <>
+                      <List className="h-4 w-4 mr-2" />
+                      Lista
+                    </>
+                  ) : (
+                    <>
+                      <CalendarDays className="h-4 w-4 mr-2" />
+                      Cronograma
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Lista de conteúdos */}
-        <div className="grid gap-4">
-          {filteredContent.map((item, index) => (
-            <Card 
-              key={index}
-              className={`border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] ${
-                item.completed 
-                  ? 'border-green-400 bg-green-50' 
-                  : 'border-red-dark bg-white'
-              }`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={item.completed}
-                        onCheckedChange={() => toggleItemCompletion(item.itemKey)}
-                        className="data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
-                      />
-                      <div className={`p-2 rounded-lg ${
-                        item.completed ? 'bg-green-100 text-green-600' : 'bg-[#FDD] text-[#600606]'
-                      }`}>
-                        {item.completed ? <CheckCircle2 className="h-4 w-4" /> : getContentIcon(item.tema)}
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className={`font-semibold text-lg ${
-                          item.completed ? 'text-green-600 line-through' : 'text-neutral-darkest'
+        {/* Conteúdos */}
+        {viewMode === 'list' ? (
+          <div className="grid gap-4">
+            {filteredContent.map((item, index) => (
+              <Card 
+                key={index}
+                className={`border-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01] ${
+                  item.completed 
+                    ? 'border-green-400 bg-green-50' 
+                    : 'border-red-dark bg-white'
+                }`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={item.completed}
+                          onCheckedChange={() => toggleItemCompletion(item.itemKey)}
+                          className="data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
+                        />
+                        <div className={`p-2 rounded-lg ${
+                          item.completed ? 'bg-green-100 text-green-600' : 'bg-[#FDD] text-[#600606]'
                         }`}>
-                          {item.tema}
-                        </h3>
-                        {getContentTypeBadge(item.tema)}
+                          {item.completed ? <CheckCircle2 className="h-4 w-4" /> : getContentIcon(item.tema)}
+                        </div>
                       </div>
                       
-                      <div className="flex items-center gap-4 text-sm text-neutral-medium">
-                        <span className="font-medium">{item.semana}</span>
-                        <span>•</span>
-                        <span>{item.dia}</span>
-                        <span>•</span>
-                        <span className="text-blue-600 font-medium">{item.discipline}</span>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className={`font-semibold text-lg ${
+                            item.completed ? 'text-green-600 line-through' : 'text-neutral-darkest'
+                          }`}>
+                            {item.tema}
+                          </h3>
+                          {getContentTypeBadge(item.tema)}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-neutral-medium">
+                          <span className="font-medium">{item.semana}</span>
+                          <span>•</span>
+                          <span>{item.dia}</span>
+                          <span>•</span>
+                          <span className="text-blue-600 font-medium">{item.discipline}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    {item.completed ? (
-                      <Badge className="bg-green-500 hover:bg-green-600 text-white">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Concluído
-                      </Badge>
-                    ) : (
-                      <Button
-                        variant="default"
-                        className="bg-[#600606] hover:bg-[#7D0C0C] text-white transition-smooth"
-                      >
-                        Acessar
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {item.completed ? (
+                        <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Concluído
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="default"
+                          className="bg-[#600606] hover:bg-[#7D0C0C] text-white transition-smooth"
+                        >
+                          Acessar
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <CalendarView 
+            items={filteredContent} 
+            onToggleCompletion={toggleItemCompletion} 
+          />
+        )}
 
         {filteredContent.length === 0 && (
           <Card className="border-red-light">

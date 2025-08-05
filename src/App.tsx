@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { StudyProvider } from "./contexts/StudyContext";
+import { getAccessRules } from "./utils/accessRules";
 import { LoginForm } from "./components/LoginForm";
 import { Layout } from "./components/Layout";
 import { StudyGuide } from "./pages/StudyGuide";
@@ -38,6 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppContent = () => {
   const { user } = useAuth();
+  const accessRules = getAccessRules(user);
 
   if (!user) {
     return (
@@ -48,41 +50,59 @@ const AppContent = () => {
     );
   }
 
+  // Determine default route based on user access
+  const getDefaultRoute = () => {
+    if (accessRules.studyGuide) return "/guia-estudos";
+    if (accessRules.enamed) return "/intensivao-enamed";
+    if (accessRules.dashboard) return "/dashboard";
+    return "/guia-estudos"; // Fallback
+  };
+
   return (
     <StudyProvider>
       <Routes>
-        <Route path="/login" element={<Navigate to="/guia-estudos" replace />} />
-        <Route
-          path="/guia-estudos"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <StudyGuide />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/intensivao-enamed"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <IntensivaoEnamed />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/guia-estudos" replace />} />
+        <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
+        
+        {accessRules.studyGuide && (
+          <Route
+            path="/guia-estudos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <StudyGuide />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+        
+        {accessRules.dashboard && (
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+        
+        {accessRules.enamed && (
+          <Route
+            path="/intensivao-enamed"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IntensivaoEnamed />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+        
+        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </StudyProvider>
