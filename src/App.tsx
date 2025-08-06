@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,9 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { StudyProvider } from "./contexts/StudyContext";
-import { AuthWrapper } from "./components/AuthWrapper";
 import { getAccessRules } from "./utils/accessRules";
-import { LoginForm } from "./components/LoginForm";
+import { AuthPage } from "./pages/AuthPage";
 import { Layout } from "./components/Layout";
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
@@ -32,7 +30,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
@@ -41,15 +39,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   const { user } = useAuth();
   const accessRules = getAccessRules(user);
-
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
 
   // Determine default route based on user access
   const getDefaultRoute = () => {
@@ -62,7 +51,8 @@ const AppContent = () => {
   return (
     <StudyProvider>
       <Routes>
-        <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="/auth" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
+        <Route path="/login" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
         
         {accessRules.studyGuide && (
           <Route
@@ -103,7 +93,7 @@ const AppContent = () => {
           />
         )}
         
-        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="/" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </StudyProvider>
@@ -117,9 +107,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AuthWrapper>
-            <AppContent />
-          </AuthWrapper>
+          <AppContent />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

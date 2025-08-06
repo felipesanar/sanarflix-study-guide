@@ -5,7 +5,26 @@ export interface User {
   name: string;
   faculty: string;
   semester: number;
-  requiresPasswordChange?: boolean;
+  cpf?: string;
+}
+
+export interface Profile {
+  id: string;
+  user_id: string;
+  nome: string;
+  cpf?: string;
+  email: string;
+  id_ies: string;
+  semestre?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SignUpData {
+  nome: string;
+  cpf?: string;
+  id_ies: string;
+  semestre?: number;
 }
 
 export interface AccessRules {
@@ -37,9 +56,10 @@ export interface Progress {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  profile: Profile | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, userData: SignUpData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  changePassword: (newPassword: string) => Promise<boolean>;
   isLoading: boolean;
 }
 

@@ -1,136 +1,194 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { AuthContextType, User } from '@/types';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { AuthContextType, User, Profile, SignUpData } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Map IES IDs to faculty names
-const iesIdToFaculty: Record<string, string> = {
-  '954aad2f-4030-4d5d-b27a-19eb8fac05cf': 'FUNEPE',
-  '12cfa7f2-45ba-406f-9e4d-aa719a6b94ca': 'FAMP',
-  '6029b69d-a2ef-4de5-b907-91f88122bb4e': 'CLARETIANO',
-  // Add other IES IDs as needed
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('sanarflix-user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: '',
+            faculty: '',
+            semester: 0
+          });
+          
+          // Fetch user profile
+          setTimeout(async () => {
+            try {
+              const { data: profileData, error } = await supabase
+                .from('profiles')
+                .select(`
+                  *,
+                  ies:id_ies(nome)
+                `)
+                .eq('user_id', session.user.id)
+                .single();
+
+              if (error) {
+                console.error('Error fetching profile:', error);
+                return;
+              }
+
+              if (profileData) {
+                setProfile(profileData);
+                setUser({
+                  id: session.user.id,
+                  email: profileData.email,
+                  name: profileData.nome,
+                  faculty: profileData.ies?.nome || '',
+                  semester: profileData.semestre || 0,
+                  cpf: profileData.cpf
+                });
+              }
+            } catch (error) {
+              console.error('Error in profile fetch:', error);
+            }
+          }, 0);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (!session) {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('auth-login', {
-        body: { email, password }
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
       if (error) {
-        throw new Error(error.message);
-      }
-
-      if (!data.success) {
         toast({
           title: "Erro no login",
-          description: data.error || "Email ou senha inválidos",
+          description: error.message === "Invalid login credentials" ? 
+            "Email ou senha inválidos" : error.message,
           variant: "destructive",
           duration: 3000,
         });
         setIsLoading(false);
-        return false;
+        return { success: false, error: error.message };
       }
 
-      const userData: User = {
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.nome,
-        faculty: iesIdToFaculty[data.user.id_ies] || 'Desconhecida',
-        semester: data.user.semestre,
-        requiresPasswordChange: data.requiresPasswordChange,
-      };
-
-      setUser(userData);
-      localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-      
-      toast({
-        title: "Login realizado com sucesso!",
-        description: `Bem-vindo(a), ${userData.name}`,
-        duration: 3000,
-      });
-      
-      setIsLoading(false);
-      return true;
-
-    } catch (error: any) {
+      if (data.user) {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo(a) de volta`,
+          duration: 3000,
+        });
+        setIsLoading(false);
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Erro no login",
-        description: error.message || "Erro interno do servidor",
+        description: "Ocorreu um erro inesperado",
         variant: "destructive",
         duration: 3000,
       });
-      
-      setIsLoading(false);
-      return false;
     }
+    
+    setIsLoading(false);
+    return { success: false, error: "Erro inesperado" };
   };
 
-  const changePassword = async (newPassword: string): Promise<boolean> => {
-    if (!user) return false;
-
+  const signUp = async (email: string, password: string, userData: SignUpData): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('change-password', {
-        body: { 
-          userId: user.id,
-          newPassword 
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: userData
         }
       });
 
       if (error) {
-        throw new Error(error.message);
-      }
-
-      if (!data.success) {
         toast({
-          title: "Erro ao alterar senha",
-          description: data.error || "Erro desconhecido",
+          title: "Erro no cadastro",
+          description: error.message === "User already registered" ? 
+            "Este email já está cadastrado" : error.message,
           variant: "destructive",
           duration: 3000,
         });
-        return false;
+        setIsLoading(false);
+        return { success: false, error: error.message };
       }
 
-      // Update user state to remove password change requirement
-      const updatedUser = { ...user, requiresPasswordChange: false };
-      setUser(updatedUser);
-      localStorage.setItem('sanarflix-user', JSON.stringify(updatedUser));
-
-      return true;
-
-    } catch (error: any) {
+      if (data.user) {
+        toast({
+          title: "Cadastro realizado com sucesso!",
+          description: "Verifique seu email para confirmar a conta",
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('SignUp error:', error);
       toast({
-        title: "Erro ao alterar senha",
-        description: error.message || "Erro interno do servidor",
+        title: "Erro no cadastro",
+        description: "Ocorreu um erro inesperado",
         variant: "destructive",
         duration: 3000,
       });
-      return false;
     }
+    
+    setIsLoading(false);
+    return { success: false, error: "Erro inesperado" };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    
+    if (error) {
+      toast({
+        title: "Erro no logout",
+        description: error.message,
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
     setUser(null);
-    localStorage.removeItem('sanarflix-user');
-    localStorage.removeItem('study-progress');
+    setProfile(null);
+    setSession(null);
     
     toast({
       title: "Logout realizado",
@@ -140,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, changePassword, isLoading }}>
+    <AuthContext.Provider value={{ user, profile, login, signUp, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
