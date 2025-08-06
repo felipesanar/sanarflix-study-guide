@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { StudyProvider } from "./contexts/StudyContext";
+import { AuthWrapper } from "./components/AuthWrapper";
 import { getAccessRules } from "./utils/accessRules";
 import { LoginForm } from "./components/LoginForm";
 import { Layout } from "./components/Layout";
@@ -116,7 +117,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppContent />
+          <AuthWrapper>
+            <AppContent />
+          </AuthWrapper>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

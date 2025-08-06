@@ -97,12 +97,11 @@ export const LoginForm: React.FC = () => {
                 </Button>
               </form>
 
-              {/* Demo credentials */}
+              {/* Demo info */}
               <div className="mt-6 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                <p className="text-xs text-neutral-700 mb-2 font-medium">Credenciais de demonstração:</p>
-                <div className="text-xs text-neutral-600 space-y-1">
-                  <p><strong>Email:</strong> estudante@medicina.com</p>
-                  <p><strong>Senha:</strong> qualquer senha (6+ caracteres)</p>
+                <p className="text-xs text-neutral-700 mb-2 font-medium">Use suas credenciais do Sanarflix:</p>
+                <div className="text-xs text-neutral-600">
+                  <p>Entre com o email e senha fornecidos pela sua instituição</p>
                 </div>
               </div>
             </CardContent>
