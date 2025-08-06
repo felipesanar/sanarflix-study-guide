@@ -14,13 +14,155 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conteudos: {
+        Row: {
+          conteudos: Json
+          id: string
+          id_ies: string
+          semestre: number
+        }
+        Insert: {
+          conteudos: Json
+          id?: string
+          id_ies: string
+          semestre: number
+        }
+        Update: {
+          conteudos?: Json
+          id?: string
+          id_ies?: string
+          semestre?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ies: {
+        Row: {
+          id: string
+          nome: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          cpf: string | null
+          created_at: string
+          email: string
+          id: string
+          id_ies: string
+          nome: string
+          semestre: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          id_ies: string
+          nome: string
+          semestre?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          id_ies?: string
+          nome?: string
+          semestre?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_ies_fkey"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          faculty: string
+          id: string
+          name: string
+          password_hash: string
+          requires_password_change: boolean
+          semester: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          faculty: string
+          id?: string
+          name: string
+          password_hash: string
+          requires_password_change?: boolean
+          semester: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          faculty?: string
+          id?: string
+          name?: string
+          password_hash?: string
+          requires_password_change?: boolean
+          semester?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      atualizar_senha: {
+        Args: { nova_senha: string }
+        Returns: undefined
+      }
+      get_current_user_faculty: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_ies_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_semester: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_user_ies_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

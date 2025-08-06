@@ -1,1 +1,7 @@
 project_id = "gvqvrmkizemwsasmupmo"
+
+[functions.auth-login]
+verify_jwt = false
+
+[functions.update-password]
+verify_jwt = false

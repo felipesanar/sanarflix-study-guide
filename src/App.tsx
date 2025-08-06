@@ -9,6 +9,7 @@ import { StudyProvider } from "./contexts/StudyContext";
 import { getAccessRules } from "./utils/accessRules";
 import { LoginForm } from "./components/LoginForm";
 import { Layout } from "./components/Layout";
+import { AuthWrapper } from "./components/AuthWrapper";
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
@@ -60,51 +61,53 @@ const AppContent = () => {
 
   return (
     <StudyProvider>
-      <Routes>
-        <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
-        
-        {accessRules.studyGuide && (
-          <Route
-            path="/guia-estudos"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <StudyGuide />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-        )}
-        
-        {accessRules.dashboard && (
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-        )}
-        
-        {accessRules.enamed && (
-          <Route
-            path="/intensivao-enamed"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <IntensivaoEnamed />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-        )}
-        
-        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <AuthWrapper>
+        <Routes>
+          <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
+          
+          {accessRules.studyGuide && (
+            <Route
+              path="/guia-estudos"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <StudyGuide />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+          )}
+          
+          {accessRules.dashboard && (
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+          )}
+          
+          {accessRules.enamed && (
+            <Route
+              path="/intensivao-enamed"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <IntensivaoEnamed />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+          )}
+          
+          <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AuthWrapper>
     </StudyProvider>
   );
 };

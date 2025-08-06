@@ -2,36 +2,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Mock data - In production, this would come from Athena
-const mockUserData: Record<string, User> = {
-  'estudante@medicina.com': {
-    email: 'estudante@medicina.com',
-    name: 'Ana Silva',
-    faculty: 'Claretiano',
-    semester: 3
-  },
-  'joao@medicina.com': {
-    email: 'joao@medicina.com',
-    name: 'João Santos',
-    faculty: 'FUNEPE',
-    semester: 2
-  },
-  'unifeso@medicina.com': {
-    email: 'unifeso@medicina.com',
-    name: 'Carlos Silva',
-    faculty: 'UNIFESO',
-    semester: 5
-  },
-  'barao11@medicina.com': {
-    email: 'barao11@medicina.com',
-    name: 'Maria Santos',
-    faculty: 'BARÃO',
-    semester: 11
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -49,12 +22,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      // Call auth-login edge function
+      const { data, error } = await supabase.functions.invoke('auth-login', {
+        body: { email, password }
+      });
 
-    // Mock authentication - In production, this would validate against Sanarflix/Athena
-    if (email in mockUserData && password.length >= 6) {
-      const userData = mockUserData[email];
+      if (error || !data.success) {
+        throw new Error(data?.error || 'Erro na autenticação');
+      }
+
+      const userData = data.user;
       setUser(userData);
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       
@@ -66,17 +44,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setIsLoading(false);
       return true;
-    }
 
-    toast({
-      title: "Erro no login",
-      description: "Email ou senha inválidos",
-      variant: "destructive",
-      duration: 3000,
-    });
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      toast({
+        title: "Erro no login",
+        description: error.message || "Email ou senha inválidos",
+        variant: "destructive",
+        duration: 3000,
+      });
+      
+      setIsLoading(false);
+      return false;
+    }
+  };
+
+  const updatePassword = async (newPassword: string): Promise<boolean> => {
+    if (!user) return false;
     
-    setIsLoading(false);
-    return false;
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('update-password', {
+        body: { email: user.email, newPassword }
+      });
+
+      if (error || !data.success) {
+        throw new Error(data?.error || 'Erro ao atualizar senha');
+      }
+
+      // Update user state to remove password change requirement
+      const updatedUser = { ...user, requiresPasswordChange: false };
+      setUser(updatedUser);
+      localStorage.setItem('sanarflix-user', JSON.stringify(updatedUser));
+      
+      toast({
+        title: "Senha atualizada!",
+        description: "Sua senha foi alterada com sucesso",
+        duration: 3000,
+      });
+      
+      setIsLoading(false);
+      return true;
+
+    } catch (error: any) {
+      console.error('Update password error:', error);
+      
+      toast({
+        title: "Erro ao atualizar senha",
+        description: error.message || "Tente novamente",
+        variant: "destructive",
+        duration: 3000,
+      });
+      
+      setIsLoading(false);
+      return false;
+    }
   };
 
   const logout = () => {
@@ -92,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, updatePassword, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
