@@ -347,7 +347,7 @@ export const IntensivaoEnamed: React.FC = () => {
             </p>
           )}
           
-          <div className="bg-gradient-primary text-white px-6 py-3 rounded-2xl inline-block shadow-lg animate-pulse">
+          <div className="bg-gradient-primary text-black px-6 py-3 rounded-2xl inline-block shadow-lg animate-pulse">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
               <span className="font-semibold">Faltam {diasRestantes} dias para o ENAMED!</span>

@@ -1,0 +1,21 @@
+name: Importar Dados do Google Sheets Diariamente
+on:
+  # Agenda a execução para todos os dias às 8:00 UTC
+  # ATENÇÃO: 8:00 UTC corresponde às 5:00 da manhã no horário de Salvador (BRT -03:00)
+  schedule:
+    - cron: '0 8 * * *'
+  # Permite que você execute este workflow manualmente pela aba "Actions" do GitHub
+  workflow_dispatch:
+jobs:
+  import_data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar a Função Supabase para Importar Dados
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.SERVICE_ROLE }}" \
+          -d '{
+            "googleSheetsUrl": "${{ secrets.GOOGLE_SHEETS_URL }}",
+            "adminKey": "${{ secrets.ADMIN_KEY }}"
+          }'
