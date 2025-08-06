@@ -1,194 +1,88 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { AuthContextType, User, Profile, SignUpData } from '@/types';
+import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Mock data - In production, this would come from Athena
+const mockUserData: Record<string, User> = {
+  'estudante@medicina.com': {
+    email: 'estudante@medicina.com',
+    name: 'Ana Silva',
+    faculty: 'Claretiano',
+    semester: 3
+  },
+  'joao@medicina.com': {
+    email: 'joao@medicina.com',
+    name: 'João Santos',
+    faculty: 'FUNEPE',
+    semester: 2
+  },
+  'unifeso@medicina.com': {
+    email: 'unifeso@medicina.com',
+    name: 'Carlos Silva',
+    faculty: 'UNIFESO',
+    semester: 5
+  },
+  'barao11@medicina.com': {
+    email: 'barao11@medicina.com',
+    name: 'Maria Santos',
+    faculty: 'BARÃO',
+    semester: 11
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: '',
-            faculty: '',
-            semester: 0
-          });
-          
-          // Fetch user profile
-          setTimeout(async () => {
-            try {
-              const { data: profileData, error } = await supabase
-                .from('profiles')
-                .select(`
-                  *,
-                  ies:id_ies(nome)
-                `)
-                .eq('user_id', session.user.id)
-                .single();
-
-              if (error) {
-                console.error('Error fetching profile:', error);
-                return;
-              }
-
-              if (profileData) {
-                setProfile(profileData);
-                setUser({
-                  id: session.user.id,
-                  email: profileData.email,
-                  name: profileData.nome,
-                  faculty: profileData.ies?.nome || '',
-                  semester: profileData.semestre || 0,
-                  cpf: profileData.cpf
-                });
-              }
-            } catch (error) {
-              console.error('Error in profile fetch:', error);
-            }
-          }, 0);
-        } else {
-          setUser(null);
-          setProfile(null);
-        }
-        
-        setIsLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) {
-        setIsLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if user is already logged in
+    const storedUser = localStorage.getItem('sanarflix-user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (error) {
-        toast({
-          title: "Erro no login",
-          description: error.message === "Invalid login credentials" ? 
-            "Email ou senha inválidos" : error.message,
-          variant: "destructive",
-          duration: 3000,
-        });
-        setIsLoading(false);
-        return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: `Bem-vindo(a) de volta`,
-          duration: 3000,
-        });
-        setIsLoading(false);
-        return { success: true };
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: "Erro no login",
-        description: "Ocorreu um erro inesperado",
-        variant: "destructive",
-        duration: 3000,
-      });
-    }
-    
-    setIsLoading(false);
-    return { success: false, error: "Erro inesperado" };
-  };
-
-  const signUp = async (email: string, password: string, userData: SignUpData): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true);
-    
-    try {
-      const redirectUrl = `${window.location.origin}/`;
+    // Mock authentication - In production, this would validate against Sanarflix/Athena
+    if (email in mockUserData && password.length >= 6) {
+      const userData = mockUserData[email];
+      setUser(userData);
+      localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: userData
-        }
-      });
-
-      if (error) {
-        toast({
-          title: "Erro no cadastro",
-          description: error.message === "User already registered" ? 
-            "Este email já está cadastrado" : error.message,
-          variant: "destructive",
-          duration: 3000,
-        });
-        setIsLoading(false);
-        return { success: false, error: error.message };
-      }
-
-      if (data.user) {
-        toast({
-          title: "Cadastro realizado com sucesso!",
-          description: "Verifique seu email para confirmar a conta",
-          duration: 5000,
-        });
-        setIsLoading(false);
-        return { success: true };
-      }
-    } catch (error) {
-      console.error('SignUp error:', error);
       toast({
-        title: "Erro no cadastro",
-        description: "Ocorreu um erro inesperado",
-        variant: "destructive",
+        title: "Login realizado com sucesso!",
+        description: `Bem-vindo(a), ${userData.name}`,
         duration: 3000,
       });
+      
+      setIsLoading(false);
+      return true;
     }
+
+    toast({
+      title: "Erro no login",
+      description: "Email ou senha inválidos",
+      variant: "destructive",
+      duration: 3000,
+    });
     
     setIsLoading(false);
-    return { success: false, error: "Erro inesperado" };
+    return false;
   };
 
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      toast({
-        title: "Erro no logout",
-        description: error.message,
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-
+  const logout = () => {
     setUser(null);
-    setProfile(null);
-    setSession(null);
+    localStorage.removeItem('sanarflix-user');
+    localStorage.removeItem('study-progress');
     
     toast({
       title: "Logout realizado",
@@ -198,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, login, signUp, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

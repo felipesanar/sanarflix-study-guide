@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { StudyProvider } from "./contexts/StudyContext";
 import { getAccessRules } from "./utils/accessRules";
-import { AuthPage } from "./pages/AuthPage";
+import { LoginForm } from "./components/LoginForm";
 import { Layout } from "./components/Layout";
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
@@ -30,7 +31,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
@@ -39,6 +40,15 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   const { user } = useAuth();
   const accessRules = getAccessRules(user);
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
 
   // Determine default route based on user access
   const getDefaultRoute = () => {
@@ -51,8 +61,7 @@ const AppContent = () => {
   return (
     <StudyProvider>
       <Routes>
-        <Route path="/auth" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
-        <Route path="/login" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
+        <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
         
         {accessRules.studyGuide && (
           <Route
@@ -93,7 +102,7 @@ const AppContent = () => {
           />
         )}
         
-        <Route path="/" element={user ? <Navigate to={getDefaultRoute()} replace /> : <AuthPage />} />
+        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </StudyProvider>
