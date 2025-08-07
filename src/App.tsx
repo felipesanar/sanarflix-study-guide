@@ -4,11 +4,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { StudyProvider } from "./contexts/StudyContext";
-import { getAccessRules } from "./utils/accessRules";
-import { LoginForm } from "./components/LoginForm";
-import { Layout } from "./components/Layout";
+import { AppSidebar } from '@/components/AppSidebar';
+import { Layout } from '@/components/Layout';
+import { LoginForm } from '@/components/LoginForm';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { StudyProvider } from '@/contexts/StudyContext';
+import { AuthWrapper } from '@/components/AuthWrapper';
+import { getAccessRules } from '@/utils/accessRules';
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
@@ -116,7 +118,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppContent />
+          <AuthWrapper>
+            <AppContent />
+          </AuthWrapper>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

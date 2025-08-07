@@ -1,47 +1,23 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-// Mock data - In production, this would come from Athena
-const mockUserData: Record<string, User> = {
-  'estudante@medicina.com': {
-    email: 'estudante@medicina.com',
-    name: 'Ana Silva',
-    faculty: 'Claretiano',
-    semester: 3
-  },
-  'joao@medicina.com': {
-    email: 'joao@medicina.com',
-    name: 'João Santos',
-    faculty: 'FUNEPE',
-    semester: 2
-  },
-  'unifeso@medicina.com': {
-    email: 'unifeso@medicina.com',
-    name: 'Carlos Silva',
-    faculty: 'UNIFESO',
-    semester: 5
-  },
-  'barao11@medicina.com': {
-    email: 'barao11@medicina.com',
-    name: 'Maria Santos',
-    faculty: 'BARÃO',
-    semester: 11
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
 
   useEffect(() => {
     // Check if user is already logged in
     const storedUser = localStorage.getItem('sanarflix-user');
+    const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
+    
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+      setNeedsPasswordChange(storedPasswordChange === 'true');
     }
     setIsLoading(false);
   }, []);
@@ -49,39 +25,108 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const { data, error } = await supabase.functions.invoke('auth-login', {
+        body: { email, password }
+      });
 
-    // Mock authentication - In production, this would validate against Sanarflix/Athena
-    if (email in mockUserData && password.length >= 6) {
-      const userData = mockUserData[email];
+      if (error || data.error) {
+        toast({
+          title: "Erro no login",
+          description: data?.error || "Email ou senha inválidos",
+          variant: "destructive",
+          duration: 3000,
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      const userData = data.user;
       setUser(userData);
+      setNeedsPasswordChange(data.needsPasswordChange);
+      
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+      localStorage.setItem('sanarflix-needs-password-change', data.needsPasswordChange.toString());
+      
+      if (data.needsPasswordChange) {
+        toast({
+          title: "Primeiro acesso detectado",
+          description: "É necessário alterar sua senha",
+          duration: 5000,
+        });
+      } else {
+        toast({
+          title: "Login realizado com sucesso!",
+          description: `Bem-vindo(a), ${userData.nome}`,
+          duration: 3000,
+        });
+      }
+      
+      setIsLoading(false);
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Erro no login",
+        description: "Erro interno do servidor",
+        variant: "destructive",
+        duration: 3000,
+      });
+      setIsLoading(false);
+      return false;
+    }
+  };
+
+  const changePassword = async (newPassword: string): Promise<boolean> => {
+    if (!user) return false;
+
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('update-password', {
+        body: { userId: user.id, newPassword }
+      });
+
+      if (error || data.error) {
+        toast({
+          title: "Erro ao alterar senha",
+          description: data?.error || "Erro interno do servidor",
+          variant: "destructive",
+          duration: 3000,
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      setNeedsPasswordChange(false);
+      localStorage.setItem('sanarflix-needs-password-change', 'false');
       
       toast({
-        title: "Login realizado com sucesso!",
-        description: `Bem-vindo(a), ${userData.name}`,
+        title: "Senha alterada com sucesso!",
+        description: "Sua senha foi atualizada",
         duration: 3000,
       });
       
       setIsLoading(false);
       return true;
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast({
+        title: "Erro ao alterar senha",
+        description: "Erro interno do servidor",
+        variant: "destructive",
+        duration: 3000,
+      });
+      setIsLoading(false);
+      return false;
     }
-
-    toast({
-      title: "Erro no login",
-      description: "Email ou senha inválidos",
-      variant: "destructive",
-      duration: 3000,
-    });
-    
-    setIsLoading(false);
-    return false;
   };
 
   const logout = () => {
     setUser(null);
+    setNeedsPasswordChange(false);
     localStorage.removeItem('sanarflix-user');
+    localStorage.removeItem('sanarflix-needs-password-change');
     localStorage.removeItem('study-progress');
     
     toast({
@@ -92,7 +137,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      isLoading, 
+      needsPasswordChange, 
+      changePassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );

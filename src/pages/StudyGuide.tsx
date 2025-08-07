@@ -37,7 +37,7 @@ export const StudyGuide: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Guia de Estudos</h1>
             <p className="text-gray-600">
-              {user?.faculty} - {user?.semester}º período
+              {user?.ies_nome} - {user?.semestre}º período
             </p>
           </div>
         </div>
