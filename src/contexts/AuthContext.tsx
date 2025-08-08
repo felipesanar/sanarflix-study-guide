@@ -6,8 +6,10 @@ import { toast } from '@/hooks/use-toast';
 const AuthContext = createContext<AuthContextType | null>(null);
 
 // Mock data - In production, this would come from Athena
-
-
+const mockUserData: Record<string, User> = {
+  'ana@funepe.com': { email: 'ana@funepe.com', name: 'Ana Funepe', faculty: 'Funepe', semester: 11 },
+  'teste@demo.com': { email: 'teste@demo.com', name: 'Usuário Demo', faculty: 'Famp', semester: 10 },
+};
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);

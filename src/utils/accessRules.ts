@@ -7,8 +7,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: false
     };
   }
-  const { ies_nome, semestre } = user;
-  switch (ies_nome) {
+  const { faculty, semester } = user;
+  switch (faculty) {
     case 'Funepe':
     case 'Famp':
       return {
@@ -23,7 +23,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         dashboard: false
       };
     case 'Barão de Mauá':
-      const hasAccess = semestre === 11 || semestre === 12;
+      const hasAccess = semester === 11 || semester === 12;
       return {
         studyGuide: hasAccess,
         enamed: hasAccess,

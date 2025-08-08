@@ -10,137 +10,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 
-// Dados do cronograma do Intensivão ENAMED
-const cronogramaDados = {
-  semanas: [
-    {
-      numero: "Semana 01",
-      periodo: "11/08-17/08",
-      dias: [
-        {
-          nome: "Dia 1 - Ginecologia e Obstetrícia",
-          temas: [
-            "Da Concepção ao Puerpério",
-            "- Assistência pré-natal",
-            "- O parto",
-            "- Puerpério"
-          ]
-        },
-        {
-          nome: "Dia 2 - Pediatria",
-          temas: [
-            "Neonatologia e Primeiros Cuidados",
-            "- Reanimação neonatal",
-            "- Icterícia neonatal",
-            "- Testes de triagem neonatal"
-          ]
-        },
-        {
-          nome: "Dia 3 - Clínica Médica",
-          temas: [
-            "Arritmias e Patologias Cardíacas",
-            "- Bradiarritmias",
-            "- Taquiarritmias",
-            "- Doenças do pericárdio"
-          ]
-        },
-        {
-          nome: "Dia 4 - Clínica Cirúrgica",
-          temas: [
-            "Atendimento ao Trauma (ATLS)",
-            "- ATLS: Atendimento Inicial ao Politraumatizado",
-            "- ATLS: Trauma Cranioencefálico",
-            "- ATLS: Trauma de Coluna Vertebral"
-          ]
-        },
-        {
-          nome: "Dia 5 - MFC, Saúde Coletiva e Saúde Mental",
-          temas: [
-            "Organização do SUS e Rede de Atenção Psicossocial",
-            "- História do SUS e leis orgânicas da saúde (SC)",
-            "- Financiamento e Funcionamento do SUS (SC)",
-            "- Urgências clínico-psiquiátricas (SM)"
-          ]
-        },
-        {
-          nome: "Dia 6",
-          temas: [
-            "Revisão Inteligente: S1"
-          ]
-        },
-        {
-          nome: "Dia 7",
-          temas: [
-            "Prova na Íntegra: REVALIDA - 2021"
-          ]
-        }
-      ]
-    },
-    {
-      numero: "Semana 02",
-      periodo: "18/08-24/08",
-      dias: [
-        {
-          nome: "Dia 1 - Ginecologia e Obstetrícia",
-          temas: [
-            "Intercorrências Clínicas na Gestação",
-            "- Doenças intercorrentes na gestação",
-            "- Diabetes e gestação",
-            "- Doenças hipertensivas na gestação"
-          ]
-        },
-        {
-          nome: "Dia 2 - Pediatria",
-          temas: [
-            "Saúde Perinatal e Desenvolvimento Inicial",
-            "- Doenças perinatais e da prematuridade",
-            "- Desconforto respiratório do recém-nascido",
-            "- Puericultura e aleitamento materno"
-          ]
-        },
-        {
-          nome: "Dia 3 - Clínica Médica",
-          temas: [
-            "Síndromes Dolorosas e Reumatológicas",
-            "- Fibromialgia e Síndromes Reumáticas dolorosas Regionais",
-            "- Lombalgia e Cervicalgia",
-            "- Lúpus Eritematoso Sistêmico"
-          ]
-        },
-        {
-          nome: "Dia 4 - Clínica Cirúrgica",
-          temas: [
-            "Trauma Específico e Choque",
-            "- ATLS: Trauma Torácico e Abdominal",
-            "- ATLS: Trauma Músculo-Esquelético",
-            "- ATLS: Choque"
-          ]
-        },
-        {
-          nome: "Dia 5 - MFC, Saúde Coletiva e Saúde Mental",
-          temas: [
-            "Abordagem Integral na Atenção Primária",
-            "- Atenção primária e Medicina de família e comunidade (MFC)",
-            "- Hipertensão arterial sistêmica (MFC)",
-            "- Transtornos de humor (SM)"
-          ]
-        },
-        {
-          nome: "Dia 6",
-          temas: [
-            "Revisão Inteligente: S1 + S2"
-          ]
-        },
-        {
-          nome: "Dia 7",
-          temas: [
-            "Prova na Íntegra: Simulado IV - SanarFlix"
-          ]
-        }
-      ]
-    }
-    // Adicionar mais semanas conforme necessário
-  ]
+// Fonte de dados: API oficial do cronograma ENAMED
+export const CRONOGRAMA_API = 'https://api-conteudos-enamed.onrender.com/api/cronograma';
+
+export type TemaDia = { nome: string; temas: string[] };
+export type Semana = { numero: string; periodo?: string; dias: TemaDia[] };
+export type Cronograma = { semanas: Semana[] };
+
+// Normaliza diferentes formatos de resposta para { semanas: [...] }
+export const normalizeCronograma = (data: any): Cronograma => {
+  if (!data) return { semanas: [] };
+  if (Array.isArray(data)) return { semanas: data as Semana[] };
+  if (Array.isArray((data as any).semanas)) return { semanas: (data as any).semanas as Semana[] };
+  const maybeWeeks = Object.values(data) as any[];
+  return { semanas: Array.isArray(maybeWeeks) ? (maybeWeeks as Semana[]) : [] };
 };
 
 const getContentIcon = (tema: string) => {
@@ -169,6 +52,11 @@ export const IntensivaoEnamed: React.FC = () => {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
+  // Estado para cronograma carregado da API
+  const [cronograma, setCronograma] = useState<Cronograma>({ semanas: [] });
+  const [loadingCronograma, setLoadingCronograma] = useState<boolean>(true);
+  const [cronogramaError, setCronogramaError] = useState<string | null>(null);
+
   // Load view preference from localStorage
   useEffect(() => {
     const savedViewMode = localStorage.getItem('enamed-view-mode') as 'list' | 'calendar';
@@ -183,6 +71,26 @@ export const IntensivaoEnamed: React.FC = () => {
     setViewMode(newMode);
     localStorage.setItem('enamed-view-mode', newMode);
   };
+  // Buscar cronograma completo da API oficial
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setLoadingCronograma(true);
+        setCronogramaError(null);
+        const res = await fetch(CRONOGRAMA_API, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const normalized = normalizeCronograma(data);
+        if (active) setCronograma(normalized);
+      } catch (e) {
+        if (active) setCronogramaError('Falha ao carregar o cronograma. Tente novamente mais tarde.');
+      } finally {
+        if (active) setLoadingCronograma(false);
+      }
+    })();
+    return () => { const _ = (active = false); };
+  }, []);
 
   // Função para extrair disciplina do nome do dia
   const extractDiscipline = (diaName: string): string => {
@@ -211,8 +119,8 @@ export const IntensivaoEnamed: React.FC = () => {
 
   // Calcular dados de progresso
   const progressData = useMemo(() => {
-    const totalItems = cronogramaDados.semanas.reduce((acc, semana) => 
-      acc + semana.dias.reduce((dayAcc, dia) => dayAcc + dia.temas.length, 0), 0
+    const totalItems = cronograma.semanas.reduce((acc, semana) => 
+      acc + semana.dias.reduce((dayAcc, dia) => dayAcc + (dia.temas?.length ?? 0), 0), 0
     );
     const completedCount = completedItems.size;
     const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
@@ -224,14 +132,14 @@ export const IntensivaoEnamed: React.FC = () => {
   const progressByDiscipline = useMemo(() => {
     const disciplineStats: Record<string, { total: number; completed: number }> = {};
     
-    cronogramaDados.semanas.forEach(semana => {
+    cronograma.semanas.forEach(semana => {
       semana.dias.forEach(dia => {
         const discipline = extractDiscipline(dia.nome);
         if (!disciplineStats[discipline]) {
           disciplineStats[discipline] = { total: 0, completed: 0 };
         }
         
-        dia.temas.forEach(tema => {
+        dia.temas?.forEach(tema => {
           const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
           disciplineStats[discipline].total++;
           if (completedItems.has(itemKey)) {
@@ -248,12 +156,12 @@ export const IntensivaoEnamed: React.FC = () => {
   const weekProgress = useMemo(() => {
     let completedWeeks = 0;
     
-    cronogramaDados.semanas.forEach(semana => {
+    cronograma.semanas.forEach(semana => {
       let weekTotal = 0;
       let weekCompleted = 0;
       
       semana.dias.forEach(dia => {
-        dia.temas.forEach(tema => {
+        dia.temas?.forEach(tema => {
           const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
           weekTotal++;
           if (completedItems.has(itemKey)) {
@@ -267,7 +175,7 @@ export const IntensivaoEnamed: React.FC = () => {
       }
     });
     
-    const totalWeeks = cronogramaDados.semanas.length;
+    const totalWeeks = cronograma.semanas.length;
     const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
     
     return { completedWeeks, totalWeeks, percentage };
@@ -276,7 +184,7 @@ export const IntensivaoEnamed: React.FC = () => {
   // Lista de disciplinas disponíveis
   const availableDisciplines = useMemo(() => {
     const disciplines = new Set<string>();
-    cronogramaDados.semanas.forEach(semana => {
+    cronograma.semanas.forEach(semana => {
       semana.dias.forEach(dia => {
         disciplines.add(extractDiscipline(dia.nome));
       });
@@ -287,7 +195,7 @@ export const IntensivaoEnamed: React.FC = () => {
   // Filtrar dados por semana selecionada
   const availableDays = useMemo(() => {
     if (selectedWeek === 'all') return [];
-    const semana = cronogramaDados.semanas.find(s => s.numero === selectedWeek);
+    const semana = cronograma.semanas.find(s => s.numero === selectedWeek);
     return semana ? semana.dias : [];
   }, [selectedWeek]);
 
@@ -302,7 +210,7 @@ export const IntensivaoEnamed: React.FC = () => {
       discipline: string;
     }> = [];
 
-    cronogramaDados.semanas.forEach(semana => {
+  cronograma.semanas.forEach(semana => {
       if (selectedWeek !== 'all' && semana.numero !== selectedWeek) return;
 
       semana.dias.forEach(dia => {
@@ -311,7 +219,7 @@ export const IntensivaoEnamed: React.FC = () => {
         const discipline = extractDiscipline(dia.nome);
         if (selectedDiscipline !== 'all' && discipline !== selectedDiscipline) return;
 
-        dia.temas.forEach(tema => {
+        dia.temas?.forEach(tema => {
           const itemKey = `${semana.numero}-${dia.nome}-${tema}`;
           content.push({
             semana: semana.numero,
@@ -436,9 +344,9 @@ export const IntensivaoEnamed: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas as semanas</SelectItem>
-                    {cronogramaDados.semanas.map(semana => (
+                    {cronograma.semanas.map(semana => (
                       <SelectItem key={semana.numero} value={semana.numero}>
-                        {semana.numero} ({semana.periodo})
+                        {semana.numero} {semana.periodo ? `(${semana.periodo})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
