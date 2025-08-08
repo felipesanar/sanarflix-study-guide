@@ -12,22 +12,22 @@ export const getAccessRules = (user: User | null): AccessRules => {
   const { ies_nome, semestre } = user;
 
   switch (ies_nome) {
-    case 'FUNEPE':
-    case 'FAMP':
+    case 'Funepe':
+    case 'Famp':
       return {
         studyGuide: true,
         enamed: true,
         dashboard: true
       };
 
-    case 'UNIFESO':
+    case 'Unifeso':
       return {
         studyGuide: false,
         enamed: true,
         dashboard: false
       };
 
-    case 'BARÃO':
+    case 'Barão de Mauá':
       const hasAccess = semestre === 11 || semestre === 12;
       return {
         studyGuide: hasAccess,
@@ -35,14 +35,14 @@ export const getAccessRules = (user: User | null): AccessRules => {
         dashboard: hasAccess
       };
 
-    case 'INTEGRADO':
+    case 'Integrado':
       return {
         studyGuide: true,
         enamed: false,
         dashboard: true
       };
 
-    case 'FAME':
+    case 'Fame':
     case 'Claretiano':
       return {
         studyGuide: true,
@@ -50,8 +50,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         dashboard: true
       };
 
-    case 'FACERES':
-    case 'UNIFIP':
+    case 'Faceres':
+    case 'Unifip':
       return {
         studyGuide: false,
         enamed: false,
