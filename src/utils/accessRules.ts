@@ -1,5 +1,4 @@
 import { AccessRules, User } from '@/types';
-
 export const getAccessRules = (user: User | null): AccessRules => {
   if (!user) {
     return {
@@ -8,56 +7,48 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: false
     };
   }
-
-  const { faculty, semester } = user;
-
-  switch (faculty) {
-    case 'FUNEPE':
-    case 'FAMP':
+  const { ies_nome, semestre } = user;
+  switch (ies_nome) {
+    case 'Funepe':
+    case 'Famp':
       return {
         studyGuide: true,
         enamed: true,
         dashboard: true
       };
-
-    case 'UNIFESO':
+    case 'Unifeso':
       return {
         studyGuide: false,
         enamed: true,
         dashboard: false
       };
-
-    case 'BARÃO':
-      const hasAccess = semester === 11 || semester === 12;
+    case 'Barão de Mauá':
+      const hasAccess = semestre === 11 || semestre === 12;
       return {
         studyGuide: hasAccess,
         enamed: hasAccess,
         dashboard: hasAccess
       };
-
-    case 'INTEGRADO':
+    case 'Integrado':
       return {
         studyGuide: true,
         enamed: false,
         dashboard: true
       };
-
-    case 'FAME':
+    case 'Fame':
     case 'Claretiano':
       return {
         studyGuide: true,
         enamed: false,
         dashboard: true
       };
-
-    case 'FACERES':
-    case 'UNIFIP':
+    case 'Faceres':
+    case 'Unifip':
       return {
         studyGuide: false,
         enamed: false,
         dashboard: false
       };
-
     default:
       return {
         studyGuide: false,
