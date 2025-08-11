@@ -52,11 +52,11 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
       ? 'bg-primary text-primary-foreground font-medium shadow-lg border border-primary/20'
-      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-all duration-200 hover:translate-x-1';
+      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] transition-all duration-200 hover:translate-x-1';
 
   return (
     <Sidebar
-      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-[hsl(var(--sidebar-border))] shadow-lg bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))]`}
+      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-[hsl(var(--sidebar-border))] shadow-lg bg-[hsl(var(--sidebar-background))] gradient-sidebar text-[hsl(var(--sidebar-foreground))]`}
       collapsible="icon"
     >
       <SidebarHeader className={`p-4 border-b border-[hsl(var(--sidebar-border))] ${collapsed ? 'px-2' : ''}`}>
@@ -68,8 +68,8 @@ export function AppSidebar() {
           />
           {!collapsed && (
             <div className="animate-fade-in">
-              <h2 className="font-bold text-lg text-[hsl(var(--sidebar-foreground))]">Sanarflix</h2>
-              <p className="text-xs text-[hsl(var(--sidebar-accent-foreground))]">Guia de Estudos</p>
+              <h2 className="font-bold text-lg text-foreground">Sanarflix</h2>
+              <p className="text-xs text-muted-foreground">Guia de Estudos</p>
             </div>
           )}
         </div>
@@ -78,7 +78,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         {/* User Info */}
         {user && (
-          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-accent))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>
+          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-background))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full border border-primary/30">
                 <User className="h-4 w-4 text-primary-light" />
