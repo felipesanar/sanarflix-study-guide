@@ -23,20 +23,20 @@ export const ProgressAreaCard: React.FC<ProgressAreaCardProps> = ({
     switch (variant) {
       case 'general':
         return {
-          card: 'shadow-lg',
-          title: 'text-[#600606] font-bold text-lg',
+          card: 'ui-card shadow-lg',
+          title: 'text-foreground font-bold text-lg',
           progress: 'h-4'
         };
       case 'weeks':
         return {
-          card: 'shadow-md',
-          title: 'text-blue-700 font-semibold',
+          card: 'ui-card shadow-md border-[hsl(var(--active-selection))]',
+          title: 'text-foreground font-semibold',
           progress: 'h-3'
         };
       default:
         return {
-          card: 'bg-card shadow-md hover:shadow-lg transition-shadow',
-          title: 'text-neutral-darkest font-semibold',
+          card: 'ui-card shadow-md hover:shadow-lg transition-shadow',
+          title: 'text-foreground font-semibold',
           progress: 'h-3'
         };
     }
@@ -56,17 +56,18 @@ export const ProgressAreaCard: React.FC<ProgressAreaCardProps> = ({
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
             <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-bold text-neutral-darkest">{current}</span>
-              <span className="text-sm text-neutral-medium">/ {total}</span>
+              <span className="text-2xl font-bold text-foreground">{current}</span>
+              <span className="text-sm text-muted-foreground">/ {total}</span>
             </div>
-            <span className="text-sm font-semibold px-2 py-1 rounded-full bg-[#FDD] text-[#600606]">
+            <span className="text-sm font-semibold px-2 py-1 rounded-full bg-[hsl(var(--secondary))] text-foreground">
               {percentage}%
             </span>
           </div>
           
           <Progress 
             value={percentage} 
-            className={`${styles.progress} bg-[#FDD]`}
+            className={`${styles.progress}`}
+            style={variant === 'weeks' ? ({ ['--progress-indicator' as any]: '207 89% 68%' } as React.CSSProperties) : undefined}
           />
         </div>
       </CardContent>

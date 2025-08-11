@@ -38,18 +38,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   return (
     <div className="space-y-6">
       {Object.entries(groupedItems).map(([week, days]) => (
-        <Card key={week} className="border-red-light shadow-md">
+        <Card key={week} className="ui-card shadow-md">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Calendar className="h-5 w-5 text-red-dark" />
-              <h3 className="text-xl font-semibold text-red-darkest">{week}</h3>
+              <Calendar className="h-5 w-5 text-[hsl(var(--primary-light))]" />
+              <h3 className="text-xl font-semibold text-foreground">{week}</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Object.entries(days).map(([day, dayItems]) => (
-                <Card key={day} className="border border-neutral-lighter bg-neutral-lightest">
+                <Card key={day} className="ui-card bg-card">
                   <CardContent className="p-4">
-                    <h4 className="font-medium text-neutral-darkest mb-3 text-sm">
+                    <h4 className="font-medium text-foreground mb-3 text-sm">
                       {day}
                     </h4>
                     
@@ -59,28 +59,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                           key={item.itemKey}
                           className={`p-2 rounded-lg border transition-all ${
                             item.completed 
-                              ? 'bg-green-50 border-green-200' 
-                              : 'bg-white border-neutral-light hover:border-red-light'
+                              ? 'bg-[hsl(var(--secondary))] border-green-600/40' 
+                              : 'bg-secondary border-border hover:border-[hsl(var(--active-selection))]'
                           }`}
                         >
                           <div className="flex items-start gap-2">
                             <Checkbox
                               checked={item.completed}
                               onCheckedChange={() => onToggleCompletion(item.itemKey)}
-                              className="mt-0.5 data-[state=checked]:bg-red-darkest data-[state=checked]:border-red-darkest"
+                              className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
                             />
                             
                             <div className="flex-1 min-w-0">
                               <p className={`text-xs font-medium ${
-                                item.completed ? 'text-green-600 line-through' : 'text-neutral-darkest'
+                                item.completed ? 'text-muted-foreground line-through' : 'text-foreground'
                               }`}>
                                 {item.tema}
                               </p>
                               
                               <div className="flex items-center gap-1 mt-1">
                                 <Badge 
-                                  variant="secondary" 
-                                  className="text-xs bg-blue-100 text-blue-700"
+                                  variant="secondary"
+                                  className="text-xs"
                                 >
                                   {item.discipline}
                                 </Badge>

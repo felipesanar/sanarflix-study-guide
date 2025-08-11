@@ -413,7 +413,7 @@ const allAulas: AulaItem[] = useMemo(() => {
             current={progressData.completedItems}
             total={progressData.totalItems}
             percentage={progressData.percentage}
-            icon={<Target className="h-5 w-5" />}
+            icon={<Target className="h-5 w-5 text-primary dark:text-[hsl(var(--primary-light))]" />}
             variant="general"
           />
 
@@ -423,7 +423,7 @@ const allAulas: AulaItem[] = useMemo(() => {
             current={weekProgress.completedWeeks}
             total={weekProgress.totalWeeks}
             percentage={weekProgress.percentage}
-            icon={<Calendar className="h-5 w-5" />}
+            icon={<Calendar className="h-5 w-5 text-[hsl(var(--active-selection))]" />}
             variant="weeks"
           />
 
