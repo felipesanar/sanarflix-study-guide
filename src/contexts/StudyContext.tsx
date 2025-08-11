@@ -1,112 +1,10 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StudyContextType, StudyContent, Progress } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const StudyContext = createContext<StudyContextType | null>(null);
-
-// Mock study content data based on faculty and semester
-const mockStudyContents: Record<string, Record<number, StudyContent[]>> = {
-  'Claretiano': {
-    3: [
-      {
-        id: '1',
-        name: 'Anatomia do Sistema Cardiovascular',
-        discipline: 'Anatomia',
-        week: 1,
-        sanarflixUrl: 'https://sanarflix.com.br/anatomia-cardiovascular',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '2',
-        name: 'Fisiologia Cardíaca - Ciclo Cardíaco',
-        discipline: 'Fisiologia',
-        week: 1,
-        sanarflixUrl: 'https://sanarflix.com.br/fisiologia-cardiaca',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '3',
-        name: 'Exercícios de Anatomia Cardiovascular',
-        discipline: 'Anatomia',
-        week: 1,
-        sanarflixUrl: 'https://sanarflix.com.br/exercicios-anatomia',
-        completed: false,
-        type: 'exercise'
-      },
-      {
-        id: '4',
-        name: 'Farmacologia Cardiovascular',
-        discipline: 'Farmacologia',
-        week: 2,
-        sanarflixUrl: 'https://sanarflix.com.br/farmaco-cardiovascular',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '5',
-        name: 'Patologia Cardíaca',
-        discipline: 'Patologia',
-        week: 2,
-        sanarflixUrl: 'https://sanarflix.com.br/patologia-cardiaca',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '6',
-        name: 'Sistema Respiratório - Anatomia',
-        discipline: 'Anatomia',
-        week: 3,
-        sanarflixUrl: 'https://sanarflix.com.br/anatomia-respiratorio',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '7',
-        name: 'Fisiologia Respiratória',
-        discipline: 'Fisiologia',
-        week: 3,
-        sanarflixUrl: 'https://sanarflix.com.br/fisiologia-respiratoria',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '8',
-        name: 'Questões de Fisiologia',
-        discipline: 'Fisiologia',
-        week: 3,
-        sanarflixUrl: 'https://sanarflix.com.br/questoes-fisiologia',
-        completed: false,
-        type: 'exercise'
-      }
-    ]
-  },
-  'USP': {
-    2: [
-      {
-        id: '9',
-        name: 'Introdução à Histologia',
-        discipline: 'Histologia',
-        week: 1,
-        sanarflixUrl: 'https://sanarflix.com.br/intro-histologia',
-        completed: false,
-        type: 'video'
-      },
-      {
-        id: '10',
-        name: 'Tecidos Básicos',
-        discipline: 'Histologia',
-        week: 1,
-        sanarflixUrl: 'https://sanarflix.com.br/tecidos-basicos',
-        completed: false,
-        type: 'video'
-      }
-    ]
-  }
-};
 
 export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -119,20 +17,48 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   useEffect(() => {
-    if (user) {
-      // Load study contents based on user's faculty and semester
-      const contents = mockStudyContents[user.faculty]?.[user.semester] || [];
-      setStudyContents(contents);
+    if (user && user.id_ies && user.semestre) {
+      loadStudyContents();
+    }
+  }, [user]);
+
+  const loadStudyContents = async () => {
+    if (!user || !user.id_ies || !user.semestre) return;
+
+    try {
+      // Use raw SQL to avoid TypeScript issues with table types
+      const { data: conteudosData, error } = await supabase
+        .rpc('get_conteudos_for_user', {
+          user_id_ies: user.id_ies,
+          user_semestre: user.semestre
+        });
+
+      if (error) {
+        console.error('Error loading study contents:', error);
+        // If no content found, set empty array
+        setStudyContents([]);
+        return;
+      }
+
+      if (!conteudosData || conteudosData.length === 0) {
+        console.log('No content found for this IES and semester');
+        setStudyContents([]);
+        return;
+      }
+
+      // Process JSONB content
+      const processedContents = processConteudosJsonb(conteudosData[0]?.conteudos);
+      setStudyContents(processedContents);
 
       // Load saved progress
       const savedProgress = localStorage.getItem('study-progress');
       if (savedProgress) {
         const parsedProgress = JSON.parse(savedProgress);
-        if (parsedProgress.userId === user.email) {
+        if (parsedProgress.userId === user.id) {
           setProgress(parsedProgress);
           
           // Update content completion status
-          const updatedContents = contents.map(content => ({
+          const updatedContents = processedContents.map(content => ({
             ...content,
             completed: parsedProgress.completedItems.includes(content.id)
           }));
@@ -141,11 +67,45 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Initialize progress if not exists
-      if (!savedProgress || JSON.parse(savedProgress).userId !== user.email) {
-        initializeProgress(contents, user.email);
+      if (!savedProgress || JSON.parse(savedProgress).userId !== user.id) {
+        initializeProgress(processedContents, user.id);
       }
+    } catch (error) {
+      console.error('Error loading study contents:', error);
+      setStudyContents([]);
     }
-  }, [user]);
+  };
+
+  const processConteudosJsonb = (conteudosJsonb: any): StudyContent[] => {
+    if (!conteudosJsonb || typeof conteudosJsonb !== 'object') {
+      return [];
+    }
+
+    const contents: StudyContent[] = [];
+    
+    // Process the JSONB structure
+    // Assuming structure like: { "week_1": [{ "name": "...", "discipline": "...", ... }], ... }
+    Object.keys(conteudosJsonb).forEach(weekKey => {
+      const weekNumber = parseInt(weekKey.replace('week_', '') || '1');
+      const weekContents = conteudosJsonb[weekKey];
+      
+      if (Array.isArray(weekContents)) {
+        weekContents.forEach((item, index) => {
+          contents.push({
+            id: `${weekKey}_${index}`,
+            name: item.name || item.titulo || 'Conteúdo sem título',
+            discipline: item.discipline || item.disciplina || 'Geral',
+            week: weekNumber,
+            sanarflixUrl: item.url || item.sanarflixUrl || '#',
+            completed: false,
+            type: item.type || item.tipo || 'video'
+          });
+        });
+      }
+    });
+
+    return contents;
+  };
 
   const initializeProgress = (contents: StudyContent[], userId: string) => {
     const disciplineProgress: Record<string, { completed: number; total: number; percentage: number }> = {};

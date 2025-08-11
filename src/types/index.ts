@@ -1,9 +1,12 @@
 
 export interface User {
+  id: string;           // campo 'id' da tabela users
   email: string;
-  name: string;
-  faculty: string;
-  semester: number;
+  nome: string;         // renomear de 'name' para 'nome'
+  cpf?: string;
+  id_ies: string;       // UUID da instituição
+  ies_nome: string;     // nome da IES (obtido via JOIN)
+  semestre?: number;
 }
 
 export interface AccessRules {
@@ -38,6 +41,8 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  needsPasswordChange: boolean;
+  changePassword: (newPassword: string) => Promise<boolean>;
 }
 
 export interface StudyContextType {

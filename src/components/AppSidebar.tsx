@@ -84,10 +84,10 @@ export function AppSidebar() {
               {!collapsed && (
                 <div className="min-w-0 flex-1 animate-fade-in">
                   <p className="text-sm font-medium text-white truncate">
-                    {user.name}
+                    {user.nome}
                   </p>
                   <p className="text-xs text-neutral-300 truncate">
-                    {user.faculty} - {user.semester}º período
+                    {user.ies_nome} - {user.semestre}º período
                   </p>
                 </div>
               )}

@@ -101,8 +101,9 @@ export const LoginForm: React.FC = () => {
               <div className="mt-6 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
                 <p className="text-xs text-neutral-700 mb-2 font-medium">Credenciais de demonstração:</p>
                 <div className="text-xs text-neutral-600 space-y-1">
-                  <p><strong>Email:</strong> estudante@medicina.com</p>
+                  <p><strong>Email:</strong> Use o email do seu cadastro</p>
                   <p><strong>Senha:</strong> qualquer senha (6+ caracteres)</p>
+                  <p className="text-xs text-neutral-500">(primeira vez exigirá mudança de senha)</p>
                 </div>
               </div>
             </CardContent>

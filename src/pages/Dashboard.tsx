@@ -66,7 +66,7 @@ export const Dashboard: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard de Progresso</h1>
             <p className="text-gray-600">
-              Acompanhe seu desempenho no {user?.faculty} - {user?.semester}º período
+              Acompanhe seu desempenho no {user?.ies_nome} - {user?.semestre}º período
             </p>
           </div>
         </div>

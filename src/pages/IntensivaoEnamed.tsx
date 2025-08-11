@@ -251,7 +251,7 @@ export const IntensivaoEnamed: React.FC = () => {
           
           {user && (
             <p className="text-lg text-neutral-medium">
-              {user.faculty} - {user.semester}º período
+              {user.ies_nome} - {user.semestre}º período
             </p>
           )}
           
