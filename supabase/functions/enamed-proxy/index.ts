@@ -1,15 +1,24 @@
 // Public CORS-enabled proxy for ENAMED cronograma API
 // Allows only the specified preview domain to consume it
 
-const ALLOWED_ORIGIN = 'https://preview--sanarflix-study-guide.lovable.app';
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://sanarflix-study-guide.lovable.app',
+  'https://preview--sanarflix-study-guide.lovable.app',
+  'http://localhost:5173',
+]);
 
-const corsHeaders: Record<string, string> = {
-  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS'
-};
+function buildCorsHeaders(origin?: string): Record<string, string> {
+  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : '*';
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  };
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const origin = req.headers.get('origin') || undefined;
+  const corsHeaders = buildCorsHeaders(origin);
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
