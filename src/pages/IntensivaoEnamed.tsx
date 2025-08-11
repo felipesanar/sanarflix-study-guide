@@ -19,11 +19,64 @@ export type Cronograma = { semanas: Semana[] };
 
 // Normaliza diferentes formatos de resposta para { semanas: [...] }
 export const normalizeCronograma = (data: any): Cronograma => {
-  if (!data) return { semanas: [] };
-  if (Array.isArray(data)) return { semanas: data as Semana[] };
-  if (Array.isArray((data as any).semanas)) return { semanas: (data as any).semanas as Semana[] };
-  const maybeWeeks = Object.values(data) as any[];
-  return { semanas: Array.isArray(maybeWeeks) ? (maybeWeeks as Semana[]) : [] };
+  try {
+    if (!data) return { semanas: [] };
+
+    // Support both { cronograma: { semanas: [...] }} or direct { semanas: [...] }
+    const root = (data as any).cronograma ? (data as any).cronograma : data;
+
+    const rawWeeks: any[] = Array.isArray(root?.semanas)
+      ? root.semanas
+      : Array.isArray(root)
+      ? root
+      : [];
+
+    const semanas: Semana[] = rawWeeks.map((w: any, idx: number) => {
+      const numero: string =
+        (w?.numero as string) ??
+        (w?.nome as string) ??
+        (w?.titulo as string) ??
+        `Semana ${idx + 1}`;
+
+      const diasRaw: any[] = Array.isArray(w?.dias) ? w.dias : [];
+
+      const dias: TemaDia[] = diasRaw.map((d: any) => {
+        const diaNome: string = (d?.nome as string) ?? (d?.titulo as string) ?? 'Dia';
+
+        // Flatten nested structure temas -> subtemas -> aulas into strings
+        const temasStrings: string[] = [];
+
+        const temas = Array.isArray(d?.temas) ? d.temas : [];
+        temas.forEach((t: any) => {
+          if (typeof t?.nome === 'string') temasStrings.push(t.nome);
+
+          const subtemas = Array.isArray(t?.subtemas) ? t.subtemas : [];
+          subtemas.forEach((st: any) => {
+            if (typeof st?.nome === 'string') temasStrings.push(st.nome);
+
+            const aulas = Array.isArray(st?.aulas) ? st.aulas : [];
+            aulas.forEach((a: any) => {
+              if (typeof a?.nome === 'string') temasStrings.push(a.nome);
+            });
+          });
+        });
+
+        // Fallback: aulas directly inside day
+        const aulasDia = Array.isArray((d as any).aulas) ? (d as any).aulas : [];
+        aulasDia.forEach((a: any) => {
+          if (typeof a?.nome === 'string') temasStrings.push(a.nome);
+        });
+
+        return { nome: diaNome, temas: temasStrings };
+      });
+
+      return { numero, dias };
+    });
+
+    return { semanas };
+  } catch {
+    return { semanas: [] };
+  }
 };
 
 const getContentIcon = (tema: string) => {
@@ -126,7 +179,7 @@ export const IntensivaoEnamed: React.FC = () => {
     const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
     
     return { totalItems, completedItems: completedCount, percentage };
-  }, [completedItems]);
+  }, [completedItems, cronograma]);
 
   // Calcular progresso por disciplina
   const progressByDiscipline = useMemo(() => {
@@ -150,7 +203,7 @@ export const IntensivaoEnamed: React.FC = () => {
     });
     
     return disciplineStats;
-  }, [completedItems]);
+  }, [completedItems, cronograma]);
 
   // Calcular semanas concluídas
   const weekProgress = useMemo(() => {
@@ -179,7 +232,7 @@ export const IntensivaoEnamed: React.FC = () => {
     const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
     
     return { completedWeeks, totalWeeks, percentage };
-  }, [completedItems]);
+  }, [completedItems, cronograma]);
 
   // Lista de disciplinas disponíveis
   const availableDisciplines = useMemo(() => {
@@ -190,14 +243,14 @@ export const IntensivaoEnamed: React.FC = () => {
       });
     });
     return Array.from(disciplines).sort();
-  }, []);
+  }, [cronograma]);
 
   // Filtrar dados por semana selecionada
   const availableDays = useMemo(() => {
     if (selectedWeek === 'all') return [];
     const semana = cronograma.semanas.find(s => s.numero === selectedWeek);
     return semana ? semana.dias : [];
-  }, [selectedWeek]);
+  }, [selectedWeek, cronograma]);
 
   // Filtrar conteúdo baseado nas seleções
   const filteredContent = useMemo(() => {
@@ -210,7 +263,7 @@ export const IntensivaoEnamed: React.FC = () => {
       discipline: string;
     }> = [];
 
-  cronograma.semanas.forEach(semana => {
+    cronograma.semanas.forEach(semana => {
       if (selectedWeek !== 'all' && semana.numero !== selectedWeek) return;
 
       semana.dias.forEach(dia => {
@@ -234,7 +287,7 @@ export const IntensivaoEnamed: React.FC = () => {
     });
 
     return content;
-  }, [selectedWeek, selectedDay, selectedDiscipline, completedItems]);
+  }, [cronograma, selectedWeek, selectedDay, selectedDiscipline, completedItems]);
 
   // Calcular dias restantes para o ENAMED (mock)
   const diasRestantes = 85;
