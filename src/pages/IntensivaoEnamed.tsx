@@ -350,6 +350,27 @@ const allAulas: AulaItem[] = useMemo(() => {
     return content;
   }, [allAulas, selectedWeek, selectedDay, selectedDiscipline, completedItems]);
 
+  // Agrupar por Tema > Subtema (para visualização em blocos)
+  type TemaGroup = { tema: string; subtemas: { subtema: string; aulas: AulaItem[] }[] };
+  const groupedByTema: TemaGroup[] = useMemo(() => {
+    const groups = new Map<string, Map<string, AulaItem[]>>();
+    allAulas.forEach((item) => {
+      if (selectedWeek !== 'all' && item.semana !== selectedWeek) return;
+      if (selectedDay !== 'all' && item.dia !== selectedDay) return;
+      if (selectedDiscipline !== 'all' && item.discipline !== selectedDiscipline) return;
+      const temaName = item.tema ?? 'Sem tema';
+      const subtemaName = item.subtema ?? 'Geral';
+      if (!groups.has(temaName)) groups.set(temaName, new Map());
+      const subMap = groups.get(temaName)!;
+      if (!subMap.has(subtemaName)) subMap.set(subtemaName, []);
+      subMap.get(subtemaName)!.push(item);
+    });
+    return Array.from(groups.entries()).map(([tema, subMap]) => ({
+      tema,
+      subtemas: Array.from(subMap.entries()).map(([subtema, aulas]) => ({ subtema, aulas })),
+    }));
+  }, [allAulas, selectedWeek, selectedDay, selectedDiscipline]);
+
   // Calcular dias restantes para o ENAMED (mock)
   const diasRestantes = 85;
 
@@ -525,81 +546,81 @@ const allAulas: AulaItem[] = useMemo(() => {
         </Card>
 
         {viewMode === 'list' ? (
-          <Accordion type="multiple" className="space-y-4">
-            {filteredContent.map((item, index) => {
-              const hasQuestoes = Boolean(item.link_questoes) && String(item.link_questoes).toLowerCase() !== 'nan';
-              return (
-                <AccordionItem
-                  key={item.itemKey}
-                  value={item.itemKey}
-                  className={`rounded-lg border-2 shadow-lg hover:shadow-xl transition-all duration-300 ${
-                    item.completed 
-                      ? 'border-green-400 bg-green-50' 
-                      : 'border-red-dark bg-white'
-                  }`}
-                >
-                  <AccordionTrigger className="px-4 py-3">
-                    <div className="w-full flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <Checkbox
-                          checked={item.completed}
-                          onCheckedChange={() => toggleItemCompletion(item.itemKey)}
-                          className="data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
-                        />
-                        <div className="flex-1 space-y-1 text-left">
-                          <h3 className={`font-semibold text-lg ${
-                            item.completed ? 'text-green-600 line-through' : 'text-neutral-darkest'
-                          }`}>
-                            {item.tema}
-                          </h3>
-                          <div className="flex items-center gap-3 text-sm text-neutral-medium">
-                            <span className="font-medium">{item.semana}</span>
-                            <span>•</span>
-                            <span>{item.dia}</span>
-                            <span>•</span>
-                            <span className="text-blue-600 font-medium">{item.discipline}</span>
+          <div className="space-y-6">
+            {groupedByTema.map((grupo) => (
+              <Card key={grupo.tema} className="border-red-dark shadow-lg">
+                <CardHeader className="p-4">
+                  <CardTitle className="text-red-darkest text-xl">{grupo.tema}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <Accordion type="multiple" className="divide-y">
+                    {grupo.subtemas.map((st) => (
+                      <AccordionItem key={`${grupo.tema}-${st.subtema}`} value={`${grupo.tema}-${st.subtema}`}>
+                        <AccordionTrigger className="px-4 py-3 text-left">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium">{st.subtema}</span>
+                            <Badge variant="secondary" className="ml-2">{st.aulas.length} aulas</Badge>
                           </div>
-                        </div>
-                      </div>
-                      {item.completed ? (
-                        <Badge className="bg-green-500 hover:bg-green-600 text-white">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Concluído
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-neutral-medium">Detalhes</span>
-                      )}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="px-4 pb-4">
-                      <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                        {!!item.link_aula && (
-                          <Button
-                            variant="default"
-                            onClick={() => window.open(String(item.link_aula), '_blank')}
-                            className="bg-[#600606] hover:bg-[#7D0C0C] text-white transition-smooth"
-                          >
-                            Acesse Aula
-                          </Button>
-                        )}
-                        {hasQuestoes && (
-                          <Button
-                            variant="outline"
-                            onClick={() => window.open(String(item.link_questoes), '_blank')}
-                            className="border-red-light text-red-dark hover:bg-red-lightest"
-                          >
-                            Acesse Questões
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="px-4 pb-4 space-y-3">
+                            {st.aulas.map((item) => {
+                              const isDone = completedItems.has(item.itemKey);
+                              const hasQuestoes = Boolean(item.link_questoes) && String(item.link_questoes).toLowerCase() !== 'nan';
+                              return (
+                                <div key={item.itemKey} className={`p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200' : 'bg-white border-neutral-light hover:border-red-light'}`}>
+                                  <div className="flex items-start gap-3">
+                                    <Checkbox
+                                      checked={isDone}
+                                      onCheckedChange={() => toggleItemCompletion(item.itemKey)}
+                                      className="mt-0.5 data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <h4 className={`font-medium ${isDone ? 'text-green-600 line-through' : 'text-neutral-darkest'}`}>{item.aula}</h4>
+                                        {isDone && (
+                                          <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Concluído
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {!!item.link_aula && (
+                                          <Button
+                                            variant="default"
+                                            onClick={() => window.open(String(item.link_aula), '_blank')}
+                                            className="bg-[#600606] hover:bg-[#7D0C0C] text-white"
+                                          >
+                                            Ver Aula
+                                          </Button>
+                                        )}
+                                        {hasQuestoes && (
+                                          <Button
+                                            variant="outline"
+                                            onClick={() => window.open(String(item.link_questoes), '_blank')}
+                                            className="border-red-light text-red-dark hover:bg-red-lightest"
+                                          >
+                                            Responder Questões
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : (
+
           <CalendarView 
             items={filteredContent} 
             onToggleCompletion={toggleItemCompletion} 
