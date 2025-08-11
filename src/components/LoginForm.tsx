@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Mail, Lock, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -97,15 +98,6 @@ export const LoginForm: React.FC = () => {
                 </Button>
               </form>
 
-              {/* Demo credentials */}
-              <div className="mt-6 p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                <p className="text-xs text-neutral-700 mb-2 font-medium">Credenciais de demonstração:</p>
-                <div className="text-xs text-neutral-600 space-y-1">
-                  <p><strong>Email:</strong> Use o email do seu cadastro</p>
-                  <p><strong>Senha:</strong> qualquer senha (6+ caracteres)</p>
-                  <p className="text-xs text-neutral-500">(primeira vez exigirá mudança de senha)</p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

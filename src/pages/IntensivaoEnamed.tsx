@@ -390,7 +390,7 @@ const allAulas: AulaItem[] = useMemo(() => {
             </p>
           )}
           
-          <div className="bg-gradient-primary text-black px-6 py-3 rounded-2xl inline-block shadow-lg animate-pulse">
+          <div className="bg-gradient-primary text-black px-6 py-3 rounded-2xl inline-block shadow-lg">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
               <span className="font-semibold">Faltam {diasRestantes} dias para o ENAMED!</span>
@@ -521,24 +521,21 @@ const allAulas: AulaItem[] = useMemo(() => {
 
               {/* Controles de Visualização */}
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-neutral-medium">Visualização:</span>
                 <Button
-                  onClick={toggleViewMode}
+                  onClick={() => { setViewMode('list'); localStorage.setItem('enamed-view-mode', 'list'); }}
                   variant={viewMode === 'list' ? 'default' : 'outline'}
                   size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                 >
-                  {viewMode === 'list' ? (
-                    <>
-                      <List className="h-4 w-4 mr-2" />
-                      Lista
-                    </>
-                  ) : (
-                    <>
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      Cronograma
-                    </>
-                  )}
+                  <List className="h-4 w-4 mr-2" />
+                  Lista
+                </Button>
+                <Button
+                  onClick={() => { setViewMode('calendar'); localStorage.setItem('enamed-view-mode', 'calendar'); }}
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Cronograma
                 </Button>
               </div>
             </div>

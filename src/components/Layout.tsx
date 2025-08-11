@@ -3,7 +3,7 @@ import React from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Menu } from 'lucide-react';
-
+import { ThemeToggle } from './ThemeToggle';
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -15,11 +15,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col">
-          {/* Header with trigger */}
+          {/* Header with trigger and theme toggle */}
           <header className="h-14 bg-white border-b border-neutral-200 shadow-sm flex items-center px-4">
-            <SidebarTrigger className="p-2 hover:bg-neutral-100 rounded-md transition-colors-smooth">
-              <Menu className="h-5 w-5 text-neutral-700" />
-            </SidebarTrigger>
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="p-2 hover:bg-neutral-100 rounded-md transition-colors-smooth">
+                <Menu className="h-5 w-5 text-neutral-700" />
+              </SidebarTrigger>
+            </div>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </header>
 
           {/* Main content */}
