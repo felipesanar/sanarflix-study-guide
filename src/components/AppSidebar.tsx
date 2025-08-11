@@ -59,7 +59,7 @@ export function AppSidebar() {
       className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-[hsl(var(--sidebar-border))] shadow-lg bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))]`}
       collapsible="icon"
     >
-      <SidebarHeader className={`p-4 border-b border-[hsl(var(--sidebar-border))] ${collapsed ? 'px-2' : ''}`}>>
+      <SidebarHeader className={`p-4 border-b border-[hsl(var(--sidebar-border))] ${collapsed ? 'px-2' : ''}`}>
         <div className="flex items-center gap-3">
           <img
             src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
@@ -78,7 +78,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         {/* User Info */}
         {user && (
-          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-accent))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>>
+          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-accent))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full border border-primary/30">
                 <User className="h-4 w-4 text-primary-light" />
