@@ -23,19 +23,19 @@ export const ProgressAreaCard: React.FC<ProgressAreaCardProps> = ({
     switch (variant) {
       case 'general':
         return {
-          card: 'border-[#600606] bg-gradient-to-br from-red-lightest to-white shadow-lg',
+          card: 'shadow-lg',
           title: 'text-[#600606] font-bold text-lg',
           progress: 'h-4'
         };
       case 'weeks':
         return {
-          card: 'border-blue-600 bg-gradient-to-br from-blue-50 to-white shadow-md',
+          card: 'shadow-md',
           title: 'text-blue-700 font-semibold',
           progress: 'h-3'
         };
       default:
         return {
-          card: 'border-neutral-light bg-white shadow-md hover:shadow-lg transition-shadow',
+          card: 'bg-card shadow-md hover:shadow-lg transition-shadow',
           title: 'text-neutral-darkest font-semibold',
           progress: 'h-3'
         };

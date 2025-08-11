@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+:root {
     /* Background colors - using neutral light tones */
     --background: 0 0% 100%;
     --foreground: 0 0% 7%;
@@ -38,6 +38,7 @@
 
     /* Neutral borders and inputs */
     --border: 210 14% 89%;
+    --card-border: 210 14% 89%;
     --input: 210 14% 89%;
     --ring: 0 83% 38%;
 
@@ -63,7 +64,7 @@
     --scrollbar-thumb: 210 14% 89%;
   }
 
-  .dark {
+.dark {
     --background: 0 0% 4%;
     --foreground: 0 0% 88%;
 
@@ -90,6 +91,7 @@
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 14%;
+    --card-border: 0 83% 24%;
     --input: 0 0% 14%;
     --ring: 207 89% 68%;
 
@@ -147,7 +149,13 @@
   .transition-colors-smooth {
     transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
   }
+
+  /* Card utility for consistent borders/backgrounds */
+  .ui-card {
+    border-color: hsl(var(--card-border));
+  }
 }
+
 
 /* Scrollbars - consistent, subtle */
 * {
