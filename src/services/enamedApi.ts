@@ -1,4 +1,4 @@
-const ENAMED_API_BASE_URL = 'https://api-conteudos-enamed.onrender.com';
+const ENAMED_API_BASE_URL = 'https://api-conteudos-enamed.onrender.com/api/cronograma';
 
 export interface EnamedContent {
   id: string;
@@ -13,7 +13,7 @@ export interface EnamedContent {
 export const enamedApi = {
   async getAllContent(): Promise<EnamedContent[]> {
     try {
-      const response = await fetch(`${ENAMED_API_BASE_URL}/conteudos`);
+      const response = await fetch(`${ENAMED_API_BASE_URL}`);
       if (!response.ok) {
         throw new Error('Failed to fetch ENAMED content');
       }
@@ -26,7 +26,7 @@ export const enamedApi = {
 
   async getContentByWeek(week: number): Promise<EnamedContent[]> {
     try {
-      const response = await fetch(`${ENAMED_API_BASE_URL}/conteudos?week=${week}`);
+      const response = await fetch(`${ENAMED_API_BASE_URL}?week=${week}`);
       if (!response.ok) {
         throw new Error('Failed to fetch ENAMED content by week');
       }
@@ -39,7 +39,7 @@ export const enamedApi = {
 
   async getContentByDiscipline(disciplina: string): Promise<EnamedContent[]> {
     try {
-      const response = await fetch(`${ENAMED_API_BASE_URL}/conteudos?disciplina=${encodeURIComponent(disciplina)}`);
+      const response = await fetch(`${ENAMED_API_BASE_URL}?disciplina=${encodeURIComponent(disciplina)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch ENAMED content by discipline');
       }
