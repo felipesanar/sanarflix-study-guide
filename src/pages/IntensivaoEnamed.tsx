@@ -11,7 +11,7 @@ import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 
 // Fonte de dados: API oficial do cronograma ENAMED
-export const CRONOGRAMA_API = 'https://api-conteudos-enamed.onrender.com/api/cronograma';
+export const CRONOGRAMA_API = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
 
 export type TemaDia = { nome: string; temas: string[] };
 export type Semana = { numero: string; periodo?: string; dias: TemaDia[] };
