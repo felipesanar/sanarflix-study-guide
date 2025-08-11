@@ -52,17 +52,39 @@ Deno.serve(async (req)=>{
     const needsPasswordChange = user.user_metadata?.must_change_password === true;
     // ETAPA 3: Buscar o perfil detalhado do usuário na tabela `public.users`
     // Usamos o `user.id` da sessão para encontrar o perfil correspondente.
-    const { data: userProfile, error: profileError } = await supabase.from('users').select(`
-        nome,
-        cpf,
-        id_ies,
-        semestre,
-        ies!inner(nome)
-      `).eq('id', user.id).single();
-    // Se não encontrar o perfil, é um erro de integridade de dados.
-    if (profileError) {
-      console.error('Erro de integridade: usuário autenticado sem perfil em public.users.', profileError);
-      throw new Error('Não foi possível encontrar o perfil do usuário.');
+    // Buscar perfil do usuário na tabela public.users (sem join)
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users')
+      .select('nome, cpf, id_ies, semestre')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      console.error('Usuário autenticado sem perfil em public.users.', profileError);
+      return new Response(JSON.stringify({
+        error: 'Perfil do usuário não encontrado.'
+      }), {
+        status: 404,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    // Buscar nome da IES se houver id_ies
+    let iesNome: string | null = null;
+    if (userProfile.id_ies) {
+      const { data: iesData, error: iesError } = await supabase
+        .from('ies')
+        .select('nome')
+        .eq('id', userProfile.id_ies)
+        .single();
+      if (iesError) {
+        console.warn('Falha ao obter nome da IES:', iesError);
+      } else {
+        iesNome = iesData?.nome ?? null;
+      }
     }
     // ETAPA 4: Construir e retornar a resposta completa para o front-end
     const responsePayload = {
@@ -73,7 +95,7 @@ Deno.serve(async (req)=>{
         cpf: userProfile.cpf,
         id_ies: userProfile.id_ies,
         semestre: userProfile.semestre,
-        ies_nome: userProfile.ies.nome
+        ies_nome: iesNome
       },
       session: sessionData.session,
       needsPasswordChange: needsPasswordChange
@@ -82,7 +104,7 @@ Deno.serve(async (req)=>{
       status: 200,
       headers: {
         ...corsHeaders,
-        'Content-Tye': 'application/json'
+        'Content-Type': 'application/json'
       }
     });
   } catch (error) {
