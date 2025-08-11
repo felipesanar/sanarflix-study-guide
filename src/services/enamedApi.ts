@@ -1,4 +1,4 @@
-const ENAMED_API_BASE_URL = 'https://api-conteudos-enamed.onrender.com/api/cronograma';
+const ENAMED_API_BASE_URL = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
 
 export interface EnamedContent {
   id: string;
