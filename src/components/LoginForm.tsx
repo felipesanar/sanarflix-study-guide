@@ -19,9 +19,13 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative bg-background text-foreground">
+      {/* Theme toggle */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       {/* Left Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-white">
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-card">
         <div className="w-full max-w-md animate-slide-in-left">
           {/* Logo */}
           <div className="flex items-center mb-8">

@@ -375,7 +375,7 @@ const allAulas: AulaItem[] = useMemo(() => {
   const diasRestantes = 85;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white p-6">
+    <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header com título e contagem regressiva */}
         <div className="text-center space-y-4">
@@ -390,7 +390,7 @@ const allAulas: AulaItem[] = useMemo(() => {
             </p>
           )}
           
-          <div className="bg-gradient-primary text-black px-6 py-3 rounded-2xl inline-block shadow-lg">
+          <div className="bg-card dark:bg-[hsl(var(--alert-dark))] text-foreground dark:text-white px-6 py-3 rounded-2xl inline-block shadow-lg">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
               <span className="font-semibold">Faltam {diasRestantes} dias para o ENAMED!</span>
@@ -460,7 +460,7 @@ const allAulas: AulaItem[] = useMemo(() => {
               
               <div className="flex gap-3 flex-wrap flex-1">
                 <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
-                  <SelectTrigger className="w-56 bg-blue-600 text-white border-blue-700 focus:ring-blue-500">
+                  <SelectTrigger className="w-56 bg-card text-foreground border-input focus:ring-ring">
                     <SelectValue placeholder="Filtrar por disciplina" />
                   </SelectTrigger>
                   <SelectContent>
@@ -474,7 +474,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                 </Select>
 
                 <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                  <SelectTrigger className="w-48 border-red-light focus:ring-red-dark">
+                  <SelectTrigger className="w-48 border-input focus:ring-ring bg-card text-foreground">
                     <SelectValue placeholder="Selecionar semana" />
                   </SelectTrigger>
                   <SelectContent>
@@ -489,7 +489,7 @@ const allAulas: AulaItem[] = useMemo(() => {
 
                 {selectedWeek !== 'all' && (
                   <Select value={selectedDay} onValueChange={setSelectedDay}>
-                    <SelectTrigger className="w-64 border-red-light focus:ring-red-dark">
+                    <SelectTrigger className="w-64 border-input focus:ring-ring bg-card text-foreground">
                       <SelectValue placeholder="Selecionar dia" />
                     </SelectTrigger>
                     <SelectContent>
@@ -511,7 +511,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                       setSelectedDay('all');
                     }}
                     variant="outline"
-                    className="border-red-light text-red-dark hover:bg-red-lightest"
+                    className="border-input text-foreground hover:bg-accent/30"
                   >
                     Limpar Filtros
                   </Button>
@@ -523,16 +523,22 @@ const allAulas: AulaItem[] = useMemo(() => {
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => { setViewMode('list'); localStorage.setItem('enamed-view-mode', 'list'); }}
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
+                  className={`${viewMode === 'list' 
+                    ? 'bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))]' 
+                    : 'text-[hsl(var(--toggle-list))] border-[hsl(var(--toggle-list))] hover:bg-[hsl(var(--toggle-list))]/10'} transition-colors-smooth`}
                 >
                   <List className="h-4 w-4 mr-2" />
                   Lista
                 </Button>
                 <Button
                   onClick={() => { setViewMode('calendar'); localStorage.setItem('enamed-view-mode', 'calendar'); }}
-                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
+                  className={`${viewMode === 'calendar' 
+                    ? 'bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))]' 
+                    : 'text-foreground border-input hover:bg-accent/30'} transition-colors-smooth`}
                 >
                   <CalendarDays className="h-4 w-4 mr-2" />
                   Cronograma
@@ -587,20 +593,19 @@ const allAulas: AulaItem[] = useMemo(() => {
                                           <Button
                                             variant="default"
                                             onClick={() => window.open(String(item.link_aula), '_blank')}
-                                            className="bg-[#600606] hover:bg-[#7D0C0C] text-white"
                                           >
                                             Ver Aula
                                           </Button>
                                         )}
-                                        {hasQuestoes && (
-                                          <Button
-                                            variant="outline"
-                                            onClick={() => window.open(String(item.link_questoes), '_blank')}
-                                            className="border-red-light text-red-dark hover:bg-red-lightest"
-                                          >
-                                            Responder Questões
-                                          </Button>
-                                        )}
+                                          {hasQuestoes && (
+                                            <Button
+                                              variant="outline"
+                                              onClick={() => window.open(String(item.link_questoes), '_blank')}
+                                              className="border-input text-foreground hover:bg-accent/30"
+                                            >
+                                              Responder Questões
+                                            </Button>
+                                          )}
                                       </div>
                                     </div>
                                   </div>
