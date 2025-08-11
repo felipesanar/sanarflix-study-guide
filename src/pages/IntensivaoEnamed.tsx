@@ -396,8 +396,6 @@ const allAulas: AulaItem[] = useMemo(() => {
               {user.ies_nome} - {user.semestre}º período
             </p>
           )}
-            </p>
-          )}
           
           <div className="bg-card dark:bg-[hsl(var(--alert-dark))] text-foreground dark:text-white px-6 py-3 rounded-2xl inline-block shadow-lg">
             <div className="flex items-center gap-2">
