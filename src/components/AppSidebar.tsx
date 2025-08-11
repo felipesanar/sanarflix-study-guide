@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BookOpen, BarChart3, LogOut, User, GraduationCap, Zap } from 'lucide-react';
+import { BookOpen, BarChart3, LogOut, User, Zap } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -50,24 +50,26 @@ export function AppSidebar() {
 
   const isActive = (path: string) => currentPath === path;
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive 
-      ? 'bg-primary text-white font-medium shadow-lg border border-primary-light/20' 
-      : 'text-neutral-300 hover:bg-neutral-800/50 hover:text-white transition-all duration-200 hover:translate-x-1';
+    isActive
+      ? 'bg-primary text-primary-foreground font-medium shadow-lg border border-primary/20'
+      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-all duration-200 hover:translate-x-1';
 
   return (
     <Sidebar
-      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r shadow-lg gradient-sidebar`}
+      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-border shadow-lg bg-background`}
       collapsible="icon"
     >
-      <SidebarHeader className={`p-4 border-b border-neutral-800 ${collapsed ? 'px-2' : ''}`}>
+      <SidebarHeader className={`p-4 border-b border-border ${collapsed ? 'px-2' : ''}`}>
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-xl shadow-lg animate-pulse-primary">
-            <GraduationCap className="h-6 w-6 text-white" />
-          </div>
+          <img
+            src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+            alt="Sanarflix - logo do site"
+            className="w-10 h-10 rounded-xl shadow-lg object-contain"
+          />
           {!collapsed && (
             <div className="animate-fade-in">
-              <h2 className="font-bold text-lg text-white">Sanarflix</h2>
-              <p className="text-xs text-neutral-300">Guia de Estudos</p>
+              <h2 className="font-bold text-lg text-foreground">Sanarflix</h2>
+              <p className="text-xs text-muted-foreground">Guia de Estudos</p>
             </div>
           )}
         </div>
@@ -76,17 +78,17 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         {/* User Info */}
         {user && (
-          <div className={`mb-4 p-3 bg-neutral-800/50 rounded-lg border border-neutral-700 ${collapsed ? 'px-1' : ''}`}>
+          <div className={`mb-4 p-3 bg-background rounded-lg border border-border shadow-sm ${collapsed ? 'px-1' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full border border-primary/30">
                 <User className="h-4 w-4 text-primary-light" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1 animate-fade-in">
-                  <p className="text-sm font-medium text-white truncate">
+                  <p className="text-sm font-medium text-foreground truncate">
                     {user.nome}
                   </p>
-                  <p className="text-xs text-neutral-300 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {user.ies_nome} - {user.semestre}º período
                   </p>
                 </div>
@@ -96,7 +98,7 @@ export function AppSidebar() {
         )}
 
         <SidebarGroup>
-          <SidebarGroupLabel className={`${collapsed ? 'sr-only' : ''} text-neutral-300 text-xs uppercase tracking-wider font-semibold`}>
+          <SidebarGroupLabel className={`${collapsed ? 'sr-only' : ''} text-muted-foreground text-xs uppercase tracking-wider font-semibold`}>
             Menu Principal
           </SidebarGroupLabel>
           
@@ -123,7 +125,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2 border-t border-neutral-800">
+      <SidebarFooter className="p-2 border-t border-border">
         <Button
           onClick={logout}
           variant="ghost"

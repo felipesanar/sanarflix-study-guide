@@ -27,23 +27,24 @@ export const LoginForm: React.FC = () => {
       {/* Left Side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-card">
         <div className="w-full max-w-md animate-slide-in-left">
-          {/* Logo */}
           <div className="flex items-center mb-8">
-            <div className="flex items-center justify-center w-12 h-12 bg-primary rounded-xl mr-3 shadow-lg">
-              <GraduationCap className="h-6 w-6 text-white" />
-            </div>
+            <img
+              src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+              alt="Logo Sanarflix"
+              className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
+            />
             <div>
-              <h1 className="text-2xl font-bold text-neutral-900">Sanarflix</h1>
-              <p className="text-sm text-neutral-600">Guia de Estudos</p>
+              <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">Sanarflix</h1>
+              <p className="text-sm text-neutral-600 dark:text-muted-foreground">Guia de Estudos</p>
             </div>
           </div>
 
-          <Card className="border border-neutral-200 shadow-lg">
+          <Card className="border border-border shadow-lg">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-bold text-neutral-900">
+              <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">
                 Faça seu login
               </CardTitle>
-              <CardDescription className="text-neutral-600">
+              <CardDescription className="text-neutral-600 dark:text-muted-foreground">
                 Acesse com suas credenciais do Sanarflix
               </CardDescription>
             </CardHeader>
@@ -119,7 +120,7 @@ export const LoginForm: React.FC = () => {
         <div className="relative z-10 text-center text-white animate-slide-in-right max-w-lg">
           <div className="mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-3xl mb-6 backdrop-blur-sm">
-              <GraduationCap className="h-10 w-10 text-white" />
+              <img src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png" alt="Logo Sanarflix" className="w-14 h-14 object-contain" />
             </div>
           </div>
           

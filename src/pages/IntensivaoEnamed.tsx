@@ -6,10 +6,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BookOpen, Video, FileText, Clock, Calendar, Target, Heart, Brain, Activity, Stethoscope, Users, CheckCircle2, List, CalendarDays } from 'lucide-react';
+import { BookOpen, Video, FileText, Clock, Calendar, Target, Baby, Syringe, Stethoscope, Users, CheckCircle2, List, CalendarDays } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
+
+// Ícone customizado para representar mulher grávida
+const PregnantWomanIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <circle cx="9" cy="5" r="2" />
+    <path d="M7 22v-5l2-2a4 4 0 1 0 5-6" />
+  </svg>
+);
 
 // Fonte de dados: API oficial do cronograma ENAMED
 export const CRONOGRAMA_API = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
@@ -377,16 +385,17 @@ const allAulas: AulaItem[] = useMemo(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header com título e contagem regressiva */}
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
-            <Target className="h-8 w-8 text-red-darkest" />
-            <h1 className="text-4xl font-bold text-red-darkest">Intensivão ENAMED</h1>
+            <Target className="h-8 w-8 text-red-darkest dark:text-primary-foreground" />
+            <h1 className="text-4xl font-bold text-red-darkest dark:text-primary-foreground">Intensivão ENAMED</h1>
           </div>
           
           {user && (
-            <p className="text-lg text-neutral-medium">
+            <p className="text-lg text-neutral-medium dark:text-muted-foreground">
               {user.ies_nome} - {user.semestre}º período
+            </p>
+          )}
             </p>
           )}
           
@@ -426,11 +435,11 @@ const allAulas: AulaItem[] = useMemo(() => {
             
             const getIcon = (disc: string) => {
               switch (disc) {
-                case 'Ginecologia e Obstetrícia': return <Heart className="h-4 w-4" />;
-                case 'Pediatria': return <Users className="h-4 w-4" />;
+                case 'Ginecologia e Obstetrícia': return <PregnantWomanIcon className="h-4 w-4" />;
+                case 'Pediatria': return <Baby className="h-4 w-4" />;
                 case 'Clínica Médica': return <Stethoscope className="h-4 w-4" />;
-                case 'Clínica Cirúrgica': return <Activity className="h-4 w-4" />;
-                case 'MFC e Saúde Coletiva': return <Brain className="h-4 w-4" />;
+                case 'Clínica Cirúrgica': return <Syringe className="h-4 w-4" />;
+                case 'MFC e Saúde Coletiva': return <Users className="h-4 w-4" />;
                 case 'Revisão': return <BookOpen className="h-4 w-4" />;
                 case 'Avaliação': return <FileText className="h-4 w-4" />;
                 default: return <Video className="h-4 w-4" />;
@@ -553,7 +562,7 @@ const allAulas: AulaItem[] = useMemo(() => {
             {groupedByTema.map((grupo) => (
               <Card key={grupo.tema} className="border-red-dark shadow-lg">
                 <CardHeader className="p-4">
-                  <CardTitle className="text-red-darkest text-xl">{grupo.tema}</CardTitle>
+                  <CardTitle className="text-xl text-foreground dark:text-primary-foreground">{grupo.tema}</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <Accordion type="multiple" className="divide-y">
