@@ -26,8 +26,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || !user.semestre) return;
 
     try {
-      // Use raw SQL to avoid TypeScript issues with table types
-      const { data: conteudosData, error } = await supabase
+      // Bypass TS typing on Supabase RPC since generated types are empty
+      const { data: conteudosData, error } = await (supabase as any)
         .rpc('get_conteudos_for_user', {
           user_id_ies: user.id_ies,
           user_semestre: user.semestre
