@@ -109,7 +109,7 @@ export const LoginForm: React.FC = () => {
       </div>
 
       {/* Right Side - Institutional Block */}
-      <div className="flex-1 bg-gradient-to-br from-primary-900 to-primary-700 flex items-center justify-center p-8 lg:p-16 relative overflow-hidden">
+      <div className="hidden md:flex flex-1 bg-gradient-to-br from-primary-900 to-primary-700 flex items-center justify-center p-8 lg:p-16 relative overflow-hidden">
         {/* Background pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="w-full h-full" style={{

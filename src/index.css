@@ -45,20 +45,20 @@
     --radius: 0.75rem;
 
     /* Sidebar tokens */
-    --sidebar-background: 0 0% 7%; /* light: near #121212 for subtle contrast */
-    --sidebar-foreground: 0 0% 95%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 7%;
     --sidebar-primary: 0 83% 38%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 210 3% 16%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 210 3% 16%;
-    --sidebar-ring: 0 83% 38%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 20%;
+    --sidebar-border: 210 14% 89%;
+    --sidebar-ring: 207 89% 68%;
 
     /* Shared tokens (light defaults) */
     --progress-track: 210 14% 89%;
     --progress-indicator: 0 83% 38%;
-    --active-selection: 0 83% 38%;
-    --toggle-list: 0 83% 45%;
+    --active-selection: 207 89% 68%;
+    --toggle-list: 207 89% 45%;
 
     --scrollbar-track: 0 0% 96%;
     --scrollbar-thumb: 210 14% 89%;

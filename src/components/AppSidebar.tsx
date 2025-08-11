@@ -56,10 +56,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-border shadow-lg bg-background`}
+      className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 border-r border-[hsl(var(--sidebar-border))] shadow-lg bg-[hsl(var(--sidebar-background))] text-[hsl(var(--sidebar-foreground))]`}
       collapsible="icon"
     >
-      <SidebarHeader className={`p-4 border-b border-border ${collapsed ? 'px-2' : ''}`}>
+      <SidebarHeader className={`p-4 border-b border-[hsl(var(--sidebar-border))] ${collapsed ? 'px-2' : ''}`}>>
         <div className="flex items-center gap-3">
           <img
             src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
@@ -68,8 +68,8 @@ export function AppSidebar() {
           />
           {!collapsed && (
             <div className="animate-fade-in">
-              <h2 className="font-bold text-lg text-foreground">Sanarflix</h2>
-              <p className="text-xs text-muted-foreground">Guia de Estudos</p>
+              <h2 className="font-bold text-lg text-[hsl(var(--sidebar-foreground))]">Sanarflix</h2>
+              <p className="text-xs text-[hsl(var(--sidebar-accent-foreground))]">Guia de Estudos</p>
             </div>
           )}
         </div>
@@ -78,17 +78,17 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         {/* User Info */}
         {user && (
-          <div className={`mb-4 p-3 bg-background rounded-lg border border-border shadow-sm ${collapsed ? 'px-1' : ''}`}>
+          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-accent))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full border border-primary/30">
                 <User className="h-4 w-4 text-primary-light" />
               </div>
               {!collapsed && (
                 <div className="min-w-0 flex-1 animate-fade-in">
-                  <p className="text-sm font-medium text-foreground truncate">
+                  <p className="text-sm font-medium text-[hsl(var(--sidebar-foreground))] truncate">
                     {user.nome}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-[hsl(var(--sidebar-accent-foreground))] truncate">
                     {user.ies_nome} - {user.semestre}º período
                   </p>
                 </div>
@@ -125,7 +125,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2 border-t border-border">
+      <SidebarFooter className="p-2 border-t border-[hsl(var(--sidebar-border))]">
         <Button
           onClick={logout}
           variant="ghost"
