@@ -12,7 +12,7 @@ import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 
 // Fonte de dados: API oficial do cronograma ENAMED
-export const CRONOGRAMA_API = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
+export const CRONOGRAMA_API = 'https://api-conteudos-enamed.onrender.com/api/cronograma';
 
 export type DiaRaw = { nome: string; area_conhecimento?: string; temas?: any[]; subtemas?: any[]; aulas?: any[] };
 export type Semana = { numero: string; periodo?: string; dias: DiaRaw[] };
@@ -23,8 +23,24 @@ export const normalizeCronograma = (data: any): Cronograma => {
   try {
     if (!data) return { semanas: [] };
 
-    const root = (data as any).cronograma ? (data as any).cronograma : data;
+    // Pode vir como { cronograma: { semana_X: {...} } } ou variações
+    const root: any = (data as any).cronograma ?? data;
 
+    // Caso 1: Objeto com chaves semana_X
+    if (root && typeof root === 'object' && !Array.isArray(root) && !Array.isArray(root?.semanas)) {
+      const semanas: Semana[] = Object.entries(root as Record<string, any>).map(([key, w], idx) => {
+        const numero: string = (w?.nome_exibicao as string)
+          ?? (w?.numero as string)
+          ?? key.replace(/_/g, ' ').replace(/semana\s*/i, 'Semana ')
+          ?? `Semana ${idx + 1}`;
+        const periodo: string | undefined = (w as any)?.periodo;
+        const dias: DiaRaw[] = Array.isArray(w?.dias) ? (w.dias as DiaRaw[]) : [];
+        return { numero, periodo, dias };
+      });
+      return { semanas };
+    }
+
+    // Caso 2: Array em root.semanas ou root
     const rawWeeks: any[] = Array.isArray(root?.semanas)
       ? root.semanas
       : Array.isArray(root)
@@ -33,19 +49,18 @@ export const normalizeCronograma = (data: any): Cronograma => {
 
     const semanas: Semana[] = rawWeeks.map((w: any, idx: number) => {
       const numero: string =
-        (w?.numero as string) ??
-        (w?.nome as string) ??
-        (w?.titulo as string) ??
-        `Semana ${idx + 1}`;
-
+        (w?.nome_exibicao as string)
+        ?? (w?.numero as string)
+        ?? (w?.nome as string)
+        ?? (w?.titulo as string)
+        ?? `Semana ${idx + 1}`;
       const periodo: string | undefined = (w as any)?.periodo;
       const dias: DiaRaw[] = Array.isArray(w?.dias) ? (w.dias as DiaRaw[]) : [];
-
       return { numero, periodo, dias };
     });
 
     return { semanas };
-  } catch {
+  } catch (e) {
     return { semanas: [] };
   }
 };
