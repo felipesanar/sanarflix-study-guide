@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, CheckCircle2 } from 'lucide-react';
 
 interface CalendarItem {
   semana: string;
   dia: string;
-  tema: string;
+  tema?: string; // tema geral
+  subtema?: string; // subtema para agrupamento
+  aula?: string; // nome da aula
   completed: boolean;
   itemKey: string;
   discipline: string;
+  link_aula?: string;
+  link_questoes?: string;
 }
 
 interface CalendarViewProps {
@@ -19,22 +25,20 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompletion }) => {
-  // Group items by week and day
-  const groupedItems = items.reduce((acc, item) => {
-    const weekKey = item.semana;
-    if (!acc[weekKey]) {
-      acc[weekKey] = {};
-    }
-    
-    const dayKey = item.dia;
-    if (!acc[weekKey][dayKey]) {
-      acc[weekKey][dayKey] = [];
-    }
-    
-    acc[weekKey][dayKey].push(item);
-    return acc;
-  }, {} as Record<string, Record<string, CalendarItem[]>>);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
 
+  // Group items by week and day
+  const groupedItems = useMemo(() => {
+    return items.reduce((acc, item) => {
+      const weekKey = item.semana;
+      if (!acc[weekKey]) acc[weekKey] = {};
+      const dayKey = item.dia;
+      if (!acc[weekKey][dayKey]) acc[weekKey][dayKey] = [];
+      acc[weekKey][dayKey].push(item);
+      return acc;
+    }, {} as Record<string, Record<string, CalendarItem[]>>);
+  }, [items]);
   return (
     <div className="space-y-6">
       {Object.entries(groupedItems).map(([week, days]) => (
@@ -54,45 +58,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                     </h4>
                     
                     <div className="space-y-2">
-                      {dayItems.map((item) => (
-                        <div 
-                          key={item.itemKey}
-                          className={`p-2 rounded-lg border transition-all ${
-                            item.completed 
-                              ? 'bg-[hsl(var(--secondary))] border-green-600/40' 
-                              : 'bg-secondary border-border hover:border-[hsl(var(--active-selection))]'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <Checkbox
-                              checked={item.completed}
-                              onCheckedChange={() => onToggleCompletion(item.itemKey)}
-                              className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
-                            />
-                            
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-xs font-medium ${
-                                item.completed ? 'text-muted-foreground line-through' : 'text-foreground'
-                              }`}>
-                                {item.tema}
-                              </p>
-                              
-                              <div className="flex items-center gap-1 mt-1">
-                                <Badge 
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {item.discipline}
-                                </Badge>
-                                
-                                {item.completed && (
-                                  <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                )}
+                      {(() => {
+                        const subMap = dayItems.reduce((acc, it) => {
+                          const key = it.subtema || 'Geral';
+                          if (!acc[key]) acc[key] = [];
+                          acc[key].push(it);
+                          return acc;
+                        }, {} as Record<string, CalendarItem[]>);
+                        return Object.entries(subMap).map(([subtema, subItems]) => {
+                          const allDone = subItems.every(s => s.completed);
+                          return (
+                            <button
+                              key={subtema}
+                              onClick={() => { setSelected({ subtema, items: subItems }); setOpen(true); }}
+                              className={`w-full text-left p-3 rounded-lg border transition-all bg-card border-border hover:border-[hsl(var(--active-selection))] focus:outline-none focus:ring-2 focus:ring-ring`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  {allDone && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                  <span className="font-medium text-sm text-foreground">{subtema}</span>
+                                </div>
+                                <Badge variant="secondary" className="text-xs">{subItems.length} aulas</Badge>
                               </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                            </button>
+                          );
+                        });
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
@@ -101,6 +92,46 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
           </CardContent>
         </Card>
       ))}
+
+      {/* Modal de Aulas por Subtema */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-lg">{selected?.subtema}</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {selected?.items.map((it) => (
+              <div key={it.itemKey} className="p-3 rounded-lg border bg-card border-border">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={it.completed}
+                    onCheckedChange={() => onToggleCompletion(it.itemKey)}
+                    className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {!!it.link_aula && (
+                        <Button variant="default" onClick={() => window.open(String(it.link_aula), '_blank')}>Ver Aula</Button>
+                      )}
+                      {!!it.link_questoes && (
+                        <Button
+                          variant="outline"
+                          onClick={() => window.open(String(it.link_questoes), '_blank')}
+                          className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
+                        >
+                          Questões
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

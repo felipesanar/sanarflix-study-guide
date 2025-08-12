@@ -269,18 +269,20 @@ const allAulas: AulaItem[] = useMemo(() => {
 
   // Calcular dados de progresso
   const progressData = useMemo(() => {
-    const totalItems = allAulas.length;
-    const completedCount = completedItems.size;
+    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
+    const nonOptional = allAulas.filter(i => !isOptional(i.aula));
+    const totalItems = nonOptional.length;
+    const completedCount = nonOptional.filter(i => completedItems.has(i.itemKey)).length;
     const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
-    
     return { totalItems, completedItems: completedCount, percentage };
   }, [completedItems, allAulas]);
 
   // Calcular progresso por disciplina
   const progressByDiscipline = useMemo(() => {
+    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
     const disciplineStats: Record<string, { total: number; completed: number }> = {};
-    
     allAulas.forEach(item => {
+      if (isOptional(item.aula)) return; // ignore opcionais
       const d = item.discipline || 'Outros';
       if (!disciplineStats[d]) {
         disciplineStats[d] = { total: 0, completed: 0 };
@@ -290,14 +292,15 @@ const allAulas: AulaItem[] = useMemo(() => {
         disciplineStats[d].completed++;
       }
     });
-    
     return disciplineStats;
   }, [completedItems, allAulas]);
 
-  // Calcular semanas concluídas
+  // Calcular semanas concluídas (ignorando opcionais)
   const weekProgress = useMemo(() => {
+    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
     const byWeek: Record<string, { total: number; completed: number }> = {};
     allAulas.forEach(item => {
+      if (isOptional(item.aula)) return;
       if (!byWeek[item.semana]) byWeek[item.semana] = { total: 0, completed: 0 };
       byWeek[item.semana].total++;
       if (completedItems.has(item.itemKey)) byWeek[item.semana].completed++;
@@ -346,7 +349,9 @@ const allAulas: AulaItem[] = useMemo(() => {
       content.push({
         semana: item.semana,
         dia: item.dia,
-        tema: item.aula,
+        tema: item.tema,
+        subtema: item.subtema,
+        aula: item.aula,
         completed: completedItems.has(item.itemKey),
         itemKey: item.itemKey,
         discipline: item.discipline,
@@ -426,6 +431,23 @@ const allAulas: AulaItem[] = useMemo(() => {
             icon={<Calendar className="h-5 w-5 text-[hsl(var(--active-selection))]" />}
             variant="weeks"
           />
+
+          {/* Card de Conteúdos Opcionais */}
+          {(() => {
+            const optionalItems = allAulas.filter(i => (i.aula ?? '').includes('(OPCIONAL)'));
+            const optionalCompleted = optionalItems.filter(i => completedItems.has(i.itemKey)).length;
+            const optionalPercentage = optionalItems.length > 0 ? Math.round((optionalCompleted / optionalItems.length) * 100) : 0;
+            return (
+              <ProgressAreaCard
+                title="Conteúdos Opcionais"
+                current={optionalCompleted}
+                total={optionalItems.length}
+                percentage={optionalPercentage}
+                icon={<BookOpen className="h-5 w-5" />}
+                variant="general"
+              />
+            );
+          })()}
 
           {/* Cards por Disciplina */}
           {Object.entries(progressByDiscipline).map(([discipline, stats]) => {
