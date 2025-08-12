@@ -68,8 +68,8 @@ export function AppSidebar() {
           />
           {!collapsed && (
             <div className="animate-fade-in">
-              <h2 className="font-bold text-lg text-foreground">Sanarflix</h2>
-              <p className="text-xs text-muted-foreground">Guia de Estudos</p>
+              <h2 className="font-bold text-lg text-[hsl(var(--sidebar-foreground))]">Sanarflix</h2>
+              <p className="text-xs text-[hsl(var(--sidebar-accent-foreground))]">Guia de Estudos</p>
             </div>
           )}
         </div>
@@ -98,7 +98,7 @@ export function AppSidebar() {
         )}
 
         <SidebarGroup>
-          <SidebarGroupLabel className={`${collapsed ? 'sr-only' : ''} text-muted-foreground text-xs uppercase tracking-wider font-semibold`}>
+          <SidebarGroupLabel className={`${collapsed ? 'sr-only' : ''} text-[hsl(var(--sidebar-accent-foreground))] text-xs uppercase tracking-wider font-semibold`}>
             Menu Principal
           </SidebarGroupLabel>
           
