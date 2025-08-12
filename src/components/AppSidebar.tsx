@@ -78,7 +78,7 @@ export function AppSidebar() {
       <SidebarContent className="p-2">
         {/* User Info */}
         {user && (
-          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-background))] rounded-lg border border-[hsl(var(--sidebar-border))] shadow-sm ${collapsed ? 'px-1' : ''}`}>
+          <div className={`mb-4 p-3 bg-[hsl(var(--sidebar-background))] rounded-lg shadow-sm ${collapsed ? 'px-1' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full border border-primary/30">
                 <User className="h-4 w-4 text-primary-light" />
