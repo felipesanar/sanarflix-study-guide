@@ -162,10 +162,6 @@ export type Database = {
       }
     }
     Functions: {
-      atualizar_senha: {
-        Args: { nova_senha: string }
-        Returns: undefined
-      }
       get_conteudos_for_user: {
         Args: { user_id_ies: string; user_semestre: number }
         Returns: {
