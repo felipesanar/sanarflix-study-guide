@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Mail, Lock, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
-
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,6 +18,37 @@ export const LoginForm: React.FC = () => {
     await login(email, password);
   };
 
+  const handleResetPassword = async () => {
+    if (!email) {
+      toast({
+        title: "Informe seu e-mail",
+        description: "Digite seu e-mail acima para enviarmos o link de redefinição.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      const redirectTo = `${window.location.origin}/login`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo,
+      });
+      if (error) throw error;
+      toast({
+        title: "Verifique seu e-mail",
+        description: "Enviamos um link para redefinir sua senha.",
+        duration: 4000,
+      });
+    } catch (err: any) {
+      console.error("resetPassword error:", err);
+      toast({
+        title: "Não foi possível enviar o e-mail",
+        description: err?.message || "Tente novamente em instantes.",
+        variant: "destructive",
+        duration: 3500,
+      });
+    }
+  };
   return (
     <div className="min-h-screen flex relative bg-background text-foreground">
       {/* Theme toggle */}
@@ -85,6 +116,17 @@ export const LoginForm: React.FC = () => {
                       required
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center justify-end -mt-2">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="px-0 text-primary"
+                    onClick={handleResetPassword}
+                  >
+                    Esqueci a senha
+                  </Button>
                 </div>
 
                 <Button 

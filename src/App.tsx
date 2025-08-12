@@ -53,13 +53,8 @@ const AppContent = () => {
     );
   }
 
-  // Determine default route based on user access
-  const getDefaultRoute = () => {
-    if (accessRules.studyGuide) return "/guia-estudos";
-    if (accessRules.enamed) return "/intensivao-enamed";
-    if (accessRules.dashboard) return "/dashboard";
-    return "/guia-estudos"; // Fallback
-  };
+  // Determine default route for launch: only Intensivão ENAMED
+  const getDefaultRoute = () => "/intensivao-enamed";
 
   return (
     <StudyProvider>

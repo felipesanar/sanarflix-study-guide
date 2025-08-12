@@ -13,20 +13,53 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId, newPassword } = await req.json()
+    const { newPassword } = await req.json().catch(() => ({}))
 
-    console.log('Password update for user:', userId)
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return new Response(
+        JSON.stringify({ error: 'Senha inválida. Mínimo de 6 caracteres.' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
-    // Update password using the atualizar_senha function
-    const { error } = await supabase.rpc('atualizar_senha', {
-      nova_senha: newPassword
-    })
+    const authHeader = req.headers.get('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
 
-    if (error) {
-      console.log('Password update error:', error)
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Não autenticado' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const { data: userData, error: getUserError } = await supabase.auth.getUser(token)
+
+    if (getUserError || !userData?.user) {
+      console.log('Password update - getUser error:', getUserError)
+      return new Response(
+        JSON.stringify({ error: 'Usuário não encontrado' }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    const userId = userData.user.id
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password: newPassword })
+
+    if (updateError) {
+      console.log('Password update error:', updateError)
       return new Response(
         JSON.stringify({ error: 'Erro ao atualizar senha' }),
-        { 
+        {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
