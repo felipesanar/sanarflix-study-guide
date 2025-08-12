@@ -35,7 +35,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (error) {
         console.error('Error loading study contents:', error);
-        // If no content found, set empty array
         setStudyContents([]);
         return;
       }
@@ -50,30 +49,86 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const processedContents = processConteudosJsonb(conteudosData[0]?.conteudos);
       setStudyContents(processedContents);
 
-      // Load saved progress
-      const savedProgress = localStorage.getItem('study-progress');
-      if (savedProgress) {
-        const parsedProgress = JSON.parse(savedProgress);
-        if (parsedProgress.userId === user.id) {
-          setProgress(parsedProgress);
-          
-          // Update content completion status
-          const updatedContents = processedContents.map(content => ({
-            ...content,
-            completed: parsedProgress.completedItems.includes(content.id)
-          }));
-          setStudyContents(updatedContents);
-        }
-      }
-
-      // Initialize progress if not exists
-      if (!savedProgress || JSON.parse(savedProgress).userId !== user.id) {
-        initializeProgress(processedContents, user.id);
-      }
+      // Load progress from database
+      await loadUserProgress(processedContents, user.id);
     } catch (error) {
       console.error('Error loading study contents:', error);
       setStudyContents([]);
     }
+  };
+
+  const loadUserProgress = async (contents: StudyContent[], userId: string) => {
+    try {
+      const { data: progressData, error } = await supabase
+        .from('user_progress')
+        .select('content_id')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error loading user progress:', error);
+        // Fallback to localStorage if database fails
+        const savedProgress = localStorage.getItem('study-progress');
+        if (savedProgress) {
+          const parsedProgress = JSON.parse(savedProgress);
+          if (parsedProgress.userId === userId) {
+            setProgress(parsedProgress);
+            updateContentCompletionStatus(contents, parsedProgress.completedItems);
+            return;
+          }
+        }
+        initializeProgress(contents, userId);
+        return;
+      }
+
+      const completedItems = progressData?.map(item => item.content_id) || [];
+      const disciplineProgress = calculateDisciplineProgress(contents, completedItems);
+      
+      const progress: Progress = {
+        userId,
+        completedItems,
+        totalItems: contents.length,
+        progressByDiscipline: disciplineProgress
+      };
+
+      setProgress(progress);
+      updateContentCompletionStatus(contents, completedItems);
+      
+      // Sync with localStorage for offline access
+      localStorage.setItem('study-progress', JSON.stringify(progress));
+    } catch (error) {
+      console.error('Error loading user progress:', error);
+      initializeProgress(contents, userId);
+    }
+  };
+
+  const updateContentCompletionStatus = (contents: StudyContent[], completedItems: string[]) => {
+    const updatedContents = contents.map(content => ({
+      ...content,
+      completed: completedItems.includes(content.id)
+    }));
+    setStudyContents(updatedContents);
+  };
+
+  const calculateDisciplineProgress = (contents: StudyContent[], completedItems: string[]) => {
+    const disciplineProgress: Record<string, { completed: number; total: number; percentage: number }> = {};
+    
+    contents.forEach(content => {
+      if (!disciplineProgress[content.discipline]) {
+        disciplineProgress[content.discipline] = { completed: 0, total: 0, percentage: 0 };
+      }
+      disciplineProgress[content.discipline].total++;
+      if (completedItems.includes(content.id)) {
+        disciplineProgress[content.discipline].completed++;
+      }
+    });
+
+    // Calculate percentages
+    Object.keys(disciplineProgress).forEach(discipline => {
+      const { completed, total } = disciplineProgress[discipline];
+      disciplineProgress[discipline].percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    });
+
+    return disciplineProgress;
   };
 
   const processConteudosJsonb = (conteudosJsonb: any): StudyContent[] => {
@@ -128,35 +183,26 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem('study-progress', JSON.stringify(newProgress));
   };
 
-  const toggleContentCompletion = (contentId: string) => {
+  const toggleContentCompletion = async (contentId: string) => {
     if (!user) return;
 
     const content = studyContents.find(c => c.id === contentId);
     if (!content) return;
 
+    const isCompleting = !content.completed;
+
+    // Optimistic update - update UI immediately
     const updatedContents = studyContents.map(c => 
       c.id === contentId ? { ...c, completed: !c.completed } : c
     );
-    
     setStudyContents(updatedContents);
 
-    // Update progress
+    // Update progress state
     const completedItems = content.completed 
       ? progress.completedItems.filter(id => id !== contentId)
       : [...progress.completedItems, contentId];
 
-    const disciplineProgress = { ...progress.progressByDiscipline };
-    
-    // Recalculate discipline progress
-    Object.keys(disciplineProgress).forEach(discipline => {
-      const disciplineContents = updatedContents.filter(c => c.discipline === discipline);
-      const completed = disciplineContents.filter(c => c.completed).length;
-      disciplineProgress[discipline] = {
-        completed,
-        total: disciplineContents.length,
-        percentage: disciplineContents.length > 0 ? Math.round((completed / disciplineContents.length) * 100) : 0
-      };
-    });
+    const disciplineProgress = calculateDisciplineProgress(updatedContents, completedItems);
 
     const updatedProgress: Progress = {
       ...progress,
@@ -167,14 +213,71 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setProgress(updatedProgress);
     localStorage.setItem('study-progress', JSON.stringify(updatedProgress));
 
-    // Show toast notification
-    toast({
-      title: content.completed ? "Item desmarcado" : "Parabéns! 🎉",
-      description: content.completed 
-        ? `"${content.name}" foi desmarcado` 
-        : `"${content.name}" foi concluído!`,
-      duration: 2000,
-    });
+    // Sync with database
+    try {
+      if (isCompleting) {
+        // Add to database
+        const { error } = await supabase
+          .from('user_progress')
+          .upsert({ 
+            user_id: user.id, 
+            content_id: contentId 
+          });
+        
+        if (error) {
+          console.error('Error saving progress to database:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível salvar o progresso. Tente novamente.",
+            duration: 3000,
+          });
+          // Revert optimistic update
+          const revertedContents = studyContents.map(c => 
+            c.id === contentId ? { ...c, completed: content.completed } : c
+          );
+          setStudyContents(revertedContents);
+          return;
+        }
+      } else {
+        // Remove from database
+        const { error } = await supabase
+          .from('user_progress')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('content_id', contentId);
+        
+        if (error) {
+          console.error('Error removing progress from database:', error);
+          toast({
+            title: "Erro",
+            description: "Não foi possível remover o progresso. Tente novamente.",
+            duration: 3000,
+          });
+          // Revert optimistic update
+          const revertedContents = studyContents.map(c => 
+            c.id === contentId ? { ...c, completed: content.completed } : c
+          );
+          setStudyContents(revertedContents);
+          return;
+        }
+      }
+
+      // Show success toast
+      toast({
+        title: isCompleting ? "Parabéns! 🎉" : "Item desmarcado",
+        description: isCompleting 
+          ? `"${content.name}" foi concluído!` 
+          : `"${content.name}" foi desmarcado`,
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Error syncing progress:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao sincronizar progresso. Verifique sua conexão.",
+        duration: 3000,
+      });
+    }
   };
 
   const getFilteredContents = (discipline?: string, status?: 'completed' | 'pending'): StudyContent[] => {

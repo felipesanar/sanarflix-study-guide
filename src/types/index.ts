@@ -48,6 +48,6 @@ export interface AuthContextType {
 export interface StudyContextType {
   studyContents: StudyContent[];
   progress: Progress;
-  toggleContentCompletion: (contentId: string) => void;
+  toggleContentCompletion: (contentId: string) => Promise<void>;
   getFilteredContents: (discipline?: string, status?: 'completed' | 'pending') => StudyContent[];
 }

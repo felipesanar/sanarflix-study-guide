@@ -14,13 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conteudos: {
+        Row: {
+          conteudos: Json
+          id: string
+          id_ies: string
+          semestre: number
+        }
+        Insert: {
+          conteudos: Json
+          id?: string
+          id_ies: string
+          semestre: number
+        }
+        Update: {
+          conteudos?: Json
+          id?: string
+          id_ies?: string
+          semestre?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ies: {
+        Row: {
+          id: string
+          nome: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          completed_at: string
+          content_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          content_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          content_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          cpf: string | null
+          email: string
+          id: string
+          id_ies: string | null
+          nome: string
+          semestre: number | null
+          senha_hash: string
+        }
+        Insert: {
+          cpf?: string | null
+          email: string
+          id: string
+          id_ies?: string | null
+          nome: string
+          semestre?: number | null
+          senha_hash?: string
+        }
+        Update: {
+          cpf?: string | null
+          email?: string
+          id?: string
+          id_ies?: string | null
+          nome?: string
+          semestre?: number | null
+          senha_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      users_public: {
+        Row: {
+          cpf: string | null
+          email: string | null
+          id: string | null
+          id_ies: string | null
+          nome: string | null
+          semestre: number | null
+        }
+        Insert: {
+          cpf?: string | null
+          email?: string | null
+          id?: string | null
+          id_ies?: string | null
+          nome?: string | null
+          semestre?: number | null
+        }
+        Update: {
+          cpf?: string | null
+          email?: string | null
+          id?: string | null
+          id_ies?: string | null
+          nome?: string | null
+          semestre?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      atualizar_senha: {
+        Args: { nova_senha: string }
+        Returns: undefined
+      }
+      get_conteudos_for_user: {
+        Args: { user_id_ies: string; user_semestre: number }
+        Returns: {
+          conteudos: Json
+        }[]
+      }
+      get_current_user_faculty: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_ies_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_semester: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      get_user_ies_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      verificar_senha: {
+        Args: { senha_input: string; senha_hash_stored: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
