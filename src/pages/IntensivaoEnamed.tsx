@@ -394,8 +394,15 @@ const allAulas: AulaItem[] = useMemo(() => {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-3">
-            <Target className="h-8 w-8 text-red-darkest dark:text-primary-foreground" />
-            <h1 className="text-4xl font-bold text-red-darkest dark:text-primary-foreground">Intensivão ENAMED</h1>
+            <h1 className="text-4xl font-bold text-red-darkest dark:text-primary-foreground flex items-center gap-3">
+              Intensivão
+              <img
+                src="/lovable-uploads/0a3f361e-72ba-4182-8814-5d3f8a5df2b3.png"
+                alt="Logo ENAMED"
+                className="h-8 w-auto align-middle"
+                loading="lazy"
+              />
+            </h1>
           </div>
           
           {user && (
@@ -461,6 +468,8 @@ const allAulas: AulaItem[] = useMemo(() => {
                 case 'Pediatria': return <Baby className="h-4 w-4" />;
                 case 'Clínica Médica': return <Stethoscope className="h-4 w-4" />;
                 case 'Clínica Cirúrgica': return <Syringe className="h-4 w-4" />;
+                case 'Cirurgia Geral': return <Syringe className="h-4 w-4" />;
+                case 'Medicina de Família e Comunidade, Saúde Coletiva e Saúde Mental': return null;
                 case 'MFC e Saúde Coletiva': return <Users className="h-4 w-4" />;
                 case 'Revisão': return <BookOpen className="h-4 w-4" />;
                 case 'Avaliação': return <FileText className="h-4 w-4" />;
