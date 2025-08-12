@@ -42,6 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = data.user;
+
+      // Estabelece sessão do Supabase no cliente para permitir RLS nas consultas
+      if (data.session?.access_token && data.session?.refresh_token) {
+        try {
+          await supabase.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+        } catch (e) {
+          console.error('Failed to set Supabase session:', e);
+        }
+      }
+
       setUser(userData);
       setNeedsPasswordChange(data.needsPasswordChange);
       

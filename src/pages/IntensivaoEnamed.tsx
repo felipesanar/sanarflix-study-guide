@@ -274,11 +274,18 @@ const allAulas: AulaItem[] = useMemo(() => {
     }
   }, [user]);
 
-  // Carregar progresso quando o usuário estiver disponível
+  // Carregar progresso quando o usuário estiver disponível e quando a sessão autenticar
   useEffect(() => {
     if (user) {
       loadEnamedProgress();
     }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        loadEnamedProgress();
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [user, loadEnamedProgress]);
 
   // Função para extrair disciplina do nome do dia
@@ -319,16 +326,16 @@ const allAulas: AulaItem[] = useMemo(() => {
       const contentId = `enamed_${itemKey}`;
 
       if (isCompleting) {
-        // Salvar no banco
-        const { error } = await supabase
+        // Evitar duplicatas: verifica se já existe
+        const { data: existing, error: checkError } = await supabase
           .from('user_progress')
-          .upsert({ 
-            user_id: authUser.id, 
-            content_id: contentId 
-          });
-        
-        if (error) {
-          console.error('Error saving ENAMED progress:', error);
+          .select('id')
+          .eq('user_id', authUser.id)
+          .eq('content_id', contentId)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error('Error checking existing ENAMED progress:', checkError);
           toast.error('Erro ao salvar progresso. Tente novamente.');
           // Reverter mudança otimista
           setCompletedItems(prev => {
@@ -337,6 +344,27 @@ const allAulas: AulaItem[] = useMemo(() => {
             return newSet;
           });
           return;
+        }
+
+        if (!existing) {
+          const { error: insertError } = await supabase
+            .from('user_progress')
+            .insert({ 
+              user_id: authUser.id, 
+              content_id: contentId 
+            });
+          
+          if (insertError) {
+            console.error('Error saving ENAMED progress:', insertError);
+            toast.error('Erro ao salvar progresso. Tente novamente.');
+            // Reverter mudança otimista
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemKey);
+              return newSet;
+            });
+            return;
+          }
         }
       } else {
         // Remover do banco
