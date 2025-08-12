@@ -32,9 +32,9 @@ export const StudyContentCard: React.FC<StudyContentCardProps> = ({ content }) =
       video: { label: 'Vídeo', className: 'bg-primary-50 text-primary-700' },
       exercise: { label: 'Exercício', className: 'bg-success-50 text-success-700' },
       reading: { label: 'Leitura', className: 'bg-gray-50 text-gray-700' }
-    };
+    } as const;
     
-    const type = typeMap[content.type] || typeMap.video;
+    const type = (typeMap as any)[content.type] || typeMap.video;
     
     return (
       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${type.className}`}>
@@ -48,7 +48,7 @@ export const StudyContentCard: React.FC<StudyContentCardProps> = ({ content }) =
     <Card className={`transition-all duration-300 hover:shadow-md ${
       content.completed 
         ? 'bg-success-50/50 border-success-200 shadow-sm' 
-        : 'bg-white hover:bg-gray-50 border-gray-200'
+        : 'bg-card hover:bg-accent/10 border-border'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
@@ -68,14 +68,14 @@ export const StudyContentCard: React.FC<StudyContentCardProps> = ({ content }) =
             <div className="flex items-start justify-between gap-4 mb-2">
               <div className="flex-1">
                 <h3 className={`font-medium text-sm mb-1 leading-5 ${
-                  content.completed ? 'text-success-700 line-through' : 'text-gray-900'
+                  content.completed ? 'text-success-700 line-through' : 'text-foreground'
                 }`}>
                   {content.name}
                 </h3>
                 
                 <div className="flex items-center gap-2 mb-2">
                   {getContentTypeBadge()}
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     Semana {content.week}
                   </span>
                 </div>
@@ -85,7 +85,7 @@ export const StudyContentCard: React.FC<StudyContentCardProps> = ({ content }) =
                 size="sm"
                 variant="outline"
                 onClick={() => window.open(content.sanarflixUrl, '_blank')}
-                className="flex-shrink-0 h-8 px-3 text-xs hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                className="flex-shrink-0 h-8 px-3 text-xs hover:bg-accent/20 hover:border-input hover:text-foreground transition-colors"
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
                 Acessar
@@ -93,7 +93,7 @@ export const StudyContentCard: React.FC<StudyContentCardProps> = ({ content }) =
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+              <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded-full">
                 {content.discipline}
               </span>
               

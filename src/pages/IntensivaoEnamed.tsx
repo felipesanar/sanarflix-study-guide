@@ -578,7 +578,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                               const isDone = completedItems.has(item.itemKey);
                               const hasQuestoes = Boolean(item.link_questoes) && String(item.link_questoes).toLowerCase() !== 'nan';
                               return (
-                                <div key={item.itemKey} className={`p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200' : 'bg-white border-neutral-light hover:border-red-light'}`}>
+                                <div key={item.itemKey} className={`p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' : 'bg-card border-border hover:border-[hsl(var(--active-selection))]'}`}>
                                   <div className="flex items-start gap-3">
                                     <Checkbox
                                       checked={isDone}
@@ -587,7 +587,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                                     />
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center justify-between gap-3">
-                                        <h4 className={`font-medium ${isDone ? 'text-green-600 line-through' : 'text-neutral-darkest'}`}>{item.aula}</h4>
+                                        <h4 className={`font-medium ${isDone ? 'text-green-600 line-through' : 'text-foreground'}`}>{item.aula}</h4>
                                         {isDone && (
                                           <Badge className="bg-green-500 hover:bg-green-600 text-white">
                                             <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -608,7 +608,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                                             <Button
                                               variant="outline"
                                               onClick={() => window.open(String(item.link_questoes), '_blank')}
-                                              className="border-input text-foreground hover:bg-accent/30"
+                                              className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
                                             >
                                               Responder Questões
                                             </Button>
