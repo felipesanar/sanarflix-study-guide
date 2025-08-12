@@ -59,10 +59,17 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const loadUserProgress = async (contents: StudyContent[], userId: string) => {
     try {
+      // Get current auth user ID
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        initializeProgress(contents, userId);
+        return;
+      }
+
       const { data: progressData, error } = await supabase
         .from('user_progress')
         .select('content_id')
-        .eq('user_id', userId);
+        .eq('user_id', authUser.id);
 
       if (error) {
         console.error('Error loading user progress:', error);
@@ -215,12 +222,19 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Sync with database
     try {
+      // Get current auth user ID
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        console.error('No authenticated user found');
+        return;
+      }
+
       if (isCompleting) {
         // Add to database
         const { error } = await supabase
           .from('user_progress')
           .upsert({ 
-            user_id: user.id, 
+            user_id: authUser.id, 
             content_id: contentId 
           });
         
@@ -243,7 +257,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const { error } = await supabase
           .from('user_progress')
           .delete()
-          .eq('user_id', user.id)
+          .eq('user_id', authUser.id)
           .eq('content_id', contentId);
         
         if (error) {
