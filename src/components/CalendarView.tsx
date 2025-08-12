@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,6 +39,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
       return acc;
     }, {} as Record<string, Record<string, CalendarItem[]>>);
   }, [items]);
+
+  // Sincroniza itens do modal com mudanças externas
+  useEffect(() => {
+    if (open && selected) {
+      const map = new Map(items.map(i => [i.itemKey, i]));
+      const updated = selected.items.map(it => map.get(it.itemKey) ?? it);
+      setSelected(prev => (prev ? { ...prev, items: updated } : prev));
+    }
+  }, [items, open]);
+
+  // Toggle otimista dentro do modal para feedback imediato
+  const handleToggle = (itemKey: string) => {
+    onToggleCompletion(itemKey);
+    setSelected(prev => (
+      prev ? { ...prev, items: prev.items.map(i => i.itemKey === itemKey ? { ...i, completed: !i.completed } : i) } : prev
+    ));
+  };
+
   return (
     <div className="space-y-6">
       {Object.entries(groupedItems).map(([week, days]) => (
@@ -102,11 +120,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
           <div className="space-y-3">
             {selected?.items.map((it) => (
-              <div key={it.itemKey} className="p-3 rounded-lg border bg-card border-border">
+              <div key={it.itemKey} className={`p-3 rounded-lg border ${it.completed ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' : 'bg-card border-border'}`}>
                 <div className="flex items-start gap-3">
                   <Checkbox
                     checked={it.completed}
-                    onCheckedChange={() => onToggleCompletion(it.itemKey)}
+                    onCheckedChange={() => handleToggle(it.itemKey)}
                     className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
                   />
                   <div className="flex-1 min-w-0">
