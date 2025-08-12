@@ -10,6 +10,8 @@ import { BookOpen, Video, FileText, Clock, Calendar, Target, Baby, Syringe, Stet
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Ícone customizado para representar mulher grávida
 const PregnantWomanIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -242,6 +244,43 @@ const allAulas: AulaItem[] = useMemo(() => {
     return () => { const _ = (active = false); };
   }, []);
 
+  // Carregar progresso do usuário do banco de dados
+  const loadEnamedProgress = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { data: progressData, error } = await supabase
+        .from('user_progress')
+        .select('content_id')
+        .eq('user_id', authUser.id)
+        .like('content_id', 'enamed_%');
+
+      if (error) {
+        console.error('Error loading ENAMED progress:', error);
+        return;
+      }
+
+      if (progressData && progressData.length > 0) {
+        const completedIds = progressData
+          .map(item => item.content_id.replace('enamed_', ''))
+          .filter(id => id); // Remove empty strings
+        setCompletedItems(new Set(completedIds));
+      }
+    } catch (error) {
+      console.error('Error loading ENAMED progress:', error);
+    }
+  }, [user]);
+
+  // Carregar progresso quando o usuário estiver disponível
+  useEffect(() => {
+    if (user) {
+      loadEnamedProgress();
+    }
+  }, [user, loadEnamedProgress]);
+
   // Função para extrair disciplina do nome do dia
   const extractDiscipline = (diaName: string): string => {
     if (diaName.includes('Ginecologia')) return 'Ginecologia e Obstetrícia';
@@ -254,8 +293,11 @@ const allAulas: AulaItem[] = useMemo(() => {
     return 'Outros';
   };
 
-  // Marcar/desmarcar item como concluído
-  const toggleItemCompletion = useCallback((itemKey: string) => {
+  // Marcar/desmarcar item como concluído com persistência no banco
+  const toggleItemCompletion = useCallback(async (itemKey: string) => {
+    const isCompleting = !completedItems.has(itemKey);
+
+    // Atualização otimista da UI
     setCompletedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(itemKey)) {
@@ -265,7 +307,65 @@ const allAulas: AulaItem[] = useMemo(() => {
       }
       return newSet;
     });
-  }, []);
+
+    // Sincronizar com o banco de dados
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      const contentId = `enamed_${itemKey}`;
+
+      if (isCompleting) {
+        // Salvar no banco
+        const { error } = await supabase
+          .from('user_progress')
+          .upsert({ 
+            user_id: authUser.id, 
+            content_id: contentId 
+          });
+        
+        if (error) {
+          console.error('Error saving ENAMED progress:', error);
+          toast.error('Erro ao salvar progresso. Tente novamente.');
+          // Reverter mudança otimista
+          setCompletedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(itemKey);
+            return newSet;
+          });
+          return;
+        }
+      } else {
+        // Remover do banco
+        const { error } = await supabase
+          .from('user_progress')
+          .delete()
+          .eq('user_id', authUser.id)
+          .eq('content_id', contentId);
+        
+        if (error) {
+          console.error('Error removing ENAMED progress:', error);
+          toast.error('Erro ao remover progresso. Tente novamente.');
+          // Reverter mudança otimista
+          setCompletedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.add(itemKey);
+            return newSet;
+          });
+          return;
+        }
+      }
+
+      // Sucesso - mostrar notificação
+      toast.success(isCompleting ? 'Aula marcada como concluída! 🎉' : 'Aula desmarcada');
+    } catch (error) {
+      console.error('Error syncing ENAMED progress:', error);
+      toast.error('Erro ao sincronizar progresso. Verifique sua conexão.');
+    }
+  }, [completedItems]);
 
   // Calcular dados de progresso
   const progressData = useMemo(() => {
