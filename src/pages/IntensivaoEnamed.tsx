@@ -333,7 +333,9 @@ const allAulas: AulaItem[] = useMemo(() => {
     const content: Array<{
       semana: string;
       dia: string;
-      tema: string;
+      tema?: string;
+      subtema?: string;
+      aula?: string;
       completed: boolean;
       itemKey: string;
       discipline: string;
