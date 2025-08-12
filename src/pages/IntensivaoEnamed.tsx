@@ -367,104 +367,6 @@ const allAulas: AulaItem[] = useMemo(() => {
     }
   }, [completedItems]);
 
-  // Calcular dados de progresso
-  const progressData = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const nonOptional = allAulas.filter(i => !isOptional(i.aula));
-    const totalItems = nonOptional.length;
-    const completedCount = nonOptional.filter(i => completedItems.has(i.itemKey)).length;
-    const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
-    return { totalItems, completedItems: completedCount, percentage };
-  }, [completedItems, allAulas]);
-
-  // Calcular progresso por disciplina
-  const progressByDiscipline = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const disciplineStats: Record<string, { total: number; completed: number }> = {};
-    allAulas.forEach(item => {
-      if (isOptional(item.aula)) return; // ignore opcionais
-      const d = item.discipline || 'Outros';
-      if (!disciplineStats[d]) {
-        disciplineStats[d] = { total: 0, completed: 0 };
-      }
-      disciplineStats[d].total++;
-      if (completedItems.has(item.itemKey)) {
-        disciplineStats[d].completed++;
-      }
-    });
-    return disciplineStats;
-  }, [completedItems, allAulas]);
-
-  // Calcular semanas concluídas (ignorando opcionais)
-  const weekProgress = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const byWeek: Record<string, { total: number; completed: number }> = {};
-    allAulas.forEach(item => {
-      if (isOptional(item.aula)) return;
-      if (!byWeek[item.semana]) byWeek[item.semana] = { total: 0, completed: 0 };
-      byWeek[item.semana].total++;
-      if (completedItems.has(item.itemKey)) byWeek[item.semana].completed++;
-    });
-
-    const totalWeeks = Object.keys(byWeek).length || cronograma.semanas.length;
-    const completedWeeks = Object.values(byWeek).filter(w => w.total > 0 && w.completed === w.total).length;
-    const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
-    
-    return { completedWeeks, totalWeeks, percentage };
-  }, [completedItems, allAulas, cronograma.semanas.length]);
-
-  // Lista de disciplinas disponíveis
-  const availableDisciplines = useMemo(() => {
-    const disciplines = new Set<string>();
-    allAulas.forEach(i => disciplines.add(i.discipline));
-    return Array.from(disciplines).sort();
-  }, [allAulas]);
-
-  // Filtrar dados por semana selecionada
-  const availableDays = useMemo(() => {
-    if (selectedWeek === 'all') return [];
-    const days = new Set<string>();
-    allAulas.filter(i => i.semana === selectedWeek).forEach(i => days.add(i.dia));
-    return Array.from(days).map(nome => ({ nome }));
-  }, [selectedWeek, allAulas]);
-
-  // Filtrar conteúdo baseado nas seleções
-  const filteredContent = useMemo(() => {
-    const content: Array<{
-      semana: string;
-      dia: string;
-      tema?: string;
-      subtema?: string;
-      aula?: string;
-      completed: boolean;
-      itemKey: string;
-      discipline: string;
-      link_aula?: string;
-      link_questoes?: string;
-    }> = [];
-
-    allAulas.forEach(item => {
-      if (selectedWeek !== 'all' && item.semana !== selectedWeek) return;
-      if (selectedDay !== 'all' && item.dia !== selectedDay) return;
-      if (selectedDiscipline !== 'all' && item.discipline !== selectedDiscipline) return;
-
-      content.push({
-        semana: item.semana,
-        dia: item.dia,
-        tema: item.tema,
-        subtema: item.subtema,
-        aula: item.aula,
-        completed: completedItems.has(item.itemKey),
-        itemKey: item.itemKey,
-        discipline: item.discipline,
-        link_aula: item.link_aula,
-        link_questoes: item.link_questoes,
-      });
-    });
-
-    return content;
-  }, [allAulas, selectedWeek, selectedDay, selectedDiscipline, completedItems]);
-
   // Agrupar por Tema > Subtema (para visualização em blocos)
   type TemaGroup = { tema: string; subtemas: { subtema: string; aulas: AulaItem[] }[] };
   const groupedByTema: TemaGroup[] = useMemo(() => {
@@ -485,6 +387,120 @@ const allAulas: AulaItem[] = useMemo(() => {
       subtemas: Array.from(subMap.entries()).map(([subtema, aulas]) => ({ subtema, aulas })),
     }));
   }, [allAulas, selectedWeek, selectedDay, selectedDiscipline]);
+
+  // Calcular dados de progresso baseado em subtemas
+  const progressData = useMemo(() => {
+    const allSubtemas = new Set<string>();
+    groupedByTema.forEach(grupo => {
+      grupo.subtemas.forEach(st => {
+        const subtemaKey = `${grupo.tema}-${st.subtema}`;
+        allSubtemas.add(subtemaKey);
+      });
+    });
+    
+    const totalItems = allSubtemas.size;
+    const completedCount = Array.from(allSubtemas).filter(subtemaKey => completedItems.has(subtemaKey)).length;
+    const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+    return { totalItems, completedItems: completedCount, percentage };
+  }, [completedItems, groupedByTema]);
+
+  // Calcular progresso por disciplina baseado em subtemas
+  const progressByDiscipline = useMemo(() => {
+    const disciplineStats: Record<string, { total: number; completed: number }> = {};
+    groupedByTema.forEach(grupo => {
+      grupo.subtemas.forEach(st => {
+        const subtemaKey = `${grupo.tema}-${st.subtema}`;
+        // Usar a disciplina da primeira aula do subtema
+        const discipline = st.aulas[0]?.discipline || 'Outros';
+        if (!disciplineStats[discipline]) {
+          disciplineStats[discipline] = { total: 0, completed: 0 };
+        }
+        disciplineStats[discipline].total++;
+        if (completedItems.has(subtemaKey)) {
+          disciplineStats[discipline].completed++;
+        }
+      });
+    });
+    return disciplineStats;
+  }, [completedItems, groupedByTema]);
+
+  // Lista de disciplinas disponíveis
+  const availableDisciplines = useMemo(() => {
+    const disciplines = new Set<string>();
+    allAulas.forEach(i => disciplines.add(i.discipline));
+    return Array.from(disciplines).sort();
+  }, [allAulas]);
+
+  // Filtrar dados por semana selecionada
+  const availableDays = useMemo(() => {
+    if (selectedWeek === 'all') return [];
+    const days = new Set<string>();
+    allAulas.filter(i => i.semana === selectedWeek).forEach(i => days.add(i.dia));
+    return Array.from(days).map(nome => ({ nome }));
+  }, [selectedWeek, allAulas]);
+
+  // Calcular semanas concluídas baseado em subtemas
+  const weekProgress = useMemo(() => {
+    const byWeek: Record<string, { total: number; completed: number }> = {};
+    groupedByTema.forEach(grupo => {
+      grupo.subtemas.forEach(st => {
+        const subtemaKey = `${grupo.tema}-${st.subtema}`;
+        // Usar a semana da primeira aula do subtema
+        const week = st.aulas[0]?.semana || 'Desconhecida';
+        if (!byWeek[week]) byWeek[week] = { total: 0, completed: 0 };
+        byWeek[week].total++;
+        if (completedItems.has(subtemaKey)) byWeek[week].completed++;
+      });
+    });
+
+    const totalWeeks = Object.keys(byWeek).length || cronograma.semanas.length;
+    const completedWeeks = Object.values(byWeek).filter(w => w.total > 0 && w.completed === w.total).length;
+    const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
+    
+    return { completedWeeks, totalWeeks, percentage };
+  }, [completedItems, groupedByTema, cronograma.semanas.length]);
+
+  // Filtrar conteúdo baseado nas seleções (para CalendarView)
+  const filteredContent = useMemo(() => {
+    const content: Array<{
+      semana: string;
+      dia: string;
+      tema?: string;
+      subtema?: string;
+      aula?: string;
+      completed: boolean;
+      itemKey: string;
+      discipline: string;
+      link_aula?: string;
+      link_questoes?: string;
+    }> = [];
+
+    groupedByTema.forEach(grupo => {
+      grupo.subtemas.forEach(st => {
+        const subtemaKey = `${grupo.tema}-${st.subtema}`;
+        const isCompleted = completedItems.has(subtemaKey);
+        
+        // Criar um item representativo do subtema para o CalendarView
+        const firstAula = st.aulas[0];
+        if (firstAula) {
+          content.push({
+            semana: firstAula.semana,
+            dia: firstAula.dia,
+            tema: grupo.tema,
+            subtema: st.subtema,
+            aula: `${st.subtema} (${st.aulas.length} aulas)`,
+            completed: isCompleted,
+            itemKey: subtemaKey,
+            discipline: firstAula.discipline,
+            link_aula: firstAula.link_aula,
+            link_questoes: firstAula.link_questoes,
+          });
+        }
+      });
+    });
+
+    return content;
+  }, [groupedByTema, completedItems]);
 
   // Calcular dias restantes para o ENAMED (mock)
   const diasRestantes = 85;
@@ -697,65 +713,77 @@ const allAulas: AulaItem[] = useMemo(() => {
                 </CardHeader>
                 <CardContent className="pt-0">
                   <Accordion type="multiple" className="divide-y">
-                    {grupo.subtemas.map((st) => (
-                      <AccordionItem key={`${grupo.tema}-${st.subtema}`} value={`${grupo.tema}-${st.subtema}`}>
-                        <AccordionTrigger className="px-4 py-3 text-left">
-                          <div className="flex items-center justify-between w-full">
-                            <span className="font-medium">{st.subtema}</span>
-                            <Badge variant="secondary" className="ml-2">{st.aulas.length} aulas</Badge>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="px-4 pb-4 space-y-3">
-                            {st.aulas.map((item) => {
-                              const isDone = completedItems.has(item.itemKey);
-                              const hasQuestoes = Boolean(item.link_questoes) && String(item.link_questoes).toLowerCase() !== 'nan';
-                              return (
-                                <div key={item.itemKey} className={`p-3 rounded-lg border transition-all ${isDone ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' : 'bg-card border-border hover:border-[hsl(var(--active-selection))]'}`}>
-                                  <div className="flex items-start gap-3">
-                                    <Checkbox
-                                      checked={isDone}
-                                      onCheckedChange={() => toggleItemCompletion(item.itemKey)}
-                                      className="mt-0.5 data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center justify-between gap-3">
-                                        <h4 className={`font-medium ${isDone ? 'text-green-600 line-through' : 'text-foreground'}`}>{item.aula}</h4>
-                                        {isDone && (
-                                          <Badge className="bg-green-500 hover:bg-green-600 text-white">
-                                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                                            Concluído
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <div className="mt-2 flex flex-wrap gap-2">
-                                        {!!item.link_aula && (
-                                          <Button
-                                            variant="default"
-                                            onClick={() => window.open(String(item.link_aula), '_blank')}
-                                          >
-                                            Ver Aula
-                                          </Button>
-                                        )}
+                    {grupo.subtemas.map((st) => {
+                      const subtemaKey = `${grupo.tema}-${st.subtema}`;
+                      const isSubtemaCompleted = completedItems.has(subtemaKey);
+                      
+                      return (
+                        <AccordionItem key={subtemaKey} value={subtemaKey}>
+                          <AccordionTrigger className="px-4 py-3 text-left">
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  checked={isSubtemaCompleted}
+                                  onCheckedChange={() => toggleItemCompletion(subtemaKey)}
+                                  className="data-[state=checked]:bg-[#600606] data-[state=checked]:border-[#600606]"
+                                />
+                                <span className={`font-medium ${isSubtemaCompleted ? 'text-green-600 line-through' : ''}`}>
+                                  {st.subtema}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isSubtemaCompleted && (
+                                  <Badge className="bg-green-500 hover:bg-green-600 text-white">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Concluído
+                                  </Badge>
+                                )}
+                                <Badge variant="secondary" className="ml-2">{st.aulas.length} aulas</Badge>
+                              </div>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="px-4 pb-4 space-y-2">
+                              {st.aulas.map((item) => {
+                                const hasQuestoes = Boolean(item.link_questoes) && String(item.link_questoes).toLowerCase() !== 'nan';
+                                return (
+                                  <div key={item.itemKey} className="p-3 rounded-lg border bg-card border-border">
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <h4 className="font-medium text-foreground">{item.aula}</h4>
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                          {!!item.link_aula && (
+                                            <Button
+                                              variant="default"
+                                              size="sm"
+                                              onClick={() => window.open(String(item.link_aula), '_blank')}
+                                            >
+                                              Ver Aula
+                                            </Button>
+                                          )}
                                           {hasQuestoes && (
                                             <Button
                                               variant="outline"
+                                              size="sm"
                                               onClick={() => window.open(String(item.link_questoes), '_blank')}
                                               className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
                                             >
                                               Responder Questões
                                             </Button>
                                           )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
+                                );
+                              })}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
                   </Accordion>
                 </CardContent>
               </Card>
