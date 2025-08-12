@@ -144,7 +144,7 @@ export const LoginForm: React.FC = () => {
             </div>
             <div className="flex items-center space-x-3">
               <div className="w-2 h-2 bg-primary-light rounded-full"></div>
-              <span className="text-white/80">Dashboard com métricas avançadas</span>
+              <span className="text-white/80">Dashboard de progresso para acompanhamento</span>
             </div>
           </div>
         </div>
