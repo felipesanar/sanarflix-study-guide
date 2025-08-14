@@ -514,8 +514,14 @@ const allAulas: AulaItem[] = useMemo(() => {
     }));
   }, [allAulas, selectedWeek, selectedDay, selectedDiscipline]);
 
-  // Calcular dias restantes para o ENAMED (mock)
-  const diasRestantes = 85;
+  // Calcular dias restantes para o ENAMED (19/10/2025)
+  const diasRestantes = useMemo(() => {
+    const today = new Date();
+    const enamedDate = new Date('2025-10-19');
+    const diffTime = enamedDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays); // Não mostrar números negativos se a data já passou
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
