@@ -18,6 +18,41 @@ export const LoginForm: React.FC = () => {
     await login(email, password);
   };
 
+  const handleMagicLinkLogin = async () => {
+    if (!email) {
+      toast({
+        title: "Informe seu e-mail",
+        description: "Digite seu e-mail acima para enviarmos o link de acesso.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: "Link de acesso enviado!",
+        description: "Verifique seu e-mail e clique no link para entrar.",
+        duration: 5000,
+      });
+    } catch (err: any) {
+      console.error("Magic link error:", err);
+      toast({
+        title: "Não foi possível enviar o link",
+        description: err?.message || "Tente novamente em instantes.",
+        variant: "destructive",
+        duration: 3500,
+      });
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!email) {
       toast({
@@ -29,7 +64,7 @@ export const LoginForm: React.FC = () => {
     }
 
     try {
-      const redirectTo = `${window.location.origin}/login`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });
@@ -141,6 +176,35 @@ export const LoginForm: React.FC = () => {
                     </>
                   ) : (
                     'Entrar'
+                  )}
+                </Button>
+
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-neutral-300" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">ou</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-12 border-neutral-300 hover:bg-neutral-50 transition-colors"
+                  onClick={handleMagicLinkLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="mr-2 h-4 w-4" />
+                      Entrar com Magic Link
+                    </>
                   )}
                 </Button>
               </form>

@@ -16,10 +16,10 @@ Deno.serve(async (req)=>{
     // pois as operações de auth e a consulta à tabela 'users' devem ser permitidas pelas suas políticas (RLS).
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
     // Extrai email e senha do corpo da requisição
-    const { email, password } = await req.json();
-    if (!email || !password) {
+    const { email, password, sessionToken } = await req.json();
+    if (!email || (!password && !sessionToken)) {
       return new Response(JSON.stringify({
-        error: 'Email e senha são obrigatórios'
+        error: 'Email e senha ou sessionToken são obrigatórios'
       }), {
         status: 400,
         headers: {
@@ -29,25 +29,48 @@ Deno.serve(async (req)=>{
       });
     }
     // ETAPA 1: Autenticar o usuário contra o `auth.users` do Supabase
-    // Esta função verifica a senha (temporária ou definitiva) e retorna uma sessão se for válida.
-    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password
-    });
-    // Se houver um erro de autenticação (email não existe, senha incorreta), retorna 401.
-    if (signInError) {
-      return new Response(JSON.stringify({
-        error: 'Email ou senha inválidos'
-      }), {
-        status: 401,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
+    let sessionData, signInError, user;
+    
+    if (sessionToken) {
+      // Magic link authentication - verify session token
+      const { data: userData, error } = await supabase.auth.getUser(sessionToken);
+      if (error || !userData.user) {
+        return new Response(JSON.stringify({
+          error: 'Session token inválido'
+        }), {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      user = userData.user;
+      sessionData = { user: userData.user, session: null };
+      signInError = null;
+    } else {
+      // Password authentication
+      const authResult = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password
       });
+      sessionData = authResult.data;
+      signInError = authResult.error;
+      
+      // Se houver um erro de autenticação (email não existe, senha incorreta), retorna 401.
+      if (signInError) {
+        return new Response(JSON.stringify({
+          error: 'Email ou senha inválidos'
+        }), {
+          status: 401,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      user = sessionData.user;
     }
-    // Se chegou aqui, o login foi bem-sucedido.
-    const user = sessionData.user;
     // ETAPA 2: Verificar a flag 'must_change_password' nos metadados do usuário
     const needsPasswordChange = user.user_metadata?.must_change_password === true;
     // ETAPA 3: Buscar o perfil detalhado do usuário na tabela `public.users`

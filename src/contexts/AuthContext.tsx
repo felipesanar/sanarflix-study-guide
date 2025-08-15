@@ -11,6 +11,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
 
   useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          // User signed in via magic link or other means
+          try {
+            const { data, error } = await supabase.functions.invoke('auth-login', {
+              body: { 
+                email: session.user.email,
+                sessionToken: session.access_token 
+              }
+            });
+
+            if (error || data.error) {
+              console.error('Auth state change error:', data?.error || error);
+              return;
+            }
+
+            const userData = data.user;
+            setUser(userData);
+            setNeedsPasswordChange(data.needsPasswordChange || false);
+            
+            localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+            localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
+            
+            toast({
+              title: "Login realizado com sucesso!",
+              description: `Bem-vindo(a), ${userData.nome}`,
+              duration: 3000,
+            });
+          } catch (error) {
+            console.error('Auth state processing error:', error);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setNeedsPasswordChange(false);
+          localStorage.removeItem('sanarflix-user');
+          localStorage.removeItem('sanarflix-needs-password-change');
+        }
+      }
+    );
+
     // Check if user is already logged in
     const storedUser = localStorage.getItem('sanarflix-user');
     const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
@@ -20,6 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsPasswordChange(storedPasswordChange === 'true');
     }
     setIsLoading(false);
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {

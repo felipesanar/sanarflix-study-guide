@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppSidebar } from '@/components/AppSidebar';
 import { Layout } from '@/components/Layout';
 import { LoginForm } from '@/components/LoginForm';
+import { AuthCallback } from '@/components/AuthCallback';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { AuthWrapper } from '@/components/AuthWrapper';
@@ -48,6 +49,7 @@ const AppContent = () => {
     return (
       <Routes>
         <Route path="/login" element={<LoginForm />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -60,6 +62,7 @@ const AppContent = () => {
     <StudyProvider>
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         
         {accessRules.studyGuide && (
           <Route
