@@ -533,7 +533,7 @@ const allAulas: AulaItem[] = useMemo(() => {
               <img
                 src="/lovable-uploads/0a3f361e-72ba-4182-8814-5d3f8a5df2b3.png"
                 alt="Logo ENAMED"
-                className="h-8 w-auto align-middle"
+                className="h-12 w-auto align-middle"
                 loading="lazy"
               />
             </h1>
