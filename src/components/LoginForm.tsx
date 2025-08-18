@@ -8,10 +8,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,8 @@ export const LoginForm: React.FC = () => {
     const success = await login(email, password);
     console.log('LoginForm: Login result:', success);
     if (success) {
-      console.log('LoginForm: Login successful, user should be redirected');
+      console.log('LoginForm: Login successful, navigating to /intensivao-enamed');
+      navigate('/intensivao-enamed', { replace: true });
     }
   };
 
