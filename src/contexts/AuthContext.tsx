@@ -61,14 +61,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         setUser(JSON.parse(storedUser));
         setNeedsPasswordChange(storedPasswordChange === 'true');
+        setIsLoading(false); // Set loading false immediately when user exists
       } catch (error) {
         console.error('Error parsing stored user:', error);
         localStorage.removeItem('sanarflix-user');
         localStorage.removeItem('sanarflix-needs-password-change');
+        setIsLoading(false);
       }
+    } else {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
 
     return () => subscription.unsubscribe();
   }, []);
