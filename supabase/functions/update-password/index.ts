@@ -1,17 +1,25 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// SECURITY: Strict CORS configuration with origin validation
-const ALLOWED_ORIGINS = new Set([
-  'https://gvqvrmkizemwsasmupmo.lovableproject.com'
-]);
+// SECURITY: Flexible CORS configuration with origin validation for known environments
+const isAllowedOrigin = (origin?: string): boolean => {
+  if (!origin) return false;
+  return (
+    origin.startsWith('http://localhost') ||
+    origin.endsWith('.lovableproject.com') ||
+    origin.endsWith('.lovable.app') ||
+    origin === 'https://guiadeestudos.sanar.com.br' ||
+    origin === 'https://sanarflix-study-guide.lovable.app' ||
+    origin === 'https://preview--sanarflix-study-guide.lovable.app'
+  );
+};
 
 const buildCorsHeaders = (origin?: string): Record<string, string> | null => {
-  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+  if (!isAllowedOrigin(origin)) {
     return null; // Reject unknown origins
   }
   return {
-    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Origin': origin!,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
