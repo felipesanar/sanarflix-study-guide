@@ -15,7 +15,12 @@ export const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
+    console.log('LoginForm: Starting login attempt for:', email);
+    const success = await login(email, password);
+    console.log('LoginForm: Login result:', success);
+    if (success) {
+      console.log('LoginForm: Login successful, user should be redirected');
+    }
   };
 
   const handleResetPassword = async () => {

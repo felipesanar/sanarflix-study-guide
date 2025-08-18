@@ -11,9 +11,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
 
   useEffect(() => {
+    console.log('AuthContext: Setting up auth state listener');
+    
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+        
         if (event === 'SIGNED_IN' && session) {
           // User signed in via magic link or other means
           try {
