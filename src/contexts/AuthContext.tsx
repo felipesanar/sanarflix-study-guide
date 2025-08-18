@@ -13,68 +13,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthContext: Setting up auth state listener');
     
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('AuthContext: Auth state changed:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_IN' && session) {
-          // User signed in via magic link or other means
+    // 1) Listener síncrono do estado de auth (evita deadlocks)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+
+      if (event === 'SIGNED_IN') {
+        // Hidrata imediatamente com cache salvo no login()
+        const cached = localStorage.getItem('sanarflix-user');
+        const cachedNeeds = localStorage.getItem('sanarflix-needs-password-change');
+        if (cached) {
           try {
-            const { data, error } = await supabase.functions.invoke('auth-login', {
-              body: { 
-                email: session.user.email,
-                sessionToken: session.access_token 
-              }
-            });
-
-            if (error || data.error) {
-              console.error('Auth state change error:', data?.error || error);
-              return;
-            }
-
-            const userData = data.user;
-            setUser(userData);
-            setNeedsPasswordChange(data.needsPasswordChange || false);
-            
-            localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-            localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
-            
-            toast({
-              title: "Login realizado com sucesso!",
-              description: `Bem-vindo(a), ${userData.nome}`,
-              duration: 3000,
-            });
-          } catch (error) {
-            console.error('Auth state processing error:', error);
+            const parsed = JSON.parse(cached);
+            setUser(parsed);
+            setNeedsPasswordChange(cachedNeeds === 'true');
+          } catch (e) {
+            console.error('Error parsing cached user on SIGNED_IN:', e);
           }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setNeedsPasswordChange(false);
-          localStorage.removeItem('sanarflix-user');
-          localStorage.removeItem('sanarflix-needs-password-change');
+        } else if (session?.access_token) {
+          // Fluxo via magic link/callback: buscar perfil de forma deferida
+          setTimeout(async () => {
+            try {
+              const { data, error } = await supabase.functions.invoke('auth-login', {
+                body: { 
+                  email: session.user?.email,
+                  sessionToken: session.access_token 
+                }
+              });
+
+              if (error || data?.error) {
+                console.error('Auth state profile fetch error:', data?.error || error);
+                return;
+              }
+
+              const userData = data.user;
+              setUser(userData);
+              setNeedsPasswordChange(data.needsPasswordChange || false);
+              
+              localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+              localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
+            } catch (e) {
+              console.error('Deferred profile fetch error:', e);
+            }
+          }, 0);
         }
       }
-    );
 
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem('sanarflix-user');
-    const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
-    
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setNeedsPasswordChange(storedPasswordChange === 'true');
-        setIsLoading(false); // Set loading false immediately when user exists
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setNeedsPasswordChange(false);
         localStorage.removeItem('sanarflix-user');
         localStorage.removeItem('sanarflix-needs-password-change');
-        setIsLoading(false);
       }
-    } else {
-      setIsLoading(false);
-    }
+    });
+
+    // 2) Inicializa a partir da sessão e do cache existente
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        const storedUser = localStorage.getItem('sanarflix-user');
+        const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
+        
+        if (storedUser) {
+          try {
+            setUser(JSON.parse(storedUser));
+            setNeedsPasswordChange(storedPasswordChange === 'true');
+          } catch (error) {
+            console.error('Error parsing stored user on init:', error);
+            localStorage.removeItem('sanarflix-user');
+            localStorage.removeItem('sanarflix-needs-password-change');
+          }
+        }
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error('getSession error:', error);
+        setIsLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -229,6 +242,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    try {
+      // Encerra sessão do Supabase (dispara SIGNED_OUT)
+      supabase.auth.signOut();
+    } catch (e) {
+      console.error('Error on signOut:', e);
+    }
+
+    // Limpeza defensiva imediata
     setUser(null);
     setNeedsPasswordChange(false);
     localStorage.removeItem('sanarflix-user');
