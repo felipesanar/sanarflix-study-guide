@@ -168,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setIsLoading(false);
+      console.log('About to return true from login function');
       return true;
     } catch (error) {
       console.error('Login error:', error);
