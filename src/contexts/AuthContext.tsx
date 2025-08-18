@@ -70,14 +70,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
+      console.log('Starting login for:', email);
+      
       const { data, error } = await supabase.functions.invoke('auth-login', {
         body: { email, password }
       });
 
-      if (error || data.error) {
+      console.log('Login response:', { data, error });
+
+      if (error) {
+        console.error('Supabase function error:', error);
         toast({
           title: "Erro no login",
-          description: data?.error || "Email ou senha inválidos",
+          description: "Erro de comunicação com o servidor",
+          variant: "destructive",
+          duration: 3000,
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      if (data?.error) {
+        console.log('Login failed with error:', data.error);
+        toast({
+          title: "Erro no login",
+          description: data.error,
+          variant: "destructive",
+          duration: 3000,
+        });
+        setIsLoading(false);
+        return false;
+      }
+
+      if (!data?.user) {
+        console.error('No user data in response');
+        toast({
+          title: "Erro no login",
+          description: "Resposta inválida do servidor",
           variant: "destructive",
           duration: 3000,
         });
@@ -86,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = data.user;
+      console.log('Login successful for user:', userData.email);
 
       // Estabelece sessão do Supabase no cliente para permitir RLS nas consultas
       if (data.session?.access_token && data.session?.refresh_token) {
@@ -94,16 +124,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token,
           });
+          console.log('Supabase session set successfully');
         } catch (e) {
           console.error('Failed to set Supabase session:', e);
         }
       }
 
       setUser(userData);
-      setNeedsPasswordChange(data.needsPasswordChange);
+      setNeedsPasswordChange(data.needsPasswordChange || false);
       
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-      localStorage.setItem('sanarflix-needs-password-change', data.needsPasswordChange.toString());
+      localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
       
       if (data.needsPasswordChange) {
         toast({
@@ -125,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login error:', error);
       toast({
         title: "Erro no login",
-        description: "Erro interno do servidor",
+        description: error instanceof Error ? error.message : "Erro interno do servidor",
         variant: "destructive",
         duration: 3000,
       });
