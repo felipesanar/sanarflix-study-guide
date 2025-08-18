@@ -90,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       console.log('Login response:', { data, error });
+      console.log('Response data details:', data);
 
       if (error) {
         console.error('Supabase function error:', error);
@@ -128,7 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = data.user;
-      console.log('Login successful for user:', userData.email);
+      console.log('Login successful for user:', userData);
+      console.log('Setting user state with userData:', userData);
 
       // Estabelece sessão do Supabase no cliente para permitir RLS nas consultas
       if (data.session?.access_token && data.session?.refresh_token) {
@@ -143,8 +145,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
+      console.log('Before setUser - current user state:', user);
       setUser(userData);
       setNeedsPasswordChange(data.needsPasswordChange || false);
+      console.log('After setUser - should have user now');
       
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());

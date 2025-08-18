@@ -22,7 +22,10 @@ export const LoginForm: React.FC = () => {
     console.log('LoginForm: Login result:', success);
     if (success) {
       console.log('LoginForm: Login successful, navigating to /intensivao-enamed');
-      navigate('/intensivao-enamed', { replace: true });
+      // Wait a bit for state to update before navigating
+      setTimeout(() => {
+        navigate('/intensivao-enamed', { replace: true });
+      }, 100);
     }
   };
 
