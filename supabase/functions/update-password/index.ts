@@ -8,6 +8,7 @@ const isAllowedOrigin = (origin?: string): boolean => {
     origin.startsWith('http://localhost') ||
     origin.endsWith('.lovableproject.com') ||
     origin.endsWith('.lovable.app') ||
+    origin.endsWith('.app.github.dev') ||
     origin === 'https://guiadeestudos.sanar.com.br' ||
     origin === 'https://sanarflix-study-guide.lovable.app' ||
     origin === 'https://preview--sanarflix-study-guide.lovable.app'
