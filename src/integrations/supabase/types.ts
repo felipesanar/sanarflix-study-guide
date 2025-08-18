@@ -7,13 +7,52 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
+      answer_progress_simulado_enamed: {
+        Row: {
+          answer_id: string
+          correct: boolean | null
+          email: string
+          question_id: string | null
+          simulado: number | null
+        }
+        Insert: {
+          answer_id?: string
+          correct?: boolean | null
+          email: string
+          question_id?: string | null
+          simulado?: number | null
+        }
+        Update: {
+          answer_id?: string
+          correct?: boolean | null
+          email?: string
+          question_id?: string | null
+          simulado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_progress_simulado_enamed_email_fkey"
+            columns: ["email"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "answer_progress_simulado_enamed_email_fkey"
+            columns: ["email"]
+            isOneToOne: false
+            referencedRelation: "users_public"
+            referencedColumns: ["email"]
+          },
+        ]
+      }
       conteudos: {
         Row: {
           conteudos: Json
@@ -185,7 +224,7 @@ export type Database = {
         Returns: string
       }
       verificar_senha: {
-        Args: { senha_input: string; senha_hash_stored: string }
+        Args: { senha_hash_stored: string; senha_input: string }
         Returns: boolean
       }
     }
