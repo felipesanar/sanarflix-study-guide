@@ -58,9 +58,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
     
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
-      setNeedsPasswordChange(storedPasswordChange === 'true');
+      try {
+        setUser(JSON.parse(storedUser));
+        setNeedsPasswordChange(storedPasswordChange === 'true');
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('sanarflix-user');
+        localStorage.removeItem('sanarflix-needs-password-change');
+      }
     }
+    
     setIsLoading(false);
 
     return () => subscription.unsubscribe();
