@@ -3,7 +3,7 @@ export interface User {
   id: string;           // campo 'id' da tabela users
   email: string;
   nome: string;         // renomear de 'name' para 'nome'
-  cpf?: string;
+  // cpf removed for security - sensitive PII should not be in frontend state
   id_ies: string;       // UUID da instituição
   ies_nome: string;     // nome da IES (obtido via JOIN)
   semestre?: number;

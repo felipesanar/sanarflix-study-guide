@@ -1,14 +1,33 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// Restrict CORS to approved domains only
-const restrictedCorsHeaders = {
-  'Access-Control-Allow-Origin': 'https://gvqvrmkizemwsasmupmo.lovableproject.com',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+
+// SECURITY: Strict CORS configuration with origin validation
+const ALLOWED_ORIGINS = new Set([
+  'https://gvqvrmkizemwsasmupmo.lovableproject.com'
+]);
+
+const buildCorsHeaders = (origin?: string): Record<string, string> | null => {
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+    return null; // Reject unknown origins
+  }
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
 };
-Deno.serve(async (req)=>{
+Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+  
+  // Reject requests from unknown origins
+  if (!corsHeaders) {
+    return new Response('Forbidden', { status: 403 });
+  }
+
   // Trata a requisição "preflight" do CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
-      headers: restrictedCorsHeaders
+      headers: corsHeaders
     });
   }
   try {
@@ -23,7 +42,7 @@ Deno.serve(async (req)=>{
       }), {
         status: 400,
         headers: {
-          ...restrictedCorsHeaders,
+          ...corsHeaders,
           'Content-Type': 'application/json'
         }
       });
@@ -40,7 +59,7 @@ Deno.serve(async (req)=>{
         }), {
           status: 401,
           headers: {
-            ...restrictedCorsHeaders,
+            ...corsHeaders,
             'Content-Type': 'application/json'
           }
         });
@@ -64,7 +83,7 @@ Deno.serve(async (req)=>{
         }), {
           status: 401,
           headers: {
-            ...restrictedCorsHeaders,
+            ...corsHeaders,
             'Content-Type': 'application/json'
           }
         });
@@ -75,10 +94,10 @@ Deno.serve(async (req)=>{
     const needsPasswordChange = user.user_metadata?.must_change_password === true;
     // ETAPA 3: Buscar o perfil detalhado do usuário na tabela `public.users`
     // Usamos o `user.id` da sessão para encontrar o perfil correspondente.
-    // Buscar perfil do usuário na tabela public.users (sem join)
+    // SECURITY: Reduced PII exposure - only fetch necessary fields
     const { data: userProfile, error: profileError } = await supabase
       .from('users')
-      .select('nome, cpf, id_ies, semestre')
+      .select('nome, id_ies, semestre')
       .eq('id', user.id)
       .single();
 
@@ -89,7 +108,7 @@ Deno.serve(async (req)=>{
       }), {
         status: 404,
         headers: {
-          ...restrictedCorsHeaders,
+          ...corsHeaders,
           'Content-Type': 'application/json'
         }
       });
@@ -110,15 +129,16 @@ Deno.serve(async (req)=>{
       }
     }
     // ETAPA 4: Construir e retornar a resposta completa para o front-end
+    // SECURITY: Removed CPF from response to reduce PII exposure
     const responsePayload = {
       user: {
         id: user.id,
         email: user.email,
         nome: userProfile.nome,
-        cpf: userProfile.cpf,
         id_ies: userProfile.id_ies,
         semestre: userProfile.semestre,
         ies_nome: iesNome
+        // CPF removed from response for security
       },
       session: sessionData.session,
       needsPasswordChange: needsPasswordChange
@@ -126,7 +146,7 @@ Deno.serve(async (req)=>{
     return new Response(JSON.stringify(responsePayload), {
       status: 200,
       headers: {
-        ...restrictedCorsHeaders,
+        ...corsHeaders,
         'Content-Type': 'application/json'
       }
     });
@@ -137,7 +157,7 @@ Deno.serve(async (req)=>{
     }), {
       status: 500,
       headers: {
-        ...restrictedCorsHeaders,
+        ...corsHeaders,
         'Content-Type': 'application/json'
       }
     });
