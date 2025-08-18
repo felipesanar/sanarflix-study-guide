@@ -1,14 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-// Define os cabeçalhos CORS para permitir requisições do seu front-end
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+// Restrict CORS to approved domains only
+const restrictedCorsHeaders = {
+  'Access-Control-Allow-Origin': 'https://gvqvrmkizemwsasmupmo.lovableproject.com',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 Deno.serve(async (req)=>{
   // Trata a requisição "preflight" do CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
-      headers: corsHeaders
+      headers: restrictedCorsHeaders
     });
   }
   try {
@@ -23,7 +23,7 @@ Deno.serve(async (req)=>{
       }), {
         status: 400,
         headers: {
-          ...corsHeaders,
+          ...restrictedCorsHeaders,
           'Content-Type': 'application/json'
         }
       });
@@ -40,7 +40,7 @@ Deno.serve(async (req)=>{
         }), {
           status: 401,
           headers: {
-            ...corsHeaders,
+            ...restrictedCorsHeaders,
             'Content-Type': 'application/json'
           }
         });
@@ -64,7 +64,7 @@ Deno.serve(async (req)=>{
         }), {
           status: 401,
           headers: {
-            ...corsHeaders,
+            ...restrictedCorsHeaders,
             'Content-Type': 'application/json'
           }
         });
@@ -89,7 +89,7 @@ Deno.serve(async (req)=>{
       }), {
         status: 404,
         headers: {
-          ...corsHeaders,
+          ...restrictedCorsHeaders,
           'Content-Type': 'application/json'
         }
       });
@@ -126,7 +126,7 @@ Deno.serve(async (req)=>{
     return new Response(JSON.stringify(responsePayload), {
       status: 200,
       headers: {
-        ...corsHeaders,
+        ...restrictedCorsHeaders,
         'Content-Type': 'application/json'
       }
     });
@@ -137,7 +137,7 @@ Deno.serve(async (req)=>{
     }), {
       status: 500,
       headers: {
-        ...corsHeaders,
+        ...restrictedCorsHeaders,
         'Content-Type': 'application/json'
       }
     });

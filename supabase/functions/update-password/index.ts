@@ -1,6 +1,13 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// Restrict CORS to approved domains only
+const restrictedCorsHeaders = {
+  'Access-Control-Allow-Origin': 'https://gvqvrmkizemwsasmupmo.lovableproject.com',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+}
+
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -9,7 +16,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey)
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: restrictedCorsHeaders });
+  }
+
+  // Only allow POST method
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Método não permitido' }),
+      {
+        status: 405,
+        headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 
   try {
@@ -20,7 +38,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Senha inválida. Mínimo de 6 caracteres.' }),
         {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -33,7 +51,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Não autenticado' }),
         {
           status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -46,7 +64,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Usuário não encontrado' }),
         {
           status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -61,7 +79,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Erro ao atualizar senha' }),
         {
           status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
@@ -70,7 +88,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true }),
       { 
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
       }
     )
 
@@ -80,7 +98,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: 'Erro interno do servidor' }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...restrictedCorsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }

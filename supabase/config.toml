@@ -22,7 +22,7 @@ port = 54323
 verify_jwt = false
 
 [functions.update-password]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enamed-proxy]
 verify_jwt = false

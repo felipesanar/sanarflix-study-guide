@@ -21,6 +21,7 @@ export type Database = {
           email: string
           question_id: string | null
           simulado: number | null
+          user_id: string
         }
         Insert: {
           answer_id?: string
@@ -28,6 +29,7 @@ export type Database = {
           email: string
           question_id?: string | null
           simulado?: number | null
+          user_id: string
         }
         Update: {
           answer_id?: string
@@ -35,6 +37,7 @@ export type Database = {
           email?: string
           question_id?: string | null
           simulado?: number | null
+          user_id?: string
         }
         Relationships: [
           {
@@ -132,7 +135,6 @@ export type Database = {
           id_ies: string | null
           nome: string
           semestre: number | null
-          senha_hash: string
         }
         Insert: {
           cpf?: string | null
@@ -141,7 +143,6 @@ export type Database = {
           id_ies?: string | null
           nome: string
           semestre?: number | null
-          senha_hash?: string
         }
         Update: {
           cpf?: string | null
@@ -150,7 +151,6 @@ export type Database = {
           id_ies?: string | null
           nome?: string
           semestre?: number | null
-          senha_hash?: string
         }
         Relationships: [
           {
@@ -222,10 +222,6 @@ export type Database = {
       get_user_ies_id: {
         Args: Record<PropertyKey, never>
         Returns: string
-      }
-      verificar_senha: {
-        Args: { senha_hash_stored: string; senha_input: string }
-        Returns: boolean
       }
     }
     Enums: {

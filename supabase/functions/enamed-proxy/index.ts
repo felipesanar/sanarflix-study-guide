@@ -2,23 +2,38 @@
 // Allows only the specified preview domain to consume it
 
 const ALLOWED_ORIGINS = new Set<string>([
-  'https://sanarflix-study-guide.lovable.app',
-  'https://preview--sanarflix-study-guide.lovable.app',
+  'https://gvqvrmkizemwsasmupmo.lovableproject.com',
+  'https://guiadeestudos.sanar.com.br',
   'http://localhost:5173',
 ]);
 
-function buildCorsHeaders(origin?: string): Record<string, string> {
-  const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : '*';
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  };
+function buildCorsHeaders(origin?: string): Record<string, string> | null {
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    };
+  }
+  // Don't fall back to '*' - return null for unauthorized origins
+  return null;
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get('origin') || undefined;
   const corsHeaders = buildCorsHeaders(origin);
+  
+  // Reject requests from unauthorized origins
+  if (!corsHeaders) {
+    return new Response(
+      JSON.stringify({ error: 'Origin não autorizado' }),
+      { 
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+  
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
