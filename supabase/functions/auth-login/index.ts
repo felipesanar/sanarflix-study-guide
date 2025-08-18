@@ -2,7 +2,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // SECURITY: Strict CORS configuration with origin validation
 const ALLOWED_ORIGINS = new Set([
-  'https://gvqvrmkizemwsasmupmo.lovableproject.com'
+  'https://gvqvrmkizemwsasmupmo.lovableproject.com',
+  'https://preview--sanarflix-study-guide.lovable.app',
+  'https://sanarflix-study-guide.lovable.app',
+  'http://localhost:5173'
 ]);
 
 const buildCorsHeaders = (origin?: string): Record<string, string> | null => {
