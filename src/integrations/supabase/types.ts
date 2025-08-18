@@ -47,13 +47,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["email"]
           },
-          {
-            foreignKeyName: "answer_progress_simulado_enamed_email_fkey"
-            columns: ["email"]
-            isOneToOne: false
-            referencedRelation: "users_public"
-            referencedColumns: ["email"]
-          },
         ]
       }
       conteudos: {
@@ -164,26 +157,20 @@ export type Database = {
       }
     }
     Views: {
-      users_public: {
+      users_basic: {
         Row: {
-          cpf: string | null
-          email: string | null
           id: string | null
           id_ies: string | null
           nome: string | null
           semestre: number | null
         }
         Insert: {
-          cpf?: string | null
-          email?: string | null
           id?: string | null
           id_ies?: string | null
           nome?: string | null
           semestre?: number | null
         }
         Update: {
-          cpf?: string | null
-          email?: string | null
           id?: string | null
           id_ies?: string | null
           nome?: string | null

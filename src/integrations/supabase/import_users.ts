@@ -49,20 +49,8 @@ fs.createReadStream('usuarios.csv')
 
         console.log(`✅ Usuário criado: ${user.email}`);
 
-        // Insere os dados na tabela users_public
-        const { error: insertError } = await supabase.from('users_public').insert({
-          id: data.user.id,
-          email: user.email,
-          nome: user.nome,
-          id_ies: user.id_ies,
-          semestre: user.semestre
-        });
-
-        if (insertError) {
-          console.error(`⚠️ Erro ao inserir em users_public: ${insertError.message}`);
-        } else {
-          console.log(`↳ Dados inseridos em users_public: ${user.email}`);
-        }
+        // Note: users_public view was removed for security reasons
+        // User data is now properly protected in the main users table with RLS policies
 
       } catch (err) {
         console.error(`❌ Erro inesperado com ${user.email}:`, err);
