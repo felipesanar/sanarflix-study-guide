@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { BookOpen, BarChart3, LogOut, User, Zap } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -18,6 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { getAccessRules } from '@/utils/accessRules';
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck } from 'lucide-react'; 
 
 const menuItems = [
   {
@@ -37,6 +37,12 @@ const menuItems = [
     url: '/intensivao-enamed',
     icon: Zap,
     accessKey: 'enamed' as const,
+  },
+  {
+    title: 'Desempenho Simulado',
+    url: '/desempenho-simulado',
+    icon: ClipboardCheck, // Ou outro ícone de sua preferência
+    accessKey: 'dashboard' as const, // Reutilize uma chave de acesso existente ou crie uma nova em `accessRules.ts`
   },
 ];
 
