@@ -2,18 +2,27 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Target } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { BarChart3, Target, CheckCircle, XCircle } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 
-// Definimos um tipo para os dados que virão do Supabase
+interface AreaPerformance {
+  name: string;
+  total: number;
+  acertos: number;
+  percentual: number;
+}
+
 type SimuladoProgress = {
   correct: boolean | null;
-  // Adicione outros campos da tabela que precisar, como 'area_conhecimento' se existir
+  questions_enamed: {
+    "Tema (Grande Área)": string;
+  } | null;
 };
 
 export const SimuladoDesempenho: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState({ total: 0, acertos: 0, percentual: 0 });
+  const [performancePorArea, setPerformancePorArea] = useState<AreaPerformance[]>([]);
+  const [stats, setStats] = useState({ total: 0, acertos: 0, erros: 0, percentual: 0 });
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -22,19 +31,42 @@ export const SimuladoDesempenho: React.FC = () => {
 
       setLoading(true);
       try {
-        // Busca os dados de progresso do simulado para o usuário logado
+        // A MUDANÇA ESTÁ AQUI: Usamos .eq('email', user.email)
         const { data, error } = await supabase
-          .from('answer_progress_simulado_enamed')
-          .select('correct') // Puxamos apenas a coluna 'correct' por enquanto
-          .eq('user_id', user.id);
+          .from('answer_progress_enamed')
+          .select('correct, questions_enamed("Tema (Grande Área)")')
+          .eq('email', user.email); // Corrigido para usar o email do usuário logado
 
         if (error) throw error;
 
-        if (data) {
+        if (data && data.length > 0) {
           const total = data.length;
           const acertos = data.filter(item => item.correct === true).length;
+          const erros = total - acertos;
           const percentual = total > 0 ? Math.round((acertos / total) * 100) : 0;
-          setStats({ total, acertos, percentual });
+          setStats({ total, acertos, erros, percentual });
+
+          const statsPorArea = (data as SimuladoProgress[]).reduce((acc, item) => {
+            const area = item.questions_enamed?.["Tema (Grande Área)"] || 'Não categorizado';
+            
+            if (!acc[area]) {
+              acc[area] = { total: 0, acertos: 0 };
+            }
+            acc[area].total += 1;
+            if (item.correct === true) {
+              acc[area].acertos += 1;
+            }
+            return acc;
+          }, {} as Record<string, { total: number; acertos: number }>);
+
+          const performanceData = Object.entries(statsPorArea).map(([area, dados]) => ({
+            name: area,
+            total: dados.total,
+            acertos: dados.acertos,
+            percentual: dados.total > 0 ? Math.round((dados.acertos / dados.total) * 100) : 0,
+          }));
+
+          setPerformancePorArea(performanceData);
         }
       } catch (error) {
         console.error("Erro ao buscar dados de desempenho:", error);
@@ -46,6 +78,7 @@ export const SimuladoDesempenho: React.FC = () => {
     fetchPerformanceData();
   }, [user]);
 
+  // O resto do componente (JSX) não precisa de alterações.
   if (loading) {
     return <div className="p-6">Carregando desempenho...</div>;
   }
@@ -57,36 +90,92 @@ export const SimuladoDesempenho: React.FC = () => {
         <p className="text-muted-foreground">Veja seus resultados detalhados.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <Target className="h-4 w-4" />
+              <Target className="h-4 w-4 text-primary" />
               Percentual de Acerto
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-bold">{stats.percentual}%</p>
+            <p className="text-xs text-muted-foreground">{stats.acertos} de {stats.total} questões</p>
           </CardContent>
         </Card>
-        {/* Adicione outros cards para total de questões, etc. */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Total de Acertos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{stats.acertos}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <XCircle className="h-4 w-4 text-red-500" />
+              Total de Erros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{stats.erros}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              Questões Respondidas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-4xl font-bold">{stats.total}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Desempenho por Área</CardTitle>
+          <CardTitle>Desempenho por Área de Conhecimento</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            (Aqui você pode adicionar um gráfico de barras com os resultados por disciplina)
-          </p>
-          {/* Exemplo de como usar o BarChart, similar ao seu Dashboard.tsx
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dadosPorDisciplina}>
-                ...
+        <CardContent className="h-[400px]">
+          {performancePorArea.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={performancePorArea} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted))' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-background p-2 border rounded-md shadow-lg">
+                          <p className="font-bold">{label}</p>
+                          <p className="text-sm text-primary">
+                            Acertos: {payload[0].payload.acertos} de {payload[0].payload.total}
+                          </p>
+                           <p className="text-sm">
+                            Percentual: {payload[0].value}%
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend formatter={(value) => <span className="capitalize">{value}</span>} />
+                <Bar dataKey="percentual" name="Percentual de Acertos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer> 
-          */}
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">Nenhum dado de simulado encontrado para exibir o gráfico.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
