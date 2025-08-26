@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, CheckCircle2 } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CalendarItem {
   semana: string;
@@ -27,6 +27,7 @@ interface CalendarViewProps {
 export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompletion }) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Group items by week and day
   const groupedItems = useMemo(() => {
@@ -48,6 +49,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
       setSelected(prev => (prev ? { ...prev, items: updated } : prev));
     }
   }, [items, open]);
+
+  // Reset pagination when modal opens with new content
+  useEffect(() => {
+    if (open) {
+      setCurrentPage(0);
+    }
+  }, [open, selected?.subtema]);
 
   // Toggle otimista dentro do modal para feedback imediato
   const handleToggle = (itemKey: string) => {
@@ -88,7 +96,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                           return (
                             <button
                               key={subtema}
-                              onClick={() => { setSelected({ subtema, items: subItems }); setOpen(true); }}
+                              onClick={() => { setSelected({ subtema, items: subItems }); setCurrentPage(0); setOpen(true); }}
                               className={`w-full text-left p-3 rounded-lg border transition-all bg-card border-border hover:border-[hsl(var(--active-selection))] focus:outline-none focus:ring-2 focus:ring-ring`}
                             >
                               <div className="flex items-center justify-between gap-2">
@@ -113,40 +121,73 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
       {/* Modal de Aulas por Subtema */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-lg">{selected?.subtema}</DialogTitle>
+            {selected && selected.items.length > 6 && (
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>
+                  {Math.min(currentPage * 6 + 1, selected.items.length)} - {Math.min((currentPage + 1) * 6, selected.items.length)} de {selected.items.length} aulas
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                    disabled={currentPage === 0}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-2 text-xs">
+                    {currentPage + 1} / {Math.ceil(selected.items.length / 6)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(selected.items.length / 6) - 1, prev + 1))}
+                    disabled={currentPage >= Math.ceil(selected.items.length / 6) - 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogHeader>
 
-          <div className="space-y-3">
-            {selected?.items.map((it) => (
-              <div key={it.itemKey} className={`p-3 rounded-lg border ${it.completed ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' : 'bg-card border-border'}`}>
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={it.completed}
-                    onCheckedChange={() => handleToggle(it.itemKey)}
-                    className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {!!it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && (
-                        <Button variant="default" onClick={() => window.open(String(it.link_aula), '_blank')}>Ver Aula</Button>
-                      )}
-                      {Boolean(it.link_questoes) && String(it.link_questoes).toLowerCase() !== 'nan' && (
-                        <Button
-                          variant="outline"
-                          onClick={() => window.open(String(it.link_questoes), '_blank')}
-                          className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
-                        >
-                          Questões
-                        </Button>
-                      )}
+          <div className="space-y-3 flex-1 overflow-y-auto">
+            {selected?.items
+              .slice(currentPage * 6, (currentPage + 1) * 6)
+              .map((it) => (
+                <div key={it.itemKey} className={`p-3 rounded-lg border ${it.completed ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-700' : 'bg-card border-border'}`}>
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={it.completed}
+                      onCheckedChange={() => handleToggle(it.itemKey)}
+                      className="mt-0.5 data-[state=checked]:bg-[hsl(var(--primary))] data-[state=checked]:border-[hsl(var(--primary))]"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {!!it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && (
+                          <Button variant="default" size="sm" onClick={() => window.open(String(it.link_aula), '_blank')}>Ver Aula</Button>
+                        )}
+                        {Boolean(it.link_questoes) && String(it.link_questoes).toLowerCase() !== 'nan' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(String(it.link_questoes), '_blank')}
+                            className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
+                          >
+                            Questões
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         </DialogContent>
       </Dialog>

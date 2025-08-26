@@ -8,8 +8,13 @@ const ALLOWED_ORIGINS = new Set<string>([
   'http://localhost:5173',
 ]);
 
+const isAllowedOrigin = (origin?: string): boolean => {
+  if (!origin) return false;
+  return ALLOWED_ORIGINS.has(origin) || origin.endsWith('.app.github.dev');
+};
+
 function buildCorsHeaders(origin?: string): Record<string, string> | null {
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     return {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
