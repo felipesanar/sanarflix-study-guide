@@ -132,13 +132,13 @@ export const SimuladoDesempenho: React.FC = () => {
         setUserData(userData);
 
         const [performanceResult, rankingResult] = await Promise.all([
-          supabase.rpc('get_user_performance_aggregates').single(),
-          supabase.rpc('get_user_rankings').single()
+          supabase.rpc('get_user_performance_aggregates' as any).single(),
+          supabase.rpc('get_user_rankings' as any).single()
         ]);
 
         if (performanceResult.error) throw performanceResult.error;
         if (performanceResult.data) {
-          const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data;
+          const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any;
 
           const processData = (d: any[]) => (d || []).map(item => ({
             ...item,
@@ -158,9 +158,10 @@ export const SimuladoDesempenho: React.FC = () => {
 
         if (rankingResult.error) throw rankingResult.error;
         if (rankingResult.data) {
+          const rankingData = rankingResult.data as any;
           setRanking({
-            ies: rankingResult.data.rankingIES || null,
-            semester: rankingResult.data.rankingSemester || null
+            ies: rankingData.rankingIES || null,
+            semester: rankingData.rankingSemester || null
           });
         }
       } catch (error) {

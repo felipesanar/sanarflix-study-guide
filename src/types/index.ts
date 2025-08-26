@@ -13,6 +13,7 @@ export interface AccessRules {
   studyGuide: boolean;
   enamed: boolean;
   dashboard: boolean;
+  SimuladoDesempenho: boolean;
 }
 
 export interface StudyContent {

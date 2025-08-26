@@ -1,5 +1,4 @@
 import { AccessRules, User } from '@/types';
-import { SimuladoDesempenho } from '../pages/SimuladoDesempenho.tsx';
 
 export const getAccessRules = (user: User | null): AccessRules => {
   // Lançamento inicial: apenas Intensivão ENAMED habilitado
@@ -33,7 +32,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         studyGuide: false,
         enamed: true,
         dashboard: false,
-        Simulado: false
+        SimuladoDesempenho: false
       };
   }
 };
