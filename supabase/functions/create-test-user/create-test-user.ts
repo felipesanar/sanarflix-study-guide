@@ -18,7 +18,7 @@ async function criarUsuariosDoCSV() {
     const senhasGeradas = [];
 
     // Lê o arquivo CSV
-    const csvData = await Deno.readTextFile('./usuarios.csv');
+    const csvData = await Deno.readTextFile('./professores_barao.csv');
     // Faz o parse do CSV (assumindo que a primeira linha é o cabeçalho)
     const usuarios = await parse(csvData, {
       skipFirstRow: true, // Ignora o cabeçalho

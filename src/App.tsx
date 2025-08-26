@@ -15,6 +15,7 @@ import { getAccessRules } from '@/utils/accessRules';
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
+import { SimuladoDesempenho } from "./pages/SimuladoDesempenho";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "next-themes";
@@ -47,7 +48,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   const { user } = useAuth();
   const accessRules = getAccessRules(user);
-  
+
   console.log('AppContent: User state:', user ? user.email : 'No user');
   console.log('AppContent: Access rules:', accessRules);
 
@@ -70,7 +71,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        
+
         {accessRules.studyGuide && (
           <Route
             path="/guia-estudos"
@@ -83,7 +84,20 @@ const AppContent = () => {
             }
           />
         )}
-        
+
+        {accessRules.SimuladoDesempenho && (
+          <Route
+            path="/desempenho-simulado"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <SimuladoDesempenho />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+
         {accessRules.dashboard && (
           <Route
             path="/dashboard"
@@ -96,7 +110,7 @@ const AppContent = () => {
             }
           />
         )}
-        
+
         {accessRules.enamed && (
           <Route
             path="/intensivao-enamed"
@@ -109,7 +123,7 @@ const AppContent = () => {
             }
           />
         )}
-        
+
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
