@@ -115,7 +115,7 @@ export const SimuladoDesempenho: React.FC = () => {
   const [ranking, setRanking] = useState<{ ies: RankingData, semester: RankingData } | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     const fetchAllData = async () => {
       if (!user) return;
@@ -139,12 +139,12 @@ export const SimuladoDesempenho: React.FC = () => {
         if (performanceResult.error) throw performanceResult.error;
         if (performanceResult.data) {
           const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data;
-          
+
           const processData = (d: any[]) => (d || []).map(item => ({
             ...item,
             percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0
           }));
-            
+
           setStats({
             total: overallStats?.total || 0,
             acertos: overallStats?.acertos || 0,
@@ -158,10 +158,10 @@ export const SimuladoDesempenho: React.FC = () => {
 
         if (rankingResult.error) throw rankingResult.error;
         if (rankingResult.data) {
-            setRanking({
-                ies: rankingResult.data.rankingIES || null,
-                semester: rankingResult.data.rankingSemester || null
-            });
+          setRanking({
+            ies: rankingResult.data.rankingIES || null,
+            semester: rankingResult.data.rankingSemester || null
+          });
         }
       } catch (error) {
         console.error("Erro ao buscar dados de desempenho:", error);
@@ -206,14 +206,14 @@ export const SimuladoDesempenho: React.FC = () => {
               Resumo do Desempenho
             </CardTitle>
           </CardHeader>
-          <CardContent  className="min-h-[270px] space-y-6">
+          <CardContent className="min-h-[270px] space-y-6">
             <div className="text-center pt-6">
               <p className="text-4xl font-bold">{stats.percentual}% de Acertos</p>
               <p className="text-lg text-muted-foreground mt-2">
                 {stats.acertos} de {stats.total} questões corretas
               </p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
               {ranking?.ies && ranking.ies.total > 0 && (
                 <div className="text-center p-3 bg-muted/50 rounded-lg">
@@ -258,28 +258,28 @@ export const SimuladoDesempenho: React.FC = () => {
                 layout="vertical"
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                <XAxis 
-                  type="number" 
-                  domain={[0, 100]} 
+                <XAxis
+                  type="number"
+                  domain={[0, 100]}
                   unit="%"
                   tick={{ fill: 'white', fontWeight: 'bold' }}
                 />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
+                <YAxis
+                  type="category"
+                  dataKey="name"
                   tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
                   width={80}
                 />
-                <Tooltip content={<CustomBarTooltip />} />
-                <Bar 
-                  dataKey="value" 
+                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'transparent' }} />
+                <Bar
+                  dataKey="value"
                   name="Percentual de Acertos"
                   radius={[0, 4, 4, 0]}
                   label={<CustomBarLabel />}
                 >
                   {barData.map((entry, index) => (
-                    <rect 
-                      key={`bar-${index}`} 
+                    <rect
+                      key={`bar-${index}`}
                       fill={entry.fill}
                     />
                   ))}
@@ -301,22 +301,22 @@ export const SimuladoDesempenho: React.FC = () => {
         <CardContent className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={performancePorArea} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-              <XAxis 
-                dataKey="name" 
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }} 
+              <XAxis
+                dataKey="name"
+                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
               />
-              <YAxis 
-                yAxisId="left" 
-                stroke="hsl(var(--primary))" 
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }} 
+              <YAxis
+                yAxisId="left"
+                stroke="hsl(var(--primary))"
+                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
               />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
-                stroke="#82ca9d" 
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }} 
-                unit="%" 
-                domain={[0, 100]} 
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#82ca9d"
+                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
+                unit="%"
+                domain={[0, 100]}
               />
               <Tooltip
                 cursor={{ fill: 'hsl(var(--muted))' }}
@@ -344,14 +344,14 @@ export const SimuladoDesempenho: React.FC = () => {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PerformanceTable 
-          title="Desempenho por Especialidade" 
-          data={bySpecialty} 
+        <PerformanceTable
+          title="Desempenho por Especialidade"
+          data={bySpecialty}
           icon={<BookOpen className="h-5 w-5 text-primary" />}
         />
-        <PerformanceTable 
-          title="Desempenho por Subespecialidade" 
-          data={bySubspecialty} 
+        <PerformanceTable
+          title="Desempenho por Subespecialidade"
+          data={bySubspecialty}
           icon={<BookText className="h-5 w-5 text-primary" />}
         />
       </div>
