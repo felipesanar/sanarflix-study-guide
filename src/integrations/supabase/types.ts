@@ -14,38 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      answer_progress_simulado_enamed: {
+      answer_progress_enamed: {
         Row: {
           answer_id: string
-          correct: boolean | null
+          correct: boolean
           email: string
-          question_id: string | null
-          simulado: number | null
-          user_id: string
+          question_id: string
+          simulado: number
         }
         Insert: {
           answer_id?: string
-          correct?: boolean | null
+          correct: boolean
           email: string
-          question_id?: string | null
-          simulado?: number | null
-          user_id: string
+          question_id: string
+          simulado: number
         }
         Update: {
           answer_id?: string
-          correct?: boolean | null
+          correct?: boolean
           email?: string
-          question_id?: string | null
-          simulado?: number | null
-          user_id?: string
+          question_id?: string
+          simulado?: number
         }
         Relationships: [
           {
-            foreignKeyName: "answer_progress_simulado_enamed_email_fkey"
+            foreignKeyName: "answer_progress_enamed_email_fkey"
             columns: ["email"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "answer_progress_enamed_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions_enamed"
+            referencedColumns: ["ID"]
           },
         ]
       }
@@ -90,6 +94,36 @@ export type Database = {
         Update: {
           id?: string
           nome?: string
+        }
+        Relationships: []
+      }
+      questions_enamed: {
+        Row: {
+          Especialidade: string | null
+          ID: string
+          "NÍVEL DE DIFICULDADE": string | null
+          Simulado: number | null
+          "Subespecialidade / Assunto Principal": string | null
+          "Tem Imagem": string | null
+          "Tema (Grande Área)": string | null
+        }
+        Insert: {
+          Especialidade?: string | null
+          ID: string
+          "NÍVEL DE DIFICULDADE"?: string | null
+          Simulado?: number | null
+          "Subespecialidade / Assunto Principal"?: string | null
+          "Tem Imagem"?: string | null
+          "Tema (Grande Área)"?: string | null
+        }
+        Update: {
+          Especialidade?: string | null
+          ID?: string
+          "NÍVEL DE DIFICULDADE"?: string | null
+          Simulado?: number | null
+          "Subespecialidade / Assunto Principal"?: string | null
+          "Tem Imagem"?: string | null
+          "Tema (Grande Área)"?: string | null
         }
         Relationships: []
       }
@@ -206,9 +240,32 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_simulado_performance: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          acertos: number
+          area_conhecimento: string
+          total: number
+        }[]
+      }
       get_user_ies_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_user_performance_aggregates: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_user_ranking_in_ies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_users: number
+          user_rank: number
+        }[]
+      }
+      get_user_rankings: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
     }
     Enums: {
