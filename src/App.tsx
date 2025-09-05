@@ -16,6 +16,7 @@ import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
 import { SimuladoDesempenho } from "./pages/SimuladoDesempenho";
+import UserManagement from "./pages/UserManagement";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { ThemeProvider } from "next-themes";
@@ -118,6 +119,19 @@ const AppContent = () => {
               <ProtectedRoute>
                 <Layout>
                   <IntensivaoEnamed />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+
+        {accessRules.userManagement && (
+          <Route
+            path="/gestao-usuarios"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserManagement />
                 </Layout>
               </ProtectedRoute>
             }

@@ -12,6 +12,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       enamed: true,
       dashboard: false,
       SimuladoDesempenho: false,
+      userManagement: false,
     };
   }
   
@@ -24,7 +25,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         studyGuide: true,
         enamed: true,
         dashboard: true,
-        SimuladoDesempenho: true
+        SimuladoDesempenho: true,
+        userManagement: true
       };
     
     default:
@@ -32,7 +34,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         studyGuide: false,
         enamed: true,
         dashboard: false,
-        SimuladoDesempenho: false
+        SimuladoDesempenho: false,
+        userManagement: false
       };
   }
 };

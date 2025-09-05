@@ -14,6 +14,7 @@ export interface AccessRules {
   enamed: boolean;
   dashboard: boolean;
   SimuladoDesempenho: boolean;
+  userManagement: boolean;
 }
 
 export interface StudyContent {

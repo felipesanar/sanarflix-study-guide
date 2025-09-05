@@ -17,7 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { getAccessRules } from '@/utils/accessRules';
-import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck } from 'lucide-react'; 
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog } from 'lucide-react'; 
 
 const menuItems = [
   {
@@ -41,8 +41,14 @@ const menuItems = [
   {
     title: 'Desempenho Simulado',
     url: '/desempenho-simulado',
-    icon: ClipboardCheck, // Ou outro ícone de sua preferência
-    accessKey: 'dashboard' as const, // Reutilize uma chave de acesso existente ou crie uma nova em `accessRules.ts`
+    icon: ClipboardCheck,
+    accessKey: 'SimuladoDesempenho' as const,
+  },
+  {
+    title: 'Gestão de Usuários',
+    url: '/gestao-usuarios',
+    icon: UserCog,
+    accessKey: 'userManagement' as const,
   },
 ];
 
