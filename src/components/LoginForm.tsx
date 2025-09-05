@@ -192,7 +192,7 @@ export const LoginForm: React.FC = () => {
           </div>
           
           <h2 className="text-4xl font-bold mb-6 leading-tight">
-            Acesso ao Guia de Estudos 
+            Guia de Estudos
             <span className="block text-primary-light">Sanarflix</span>
           </h2>
           
