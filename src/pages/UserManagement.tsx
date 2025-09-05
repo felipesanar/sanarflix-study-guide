@@ -122,52 +122,34 @@ const UserManagement: React.FC = () => {
     }
 
     setIsCreatingSingle(true);
-    const password = generatePassword();
     
     try {
       addLog(`Iniciando criação do usuário: ${singleUser.email}`);
-      
-      // Criar usuário no auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: singleUser.email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
+
+      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+        body: {
           nome: singleUser.nome,
+          email: singleUser.email,
           id_ies: singleUser.id_ies,
           semestre: parseInt(singleUser.semestre)
         }
       });
 
-      if (authError) {
-        addLog(`Erro ao criar usuário no auth: ${authError.message}`);
-        throw authError;
+      if (error) {
+        addLog(`Erro na função: ${error.message || 'Erro desconhecido'}`);
+        throw error;
       }
 
-      addLog(`Usuário criado no auth com sucesso: ${singleUser.email}`);
-
-      // Upsert na tabela users
-      const { error: upsertError } = await supabase
-        .from('users')
-        .upsert({
-          id: authData.user.id,
-          email: singleUser.email,
-          nome: singleUser.nome,
-          id_ies: singleUser.id_ies,
-          semestre: parseInt(singleUser.semestre)
-        });
-
-      if (upsertError) {
-        addLog(`Erro ao inserir/atualizar usuário na tabela: ${upsertError.message}`);
-        throw upsertError;
+      const returnedPassword = (data as any)?.password as string | undefined;
+      if (returnedPassword) {
+        setSingleUserPassword(returnedPassword);
+      } else {
+        addLog('Aviso: função não retornou senha.');
       }
-
-      addLog(`Usuário inserido/atualizado na tabela com sucesso`);
-      setSingleUserPassword(password);
       
       toast({
         title: "Sucesso",
-        description: "Usuário criado com sucesso!",
+        description: "Usuário criado/atualizado com sucesso!",
       });
 
       // Limpar formulário
@@ -230,77 +212,52 @@ const UserManagement: React.FC = () => {
 
       const results: UserCreationResult[] = [];
 
-      for (const userData of users) {
-        const password = generatePassword();
-        
-        try {
-          addLog(`Processando: ${userData.email}`);
-          
-          // Criar usuário no auth
-          const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: userData.email,
-            password: password,
-            email_confirm: true,
-            user_metadata: {
-              nome: userData.nome,
-              id_ies: userData.id_ies,
-              semestre: parseInt(userData.semestre)
+        for (const userData of users) {
+          try {
+            addLog(`Processando: ${userData.email}`);
+
+            const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+              body: {
+                nome: userData.nome,
+                email: userData.email,
+                id_ies: userData.id_ies,
+                semestre: parseInt(userData.semestre)
+              }
+            });
+
+            if (error) {
+              results.push({
+                email: userData.email,
+                password: '',
+                success: false,
+                error: error.message
+              });
+              addLog(`Erro na função para ${userData.email}: ${error.message}`);
+              continue;
             }
-          });
 
-          if (authError) {
+            const returnedPassword = (data as any)?.password || '';
+
+            results.push({
+              email: userData.email,
+              password: returnedPassword,
+              success: true
+            });
+            
+            addLog(`Sucesso: ${userData.email}`);
+            
+          } catch (error: any) {
             results.push({
               email: userData.email,
               password: '',
               success: false,
-              error: authError.message
+              error: error.message
             });
-            addLog(`Erro no auth para ${userData.email}: ${authError.message}`);
-            continue;
+            addLog(`Erro inesperado para ${userData.email}: ${error.message}`);
           }
-
-          // Upsert na tabela users
-          const { error: upsertError } = await supabase
-            .from('users')
-            .upsert({
-              id: authData.user.id,
-              email: userData.email,
-              nome: userData.nome,
-              id_ies: userData.id_ies,
-              semestre: parseInt(userData.semestre)
-            });
-
-          if (upsertError) {
-            results.push({
-              email: userData.email,
-              password: '',
-              success: false,
-              error: upsertError.message
-            });
-            addLog(`Erro na tabela para ${userData.email}: ${upsertError.message}`);
-            continue;
-          }
-
-          results.push({
-            email: userData.email,
-            password: password,
-            success: true
-          });
           
-          addLog(`Sucesso: ${userData.email}`);
-          
-        } catch (error: any) {
-          results.push({
-            email: userData.email,
-            password: '',
-            success: false,
-            error: error.message
-          });
-          addLog(`Erro inesperado para ${userData.email}: ${error.message}`);
+          setProcessedCount(prev => prev + 1);
         }
-        
-        setProcessedCount(prev => prev + 1);
-      }
 
       setBatchResults(results);
       
