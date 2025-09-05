@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,11 @@ interface UserCreationResult {
   password: string;
   success: boolean;
   error?: string;
+}
+
+interface IES {
+  id: string;
+  nome: string;
 }
 
 const UserManagement: React.FC = () => {
@@ -41,6 +46,41 @@ const UserManagement: React.FC = () => {
 
   // Estados para logs
   const [logs, setLogs] = useState<string[]>([]);
+
+  // Estados para IES
+  const [iesList, setIesList] = useState<IES[]>([]);
+  const [isLoadingIes, setIsLoadingIes] = useState(false);
+
+  // Fetch IES list
+  useEffect(() => {
+    const fetchIesList = async () => {
+      setIsLoadingIes(true);
+      try {
+        const { data, error } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .order('nome');
+
+        if (error) {
+          console.error('Error fetching IES:', error);
+          toast({
+            title: "Erro",
+            description: "Erro ao carregar lista de IES",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        setIesList(data || []);
+      } catch (error) {
+        console.error('Unexpected error:', error);
+      } finally {
+        setIsLoadingIes(false);
+      }
+    };
+
+    fetchIesList();
+  }, [toast]);
 
   // Verifica se o usuário tem acesso B2B
   const hasB2BAccess = user?.id_ies === '9f21b138-0027-44c8-9660-dc6706d57bc0';
@@ -172,7 +212,7 @@ const UserManagement: React.FC = () => {
       const headers = lines[0].split(',').map(h => h.trim());
       
       if (!headers.includes('nome') || !headers.includes('email') || !headers.includes('id_ies') || !headers.includes('semestre')) {
-        throw new Error('CSV deve conter as colunas: nome, email, id_ies, semestre');
+        throw new Error('CSV deve conter as colunas: nome, email, id_ies, semestre (use o ID da IES, não o nome)');
       }
 
       const users = lines.slice(1).map(line => {
@@ -356,13 +396,21 @@ const UserManagement: React.FC = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="id_ies">ID da IES</Label>
-              <Input
-                id="id_ies"
-                value={singleUser.id_ies}
-                onChange={(e) => setSingleUser(prev => ({ ...prev, id_ies: e.target.value }))}
-                placeholder="9f21b138-0027-44c8-9660-dc6706d57bc0"
-              />
+              <Label htmlFor="id_ies">IES</Label>
+              <Select 
+                value={singleUser.id_ies} 
+                onValueChange={(value) => setSingleUser(prev => ({ ...prev, id_ies: value }))}
+                disabled={isLoadingIes}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={isLoadingIes ? "Carregando..." : "Selecione a IES"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {iesList.map(ies => (
+                    <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">
