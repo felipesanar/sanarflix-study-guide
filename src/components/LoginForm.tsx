@@ -176,15 +176,13 @@ export const LoginForm: React.FC = () => {
       </div>
 
       {/* Right Side - Banner Image */}
-      <div className="hidden md:flex flex-1 bg-gradient-to-br from-primary-900 to-primary-700 flex items-center justify-center p-8 lg:p-16 relative overflow-hidden">
-        <div className="relative z-10 w-full max-w-lg animate-slide-in-right">
-          <img
-            src="/lovable-uploads/a6e8ef24-a186-4923-b03e-bb52d20ca2dd.png"
-            alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
-            className="w-full h-auto object-contain rounded-2xl shadow-2xl"
-            loading="lazy"
-          />
-        </div>
+      <div className="hidden md:flex flex-1 relative overflow-hidden">
+        <img
+          src="/lovable-uploads/a6e8ef24-a186-4923-b03e-bb52d20ca2dd.png"
+          alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
       </div>
     </div>
   );
