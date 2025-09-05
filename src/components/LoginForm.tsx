@@ -175,45 +175,15 @@ export const LoginForm: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Institutional Block */}
+      {/* Right Side - Banner Image */}
       <div className="hidden md:flex flex-1 bg-gradient-to-br from-primary-900 to-primary-700 flex items-center justify-center p-8 lg:p-16 relative overflow-hidden">
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="w-full h-full" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
-        </div>
-        
-        <div className="relative z-10 text-center text-white animate-slide-in-right max-w-lg">
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-3xl mb-6 backdrop-blur-sm">
-              <img src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png" alt="Logo Sanarflix" className="w-14 h-14 object-contain" />
-            </div>
-          </div>
-          
-          <h2 className="text-4xl font-bold mb-6 leading-tight">
-            Guia de Estudos
-            <span className="block text-primary-light">Sanarflix</span>
-          </h2>
-          
-          <p className="text-xl text-white/90 mb-8 leading-relaxed">
-            Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos
-          </p>
-          
-          <div className="grid grid-cols-1 gap-4 text-left">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-primary-light rounded-full"></div>
-              <span className="text-white/80">Conteúdo personalizado por semestre</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-primary-light rounded-full"></div>
-              <span className="text-white/80">Progresso individual detalhado</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-primary-light rounded-full"></div>
-              <span className="text-white/80">Dashboard de progresso para acompanhamento</span>
-            </div>
-          </div>
+        <div className="relative z-10 w-full max-w-lg animate-slide-in-right">
+          <img
+            src="/lovable-uploads/a6e8ef24-a186-4923-b03e-bb52d20ca2dd.png"
+            alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
+            className="w-full h-auto object-contain rounded-2xl shadow-2xl"
+            loading="lazy"
+          />
         </div>
       </div>
     </div>
