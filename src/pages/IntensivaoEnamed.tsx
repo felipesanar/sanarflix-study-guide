@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import guiaEstudosBanner from '@/assets/guia-estudos-banner.png';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -526,19 +527,18 @@ const allAulas: AulaItem[] = useMemo(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Banner Hero */}
+        <div className="relative overflow-hidden rounded-3xl shadow-2xl">
+          <img
+            src={guiaEstudosBanner}
+            alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
+            className="w-full h-auto object-cover max-h-[400px] md:max-h-[500px] lg:max-h-[600px]"
+            loading="lazy"
+          />
+        </div>
+
+        {/* Informações do Usuário e Contagem Regressiva */}
         <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-4xl font-bold text-red-darkest dark:text-primary-foreground flex items-center gap-3">
-              Intensivão
-              <img
-                src="/lovable-uploads/0a3f361e-72ba-4182-8814-5d3f8a5df2b3.png"
-                alt="Logo ENAMED"
-                className="h-12 w-auto align-middle"
-                loading="lazy"
-              />
-            </h1>
-          </div>
-          
           {user && (
             <p className="text-lg text-neutral-medium dark:text-muted-foreground">
               {user.ies_nome} - {user.semestre}º período
