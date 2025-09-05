@@ -121,10 +121,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Upsert in public.users
+    // Upsert in public.users - specify id as conflict resolution
     const { error: upsertErr } = await supabaseAdmin
       .from("users")
-      .upsert({ id: userId, email, nome, id_ies, semestre: Number(semestre) });
+      .upsert({ id: userId, email, nome, id_ies, semestre: Number(semestre) }, { onConflict: 'id' });
 
     if (upsertErr) {
       return new Response(
