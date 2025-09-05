@@ -266,9 +266,26 @@ const UserManagement: React.FC = () => {
       
       addLog(`Processamento concluído: ${successCount} sucessos, ${errorCount} erros`);
       
+      // Auto download CSV com senhas se houver sucessos
+      if (successCount > 0) {
+        const successfulResults = results.filter(r => r.success);
+        const csvContent = 'email,senha\n' + successfulResults.map(r => `${r.email},${r.password}`).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'senhas_geradas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        addLog(`Download automático iniciado: senhas_geradas.csv`);
+      }
+      
       toast({
         title: "Processamento concluído",
-        description: `${successCount} usuários criados, ${errorCount} erros`,
+        description: successCount > 0 
+          ? `${successCount} usuários criados, ${errorCount} erros. CSV baixado automaticamente!`
+          : `${successCount} usuários criados, ${errorCount} erros`,
       });
 
     } catch (error: any) {
