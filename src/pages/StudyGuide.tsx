@@ -28,7 +28,7 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const semestresList = await studyGuideApi.getSemestresByIES(user.id_ies);
+        const semestresList = await studyGuideApi.getSemestresByIES(user.ies_nome);
         setSemestres(semestresList);
         
         // Auto-selecionar o semestre atual do usuário se disponível
@@ -54,7 +54,7 @@ export const StudyGuide: React.FC = () => {
   // Carregar matérias quando um semestre for selecionado
   useEffect(() => {
     const loadMaterias = async () => {
-      if (!user?.id_ies || !selectedSemestre) {
+      if (!user?.ies_nome || !selectedSemestre) {
         setMaterias([]);
         return;
       }
@@ -62,7 +62,7 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const materiasList = await studyGuideApi.getMateriasBySemestre(user.id_ies, selectedSemestre);
+        const materiasList = await studyGuideApi.getMateriasBySemestre(user.ies_nome, selectedSemestre);
         setMaterias(materiasList);
       } catch (err) {
         console.error('Erro ao carregar matérias:', err);
