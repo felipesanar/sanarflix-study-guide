@@ -49,7 +49,7 @@ const studyGuideItems = [
     accessKey: 'studyGuide' as const,
   },
   {
-    title: 'Dashboard',
+    title: 'Seu progresso',
     url: '/dashboard',
     icon: BarChart3,
     accessKey: 'dashboard' as const,
