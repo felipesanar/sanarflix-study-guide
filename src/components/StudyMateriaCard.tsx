@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, Play, FileText, HelpCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, FileText, HelpCircle, Check } from 'lucide-react';
 import { ApiMateria, ApiTema, ApiSubtema, ApiAula } from '@/services/studyGuideApi';
 import { cn } from '@/lib/utils';
+import { useStudyProgress } from '@/hooks/useStudyProgress';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StudyMateriaCardProps {
   materia: ApiMateria;
@@ -14,22 +16,59 @@ interface StudyMateriaCardProps {
 
 interface StudyAulaItemProps {
   aula: ApiAula;
+  materiaId: string;
 }
 
 interface StudySubtemaItemProps {
   subtema: ApiSubtema;
+  materiaId: string;
 }
 
-const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula }) => {
+const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula, materiaId }) => {
+  const { user } = useAuth();
+  const { isCompleted, toggleCompletion } = useStudyProgress(materiaId, user?.semestre);
+  const isAulaCompleted = isCompleted('aula', aula.id);
+
   const handleResourceClick = (url: string, type: string) => {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
+  const handleToggleCompletion = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await toggleCompletion('aula', aula.id, materiaId);
+  };
+
   return (
-    <div className="flex items-center justify-between p-3 bg-muted/30 rounded-md border border-border/50">
-      <span className="text-sm font-medium text-foreground">{aula.nome}</span>
+    <div className={cn(
+      "flex items-center justify-between p-3 rounded-md border border-border/50 transition-colors",
+      isAulaCompleted ? "bg-green-50 border-green-200" : "bg-muted/30"
+    )}>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleToggleCompletion}
+          className={cn(
+            "flex items-center justify-center w-6 h-6 rounded border-2 transition-colors",
+            isAulaCompleted 
+              ? "bg-green-500 border-green-500 text-white" 
+              : "border-muted-foreground/30 hover:border-green-500"
+          )}
+        >
+          {isAulaCompleted && <Check className="h-4 w-4" />}
+        </button>
+        <span className={cn(
+          "text-sm font-medium",
+          isAulaCompleted ? "text-green-700" : "text-foreground"
+        )}>
+          {aula.nome}
+        </span>
+        {isAulaCompleted && (
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+            Concluído
+          </span>
+        )}
+      </div>
       <div className="flex gap-2">
         {aula.video && (
           <Button
@@ -69,8 +108,21 @@ const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula }) => {
   );
 };
 
-const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema }) => {
+const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
+  const { isCompleted, toggleCompletion } = useStudyProgress(materiaId, user?.semestre);
+  const isSubtemaCompleted = isCompleted('subtema', subtema.id);
+
+  const handleToggleCompletion = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await toggleCompletion('subtema', subtema.id, materiaId);
+  };
+
+  // Calculate completion stats for this subtema
+  const totalAulas = subtema.aulas.length;
+  const completedAulas = subtema.aulas.filter(aula => isCompleted('aula', aula.id)).length;
+  const hasPartialCompletion = completedAulas > 0 && completedAulas < totalAulas;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -79,7 +131,27 @@ const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema }) => {
           variant="ghost"
           className="w-full justify-between p-3 h-auto text-left hover:bg-accent/20"
         >
-          <span className="font-medium text-foreground">{subtema.nome}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleToggleCompletion}
+              className={cn(
+                "flex items-center justify-center w-5 h-5 rounded border-2 transition-colors",
+                isSubtemaCompleted 
+                  ? "bg-green-500 border-green-500 text-white" 
+                  : hasPartialCompletion
+                  ? "bg-orange-200 border-orange-400"
+                  : "border-muted-foreground/30 hover:border-green-500"
+              )}
+            >
+              {isSubtemaCompleted && <Check className="h-3 w-3" />}
+            </button>
+            <span className="font-medium text-foreground">{subtema.nome}</span>
+            {totalAulas > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {completedAulas}/{totalAulas} aulas
+              </span>
+            )}
+          </div>
           {isOpen ? (
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           ) : (
@@ -89,7 +161,7 @@ const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema }) => {
       </CollapsibleTrigger>
       <CollapsibleContent className="pl-4 pt-2 space-y-2 animate-accordion-down">
         {subtema.aulas.map((aula) => (
-          <StudyAulaItem key={aula.id} aula={aula} />
+          <StudyAulaItem key={aula.id} aula={aula} materiaId={materiaId} />
         ))}
       </CollapsibleContent>
     </Collapsible>
@@ -115,7 +187,7 @@ export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia, hid
               </AccordionTrigger>
               <AccordionContent className="space-y-2 pt-2">
                 {tema.subtemas.map((subtema) => (
-                  <StudySubtemaItem key={subtema.id} subtema={subtema} />
+                  <StudySubtemaItem key={subtema.id} subtema={subtema} materiaId={materia.id} />
                 ))}
               </AccordionContent>
             </AccordionItem>

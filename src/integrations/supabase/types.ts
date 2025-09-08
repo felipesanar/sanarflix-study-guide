@@ -127,6 +127,51 @@ export type Database = {
         }
         Relationships: []
       }
+      study_progress: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          ies_nome: string
+          materia_id: string
+          semestre: number
+          updated_at: string
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          ies_nome: string
+          materia_id: string
+          semestre: number
+          updated_at?: string
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          ies_nome?: string
+          materia_id?: string
+          semestre?: number
+          updated_at?: string
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           completed_at: string
