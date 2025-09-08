@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.enamed-proxy]
 verify_jwt = false
+
+[functions.study-guide-proxy]
+verify_jwt = false

@@ -1,4 +1,4 @@
-const STUDY_GUIDE_API_BASE_URL = 'https://api-guias-de-estudos.onrender.com';
+const STUDY_GUIDE_API_BASE_URL = 'https://gvqvrmkizemwsasmupmo.functions.supabase.co/study-guide-proxy';
 
 export interface ApiAula {
   id: string;
