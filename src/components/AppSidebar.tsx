@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -14,24 +14,13 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { getAccessRules } from '@/utils/accessRules';
-import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog } from 'lucide-react'; 
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 
 const menuItems = [
-  {
-    title: 'Dashboard',
-    url: '/dashboard',
-    icon: BarChart3,
-    accessKey: 'dashboard' as const,
-  },
-  {
-    title: 'Guia de Estudos',
-    url: '/guia-estudos',
-    icon: BookOpen,
-    accessKey: 'studyGuide' as const,
-  },
   {
     title: 'Intensivão ENAMED',
     url: '/intensivao-enamed',
@@ -52,6 +41,21 @@ const menuItems = [
   },
 ];
 
+const studyGuideItems = [
+  {
+    title: 'Seu guia',
+    url: '/guia-estudos',
+    icon: FileText,
+    accessKey: 'studyGuide' as const,
+  },
+  {
+    title: 'Dashboard',
+    url: '/dashboard',
+    icon: BarChart3,
+    accessKey: 'dashboard' as const,
+  },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
@@ -59,12 +63,32 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === 'collapsed';
   const accessRules = getAccessRules(user);
+  const [studyGuideOpen, setStudyGuideOpen] = useState(false);
 
   const isActive = (path: string) => currentPath === path;
+  const isStudyGuideAreaActive = () => 
+    studyGuideItems.some(item => isActive(item.url) && accessRules[item.accessKey]);
+
+  React.useEffect(() => {
+    if (isStudyGuideAreaActive()) {
+      setStudyGuideOpen(true);
+    }
+  }, [currentPath]);
+
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-primary text-primary-foreground font-medium shadow-lg border border-primary/20'
-      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] transition-all duration-200 hover:translate-x-1';
+      ? 'bg-primary text-primary-foreground font-medium shadow-lg border border-primary/20 rounded-lg'
+      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 hover:translate-x-1 rounded-lg shadow-sm hover:shadow-primary/10';
+
+  const getParentNavCls = (hasActiveChild: boolean) =>
+    hasActiveChild
+      ? 'bg-primary/10 text-primary font-medium shadow-lg border border-primary/20 rounded-lg'
+      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-primary/10';
+
+  const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
+    isActive
+      ? 'bg-primary text-primary-foreground font-medium shadow-md border border-primary/20 rounded-lg ml-4'
+      : 'text-[hsl(var(--sidebar-foreground))]/70 hover:bg-[hsl(var(--sidebar-accent))]/60 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-sm transition-all duration-200 rounded-lg ml-4 shadow-sm hover:shadow-primary/5';
 
   return (
     <Sidebar
@@ -116,6 +140,52 @@ export function AppSidebar() {
           
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Guia de Estudos - Parent Item with Collapsible Children */}
+              {(accessRules.studyGuide || accessRules.dashboard) && (
+                <SidebarMenuItem>
+                  <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton 
+                        className={getParentNavCls(isStudyGuideAreaActive())}
+                      >
+                        <BookOpen className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-colors-smooth`} />
+                        {!collapsed && (
+                          <>
+                            <span className="animate-fade-in transition-colors-smooth flex-1">Guia de Estudos</span>
+                            {studyGuideOpen ? (
+                              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 transition-transform duration-200" />
+                            )}
+                          </>
+                        )}
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    {!collapsed && (
+                      <CollapsibleContent className="transition-all duration-300 ease-out overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                        <div className="mt-1 space-y-1">
+                          {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item) => (
+                            <SidebarMenuItem key={item.title}>
+                              <SidebarMenuButton asChild>
+                                <NavLink 
+                                  to={item.url} 
+                                  end 
+                                  className={getChildNavCls}
+                                >
+                                  <item.icon className="h-4 w-4 mr-3 transition-colors-smooth" />
+                                  <span className="animate-fade-in transition-colors-smooth text-sm">{item.title}</span>
+                                </NavLink>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </div>
+                      </CollapsibleContent>
+                    )}
+                  </Collapsible>
+                </SidebarMenuItem>
+              )}
+
+              {/* Other Menu Items */}
               {menuItems.filter(item => accessRules[item.accessKey]).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
