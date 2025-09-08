@@ -77,18 +77,18 @@ export function AppSidebar() {
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg'
-      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 hover:translate-x-1 rounded-lg shadow-sm hover:shadow-primary/10';
+      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg transition-all duration-200'
+      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-blue-600/20 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02]';
 
-  const getParentNavCls = (hasActiveChild: boolean) =>
-    hasActiveChild
-      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg'
-      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-primary/10';
+  const getParentNavCls = (isOpen: boolean) =>
+    isOpen
+      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg transition-all duration-200'
+      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-blue-600/20 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02]';
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-blue-800 text-white font-medium shadow-md border border-blue-700/20 rounded-lg ml-4'
-      : 'text-[hsl(var(--sidebar-foreground))]/70 hover:bg-[hsl(var(--sidebar-accent))]/60 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-sm transition-all duration-200 rounded-lg ml-4 shadow-sm hover:shadow-primary/5';
+      ? 'bg-blue-800 text-white font-medium shadow-md border border-blue-700/20 rounded-lg ml-6 pl-4 transition-all duration-200'
+      : 'text-[hsl(var(--sidebar-foreground))]/70 hover:bg-blue-600/15 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-sm transition-all duration-200 rounded-lg ml-6 pl-4 shadow-sm hover:shadow-blue-500/5 hover:scale-[1.01]';
 
   return (
     <Sidebar
@@ -146,24 +146,24 @@ export function AppSidebar() {
                   <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton 
-                        className={getParentNavCls(isStudyGuideAreaActive())}
+                        className={getParentNavCls(studyGuideOpen)}
                       >
-                        <BookOpen className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-colors-smooth`} />
+                        <BookOpen className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-all duration-200`} />
                         {!collapsed && (
                           <>
-                            <span className="animate-fade-in transition-colors-smooth flex-1">Guia de Estudos</span>
+                            <span className="animate-fade-in transition-all duration-200 flex-1">Guia de Estudos</span>
                             {studyGuideOpen ? (
-                              <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                              <ChevronDown className="h-4 w-4 transition-transform duration-300 rotate-0" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 transition-transform duration-200" />
+                              <ChevronRight className="h-4 w-4 transition-transform duration-300 rotate-0" />
                             )}
                           </>
                         )}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     {!collapsed && (
-                      <CollapsibleContent className="transition-all duration-300 ease-out overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-                        <div className="mt-1 space-y-1">
+                      <CollapsibleContent className="transition-all duration-300 ease-in-out overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                        <div className="mt-2 space-y-1 border-l-2 border-blue-200/30 ml-5">
                           {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item) => (
                             <SidebarMenuItem key={item.title}>
                               <SidebarMenuButton asChild>
@@ -172,8 +172,8 @@ export function AppSidebar() {
                                   end 
                                   className={getChildNavCls}
                                 >
-                                  <item.icon className="h-4 w-4 mr-3 transition-colors-smooth" />
-                                  <span className="animate-fade-in transition-colors-smooth text-sm">{item.title}</span>
+                                  <item.icon className="h-4 w-4 mr-3 transition-all duration-200" />
+                                  <span className="animate-fade-in transition-all duration-200 text-sm">{item.title}</span>
                                 </NavLink>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -194,9 +194,9 @@ export function AppSidebar() {
                       end 
                       className={getNavCls}
                     >
-                      <item.icon className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-colors-smooth`} />
+                      <item.icon className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-all duration-200`} />
                       {!collapsed && (
-                        <span className="animate-fade-in transition-colors-smooth">{item.title}</span>
+                        <span className="animate-fade-in transition-all duration-200">{item.title}</span>
                       )}
                     </NavLink>
                   </SidebarMenuButton>
