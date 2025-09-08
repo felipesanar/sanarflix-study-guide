@@ -527,14 +527,22 @@ const allAulas: AulaItem[] = useMemo(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Banner Hero */}
-        <div className="relative overflow-hidden rounded-3xl shadow-2xl">
-          <img
-            src={guiaEstudosBanner}
-            alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
-            className="w-full h-auto object-cover max-h-[400px] md:max-h-[500px] lg:max-h-[600px]"
-            loading="lazy"
-          />
+        {/* Header com título e logo */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
+              Intensivão
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl lg:text-3xl font-bold text-teal-600 dark:text-teal-400">
+                enamed
+              </span>
+              <span className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Exame Nacional de Avaliação<br />
+                da Formação Médica
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Informações do Usuário e Contagem Regressiva */}
