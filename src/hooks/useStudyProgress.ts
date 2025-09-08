@@ -18,153 +18,125 @@ export interface StudyProgressItem {
   updated_at: string;
 }
 
-export const useStudyProgress = (materiaId?: string, semestre?: number) => {
-  const { user } = useAuth();
-  const [progress, setProgress] = useState<Record<string, StudyProgressItem>>({});
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load progress for current materia/semester
-  useEffect(() => {
-    const loadProgress = async () => {
-      if (!user?.id || !materiaId || !semestre) {
-        setProgress({});
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('study_progress')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('materia_id', materiaId)
-          .eq('semestre', semestre);
-
-        if (error) {
-          console.error('Error loading study progress:', error);
-          return;
-        }
-
-        const progressMap = (data || []).reduce((acc, item) => {
-          const key = `${item.content_type}-${item.content_id}`;
-          acc[key] = {
-            ...item,
-            content_type: item.content_type as 'aula' | 'subtema' | 'tema'
-          };
-          return acc;
-        }, {} as Record<string, StudyProgressItem>);
-
-        setProgress(progressMap);
-      } catch (error) {
-        console.error('Error loading study progress:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadProgress();
-  }, [user?.id, materiaId, semestre]);
-
-  const isCompleted = (contentType: 'aula' | 'subtema' | 'tema', contentId: string): boolean => {
-    const key = `${contentType}-${contentId}`;
-    return progress[key]?.completed || false;
-  };
-
-  const toggleCompletion = async (
+export interface UseStudyProgressResult {
+  progress: Map<string, boolean>;
+  loading: boolean;
+  toggleContentCompletion: (
     contentType: 'aula' | 'subtema' | 'tema',
     contentId: string,
-    materiaId: string
-  ): Promise<boolean> => {
-    if (!user?.id || !user?.email || !semestre) {
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado",
-        variant: "destructive",
-      });
-      return false;
-    }
+    materiaId: string,
+    semestre: number,
+    iesNome: string
+  ) => Promise<void>;
+  loadProgress: (materiaId: string, semestre: number, iesNome: string) => Promise<void>;
+}
 
-    const key = `${contentType}-${contentId}`;
-    const currentItem = progress[key];
-    const newCompleted = !currentItem?.completed;
+export const useStudyProgress = (): UseStudyProgressResult => {
+  const { user } = useAuth();
+  const [progress, setProgress] = useState<Map<string, boolean>>(new Map());
+  const [loading, setLoading] = useState(false);
+
+  const getProgressKey = (contentType: string, contentId: string, materiaId: string) => {
+    return `${contentType}-${contentId}-${materiaId}`;
+  };
+
+  const loadProgress = async (materiaId: string, semestre: number, iesNome: string) => {
+    if (!user?.id) return;
 
     try {
-      // Optimistic update
-      setProgress(prev => ({
-        ...prev,
-        [key]: {
-          ...currentItem,
-          id: currentItem?.id || '',
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('study_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('materia_id', materiaId)
+        .eq('semestre', semestre)
+        .eq('ies_nome', iesNome);
+
+      if (error) {
+        console.error('Error loading study progress:', error);
+        throw error;
+      }
+
+      const progressMap = new Map<string, boolean>();
+      data?.forEach((item: any) => {
+        const key = getProgressKey(item.content_type, item.content_id, item.materia_id);
+        progressMap.set(key, item.completed);
+      });
+
+      setProgress(progressMap);
+    } catch (error) {
+      console.error('Error loading study progress:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o progresso dos estudos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleContentCompletion = async (
+    contentType: 'aula' | 'subtema' | 'tema',
+    contentId: string,
+    materiaId: string,
+    semestre: number,
+    iesNome: string
+  ) => {
+    if (!user?.id || !user?.email) return;
+
+    const key = getProgressKey(contentType, contentId, materiaId);
+    const currentStatus = progress.get(key) || false;
+    const newStatus = !currentStatus;
+
+    // Atualização otimista
+    const newProgress = new Map(progress);
+    newProgress.set(key, newStatus);
+    setProgress(newProgress);
+
+    try {
+      const { error } = await supabase
+        .from('study_progress')
+        .upsert({
           user_id: user.id,
           user_email: user.email,
           content_type: contentType,
           content_id: contentId,
           materia_id: materiaId,
           semestre: semestre,
-          ies_nome: user.ies_nome || '',
-          completed: newCompleted,
-          completed_at: newCompleted ? new Date().toISOString() : undefined,
-          created_at: currentItem?.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      }));
+          ies_nome: iesNome,
+          completed: newStatus,
+          completed_at: newStatus ? new Date().toISOString() : null,
+        }, {
+          onConflict: 'user_id,content_type,content_id,materia_id',
+        });
 
-      if (currentItem) {
-        // Update existing record
-        const { error } = await supabase
-          .from('study_progress')
-          .update({
-            completed: newCompleted,
-            completed_at: newCompleted ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', currentItem.id);
-
-        if (error) throw error;
-      } else {
-        // Create new record
-        const { error } = await supabase
-          .from('study_progress')
-          .insert({
-            user_id: user.id,
-            user_email: user.email,
-            content_type: contentType,
-            content_id: contentId,
-            materia_id: materiaId,
-            semestre: semestre,
-            ies_nome: user.ies_nome || '',
-            completed: newCompleted,
-            completed_at: newCompleted ? new Date().toISOString() : null,
-          });
-
-        if (error) throw error;
+      if (error) {
+        console.error('Error updating study progress:', error);
+        // Reverter atualização otimista em caso de erro
+        setProgress(progress);
+        throw error;
       }
 
-      return true;
+      toast({
+        title: newStatus ? "Conteúdo marcado como concluído" : "Conteúdo marcado como pendente",
+        description: `O conteúdo foi ${newStatus ? 'concluído' : 'marcado como pendente'} com sucesso`,
+      });
     } catch (error) {
-      console.error('Error toggling completion:', error);
-      
-      // Revert optimistic update
-      setProgress(prev => ({
-        ...prev,
-        [key]: currentItem || { ...prev[key], completed: !newCompleted }
-      }));
-
+      console.error('Error updating study progress:', error);
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o progresso",
         variant: "destructive",
       });
-      
-      return false;
     }
   };
 
   return {
     progress,
-    isLoading,
-    isCompleted,
-    toggleCompletion,
+    loading,
+    toggleContentCompletion,
+    loadProgress,
   };
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -12,62 +12,70 @@ import { useAuth } from '@/contexts/AuthContext';
 interface StudyMateriaCardProps {
   materia: ApiMateria;
   hideTitle?: boolean;
+  semestre: number;
+  iesNome: string;
 }
 
 interface StudyAulaItemProps {
   aula: ApiAula;
   materiaId: string;
+  semestre: number;
+  iesNome: string;
 }
 
 interface StudySubtemaItemProps {
   subtema: ApiSubtema;
   materiaId: string;
+  semestre: number;
+  iesNome: string;
 }
 
-const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula, materiaId }) => {
+const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula, materiaId, semestre, iesNome }) => {
   const { user } = useAuth();
-  const { isCompleted, toggleCompletion } = useStudyProgress(materiaId, user?.semestre);
-  const isAulaCompleted = isCompleted('aula', aula.id);
-
+  const { progress, toggleContentCompletion } = useStudyProgress();
+  
   const handleResourceClick = (url: string, type: string) => {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
-  const handleToggleCompletion = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await toggleCompletion('aula', aula.id, materiaId);
+  const getProgressKey = (contentType: string, contentId: string, materiaId: string) => {
+    return `${contentType}-${contentId}-${materiaId}`;
+  };
+
+  const isCompleted = progress.get(getProgressKey('aula', aula.id, materiaId)) || false;
+
+  const handleToggleCompletion = async () => {
+    if (!user?.ies_nome) return;
+    await toggleContentCompletion('aula', aula.id, materiaId, semestre, iesNome);
   };
 
   return (
-    <div className={cn(
-      "flex items-center justify-between p-3 rounded-md border border-border/50 transition-colors",
-      isAulaCompleted ? "bg-green-50 border-green-200" : "bg-muted/30"
-    )}>
+    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-md border border-border/50">
       <div className="flex items-center gap-3">
         <button
           onClick={handleToggleCompletion}
           className={cn(
-            "flex items-center justify-center w-6 h-6 rounded border-2 transition-colors",
-            isAulaCompleted 
+            "flex items-center justify-center w-6 h-6 rounded-full border-2 transition-all",
+            isCompleted 
               ? "bg-green-500 border-green-500 text-white" 
-              : "border-muted-foreground/30 hover:border-green-500"
+              : "border-muted-foreground hover:border-green-500"
           )}
         >
-          {isAulaCompleted && <Check className="h-4 w-4" />}
+          {isCompleted && <Check className="h-4 w-4" />}
         </button>
-        <span className={cn(
-          "text-sm font-medium",
-          isAulaCompleted ? "text-green-700" : "text-foreground"
-        )}>
-          {aula.nome}
-        </span>
-        {isAulaCompleted && (
-          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
-            Concluído
+        <div className="flex flex-col">
+          <span className={cn(
+            "text-sm font-medium",
+            isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+          )}>
+            {aula.nome}
           </span>
-        )}
+          {isCompleted && (
+            <span className="text-xs text-green-600 font-medium">✓ Concluído</span>
+          )}
+        </div>
       </div>
       <div className="flex gap-2">
         {aula.video && (
@@ -108,21 +116,20 @@ const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula, materiaId }) => {
   );
 };
 
-const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId }) => {
+const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId, semestre, iesNome }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
-  const { isCompleted, toggleCompletion } = useStudyProgress(materiaId, user?.semestre);
-  const isSubtemaCompleted = isCompleted('subtema', subtema.id);
+  const { progress, toggleContentCompletion } = useStudyProgress();
+
+  const getProgressKey = (contentType: string, contentId: string, materiaId: string) => {
+    return `${contentType}-${contentId}-${materiaId}`;
+  };
+
+  const isCompleted = progress.get(getProgressKey('subtema', subtema.id, materiaId)) || false;
 
   const handleToggleCompletion = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await toggleCompletion('subtema', subtema.id, materiaId);
+    await toggleContentCompletion('subtema', subtema.id, materiaId, semestre, iesNome);
   };
-
-  // Calculate completion stats for this subtema
-  const totalAulas = subtema.aulas.length;
-  const completedAulas = subtema.aulas.filter(aula => isCompleted('aula', aula.id)).length;
-  const hasPartialCompletion = completedAulas > 0 && completedAulas < totalAulas;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -135,21 +142,22 @@ const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId 
             <button
               onClick={handleToggleCompletion}
               className={cn(
-                "flex items-center justify-center w-5 h-5 rounded border-2 transition-colors",
-                isSubtemaCompleted 
+                "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all",
+                isCompleted 
                   ? "bg-green-500 border-green-500 text-white" 
-                  : hasPartialCompletion
-                  ? "bg-orange-200 border-orange-400"
-                  : "border-muted-foreground/30 hover:border-green-500"
+                  : "border-muted-foreground hover:border-green-500"
               )}
             >
-              {isSubtemaCompleted && <Check className="h-3 w-3" />}
+              {isCompleted && <Check className="h-3 w-3" />}
             </button>
-            <span className="font-medium text-foreground">{subtema.nome}</span>
-            {totalAulas > 0 && (
-              <span className="text-xs text-muted-foreground">
-                {completedAulas}/{totalAulas} aulas
-              </span>
+            <span className={cn(
+              "font-medium",
+              isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+            )}>
+              {subtema.nome}
+            </span>
+            {isCompleted && (
+              <span className="text-xs text-green-600 font-medium">✓ Concluído</span>
             )}
           </div>
           {isOpen ? (
@@ -161,14 +169,26 @@ const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId 
       </CollapsibleTrigger>
       <CollapsibleContent className="pl-4 pt-2 space-y-2 animate-accordion-down">
         {subtema.aulas.map((aula) => (
-          <StudyAulaItem key={aula.id} aula={aula} materiaId={materiaId} />
+          <StudyAulaItem 
+            key={aula.id} 
+            aula={aula} 
+            materiaId={materiaId}
+            semestre={semestre}
+            iesNome={iesNome}
+          />
         ))}
       </CollapsibleContent>
     </Collapsible>
   );
 };
 
-export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia, hideTitle = false }) => {
+export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia, hideTitle = false, semestre, iesNome }) => {
+  const { progress, loadProgress } = useStudyProgress();
+
+  useEffect(() => {
+    loadProgress(materia.id, semestre, iesNome);
+  }, [materia.id, semestre, iesNome, loadProgress]);
+
   return (
     <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
       {!hideTitle && (
@@ -187,7 +207,13 @@ export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia, hid
               </AccordionTrigger>
               <AccordionContent className="space-y-2 pt-2">
                 {tema.subtemas.map((subtema) => (
-                  <StudySubtemaItem key={subtema.id} subtema={subtema} materiaId={materia.id} />
+                  <StudySubtemaItem 
+                    key={subtema.id} 
+                    subtema={subtema} 
+                    materiaId={materia.id}
+                    semestre={semestre}
+                    iesNome={iesNome}
+                  />
                 ))}
               </AccordionContent>
             </AccordionItem>

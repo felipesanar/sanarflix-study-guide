@@ -293,6 +293,8 @@ export const StudyGuide: React.FC = () => {
                   key={materia.id} 
                   materia={materia} 
                   hideTitle={selectedMateria !== 'all'} 
+                  semestre={selectedSemestre!}
+                  iesNome={user?.ies_nome || ''}
                 />
               ))}
             </div>
