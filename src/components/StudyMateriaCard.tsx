@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface StudyMateriaCardProps {
   materia: ApiMateria;
+  hideTitle?: boolean;
 }
 
 interface StudyAulaItemProps {
@@ -95,15 +96,17 @@ const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema }) => {
   );
 };
 
-export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia }) => {
+export const StudyMateriaCard: React.FC<StudyMateriaCardProps> = ({ materia, hideTitle = false }) => {
   return (
     <Card className="mb-6 shadow-sm hover:shadow-md transition-shadow">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold text-foreground">
-          {materia.nome}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+      {!hideTitle && (
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg font-semibold text-foreground">
+            {materia.nome}
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={hideTitle ? "pt-6" : ""}>
         <Accordion type="multiple" className="w-full">
           {materia.temas.map((tema) => (
             <AccordionItem key={tema.id} value={tema.id} className="border-border/50">

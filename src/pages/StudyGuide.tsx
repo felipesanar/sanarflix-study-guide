@@ -192,39 +192,59 @@ export const StudyGuide: React.FC = () => {
         </div>
       </div>
 
-      {/* Semester Selector */}
-      <StudySemesterSelector
-        semestres={semestres}
-        selectedSemestre={selectedSemestre}
-        onSemestreChange={handleSemestreChange}
-        isLoading={isLoading}
-      />
-
-      {/* Materia Filter */}
-      {selectedSemestre && materias.length > 0 && (
-        <div className="bg-card p-4 rounded-lg shadow-sm border border-input mb-6">
+      {/* Filters */}
+      <div className="bg-card p-4 rounded-lg shadow-sm border border-input mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Semester Selector */}
           <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-foreground">
-              Filtrar por Matéria:
+            <label className="text-sm font-medium text-foreground whitespace-nowrap">
+              Selecionar Semestre:
             </label>
             <div className="min-w-[200px]">
-              <Select value={selectedMateria} onValueChange={handleMateriaChange}>
+              <Select 
+                value={selectedSemestre?.toString() || ''} 
+                onValueChange={(value) => handleSemestreChange(parseInt(value))}
+                disabled={isLoading || semestres.length === 0}
+              >
                 <SelectTrigger className="h-9 bg-card">
-                  <SelectValue placeholder="Todas as matérias" />
+                  <SelectValue placeholder={isLoading ? "Carregando..." : "Escolha um semestre"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as matérias</SelectItem>
-                  {materias.map((materia) => (
-                    <SelectItem key={materia.id} value={materia.id}>
-                      {materia.nome}
+                  {semestres.map((semestre) => (
+                    <SelectItem key={semestre.id} value={semestre.numero.toString()}>
+                      {semestre.numero}º Semestre
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {/* Materia Filter */}
+          {selectedSemestre && materias.length > 0 && (
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-foreground whitespace-nowrap">
+                Filtrar por Matéria:
+              </label>
+              <div className="min-w-[200px]">
+                <Select value={selectedMateria} onValueChange={handleMateriaChange}>
+                  <SelectTrigger className="h-9 bg-card">
+                    <SelectValue placeholder="Todas as matérias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as matérias</SelectItem>
+                    {materias.map((materia) => (
+                      <SelectItem key={materia.id} value={materia.id}>
+                        {materia.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Content */}
       <div className="space-y-4">
@@ -257,7 +277,10 @@ export const StudyGuide: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-foreground">
-                Conteúdos - {selectedSemestre}º Semestre
+                {selectedMateria !== 'all' 
+                  ? materias.find(m => m.id === selectedMateria)?.nome || 'Matéria'
+                  : `Conteúdos - ${selectedSemestre}º Semestre`
+                }
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   ({filteredMaterias.length} {filteredMaterias.length === 1 ? 'matéria' : 'matérias'})
                 </span>
@@ -266,7 +289,11 @@ export const StudyGuide: React.FC = () => {
 
             <div className="space-y-6">
               {filteredMaterias.map((materia) => (
-                <StudyMateriaCard key={materia.id} materia={materia} />
+                <StudyMateriaCard 
+                  key={materia.id} 
+                  materia={materia} 
+                  hideTitle={selectedMateria !== 'all'} 
+                />
               ))}
             </div>
           </div>
