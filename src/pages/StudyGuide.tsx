@@ -7,40 +7,88 @@ import { BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { studyGuideApi, ApiSemestre, ApiMateria } from '@/services/studyGuideApi';
 import { toast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// Cache key for localStorage
+const getCacheKey = (iesName: string) => `study-guide-${iesName}`;
 
 export const StudyGuide: React.FC = () => {
   const { user } = useAuth();
   const [semestres, setSemestres] = useState<ApiSemestre[]>([]);
   const [selectedSemestre, setSelectedSemestre] = useState<number | null>(null);
   const [materias, setMaterias] = useState<ApiMateria[]>([]);
+  const [selectedMateria, setSelectedMateria] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar semestres disponíveis da IES do usuário
+  // Carregar dados do cache ou da API
   useEffect(() => {
-    const loadSemestres = async () => {
-      if (!user?.id_ies) {
+    const loadCachedOrFreshData = async () => {
+      if (!user?.ies_nome) {
         setError('Usuário não vinculado a uma IES');
         setIsLoading(false);
         return;
       }
 
+      const cacheKey = getCacheKey(user.ies_nome);
+      
       try {
+        // Tentar carregar do cache primeiro
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const { semestres: cachedSemestres, materiasBySemestre, timestamp } = JSON.parse(cached);
+          const now = Date.now();
+          const oneHour = 60 * 60 * 1000;
+          
+          // Se o cache é válido (menos de 1 hora), usar dados do cache
+          if (now - timestamp < oneHour) {
+            setSemestres(cachedSemestres);
+            
+            // Auto-selecionar o semestre atual do usuário se disponível
+            if (user.semestre && cachedSemestres.find((s: ApiSemestre) => s.numero === user.semestre)) {
+              setSelectedSemestre(user.semestre);
+              if (materiasBySemestre[user.semestre]) {
+                setMaterias(materiasBySemestre[user.semestre]);
+              }
+            }
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Cache inválido ou inexistente, buscar da API
         setIsLoading(true);
         setError(null);
+        
         const semestresList = await studyGuideApi.getSemestresByIES(user.ies_nome);
         setSemestres(semestresList);
         
         // Auto-selecionar o semestre atual do usuário se disponível
+        let initialMaterias: ApiMateria[] = [];
         if (user.semestre && semestresList.find(s => s.numero === user.semestre)) {
           setSelectedSemestre(user.semestre);
+          try {
+            initialMaterias = await studyGuideApi.getMateriasBySemestre(user.ies_nome, user.semestre);
+            setMaterias(initialMaterias);
+          } catch (err) {
+            console.error('Erro ao carregar matérias iniciais:', err);
+          }
         }
+
+        // Salvar no cache
+        const cacheData = {
+          semestres: semestresList,
+          materiasBySemestre: user.semestre ? { [user.semestre]: initialMaterias } : {},
+          timestamp: Date.now()
+        };
+        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        
       } catch (err) {
-        console.error('Erro ao carregar semestres:', err);
-        setError('Erro ao carregar semestres disponíveis');
+        console.error('Erro ao carregar dados:', err);
+        setError('Erro ao carregar dados do guia de estudos');
         toast({
           title: "Erro",
-          description: "Não foi possível carregar os semestres disponíveis",
+          description: "Não foi possível carregar os dados do guia de estudos",
           variant: "destructive",
         });
       } finally {
@@ -48,7 +96,7 @@ export const StudyGuide: React.FC = () => {
       }
     };
 
-    loadSemestres();
+    loadCachedOrFreshData();
   }, [user]);
 
   // Carregar matérias quando um semestre for selecionado
@@ -59,11 +107,31 @@ export const StudyGuide: React.FC = () => {
         return;
       }
 
+      // Verificar cache primeiro
+      const cacheKey = getCacheKey(user.ies_nome);
+      const cached = localStorage.getItem(cacheKey);
+      
+      if (cached) {
+        const { materiasBySemestre } = JSON.parse(cached);
+        if (materiasBySemestre[selectedSemestre]) {
+          setMaterias(materiasBySemestre[selectedSemestre]);
+          return;
+        }
+      }
+
       try {
         setIsLoading(true);
         setError(null);
         const materiasList = await studyGuideApi.getMateriasBySemestre(user.ies_nome, selectedSemestre);
         setMaterias(materiasList);
+        
+        // Atualizar cache
+        if (cached) {
+          const cacheData = JSON.parse(cached);
+          cacheData.materiasBySemestre[selectedSemestre] = materiasList;
+          cacheData.timestamp = Date.now();
+          localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        }
       } catch (err) {
         console.error('Erro ao carregar matérias:', err);
         setError('Erro ao carregar conteúdos do semestre');
@@ -82,7 +150,17 @@ export const StudyGuide: React.FC = () => {
 
   const handleSemestreChange = (semestre: number) => {
     setSelectedSemestre(semestre);
+    setSelectedMateria('all'); // Reset materia filter when changing semester
   };
+
+  const handleMateriaChange = (materiaId: string) => {
+    setSelectedMateria(materiaId);
+  };
+
+  // Filter materias based on selection
+  const filteredMaterias = selectedMateria === 'all' 
+    ? materias 
+    : materias.filter(materia => materia.id === selectedMateria);
 
   if (error) {
     return (
@@ -122,6 +200,32 @@ export const StudyGuide: React.FC = () => {
         isLoading={isLoading}
       />
 
+      {/* Materia Filter */}
+      {selectedSemestre && materias.length > 0 && (
+        <div className="bg-card p-4 rounded-lg shadow-sm border border-input mb-6">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-foreground">
+              Filtrar por Matéria:
+            </label>
+            <div className="min-w-[200px]">
+              <Select value={selectedMateria} onValueChange={handleMateriaChange}>
+                <SelectTrigger className="h-9 bg-card">
+                  <SelectValue placeholder="Todas as matérias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as matérias</SelectItem>
+                  {materias.map((materia) => (
+                    <SelectItem key={materia.id} value={materia.id}>
+                      {materia.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="space-y-4">
         {isLoading ? (
@@ -155,13 +259,13 @@ export const StudyGuide: React.FC = () => {
               <h2 className="text-xl font-semibold text-foreground">
                 Conteúdos - {selectedSemestre}º Semestre
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({materias.length} {materias.length === 1 ? 'matéria' : 'matérias'})
+                  ({filteredMaterias.length} {filteredMaterias.length === 1 ? 'matéria' : 'matérias'})
                 </span>
               </h2>
             </div>
 
             <div className="space-y-6">
-              {materias.map((materia) => (
+              {filteredMaterias.map((materia) => (
                 <StudyMateriaCard key={materia.id} materia={materia} />
               ))}
             </div>

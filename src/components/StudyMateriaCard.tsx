@@ -32,34 +32,34 @@ const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula }) => {
       <div className="flex gap-2">
         {aula.video && (
           <Button
-            size="sm"
+            size="default"
             variant="outline"
             onClick={() => handleResourceClick(aula.video!, 'video')}
-            className="h-8 px-3 text-xs hover:bg-primary hover:text-primary-foreground"
+            className="h-10 px-4 text-sm hover:bg-primary hover:text-primary-foreground"
           >
-            <Play className="h-3 w-3 mr-1" />
+            <Play className="h-4 w-4 mr-2" />
             Aula
           </Button>
         )}
         {aula.pdf && (
           <Button
-            size="sm"
+            size="default"
             variant="outline"
             onClick={() => handleResourceClick(aula.pdf!, 'pdf')}
-            className="h-8 px-3 text-xs hover:bg-primary hover:text-primary-foreground"
+            className="h-10 px-4 text-sm hover:bg-primary hover:text-primary-foreground"
           >
-            <FileText className="h-3 w-3 mr-1" />
+            <FileText className="h-4 w-4 mr-2" />
             PDF
           </Button>
         )}
         {aula.quiz && (
           <Button
-            size="sm"
+            size="default"
             variant="outline"
             onClick={() => handleResourceClick(aula.quiz!, 'quiz')}
-            className="h-8 px-3 text-xs hover:bg-primary hover:text-primary-foreground"
+            className="h-10 px-4 text-sm hover:bg-primary hover:text-primary-foreground"
           >
-            <HelpCircle className="h-3 w-3 mr-1" />
+            <HelpCircle className="h-4 w-4 mr-2" />
             Quiz
           </Button>
         )}
