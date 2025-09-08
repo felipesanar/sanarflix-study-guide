@@ -75,19 +75,19 @@ export function AppSidebar() {
     }
   }, [currentPath]);
 
+  // Unified selected style for ALL buttons
+  const selectedButtonStyle = 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg transition-all duration-200';
+  const hoverButtonStyle = 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-blue-600/20 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02]';
+
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg transition-all duration-200'
-      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-blue-600/20 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02]';
+    isActive ? selectedButtonStyle : hoverButtonStyle;
 
   const getParentNavCls = (isOpen: boolean) =>
-    isOpen
-      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg transition-all duration-200'
-      : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-blue-600/20 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02]';
+    isOpen ? selectedButtonStyle : hoverButtonStyle;
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
-    isActive
-      ? 'bg-blue-800 text-white font-medium shadow-md border border-blue-700/20 rounded-lg ml-6 pl-4 transition-all duration-200'
+    isActive 
+      ? `${selectedButtonStyle} ml-6 pl-4`
       : 'text-[hsl(var(--sidebar-foreground))]/70 hover:bg-blue-600/15 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-sm transition-all duration-200 rounded-lg ml-6 pl-4 shadow-sm hover:shadow-blue-500/5 hover:scale-[1.01]';
 
   return (
