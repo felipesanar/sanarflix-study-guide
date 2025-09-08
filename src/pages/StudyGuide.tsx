@@ -1,124 +1,170 @@
 
-import React, { useState } from 'react';
-import { StudyContentCard } from '@/components/StudyContentCard';
-import { StudyFilters } from '@/components/StudyFilters';
-import { ProgressCard } from '@/components/ProgressCard';
-import { useStudy } from '@/contexts/StudyContext';
+import React, { useState, useEffect } from 'react';
+import { StudySemesterSelector } from '@/components/StudySemesterSelector';
+import { StudyMateriaCard } from '@/components/StudyMateriaCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, Target, TrendingUp, Award } from 'lucide-react';
+import { BookOpen, Loader2, AlertCircle } from 'lucide-react';
+import { studyGuideApi, ApiSemestre, ApiMateria } from '@/services/studyGuideApi';
+import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export const StudyGuide: React.FC = () => {
   const { user } = useAuth();
-  const { getFilteredContents, progress } = useStudy();
-  const [selectedDiscipline, setSelectedDiscipline] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [semestres, setSemestres] = useState<ApiSemestre[]>([]);
+  const [selectedSemestre, setSelectedSemestre] = useState<number | null>(null);
+  const [materias, setMaterias] = useState<ApiMateria[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredContents = getFilteredContents(
-    selectedDiscipline === 'all' ? undefined : selectedDiscipline,
-    selectedStatus === 'all' ? undefined : (selectedStatus as 'completed' | 'pending')
-  );
+  // Carregar semestres disponíveis da IES do usuário
+  useEffect(() => {
+    const loadSemestres = async () => {
+      if (!user?.id_ies) {
+        setError('Usuário não vinculado a uma IES');
+        setIsLoading(false);
+        return;
+      }
 
-  const handleResetFilters = () => {
-    setSelectedDiscipline('all');
-    setSelectedStatus('all');
+      try {
+        setIsLoading(true);
+        setError(null);
+        const semestresList = await studyGuideApi.getSemestresByIES(user.id_ies);
+        setSemestres(semestresList);
+        
+        // Auto-selecionar o semestre atual do usuário se disponível
+        if (user.semestre && semestresList.find(s => s.numero === user.semestre)) {
+          setSelectedSemestre(user.semestre);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar semestres:', err);
+        setError('Erro ao carregar semestres disponíveis');
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os semestres disponíveis",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSemestres();
+  }, [user]);
+
+  // Carregar matérias quando um semestre for selecionado
+  useEffect(() => {
+    const loadMaterias = async () => {
+      if (!user?.id_ies || !selectedSemestre) {
+        setMaterias([]);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const materiasList = await studyGuideApi.getMateriasBySemestre(user.id_ies, selectedSemestre);
+        setMaterias(materiasList);
+      } catch (err) {
+        console.error('Erro ao carregar matérias:', err);
+        setError('Erro ao carregar conteúdos do semestre');
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os conteúdos do semestre",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMaterias();
+  }, [user, selectedSemestre]);
+
+  const handleSemestreChange = (semestre: number) => {
+    setSelectedSemestre(semestre);
   };
 
-  const totalCompleted = progress.completedItems.length;
-  const totalProgress = progress.totalItems > 0 ? Math.round((totalCompleted / progress.totalItems) * 100) : 0;
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-primary-100 rounded-lg">
-            <BookOpen className="h-6 w-6 text-primary-600" />
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <BookOpen className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Guia de Estudos</h1>
-            <p className="text-gray-600">
-              {user?.ies_nome} - {user?.semestre}º período
+            <h1 className="text-3xl font-bold text-foreground">Guia de Estudos</h1>
+            <p className="text-muted-foreground">
+              {user?.ies_nome}
             </p>
           </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <ProgressCard
-            title="Progresso Geral"
-            current={totalCompleted}
-            total={progress.totalItems}
-            percentage={totalProgress}
-            color="primary"
-            icon={<Target className="h-4 w-4" />}
-          />
-          
-          {Object.entries(progress.progressByDiscipline).slice(0, 3).map(([discipline, data]) => (
-            <ProgressCard
-              key={discipline}
-              title={discipline}
-              current={data.completed}
-              total={data.total}
-              percentage={data.percentage}
-              color={data.percentage === 100 ? 'success' : 'primary'}
-              icon={<TrendingUp className="h-4 w-4" />}
-            />
-          ))}
         </div>
       </div>
 
-      {/* Filters */}
-      <StudyFilters
-        selectedDiscipline={selectedDiscipline}
-        selectedStatus={selectedStatus}
-        onDisciplineChange={setSelectedDiscipline}
-        onStatusChange={setSelectedStatus}
-        onReset={handleResetFilters}
+      {/* Semester Selector */}
+      <StudySemesterSelector
+        semestres={semestres}
+        selectedSemestre={selectedSemestre}
+        onSemestreChange={handleSemestreChange}
+        isLoading={isLoading}
       />
 
-      {/* Content List */}
+      {/* Content */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Conteúdos de Estudo
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              ({filteredContents.length} {filteredContents.length === 1 ? 'item' : 'itens'})
-            </span>
-          </h2>
-          
-          {totalCompleted > 0 && (
-            <div className="flex items-center gap-2 text-success-600">
-              <Award className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                {totalCompleted} concluído{totalCompleted !== 1 ? 's' : ''}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {filteredContents.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-muted-foreground">Carregando conteúdos...</span>
+          </div>
+        ) : !selectedSemestre ? (
           <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Nenhum conteúdo encontrado
+            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              Selecione um semestre
             </h3>
-            <p className="text-gray-600 mb-4">
-              Tente ajustar os filtros para ver mais conteúdos.
+            <p className="text-muted-foreground">
+              Escolha um semestre acima para visualizar os conteúdos de estudo.
             </p>
-            {(selectedDiscipline !== 'all' || selectedStatus !== 'all') && (
-              <button
-                onClick={handleResetFilters}
-                className="text-primary-600 hover:text-primary-700 font-medium text-sm"
-              >
-                Limpar filtros
-              </button>
-            )}
+          </div>
+        ) : materias.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              Nenhum conteúdo disponível
+            </h3>
+            <p className="text-muted-foreground">
+              Não há conteúdos disponíveis para este semestre.
+            </p>
           </div>
         ) : (
-          <div className="grid gap-4">
-            {filteredContents.map((content) => (
-              <StudyContentCard key={content.id} content={content} />
-            ))}
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-foreground">
+                Conteúdos - {selectedSemestre}º Semestre
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({materias.length} {materias.length === 1 ? 'matéria' : 'matérias'})
+                </span>
+              </h2>
+            </div>
+
+            <div className="space-y-6">
+              {materias.map((materia) => (
+                <StudyMateriaCard key={materia.id} materia={materia} />
+              ))}
+            </div>
           </div>
         )}
       </div>
