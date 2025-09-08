@@ -77,17 +77,17 @@ export function AppSidebar() {
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-primary text-primary-foreground font-medium shadow-lg border border-primary/20 rounded-lg'
+      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg'
       : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 hover:translate-x-1 rounded-lg shadow-sm hover:shadow-primary/10';
 
   const getParentNavCls = (hasActiveChild: boolean) =>
     hasActiveChild
-      ? 'bg-primary/10 text-primary font-medium shadow-lg border border-primary/20 rounded-lg'
+      ? 'bg-blue-800 text-white font-medium shadow-lg border border-blue-700/20 rounded-lg'
       : 'text-[hsl(var(--sidebar-foreground))]/80 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-md transition-all duration-200 rounded-lg shadow-sm hover:shadow-primary/10';
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive
-      ? 'bg-primary text-primary-foreground font-medium shadow-md border border-primary/20 rounded-lg ml-4'
+      ? 'bg-blue-800 text-white font-medium shadow-md border border-blue-700/20 rounded-lg ml-4'
       : 'text-[hsl(var(--sidebar-foreground))]/70 hover:bg-[hsl(var(--sidebar-accent))]/60 hover:text-[hsl(var(--sidebar-foreground))] hover:shadow-sm transition-all duration-200 rounded-lg ml-4 shadow-sm hover:shadow-primary/5';
 
   return (
