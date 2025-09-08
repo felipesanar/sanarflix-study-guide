@@ -118,53 +118,64 @@ const StudyAulaItem: React.FC<StudyAulaItemProps> = ({ aula, materiaId, semestre
 
 const StudySubtemaItem: React.FC<StudySubtemaItemProps> = ({ subtema, materiaId, semestre, iesNome }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { progress, toggleContentCompletion } = useStudyProgress();
+  const { progress } = useStudyProgress();
 
   const getProgressKey = (contentType: string, contentId: string, materiaId: string) => {
     return `${contentType}-${contentId}-${materiaId}`;
   };
 
-  const isCompleted = progress.get(getProgressKey('subtema', subtema.id, materiaId)) || false;
-
-  const handleToggleCompletion = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    await toggleContentCompletion('subtema', subtema.id, materiaId, semestre, iesNome);
-  };
+  // Calcular quantas aulas estão concluídas
+  const completedAulas = subtema.aulas.filter(aula => 
+    progress.get(getProgressKey('aula', aula.id, materiaId)) || false
+  ).length;
+  
+  const totalAulas = subtema.aulas.length;
+  const allCompleted = completedAulas === totalAulas && totalAulas > 0;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full justify-between p-3 h-auto text-left hover:bg-accent/20"
+          className={cn(
+            "w-full justify-between p-3 h-auto text-left hover:bg-accent/20 transition-all",
+            allCompleted && "bg-green-50 hover:bg-green-100 border border-green-200"
+          )}
         >
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleToggleCompletion}
-              className={cn(
-                "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all",
-                isCompleted 
-                  ? "bg-green-500 border-green-500 text-white" 
-                  : "border-muted-foreground hover:border-green-500"
-              )}
-            >
-              {isCompleted && <Check className="h-3 w-3" />}
-            </button>
-            <span className={cn(
-              "font-medium",
-              isCompleted ? "text-muted-foreground line-through" : "text-foreground"
+            <div className={cn(
+              "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all",
+              allCompleted 
+                ? "bg-green-500 border-green-500 text-white" 
+                : "border-muted-foreground"
             )}>
-              {subtema.nome}
-            </span>
-            {isCompleted && (
-              <span className="text-xs text-green-600 font-medium">✓ Concluído</span>
+              {allCompleted && <Check className="h-3 w-3" />}
+            </div>
+            <div className="flex flex-col">
+              <span className={cn(
+                "font-medium",
+                allCompleted ? "text-green-700" : "text-foreground"
+              )}>
+                {subtema.nome}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {completedAulas}/{totalAulas} aulas
+                {allCompleted && <span className="text-green-600 font-medium ml-2">✓ Concluído</span>}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {allCompleted && (
+              <span className="px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
+                Concluído
+              </span>
+            )}
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             )}
           </div>
-          {isOpen ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="pl-4 pt-2 space-y-2 animate-accordion-down">
