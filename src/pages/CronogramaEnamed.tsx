@@ -503,14 +503,6 @@ const allAulas: AulaItem[] = useMemo(() => {
                   Conteúdos essenciais dos últimos 30 dias para sua preparação final
                 </p>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold">{progressData.percentage}%</div>
-                  <div className="text-sm text-primary-foreground/80">Progresso</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold">{progressData.completedItems}</div>
-                  <div className="text-sm text-primary-foreground/80">Concluídas</div>
                 </div>
               </div>
             </div>
