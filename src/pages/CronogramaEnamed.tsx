@@ -503,8 +503,6 @@ const allAulas: AulaItem[] = useMemo(() => {
                   Conteúdos essenciais dos últimos 30 dias para sua preparação final
                 </p>
               </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
