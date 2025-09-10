@@ -1,15 +1,13 @@
 import { AccessRules, User } from '@/types';
 
 export const getAccessRules = (user: User | null): AccessRules => {
-  // Lançamento inicial: apenas Intensivão ENAMED habilitado
-  // Desabilita Guia de Estudos e Dashboard para todos os usuários
-  
   // PRIMEIRO, VERIFIQUE SE O USUÁRIO EXISTE
   if (!user) {
     // Retorna as regras padrão para um usuário deslogado ou em carregamento
     return {
       studyGuide: false,
-      enamed: true,
+      enamed: false,
+      cronogramaEnamed: false,
       dashboard: false,
       SimuladoDesempenho: false,
       userManagement: false,
@@ -19,11 +17,28 @@ export const getAccessRules = (user: User | null): AccessRules => {
   // Agora que sabemos que o usuário não é nulo, podemos acessar suas propriedades
   const { id_ies } = user;
 
+  // B2C IES ID (usuários cadastrados via página B2C)
+  const B2C_IES_ID = 'abec7c7d-ef07-4871-9e19-090f4d951e5e';
+
+  // Verificar se é usuário B2C
+  if (id_ies === B2C_IES_ID) {
+    return {
+      studyGuide: false,
+      enamed: false, // B2C não tem acesso ao intensivão completo
+      cronogramaEnamed: true, // B2C só tem acesso ao cronograma dos últimos 30 dias
+      dashboard: false,
+      SimuladoDesempenho: false,
+      userManagement: false
+    };
+  }
+
+  // Regras para IES específicas (usuários B2B)
   switch (id_ies) {
     case '9f21b138-0027-44c8-9660-dc6706d57bc0':
       return {
         studyGuide: true,
         enamed: true,
+        cronogramaEnamed: false, // B2B não precisa do cronograma limitado
         dashboard: true,
         SimuladoDesempenho: true,
         userManagement: true
@@ -33,6 +48,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       return {
         studyGuide: true,
         enamed: true,
+        cronogramaEnamed: false,
         dashboard: true,
         SimuladoDesempenho: false,
         userManagement: false
@@ -42,15 +58,18 @@ export const getAccessRules = (user: User | null): AccessRules => {
       return {
         studyGuide: true,
         enamed: true,
+        cronogramaEnamed: false,
         dashboard: true,
         SimuladoDesempenho: false,
         userManagement: false
       };
     
     default:
+      // Outras IES - acesso padrão ao intensivão completo
       return {
         studyGuide: false,
         enamed: true,
+        cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: false,
         userManagement: false

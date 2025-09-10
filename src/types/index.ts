@@ -12,6 +12,7 @@ export interface User {
 export interface AccessRules {
   studyGuide: boolean;
   enamed: boolean;
+  cronogramaEnamed: boolean;
   dashboard: boolean;
   SimuladoDesempenho: boolean;
   userManagement: boolean;

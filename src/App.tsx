@@ -20,6 +20,7 @@ import UserManagement from "./pages/UserManagement";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import { SignupB2C } from "./pages/SignupB2C";
+import { CronogramaEnamed } from "./pages/CronogramaEnamed";
 import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
@@ -66,8 +67,11 @@ const AppContent = () => {
     );
   }
 
-  // Determine default route for launch: only Intensivão ENAMED
-  const getDefaultRoute = () => "/intensivao-enamed";
+  // Determine default route for launch
+  const getDefaultRoute = () => {
+    // B2C users get cronograma, others get intensivao
+    return accessRules.cronogramaEnamed ? "/cronograma-enamed" : "/intensivao-enamed";
+  };
 
   return (
     <StudyProvider>
@@ -121,6 +125,19 @@ const AppContent = () => {
               <ProtectedRoute>
                 <Layout>
                   <IntensivaoEnamed />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+
+        {accessRules.cronogramaEnamed && (
+          <Route
+            path="/cronograma-enamed"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <CronogramaEnamed />
                 </Layout>
               </ProtectedRoute>
             }

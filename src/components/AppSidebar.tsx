@@ -28,6 +28,12 @@ const menuItems = [
     accessKey: 'enamed' as const,
   },
   {
+    title: 'Cronograma ENAMED',
+    url: '/cronograma-enamed',
+    icon: FileText,
+    accessKey: 'cronogramaEnamed' as const,
+  },
+  {
     title: 'Desempenho Simulado',
     url: '/desempenho-simulado',
     icon: ClipboardCheck,
@@ -45,7 +51,7 @@ const studyGuideItems = [
   {
     title: 'Seu guia',
     url: '/guia-estudos',
-    icon: FileText,
+    icon: BookOpen,
     accessKey: 'studyGuide' as const,
   },
   {
