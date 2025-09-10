@@ -563,6 +563,15 @@ const allAulas: AulaItem[] = useMemo(() => {
 
         {/* Cards de Progresso */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Card de Progresso Geral */}
+          <ProgressAreaCard
+            title="Progresso Geral"
+            current={progressData.completedItems}
+            total={progressData.totalItems}
+            percentage={progressData.percentage}
+            icon={<Target className="h-5 w-5 text-primary dark:text-[hsl(var(--primary-light))]" />}
+            variant="general"
+          />
 
           {/* Card de Semanas Concluídas */}
           <ProgressAreaCard
