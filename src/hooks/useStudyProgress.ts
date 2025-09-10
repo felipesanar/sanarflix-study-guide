@@ -54,7 +54,6 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         .eq('ies_nome', iesNome);
 
       if (error) {
-        console.error('Error loading study progress:', error);
         throw error;
       }
 
@@ -65,8 +64,8 @@ export const useStudyProgress = (): UseStudyProgressResult => {
       });
 
       setProgress(progressMap);
-    } catch (error) {
-      console.error('Error loading study progress:', error);
+      } catch (error) {
+        // Error loading study progress
       toast({
         title: "Erro",
         description: "Não foi possível carregar o progresso dos estudos",
@@ -113,7 +112,6 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         });
 
       if (error) {
-        console.error('Error updating study progress:', error);
         // Reverter atualização otimista em caso de erro
         setProgress(progress);
         throw error;
@@ -123,8 +121,8 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         title: newStatus ? "Conteúdo marcado como concluído" : "Conteúdo marcado como pendente",
         description: `O conteúdo foi ${newStatus ? 'concluído' : 'marcado como pendente'} com sucesso`,
       });
-    } catch (error) {
-      console.error('Error updating study progress:', error);
+      } catch (error) {
+        // Error updating study progress
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o progresso",

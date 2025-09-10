@@ -11,11 +11,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
 
   useEffect(() => {
-    console.log('AuthContext: Setting up auth state listener');
-    
     // 1) Listener síncrono do estado de auth (evita deadlocks)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
 
       if (event === 'SIGNED_IN') {
         // Hidrata imediatamente com cache salvo no login()
@@ -27,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(parsed);
             setNeedsPasswordChange(cachedNeeds === 'true');
           } catch (e) {
-            console.error('Error parsing cached user on SIGNED_IN:', e);
+            // Error parsing cached user
           }
         } else if (session?.access_token) {
           // Fluxo via magic link/callback: buscar perfil de forma deferida
@@ -41,7 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
 
               if (error || data?.error) {
-                console.error('Auth state profile fetch error:', data?.error || error);
                 return;
               }
 
@@ -52,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.setItem('sanarflix-user', JSON.stringify(userData));
               localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
             } catch (e) {
-              console.error('Deferred profile fetch error:', e);
+              // Error fetching profile
             }
           }, 0);
         }
@@ -77,7 +73,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(JSON.parse(storedUser));
             setNeedsPasswordChange(storedPasswordChange === 'true');
           } catch (error) {
-            console.error('Error parsing stored user on init:', error);
             localStorage.removeItem('sanarflix-user');
             localStorage.removeItem('sanarflix-needs-password-change');
           }
@@ -85,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error('getSession error:', error);
         setIsLoading(false);
       });
 
@@ -96,17 +90,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      console.log('Starting login for:', email);
-      
       const { data, error } = await supabase.functions.invoke('auth-login', {
         body: { email, password }
       });
 
-      console.log('Login response:', { data, error });
-      console.log('Response data details:', data);
-
       if (error) {
-        console.error('Supabase function error:', error);
         toast({
           title: "Erro no login",
           description: "Erro de comunicação com o servidor",
@@ -118,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data?.error) {
-        console.log('Login failed with error:', data.error);
         toast({
           title: "Erro no login",
           description: data.error,
@@ -130,7 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!data?.user) {
-        console.error('No user data in response');
         toast({
           title: "Erro no login",
           description: "Resposta inválida do servidor",
@@ -142,8 +128,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = data.user;
-      console.log('Login successful for user:', userData);
-      console.log('Setting user state with userData:', userData);
 
       // Estabelece sessão do Supabase no cliente para permitir RLS nas consultas
       if (data.session?.access_token && data.session?.refresh_token) {
@@ -152,16 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token,
           });
-          console.log('Supabase session set successfully');
         } catch (e) {
-          console.error('Failed to set Supabase session:', e);
+          // Failed to set session
         }
       }
 
-      console.log('Before setUser - current user state:', user);
       setUser(userData);
       setNeedsPasswordChange(data.needsPasswordChange || false);
-      console.log('After setUser - should have user now');
       
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
@@ -181,10 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setIsLoading(false);
-      console.log('About to return true from login function');
       return true;
     } catch (error) {
-      console.error('Login error:', error);
       toast({
         title: "Erro no login",
         description: error instanceof Error ? error.message : "Erro interno do servidor",
@@ -229,7 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return true;
     } catch (error) {
-      console.error('Password change error:', error);
       toast({
         title: "Erro ao alterar senha",
         description: "Erro interno do servidor",
@@ -246,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Encerra sessão do Supabase (dispara SIGNED_OUT)
       supabase.auth.signOut();
     } catch (e) {
-      console.error('Error on signOut:', e);
+      // Error on signOut
     }
 
     // Limpeza defensiva imediata

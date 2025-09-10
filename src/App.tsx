@@ -28,7 +28,7 @@ const queryClient = new QueryClient();
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
 
-  console.log('ProtectedRoute: isLoading:', isLoading, 'user:', user ? user.email : 'No user');
+  
 
   if (isLoading) {
     return (
@@ -52,8 +52,6 @@ const AppContent = () => {
   const { user } = useAuth();
   const accessRules = getAccessRules(user);
 
-  console.log('AppContent: User state:', user ? user.email : 'No user');
-  console.log('AppContent: Access rules:', accessRules);
 
   if (!user) {
     return (

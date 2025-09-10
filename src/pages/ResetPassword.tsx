@@ -64,7 +64,6 @@ export default function ResetPassword() {
       toast.success('Senha redefinida com sucesso!');
       navigate('/login');
     } catch (error: any) {
-      console.error('Erro ao redefinir senha:', error);
       setError(error.message || 'Erro ao redefinir senha. Tente novamente.');
     } finally {
       setIsLoading(false);

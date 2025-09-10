@@ -71,7 +71,7 @@ export const StudyGuide: React.FC = () => {
             initialMaterias = await studyGuideApi.getMateriasBySemestre(user.ies_nome, user.semestre);
             setMaterias(initialMaterias);
           } catch (err) {
-            console.error('Erro ao carregar matérias iniciais:', err);
+            // Error loading initial materials
           }
         }
 
@@ -84,7 +84,6 @@ export const StudyGuide: React.FC = () => {
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
         
       } catch (err) {
-        console.error('Erro ao carregar dados:', err);
         setError('Erro ao carregar dados do guia de estudos');
         toast({
           title: "Erro",
@@ -133,7 +132,6 @@ export const StudyGuide: React.FC = () => {
           localStorage.setItem(cacheKey, JSON.stringify(cacheData));
         }
       } catch (err) {
-        console.error('Erro ao carregar matérias:', err);
         setError('Erro ao carregar conteúdos do semestre');
         toast({
           title: "Erro",

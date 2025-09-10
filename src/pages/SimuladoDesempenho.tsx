@@ -165,7 +165,7 @@ export const SimuladoDesempenho: React.FC = () => {
           });
         }
       } catch (error) {
-        console.error("Erro ao buscar dados de desempenho:", error);
+        // Error fetching data
       } finally {
         setLoading(false);
       }

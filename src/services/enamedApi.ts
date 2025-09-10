@@ -19,7 +19,6 @@ export const enamedApi = {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching ENAMED content:', error);
       throw error;
     }
   },
@@ -32,7 +31,6 @@ export const enamedApi = {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching ENAMED content by week:', error);
       throw error;
     }
   },
@@ -45,7 +43,6 @@ export const enamedApi = {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching ENAMED content by discipline:', error);
       throw error;
     }
   }

@@ -62,7 +62,6 @@ const UserManagement: React.FC = () => {
           .order('nome');
 
         if (error) {
-          console.error('Error fetching IES:', error);
           toast({
             title: "Erro",
             description: "Erro ao carregar lista de IES",
@@ -73,7 +72,7 @@ const UserManagement: React.FC = () => {
 
         setIesList(data || []);
       } catch (error) {
-        console.error('Unexpected error:', error);
+        // Unexpected error
       } finally {
         setIsLoadingIes(false);
       }

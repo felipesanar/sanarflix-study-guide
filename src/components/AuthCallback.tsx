@@ -13,7 +13,6 @@ export const AuthCallback: React.FC = () => {
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Auth callback error:', error);
           toast({
             title: "Erro de autenticação",
             description: error.message || "Não foi possível completar o login.",
@@ -35,7 +34,6 @@ export const AuthCallback: React.FC = () => {
           navigate('/login');
         }
       } catch (error) {
-        console.error('Unexpected auth callback error:', error);
         toast({
           title: "Erro inesperado",
           description: "Ocorreu um erro durante a autenticação.",

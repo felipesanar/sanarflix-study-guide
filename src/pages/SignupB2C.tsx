@@ -107,7 +107,6 @@ export const SignupB2C: React.FC = () => {
       }, 2000);
 
     } catch (error: any) {
-      console.error('Signup error:', error);
       toast({
         title: "Erro no cadastro",
         description: error.message || "Não foi possível realizar o cadastro. Tente novamente.",

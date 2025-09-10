@@ -250,7 +250,6 @@ const allAulas: AulaItem[] = useMemo(() => {
         .like('content_id', 'cronograma_enamed_%');
 
       if (error) {
-        console.error('Error loading Cronograma ENAMED progress:', error);
         return;
       }
 
@@ -261,7 +260,7 @@ const allAulas: AulaItem[] = useMemo(() => {
         setCompletedItems(new Set(completedIds));
       }
     } catch (error) {
-      console.error('Error loading Cronograma ENAMED progress:', error);
+      // Error loading progress
     }
   }, [user]);
 
@@ -310,7 +309,6 @@ const allAulas: AulaItem[] = useMemo(() => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
-        console.error('No authenticated user found');
         return;
       }
 
@@ -326,7 +324,6 @@ const allAulas: AulaItem[] = useMemo(() => {
           .maybeSingle();
 
         if (checkError) {
-          console.error('Error checking existing Cronograma ENAMED progress:', checkError);
           toast.error('Erro ao salvar progresso. Tente novamente.');
           // Reverter mudança otimista
           setCompletedItems(prev => {
@@ -346,7 +343,6 @@ const allAulas: AulaItem[] = useMemo(() => {
             });
           
           if (insertError) {
-            console.error('Error saving Cronograma ENAMED progress:', insertError);
             toast.error('Erro ao salvar progresso. Tente novamente.');
             // Reverter mudança otimista
             setCompletedItems(prev => {
@@ -366,7 +362,6 @@ const allAulas: AulaItem[] = useMemo(() => {
           .eq('content_id', contentId);
         
         if (error) {
-          console.error('Error removing Cronograma ENAMED progress:', error);
           toast.error('Erro ao remover progresso. Tente novamente.');
           // Reverter mudança otimista
           setCompletedItems(prev => {
@@ -381,7 +376,6 @@ const allAulas: AulaItem[] = useMemo(() => {
       // Sucesso - mostrar notificação
       toast.success(isCompleting ? 'Aula marcada como concluída! 🎉' : 'Aula desmarcada');
     } catch (error) {
-      console.error('Error syncing Cronograma ENAMED progress:', error);
       toast.error('Erro ao sincronizar progresso. Verifique sua conexão.');
     }
   }, [completedItems]);

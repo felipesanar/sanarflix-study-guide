@@ -19,9 +19,7 @@ export const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('LoginForm: Starting login attempt for:', email);
     const success = await login(email, password);
-    console.log('LoginForm: Login result:', success);
     if (success) {
       // Determine default route based on access rules (B2C -> cronograma)
       setTimeout(() => {
@@ -35,7 +33,7 @@ export const LoginForm: React.FC = () => {
           }
           navigate(target, { replace: true });
         } catch (err) {
-          console.error('LoginForm: Redirect fallback error, going to /intensivao-enamed', err);
+          
           navigate('/intensivao-enamed', { replace: true });
         }
       }, 50);
@@ -63,7 +61,7 @@ export const LoginForm: React.FC = () => {
         duration: 4000,
       });
     } catch (err: any) {
-      console.error("resetPassword error:", err);
+      
       toast({
         title: "Não foi possível enviar o e-mail",
         description: err?.message || "Tente novamente em instantes.",

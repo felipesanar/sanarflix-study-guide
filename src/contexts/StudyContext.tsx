@@ -34,13 +34,11 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
 
       if (error) {
-        console.error('Error loading study contents:', error);
         setStudyContents([]);
         return;
       }
 
       if (!conteudosData || conteudosData.length === 0) {
-        console.log('No content found for this IES and semester');
         setStudyContents([]);
         return;
       }
@@ -52,7 +50,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Load progress from database
       await loadUserProgress(processedContents, user.id);
     } catch (error) {
-      console.error('Error loading study contents:', error);
+      // Error loading study contents
       setStudyContents([]);
     }
   };
@@ -72,7 +70,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .eq('user_id', authUser.id);
 
       if (error) {
-        console.error('Error loading user progress:', error);
         // Fallback to localStorage if database fails
         const savedProgress = localStorage.getItem('study-progress');
         if (savedProgress) {
@@ -102,8 +99,8 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       // Sync with localStorage for offline access
       localStorage.setItem('study-progress', JSON.stringify(progress));
-    } catch (error) {
-      console.error('Error loading user progress:', error);
+      } catch (error) {
+        // Error loading user progress
       initializeProgress(contents, userId);
     }
   };
@@ -225,7 +222,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Get current auth user ID
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) {
-        console.error('No authenticated user found');
         return;
       }
 
@@ -239,7 +235,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
         
         if (error) {
-          console.error('Error saving progress to database:', error);
           toast({
             title: "Erro",
             description: "Não foi possível salvar o progresso. Tente novamente.",
@@ -261,7 +256,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .eq('content_id', contentId);
         
         if (error) {
-          console.error('Error removing progress from database:', error);
           toast({
             title: "Erro",
             description: "Não foi possível remover o progresso. Tente novamente.",
@@ -285,7 +279,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         duration: 2000,
       });
     } catch (error) {
-      console.error('Error syncing progress:', error);
       toast({
         title: "Erro",
         description: "Erro ao sincronizar progresso. Verifique sua conexão.",

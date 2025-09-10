@@ -129,7 +129,6 @@ export const studyGuideApi = {
         .sort((a, b) => a - b);
       return numeros.map((numero) => ({ id: `${iesKey}-${numero}`, numero, materias: [] }));
     } catch (error) {
-      console.error('Error fetching semestres by IES:', error);
       throw error;
     }
   },
@@ -145,7 +144,6 @@ export const studyGuideApi = {
       const raw = (data as any)[iesKey]?.[String(semestreNumero)] || [];
       return toApiMaterias(raw as RemoteMateria[]);
     } catch (error) {
-      console.error('Error fetching materias by semestre:', error);
       throw error;
     }
   },
