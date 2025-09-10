@@ -9,6 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { getAccessRules } from '@/utils/accessRules';
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,14 +23,24 @@ export const LoginForm: React.FC = () => {
     const success = await login(email, password);
     console.log('LoginForm: Login result:', success);
     if (success) {
-      console.log('LoginForm: Login successful, navigating to /intensivao-enamed');
-      // Wait a bit for state to update before navigating
+      // Determine default route based on access rules (B2C -> cronograma)
       setTimeout(() => {
-        navigate('/intensivao-enamed', { replace: true });
-      }, 100);
+        try {
+          const stored = localStorage.getItem('sanarflix-user');
+          let target = '/intensivao-enamed';
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const rules = getAccessRules(parsed);
+            target = rules.cronogramaEnamed ? '/cronograma-enamed' : '/intensivao-enamed';
+          }
+          navigate(target, { replace: true });
+        } catch (err) {
+          console.error('LoginForm: Redirect fallback error, going to /intensivao-enamed', err);
+          navigate('/intensivao-enamed', { replace: true });
+        }
+      }, 50);
     }
   };
-
   const handleResetPassword = async () => {
     if (!email) {
       toast({
