@@ -46,20 +46,20 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '954aad2f-4030-4d5d-b27a-19eb8fac05cf':
       return {
-        studyGuide: true,
+        studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
-        dashboard: true,
+        dashboard: false,
         SimuladoDesempenho: false,
         userManagement: false
       };
 
       case '12cfa7f2-45ba-406f-9e4d-aa719a6b94ca':
       return {
-        studyGuide: true,
+        studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
-        dashboard: true,
+        dashboard: false,
         SimuladoDesempenho: false,
         userManagement: false
       };
