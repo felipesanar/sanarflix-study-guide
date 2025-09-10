@@ -19,6 +19,7 @@ import { SimuladoDesempenho } from "./pages/SimuladoDesempenho";
 import UserManagement from "./pages/UserManagement";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import { SignupB2C } from "./pages/SignupB2C";
 import { ThemeProvider } from "next-themes";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const AppContent = () => {
         <Route path="/login" element={<LoginForm />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/cadastro-b2c" element={<SignupB2C />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
