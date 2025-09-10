@@ -7,20 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { BookOpen, Video, FileText, Clock, Calendar, Target, Baby, Syringe, Stethoscope, Users, CheckCircle2, List, CalendarDays } from 'lucide-react';
+import { CheckCircle2, List, CalendarDays } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Ícone customizado para representar mulher grávida
-const PregnantWomanIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="9" cy="5" r="2" />
-    <path d="M7 22v-5l2-2a4 4 0 1 0 5-6" />
-  </svg>
-);
 
 // Fonte de dados: API oficial do cronograma ENAMED - filtrando apenas últimos 30 dias
 export const CRONOGRAMA_API = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
@@ -79,22 +72,13 @@ export const normalizeCronogramaDerradeiros = (data: any): Cronograma => {
   }
 };
 
-const getContentIcon = (tema: string) => {
-  if (tema.includes('Prova') || tema.includes('Simulado')) {
-    return <FileText className="h-4 w-4" />;
-  } else if (tema.includes('Revisão')) {
-    return <BookOpen className="h-4 w-4" />;
-  }
-  return <Video className="h-4 w-4" />;
-};
-
 const getContentTypeBadge = (tema: string) => {
   if (tema.includes('Prova') || tema.includes('Simulado')) {
-    return <Badge variant="destructive" className="text-xs">Prova</Badge>;
+    return <Badge variant="destructive" className="text-xs font-medium">Prova</Badge>;
   } else if (tema.includes('Revisão')) {
-    return <Badge variant="secondary" className="text-xs">Revisão</Badge>;
+    return <Badge variant="secondary" className="text-xs font-medium">Revisão</Badge>;
   }
-  return <Badge variant="default" className="text-xs">Aula</Badge>;
+  return <Badge variant="default" className="text-xs font-medium">Aula</Badge>;
 };
 
 export const CronogramaEnamed: React.FC = () => {
@@ -473,22 +457,6 @@ const allAulas: AulaItem[] = useMemo(() => {
   }, [allAulas, selectedWeek, selectedDay, selectedDiscipline]);
 
   // Obter ícone da disciplina
-  const getDisciplineIcon = (discipline: string) => {
-    switch (discipline) {
-      case 'Ginecologia e Obstetrícia':
-        return <PregnantWomanIcon className="h-5 w-5" />;
-      case 'Pediatria':
-        return <Baby className="h-5 w-5" />;
-      case 'Clínica Médica':
-        return <Stethoscope className="h-5 w-5" />;
-      case 'Clínica Cirúrgica':
-        return <Syringe className="h-5 w-5" />;
-      case 'MFC e Saúde Coletiva':
-        return <Users className="h-5 w-5" />;
-      default:
-        return <BookOpen className="h-5 w-5" />;
-    }
-  };
 
   // Se está carregando, mostrar indicador de carregamento
   if (loadingCronograma) {
@@ -550,60 +518,57 @@ const allAulas: AulaItem[] = useMemo(() => {
 
         {/* Cards de progresso */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Target className="h-5 w-5 mr-2 text-primary" />
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">
                 Progresso Geral
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span>Aulas concluídas</span>
-                  <span className="font-medium">{progressData.completedItems}/{progressData.totalItems}</span>
+                  <span className="text-muted-foreground">Aulas concluídas</span>
+                  <span className="font-semibold">{progressData.completedItems}/{progressData.totalItems}</span>
                 </div>
                 <Progress value={progressData.percentage} className="h-2" />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {progressData.percentage}% do cronograma concluído
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-primary" />
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">
                 Semanas
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span>Semanas concluídas</span>
-                  <span className="font-medium">{weekProgress.completedWeeks}/{weekProgress.totalWeeks}</span>
+                  <span className="text-muted-foreground">Semanas concluídas</span>
+                  <span className="font-semibold">{weekProgress.completedWeeks}/{weekProgress.totalWeeks}</span>
                 </div>
                 <Progress value={weekProgress.percentage} className="h-2" />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {weekProgress.percentage}% das semanas finalizadas
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur border-0 shadow-lg">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Clock className="h-5 w-5 mr-2 text-primary" />
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">
                 Tempo Restante
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary">30</div>
+                <div className="text-3xl font-bold text-primary mb-1">30</div>
                 <p className="text-sm text-muted-foreground">Dias para o ENAMED</p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-2">
                   Foque no essencial!
                 </p>
               </div>
@@ -620,7 +585,6 @@ const allAulas: AulaItem[] = useMemo(() => {
               current={stats.completed}
               total={stats.total}
               percentage={Math.round((stats.completed / stats.total) * 100)}
-              icon={getDisciplineIcon(discipline)}
             />
           ))}
         </div>
@@ -738,18 +702,15 @@ const allAulas: AulaItem[] = useMemo(() => {
                           ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' 
                           : 'bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg'
                       }`}>
-                        <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                        <AccordionTrigger className="px-6 py-5 hover:no-underline">
                           <div className="flex items-center justify-between w-full mr-4">
-                            <div className="flex items-center space-x-4">
-                              {getDisciplineIcon(items[0]?.discipline || 'Outros')}
-                              <div className="text-left">
-                                <h3 className="font-semibold text-lg">
-                                  {semana} - {dia}
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {items[0]?.discipline || 'Outros'}
-                                </p>
-                              </div>
+                            <div className="text-left">
+                              <h3 className="font-semibold text-lg">
+                                {semana} - {dia}
+                              </h3>
+                              <p className="text-sm text-muted-foreground font-medium">
+                                {items[0]?.discipline || 'Outros'}
+                              </p>
                             </div>
                             <div className="flex items-center space-x-4">
                               <div className="text-right">
@@ -783,8 +744,7 @@ const allAulas: AulaItem[] = useMemo(() => {
                                     onCheckedChange={() => toggleItemCompletion(item.itemKey)}
                                     className="h-5 w-5"
                                   />
-                                  <div className="flex items-center space-x-2">
-                                    {getContentIcon(item.aula)}
+                                  <div className="flex items-center space-x-3">
                                     <span className={`font-medium ${
                                       completedItems.has(item.itemKey) 
                                         ? 'line-through text-muted-foreground' 
@@ -800,10 +760,9 @@ const allAulas: AulaItem[] = useMemo(() => {
                                     <Button
                                       size="sm"
                                       onClick={() => window.open(item.link_aula, '_blank')}
-                                      className="h-8 px-3"
+                                      className="h-9 px-4 font-medium"
                                     >
-                                      <Video className="h-3 w-3 mr-1" />
-                                      Aula
+                                      Assistir Aula
                                     </Button>
                                   )}
                                   {item.link_questoes && (
@@ -811,9 +770,8 @@ const allAulas: AulaItem[] = useMemo(() => {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => window.open(item.link_questoes, '_blank')}
-                                      className="h-8 px-3"
+                                      className="h-9 px-4 font-medium"
                                     >
-                                      <FileText className="h-3 w-3 mr-1" />
                                       Questões
                                     </Button>
                                   )}
