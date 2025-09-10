@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, List, CalendarDays } from 'lucide-react';
+import { CheckCircle2, List, CalendarDays, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
@@ -88,6 +88,7 @@ export const CronogramaEnamed: React.FC = () => {
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [showDetailedProgress, setShowDetailedProgress] = useState(false);
 
 // Estado para cronograma carregado da API
 const [cronograma, setCronograma] = useState<Cronograma>({ semanas: [] });
@@ -560,34 +561,47 @@ const allAulas: AulaItem[] = useMemo(() => {
 
           <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">
-                Tempo Restante
+              <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                Progresso por Áreas
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetailedProgress(!showDetailedProgress)}
+                  className="h-8 px-2"
+                >
+                  <BarChart3 className="h-4 w-4 mr-1" />
+                  {showDetailedProgress ? 'Ocultar' : 'Ver'}
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">30</div>
-                <p className="text-sm text-muted-foreground">Dias para o ENAMED</p>
+                <div className="text-3xl font-bold text-primary mb-1">
+                  {Object.keys(progressByDiscipline).length}
+                </div>
+                <p className="text-sm text-muted-foreground">Áreas disponíveis</p>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Foque no essencial!
+                  Clique para ver detalhes
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Progress by discipline */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-          {Object.entries(progressByDiscipline).map(([discipline, stats]) => (
-            <ProgressAreaCard
-              key={discipline}
-              title={discipline}
-              current={stats.completed}
-              total={stats.total}
-              percentage={Math.round((stats.completed / stats.total) * 100)}
-            />
-          ))}
-        </div>
+        {/* Progress by discipline - only show when toggle is active */}
+        {showDetailedProgress && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            {Object.entries(progressByDiscipline).map(([discipline, stats]) => (
+              <ProgressAreaCard
+                key={discipline}
+                title={discipline}
+                current={stats.completed}
+                total={stats.total}
+                percentage={Math.round((stats.completed / stats.total) * 100)}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Controls */}
         <Card className="mb-8 bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
@@ -639,23 +653,24 @@ const allAulas: AulaItem[] = useMemo(() => {
                 </Select>
               </div>
 
-              <Button
-                onClick={toggleViewMode}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                {viewMode === 'list' ? (
-                  <>
-                    <CalendarDays className="h-4 w-4" />
-                    Visualização em Calendário
-                  </>
-                ) : (
-                  <>
-                    <List className="h-4 w-4" />
-                    Visualização em Lista
-                  </>
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setViewMode('list')}
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </Button>
+                <Button
+                  onClick={() => setViewMode('calendar')}
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Calendário
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
