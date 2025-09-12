@@ -199,19 +199,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsPasswordChange(false);
       localStorage.setItem('sanarflix-needs-password-change', 'false');
       
-      // Security enhancement: Force session refresh after password change
+      // Security enhancement: Invalidate all sessions after password change
       try {
-        await supabase.auth.refreshSession();
-      } catch (e) {
-        // If refresh fails, force logout for security
-        setTimeout(() => logout(), 1000);
+        await supabase.functions.invoke('session-security', {
+          body: { 
+            action: 'invalidate_sessions',
+            userId: user.id 
+          }
+        });
+        
+        toast({
+          title: "Senha alterada com sucesso!",
+          description: "Sua senha foi atualizada. Você será redirecionado para fazer login novamente por segurança.",
+          duration: 4000,
+        });
+        
+        // Force logout after password change for security
+        setTimeout(() => logout(), 3000);
+        
+      } catch (sessionError) {
+        console.warn('Failed to invalidate sessions:', sessionError);
+        
+        // Fallback: at least refresh current session
+        try {
+          await supabase.auth.refreshSession();
+        } catch (e) {
+          // If refresh fails, force logout for security
+          setTimeout(() => logout(), 1000);
+        }
+        
+        toast({
+          title: "Senha alterada com sucesso!",
+          description: "Sua senha foi atualizada",
+          duration: 3000,
+        });
       }
-      
-      toast({
-        title: "Senha alterada com sucesso!",
-        description: "Sua senha foi atualizada",
-        duration: 3000,
-      });
       
       setIsLoading(false);
       return true;

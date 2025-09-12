@@ -1,6 +1,7 @@
 // Secure CORS configuration with origin validation
 const ALLOWED_ORIGINS = new Set([
-  'https://gvqvrmkizemwsasmupmo.supabase.co',
+  'https://gvqvrmkizemwsasmupmo.lovable.app',
+  'https://sanarflix-study-guide.lovable.app',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:8080',
@@ -18,6 +19,7 @@ export const buildCorsHeaders = (origin?: string): Record<string, string> | null
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Max-Age': '86400' // 24 hours preflight cache
   };
 };
 
