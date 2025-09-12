@@ -1,4 +1,4 @@
-const CRONOGRAMA_API_URL = 'https://api-enamed-b2c.onrender.com/api/cronograma';
+const CRONOGRAMA_API_URL = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/cronograma-enamed-proxy';
 
 export interface CronogramaEnamedItem {
   id: string;
