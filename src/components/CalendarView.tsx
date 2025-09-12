@@ -69,9 +69,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     ));
   };
 
+  // Sort weeks numerically (Semana 1, Semana 2, etc.)
+  const sortedWeeks = Object.entries(groupedItems).sort(([weekA], [weekB]) => {
+    const getWeekNumber = (weekStr: string) => {
+      const match = weekStr.match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    return getWeekNumber(weekA) - getWeekNumber(weekB);
+  });
+
   return (
     <div className="space-y-6">
-      {Object.entries(groupedItems).map(([week, days]) => (
+      {sortedWeeks.map(([week, days]) => (
         <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-6">
