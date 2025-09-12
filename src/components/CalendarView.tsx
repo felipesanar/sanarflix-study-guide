@@ -29,10 +29,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Group items by week and day
+  // Group items by week first, then by day within each week
   const groupedItems = useMemo(() => {
     return items.reduce((acc, item) => {
-      const weekKey = item.semana;
+      // Format week name by removing underscores and capitalizing
+      const weekKey = item.semana ? 
+        item.semana.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 
+        'Sem Semana';
+      
       if (!acc[weekKey]) acc[weekKey] = {};
       const dayKey = item.dia;
       if (!acc[weekKey][dayKey]) acc[weekKey][dayKey] = [];
@@ -68,43 +72,53 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   return (
     <div className="space-y-6">
       {Object.entries(groupedItems).map(([week, days]) => (
-        <Card key={week} className="ui-card shadow-md">
+        <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
           <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="h-5 w-5 text-[hsl(var(--primary-light))]" />
-              <h3 className="text-xl font-semibold text-foreground">{week}</h3>
+            <div className="flex items-center gap-2 mb-6">
+              <Calendar className="h-6 w-6 text-primary" />
+              <h3 className="text-2xl font-bold text-foreground">{week}</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {Object.entries(days).map(([day, dayItems]) => (
-                <Card key={day} className="ui-card bg-card">
+                <Card key={day} className="bg-white dark:bg-gray-700 border shadow-sm">
                   <CardContent className="p-4">
-                    <h4 className="font-medium text-foreground mb-3 text-sm">
+                    <h4 className="font-semibold text-foreground mb-3 text-lg border-b pb-2">
                       {day}
                     </h4>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {(() => {
                         const subMap = dayItems.reduce((acc, it) => {
-                          const key = it.subtema || 'Geral';
+                          const key = it.subtema || it.tema || 'Geral';
                           if (!acc[key]) acc[key] = [];
                           acc[key].push(it);
                           return acc;
                         }, {} as Record<string, CalendarItem[]>);
                         return Object.entries(subMap).map(([subtema, subItems]) => {
                           const allDone = subItems.every(s => s.completed);
+                          const completedCount = subItems.filter(s => s.completed).length;
                           return (
                             <button
                               key={subtema}
                               onClick={() => { setSelected({ subtema, items: subItems }); setCurrentPage(0); setOpen(true); }}
-                              className={`w-full text-left p-3 rounded-lg border transition-all bg-card border-border hover:border-[hsl(var(--active-selection))] focus:outline-none focus:ring-2 focus:ring-ring`}
+                              className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                allDone 
+                                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
+                                  : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                              } hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20`}
                             >
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center justify-between gap-2 mb-2">
                                 <div className="flex items-center gap-2">
-                                  {allDone && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                  {allDone && <CheckCircle2 className="h-4 w-4 text-green-600" />}
                                   <span className="font-medium text-sm text-foreground">{subtema}</span>
                                 </div>
-                                <Badge variant="secondary" className="text-xs">{subItems.length} aulas</Badge>
+                                <Badge variant="secondary" className="text-xs">
+                                  {completedCount}/{subItems.length}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {subItems.length} aula{subItems.length > 1 ? 's' : ''}
                               </div>
                             </button>
                           );
