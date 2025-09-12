@@ -5,6 +5,9 @@ export interface CronogramaEnamedItem {
   titulo: string;
   descricao: string;
   area_conhecimento: string;
+  semana?: string;
+  tema?: string;
+  subtema?: string;
   data_aula?: string;
   link_aula?: string;
   link_gratuito?: string;
@@ -48,9 +51,12 @@ export const cronogramaEnamedApi = {
                           
                           normalizedItems.push({
                             id: itemId,
-                            titulo: titulo,
-                            descricao: descricao,
+                            titulo,
+                            descricao,
                             area_conhecimento: areaKey,
+                            semana: weekData.semana || undefined,
+                            tema: tema.nome,
+                            subtema: subtema.nome,
                             data_aula: weekData.nome || weekData.data || undefined,
                             link_aula: aula.link_aula || undefined,
                             link_gratuito: aula.link_gratuito || undefined

@@ -440,13 +440,15 @@ export const CronogramaEnamed: React.FC = () => {
         {viewMode === 'calendar' ? (
           <CalendarView 
             items={filteredItems.map(item => ({ 
-              ...item, 
               itemKey: item.id,
-              semana: 'Cronograma',
+              semana: item.semana || 'Semana não informada',
               dia: item.data_aula || 'Sem data',
+              tema: item.tema,
+              subtema: item.subtema,
               aula: item.titulo,
               discipline: item.area_conhecimento || 'Outros',
-              completed: completedItems.has(item.id) 
+              completed: completedItems.has(item.id),
+              link_aula: item.link_aula
             }))} 
             onToggleCompletion={toggleItemCompletion}
           />
