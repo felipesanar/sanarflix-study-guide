@@ -21,38 +21,50 @@ export const cronogramaEnamedApi = {
       const data = await response.json();
       console.log('Raw API response:', data);
       
-      // Try to extract array from different structures
-      let items: any[] = [];
+      const normalizedItems: CronogramaEnamedItem[] = [];
       
-      if (Array.isArray(data)) {
-        items = data;
-      } else if (data && typeof data === 'object') {
-        // Check common array keys
-        const possibleKeys = ['data', 'items', 'conteudos', 'aulas', 'cronograma'];
-        for (const key of possibleKeys) {
-          if (Array.isArray(data[key])) {
-            items = data[key];
-            break;
+      // Check if data has cronograma property
+      if (data && data.cronograma && typeof data.cronograma === 'object') {
+        // Iterate through each area (Cirurgia, etc.)
+        Object.keys(data.cronograma).forEach(areaKey => {
+          const areaData = data.cronograma[areaKey];
+          console.log(`Processing area: ${areaKey}`, areaData);
+          
+          if (Array.isArray(areaData)) {
+            // Process each week in the area
+            areaData.forEach((weekData: any, weekIndex: number) => {
+              if (weekData.temas && Array.isArray(weekData.temas)) {
+                // Process each theme in the week
+                weekData.temas.forEach((tema: any, temaIndex: number) => {
+                  if (tema.subtemas && Array.isArray(tema.subtemas)) {
+                    // Process each subtema
+                    tema.subtemas.forEach((subtema: any, subtemaIndex: number) => {
+                      if (subtema.aulas && Array.isArray(subtema.aulas)) {
+                        // Process each aula
+                        subtema.aulas.forEach((aula: any, aulaIndex: number) => {
+                          const itemId = `${areaKey}-${weekIndex}-${temaIndex}-${subtemaIndex}-${aulaIndex}`;
+                          const titulo = aula.nome || subtema.nome || tema.nome || 'Sem título';
+                          const descricao = `${tema.nome} - ${subtema.nome || ''}`.trim();
+                          
+                          normalizedItems.push({
+                            id: itemId,
+                            titulo: titulo,
+                            descricao: descricao,
+                            area_conhecimento: areaKey,
+                            data_aula: weekData.nome || weekData.data || undefined,
+                            link_aula: aula.link_aula || undefined,
+                            link_gratuito: aula.link_gratuito || undefined
+                          });
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
           }
-        }
+        });
       }
-      
-      console.log('Extracted items:', items);
-      
-      // Normalize each item
-      const normalizedItems: CronogramaEnamedItem[] = items.map((item: any, index: number) => {
-        console.log(`Item ${index}:`, item);
-        
-        return {
-          id: item.id || item._id || `item-${index}`,
-          titulo: item.titulo || item.title || item.nome || item.name || 'Sem título',
-          descricao: item.descricao || item.description || item.resumo || '',
-          area_conhecimento: item.area_conhecimento || item.area || item.disciplina || item.specialty || 'Outros',
-          data_aula: item.data_aula || item.data || item.date,
-          link_aula: item.link_aula || item.url_aula || item.url || item.link,
-          link_gratuito: item.link_gratuito || item.link_free || item.free_url
-        };
-      });
       
       console.log('Normalized items:', normalizedItems);
       return normalizedItems;
