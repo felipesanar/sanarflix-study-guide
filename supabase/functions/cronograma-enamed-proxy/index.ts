@@ -1,8 +1,16 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { buildCorsHeaders, isAllowedOrigin } from '../_shared/cors.ts';
 
 const EXTERNAL_API_URL = 'https://api-enamed-b2c.onrender.com/api/cronograma';
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = buildCorsHeaders(origin);
+  
+  // Reject requests from unauthorized origins
+  if (!corsHeaders) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

@@ -199,6 +199,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsPasswordChange(false);
       localStorage.setItem('sanarflix-needs-password-change', 'false');
       
+      // Security enhancement: Force session refresh after password change
+      try {
+        await supabase.auth.refreshSession();
+      } catch (e) {
+        // If refresh fails, force logout for security
+        setTimeout(() => logout(), 1000);
+      }
+      
       toast({
         title: "Senha alterada com sucesso!",
         description: "Sua senha foi atualizada",
