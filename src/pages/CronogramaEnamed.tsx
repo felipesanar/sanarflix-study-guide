@@ -448,7 +448,8 @@ export const CronogramaEnamed: React.FC = () => {
               aula: item.titulo,
               discipline: item.area_conhecimento || 'Outros',
               completed: completedItems.has(item.id),
-              link_aula: item.link_aula
+              link_aula: item.link_aula,
+              link_gratuito: item.link_gratuito
             }))} 
             onToggleCompletion={toggleItemCompletion}
           />
@@ -553,7 +554,9 @@ export const CronogramaEnamed: React.FC = () => {
                                       Acessar no SanarFlix
                                     </Button>
                                   )}
-                                  {item.link_gratuito && (
+                                  {item.link_gratuito && 
+                                   item.link_gratuito !== 'nan' && 
+                                   item.link_gratuito.trim() !== '' && (
                                     <Button
                                       size="sm"
                                       variant="outline"

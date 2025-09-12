@@ -16,7 +16,7 @@ interface CalendarItem {
   itemKey: string;
   discipline: string;
   link_aula?: string;
-  link_questoes?: string;
+  link_gratuito?: string;
 }
 
 interface CalendarViewProps {
@@ -187,14 +187,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                         {!!it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && (
                           <Button variant="default" size="sm" onClick={() => window.open(String(it.link_aula), '_blank')}>Ver Aula</Button>
                         )}
-                        {Boolean(it.link_questoes) && String(it.link_questoes).toLowerCase() !== 'nan' && (
+                        {!!it.link_gratuito && 
+                         String(it.link_gratuito).toLowerCase() !== 'nan' && 
+                         String(it.link_gratuito).trim() !== '' && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(String(it.link_questoes), '_blank')}
-                            className="bg-[hsl(var(--active-selection))] text-black dark:text-white border-[hsl(var(--active-selection))] hover:opacity-90 transition-colors-smooth"
+                            onClick={() => window.open(String(it.link_gratuito), '_blank')}
+                            className="bg-white border-[#800000] text-[#800000] hover:bg-[#800000]/10"
                           >
-                            Questões
+                            Não tenho SanarFlix
                           </Button>
                         )}
                       </div>
