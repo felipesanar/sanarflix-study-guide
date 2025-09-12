@@ -16,7 +16,7 @@ import { cronogramaEnamedApi, CronogramaEnamedItem } from '@/services/cronograma
 
 // Configurações de links dos botões do topo
 const GUIA_CRONOGRAMA_PDF = 'https://example.com/como-usar-cronograma.pdf';
-const SANARFLIX_SUBSCRIPTION = 'https://sanarflix.com.br/assinatura';
+const SANARFLIX_SUBSCRIPTION = 'https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed';
 
 const getContentTypeBadge = (titulo: string) => {
   if (titulo.includes('Prova') || titulo.includes('Simulado')) {
