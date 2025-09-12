@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import guiaEstudosBanner from '@/assets/guia-estudos-banner.png';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -7,75 +6,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, List, CalendarDays, BarChart3 } from 'lucide-react';
+import { CheckCircle2, List, CalendarDays, BarChart3, HelpCircle, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { cronogramaEnamedApi, CronogramaEnamedItem } from '@/services/cronogramaEnamedApi';
 
+// Configurações de links dos botões do topo
+const GUIA_CRONOGRAMA_PDF = 'https://example.com/como-usar-cronograma.pdf';
+const SANARFLIX_SUBSCRIPTION = 'https://sanarflix.com.br/assinatura';
 
-// Fonte de dados: API oficial do cronograma ENAMED - filtrando apenas últimos 30 dias
-export const CRONOGRAMA_API = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
-
-export type DiaRaw = { nome: string; area_conhecimento?: string; temas?: any[]; subtemas?: any[]; aulas?: any[] };
-export type Semana = { numero: string; periodo?: string; dias: DiaRaw[] };
-export type Cronograma = { semanas: Semana[] };
-
-// Normaliza diferentes formatos de resposta para { semanas: [...] } e filtra últimos 30 dias
-export const normalizeCronogramaDerradeiros = (data: any): Cronograma => {
-  try {
-    if (!data) return { semanas: [] };
-
-    // Pode vir como { cronograma: { semana_X: {...} } } ou variações
-    const root: any = (data as any).cronograma ?? data;
-
-    // Caso 1: Objeto com chaves semana_X
-    if (root && typeof root === 'object' && !Array.isArray(root) && !Array.isArray(root?.semanas)) {
-      const semanas: Semana[] = Object.entries(root as Record<string, any>).map(([key, w], idx) => {
-        const numero: string = (w?.nome_exibicao as string)
-          ?? (w?.numero as string)
-          ?? key.replace(/_/g, ' ').replace(/semana\s*/i, 'Semana ')
-          ?? `Semana ${idx + 1}`;
-        const periodo: string | undefined = (w as any)?.periodo;
-        const dias: DiaRaw[] = Array.isArray(w?.dias) ? (w.dias as DiaRaw[]) : [];
-        return { numero, periodo, dias };
-      });
-      
-      // Filtrar apenas as últimas 4-5 semanas (aproximadamente 30 dias)
-      return { semanas: semanas.slice(-5) };
-    }
-
-    // Caso 2: Array em root.semanas ou root
-    const rawWeeks: any[] = Array.isArray(root?.semanas)
-      ? root.semanas
-      : Array.isArray(root)
-      ? root
-      : [];
-
-    const semanas: Semana[] = rawWeeks.map((w: any, idx: number) => {
-      const numero: string =
-        (w?.nome_exibicao as string)
-        ?? (w?.numero as string)
-        ?? (w?.nome as string)
-        ?? (w?.titulo as string)
-        ?? `Semana ${idx + 1}`;
-      const periodo: string | undefined = (w as any)?.periodo;
-      const dias: DiaRaw[] = Array.isArray(w?.dias) ? (w.dias as DiaRaw[]) : [];
-      return { numero, periodo, dias };
-    });
-
-    // Filtrar apenas as últimas 4-5 semanas (aproximadamente 30 dias)
-    return { semanas: semanas.slice(-5) };
-  } catch (e) {
-    return { semanas: [] };
-  }
-};
-
-const getContentTypeBadge = (tema: string) => {
-  if (tema.includes('Prova') || tema.includes('Simulado')) {
+const getContentTypeBadge = (titulo: string) => {
+  if (titulo.includes('Prova') || titulo.includes('Simulado')) {
     return <Badge variant="destructive" className="text-xs font-medium">Prova</Badge>;
-  } else if (tema.includes('Revisão')) {
+  } else if (titulo.includes('Revisão')) {
     return <Badge variant="secondary" className="text-xs font-medium">Revisão</Badge>;
   }
   return <Badge variant="default" className="text-xs font-medium">Aula</Badge>;
@@ -83,121 +29,15 @@ const getContentTypeBadge = (tema: string) => {
 
 export const CronogramaEnamed: React.FC = () => {
   const { user } = useAuth();
-  const [selectedWeek, setSelectedWeek] = useState<string>('all');
-  const [selectedDay, setSelectedDay] = useState<string>('all');
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
+  const [selectedArea, setSelectedArea] = useState<string>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [showDetailedProgress, setShowDetailedProgress] = useState(false);
 
-// Estado para cronograma carregado da API
-const [cronograma, setCronograma] = useState<Cronograma>({ semanas: [] });
-const [loadingCronograma, setLoadingCronograma] = useState<boolean>(true);
-const [cronogramaError, setCronogramaError] = useState<string | null>(null);
-
-// Itens (aulas) extraídos do cronograma com links e metadados
-type AulaItem = {
-  semana: string;
-  dia: string;
-  tema?: string;
-  subtema?: string;
-  aula: string;
-  link_aula?: string;
-  link_questoes?: string;
-  discipline: string;
-  itemKey: string;
-};
-
-const allAulas: AulaItem[] = useMemo(() => {
-  const items: AulaItem[] = [];
-  cronograma.semanas.forEach((semana, sIdx) => {
-    const semanaLabel = semana.numero || `Semana ${sIdx + 1}`;
-    (semana.dias || []).forEach((dia: any) => {
-      const diaNome: string = (dia?.nome as string) ?? 'Dia';
-      const discipline: string =
-        (dia?.area_conhecimento as string) ??
-        extractDiscipline(diaNome);
-
-      const temas = Array.isArray(dia?.temas) ? dia.temas : [];
-      if (temas.length > 0) {
-        temas.forEach((t: any) => {
-          const temaNome: string | undefined = typeof t?.nome === 'string' ? t.nome : undefined;
-          const subtemas = Array.isArray(t?.subtemas) ? t.subtemas : [];
-          if (subtemas.length > 0) {
-            subtemas.forEach((st: any) => {
-              const subtemaNome: string | undefined = typeof st?.nome === 'string' ? st.nome : undefined;
-              const aulas = Array.isArray(st?.aulas) ? st.aulas : [];
-              aulas.forEach((a: any, aIdx: number) => {
-                if (typeof a?.nome === 'string') {
-                  const aulaNome = a.nome as string;
-                  const link_aula = a?.link_aula as string | undefined;
-                  const link_questoes = a?.link_questoes as string | undefined;
-                  const itemKey = `${semanaLabel}-${diaNome}-${temaNome ?? ''}-${subtemaNome ?? ''}-${aulaNome}-${aIdx}`;
-                  items.push({
-                    semana: semanaLabel,
-                    dia: diaNome,
-                    tema: temaNome,
-                    subtema: subtemaNome,
-                    aula: aulaNome,
-                    link_aula,
-                    link_questoes,
-                    discipline,
-                    itemKey,
-                  });
-                }
-              });
-            });
-          } else {
-            // Aulas diretamente em tema (fallback)
-            const aulasTema = Array.isArray((t as any)?.aulas) ? (t as any).aulas : [];
-            aulasTema.forEach((a: any, aIdx: number) => {
-              if (typeof a?.nome === 'string') {
-                const aulaNome = a.nome as string;
-                const link_aula = a?.link_aula as string | undefined;
-                const link_questoes = a?.link_questoes as string | undefined;
-                const itemKey = `${semanaLabel}-${diaNome}-${temaNome ?? ''}-${aulaNome}-${aIdx}`;
-                items.push({
-                  semana: semanaLabel,
-                  dia: diaNome,
-                  tema: temaNome,
-                  subtema: undefined,
-                  aula: aulaNome,
-                  link_aula,
-                  link_questoes,
-                  discipline,
-                  itemKey,
-                });
-              }
-            });
-          }
-        });
-      }
-
-      // Fallback: aulas diretamente no dia
-      const aulasDia = Array.isArray(dia?.aulas) ? dia.aulas : [];
-      aulasDia.forEach((a: any, aIdx: number) => {
-        if (typeof a?.nome === 'string') {
-          const aulaNome = a.nome as string;
-          const link_aula = a?.link_aula as string | undefined;
-          const link_questoes = a?.link_questoes as string | undefined;
-          const itemKey = `${semanaLabel}-${diaNome}-${aulaNome}-${aIdx}`;
-          items.push({
-            semana: semanaLabel,
-            dia: diaNome,
-            tema: undefined,
-            subtema: undefined,
-            aula: aulaNome,
-            link_aula,
-            link_questoes,
-            discipline,
-            itemKey,
-          });
-        }
-      });
-    });
-  });
-  return items;
-}, [cronograma]);
+  // Estado para cronograma carregado da nova API
+  const [cronogramaItems, setCronogramaItems] = useState<CronogramaEnamedItem[]>([]);
+  const [loadingCronograma, setLoadingCronograma] = useState<boolean>(true);
+  const [cronogramaError, setCronogramaError] = useState<string | null>(null);
 
   // Load view preference from localStorage
   useEffect(() => {
@@ -214,25 +54,22 @@ const allAulas: AulaItem[] = useMemo(() => {
     localStorage.setItem('cronograma-enamed-view-mode', newMode);
   };
 
-  // Buscar cronograma completo da API oficial
+  // Buscar cronograma da nova API
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         setLoadingCronograma(true);
         setCronogramaError(null);
-        const res = await fetch(CRONOGRAMA_API, { headers: { 'Accept': 'application/json' } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const normalized = normalizeCronogramaDerradeiros(data);
-        if (active) setCronograma(normalized);
+        const items = await cronogramaEnamedApi.getAllContent();
+        if (active) setCronogramaItems(items);
       } catch (e) {
         if (active) setCronogramaError('Falha ao carregar o cronograma. Tente novamente mais tarde.');
       } finally {
         if (active) setLoadingCronograma(false);
       }
     })();
-    return () => { const _ = (active = false); };
+    return () => { active = false; };
   }, []);
 
   // Carregar progresso do usuário do banco de dados
@@ -256,7 +93,7 @@ const allAulas: AulaItem[] = useMemo(() => {
       if (progressData && progressData.length > 0) {
         const completedIds = progressData
           .map(item => item.content_id.replace('cronograma_enamed_', ''))
-          .filter(id => id); // Remove empty strings
+          .filter(id => id);
         setCompletedItems(new Set(completedIds));
       }
     } catch (error) {
@@ -264,7 +101,7 @@ const allAulas: AulaItem[] = useMemo(() => {
     }
   }, [user]);
 
-  // Carregar progresso quando o usuário estiver disponível e quando a sessão autenticar
+  // Carregar progresso quando o usuário estiver disponível
   useEffect(() => {
     if (user) {
       loadEnamedProgress();
@@ -278,29 +115,17 @@ const allAulas: AulaItem[] = useMemo(() => {
     return () => subscription.unsubscribe();
   }, [user, loadEnamedProgress]);
 
-  // Função para extrair disciplina do nome do dia
-  const extractDiscipline = (diaName: string): string => {
-    if (diaName.includes('Ginecologia')) return 'Ginecologia e Obstetrícia';
-    if (diaName.includes('Pediatria')) return 'Pediatria';
-    if (diaName.includes('Clínica Médica')) return 'Clínica Médica';
-    if (diaName.includes('Clínica Cirúrgica')) return 'Clínica Cirúrgica';
-    if (diaName.includes('MFC')) return 'MFC e Saúde Coletiva';
-    if (diaName.includes('Revisão')) return 'Revisão';
-    if (diaName.includes('Prova')) return 'Avaliação';
-    return 'Outros';
-  };
-
-  // Marcar/desmarcar item como concluído com persistência no banco
-  const toggleItemCompletion = useCallback(async (itemKey: string) => {
-    const isCompleting = !completedItems.has(itemKey);
+  // Marcar/desmarcar item como concluído
+  const toggleItemCompletion = useCallback(async (itemId: string) => {
+    const isCompleting = !completedItems.has(itemId);
 
     // Atualização otimista da UI
     setCompletedItems(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(itemKey)) {
-        newSet.delete(itemKey);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
       } else {
-        newSet.add(itemKey);
+        newSet.add(itemId);
       }
       return newSet;
     });
@@ -312,10 +137,9 @@ const allAulas: AulaItem[] = useMemo(() => {
         return;
       }
 
-      const contentId = `cronograma_enamed_${itemKey}`;
+      const contentId = `cronograma_enamed_${itemId}`;
 
       if (isCompleting) {
-        // Evitar duplicatas: verifica se já existe
         const { data: existing, error: checkError } = await supabase
           .from('user_progress')
           .select('id')
@@ -325,10 +149,9 @@ const allAulas: AulaItem[] = useMemo(() => {
 
         if (checkError) {
           toast.error('Erro ao salvar progresso. Tente novamente.');
-          // Reverter mudança otimista
           setCompletedItems(prev => {
             const newSet = new Set(prev);
-            newSet.delete(itemKey);
+            newSet.delete(itemId);
             return newSet;
           });
           return;
@@ -344,17 +167,15 @@ const allAulas: AulaItem[] = useMemo(() => {
           
           if (insertError) {
             toast.error('Erro ao salvar progresso. Tente novamente.');
-            // Reverter mudança otimista
             setCompletedItems(prev => {
               const newSet = new Set(prev);
-              newSet.delete(itemKey);
+              newSet.delete(itemId);
               return newSet;
             });
             return;
           }
         }
       } else {
-        // Remover do banco
         const { error } = await supabase
           .from('user_progress')
           .delete()
@@ -363,17 +184,15 @@ const allAulas: AulaItem[] = useMemo(() => {
         
         if (error) {
           toast.error('Erro ao remover progresso. Tente novamente.');
-          // Reverter mudança otimista
           setCompletedItems(prev => {
             const newSet = new Set(prev);
-            newSet.add(itemKey);
+            newSet.add(itemId);
             return newSet;
           });
           return;
         }
       }
 
-      // Sucesso - mostrar notificação
       toast.success(isCompleting ? 'Aula marcada como concluída! 🎉' : 'Aula desmarcada');
     } catch (error) {
       toast.error('Erro ao sincronizar progresso. Verifique sua conexão.');
@@ -382,76 +201,53 @@ const allAulas: AulaItem[] = useMemo(() => {
 
   // Calcular dados de progresso
   const progressData = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const nonOptional = allAulas.filter(i => !isOptional(i.aula));
-    const totalItems = nonOptional.length;
-    const completedCount = nonOptional.filter(i => completedItems.has(i.itemKey)).length;
+    const totalItems = cronogramaItems.length;
+    const completedCount = cronogramaItems.filter(item => completedItems.has(item.id)).length;
     const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
     return { totalItems, completedItems: completedCount, percentage };
-  }, [completedItems, allAulas]);
+  }, [completedItems, cronogramaItems]);
 
-  // Calcular progresso por disciplina
-  const progressByDiscipline = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const disciplineStats: Record<string, { total: number; completed: number }> = {};
-    allAulas.forEach(item => {
-      if (isOptional(item.aula)) return; // ignore opcionais
-      const d = item.discipline || 'Outros';
-      if (!disciplineStats[d]) {
-        disciplineStats[d] = { total: 0, completed: 0 };
+  // Calcular progresso por área de conhecimento
+  const progressByArea = useMemo(() => {
+    const areaStats: Record<string, { total: number; completed: number }> = {};
+    cronogramaItems.forEach(item => {
+      const area = item.area_conhecimento || 'Outros';
+      if (!areaStats[area]) {
+        areaStats[area] = { total: 0, completed: 0 };
       }
-      disciplineStats[d].total++;
-      if (completedItems.has(item.itemKey)) {
-        disciplineStats[d].completed++;
+      areaStats[area].total++;
+      if (completedItems.has(item.id)) {
+        areaStats[area].completed++;
       }
     });
-    return disciplineStats;
-  }, [completedItems, allAulas]);
+    return areaStats;
+  }, [completedItems, cronogramaItems]);
 
-  // Calcular semanas concluídas (ignorando opcionais)
-  const weekProgress = useMemo(() => {
-    const isOptional = (name?: string) => !!name && name.includes('(OPCIONAL)');
-    const byWeek: Record<string, { total: number; completed: number }> = {};
-    allAulas.forEach(item => {
-      if (isOptional(item.aula)) return;
-      if (!byWeek[item.semana]) byWeek[item.semana] = { total: 0, completed: 0 };
-      byWeek[item.semana].total++;
-      if (completedItems.has(item.itemKey)) byWeek[item.semana].completed++;
+  // Lista de áreas disponíveis
+  const availableAreas = useMemo(() => {
+    const areas = new Set<string>();
+    cronogramaItems.forEach(item => areas.add(item.area_conhecimento || 'Outros'));
+    return Array.from(areas).sort();
+  }, [cronogramaItems]);
+
+  // Filtrar aulas por área selecionada
+  const filteredItems = useMemo(() => {
+    return cronogramaItems.filter(item => {
+      const areaMatch = selectedArea === 'all' || (item.area_conhecimento || 'Outros') === selectedArea;
+      return areaMatch;
     });
+  }, [cronogramaItems, selectedArea]);
 
-    const totalWeeks = Object.keys(byWeek).length || cronograma.semanas.length;
-    const completedWeeks = Object.values(byWeek).filter(w => w.total > 0 && w.completed === w.total).length;
-    const percentage = totalWeeks > 0 ? Math.round((completedWeeks / totalWeeks) * 100) : 0;
-    
-    return { completedWeeks, totalWeeks, percentage };
-  }, [completedItems, allAulas, cronograma.semanas.length]);
-
-  // Lista de disciplinas disponíveis
-  const availableDisciplines = useMemo(() => {
-    const disciplines = new Set<string>();
-    allAulas.forEach(i => disciplines.add(i.discipline));
-    return Array.from(disciplines).sort();
-  }, [allAulas]);
-
-  // Filtrar dados por semana selecionada
-  const availableDays = useMemo(() => {
-    if (selectedWeek === 'all') return [];
-    const days = new Set<string>();
-    allAulas.filter(i => i.semana === selectedWeek).forEach(i => days.add(i.dia));
-    return Array.from(days).map(nome => ({ nome }));
-  }, [selectedWeek, allAulas]);
-
-  // Filtrar aulas por critérios selecionados
-  const filteredAulas = useMemo(() => {
-    return allAulas.filter(item => {
-      const weekMatch = selectedWeek === 'all' || item.semana === selectedWeek;
-      const dayMatch = selectedDay === 'all' || item.dia === selectedDay;
-      const disciplineMatch = selectedDiscipline === 'all' || item.discipline === selectedDiscipline;
-      return weekMatch && dayMatch && disciplineMatch;
+  // Agrupar itens por área de conhecimento para exibição
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, CronogramaEnamedItem[]> = {};
+    filteredItems.forEach(item => {
+      const area = item.area_conhecimento || 'Outros';
+      if (!groups[area]) groups[area] = [];
+      groups[area].push(item);
     });
-  }, [allAulas, selectedWeek, selectedDay, selectedDiscipline]);
-
-  // Obter ícone da disciplina
+    return groups;
+  }, [filteredItems]);
 
   // Se está carregando, mostrar indicador de carregamento
   if (loadingCronograma) {
@@ -460,7 +256,7 @@ const allAulas: AulaItem[] = useMemo(() => {
         <div className="container mx-auto max-w-7xl">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-            <p className="text-lg text-muted-foreground mt-4">Carregando cronograma dos derradeiros 30 dias...</p>
+            <p className="text-lg text-muted-foreground mt-4">Carregando cronograma...</p>
           </div>
         </div>
       </div>
@@ -494,11 +290,30 @@ const allAulas: AulaItem[] = useMemo(() => {
               <div className="mb-4 md:mb-0">
                 <h1 className="text-4xl font-bold mb-2">Cronograma ENAMED</h1>
                 <p className="text-primary-foreground/90 text-lg">
-                  Conteúdos essenciais dos últimos 30 dias para sua preparação final
+                  Seu cronograma personalizado de estudos
                 </p>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Botões fixos do topo */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <Button
+            onClick={() => window.open(GUIA_CRONOGRAMA_PDF, '_blank')}
+            variant="outline"
+            className="flex items-center gap-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg hover:bg-white/90 dark:hover:bg-gray-800/90"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Como usar o cronograma
+          </Button>
+          <Button
+            onClick={() => window.open(SANARFLIX_SUBSCRIPTION, '_blank')}
+            className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg"
+          >
+            <CreditCard className="h-4 w-4" />
+            Assinar SanarFlix
+          </Button>
         </div>
 
         {/* Cards de progresso */}
@@ -526,19 +341,15 @@ const allAulas: AulaItem[] = useMemo(() => {
           <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">
-                Semanas
+                Áreas de Conhecimento
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Semanas concluídas</span>
-                  <span className="font-semibold">{weekProgress.completedWeeks}/{weekProgress.totalWeeks}</span>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-1">
+                  {Object.keys(progressByArea).length}
                 </div>
-                <Progress value={weekProgress.percentage} className="h-2" />
-                <p className="text-sm text-muted-foreground">
-                  {weekProgress.percentage}% das semanas finalizadas
-                </p>
+                <p className="text-sm text-muted-foreground">Áreas disponíveis</p>
               </div>
             </CardContent>
           </Card>
@@ -560,25 +371,21 @@ const allAulas: AulaItem[] = useMemo(() => {
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">
-                  {Object.keys(progressByDiscipline).length}
-                </div>
-                <p className="text-sm text-muted-foreground">Áreas disponíveis</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Clique para ver detalhes
+                <p className="text-sm text-muted-foreground">
+                  Clique para ver detalhes por área
                 </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Progress by discipline - only show when toggle is active */}
+        {/* Progress by area - only show when toggle is active */}
         {showDetailedProgress && (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-            {Object.entries(progressByDiscipline).map(([discipline, stats]) => (
+            {Object.entries(progressByArea).map(([area, stats]) => (
               <ProgressAreaCard
-                key={discipline}
-                title={discipline}
+                key={area}
+                title={area}
                 current={stats.completed}
                 total={stats.total}
                 percentage={Math.round((stats.completed / stats.total) * 100)}
@@ -592,45 +399,15 @@ const allAulas: AulaItem[] = useMemo(() => {
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex flex-col sm:flex-row gap-4 flex-1">
-                <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <SelectValue placeholder="Selecione a semana" />
+                <Select value={selectedArea} onValueChange={setSelectedArea}>
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder="Selecione a área" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas as semanas</SelectItem>
-                    {cronograma.semanas.map((semana, idx) => (
-                      <SelectItem key={idx} value={semana.numero}>
-                        {semana.numero}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {selectedWeek !== 'all' && availableDays.length > 0 && (
-                  <Select value={selectedDay} onValueChange={setSelectedDay}>
-                    <SelectTrigger className="w-full sm:w-48">
-                      <SelectValue placeholder="Selecione o dia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os dias</SelectItem>
-                      {availableDays.map((dia, idx) => (
-                        <SelectItem key={idx} value={dia.nome}>
-                          {dia.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                <Select value={selectedDiscipline} onValueChange={setSelectedDiscipline}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <SelectValue placeholder="Selecione a disciplina" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as disciplinas</SelectItem>
-                    {availableDisciplines.map((discipline) => (
-                      <SelectItem key={discipline} value={discipline}>
-                        {discipline}
+                    <SelectItem value="all">Todas as áreas</SelectItem>
+                    {availableAreas.map((area) => (
+                      <SelectItem key={area} value={area}>
+                        {area}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -662,12 +439,20 @@ const allAulas: AulaItem[] = useMemo(() => {
         {/* Content */}
         {viewMode === 'calendar' ? (
           <CalendarView 
-            items={filteredAulas.map(item => ({ ...item, completed: completedItems.has(item.itemKey) }))} 
+            items={filteredItems.map(item => ({ 
+              ...item, 
+              itemKey: item.id,
+              semana: 'Cronograma',
+              dia: item.data_aula || 'Sem data',
+              aula: item.titulo,
+              discipline: item.area_conhecimento || 'Outros',
+              completed: completedItems.has(item.id) 
+            }))} 
             onToggleCompletion={toggleItemCompletion}
           />
         ) : (
           <div className="space-y-6">
-            {filteredAulas.length === 0 ? (
+            {Object.keys(groupedItems).length === 0 ? (
               <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur border-0 shadow-lg">
                 <CardContent className="p-8 text-center">
                   <p className="text-muted-foreground">
@@ -677,23 +462,15 @@ const allAulas: AulaItem[] = useMemo(() => {
               </Card>
             ) : (
               <Accordion type="multiple" className="space-y-4">
-                {Object.entries(
-                  filteredAulas.reduce((acc, item) => {
-                    const key = `${item.semana}-${item.dia}`;
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(item);
-                    return acc;
-                  }, {} as Record<string, typeof filteredAulas>)
-                ).map(([key, items]) => {
-                  const [semana, dia] = key.split('-');
-                  const completedCount = items.filter(item => completedItems.has(item.itemKey)).length;
+                {Object.entries(groupedItems).map(([area, items]) => {
+                  const completedCount = items.filter(item => completedItems.has(item.id)).length;
                   const totalCount = items.length;
                   const isCompleted = completedCount === totalCount;
 
                   return (
                     <AccordionItem 
-                      key={key} 
-                      value={key} 
+                      key={area} 
+                      value={area} 
                       className="border-0"
                     >
                       <Card className={`overflow-hidden transition-all duration-200 hover:shadow-lg ${
@@ -704,11 +481,9 @@ const allAulas: AulaItem[] = useMemo(() => {
                         <AccordionTrigger className="px-6 py-5 hover:no-underline">
                           <div className="flex items-center justify-between w-full mr-4">
                             <div className="text-left">
-                              <h3 className="font-semibold text-lg">
-                                {semana} - {dia}
-                              </h3>
+                              <h3 className="font-semibold text-lg">{area}</h3>
                               <p className="text-sm text-muted-foreground font-medium">
-                                {items[0]?.discipline || 'Outros'}
+                                Área de Conhecimento
                               </p>
                             </div>
                             <div className="flex items-center space-x-4">
@@ -730,48 +505,60 @@ const allAulas: AulaItem[] = useMemo(() => {
                           <div className="space-y-3">
                             {items.map((item) => (
                               <div 
-                                key={item.itemKey}
-                                className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                                  completedItems.has(item.itemKey)
+                                key={item.id}
+                                className={`flex items-start justify-between p-4 rounded-lg border transition-colors ${
+                                  completedItems.has(item.id)
                                     ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
                                     : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                                 }`}
                               >
-                                <div className="flex items-center space-x-3 flex-1">
+                                <div className="flex items-start space-x-3 flex-1">
                                   <Checkbox
-                                    checked={completedItems.has(item.itemKey)}
-                                    onCheckedChange={() => toggleItemCompletion(item.itemKey)}
-                                    className="h-5 w-5"
+                                    checked={completedItems.has(item.id)}
+                                    onCheckedChange={() => toggleItemCompletion(item.id)}
+                                    className="h-5 w-5 mt-1"
                                   />
-                                  <div className="flex items-center space-x-3">
-                                    <span className={`font-medium ${
-                                      completedItems.has(item.itemKey) 
-                                        ? 'line-through text-muted-foreground' 
-                                        : ''
-                                    }`}>
-                                      {item.aula}
-                                    </span>
-                                    {getContentTypeBadge(item.aula)}
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <span className={`font-medium ${
+                                        completedItems.has(item.id) 
+                                          ? 'line-through text-muted-foreground' 
+                                          : ''
+                                      }`}>
+                                        {item.titulo}
+                                      </span>
+                                      {getContentTypeBadge(item.titulo)}
+                                    </div>
+                                    {item.descricao && (
+                                      <p className="text-sm text-muted-foreground mb-2">
+                                        {item.descricao}
+                                      </p>
+                                    )}
+                                    {item.data_aula && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Data: {item.data_aula}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="flex items-center space-x-2">
+                                <div className="flex flex-col gap-2 ml-4">
                                   {item.link_aula && (
                                     <Button
                                       size="sm"
                                       onClick={() => window.open(item.link_aula, '_blank')}
-                                      className="h-9 px-4 font-medium"
+                                      className="h-9 px-4 font-medium bg-[#800000] hover:bg-[#800000]/90 text-white"
                                     >
-                                      Assistir Aula
+                                      Acessar no SanarFlix
                                     </Button>
                                   )}
-                                  {item.link_questoes && (
+                                  {item.link_gratuito && (
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => window.open(item.link_questoes, '_blank')}
-                                      className="h-9 px-4 font-medium"
+                                      onClick={() => window.open(item.link_gratuito, '_blank')}
+                                      className="h-9 px-4 font-medium bg-white border-[#800000] text-[#800000] hover:bg-[#800000]/10"
                                     >
-                                      Questões
+                                      Não tenho SanarFlix
                                     </Button>
                                   )}
                                 </div>
