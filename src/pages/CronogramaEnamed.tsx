@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { cronogramaEnamedApi, CronogramaEnamedItem } from '@/services/cronogramaEnamedApi';
 
 // Configurações de links dos botões do topo
-const GUIA_CRONOGRAMA_PDF = 'https://example.com/como-usar-cronograma.pdf';
+const GUIA_CRONOGRAMA_PDF = 'https://s3.sanar.online/images/d/sanarflix--cronograma-reta-final---enamed.pdf';
 const SANARFLIX_SUBSCRIPTION = 'https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed';
 
 const getContentTypeBadge = (titulo: string) => {
