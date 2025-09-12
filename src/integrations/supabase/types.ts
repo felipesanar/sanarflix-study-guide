@@ -265,15 +265,6 @@ export type Database = {
           },
         ]
       }
-      users_basic_secure: {
-        Row: {
-          id: string | null
-          id_ies: string | null
-          nome: string | null
-          semestre: number | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       get_conteudos_for_user: {
@@ -320,15 +311,6 @@ export type Database = {
       get_user_rankings: {
         Args: Record<PropertyKey, never>
         Returns: Json
-      }
-      get_users_basic: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          id_ies: string
-          nome: string
-          semestre: number
-        }[]
       }
     }
     Enums: {
