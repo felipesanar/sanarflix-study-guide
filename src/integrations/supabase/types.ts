@@ -127,6 +127,50 @@ export type Database = {
         }
         Relationships: []
       }
+      questions_enamed_complement: {
+        Row: {
+          A: string | null
+          B: string | null
+          C: string | null
+          Comentário: string | null
+          D: string | null
+          ENUNCIADO: string
+          gabarito: string | null
+          ID: string
+          IMAGEM: string | null
+        }
+        Insert: {
+          A?: string | null
+          B?: string | null
+          C?: string | null
+          Comentário?: string | null
+          D?: string | null
+          ENUNCIADO: string
+          gabarito?: string | null
+          ID: string
+          IMAGEM?: string | null
+        }
+        Update: {
+          A?: string | null
+          B?: string | null
+          C?: string | null
+          Comentário?: string | null
+          D?: string | null
+          ENUNCIADO?: string
+          gabarito?: string | null
+          ID?: string
+          IMAGEM?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_enamed_complement_ID_fkey"
+            columns: ["ID"]
+            isOneToOne: true
+            referencedRelation: "questions_enamed"
+            referencedColumns: ["ID"]
+          },
+        ]
+      }
       study_progress: {
         Row: {
           completed: boolean
@@ -285,6 +329,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      get_question_by_subspecialty: {
+        Args: { sub_name: string }
+        Returns: Database["public"]["CompositeTypes"]["question_details_type"]
+      }
       get_simulado_performance: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -317,7 +365,17 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      question_details_type: {
+        id: string | null
+        gabarito: string | null
+        enunciado: string | null
+        a: string | null
+        b: string | null
+        c: string | null
+        d: string | null
+        comentario: string | null
+        imagem: string | null
+      }
     }
   }
 }
