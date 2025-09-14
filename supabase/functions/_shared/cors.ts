@@ -2,6 +2,7 @@
 const ALLOWED_ORIGINS = new Set([
   'https://gvqvrmkizemwsasmupmo.lovable.app',
   'https://sanarflix-study-guide.lovable.app',
+  'https://preview--sanarflix-study-guide.lovable.app',
   'https://guiadeestudos.sanar.com.br',
   'http://localhost:3000',
   'http://localhost:5173',
