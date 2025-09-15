@@ -31,7 +31,7 @@ export const CronogramaEnamed: React.FC = () => {
   const { user } = useAuth();
   const [selectedArea, setSelectedArea] = useState<string>('all');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [showDetailedProgress, setShowDetailedProgress] = useState(false);
 
   // Estado para cronograma carregado da nova API
@@ -44,6 +44,9 @@ export const CronogramaEnamed: React.FC = () => {
     const savedViewMode = localStorage.getItem('cronograma-enamed-view-mode') as 'list' | 'calendar';
     if (savedViewMode) {
       setViewMode(savedViewMode);
+    } else {
+      // Set default to calendar if no preference saved
+      setViewMode('calendar');
     }
   }, []);
 

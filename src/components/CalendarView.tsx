@@ -28,6 +28,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  
+  // Get today's date in DD/MM format
+  const today = useMemo(() => {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    return `${day}/${month}`;
+  }, []);
 
   // Group items by week first, then by day within each week
   const groupedItems = useMemo(() => {
@@ -89,12 +97,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Object.entries(days).map(([day, dayItems]) => (
-                <Card key={day} className="bg-white dark:bg-gray-700 border shadow-sm">
-                  <CardContent className="p-4">
-                    <h4 className="font-semibold text-foreground mb-3 text-lg border-b pb-2">
-                      {day}
-                    </h4>
+              {Object.entries(days).map(([day, dayItems]) => {
+                const isToday = day === today;
+                return (
+                  <Card key={day} className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''}`}>
+                    <CardContent className="p-4">
+                      <h4 className={`font-semibold mb-3 text-lg border-b pb-2 flex items-center gap-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                        {day}
+                        {isToday && (
+                          <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
+                            Hoje
+                          </span>
+                        )}
+                      </h4>
                     
                     <div className="space-y-3">
                       {(() => {
@@ -136,7 +151,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
