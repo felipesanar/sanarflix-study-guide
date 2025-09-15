@@ -142,7 +142,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {subItems.length} aula{subItems.length > 1 ? 's' : ''}
+                                {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
                               </div>
                             </button>
                           );
