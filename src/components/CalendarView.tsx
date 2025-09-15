@@ -210,7 +210,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                       <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {!!it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && (
-                          <Button variant="default" size="sm" onClick={() => window.open(String(it.link_aula), '_blank')}>Acessar Conteúdo</Button>
+                          <Button variant="default" size="sm" onClick={() => window.open(String(it.link_aula), '_blank')}>Acessar no SanarFlix</Button>
                         )}
                         {!!it.link_gratuito && 
                          String(it.link_gratuito).toLowerCase() !== 'nan' && 
