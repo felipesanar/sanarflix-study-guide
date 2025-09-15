@@ -2,102 +2,36 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy, Target, TrendingUp, BarChart3, BookOpen, BookText, BarChart } from 'lucide-react';
-import { ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, BarChart as RechartsBarChart } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle } from 'lucide-react';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, BarChart as RechartsBarChart, Bar } from 'recharts';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Interfaces ---
-interface PerformanceData {
-  name: string;
-  total: number;
-  acertos: number;
-  percentual: number;
-}
+interface PerformanceData { name: string; total: number; acertos: number; percentual: number; }
+interface SpecialtyPerformanceData extends PerformanceData { area_name?: string; area_id?: number; }
+interface SubspecialtyPerformanceData extends PerformanceData { specialty_name?: string; specialty_id?: number; area_name?: string; }
+interface RankingData { rank: number; total: number; }
+interface OverallStats { total: number; acertos: number; percentual: number; }
+interface DifficultyData { name: string; value: number; fill: string; total: number; acertos: number; }
+interface UserData { semestre: number; }
+interface QuestionDetails { id: string; gabarito: 'A' | 'B' | 'C' | 'D'; enunciado: string; a: string; b: string; c: string; d: string; comentario: string; imagem: string | null; }
 
-interface RankingData {
-  rank: number;
-  total: number;
-}
+// --- Componentes Auxiliares ---
+const CustomBarTooltip = ({ active, payload }: any) => { if (active && payload && payload.length) { const data = payload[0].payload; return ( <div className="bg-background p-3 border rounded-md shadow-lg"> <p className="font-bold mb-2">{data.name}</p> <p className="text-sm">Percentual de Acertos: {data.value}%</p> <p className="text-sm">Acertos: {data.acertos}/{data.total}</p> </div> ); } return null; };
 
-interface OverallStats {
-  total: number;
-  acertos: number;
-  percentual: number;
-}
-
-interface DifficultyData {
-  name: string;
-  value: number;
-  fill: string;
-  total: number;
-  acertos: number;
-}
-
-interface UserData {
-  semestre: number;
-}
-
-// --- Componente auxiliar para as Tabelas de Performance ---
-const PerformanceTable: React.FC<{ title: string; data: PerformanceData[]; icon: React.ReactNode }> = ({ title, data, icon }) => (
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        {icon}
-        {title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <div className="max-h-[400px] overflow-y-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Categoria</TableHead>
-              <TableHead className="text-right">Acertos</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">Percentual</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.sort((a, b) => b.total - a.total).map((item) => (
-              <TableRow key={item.name}>
-                <TableCell className="font-medium">{item.name}</TableCell>
-                <TableCell className="text-right">{item.acertos}</TableCell>
-                <TableCell className="text-right">{item.total}</TableCell>
-                <TableCell className="text-right font-semibold">{item.percentual}%</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </CardContent>
-  </Card>
-);
-
-// --- Componente personalizado para o Tooltip do Gráfico de Barras ---
-const CustomBarTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-background p-3 border rounded-md shadow-lg">
-        <p className="font-bold mb-2">{data.name}</p>
-        <p className="text-sm">Percentual de Acertos: {data.value}%</p>
-        <p className="text-sm">Acertos: {data.acertos}/{data.total}</p>
-      </div>
-    );
-  }
-  return null;
-};
-
-// --- Componente personalizado para o Label das Barras ---
-const CustomBarLabel = (props: any) => {
-  const { x, y, width, value } = props;
+// ALTERAÇÃO APLICADA AQUI: Alinhamento preciso do rótulo da barra
+const CustomBarLabel = (props: any) => { 
+  const { x, y, width, height, value } = props;
   return (
-    <text
-      x={x + width - 30}
-      y={y + 15}
-      fill="white"
-      textAnchor="end"
-      fontSize={12}
+    <text 
+      x={x + width / 2} // Centraliza horizontalmente
+      y={y + height / 2} // Centraliza verticalmente na linha de base
+      fill="white" 
+      textAnchor="middle" // Garante que o centro do texto esteja no x calculado
+      dominantBaseline="middle" // Alinha o meio da fonte ao y calculado
+      fontSize={12} 
       fontWeight="bold"
     >
       {value}%
@@ -105,106 +39,156 @@ const CustomBarLabel = (props: any) => {
   );
 };
 
+// --- Componente do Modal de Questão ---
+const QuestionModal: React.FC<{ isOpen: boolean; onOpenChange: (open: boolean) => void; question: QuestionDetails | null; isLoading: boolean; }> = ({ isOpen, onOpenChange, question, isLoading }) => { const alternatives: Array<{ key: 'A' | 'B' | 'C' | 'D'; text: string }> = question ? [ { key: 'A', text: question.a }, { key: 'B', text: question.b }, { key: 'C', text: question.c }, { key: 'D', text: question.d } ] : []; return ( <Dialog open={isOpen} onOpenChange={onOpenChange}> <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto"> <DialogHeader> <DialogTitle>Revisão de Questão</DialogTitle> </DialogHeader> {isLoading ? ( <div className="flex justify-center items-center h-64"> <Loader2 className="h-8 w-8 animate-spin" /> <p className="ml-4">Buscando questão...</p> </div> ) : question ? ( <div className="space-y-6 py-4"> <p className="text-base leading-relaxed whitespace-pre-wrap">{question.enunciado}</p> {question.imagem && ( <div className="flex justify-center my-4"> <img src={question.imagem} alt="Imagem da questão" className="max-w-full h-auto rounded-md" /> </div> )} <div className="space-y-3"> {alternatives.map(alt => ( <div key={alt.key} className={cn("p-3 border rounded-md text-left", question.gabarito === alt.key ? "bg-green-500/20 border-green-500 text-green-300" : "bg-muted/30")}> <span className="font-bold mr-2">{alt.key})</span> {alt.text} </div> ))} </div> <div className="bg-zinc-800/80 p-4 rounded-md space-y-2 border border-zinc-700"> <h4 className="font-bold text-lg text-primary">Comentário do Professor</h4> <p className="text-zinc-300 leading-relaxed whitespace-pre-wrap">{question.comentario}</p> </div> </div> ) : ( <div className="flex justify-center items-center h-64"> <p>Nenhuma questão de exemplo foi encontrada para esta subespecialidade.</p> </div> )} </DialogContent> </Dialog> ); };
+
+// --- Componente de Resumo de Desempenho ---
+const PerformanceSummary: React.FC<{
+  stats: OverallStats;
+  performancePorArea: PerformanceData[];
+  bySpecialty: SpecialtyPerformanceData[];
+  byDifficulty: PerformanceData[];
+}> = ({ stats, performancePorArea, bySpecialty, byDifficulty }) => {
+  if (performancePorArea.length === 0) return null;
+
+  const sortedAreas = [...performancePorArea].sort((a, b) => b.percentual - a.percentual);
+  const bestArea = sortedAreas[0];
+  const worstArea = sortedAreas[sortedAreas.length - 1];
+
+  const bestSpecialtyInBestArea = bySpecialty
+    .filter(s => s.area_name === bestArea.name)
+    .sort((a, b) => b.percentual - a.percentual)[0];
+  
+  const specialtiesToImprove = bySpecialty
+    .filter(s => s.area_name === worstArea.name)
+    .sort((a, b) => a.percentual - b.percentual)
+    .slice(0, 2);
+
+  const worstDifficulty = [...byDifficulty].sort((a, b) => a.percentual - b.percentual)[0];
+
+  const getAdjective = (percentual: number) => {
+    if (percentual >= 80) return "excelente";
+    if (percentual >= 65) return "muito bom";
+    if (percentual >= 50) return "sólido";
+    return "um bom ponto de partida";
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          Relatório de Desempenho
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6 text-sm">
+        <p>
+          Seu aproveitamento geral de <strong>{stats.percentual}%</strong> ({stats.acertos}/{stats.total} questões) é um resultado <strong>{getAdjective(stats.percentual)}</strong>. Veja abaixo os principais destaques para guiar seus estudos.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h3 className="font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-green-500" /> Pontos Fortes</h3>
+            <p>Sua principal fortaleza foi em <strong>{bestArea.name}</strong>, com <strong>{bestArea.percentual}%</strong> de acertos.</p>
+            {bestSpecialtyInBestArea && (
+              <p>Dentro desta área, você se destacou em <strong>{bestSpecialtyInBestArea.name}</strong> ({bestSpecialtyInBestArea.percentual}%).</p>
+            )}
+          </div>
+          <div className="space-y-3">
+            <h3 className="font-semibold flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-500" /> Oportunidades de Melhoria</h3>
+            <p>A área com maior oportunidade de crescimento é <strong>{worstArea.name}</strong>, com <strong>{worstArea.percentual}%</strong> de acertos.</p>
+            {specialtiesToImprove.length > 0 && (
+              <div>
+                <p className="mb-1">Foque nos temas:</p>
+                <ul className="list-disc list-inside text-muted-foreground">
+                  {specialtiesToImprove.map(s => <li key={s.name}>{s.name} ({s.percentual}%)</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+        {worstDifficulty && (
+          <div className="pt-4 border-t">
+            <h3 className="font-semibold flex items-center gap-2"><HelpCircle className="h-4 w-4 text-amber-500" /> Análise por Dificuldade</h3>
+            <p>Seu maior desafio foi em questões de nível <strong>{worstDifficulty.name}</strong>, com <strong>{worstDifficulty.percentual}%</strong> de acertos. Revisar casos clínicos e conceitos mais complexos pode ajudar.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// --- Componentes da Árvore de Decomposição ---
+const Node: React.FC<{ name: string; percentage: number; isSelected: boolean; onClick: () => void; }> = ({ name, percentage, isSelected, onClick }) => ( <button onClick={onClick} className={cn( "card-container w-full text-left p-3 border rounded-md transition-all duration-200 hover:bg-muted/80", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 border-border" )} > <div className="flex justify-between items-center gap-2"> <span className="font-medium font-dynamic pr-2">{name}</span> <span className={cn("font-bold text-sm", isSelected ? "text-primary-foreground" : "text-primary")}> {percentage}% </span> </div> </button> );
+const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boolean; emptyText?: string }> = ({ title, children, isEmpty = false, emptyText = "Selecione um item na coluna anterior." }) => ( <div className="flex-1 min-w-[250px]"> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">{title}</h3> <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2"> {isEmpty ? ( <div className="flex items-center justify-center h-40 text-center text-muted-foreground text-sm p-4 border border-dashed rounded-md"> {emptyText} </div> ) : children} </div> </div> );
+const listContainerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05, }, }, };
+const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: "easeOut", } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2, ease: "easeIn" } }, };
+const DecompositionTree: React.FC<{ overallStats: OverallStats; areas: PerformanceData[]; specialties: SpecialtyPerformanceData[]; subspecialties: SubspecialtyPerformanceData[]; onSubspecialtyClick: (subspecialtyName: string) => void; }> = ({ overallStats, areas, specialties, subspecialties, onSubspecialtyClick }) => { const [selectedArea, setSelectedArea] = useState<string | null>(null); const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null); const handleAreaClick = (areaName: string) => { if (selectedArea === areaName) { setSelectedArea(null); setSelectedSpecialty(null); } else { setSelectedArea(areaName); setSelectedSpecialty(null); } }; const handleSpecialtyClick = (specialtyName: string) => { setSelectedSpecialty(prevState => prevState === specialtyName ? null : specialtyName); }; const filteredSpecialties = selectedArea ? specialties.filter(s => s.area_name && s.area_name.toLowerCase() === selectedArea.toLowerCase()) : []; const uniqueFilteredSpecialties = filteredSpecialties.filter((specialty, index, self) => index === self.findIndex((s) => s.name.toLowerCase() === specialty.name.toLowerCase())).sort((a, b) => b.percentual - a.percentual); const filteredSubspecialties = selectedArea && selectedSpecialty ? subspecialties.filter(s => s.specialty_name?.toLowerCase() === selectedSpecialty.toLowerCase() && s.area_name?.toLowerCase() === selectedArea.toLowerCase()) : []; const uniqueFilteredSubspecialties = filteredSubspecialties.filter((sub, index, self) => index === self.findIndex((s) => s.name.toLowerCase() === sub.name.toLowerCase())).sort((a, b) => b.percentual - a.percentual); return ( <Card> <CardHeader> <CardTitle className="flex items-center gap-2"> <BarChart className="h-5 w-5 text-primary" /> Análise de Desempenho Hierárquica </CardTitle> </CardHeader> <CardContent> <div className="flex flex-col lg:flex-row gap-6"> <div className="lg:border-r lg:pr-6"> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Percentual de Acertos</h3> <div className="flex items-center justify-center bg-primary text-primary-foreground p-4 rounded-md min-w-[200px]"> <div className="text-center"> <p className="text-3xl font-bold">{overallStats.percentual}%</p> <p className="text-xs opacity-80">{overallStats.acertos} / {overallStats.total} questões</p> </div> </div> </div> <div className="flex-1 flex flex-col md:flex-row gap-4 overflow-x-auto"> <Column title="Tema (Grande Área)"> <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"> {areas.map(area => ( <motion.div key={area.name} variants={listItemVariants}> <Node name={area.name} percentage={area.percentual} isSelected={selectedArea === area.name} onClick={() => handleAreaClick(area.name)} /> </motion.div> ))} </motion.div> </Column> <Column title="Especialidade" isEmpty={!selectedArea || uniqueFilteredSpecialties.length === 0} emptyText={!selectedArea ? "Selecione uma Grande Área." : "Nenhuma especialidade encontrada."} > <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"> <AnimatePresence> {uniqueFilteredSpecialties.map(specialty => ( <motion.div key={specialty.name} variants={listItemVariants} exit="exit" > <Node name={specialty.name} percentage={specialty.percentual} isSelected={selectedSpecialty === specialty.name} onClick={() => handleSpecialtyClick(specialty.name)} /> </motion.div> ))} </AnimatePresence> </motion.div> </Column> <Column title="Subespecialidade / Assunto" isEmpty={!selectedSpecialty || uniqueFilteredSubspecialties.length === 0} emptyText={!selectedSpecialty ? "Selecione uma Especialidade." : "Nenhuma subespecialidade encontrada."} > <motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"> <AnimatePresence> {uniqueFilteredSubspecialties.map(sub => ( <motion.div key={sub.name} variants={listItemVariants} exit="exit" > <button onClick={() => onSubspecialtyClick(sub.name)} className="w-full"> <div className="card-container w-full text-left p-3 border rounded-md bg-muted/40 hover:bg-muted/80 transition-colors"> <div className="flex justify-between items-center gap-2"> <span className="font-medium font-dynamic pr-2">{sub.name}</span> <span className="font-bold text-sm text-primary">{sub.percentual}%</span> </div> </div> </button> </motion.div> ))} </AnimatePresence> </motion.div> </Column> </div> </div> </CardContent> </Card> ); };
+
+// --- COMPONENTE PRINCIPAL ---
 export const SimuladoDesempenho: React.FC = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<OverallStats | null>(null);
   const [performancePorArea, setPerformancePorArea] = useState<PerformanceData[]>([]);
-  const [bySpecialty, setBySpecialty] = useState<PerformanceData[]>([]);
-  const [bySubspecialty, setBySubspecialty] = useState<PerformanceData[]>([]);
+  const [bySpecialty, setBySpecialty] = useState<SpecialtyPerformanceData[]>([]);
+  const [bySubspecialty, setBySubspecialty] = useState<SubspecialtyPerformanceData[]>([]);
   const [byDifficulty, setByDifficulty] = useState<PerformanceData[]>([]);
   const [ranking, setRanking] = useState<{ ies: RankingData, semester: RankingData } | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionDetails | null>(null);
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const CACHE_KEY = `performanceData_${user?.id}`;
 
-  useEffect(() => {
-    const fetchAllData = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        // Buscar dados do usuário primeiro para obter o semestre
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('semestre')
-          .eq('email', user.email)
-          .single();
+  const fetchData = async (forceRefresh = false) => { if (!user) return; setLoading(true); if (!forceRefresh) { const cachedData = sessionStorage.getItem(CACHE_KEY); if (cachedData) { console.log("Loading data from cache! ⚡️"); const parsedData = JSON.parse(cachedData); setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setByDifficulty(parsedData.byDifficulty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setLoading(false); return; } } console.log("Fetching data from Supabase... ☁️"); try { const { data: userDataResponse, error: userError } = await supabase.from('users').select('semestre').eq('email', user.email).single(); if (userError) throw userError; const [performanceResult, rankingResult] = await Promise.all([ supabase.rpc('get_user_performance_aggregates' as any).single(), supabase.rpc('get_user_rankings' as any).single() ]); if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (performanceResult.data) { const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any; const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 })); const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 }; const newPerformancePorArea = processData(byArea || []); const newBySpecialty = processData(bySpecialty || []); const newBySubspecialty = processData(bySubspecialty || []); const newByDifficulty = processData(byDifficulty || []); const newRanking = rankingResult.data ? { ies: rankingResult.data.rankingIES || null, semester: rankingResult.data.rankingSemester || null } : null; setUserData(userDataResponse); setStats(newStats); setPerformancePorArea(newPerformancePorArea); setBySpecialty(newBySpecialty); setBySubspecialty(newBySubspecialty); setByDifficulty(newByDifficulty); setRanking(newRanking); const dataToCache = { stats: newStats, performancePorArea: newPerformancePorArea, bySpecialty: newBySpecialty, bySubspecialty: newBySubspecialty, byDifficulty: newByDifficulty, ranking: newRanking, userData: userDataResponse, }; sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache)); console.log("Data saved to cache! ✅"); } } catch (error) { console.error("Error fetching data:", error); } finally { setLoading(false); } };
+  useEffect(() => { if (user) { fetchData(); } }, [user]);
+  const handleRefresh = () => { sessionStorage.removeItem(CACHE_KEY); fetchData(true); };
 
-        if (userError) throw userError;
-        setUserData(userData);
+  const handleSubspecialtyClick = async (subspecialtyName: string) => { setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestion(null); try { const { data, error } = await supabase.rpc('get_question_by_subspecialty', { sub_name: subspecialtyName }).maybeSingle(); if (error) throw error; if (data) { setSelectedQuestion(data); } else { console.warn(`Nenhuma questão encontrada para: ${subspecialtyName}`); } } catch (error) { console.error("Erro ao buscar a questão:", error); } finally { setIsLoadingQuestion(false); } };
 
-        const [performanceResult, rankingResult] = await Promise.all([
-          supabase.rpc('get_user_performance_aggregates' as any).single(),
-          supabase.rpc('get_user_rankings' as any).single()
-        ]);
+  // ALTERAÇÃO APLICADA AQUI: Cores para gradação de tons de vermelho mais distintos
+  const barData: DifficultyData[] = byDifficulty.sort((a, b) => { 
+    const order = { 'Fácil': 1, 'Moderado': 2, 'Médio': 2, 'Difícil': 3 }; 
+    return (order[a.name as keyof typeof order] || 4) - (order[b.name as keyof typeof order] || 4); 
+  }).map((item, index) => ({ 
+    name: item.name, 
+    value: item.percentual, 
+    // Tons de vermelho mais distintos: red-400 (claro), red-600 (médio), red-800 (escuro)
+    fill: ['#f87171', '#dc2626', '#b91c1c'][index] || '#7f1d1d', // red-400, red-600, red-800
+    total: item.total, 
+    acertos: item.acertos 
+  }));
 
-        if (performanceResult.error) throw performanceResult.error;
-        if (performanceResult.data) {
-          const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any;
-
-          const processData = (d: any[]) => (d || []).map(item => ({
-            ...item,
-            percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0
-          }));
-
-          setStats({
-            total: overallStats?.total || 0,
-            acertos: overallStats?.acertos || 0,
-            percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0
-          });
-          setPerformancePorArea(processData(byArea || []));
-          setBySpecialty(processData(bySpecialty || []));
-          setBySubspecialty(processData(bySubspecialty || []));
-          setByDifficulty(processData(byDifficulty || []));
-        }
-
-        if (rankingResult.error) throw rankingResult.error;
-        if (rankingResult.data) {
-          const rankingData = rankingResult.data as any;
-          setRanking({
-            ies: rankingData.rankingIES || null,
-            semester: rankingData.rankingSemester || null
-          });
-        }
-      } catch (error) {
-        // Error fetching data
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAllData();
-  }, [user]);
-
-  // Preparar dados para o gráfico de barras horizontais de dificuldade
-  const barData: DifficultyData[] = byDifficulty
-    .sort((a, b) => {
-      const order = { 'Fácil': 1, 'Moderado': 2, 'Médio': 2, 'Difícil': 3 };
-      return (order[a.name as keyof typeof order] || 4) - (order[b.name as keyof typeof order] || 4);
-    })
-    .map((item, index) => ({
-      name: item.name,
-      value: item.percentual,
-      // Gradação de vermelhos do mais claro ao mais escuro
-      fill: ['#fca5a5', '#ef4444', '#7f1d1d'][index] || '#6b7280',
-      total: item.total,
-      acertos: item.acertos
-    }));
-
-  if (loading) return <div className="p-6">Carregando dashboard de desempenho...</div>;
+  if (loading) return <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /><p className='ml-4'>Carregando dashboard de desempenho...</p></div>;
   if (!stats || stats.total === 0) return <div className="p-6">Nenhum dado de simulado encontrado.</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Dashboard de Desempenho</h1>
-        <p className="text-muted-foreground">Sua performance detalhada no simulado ENAMED.</p>
+      <style jsx global>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
+      <div className="flex justify-between items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard de Desempenho</h1>
+          <p className="text-muted-foreground">Sua performance detalhada no simulado ENAMED.</p>
+        </div>
+        <button onClick={handleRefresh} className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0" disabled={loading}>
+          {loading ? "Atualizando..." : "Atualizar Dados"}
+        </button>
       </div>
 
+      {stats && performancePorArea.length > 0 && (
+        <PerformanceSummary
+          stats={stats}
+          performancePorArea={performancePorArea}
+          bySpecialty={bySpecialty}
+          byDifficulty={byDifficulty}
+        />
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Resumo do Desempenho - Tamanho reduzido */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Resumo do Desempenho
+              <Target className="h-5 w-5 text-primary" /> Resumo do Desempenho
             </CardTitle>
           </CardHeader>
           <CardContent className="min-h-[270px] space-y-6">
@@ -214,13 +198,11 @@ export const SimuladoDesempenho: React.FC = () => {
                 {stats.acertos} de {stats.total} questões corretas
               </p>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
               {ranking?.ies && ranking.ies.total > 0 && (
                 <div className="text-center p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-center gap-2 text-sm font-medium mb-2">
-                    <Trophy className="h-4 w-4 text-amber-500" />
-                    Ranking na IES
+                    <Trophy className="h-4 w-4 text-amber-500" /> Ranking na IES
                   </div>
                   <p className="text-xl font-bold text-primary">{ranking.ies.rank}º</p>
                   <p className="text-xs text-muted-foreground">
@@ -231,8 +213,7 @@ export const SimuladoDesempenho: React.FC = () => {
               {ranking?.semester && ranking.semester.total > 0 && userData && (
                 <div className="text-center p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-center gap-2 text-sm font-medium mb-2">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    Ranking no {userData.semestre}° semestre
+                    <TrendingUp className="h-4 w-4 text-green-500" /> Ranking no {userData.semestre}° semestre
                   </div>
                   <p className="text-xl font-bold text-primary">{ranking.semester.rank}º</p>
                   <p className="text-xs text-muted-foreground">
@@ -243,46 +224,21 @@ export const SimuladoDesempenho: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Gráfico de Barras Horizontais - Dificuldade */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Acertos por Dificuldade
+              <BarChart3 className="h-5 w-5 text-primary" /> Acertos por Dificuldade
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[270px]">
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsBarChart
-                data={barData}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <XAxis
-                  type="number"
-                  domain={[0, 100]}
-                  unit="%"
-                  tick={{ fill: 'white', fontWeight: 'bold' }}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
-                  width={80}
-                />
-                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'transparent' }} />
-                <Bar
-                  dataKey="value"
-                  name="Percentual de Acertos"
-                  radius={[0, 4, 4, 0]}
-                  label={<CustomBarLabel />}
-                >
-                  {barData.map((entry, index) => (
-                    <rect
-                      key={`bar-${index}`}
-                      fill={entry.fill}
-                    />
+              <RechartsBarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis type="number" domain={[0, 100]} hide />
+                <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} width={80} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                <Bar dataKey="value" name="Percentual de Acertos" radius={[0, 4, 4, 0]} label={<CustomBarLabel />}>
+                  {barData.map((entry) => (
+                    <rect key={`cell-${entry.name}`} fill={entry.fill} />
                   ))}
                 </Bar>
               </RechartsBarChart>
@@ -290,72 +246,8 @@ export const SimuladoDesempenho: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Desempenho por Grande Área com ícone */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart className="h-5 w-5 text-primary" />
-            Desempenho por Grande Área
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={performancePorArea} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
-              />
-              <YAxis
-                yAxisId="left"
-                stroke="hsl(var(--primary))"
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                stroke="#82ca9d"
-                tick={{ fill: 'white', fontWeight: 'bold', fontSize: 12 }}
-                unit="%"
-                domain={[0, 100]}
-              />
-              <Tooltip
-                cursor={{ fill: 'hsl(var(--muted))' }}
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const barData = payload.find(p => p.dataKey === 'total');
-                    const lineData = payload.find(p => p.dataKey === 'percentual');
-                    return (
-                      <div className="bg-background p-3 border rounded-md shadow-lg">
-                        <p className="font-bold mb-2">{label}</p>
-                        {barData && <p className="text-sm" style={{ color: barData.color }}>Total de Questões: {barData.value}</p>}
-                        {lineData && <p className="text-sm" style={{ color: lineData.color }}>Percentual de Acertos: {lineData.value}%</p>}
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Legend formatter={(value) => <span className="capitalize" style={{ color: 'white', fontWeight: 'bold' }}>{value}</span>} />
-              <Bar yAxisId="left" dataKey="total" name="Total de Questões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              <Line yAxisId="right" type="monotone" dataKey="percentual" name="Percentual de Acertos" stroke="#82ca9d" strokeWidth={2} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PerformanceTable
-          title="Desempenho por Especialidade"
-          data={bySpecialty}
-          icon={<BookOpen className="h-5 w-5 text-primary" />}
-        />
-        <PerformanceTable
-          title="Desempenho por Subespecialidade"
-          data={bySubspecialty}
-          icon={<BookText className="h-5 w-5 text-primary" />}
-        />
-      </div>
+      {stats && ( <DecompositionTree overallStats={stats} areas={performancePorArea} specialties={bySpecialty} subspecialties={bySubspecialty} onSubspecialtyClick={handleSubspecialtyClick} /> )}
+      <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} question={selectedQuestion} isLoading={isLoadingQuestion} />
     </div>
   );
 };
