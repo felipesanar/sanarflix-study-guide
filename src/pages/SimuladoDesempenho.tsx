@@ -110,7 +110,7 @@ const PerformanceSummary: React.FC<{
 const Node: React.FC<{ name: string; percentage: number; isSelected: boolean; onClick: () => void; }> = ({ name, percentage, isSelected, onClick }) => ( <button onClick={onClick} className={cn( "card-container w-full text-left p-3 border rounded-md transition-all duration-200 hover:bg-muted/80", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 border-border" )} > <div className="flex justify-between items-center gap-2"> <span className="font-medium font-dynamic pr-2">{name}</span> <span className={cn("font-bold text-sm", isSelected ? "text-primary-foreground" : "text-primary")}> {percentage}% </span> </div> </button> );
 const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boolean; emptyText?: string }> = ({ title, children, isEmpty = false, emptyText = "Selecione um item na coluna anterior." }) => ( <div className="flex-1 min-w-[250px]"> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">{title}</h3> <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2"> {isEmpty ? ( <div className="flex items-center justify-center h-40 text-center text-muted-foreground text-sm p-4 border border-dashed rounded-md"> {emptyText} </div> ) : children} </div> </div> );
 const listContainerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05, }, }, };
-const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: "easeOut", } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2, ease: "easeIn" } }, };
+const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }, };
 
 const DecompositionTree: React.FC<{
   overallStats: OverallStats;
@@ -354,19 +354,31 @@ export const SimuladoDesempenho: React.FC = () => {
 
     console.log(`Fetching data from Supabase for simulado ${selectedSimulado || 'all'}... ☁️`);
     try {
-      // Busca a lista de simulados que o usuário realizou
-      const { data: simuladosData, error: simuladosError } = await supabase.rpc('get_user_simulados');
-      if (simuladosError) throw simuladosError;
-      setSimulados(simuladosData || []);
+      // Simplified: Get unique simulados from user's answers
+      const { data: answersData } = await supabase
+        .from('answer_progress_enamed')
+        .select('simulado')
+        .eq('email', user.email);
+      
+      const uniqueSimulados = [...new Set(answersData?.map(a => a.simulado) || [])];
+      const simuladosFormatted = uniqueSimulados.map(id => ({ 
+        id, 
+        nome: `Simulado ${id}` 
+      }));
+      setSimulados(simuladosFormatted);
 
       // Busca os dados de performance
       const { data: userDataResponse, error: userError } = await supabase.from('users').select('semestre').eq('email', user.email).single();
       if (userError) throw userError;
 
       const [performanceResult, rankingResult, allPerformanceResult] = await Promise.all([
-        supabase.rpc('get_user_performance_aggregates', { p_simulado_id: selectedSimulado }).single(),
-        supabase.rpc('get_user_rankings', { p_simulado_id: selectedSimulado }).single(),
-        supabase.rpc('get_all_user_performance_by_specialty') // Nova RPC para o gráfico de evolução
+        supabase.rpc('get_user_performance_aggregates').single(),
+        supabase.rpc('get_user_rankings').single(),
+        // Simplified evolution data
+        supabase
+          .from('answer_progress_enamed')
+          .select('simulado, correct, questions_enamed!inner(Especialidade)')
+          .eq('email', user.email)
       ]);
       
       if (performanceResult.error) throw performanceResult.error;
@@ -383,7 +395,8 @@ export const SimuladoDesempenho: React.FC = () => {
         const newBySpecialty = processData(bySpecialty || []);
         const newBySubspecialty = processData(bySubspecialty || []);
         const newByDifficulty = processData(byDifficulty || []);
-        const newRanking = rankingResult.data ? { ies: rankingResult.data.rankingIES || null, semester: rankingResult.data.rankingSemester || null } : null;
+        const rankingData = rankingResult.data as any;
+        const newRanking = rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null;
         
         setUserData(userDataResponse);
         setStats(newStats);
@@ -392,7 +405,24 @@ export const SimuladoDesempenho: React.FC = () => {
         setBySubspecialty(newBySubspecialty);
         setByDifficulty(newByDifficulty);
         setRanking(newRanking);
-        setAllPerformanceData(allPerformanceResult.data || []);
+        // Process evolution data from simplified query
+        const groupedData = new Map();
+        (allPerformanceResult.data || []).forEach((item: any) => {
+          const key = `${item.simulado}-${item.questions_enamed?.Especialidade}`;
+          if (!groupedData.has(key)) {
+            groupedData.set(key, {
+              simulado_id: item.simulado,
+              simulado_nome: `Simulado ${item.simulado}`,
+              specialty_name: item.questions_enamed?.Especialidade || 'Não especificado',
+              total: 0,
+              acertos: 0
+            });
+          }
+          const entry = groupedData.get(key);
+          entry.total++;
+          if (item.correct) entry.acertos++;
+        });
+        setAllPerformanceData(Array.from(groupedData.values()));
 
         const dataToCache = {
           stats: newStats,
@@ -402,7 +432,7 @@ export const SimuladoDesempenho: React.FC = () => {
           byDifficulty: newByDifficulty,
           ranking: newRanking,
           userData: userDataResponse,
-          simulados: simuladosData || [],
+          simulados: simuladosFormatted || [],
           allPerformanceData: allPerformanceResult.data || []
         };
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache));
@@ -430,7 +460,7 @@ export const SimuladoDesempenho: React.FC = () => {
     setSelectedSimulado(simuladoId);
   };
 
-  const handleSubspecialtyClick = async (subspecialtyName: string) => { setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestion(null); try { const { data, error } = await supabase.rpc('get_question_by_subspecialty', { sub_name: subspecialtyName, p_simulado_id: selectedSimulado }).maybeSingle(); if (error) throw error; if (data) { setSelectedQuestion(data); } else { console.warn(`Nenhuma questão encontrada para: ${subspecialtyName}`); } } catch (error) { console.error("Erro ao buscar a questão:", error); } finally { setIsLoadingQuestion(false); } };
+  const handleSubspecialtyClick = async (subspecialtyName: string) => { setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestion(null); try { const { data, error } = await supabase.rpc('get_question_by_subspecialty', { sub_name: subspecialtyName }).maybeSingle(); if (error) throw error; if (data) { setSelectedQuestion(data as QuestionDetails); } else { console.warn(`Nenhuma questão encontrada para: ${subspecialtyName}`); } } catch (error) { console.error("Erro ao buscar a questão:", error); } finally { setIsLoadingQuestion(false); } };
 
   const barData: DifficultyData[] = byDifficulty.sort((a, b) => { const order = { 'Fácil': 1, 'Moderado': 2, 'Médio': 2, 'Difícil': 3 }; return (order[a.name as keyof typeof order] || 4) - (order[b.name as keyof typeof order] || 4); }).map((item, index) => ({ name: item.name, value: item.percentual, fill: ['#f87171', '#dc2626', '#b91c1c'][index] || '#7f1d1d', total: item.total, acertos: item.acertos }));
   if (loading) return <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /><p className='ml-4'>Carregando dashboard de desempenho...</p></div>;
@@ -438,7 +468,7 @@ export const SimuladoDesempenho: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <style jsx global>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
+      <style>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
       <div className="flex justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Dashboard de Desempenho</h1>
