@@ -209,9 +209,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                     <div className="flex-1 min-w-0">
                       <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {!!it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && (
-                          <Button variant="default" size="sm" onClick={() => window.open(String(it.link_aula), '_blank')}>Acessar no SanarFlix</Button>
-                        )}
+                        {/* Botão "Acessar no SanarFlix" - sempre presente */}
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={() => {
+                            if (it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && String(it.link_aula).trim() !== '') {
+                              window.open(String(it.link_aula), '_blank');
+                            } else {
+                              window.open('https://sanarflix.com.br/enamed', '_blank');
+                            }
+                          }}
+                          className="bg-[#800000] hover:bg-[#800000]/90 text-white"
+                        >
+                          Acessar no SanarFlix
+                        </Button>
+                        
+                        {/* Botão "Assinar por 1 mês" - sempre presente */}
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => window.open('https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed', '_blank')}
+                          className="bg-primary hover:bg-primary/90 text-white"
+                        >
+                          Assinar por 1 mês
+                        </Button>
+                        
+                        {/* Botão "Assistir aula grátis" - apenas se há link gratuito */}
                         {!!it.link_gratuito && 
                          String(it.link_gratuito).toLowerCase() !== 'nan' && 
                          String(it.link_gratuito).trim() !== '' && (
@@ -221,7 +245,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                             onClick={() => window.open(String(it.link_gratuito), '_blank')}
                             className="bg-white border-[#800000] text-[#800000] hover:bg-[#800000]/10"
                           >
-                            Não tenho SanarFlix
+                            Assistir aula grátis
                           </Button>
                         )}
                       </div>

@@ -241,6 +241,15 @@ export const CronogramaEnamed: React.FC = () => {
     });
   }, [cronogramaItems, selectedArea]);
 
+  // Definir ordem específica das matérias para visualização de lista
+  const MATERIA_ORDER = [
+    'Clínica médica',
+    'Cirurgia', 
+    'Pediatria',
+    'Ginecologia e obstetrícia',
+    'Medicina da família e comunidade – saúde coletiva – saúde mental'
+  ];
+
   // Agrupar itens por área de conhecimento para exibição
   const groupedItems = useMemo(() => {
     const groups: Record<string, CronogramaEnamedItem[]> = {};
@@ -251,6 +260,31 @@ export const CronogramaEnamed: React.FC = () => {
     });
     return groups;
   }, [filteredItems]);
+
+  // Ordenar grupos seguindo a ordem específica para visualização de lista
+  const orderedGroupedItems = useMemo(() => {
+    if (viewMode === 'calendar') {
+      return groupedItems; // Manter ordem atual para calendário
+    }
+    
+    const orderedEntries: [string, CronogramaEnamedItem[]][] = [];
+    
+    // Primeiro, adicionar áreas na ordem específica
+    MATERIA_ORDER.forEach(materia => {
+      if (groupedItems[materia]) {
+        orderedEntries.push([materia, groupedItems[materia]]);
+      }
+    });
+    
+    // Depois, adicionar outras áreas que não estão na lista ordenada
+    Object.entries(groupedItems).forEach(([area, items]) => {
+      if (!MATERIA_ORDER.includes(area)) {
+        orderedEntries.push([area, items]);
+      }
+    });
+    
+    return Object.fromEntries(orderedEntries);
+  }, [groupedItems, viewMode]);
 
   // Se está carregando, mostrar indicador de carregamento
   if (loadingCronograma) {
@@ -458,7 +492,7 @@ export const CronogramaEnamed: React.FC = () => {
           />
         ) : (
           <div className="space-y-6">
-            {Object.keys(groupedItems).length === 0 ? (
+            {Object.keys(orderedGroupedItems).length === 0 ? (
               <Card className="bg-white/50 dark:bg-gray-800/50 backdrop-blur border-0 shadow-lg">
                 <CardContent className="p-8 text-center">
                   <p className="text-muted-foreground">
@@ -468,7 +502,7 @@ export const CronogramaEnamed: React.FC = () => {
               </Card>
             ) : (
               <Accordion type="multiple" className="space-y-4">
-                {Object.entries(groupedItems).map(([area, items]) => {
+                {Object.entries(orderedGroupedItems).map(([area, items]) => {
                   const completedCount = items.filter(item => completedItems.has(item.id)).length;
                   const totalCount = items.length;
                   const isCompleted = completedCount === totalCount;
@@ -548,15 +582,31 @@ export const CronogramaEnamed: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="flex flex-col gap-2 ml-4">
-                                  {item.link_aula && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => window.open(item.link_aula, '_blank')}
-                                      className="h-9 px-4 font-medium bg-[#800000] hover:bg-[#800000]/90 text-white"
-                                    >
-                                      Acessar no SanarFlix
-                                    </Button>
-                                  )}
+                                  {/* Botão "Acessar no SanarFlix" - sempre presente */}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      if (item.link_aula && item.link_aula !== 'nan' && item.link_aula.trim() !== '') {
+                                        window.open(item.link_aula, '_blank');
+                                      } else {
+                                        window.open('https://sanarflix.com.br/enamed', '_blank');
+                                      }
+                                    }}
+                                    className="h-9 px-4 font-medium bg-[#800000] hover:bg-[#800000]/90 text-white"
+                                  >
+                                    Acessar no SanarFlix
+                                  </Button>
+                                  
+                                  {/* Botão "Assinar por 1 mês" - sempre presente */}
+                                  <Button
+                                    size="sm"
+                                    onClick={() => window.open('https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed', '_blank')}
+                                    className="h-9 px-4 font-medium bg-primary hover:bg-primary/90 text-white"
+                                  >
+                                    Assinar por 1 mês
+                                  </Button>
+                                  
+                                  {/* Botão "Assistir aula grátis" - apenas se há link gratuito */}
                                   {item.link_gratuito && 
                                    item.link_gratuito !== 'nan' && 
                                    item.link_gratuito.trim() !== '' && (
@@ -566,7 +616,7 @@ export const CronogramaEnamed: React.FC = () => {
                                       onClick={() => window.open(item.link_gratuito, '_blank')}
                                       className="h-9 px-4 font-medium bg-white border-[#800000] text-[#800000] hover:bg-[#800000]/10"
                                     >
-                                      Não tenho SanarFlix
+                                      Assistir aula grátis
                                     </Button>
                                   )}
                                 </div>
