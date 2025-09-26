@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import { SignupB2C } from "./pages/SignupB2C";
 import { CronogramaEnamed } from "./pages/CronogramaEnamed";
 import { ThemeProvider } from "next-themes";
+import IntensivoEnamedUSCS from "./pages/IntensivoEnamedUSCS";
 
 const queryClient = new QueryClient();
 
@@ -67,7 +68,8 @@ const AppContent = () => {
 
   // Determine default route for launch
   const getDefaultRoute = () => {
-    // B2C users get cronograma, others get intensivao
+    // Priority order: USCS page, B2C cronograma, others get intensivao
+    if (accessRules.intensivoUSCS) return "/intensivo-uscs";
     return accessRules.cronogramaEnamed ? "/cronograma-enamed" : "/intensivao-enamed";
   };
 
@@ -149,6 +151,19 @@ const AppContent = () => {
               <ProtectedRoute>
                 <Layout>
                   <UserManagement />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+
+        {accessRules.intensivoUSCS && (
+          <Route
+            path="/intensivo-uscs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <IntensivoEnamedUSCS />
                 </Layout>
               </ProtectedRoute>
             }

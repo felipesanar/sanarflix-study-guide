@@ -16,6 +16,7 @@ export interface AccessRules {
   dashboard: boolean;
   SimuladoDesempenho: boolean;
   userManagement: boolean;
+  intensivoUSCS: boolean;
 }
 
 export interface StudyContent {

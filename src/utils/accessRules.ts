@@ -11,6 +11,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: false,
       SimuladoDesempenho: false,
       userManagement: false,
+      intensivoUSCS: false,
     };
   }
   
@@ -28,7 +29,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
       cronogramaEnamed: true, // B2C só tem acesso ao cronograma dos últimos 30 dias
       dashboard: false,
       SimuladoDesempenho: false,
-      userManagement: false
+      userManagement: false,
+      intensivoUSCS: false
     };
   }
 
@@ -41,7 +43,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         cronogramaEnamed: false, // B2B não precisa do cronograma limitado
         dashboard: true,
         SimuladoDesempenho: true,
-        userManagement: true
+        userManagement: true,
+        intensivoUSCS: false
       };
 
       case '954aad2f-4030-4d5d-b27a-19eb8fac05cf':
@@ -51,7 +54,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: false,
-        userManagement: false
+        userManagement: false,
+        intensivoUSCS: true // USCS tem acesso à página exclusiva
       };
 
       case '12cfa7f2-45ba-406f-9e4d-aa719a6b94ca':
@@ -61,7 +65,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: false,
-        userManagement: false
+        userManagement: false,
+        intensivoUSCS: false
       };
 
       case 'e40a0ec1-1150-40e6-b492-8b8e3f8db593':
@@ -71,7 +76,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: false,
-        userManagement: false
+        userManagement: false,
+        intensivoUSCS: false
       };
     
     default:
@@ -82,7 +88,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
         cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: false,
-        userManagement: false
+        userManagement: false,
+        intensivoUSCS: false
       };
   }
 };

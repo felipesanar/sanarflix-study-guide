@@ -28,6 +28,12 @@ const menuItems = [
     accessKey: 'enamed' as const,
   },
   {
+    title: 'Intensivo ENAMED - USCS',
+    url: '/intensivo-uscs',
+    icon: BookOpen,
+    accessKey: 'intensivoUSCS' as const,
+  },
+  {
     title: 'Cronograma ENAMED',
     url: '/cronograma-enamed',
     icon: FileText,
