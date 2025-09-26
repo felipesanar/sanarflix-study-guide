@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, List, CalendarDays, BarChart3, BookOpen, Users, PlayCircle, ExternalLink, GraduationCap, Clock, Target } from 'lucide-react';
+import { CheckCircle2, List, CalendarDays, BarChart3, BookOpen, Users, PlayCircle, ExternalLink, GraduationCap, Clock, Target, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
@@ -593,18 +593,23 @@ const IntensivoEnamedUSCS: React.FC = () => {
                                     className="flex-shrink-0"
                                   />
                                   
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex-1">
-                                        <h4 className={`font-medium text-sm leading-relaxed ${
-                                          isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
-                                        }`}>
-                                          {item.tema_do_dia}
-                                        </h4>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {item.dia}
-                                        </p>
-                                      </div>
+                                   <div className="flex-1 min-w-0">
+                                     <div className="flex items-start justify-between gap-3">
+                                       <div className="flex-1">
+                                         <div className="flex items-center gap-3 mb-2">
+                                           <div className="flex items-center gap-2">
+                                             <Calendar className="h-4 w-4 text-primary" />
+                                             <span className="font-semibold text-base text-foreground">
+                                               {item.dia}
+                                             </span>
+                                           </div>
+                                         </div>
+                                         <h4 className={`font-medium text-sm leading-relaxed ${
+                                           isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
+                                         }`}>
+                                           {item.tema_do_dia}
+                                         </h4>
+                                       </div>
                                       
                                       <div className="flex items-center gap-2 flex-shrink-0">
                                         {isCompleted && (
