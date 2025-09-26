@@ -15,7 +15,7 @@ import { getAccessRules } from '@/utils/accessRules';
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
-import { SimuladoDesempenho } from "./pages/SimuladoDesempenho";
+import SimuladoDesempenho from "./pages/SimuladoDesempenho";
 import UserManagement from "./pages/UserManagement";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
