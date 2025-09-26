@@ -344,13 +344,6 @@ export const CronogramaEnamed: React.FC = () => {
             <HelpCircle className="h-4 w-4" />
             Como usar o cronograma
           </Button>
-          <Button
-            onClick={() => window.open(SANARFLIX_SUBSCRIPTION, '_blank')}
-            className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white shadow-lg"
-          >
-            <CreditCard className="h-4 w-4" />
-            Assinar SanarFlix
-          </Button>
         </div>
 
         {/* Cards de progresso */}
@@ -595,15 +588,6 @@ export const CronogramaEnamed: React.FC = () => {
                                     className="h-9 px-4 font-medium bg-[#800000] hover:bg-[#800000]/90 text-white"
                                   >
                                     Acessar no SanarFlix
-                                  </Button>
-                                  
-                                  {/* Botão "Assinar por 1 mês" - sempre presente */}
-                                  <Button
-                                    size="sm"
-                                    onClick={() => window.open('https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed', '_blank')}
-                                    className="h-9 px-4 font-medium bg-primary hover:bg-primary/90 text-white"
-                                  >
-                                    Assinar por 1 mês
                                   </Button>
                                   
                                   {/* Botão "Assistir aula grátis" - apenas se há link gratuito */}

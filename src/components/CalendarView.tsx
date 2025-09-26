@@ -225,16 +225,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                           Acessar no SanarFlix
                         </Button>
                         
-                        {/* Botão "Assinar por 1 mês" - sempre presente */}
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => window.open('https://sanarflix.com.br/enamed?utm_source=cronograma&utm_campaign=plataforma&utm_content=VIP-enamed', '_blank')}
-                          className="bg-primary hover:bg-primary/90 text-white"
-                        >
-                          Assinar por 1 mês
-                        </Button>
-                        
                         {/* Botão "Assistir aula grátis" - apenas se há link gratuito */}
                         {!!it.link_gratuito && 
                          String(it.link_gratuito).toLowerCase() !== 'nan' && 
