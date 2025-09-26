@@ -63,6 +63,16 @@ export const getAccessRules = (user: User | null): AccessRules => {
         SimuladoDesempenho: false,
         userManagement: false
       };
+
+      case 'e40a0ec1-1150-40e6-b492-8b8e3f8db593':
+      return {
+        studyGuide: false,
+        enamed: false,
+        cronogramaEnamed: false,
+        dashboard: false,
+        SimuladoDesempenho: false,
+        userManagement: false
+      };
     
     default:
       // Outras IES - acesso padrão ao intensivão completo
