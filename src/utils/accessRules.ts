@@ -77,7 +77,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         dashboard: false,
         SimuladoDesempenho: false,
         userManagement: false,
-        intensivoUSCS: false
+        intensivoUSCS: true // USCS tem acesso à página exclusiva
       };
     
     default:
