@@ -5,115 +5,123 @@
 
 @layer base {
 :root {
-    /* Background colors - using neutral light tones */
+    /* Background colors - premium clean design */
     --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
+    --foreground: 220 13% 9%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 220 13% 9%;
 
-    /* Primary palette - reds */
-    --primary: 0 83% 38%; /* #B21212 */
+    /* USCS Brand Colors */
+    --uscs-blue: 214 76% 38%;      /* #1976D2 - USCS institutional blue */
+    --uscs-blue-dark: 214 76% 28%; /* #1565C0 - darker blue */
+    --uscs-blue-light: 214 100% 85%; /* light blue accent */
+    --uscs-orange: 24 100% 57%;    /* #FF8A00 - USCS orange */
+    --uscs-orange-light: 24 100% 85%; /* light orange */
+    --uscs-wine: 0 65% 35%;        /* #8B1538 - wine/burgundy */
+    --uscs-wine-light: 0 65% 85%;  /* light wine */
+
+    /* Primary palette - using USCS wine as primary */
+    --primary: 0 65% 35%;
     --primary-foreground: 0 0% 98%;
-    --primary-dark: 0 83% 24%; /* #7D0C0C */
-    --primary-light: 0 100% 79%; /* #FF9494 */
-    --primary-lighter: 0 100% 93%; /* #FFE8E8 */
-    --primary-lightest: 0 100% 98%; /* #FFF7F7 */
+    --primary-dark: 0 65% 25%;
+    --primary-light: 0 65% 85%;
+    --primary-lighter: 0 65% 92%;
+    --primary-lightest: 0 65% 98%;
 
-    /* Secondary palette - neutrals */
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 210 3% 16%;
+    /* Secondary palette - clean neutrals */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 13% 9%;
 
-    --muted: 210 14% 89%;
-    --muted-foreground: 210 6% 46%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 14% 89%;
-    --accent-foreground: 210 3% 16%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 220 13% 9%;
 
-    --destructive: 0 83% 38%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Neutral borders and inputs */
-    --border: 210 14% 89%;
-    --card-border: 210 14% 89%;
-    --input: 210 14% 89%;
-    --ring: 0 83% 38%;
+    /* Premium borders and inputs */
+    --border: 220 13% 91%;
+    --card-border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 0 65% 35%;
 
     --radius: 0.75rem;
 
-    /* Sidebar tokens */
+    /* Sidebar tokens - keeping dark sidebar */
     --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 83% 38%;
+    --sidebar-primary: 0 65% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 6%;
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 207 89% 68%;
+    --sidebar-ring: 214 76% 38%;
 
-    /* Shared tokens (light defaults) */
-    --progress-track: 210 14% 89%;
-    --progress-indicator: 0 83% 38%;
-    --active-selection: 207 89% 68%;
-    --toggle-list: 207 89% 45%;
+    /* Premium component tokens */
+    --progress-track: 220 14% 91%;
+    --progress-indicator: 0 65% 35%;
+    --active-selection: 214 76% 38%;
+    --toggle-list: 214 76% 45%;
 
-    --scrollbar-track: 0 0% 96%;
-    --scrollbar-thumb: 210 14% 89%;
+    --scrollbar-track: 220 14% 96%;
+    --scrollbar-thumb: 220 14% 89%;
   }
 
 .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 88%;
+    /* Pure black background for fluid experience */
+    --background: 0 0% 0%;
+    --foreground: 220 13% 91%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 88%;
+    --card: 220 13% 4%;
+    --card-foreground: 220 13% 91%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 88%;
+    --popover: 220 13% 4%;
+    --popover-foreground: 220 13% 91%;
 
-    /* Keep brand primary in dark, but tone foreground for readability */
-    --primary: 0 83% 38%;
+    /* Keep USCS brand colors in dark mode */
+    --primary: 0 65% 45%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 88%;
+    --secondary: 220 13% 12%;
+    --secondary-foreground: 220 13% 91%;
 
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 69%;
+    --muted: 220 13% 12%;
+    --muted-foreground: 220 9% 63%;
 
-    --accent: 0 0% 12%;
-    --accent-foreground: 0 0% 88%;
+    --accent: 220 13% 12%;
+    --accent-foreground: 220 13% 91%;
 
-    --destructive: 0 100% 20%;
+    --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 14%;
-    --card-border: 0 83% 24%;
-    --input: 0 0% 14%;
-    --ring: 207 89% 68%;
+    --border: 220 13% 14%;
+    --card-border: 220 13% 14%;
+    --input: 220 13% 14%;
+    --ring: 214 76% 38%;
 
     --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 83% 38%;
+    --sidebar-primary: 0 65% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 6%;
     --sidebar-accent-foreground: 0 0% 90%;
     --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 207 89% 68%;
+    --sidebar-ring: 214 76% 38%;
 
-    /* Dark-specific tokens */
-    --progress-track: 0 0% 17%;           /* #2C2C2C */
-    --progress-indicator: 0 74% 41%;      /* #B71C1C */
-    --active-selection: 207 89% 68%;      /* #64B5F6 */
-    --toggle-list: 0 68% 63%;             /* #E57373 */
+    /* Dark-specific premium tokens */
+    --progress-track: 220 13% 17%;
+    --progress-indicator: 0 65% 45%;
+    --active-selection: 214 76% 38%;
+    --toggle-list: 214 76% 55%;
 
-    --scrollbar-track: 0 0% 8%;
-    --scrollbar-thumb: 0 0% 26%;
-
-    --alert-dark: 0 100% 20%;             /* #660000 */
+    --scrollbar-track: 220 13% 8%;
+    --scrollbar-thumb: 220 13% 26%;
   }
 }
 
@@ -130,29 +138,72 @@
 
 @layer components {
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(0 83% 38%) 0%, hsl(0 83% 45%) 100%);
+    background: linear-gradient(135deg, hsl(0 65% 35%) 0%, hsl(0 65% 45%) 100%);
   }
   
-  .gradient-primary-light {
-    background: linear-gradient(135deg, hsl(0 100% 93%) 0%, hsl(0 100% 96%) 100%);
+  .gradient-uscs-blue {
+    background: linear-gradient(135deg, hsl(214 76% 38%) 0%, hsl(214 76% 48%) 100%);
+  }
+
+  .gradient-uscs-wine {
+    background: linear-gradient(135deg, hsl(0 65% 35%) 0%, hsl(0 65% 45%) 100%);
+  }
+  
+  .gradient-premium {
+    background: linear-gradient(135deg, hsl(0 65% 35%) 0%, hsl(214 76% 38%) 100%);
+  }
+
+  .gradient-card-light {
+    background: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+  }
+
+  .gradient-card-dark {
+    background: linear-gradient(135deg, hsl(220 13% 4%) 0%, hsl(220 13% 6%) 100%);
   }
 
   .gradient-sidebar {
     background: linear-gradient(180deg, hsl(var(--sidebar-background)) 0%, hsl(var(--sidebar-accent)) 100%);
   }
 
-  /* Smooth transitions for all interactive elements */
+  /* Premium animations */
   .transition-smooth {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .transition-colors-smooth {
-    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   }
 
-  /* Card utility for consistent borders/backgrounds */
-  .ui-card {
+  .hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .hover-lift:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Card utility for consistent premium styling */
+  .premium-card {
     border-color: hsl(var(--card-border));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .glass-effect {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }
 

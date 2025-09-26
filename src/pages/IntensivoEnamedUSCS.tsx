@@ -6,13 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { CheckCircle2, List, CalendarDays, BarChart3, BookOpen, Users, PlayCircle, ExternalLink } from 'lucide-react';
+import { CheckCircle2, List, CalendarDays, BarChart3, BookOpen, Users, PlayCircle, ExternalLink, GraduationCap, Clock, Target } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { intensivoUSCSApi, IntensivoUSCSItem } from '@/services/intensivoUSCSApi';
+import uscsLogo from '@/assets/uscs-logo-full-novo.png';
 
 const IntensivoEnamedUSCS: React.FC = () => {
   const { user } = useAuth();
@@ -280,7 +281,7 @@ const IntensivoEnamedUSCS: React.FC = () => {
 
   if (loading || loadingIntensivo) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+      <div className="min-h-screen bg-background dark:bg-background py-8 px-4">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
@@ -294,7 +295,7 @@ const IntensivoEnamedUSCS: React.FC = () => {
   // Se houver erro, mostrar mensagem
   if (intensivoError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+      <div className="min-h-screen bg-background dark:bg-background py-8 px-4">
         <div className="container mx-auto max-w-7xl">
           <div className="text-center">
             <p className="text-lg text-red-600 dark:text-red-400">{intensivoError}</p>
@@ -334,81 +335,132 @@ const IntensivoEnamedUSCS: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-      <div className="container mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-primary/90 to-primary shadow-xl">
-          <div className="absolute inset-0 bg-black/20"></div>
-          <div className="relative p-8 text-white">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div className="mb-4 md:mb-0">
-                <h1 className="text-4xl font-bold mb-2">Intensivo Enamed - USCS</h1>
-                <p className="text-primary-foreground/90 text-lg">
-                  Cronograma exclusivo para alunos da USCS
-                </p>
+    <div className="min-h-screen bg-background dark:bg-background">
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        {/* Premium Header with USCS Branding */}
+        <div className="relative mb-12 overflow-hidden rounded-3xl bg-gradient-premium shadow-2xl">
+          <div className="absolute inset-0 bg-black/10 dark:bg-black/30"></div>
+          <div className="absolute inset-0 backdrop-blur-[2px]"></div>
+          
+          <div className="relative p-8 lg:p-12 text-white">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                {/* USCS Logo */}
+                <div className="flex-shrink-0">
+                  <img 
+                    src={uscsLogo} 
+                    alt="USCS - Universidade de São Caetano do Sul" 
+                    className="h-16 lg:h-20 w-auto filter brightness-0 invert"
+                  />
+                </div>
+                
+                {/* Title and Description */}
+                <div>
+                  <h1 className="text-4xl lg:text-5xl font-display font-bold mb-3 text-center lg:text-left">
+                    Intensivo Enamed
+                  </h1>
+                  <div className="flex items-center gap-2 mb-3 justify-center lg:justify-start">
+                    <GraduationCap className="h-6 w-6 text-uscs-orange" />
+                    <span className="text-xl font-semibold text-white/90">USCS</span>
+                  </div>
+                  <p className="text-white/80 text-lg max-w-2xl text-center lg:text-left leading-relaxed">
+                    Cronograma de estudos exclusivo para alunos da Universidade Municipal de São Caetano do Sul
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Cards de progresso */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">
+        {/* Premium Progress Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          {/* Overall Progress Card */}
+          <Card className="premium-card hover-lift bg-gradient-card-light dark:bg-gradient-card-dark border-0 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/10 dark:bg-primary/20">
+                  <Target className="h-5 w-5 text-primary" />
+                </div>
                 Progresso Geral
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Aulas concluídas</span>
-                  <span className="font-semibold">{progressData.completedItems}/{progressData.totalItems}</span>
+                  <span className="font-bold text-lg">{progressData.completedItems}/{progressData.totalItems}</span>
                 </div>
-                <Progress value={progressData.percentage} className="h-2" />
-                <p className="text-sm text-muted-foreground">
-                  {progressData.percentage}% do cronograma concluído
-                </p>
+                <Progress value={progressData.percentage} className="h-3 rounded-full" />
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {progressData.percentage}% concluído
+                  </p>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    {progressData.percentage}%
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold">
+          {/* Available Weeks Card */}
+          <Card className="premium-card hover-lift bg-gradient-card-light dark:bg-gradient-card-dark border-0 shadow-xl">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-uscs-blue/10 dark:bg-uscs-blue/20">
+                  <Clock className="h-5 w-5 text-uscs-blue" />
+                </div>
                 Semanas Disponíveis
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary mb-1">
+                <div className="text-4xl font-bold text-uscs-blue mb-2">
                   {Object.keys(progressByWeek).length}
                 </div>
-                <p className="text-sm text-muted-foreground">Semanas de estudo</p>
+                <p className="text-sm text-muted-foreground">Semanas de estudo intensivo</p>
+                <div className="mt-4 flex justify-center">
+                  <Badge variant="outline" className="border-uscs-blue/30 text-uscs-blue">
+                    Cronograma Completo
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
-            <CardHeader className="pb-3">
+          {/* Progress by Week Card */}
+          <Card className="premium-card hover-lift bg-gradient-card-light dark:bg-gradient-card-dark border-0 shadow-xl">
+            <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold flex items-center justify-between">
-                Progresso por Semanas
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-uscs-orange/10 dark:bg-uscs-orange/20">
+                    <BarChart3 className="h-5 w-5 text-uscs-orange" />
+                  </div>
+                  Progresso Detalhado
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowDetailedProgress(!showDetailedProgress)}
-                  className="h-8 px-2"
+                  className="h-8 px-3 hover:bg-uscs-orange/10 transition-colors-smooth"
                 >
-                  <BarChart3 className="h-4 w-4 mr-1" />
                   {showDetailedProgress ? 'Ocultar' : 'Ver'}
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">
-                  Clique para ver detalhes por semana
+                <p className="text-sm text-muted-foreground mb-4">
+                  Acompanhe seu progresso por semana
                 </p>
+                <div className="flex justify-center">
+                  <Badge 
+                    variant={showDetailedProgress ? "default" : "outline"} 
+                    className={showDetailedProgress ? "bg-uscs-orange text-white" : "border-uscs-orange/30 text-uscs-orange"}
+                  >
+                    {showDetailedProgress ? 'Exibindo detalhes' : 'Clique para expandir'}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -429,31 +481,31 @@ const IntensivoEnamedUSCS: React.FC = () => {
           </div>
         )}
 
-        {/* Controls */}
-        <Card className="mb-8 bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Premium Controls */}
+        <Card className="mb-10 premium-card bg-gradient-card-light dark:bg-gradient-card-dark border-0 shadow-xl">
+          <CardContent className="p-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               <div className="flex flex-col sm:flex-row gap-4 flex-1">
                 <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-                  <SelectTrigger className="w-full sm:w-64">
+                  <SelectTrigger className="w-full sm:w-80 h-12 rounded-xl border-2 transition-colors-smooth focus:border-primary">
                     <SelectValue placeholder="Selecione a semana" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todas as semanas</SelectItem>
+                    <SelectItem value="all">📚 Todas as semanas</SelectItem>
                     {availableWeeks.map((week) => (
                       <SelectItem key={week} value={week}>
-                        {week}
+                        📅 {week}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button
                   onClick={() => setViewMode('list')}
                   variant={viewMode === 'list' ? 'default' : 'outline'}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 h-12 px-6 rounded-xl transition-smooth hover-lift"
                 >
                   <List className="h-4 w-4" />
                   Lista
@@ -461,7 +513,7 @@ const IntensivoEnamedUSCS: React.FC = () => {
                 <Button
                   onClick={() => setViewMode('calendar')}
                   variant={viewMode === 'calendar' ? 'default' : 'outline'}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 h-12 px-6 rounded-xl transition-smooth hover-lift"
                 >
                   <CalendarDays className="h-4 w-4" />
                   Calendário
@@ -473,18 +525,21 @@ const IntensivoEnamedUSCS: React.FC = () => {
 
         {/* Content Display */}
         {viewMode === 'calendar' ? (
-          <CalendarView 
-            items={filteredItems.map(item => ({
-              semana: item.semana,
-              dia: item.dia,
-              tema: item.tema_do_dia,
-              completed: completedItems.has(item.id),
-              itemKey: item.id,
-              discipline: item.semana,
-              link_aula: item.link_aula || undefined
-            }))}
-            onToggleCompletion={toggleItemCompletion}
-          />
+          <div className="animate-fade-in">
+            <CalendarView 
+              items={filteredItems.map(item => ({
+                semana: item.semana,
+                dia: item.dia,
+                tema: item.tema_do_dia,
+                aula: item.tema_do_dia,
+                completed: completedItems.has(item.id),
+                itemKey: item.id,
+                discipline: 'Medicina',
+                link_aula: item.link_aula
+              }))}
+              onToggleCompletion={toggleItemCompletion}
+            />
+          </div>
         ) : (
           <div className="space-y-6">
             {Object.keys(groupedItems).length === 0 ? (
