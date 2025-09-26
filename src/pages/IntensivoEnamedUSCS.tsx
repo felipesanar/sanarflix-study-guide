@@ -555,27 +555,27 @@ const IntensivoEnamedUSCS: React.FC = () => {
             ) : (
               Object.entries(groupedItems).map(([week, items]) => (
                 <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <BookOpen className="h-5 w-5 text-primary" />
-                      </div>
-                      {week}
-                      <Badge variant="outline" className="ml-auto">
-                        {items.filter(item => completedItems.has(item.id)).length}/{items.length} concluídas
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0 pb-6">
+                  <CardContent className="p-0">
                     <Accordion type="single" collapsible className="w-full">
                       <AccordionItem value={week} className="border-0">
-                        <AccordionTrigger className="px-6 py-2 hover:no-underline">
-                          <span className="text-sm text-muted-foreground">
-                            Ver {items.length} aula{items.length !== 1 ? 's' : ''}
-                          </span>
+                        <AccordionTrigger className="px-0 py-0 hover:no-underline [&[data-state=open]>div]:rounded-b-none">
+                          <div className="w-full p-6 flex items-center gap-3 hover:bg-gray-50/50 dark:hover:bg-gray-700/50 transition-colors rounded-lg cursor-pointer">
+                            <div className="p-2 bg-primary/10 rounded-lg">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 text-left">
+                              <h3 className="font-semibold text-lg">{week}</h3>
+                              <span className="text-sm text-muted-foreground">
+                                Ver {items.length} aula{items.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <Badge variant="outline" className="ml-auto">
+                              {items.filter(item => completedItems.has(item.id)).length}/{items.length} concluídas
+                            </Badge>
+                          </div>
                         </AccordionTrigger>
-                        <AccordionContent className="px-6 pb-0">
-                          <div className="space-y-3">
+                        <AccordionContent className="px-6 pb-6">
+                          <div className="space-y-3 pt-3">
                             {items.map((item) => {
                               const isCompleted = completedItems.has(item.id);
                               return (
@@ -614,13 +614,16 @@ const IntensivoEnamedUSCS: React.FC = () => {
                                         {item.link_aula && (
                                           <Button
                                             size="sm"
-                                            variant="outline"
-                                            onClick={() => window.open(item.link_aula!, '_blank')}
-                                            className="h-8 px-3 text-xs"
+                                            onClick={() => {
+                                              if (item.link_aula && String(item.link_aula).toLowerCase() !== 'nan' && String(item.link_aula).trim() !== '') {
+                                                window.open(String(item.link_aula), '_blank');
+                                              } else {
+                                                window.open('https://sanarflix.com.br/enamed', '_blank');
+                                              }
+                                            }}
+                                            className="bg-[#800000] hover:bg-[#800000]/90 text-white h-8 px-3 text-xs"
                                           >
-                                            <PlayCircle className="h-3 w-3 mr-1" />
-                                            Assistir
-                                            <ExternalLink className="h-3 w-3 ml-1" />
+                                            Acessar no SanarFlix
                                           </Button>
                                         )}
                                       </div>
