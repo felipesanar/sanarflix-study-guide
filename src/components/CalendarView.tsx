@@ -230,10 +230,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                          String(it.link_gratuito).toLowerCase() !== 'nan' && 
                          String(it.link_gratuito).trim() !== '' && (
                           <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
                             onClick={() => window.open(String(it.link_gratuito), '_blank')}
-                            className="bg-white border-[#800000] text-[#800000] hover:bg-[#800000]/10"
+                            className="bg-[#800000] hover:bg-[#800000]/90 text-white"
                           >
                             Assistir aula grátis
                           </Button>
