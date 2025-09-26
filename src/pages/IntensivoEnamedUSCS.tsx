@@ -342,7 +342,7 @@ const IntensivoEnamedUSCS: React.FC = () => {
           <div className="absolute inset-0 bg-black/10 dark:bg-black/30"></div>
           <div className="absolute inset-0 backdrop-blur-[2px]"></div>
           
-          <div className="relative p-8 lg:p-12 text-white">
+          <div className="relative p-8 lg:p-12">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
               <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                 {/* USCS Logo */}
@@ -350,20 +350,20 @@ const IntensivoEnamedUSCS: React.FC = () => {
                   <img 
                     src={uscsLogo} 
                     alt="USCS - Universidade de São Caetano do Sul" 
-                    className="h-16 lg:h-20 w-auto filter brightness-0 invert"
+                    className="h-16 lg:h-20 w-auto filter brightness-0 dark:brightness-0 dark:invert"
                   />
                 </div>
                 
                 {/* Title and Description */}
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-display font-bold mb-3 text-center lg:text-left">
+                  <h1 className="text-4xl lg:text-5xl font-display font-bold mb-3 text-center lg:text-left text-black dark:text-white">
                     Intensivo Enamed
                   </h1>
                   <div className="flex items-center gap-2 mb-3 justify-center lg:justify-start">
                     <GraduationCap className="h-6 w-6 text-uscs-orange" />
-                    <span className="text-xl font-semibold text-white/90">USCS</span>
+                    <span className="text-xl font-semibold text-black dark:text-white/90">USCS</span>
                   </div>
-                  <p className="text-white/80 text-lg max-w-2xl text-center lg:text-left leading-relaxed">
+                  <p className="text-black/70 dark:text-white/80 text-lg max-w-2xl text-center lg:text-left leading-relaxed">
                     Cronograma de estudos exclusivo para alunos da Universidade Municipal de São Caetano do Sul
                   </p>
                 </div>
