@@ -11,9 +11,8 @@ export interface IntensivoUSCSItem {
 export const intensivoUSCSApi = {
   async getAllContent(): Promise<IntensivoUSCSItem[]> {
     try {
-      // Usar a função nativa do Supabase para evitar problemas de tipagem
       const { data, error } = await supabase
-        .from('intensivouscs' as any)
+        .from('intensivouscs')
         .select('*')
         .order('id');
 

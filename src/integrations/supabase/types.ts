@@ -51,6 +51,13 @@ export type Database = {
             referencedRelation: "questions_enamed"
             referencedColumns: ["ID"]
           },
+          {
+            foreignKeyName: "answer_progress_enamed_simulado_fkey"
+            columns: ["simulado"]
+            isOneToOne: false
+            referencedRelation: "Simulados"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conteudos: {
@@ -97,12 +104,35 @@ export type Database = {
         }
         Relationships: []
       }
+      intensivouscs: {
+        Row: {
+          dia: string
+          id: number
+          link_aula: string | null
+          semana: string
+          tema_do_dia: string
+        }
+        Insert: {
+          dia: string
+          id?: number
+          link_aula?: string | null
+          semana: string
+          tema_do_dia: string
+        }
+        Update: {
+          dia?: string
+          id?: number
+          link_aula?: string | null
+          semana?: string
+          tema_do_dia?: string
+        }
+        Relationships: []
+      }
       questions_enamed: {
         Row: {
           Especialidade: string | null
           ID: string
           "NÍVEL DE DIFICULDADE": string | null
-          Simulado: number | null
           "Subespecialidade / Assunto Principal": string | null
           "Tem Imagem": string | null
           "Tema (Grande Área)": string | null
@@ -111,7 +141,6 @@ export type Database = {
           Especialidade?: string | null
           ID: string
           "NÍVEL DE DIFICULDADE"?: string | null
-          Simulado?: number | null
           "Subespecialidade / Assunto Principal"?: string | null
           "Tem Imagem"?: string | null
           "Tema (Grande Área)"?: string | null
@@ -120,7 +149,6 @@ export type Database = {
           Especialidade?: string | null
           ID?: string
           "NÍVEL DE DIFICULDADE"?: string | null
-          Simulado?: number | null
           "Subespecialidade / Assunto Principal"?: string | null
           "Tem Imagem"?: string | null
           "Tema (Grande Área)"?: string | null
@@ -170,6 +198,21 @@ export type Database = {
             referencedColumns: ["ID"]
           },
         ]
+      }
+      Simulados: {
+        Row: {
+          id: number
+          Simulado: string
+        }
+        Insert: {
+          id?: number
+          Simulado: string
+        }
+        Update: {
+          id?: number
+          Simulado?: string
+        }
+        Relationships: []
       }
       study_progress: {
         Row: {
@@ -311,6 +354,26 @@ export type Database = {
       }
     }
     Functions: {
+      get_all_user_performance_by_area: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          acertos: number
+          area_name: string
+          simulado_id: number
+          simulado_nome: string
+          total: number
+        }[]
+      }
+      get_all_user_performance_by_specialty: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          acertos: number
+          simulado_id: number
+          simulado_nome: string
+          specialty_name: string
+          total: number
+        }[]
+      }
       get_conteudos_for_user: {
         Args: { user_id_ies: string; user_semestre: number }
         Returns: {
@@ -330,8 +393,24 @@ export type Database = {
         Returns: number
       }
       get_question_by_subspecialty: {
-        Args: { sub_name: string }
+        Args:
+          | { p_simulado_id?: number; sub_name: string }
+          | { sub_name: string }
         Returns: Database["public"]["CompositeTypes"]["question_details_type"]
+      }
+      get_questions_by_subspecialty: {
+        Args: { p_simulado_id: number; sub_name: string }
+        Returns: {
+          a: string
+          b: string
+          c: string
+          comentario: string
+          d: string
+          enunciado: string
+          gabarito: string
+          id: string
+          imagem: string
+        }[]
       }
       get_simulado_performance: {
         Args: Record<PropertyKey, never>
@@ -346,7 +425,7 @@ export type Database = {
         Returns: string
       }
       get_user_performance_aggregates: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { p_simulado_id?: number }
         Returns: Json
       }
       get_user_ranking_in_ies: {
@@ -357,8 +436,15 @@ export type Database = {
         }[]
       }
       get_user_rankings: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { p_simulado_id: number }
         Returns: Json
+      }
+      get_user_simulados: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: number
+          nome: string
+        }[]
       }
     }
     Enums: {
