@@ -90,8 +90,9 @@ Deno.serve(async (req) => {
     if (createErr) {
       // If user exists, update password and metadata
       // Try to find by email
-      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1, email });
-      if (listErr || !list?.users?.length) {
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existingUser = list?.users?.find(u => u.email === email);
+      if (listErr || !existingUser) {
         return new Response(
           JSON.stringify({ error: createErr.message || "Falha ao criar usuário" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -138,8 +139,9 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : "Erro inesperado";
     return new Response(
-      JSON.stringify({ error: e?.message || "Erro inesperado" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

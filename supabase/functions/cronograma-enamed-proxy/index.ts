@@ -46,12 +46,13 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error in cronograma-enamed-proxy:', error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error('Error in cronograma-enamed-proxy:', errorMessage);
     
     return new Response(
       JSON.stringify({ 
         error: 'Failed to fetch cronograma data',
-        message: error.message 
+        message: errorMessage 
       }),
       {
         status: 500,

@@ -45,7 +45,8 @@ async function inserirOuAtualizarPerfisDoCSV() {
     console.log("\n🎉 Processo concluído!");
 
   } catch (error) {
-    console.error("❌ Erro fatal ao processar o CSV ou inserir dados:", error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error("❌ Erro fatal ao processar o CSV ou inserir dados:", errorMessage);
     Deno.exit(1);
   }
 }

@@ -9,12 +9,12 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:8080',
 ]);
 
-export const isAllowedOrigin = (origin?: string): boolean => {
+export const isAllowedOrigin = (origin?: string | null): boolean => {
   if (!origin) return false;
   return ALLOWED_ORIGINS.has(origin) || origin.endsWith('.app.github.dev');
 };
 
-export const buildCorsHeaders = (origin?: string): Record<string, string> | null => {
+export const buildCorsHeaders = (origin?: string | null): Record<string, string> | null => {
   if (!isAllowedOrigin(origin)) return null;
   
   return {

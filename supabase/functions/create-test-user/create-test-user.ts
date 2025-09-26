@@ -55,7 +55,8 @@ async function criarUsuariosDoCSV() {
         console.log(`- ID: ${data.user.id}`);
         
       } catch (error) {
-        console.error(`❌ Falha ao criar ${usuario.email}:`, error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.error(`❌ Falha ao criar ${usuario.email}:`, errorMessage);
         continue; // Continua mesmo se um usuário falhar
       }
     }
@@ -75,7 +76,8 @@ async function criarUsuariosDoCSV() {
     console.log("\n🎉 Processo concluído! Verifique o painel do Supabase.");
 
   } catch (error) {
-    console.error("❌ Erro ao processar o CSV:", error.message);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error("❌ Erro ao processar o CSV:", errorMessage);
     Deno.exit(1);
   }
 }

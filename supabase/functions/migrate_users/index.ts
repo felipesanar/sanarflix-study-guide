@@ -71,6 +71,10 @@ try {
         // Se for outro erro de criação, lança para o catch principal
         throw createError;
       }
+
+      if (!newAuthUser) {
+        throw new Error('Failed to create user in auth');
+      }
       
       console.log(`✅ Usuário criado no auth com ID: ${newAuthUser.id}`);
 
@@ -97,10 +101,11 @@ try {
 
     } catch (e) {
       // O catch agora pega erros tanto da criação quanto do vínculo.
-      console.error(`❌ Erro inesperado ao processar ${user.email}: ${e.message}`);
+      const errorMessage = e instanceof Error ? e.message : 'Erro desconhecido';
+      console.error(`❌ Erro inesperado ao processar ${user.email}: ${errorMessage}`);
       errorDetails.push({
         email: user.email,
-        error: e.message
+        error: errorMessage
       });
     }
   }

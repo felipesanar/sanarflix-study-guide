@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 // SECURITY: Flexible CORS configuration with origin validation for known environments
-const isAllowedOrigin = (origin?: string): boolean => {
+const isAllowedOrigin = (origin?: string | null): boolean => {
   if (!origin) return false;
   return (
     origin.startsWith('http://localhost') ||
@@ -15,7 +15,7 @@ const isAllowedOrigin = (origin?: string): boolean => {
   );
 };
 
-const buildCorsHeaders = (origin?: string): Record<string, string> | null => {
+const buildCorsHeaders = (origin?: string | null): Record<string, string> | null => {
   if (!isAllowedOrigin(origin)) {
     return null; // Reject unknown origins
   }
