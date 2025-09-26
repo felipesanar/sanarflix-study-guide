@@ -1,16 +1,68 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Construction, Clock, BookOpen, Users, Target } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
+import { CheckCircle2, List, CalendarDays, BarChart3, BookOpen, Users, PlayCircle, ExternalLink } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { ProgressAreaCard } from '@/components/ProgressAreaCard';
+import { CalendarView } from '@/components/CalendarView';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { intensivoUSCSApi, IntensivoUSCSItem } from '@/services/intensivoUSCSApi';
 
 const IntensivoEnamedUSCS: React.FC = () => {
   const { user } = useAuth();
   const [userIes, setUserIes] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const [selectedWeek, setSelectedWeek] = useState<string>('all');
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [showDetailedProgress, setShowDetailedProgress] = useState(false);
+
+  // Estado para conteúdo do intensivo
+  const [intensivoItems, setIntensivoItems] = useState<IntensivoUSCSItem[]>([]);
+  const [loadingIntensivo, setLoadingIntensivo] = useState<boolean>(true);
+  const [intensivoError, setIntensivoError] = useState<string | null>(null);
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const savedViewMode = localStorage.getItem('intensivo-uscs-view-mode') as 'list' | 'calendar';
+    if (savedViewMode) {
+      setViewMode(savedViewMode);
+    } else {
+      setViewMode('list');
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  const toggleViewMode = () => {
+    const newMode = viewMode === 'list' ? 'calendar' : 'list';
+    setViewMode(newMode);
+    localStorage.setItem('intensivo-uscs-view-mode', newMode);
+  };
+
+  // Buscar conteúdo do intensivo
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        setLoadingIntensivo(true);
+        setIntensivoError(null);
+        const items = await intensivoUSCSApi.getAllContent();
+        if (active) setIntensivoItems(items);
+      } catch (e) {
+        if (active) setIntensivoError('Falha ao carregar o conteúdo. Tente novamente mais tarde.');
+      } finally {
+        if (active) setLoadingIntensivo(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -49,12 +101,207 @@ const IntensivoEnamedUSCS: React.FC = () => {
     checkAccess();
   }, [user]);
 
-  if (loading) {
+  // Carregar progresso do usuário do banco de dados
+  const loadIntensivoProgress = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { data: progressData, error } = await supabase
+        .from('user_progress')
+        .select('content_id')
+        .eq('user_id', authUser.id)
+        .like('content_id', 'intensivo_uscs_%');
+
+      if (error) {
+        return;
+      }
+
+      if (progressData && progressData.length > 0) {
+        const completedIds = progressData
+          .map(item => item.content_id.replace('intensivo_uscs_', ''))
+          .filter(id => id);
+        setCompletedItems(new Set(completedIds));
+      }
+    } catch (error) {
+      // Error loading progress
+    }
+  }, [user]);
+
+  // Carregar progresso quando o usuário estiver disponível
+  useEffect(() => {
+    if (user) {
+      loadIntensivoProgress();
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        loadIntensivoProgress();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [user, loadIntensivoProgress]);
+
+  // Marcar/desmarcar item como concluído
+  const toggleItemCompletion = useCallback(async (itemId: string) => {
+    const isCompleting = !completedItems.has(itemId);
+
+    // Atualização otimista da UI
+    setCompletedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+
+    // Sincronizar com o banco de dados
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
+        return;
+      }
+
+      const contentId = `intensivo_uscs_${itemId}`;
+
+      if (isCompleting) {
+        const { data: existing, error: checkError } = await supabase
+          .from('user_progress')
+          .select('id')
+          .eq('user_id', authUser.id)
+          .eq('content_id', contentId)
+          .maybeSingle();
+
+        if (checkError) {
+          toast.error('Erro ao salvar progresso. Tente novamente.');
+          setCompletedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(itemId);
+            return newSet;
+          });
+          return;
+        }
+
+        if (!existing) {
+          const { error: insertError } = await supabase
+            .from('user_progress')
+            .insert({ 
+              user_id: authUser.id, 
+              content_id: contentId 
+            });
+          
+          if (insertError) {
+            toast.error('Erro ao salvar progresso. Tente novamente.');
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              return newSet;
+            });
+            return;
+          }
+        }
+      } else {
+        const { error } = await supabase
+          .from('user_progress')
+          .delete()
+          .eq('user_id', authUser.id)
+          .eq('content_id', contentId);
+        
+        if (error) {
+          toast.error('Erro ao remover progresso. Tente novamente.');
+          setCompletedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.add(itemId);
+            return newSet;
+          });
+          return;
+        }
+      }
+
+      toast.success(isCompleting ? 'Aula marcada como concluída! 🎉' : 'Aula desmarcada');
+    } catch (error) {
+      toast.error('Erro ao sincronizar progresso. Verifique sua conexão.');
+    }
+  }, [completedItems]);
+
+  // Calcular dados de progresso
+  const progressData = useMemo(() => {
+    const totalItems = intensivoItems.length;
+    const completedCount = intensivoItems.filter(item => completedItems.has(item.id)).length;
+    const percentage = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+    return { totalItems, completedItems: completedCount, percentage };
+  }, [completedItems, intensivoItems]);
+
+  // Calcular progresso por semana
+  const progressByWeek = useMemo(() => {
+    const weekStats: Record<string, { total: number; completed: number }> = {};
+    intensivoItems.forEach(item => {
+      const week = item.semana || 'Outros';
+      if (!weekStats[week]) {
+        weekStats[week] = { total: 0, completed: 0 };
+      }
+      weekStats[week].total++;
+      if (completedItems.has(item.id)) {
+        weekStats[week].completed++;
+      }
+    });
+    return weekStats;
+  }, [completedItems, intensivoItems]);
+
+  // Lista de semanas disponíveis
+  const availableWeeks = useMemo(() => {
+    const weeks = new Set<string>();
+    intensivoItems.forEach(item => weeks.add(item.semana || 'Outros'));
+    return Array.from(weeks).sort();
+  }, [intensivoItems]);
+
+  // Filtrar aulas por semana selecionada
+  const filteredItems = useMemo(() => {
+    return intensivoItems.filter(item => {
+      const weekMatch = selectedWeek === 'all' || (item.semana || 'Outros') === selectedWeek;
+      return weekMatch;
+    });
+  }, [intensivoItems, selectedWeek]);
+
+  // Agrupar itens por semana para exibição
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, IntensivoUSCSItem[]> = {};
+    filteredItems.forEach(item => {
+      const week = item.semana || 'Outros';
+      if (!groups[week]) groups[week] = [];
+      groups[week].push(item);
+    });
+    return groups;
+  }, [filteredItems]);
+
+  if (loading || loadingIntensivo) {
     return (
-      <div className="p-6 flex justify-center items-center min-h-[400px]">
-        <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          <span className="text-muted-foreground">Verificando acesso...</span>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+        <div className="container mx-auto max-w-7xl">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
+            <p className="text-lg text-muted-foreground mt-4">Carregando conteúdo...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Se houver erro, mostrar mensagem
+  if (intensivoError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+        <div className="container mx-auto max-w-7xl">
+          <div className="text-center">
+            <p className="text-lg text-red-600 dark:text-red-400">{intensivoError}</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              Tentar novamente
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -87,159 +334,257 @@ const IntensivoEnamedUSCS: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex justify-center">
-          <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-full">
-            <BookOpen className="h-12 w-12 text-primary" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
+      <div className="container mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-primary/90 to-primary shadow-xl">
+          <div className="absolute inset-0 bg-black/20"></div>
+          <div className="relative p-8 text-white">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div className="mb-4 md:mb-0">
+                <h1 className="text-4xl font-bold mb-2">Intensivo Enamed - USCS</h1>
+                <p className="text-primary-foreground/90 text-lg">
+                  Cronograma exclusivo para alunos da USCS
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-        <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            Intensivo Enamed - USCS
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Programa exclusivo para alunos da Universidade Municipal de São Caetano do Sul
-          </p>
+
+        {/* Cards de progresso */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">
+                Progresso Geral
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Aulas concluídas</span>
+                  <span className="font-semibold">{progressData.completedItems}/{progressData.totalItems}</span>
+                </div>
+                <Progress value={progressData.percentage} className="h-2" />
+                <p className="text-sm text-muted-foreground">
+                  {progressData.percentage}% do cronograma concluído
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold">
+                Semanas Disponíveis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary mb-1">
+                  {Object.keys(progressByWeek).length}
+                </div>
+                <p className="text-sm text-muted-foreground">Semanas de estudo</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold flex items-center justify-between">
+                Progresso por Semanas
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetailedProgress(!showDetailedProgress)}
+                  className="h-8 px-2"
+                >
+                  <BarChart3 className="h-4 w-4 mr-1" />
+                  {showDetailedProgress ? 'Ocultar' : 'Ver'}
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  Clique para ver detalhes por semana
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Progress by week - only show when toggle is active */}
+        {showDetailedProgress && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+            {Object.entries(progressByWeek).map(([week, stats]) => (
+              <ProgressAreaCard
+                key={week}
+                title={week}
+                current={stats.completed}
+                total={stats.total}
+                percentage={Math.round((stats.completed / stats.total) * 100)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Controls */}
+        <Card className="mb-8 bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder="Selecione a semana" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as semanas</SelectItem>
+                    {availableWeeks.map((week) => (
+                      <SelectItem key={week} value={week}>
+                        {week}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setViewMode('list')}
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </Button>
+                <Button
+                  onClick={() => setViewMode('calendar')}
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  className="flex items-center gap-2"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  Calendário
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Content Display */}
+        {viewMode === 'calendar' ? (
+          <CalendarView 
+            items={filteredItems.map(item => ({
+              semana: item.semana,
+              dia: item.dia,
+              tema: item.tema_do_dia,
+              completed: completedItems.has(item.id),
+              itemKey: item.id,
+              discipline: item.semana,
+              link_aula: item.link_aula || undefined
+            }))}
+            onToggleCompletion={toggleItemCompletion}
+          />
+        ) : (
+          <div className="space-y-6">
+            {Object.keys(groupedItems).length === 0 ? (
+              <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
+                <CardContent className="text-center py-12">
+                  <BookOpen className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Nenhum conteúdo encontrado</h3>
+                  <p className="text-muted-foreground">
+                    Não há aulas disponíveis para os filtros selecionados.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              Object.entries(groupedItems).map(([week, items]) => (
+                <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      {week}
+                      <Badge variant="outline" className="ml-auto">
+                        {items.filter(item => completedItems.has(item.id)).length}/{items.length} concluídas
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 pb-6">
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value={week} className="border-0">
+                        <AccordionTrigger className="px-6 py-2 hover:no-underline">
+                          <span className="text-sm text-muted-foreground">
+                            Ver {items.length} aula{items.length !== 1 ? 's' : ''}
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-6 pb-0">
+                          <div className="space-y-3">
+                            {items.map((item) => {
+                              const isCompleted = completedItems.has(item.id);
+                              return (
+                                <div 
+                                  key={item.id}
+                                  className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${
+                                    isCompleted 
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' 
+                                      : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 hover:border-primary/30'
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={isCompleted}
+                                    onCheckedChange={() => toggleItemCompletion(item.id)}
+                                    className="flex-shrink-0"
+                                  />
+                                  
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex-1">
+                                        <h4 className={`font-medium text-sm leading-relaxed ${
+                                          isCompleted ? 'line-through text-muted-foreground' : 'text-foreground'
+                                        }`}>
+                                          {item.tema_do_dia}
+                                        </h4>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {item.dia}
+                                        </p>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                        {isCompleted && (
+                                          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                        )}
+                                        
+                                        {item.link_aula && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => window.open(item.link_aula!, '_blank')}
+                                            className="h-8 px-3 text-xs"
+                                          >
+                                            <PlayCircle className="h-3 w-3 mr-1" />
+                                            Assistir
+                                            <ExternalLink className="h-3 w-3 ml-1" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
       </div>
-
-      {/* Status de Produção */}
-      <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-        <Construction className="h-5 w-5 text-amber-600" />
-        <AlertDescription className="text-amber-800 dark:text-amber-200">
-          <div className="flex items-center gap-2">
-            <strong>🚧 Em Produção</strong>
-            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-              <Clock className="h-3 w-3 mr-1" />
-              Em desenvolvimento
-            </Badge>
-          </div>
-          <p className="mt-2">
-            Estamos trabalhando para trazer o melhor conteúdo preparatório para o ENAMED. 
-            Em breve, você terá acesso a materiais exclusivos, simulados personalizados e muito mais!
-          </p>
-        </AlertDescription>
-      </Alert>
-
-      {/* Cards de Preview das Funcionalidades */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent"></div>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <CardTitle className="text-lg">Simulados Personalizados</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">
-              Simulados adaptados ao currículo da USCS com questões específicas 
-              para o perfil dos alunos da instituição.
-            </p>
-            <Badge variant="outline" className="mt-3">Em breve</Badge>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent"></div>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <BookOpen className="h-5 w-5 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-lg">Material Exclusivo</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">
-              Conteúdo preparatório desenvolvido em parceria com professores 
-              da USCS, focado nas áreas de maior relevância.
-            </p>
-            <Badge variant="outline" className="mt-3">Em breve</Badge>
-          </CardContent>
-        </Card>
-
-        <Card className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent"></div>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Users className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <CardTitle className="text-lg">Acompanhamento Personalizado</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-sm">
-              Sistema de mentoria e acompanhamento do progresso individual 
-              com feedback específico para cada aluno.
-            </p>
-            <Badge variant="outline" className="mt-3">Em breve</Badge>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Informações Institucionais */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <BookOpen className="h-5 w-5 text-primary" />
-            </div>
-            Sobre o Programa USCS
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground leading-relaxed">
-            O <strong>Intensivo Enamed - USCS</strong> é um programa preparatório exclusivo 
-            desenvolvido especificamente para os alunos de Medicina da Universidade Municipal 
-            de São Caetano do Sul.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">🎯 Objetivos</h3>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Preparação direcionada para o ENAMED</li>
-                <li>Conteúdo alinhado ao currículo da USCS</li>
-                <li>Acompanhamento individualizado</li>
-                <li>Simulados com perfil institucional</li>
-              </ul>
-            </div>
-            
-            <div className="space-y-3">
-              <h3 className="font-semibold text-foreground">📚 Metodologia</h3>
-              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Questões baseadas em casos clínicos</li>
-                <li>Material desenvolvido pelos professores</li>
-                <li>Análise de desempenho comparativo</li>
-                <li>Cronograma adaptado ao semestre</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Call to Action */}
-      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-        <CardContent className="text-center p-8">
-          <h3 className="text-xl font-semibold mb-4">Fique por dentro das novidades!</h3>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Estamos trabalhando arduamente para disponibilizar este conteúdo exclusivo. 
-            Acompanhe as atualizações e seja o primeiro a saber quando o programa estiver disponível.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Badge variant="secondary" className="text-sm py-2 px-4">
-              <Clock className="h-4 w-4 mr-2" />
-              Lançamento previsto: Em breve
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
