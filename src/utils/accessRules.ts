@@ -55,7 +55,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         dashboard: false,
         SimuladoDesempenho: false,
         userManagement: false,
-        intensivoUSCS: true // USCS tem acesso à página exclusiva
+        intensivoUSCS: false // USCS tem acesso à página exclusiva
       };
 
       case '12cfa7f2-45ba-406f-9e4d-aa719a6b94ca':
