@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { Clock, Users, MousePointer, TrendingUp, Activity, Zap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { AnalyticsFilters } from '@/pages/Analytics';
 
 interface EngagementTabProps {
@@ -36,13 +37,12 @@ const accessData = [
   { name: 'Outros', value: 5, color: '#6B7280' }
 ];
 
-const userData = [
-  { user: 'Usuário #2847', clicks: 45, session: '25min', status: 'Ativo' },
-  { user: 'Usuário #1923', clicks: 38, session: '18min', status: 'Moderado' },
-  { user: 'Usuário #5671', clicks: 52, session: '32min', status: 'Alto' },
-  { user: 'Usuário #8934', clicks: 12, session: '8min', status: 'Baixo' },
-  { user: 'Usuário #4576', clicks: 41, session: '22min', status: 'Ativo' }
-];
+interface UserActivityData {
+  user: string;
+  clicks: number;
+  session: string;
+  status: string;
+}
 
 // Heatmap data - hours vs days
 const heatmapData = Array.from({ length: 24 }, (_, hour) => 
@@ -62,6 +62,42 @@ const getHeatmapColor = (value: number) => {
 };
 
 export const EngagementTab: React.FC<EngagementTabProps> = ({ filters }) => {
+  const [userData, setUserData] = useState<UserActivityData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('nome, email')
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching users:', error);
+          return;
+        }
+
+        // Mock activity data with real names
+        const mockActivityData: UserActivityData[] = users?.map((user, index) => ({
+          user: user.nome,
+          clicks: Math.floor(Math.random() * 40) + 15, // Random clicks between 15-55
+          session: `${Math.floor(Math.random() * 25) + 8}min`, // Random session time between 8-33min
+          status: ['Alto', 'Ativo', 'Moderado', 'Baixo'][Math.floor(Math.random() * 4)]
+        })) || [];
+
+        setUserData(mockActivityData);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [filters]);
+
   return (
     <div className="space-y-6">
       {/* Metrics Cards */}
@@ -247,22 +283,32 @@ export const EngagementTab: React.FC<EngagementTabProps> = ({ filters }) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {userData.map((user, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{user.user}</TableCell>
-                  <TableCell>{user.clicks}</TableCell>
-                  <TableCell>{user.session}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={user.status === 'Alto' ? 'default' : 
-                               user.status === 'Ativo' ? 'secondary' : 
-                               user.status === 'Moderado' ? 'outline' : 'destructive'}
-                    >
-                      {user.status}
-                    </Badge>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">Carregando dados dos usuários...</TableCell>
                 </TableRow>
-              ))}
+              ) : userData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center">Nenhum dado disponível</TableCell>
+                </TableRow>
+              ) : (
+                userData.map((user, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{user.user}</TableCell>
+                    <TableCell>{user.clicks}</TableCell>
+                    <TableCell>{user.session}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={user.status === 'Alto' ? 'default' : 
+                                 user.status === 'Ativo' ? 'secondary' : 
+                                 user.status === 'Moderado' ? 'outline' : 'destructive'}
+                      >
+                        {user.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
