@@ -23,6 +23,7 @@ import { SignupB2C } from "./pages/SignupB2C";
 import { CronogramaEnamed } from "./pages/CronogramaEnamed";
 import { ThemeProvider } from "next-themes";
 import IntensivoEnamedUSCS from "./pages/IntensivoEnamedUSCS";
+import Analytics from "./pages/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -165,6 +166,17 @@ const AppContent = () => {
                 <Layout>
                   <IntensivoEnamedUSCS />
                 </Layout>
+              </ProtectedRoute>
+            }
+          />
+        )}
+
+        {(accessRules.userManagement || accessRules.dashboard) && (
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />
