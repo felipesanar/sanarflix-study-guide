@@ -11,7 +11,7 @@ import { AuthCallback } from '@/components/AuthCallback';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { AuthWrapper } from '@/components/AuthWrapper';
-import { getAccessRules } from '@/utils/accessRules';
+import { getAccessRules, isB2BUser } from '@/utils/accessRules';
 import { StudyGuide } from "./pages/StudyGuide";
 import { Dashboard } from "./pages/Dashboard";
 import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
@@ -171,7 +171,7 @@ const AppContent = () => {
           />
         )}
 
-        {accessRules.userManagement && (
+        {isB2BUser(user) && (
           <Route
             path="/analytics"
             element={
