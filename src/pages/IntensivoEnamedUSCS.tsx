@@ -593,8 +593,8 @@ const IntensivoEnamedUSCS: React.FC = () => {
                                     className="flex-shrink-0"
                                   />
                                   
-                                   <div className="flex-1 min-w-0">
-                                     <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                     <div className="flex items-center justify-between gap-3">
                                        <div className="flex-1">
                                          <div className="flex items-center gap-3 mb-2">
                                            <div className="flex items-center gap-2">
@@ -610,8 +610,8 @@ const IntensivoEnamedUSCS: React.FC = () => {
                                            {item.tema_do_dia}
                                          </h4>
                                        </div>
-                                      
-                                      <div className="flex items-center gap-2 flex-shrink-0">
+                                       
+                                       <div className="flex items-center gap-2 flex-shrink-0">
                                         {isCompleted && (
                                           <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                                         )}
