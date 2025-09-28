@@ -420,30 +420,32 @@ const IntensivoEnamedUSCS: React.FC = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">Semanas de estudo intensivo</p>
                 
-                {/* Progress by Week */}
-                <div className="space-y-2">
-                  {Object.entries(progressByWeek).map(([week, stats]) => {
-                    const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-                    const isCompleted = percentage === 100;
-                    
-                    return (
-                      <div key={week} className="flex items-center justify-between text-xs">
-                        <span className="font-medium text-foreground/80">{week}</span>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${isCompleted ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-                            {stats.completed}/{stats.total}
-                          </span>
-                          {isCompleted && <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                <div className="mt-4 flex justify-center">
-                  <Badge variant="outline" className="border-uscs-blue/30 text-uscs-blue">
-                    {Object.values(progressByWeek).filter(stats => stats.completed === stats.total).length} de {Object.keys(progressByWeek).length} semanas concluídas
-                  </Badge>
+                {/* Weekly Progress Bar */}
+                <div className="space-y-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Semanas concluídas</span>
+                    <span className="font-bold text-lg">
+                      {Object.values(progressByWeek).filter(stats => stats.completed === stats.total && stats.total > 0).length}/{Object.keys(progressByWeek).length}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={Object.keys(progressByWeek).length > 0 ? 
+                      (Object.values(progressByWeek).filter(stats => stats.completed === stats.total && stats.total > 0).length / Object.keys(progressByWeek).length) * 100 : 0
+                    } 
+                    className="h-3 rounded-full" 
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {Object.keys(progressByWeek).length > 0 ? 
+                        Math.round((Object.values(progressByWeek).filter(stats => stats.completed === stats.total && stats.total > 0).length / Object.keys(progressByWeek).length) * 100) : 0
+                      }% das semanas concluídas
+                    </p>
+                    <Badge variant="secondary" className="bg-uscs-blue/10 text-uscs-blue border-uscs-blue/20">
+                      {Object.keys(progressByWeek).length > 0 ? 
+                        Math.round((Object.values(progressByWeek).filter(stats => stats.completed === stats.total && stats.total > 0).length / Object.keys(progressByWeek).length) * 100) : 0
+                      }%
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </CardContent>
