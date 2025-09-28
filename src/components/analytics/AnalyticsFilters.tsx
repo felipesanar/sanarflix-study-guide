@@ -17,7 +17,7 @@ interface AnalyticsFiltersProps {
 }
 
 const courses = [
-  { value: '', label: 'Todos os cursos' },
+  { value: 'all', label: 'Todos os cursos' },
   { value: 'medicina', label: 'Medicina' },
   { value: 'enfermagem', label: 'Enfermagem' },
   { value: 'farmacia', label: 'Farmácia' },
@@ -26,7 +26,7 @@ const courses = [
 ];
 
 const universities = [
-  { value: '', label: 'Todas as universidades' },
+  { value: 'all', label: 'Todas as universidades' },
   { value: 'usp', label: 'USP' },
   { value: 'unifesp', label: 'UNIFESP' },
   { value: 'unicamp', label: 'UNICAMP' },
