@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { BookOpen, TrendingUp, Clock, Award, AlertTriangle, Target, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { AnalyticsFilters } from '@/pages/Analytics';
 
@@ -37,13 +38,13 @@ const markingRateData = [
   { type: 'Revisões', rate: 55 }
 ];
 
-const gapAnalysisData = [
-  { user: 'Usuário #2847', expected: 25, marked: 18, gap: 7, status: 'Crítico' },
-  { user: 'Usuário #1923', expected: 20, marked: 16, gap: 4, status: 'Moderado' },
-  { user: 'Usuário #5671', expected: 30, marked: 29, gap: 1, status: 'Bom' },
-  { user: 'Usuário #8934', expected: 15, marked: 8, gap: 7, status: 'Crítico' },
-  { user: 'Usuário #4576', expected: 22, marked: 20, gap: 2, status: 'Bom' }
-];
+interface GapAnalysisData {
+  user: string;
+  expected: number;
+  marked: number;
+  gap: number;
+  status: string;
+}
 
 // Heatmap for curriculum items
 const curriculumHeatmap = [
@@ -61,6 +62,49 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({ filters }) => {
   const [showAwardModal, setShowAwardModal] = useState(false);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState('');
+  const [gapAnalysisData, setGapAnalysisData] = useState<GapAnalysisData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGapAnalysisData = async () => {
+      try {
+        setLoading(true);
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('nome, email')
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching users:', error);
+          return;
+        }
+
+        // Mock gap analysis data with real names
+        const mockGapData: GapAnalysisData[] = users?.map((user) => {
+          const expected = Math.floor(Math.random() * 20) + 15; // 15-35
+          const marked = Math.floor(Math.random() * expected) + 5; // 5 to expected
+          const gap = expected - marked;
+          const status = gap >= 7 ? 'Crítico' : gap >= 4 ? 'Moderado' : 'Bom';
+          
+          return {
+            user: user.nome,
+            expected,
+            marked,
+            gap,
+            status
+          };
+        }) || [];
+
+        setGapAnalysisData(mockGapData);
+      } catch (error) {
+        console.error('Error fetching gap analysis data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGapAnalysisData();
+  }, [filters]);
 
   const handleAwardBadge = (badge: string) => {
     setSelectedBadge(badge);
@@ -282,25 +326,35 @@ export const ProgressTab: React.FC<ProgressTabProps> = ({ filters }) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {gapAnalysisData.map((user, index) => (
-                <TableRow 
-                  key={index}
-                  className={user.status === 'Crítico' ? 'bg-red-50' : ''}
-                >
-                  <TableCell className="font-medium">{user.user}</TableCell>
-                  <TableCell>{user.expected}</TableCell>
-                  <TableCell>{user.marked}</TableCell>
-                  <TableCell>{user.gap}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={user.status === 'Crítico' ? 'destructive' : 
-                               user.status === 'Moderado' ? 'outline' : 'secondary'}
-                    >
-                      {user.status}
-                    </Badge>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Carregando dados...</TableCell>
                 </TableRow>
-              ))}
+              ) : gapAnalysisData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Nenhum dado disponível</TableCell>
+                </TableRow>
+              ) : (
+                gapAnalysisData.map((user, index) => (
+                  <TableRow 
+                    key={index}
+                    className={user.status === 'Crítico' ? 'bg-red-50' : ''}
+                  >
+                    <TableCell className="font-medium">{user.user}</TableCell>
+                    <TableCell>{user.expected}</TableCell>
+                    <TableCell>{user.marked}</TableCell>
+                    <TableCell>{user.gap}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={user.status === 'Crítico' ? 'destructive' : 
+                                 user.status === 'Moderado' ? 'outline' : 'secondary'}
+                      >
+                        {user.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

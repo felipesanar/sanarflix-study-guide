@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, AlertCircle, Target, Zap, Download, Brain, Lightbulb, FileText } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { AnalyticsFilters } from '@/pages/Analytics';
 
@@ -36,13 +37,12 @@ const benchmarkData = [
   { metric: 'Engajamento', current: 800, previous: 750, change: 6.7 }
 ];
 
-const dropOffData = [
-  { user: 'Usuário #2847', score: 95, reason: 'Sem progresso há 14 dias', risk: 'Crítico' },
-  { user: 'Usuário #1923', score: 87, reason: 'Baixa interação', risk: 'Alto' },
-  { user: 'Usuário #5671', score: 82, reason: 'Cronograma incompleto', risk: 'Alto' },
-  { user: 'Usuário #8934', score: 78, reason: 'Poucas marcações', risk: 'Médio' },
-  { user: 'Usuário #4576', score: 65, reason: 'Acesso irregular', risk: 'Médio' }
-];
+interface DropOffData {
+  user: string;
+  score: number;
+  reason: string;
+  risk: string;
+}
 
 const itemHeatmapData = [
   { type: 'Aulas', completion: 70, color: '#10B981' },
@@ -79,6 +79,59 @@ const alerts = [
 export const InsightsTab: React.FC<InsightsTabProps> = ({ filters }) => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [dropOffData, setDropOffData] = useState<DropOffData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDropOffData = async () => {
+      try {
+        setLoading(true);
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('nome, email')
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching users:', error);
+          return;
+        }
+
+        // Mock drop-off data with real names
+        const reasons = [
+          'Sem progresso há 14 dias',
+          'Baixa interação',
+          'Cronograma incompleto',
+          'Poucas marcações',
+          'Acesso irregular',
+          'Não usa funcionalidades',
+          'Baixo engajamento'
+        ];
+
+        const risks = ['Crítico', 'Alto', 'Médio'];
+
+        const mockDropOffData: DropOffData[] = users?.map((user) => {
+          const score = Math.floor(Math.random() * 40) + 60; // 60-100
+          const reason = reasons[Math.floor(Math.random() * reasons.length)];
+          const risk = score > 90 ? 'Crítico' : score > 80 ? 'Alto' : 'Médio';
+          
+          return {
+            user: user.nome,
+            score,
+            reason,
+            risk
+          };
+        }) || [];
+
+        setDropOffData(mockDropOffData);
+      } catch (error) {
+        console.error('Error fetching drop-off data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDropOffData();
+  }, [filters]);
 
   const handleGenerateReport = () => {
     setShowReportModal(true);
@@ -252,23 +305,33 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ filters }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dropOffData.map((user, index) => (
-                  <TableRow 
-                    key={index}
-                    className={user.score > 80 ? 'bg-red-50' : ''}
-                  >
-                    <TableCell className="font-medium">{user.user}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={user.score} className="w-16 h-2" />
-                        <span className="text-sm">{user.score}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{user.reason}</span>
-                    </TableCell>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">Carregando dados...</TableCell>
                   </TableRow>
-                ))}
+                ) : dropOffData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">Nenhum dado disponível</TableCell>
+                  </TableRow>
+                ) : (
+                  dropOffData.map((user, index) => (
+                    <TableRow 
+                      key={index}
+                      className={user.score > 80 ? 'bg-red-50' : ''}
+                    >
+                      <TableCell className="font-medium">{user.user}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={user.score} className="w-16 h-2" />
+                          <span className="text-sm">{user.score}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{user.reason}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
