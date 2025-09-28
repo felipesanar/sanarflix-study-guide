@@ -10,11 +10,10 @@ import { ProgressTab } from '@/components/analytics/ProgressTab';
 import { DemographicsTab } from '@/components/analytics/DemographicsTab';
 import { InsightsTab } from '@/components/analytics/InsightsTab';
 import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
-import { AnalyticsHeader } from '@/components/analytics/AnalyticsHeader';
 import { ExportModal } from '@/components/analytics/ExportModal';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
 import { isB2BUser } from '@/utils/accessRules';
-import { BarChart3, RefreshCw, Download, Info } from 'lucide-react';
+import { BarChart3, RefreshCw, Download, Info, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export interface AnalyticsFilters {
@@ -69,13 +68,41 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Fixed Header */}
-      <AnalyticsHeader onRefresh={handleRefresh} isRefreshing={isRefreshing} />
-
       {/* Main Content */}
-      <div className="pt-[60px] px-4 md:px-8 lg:px-12 pb-20">
+      <div className="px-4 md:px-8 lg:px-12 pb-20">
+        {/* Header Section */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-6 h-6 text-primary" />
+              <h1 className="text-2xl md:text-3xl font-bold">
+                Dashboard Analytics
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Atualizar Dados
+              </Button>
+
+              <Badge variant="secondary" className="gap-1">
+                <Shield className="w-3 h-3" />
+                <span className="hidden sm:inline">Dados anonimizados conforme LGPD</span>
+                <span className="sm:hidden">LGPD</span>
+              </Badge>
+            </div>
+          </div>
+        </div>
+
         {/* Filters Bar */}
-        <div className="bg-card border-b sticky top-[60px] z-40 py-4 mb-6">
+        <div className="bg-card border rounded-lg p-4 mb-6">
           <AnalyticsFilters filters={filters} onFilterChange={handleFilterChange} />
         </div>
 
@@ -130,24 +157,24 @@ const Analytics = () => {
             <InsightsTab filters={filters} />
           </TabsContent>
         </Tabs>
-      </div>
 
-      {/* Fixed Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-muted/90 backdrop-blur-sm border-t h-12 flex items-center justify-between px-4 md:px-8 z-50">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Info className="w-4 h-4" />
-          <span>Métricas baseadas em cliques e marcações no cronograma</span>
+        {/* Footer Section */}
+        <div className="mt-8 pt-4 border-t bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Info className="w-4 h-4" />
+            <span>Métricas baseadas em cliques e marcações no cronograma</span>
+          </div>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExportModal(true)}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            Exportar CSV
+          </Button>
         </div>
-        
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowExportModal(true)}
-          className="gap-2"
-        >
-          <Download className="w-4 h-4" />
-          Exportar CSV
-        </Button>
       </div>
 
       {/* Export Modal */}
