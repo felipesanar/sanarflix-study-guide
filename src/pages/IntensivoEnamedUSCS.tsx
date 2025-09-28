@@ -418,10 +418,31 @@ const IntensivoEnamedUSCS: React.FC = () => {
                 <div className="text-4xl font-bold text-uscs-blue mb-2">
                   {Object.keys(progressByWeek).length}
                 </div>
-                <p className="text-sm text-muted-foreground">Semanas de estudo intensivo</p>
+                <p className="text-sm text-muted-foreground mb-4">Semanas de estudo intensivo</p>
+                
+                {/* Progress by Week */}
+                <div className="space-y-2">
+                  {Object.entries(progressByWeek).map(([week, stats]) => {
+                    const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                    const isCompleted = percentage === 100;
+                    
+                    return (
+                      <div key={week} className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-foreground/80">{week}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${isCompleted ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                            {stats.completed}/{stats.total}
+                          </span>
+                          {isCompleted && <CheckCircle2 className="h-3 w-3 text-green-600 dark:text-green-400" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
                 <div className="mt-4 flex justify-center">
                   <Badge variant="outline" className="border-uscs-blue/30 text-uscs-blue">
-                    Cronograma Completo
+                    {Object.values(progressByWeek).filter(stats => stats.completed === stats.total).length} de {Object.keys(progressByWeek).length} semanas concluídas
                   </Badge>
                 </div>
               </div>
@@ -456,11 +477,32 @@ const IntensivoEnamedUSCS: React.FC = () => {
                 <div className="flex justify-center">
                   <Badge 
                     variant={showDetailedProgress ? "default" : "outline"} 
-                    className={showDetailedProgress ? "bg-uscs-orange text-white" : "border-uscs-orange/30 text-uscs-orange"}
+                    className={`cursor-pointer hover:bg-primary/20 transition-colors ${showDetailedProgress ? "bg-uscs-orange text-white" : "border-uscs-orange/30 text-uscs-orange"}`}
+                    onClick={() => setShowDetailedProgress(!showDetailedProgress)}
                   >
                     {showDetailedProgress ? 'Exibindo detalhes' : 'Clique para expandir'}
                   </Badge>
                 </div>
+                
+                {showDetailedProgress && (
+                  <div className="mt-6 space-y-4 border-t pt-4">
+                    {Object.entries(progressByWeek).map(([week, stats]) => {
+                      const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+                      
+                      return (
+                        <div key={week} className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{week}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {stats.completed}/{stats.total} ({percentage}%)
+                            </span>
+                          </div>
+                          <Progress value={percentage} className="h-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
