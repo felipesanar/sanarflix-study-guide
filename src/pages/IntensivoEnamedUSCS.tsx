@@ -486,25 +486,6 @@ const IntensivoEnamedUSCS: React.FC = () => {
                   </Badge>
                 </div>
                 
-                {showDetailedProgress && (
-                  <div className="mt-6 space-y-4 border-t pt-4">
-                    {Object.entries(progressByWeek).map(([week, stats]) => {
-                      const percentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-                      
-                      return (
-                        <div key={week} className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">{week}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {stats.completed}/{stats.total} ({percentage}%)
-                            </span>
-                          </div>
-                          <Progress value={percentage} className="h-2" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
