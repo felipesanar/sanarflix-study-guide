@@ -1,5 +1,12 @@
 import { AccessRules, User } from '@/types';
 
+// Helper function to check if user is B2B (excluding B2C)
+export const isB2BUser = (user: User | null): boolean => {
+  if (!user) return false;
+  const B2C_IES_ID = 'abec7c7d-ef07-4871-9e19-090f4d951e5e';
+  return user.id_ies !== B2C_IES_ID;
+};
+
 export const getAccessRules = (user: User | null): AccessRules => {
   // PRIMEIRO, VERIFIQUE SE O USUÁRIO EXISTE
   if (!user) {

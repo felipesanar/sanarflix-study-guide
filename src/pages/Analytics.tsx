@@ -13,7 +13,7 @@ import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsHeader } from '@/components/analytics/AnalyticsHeader';
 import { ExportModal } from '@/components/analytics/ExportModal';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
-import { getAccessRules } from '@/utils/accessRules';
+import { isB2BUser } from '@/utils/accessRules';
 import { BarChart3, RefreshCw, Download, Info } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -29,7 +29,6 @@ export interface AnalyticsFilters {
 
 const Analytics = () => {
   const { user } = useAuth();
-  const accessRules = getAccessRules(user);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -43,8 +42,8 @@ const Analytics = () => {
     searchTerm: ''
   });
 
-  // Check if user has analytics access (admins or partners)
-  const hasAnalyticsAccess = user && (accessRules.userManagement || accessRules.dashboard);
+  // Check if user has analytics access (any B2B user)
+  const hasAnalyticsAccess = isB2BUser(user);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

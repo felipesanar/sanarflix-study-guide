@@ -171,16 +171,14 @@ const AppContent = () => {
           />
         )}
 
-        {(accessRules.userManagement || accessRules.dashboard) && (
-          <Route
-            path="/analytics"
-            element={
-              <ProtectedRoute>
-                <Analytics />
-              </ProtectedRoute>
-            }
-          />
-        )}
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <Analytics />
+            </ProtectedRoute>
+          }
+        />
 
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
