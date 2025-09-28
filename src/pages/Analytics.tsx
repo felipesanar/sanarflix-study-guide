@@ -43,8 +43,8 @@ const Analytics = () => {
     searchTerm: ''
   });
 
-  // Check if user has analytics access (admins or partners)
-  const hasAnalyticsAccess = user && (accessRules.userManagement || accessRules.dashboard);
+  // Check if user has analytics access (only B2B admin users)
+  const hasAnalyticsAccess = user && accessRules.userManagement;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

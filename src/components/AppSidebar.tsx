@@ -18,7 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { getAccessRules } from '@/utils/accessRules';
-import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText, TrendingUp } from 'lucide-react';
 
 const menuItems = [
   {
@@ -49,6 +49,12 @@ const menuItems = [
     title: 'Gestão de Usuários',
     url: '/gestao-usuarios',
     icon: UserCog,
+    accessKey: 'userManagement' as const,
+  },
+  {
+    title: 'Analytics',
+    url: '/analytics',
+    icon: TrendingUp,
     accessKey: 'userManagement' as const,
   },
 ];

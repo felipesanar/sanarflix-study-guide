@@ -171,7 +171,7 @@ const AppContent = () => {
           />
         )}
 
-        {(accessRules.userManagement || accessRules.dashboard) && (
+        {accessRules.userManagement && (
           <Route
             path="/analytics"
             element={
