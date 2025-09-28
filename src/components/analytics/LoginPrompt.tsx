@@ -25,9 +25,9 @@ export const LoginPrompt: React.FC = () => {
           </h1>
           
           <p className="text-muted-foreground mb-6">
-            Acesso restrito para usuários B2B.
+            Acesso restrito para administradores e parceiros.
             <br />
-            Faça login com uma conta institucional para continuar.
+            Faça login para continuar.
           </p>
           
           <Button 

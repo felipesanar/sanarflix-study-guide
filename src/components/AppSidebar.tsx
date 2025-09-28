@@ -17,8 +17,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { getAccessRules, isB2BUser } from '@/utils/accessRules';
-import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText, TrendingUp } from 'lucide-react';
+import { getAccessRules } from '@/utils/accessRules';
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 
 const menuItems = [
   {
@@ -50,12 +50,6 @@ const menuItems = [
     url: '/gestao-usuarios',
     icon: UserCog,
     accessKey: 'userManagement' as const,
-  },
-  {
-    title: 'Analytics',
-    url: '/analytics',
-    icon: TrendingUp,
-    accessKey: 'b2bAnalytics' as const,
   },
 ];
 
@@ -204,12 +198,7 @@ export function AppSidebar() {
               )}
 
               {/* Other Menu Items */}
-              {menuItems.filter(item => {
-                if (item.accessKey === 'b2bAnalytics') {
-                  return isB2BUser(user);
-                }
-                return accessRules[item.accessKey as keyof typeof accessRules];
-              }).map((item) => (
+              {menuItems.filter(item => accessRules[item.accessKey]).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink 

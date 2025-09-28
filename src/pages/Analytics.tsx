@@ -13,7 +13,7 @@ import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
 import { AnalyticsHeader } from '@/components/analytics/AnalyticsHeader';
 import { ExportModal } from '@/components/analytics/ExportModal';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
-import { getAccessRules, isB2BUser } from '@/utils/accessRules';
+import { getAccessRules } from '@/utils/accessRules';
 import { BarChart3, RefreshCw, Download, Info } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -43,8 +43,8 @@ const Analytics = () => {
     searchTerm: ''
   });
 
-  // Check if user has analytics access (any B2B user)
-  const hasAnalyticsAccess = user && isB2BUser(user);
+  // Check if user has analytics access (admins or partners)
+  const hasAnalyticsAccess = user && (accessRules.userManagement || accessRules.dashboard);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
