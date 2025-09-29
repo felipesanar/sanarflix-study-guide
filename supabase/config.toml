@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.b2b-create-user]
 verify_jwt = false
+
+[functions.custom-email-templates]
+verify_jwt = false
