@@ -50,7 +50,7 @@ export const LoginForm: React.FC = () => {
     }
 
     try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      const redirectTo = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
       });

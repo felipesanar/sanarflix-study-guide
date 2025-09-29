@@ -18,6 +18,7 @@ import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
 import SimuladoDesempenho from "./pages/SimuladoDesempenho";
 import UserManagement from "./pages/UserManagement";
 import ResetPassword from "./pages/ResetPassword";
+import AuthCallbackPage from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 import { SignupB2C } from "./pages/SignupB2C";
 import { CronogramaEnamed } from "./pages/CronogramaEnamed";
@@ -59,7 +60,7 @@ const AppContent = () => {
     return (
       <Routes>
         <Route path="/login" element={<LoginForm />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/cadastro-b2c" element={<SignupB2C />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
@@ -78,7 +79,7 @@ const AppContent = () => {
     <StudyProvider>
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {accessRules.studyGuide && (
           <Route

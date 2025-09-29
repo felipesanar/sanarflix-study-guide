@@ -20,20 +20,44 @@ export default function ResetPassword() {
 
   // Check if we have the required tokens from the URL
   useEffect(() => {
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      toast.error('Link de redefinição inválido ou expirado.');
-      navigate('/login');
-      return;
-    }
+    const handleAuthTokens = async () => {
+      // Try to get tokens from different URL formats
+      const accessToken = searchParams.get('access_token');
+      const refreshToken = searchParams.get('refresh_token');
+      const token = searchParams.get('token');
+      const type = searchParams.get('type');
+      
+      if (accessToken && refreshToken) {
+        // Direct token format
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+      } else if (token && type === 'recovery') {
+        // Recovery token format from email
+        try {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery'
+          });
+          
+          if (error) {
+            throw error;
+          }
+        } catch (error) {
+          console.error('Error verifying recovery token:', error);
+          toast.error('Link de redefinição inválido ou expirado.');
+          navigate('/login');
+          return;
+        }
+      } else {
+        toast.error('Link de redefinição inválido ou expirado.');
+        navigate('/login');
+        return;
+      }
+    };
 
-    // Set the session with the tokens from the URL
-    supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
+    handleAuthTokens();
   }, [searchParams, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
