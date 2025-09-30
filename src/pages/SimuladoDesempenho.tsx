@@ -19,7 +19,6 @@ interface RankingData { rank: number; total: number; }
 interface OverallStats { total: number; acertos: number; percentual: number; }
 interface DifficultyData { name: string; value: number; fill: string; total: number; acertos: number; }
 interface UserData { semestre: number; }
-// ATUALIZADO: 'resposta_usuario' foi trocado por 'acertou'
 interface ReviewedQuestion { 
   id: string; 
   gabarito: 'A' | 'B' | 'C' | 'D'; 
@@ -37,6 +36,7 @@ const CustomBarLabel = (props: any) => { const { x, y, width, height, value } = 
 const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
     const styles = {
         Fácil: "bg-green-500/10 text-green-500",
+        Moderado: "bg-amber-500/10 text-amber-500",
         Médio: "bg-amber-500/10 text-amber-500",
         Difícil: "bg-red-500/10 text-red-500",
     };
@@ -61,7 +61,6 @@ const QuestionModal: React.FC<{
   const question = questions.length > 0 ? questions[currentIndex] : null;
   const alternatives: Array<{ key: 'A' | 'B' | 'C' | 'D'; text: string }> = question ? [ { key: 'A', text: question.a }, { key: 'B', text: question.b }, { key: 'C', text: question.c }, { key: 'D', text: question.d } ] : [];
   
-  // ATUALIZADO: A lógica agora usa o campo 'acertou'
   const userGotItRight = question?.acertou;
 
   return (
@@ -72,7 +71,6 @@ const QuestionModal: React.FC<{
             <DialogTitle>Revisão de Questão</DialogTitle>
             <div className="flex items-center gap-2">
                 {question?.dificuldade && <DifficultyBadge difficulty={question.dificuldade} />}
-                {/* ATUALIZADO: A condição de renderização também mudou */}
                 {question && typeof question.acertou === 'boolean' && (
                     <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold", 
                         userGotItRight ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
@@ -91,17 +89,16 @@ const QuestionModal: React.FC<{
                 {question.imagem && ( <div className="flex justify-center my-4"> <img src={question.imagem} alt="Imagem da questão" className="max-w-full h-auto rounded-md" /> </div> )}
                 <div className="space-y-3"> 
                   {alternatives.map(alt => {
-                    // ATUALIZADO: Lógica de cores simplificada
-                    const isCorrectAnswer = question.gabarito === alt.key;
-                    return (
-                        <div key={alt.key} className={cn( "p-3 border rounded-md text-left transition-colors", 
-                            isCorrectAnswer 
-                                ? "bg-green-100 border-green-500 text-green-800 dark:bg-green-500/20 dark:border-green-600 dark:text-green-300" 
-                                : "bg-muted/30"
-                        )}> 
-                          <span className="font-bold mr-2">{alt.key})</span> {alt.text} 
-                        </div>
-                    );
+                      const isCorrectAnswer = question.gabarito === alt.key;
+                      return (
+                          <div key={alt.key} className={cn( "p-3 border rounded-md text-left transition-colors", 
+                              isCorrectAnswer 
+                                  ? "bg-green-100 border-green-500 text-green-800 dark:bg-green-500/20 dark:border-green-600 dark:text-green-300" 
+                                  : "bg-muted/30"
+                          )}> 
+                              <span className="font-bold mr-2">{alt.key})</span> {alt.text} 
+                          </div>
+                      );
                   })}
                 </div>
                 <div className="bg-muted/80 p-4 rounded-md space-y-2 border"> <h4 className="font-bold text-lg text-primary">Comentário do Professor</h4> <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{question.comentario}</p> </div>
@@ -119,8 +116,6 @@ const QuestionModal: React.FC<{
     </Dialog>
   );
 };
-
-// ... O restante do arquivo (PerformanceSummary, etc.) não precisa de alterações ...
 
 // --- Componente de Resumo de Desempenho ---
 const PerformanceSummary: React.FC<{ stats: OverallStats; performancePorArea: PerformanceData[]; bySpecialty: SpecialtyPerformanceData[]; byDifficulty: PerformanceData[]; }> = ({ stats, performancePorArea, bySpecialty, byDifficulty }) => {
@@ -140,17 +135,34 @@ const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boo
 const listContainerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05, }, }, };
 const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }, };
 
-const DecompositionTree: React.FC<{ overallStats: OverallStats; areas: PerformanceData[]; specialties: SpecialtyPerformanceData[]; subspecialties: SubspecialtyPerformanceData[]; onSubspecialtyClick: (subspecialtyName: string) => void; selectedSimulado: number | null; }> = ({ overallStats, areas, specialties, subspecialties, onSubspecialtyClick, selectedSimulado }) => {
+// ATUALIZAÇÃO: A tipagem de onSubspecialtyClick foi corrigida aqui
+const DecompositionTree: React.FC<{ 
+  overallStats: OverallStats; 
+  areas: PerformanceData[]; 
+  specialties: SpecialtyPerformanceData[]; 
+  subspecialties: SubspecialtyPerformanceData[]; 
+  onSubspecialtyClick: (subspecialtyName: string, areaName: string | null, specialtyName: string | null) => void; 
+  selectedSimulado: number | null; 
+}> = ({ overallStats, areas, specialties, subspecialties, onSubspecialtyClick, selectedSimulado }) => {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
+  
   useEffect(() => { setSelectedArea(null); setSelectedSpecialty(null); }, [selectedSimulado]);
+  
   const handleAreaClick = (areaName: string) => { if (selectedArea === areaName) { setSelectedArea(null); setSelectedSpecialty(null); } else { setSelectedArea(areaName); setSelectedSpecialty(null); } };
   const handleSpecialtyClick = (specialtyName: string) => { setSelectedSpecialty(prevState => prevState === specialtyName ? null : specialtyName); };
+  
   const filteredSpecialties = selectedArea ? specialties.filter(s => s.area_name && s.area_name.toLowerCase() === selectedArea.toLowerCase()) : [];
   const uniqueFilteredSpecialties = filteredSpecialties.filter((specialty, index, self) => index === self.findIndex((s) => s.name.toLowerCase() === specialty.name.toLowerCase())).sort((a, b) => b.percentual - a.percentual);
   const filteredSubspecialties = selectedArea && selectedSpecialty ? subspecialties.filter(s => s.specialty_name?.toLowerCase() === selectedSpecialty.toLowerCase() && s.area_name?.toLowerCase() === selectedArea.toLowerCase()) : [];
   const uniqueFilteredSubspecialties = filteredSubspecialties.filter((sub, index, self) => index === self.findIndex((s) => s.name.toLowerCase() === sub.name.toLowerCase())).sort((a, b) => b.percentual - a.percentual);
-  return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary" />Análise de Desempenho Hierárquica</CardTitle></CardHeader><CardContent><div className="flex flex-col lg:flex-row gap-6"><div className="lg:border-r lg:pr-6 space-y-4"><div><h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Percentual de Acertos</h3><div className="flex items-center justify-center bg-primary text-primary-foreground p-4 rounded-md min-w-[200px]"><div className="text-center"><p className="text-3xl font-bold">{overallStats.percentual}%</p><p className="text-xs opacity-80">{overallStats.acertos} / {overallStats.total} questões</p></div></div></div></div><div className="flex-1 flex flex-col md:flex-row gap-4 overflow-x-auto"><Column title="Tema (Grande Área)"><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2">{areas.map(area => (<motion.div key={area.name} variants={listItemVariants}><Node name={area.name} percentage={area.percentual} isSelected={selectedArea === area.name} onClick={() => handleAreaClick(area.name)} /></motion.div>))}</motion.div></Column><Column title="Especialidade" isEmpty={!selectedArea || uniqueFilteredSpecialties.length === 0} emptyText={!selectedArea ? "Selecione uma Grande Área." : "Nenhuma especialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSpecialties.map(specialty => (<motion.div key={specialty.name} variants={listItemVariants} exit="exit" ><Node name={specialty.name} percentage={specialty.percentual} isSelected={selectedSpecialty === specialty.name} onClick={() => handleSpecialtyClick(specialty.name)} /></motion.div>))}</AnimatePresence></motion.div></Column><Column title="Subespecialidade / Assunto" isEmpty={!selectedSpecialty || uniqueFilteredSubspecialties.length === 0} emptyText={!selectedSpecialty ? "Selecione uma Especialidade." : "Nenhuma subespecialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSubspecialties.map(sub => (<motion.div key={sub.name} variants={listItemVariants} exit="exit" ><button onClick={() => onSubspecialtyClick(sub.name)} className="w-full"><div className="card-container w-full text-left p-3 border rounded-md bg-muted/40 hover:bg-muted/80 transition-colors"><div className="flex justify-between items-center gap-2"><span className="font-medium font-dynamic pr-2">{sub.name}</span><span className="font-bold text-sm text-primary">{sub.percentual}%</span></div></div></button></motion.div>))}</AnimatePresence></motion.div></Column></div></div></CardContent></Card>);
+
+  return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary" />Análise de Desempenho Hierárquica</CardTitle></CardHeader><CardContent><div className="flex flex-col lg:flex-row gap-6"><div className="lg:border-r lg:pr-6 space-y-4"><div><h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Percentual de Acertos</h3><div className="flex items-center justify-center bg-primary text-primary-foreground p-4 rounded-md min-w-[200px]"><div className="text-center"><p className="text-3xl font-bold">{overallStats.percentual}%</p><p className="text-xs opacity-80">{overallStats.acertos} / {overallStats.total} questões</p></div></div></div></div><div className="flex-1 flex flex-col md:flex-row gap-4 overflow-x-auto"><Column title="Tema (Grande Área)"><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2">{areas.map(area => (<motion.div key={area.name} variants={listItemVariants}><Node name={area.name} percentage={area.percentual} isSelected={selectedArea === area.name} onClick={() => handleAreaClick(area.name)} /></motion.div>))}</motion.div></Column><Column title="Especialidade" isEmpty={!selectedArea || uniqueFilteredSpecialties.length === 0} emptyText={!selectedArea ? "Selecione uma Grande Área." : "Nenhuma especialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSpecialties.map(specialty => (<motion.div key={specialty.name} variants={listItemVariants} exit="exit" ><Node name={specialty.name} percentage={specialty.percentual} isSelected={selectedSpecialty === specialty.name} onClick={() => handleSpecialtyClick(specialty.name)} /></motion.div>))}</AnimatePresence></motion.div></Column><Column title="Subespecialidade / Assunto" isEmpty={!selectedSpecialty || uniqueFilteredSubspecialties.length === 0} emptyText={!selectedSpecialty ? "Selecione uma Especialidade." : "Nenhuma subespecialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSubspecialties.map(sub => (<motion.div key={sub.name} variants={listItemVariants} exit="exit" >
+    {/* ATUALIZAÇÃO: O onClick agora envia todos os dados necessários */}
+    <button onClick={() => onSubspecialtyClick(sub.name, selectedArea, selectedSpecialty)} className="w-full">
+        <div className="card-container w-full text-left p-3 border rounded-md bg-muted/40 hover:bg-muted/80 transition-colors"><div className="flex justify-between items-center gap-2"><span className="font-medium font-dynamic pr-2">{sub.name}</span><span className="font-bold text-sm text-primary">{sub.percentual}%</span></div></div>
+    </button>
+  </motion.div>))}</AnimatePresence></motion.div></Column></div></div></CardContent></Card>);
 };
 
 // --- Componente do Gráfico de Evolução ---
@@ -196,8 +208,6 @@ export const SimuladoDesempenho: React.FC = () => {
     }
     try {
         const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([ supabase.rpc('get_user_simulados'), supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single(), supabase.from('users').select('semestre').eq('email', user.email).single() ]);
-        console.log('🕵️‍♂️ [Ranking Debug] Resposta CRUA recebida do Supabase:', rankingResult);
-        console.log('📊 [Ranking Debug] Payload de dados (rankingResult.data):', rankingResult.data);
         if (simuladosResult.error) throw simuladosResult.error; if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (userDataResult.error) throw userDataResult.error;
         const simuladosData = simuladosResult.data || [];
         setSimulados(simuladosData);
@@ -254,16 +264,24 @@ export const SimuladoDesempenho: React.FC = () => {
     const simuladoId = simuladoIdStr === 'all' ? null : Number(simuladoIdStr);
     setSelectedSimulado(simuladoId); 
   };
-  const handleSubspecialtyClick = async (subspecialtyName: string) => {
+  
+  // ATUALIZAÇÃO: A função agora aceita os 3 argumentos
+  const handleSubspecialtyClick = async (subspecialtyName: string, areaName: string | null, specialtyName: string | null) => {
     setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestions([]);
     try {
-      const { data, error } = await supabase.rpc('get_questions_by_subspecialty', { sub_name: subspecialtyName, p_simulado_id: selectedSimulado });
+      // ATUALIZAÇÃO: Os 3 argumentos são enviados para a RPC
+      const { data, error } = await supabase.rpc('get_questions_by_subspecialty', { 
+        sub_name: subspecialtyName,
+        area_name: areaName,
+        specialty_name: specialtyName,
+        p_simulado_id: selectedSimulado 
+      });
       if (error) throw error;
       if (data && data.length > 0) { 
         const mappedQuestions = data.map((q: any) => ({
           ...q,
           dificuldade: q.dificuldade || 'Médio',
-          acertou: q.acertou ?? false
+          acertou: q.acertou === true,
         }));
         setSelectedQuestions(mappedQuestions); 
       }
@@ -273,6 +291,7 @@ export const SimuladoDesempenho: React.FC = () => {
   };
 
   const barData: DifficultyData[] = byDifficulty.sort((a, b) => { const order = { 'Fácil': 1, 'Moderado': 2, 'Médio': 2, 'Difícil': 3 }; return (order[a.name as keyof typeof order] || 4) - (order[b.name as keyof typeof order] || 4); }).map((item, index) => ({ name: item.name, value: item.percentual, fill: ['#f87171', '#dc2626', '#b91c1c'][index] || '#7f1d1d', total: item.total, acertos: item.acertos }));
+  
   if (loading) return <div className="p-6 flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /><p className='ml-4'>Carregando dashboard...</p></div>;
   if (!stats || stats.total === 0 && simulados.length === 0) return <div className="p-6">Nenhum dado de simulado encontrado.</div>;
 
@@ -327,9 +346,9 @@ export const SimuladoDesempenho: React.FC = () => {
             </CardContent>
         </Card>
       </div>
-       {stats && (<DecompositionTree overallStats={stats} areas={performancePorArea} specialties={bySpecialty} subspecialties={bySubspecialty} onSubspecialtyClick={handleSubspecialtyClick} selectedSimulado={selectedSimulado} />)}
-       <EvolutionChart allPerformanceData={allPerformanceData} />
-       <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} />
+        {stats && (<DecompositionTree overallStats={stats} areas={performancePorArea} specialties={bySpecialty} subspecialties={bySubspecialty} onSubspecialtyClick={handleSubspecialtyClick} selectedSimulado={selectedSimulado} />)}
+        <EvolutionChart allPerformanceData={allPerformanceData} />
+        <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} />
     </div>
   );
 };
