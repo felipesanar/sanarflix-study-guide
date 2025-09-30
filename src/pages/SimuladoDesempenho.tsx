@@ -138,7 +138,7 @@ const PerformanceSummary: React.FC<{ stats: OverallStats; performancePorArea: Pe
 const Node: React.FC<{ name: string; percentage: number; isSelected: boolean; onClick: () => void; }> = ({ name, percentage, isSelected, onClick }) => ( <button onClick={onClick} className={cn( "card-container w-full text-left p-3 border rounded-md transition-all duration-200 hover:bg-muted/80", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 border-border" )} > <div className="flex justify-between items-center gap-2"> <span className="font-medium font-dynamic pr-2">{name}</span> <span className={cn("font-bold text-sm", isSelected ? "text-primary-foreground" : "text-primary")}> {percentage}% </span> </div> </button> );
 const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boolean; emptyText?: string }> = ({ title, children, isEmpty = false, emptyText = "Selecione um item na coluna anterior." }) => ( <div className="flex-1 min-w-[250px]"> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">{title}</h3> <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2"> {isEmpty ? ( <div className="flex items-center justify-center h-40 text-center text-muted-foreground text-sm p-4 border border-dashed rounded-md"> {emptyText} </div> ) : children} </div> </div> );
 const listContainerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05, }, }, };
-const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4, ease: "easeOut", } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2, ease: "easeIn" } }, };
+const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }, };
 
 const DecompositionTree: React.FC<{ overallStats: OverallStats; areas: PerformanceData[]; specialties: SpecialtyPerformanceData[]; subspecialties: SubspecialtyPerformanceData[]; onSubspecialtyClick: (subspecialtyName: string) => void; selectedSimulado: number | null; }> = ({ overallStats, areas, specialties, subspecialties, onSubspecialtyClick, selectedSimulado }) => {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
@@ -205,7 +205,8 @@ export const SimuladoDesempenho: React.FC = () => {
             const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any;
             const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
             const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
-            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rankingResult.data ? { ies: rankingResult.data.rankingIES || null, semester: rankingResult.data.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
+            const rankingData = rankingResult.data as any;
+            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
             sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
             setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setByDifficulty(processData(byDifficulty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
         }
@@ -237,7 +238,8 @@ export const SimuladoDesempenho: React.FC = () => {
                 const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = pResult.data as any;
                 const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
                 const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
-                const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rResult.data ? { ies: rResult.data.rankingIES || null, semester: rResult.data.rankingSemester || null } : null, userData: userData, simulados: simulados };
+                const rankingData = rResult.data as any;
+                const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados };
                 sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache));
             }
         } catch (error) { console.error(`Falha ao pré-carregar simulado ${simuladoId}:`, error); }
@@ -257,7 +259,14 @@ export const SimuladoDesempenho: React.FC = () => {
     try {
       const { data, error } = await supabase.rpc('get_questions_by_subspecialty', { sub_name: subspecialtyName, p_simulado_id: selectedSimulado });
       if (error) throw error;
-      if (data && data.length > 0) { setSelectedQuestions(data); } 
+      if (data && data.length > 0) { 
+        const mappedQuestions = data.map((q: any) => ({
+          ...q,
+          dificuldade: q.dificuldade || 'Médio',
+          acertou: q.acertou ?? false
+        }));
+        setSelectedQuestions(mappedQuestions); 
+      }
       else { console.warn(`Nenhuma questão encontrada para: ${subspecialtyName}`); }
     } catch (error) { console.error("Erro ao buscar as questões:", error); } 
     finally { setIsLoadingQuestion(false); }
@@ -269,7 +278,7 @@ export const SimuladoDesempenho: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <style jsx global>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
+      <style>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div><h1 className="text-3xl font-bold">Dashboard de Desempenho</h1><p className="text-muted-foreground">Sua performance detalhada nos simulados.</p></div>
         <div className="flex items-center gap-4">
