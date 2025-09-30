@@ -209,21 +209,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                     <div className="flex-1 min-w-0">
                       <h4 className={`text-sm font-medium ${it.completed ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{it.aula ?? it.tema}</h4>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {/* Botão "Acessar no SanarFlix" - sempre presente */}
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => {
-                            if (it.link_aula && String(it.link_aula).toLowerCase() !== 'nan' && String(it.link_aula).trim() !== '') {
-                              window.open(String(it.link_aula), '_blank');
-                            } else {
-                              window.open('https://sanarflix.com.br/enamed', '_blank');
-                            }
-                          }}
-                          className="bg-[#800000] hover:bg-[#800000]/90 text-white"
-                        >
-                          Acessar no SanarFlix
-                        </Button>
+                        {/* Botão "Acessar no SanarFlix" - apenas se há link_aula válido */}
+                        {!!it.link_aula && 
+                         String(it.link_aula).toLowerCase() !== 'nan' && 
+                         String(it.link_aula).trim() !== '' && (
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => window.open(String(it.link_aula), '_blank')}
+                            className="bg-[#800000] hover:bg-[#800000]/90 text-white"
+                          >
+                            Acessar no SanarFlix
+                          </Button>
+                        )}
                         
                         {/* Botão "Assistir aula grátis" - apenas se há link gratuito */}
                         {!!it.link_gratuito && 
