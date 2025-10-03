@@ -275,7 +275,7 @@ export const SimuladoDesempenho: React.FC = () => {
         area_name: areaName,
         specialty_name: specialtyName,
         p_simulado_id: selectedSimulado 
-      } as any);
+      });
       if (error) throw error;
       if (data && data.length > 0) { 
         const mappedQuestions = data.map((q: any) => ({
