@@ -117,14 +117,31 @@ Deno.serve(async (req) => {
     // ETAPA 3: Buscar o perfil detalhado do usuário na tabela `public.users`
     // Usamos o `user.id` da sessão para encontrar o perfil correspondente.
     // SECURITY: Reduced PII exposure - only fetch necessary fields
+    // IMPORTANTE: Convertemos user.id para TEXT pois o campo id na tabela users é TEXT
     const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('nome, id_ies, semestre')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !userProfile) {
-      console.error('Usuário autenticado sem perfil em public.users.', profileError);
+    if (profileError) {
+      console.error('Erro ao buscar perfil em public.users:', profileError);
+      return new Response(JSON.stringify({
+        error: 'Erro ao buscar perfil do usuário.'
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    if (!userProfile) {
+      console.error('Usuário autenticado sem perfil em public.users.', {
+        user_id: user.id,
+        email: user.email
+      });
       return new Response(JSON.stringify({
         error: 'Perfil do usuário não encontrado.'
       }), {
