@@ -60,22 +60,55 @@ Deno.serve(async (req) => {
     let sessionData, signInError, user;
     
     if (sessionToken) {
-      // Magic link authentication - verify session token
-      const { data: userData, error } = await supabase.auth.getUser(sessionToken);
-      if (error || !userData.user) {
+      // Magic link authentication - precisa estabelecer sessão antes de buscar perfil
+      // getUser() sozinho não estabelece contexto de auth para RLS funcionar
+      try {
+        // Primeiro, estabelece a sessão no cliente para RLS funcionar
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: sessionToken,
+          refresh_token: '' // refresh_token não é obrigatório para validação
+        });
+        
+        if (sessionError) {
+          return new Response(JSON.stringify({
+            error: 'Falha ao estabelecer sessão'
+          }), {
+            status: 401,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+        
+        // Agora que a sessão está estabelecida, busca o usuário
+        const { data: userData, error } = await supabase.auth.getUser();
+        if (error || !userData.user) {
+          return new Response(JSON.stringify({
+            error: 'Session token inválido'
+          }), {
+            status: 401,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+        user = userData.user;
+        sessionData = { user: userData.user, session: null };
+        signInError = null;
+      } catch (e) {
+        console.error('Erro ao processar sessionToken:', e);
         return new Response(JSON.stringify({
-          error: 'Session token inválido'
+          error: 'Erro ao processar token de sessão'
         }), {
-          status: 401,
+          status: 500,
           headers: {
             ...corsHeaders,
             'Content-Type': 'application/json'
           }
         });
       }
-      user = userData.user;
-      sessionData = { user: userData.user, session: null };
-      signInError = null;
     } else {
       // Password authentication
       const authResult = await supabase.auth.signInWithPassword({

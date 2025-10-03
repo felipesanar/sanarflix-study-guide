@@ -24,34 +24,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(parsed);
             setNeedsPasswordChange(cachedNeeds === 'true');
           } catch (e) {
-            // Error parsing cached user
+            console.error('Erro ao parsear usuário em cache:', e);
           }
-        } else if (session?.access_token) {
-          // Fluxo via magic link/callback: buscar perfil de forma deferida
-          setTimeout(async () => {
-            try {
-              const { data, error } = await supabase.functions.invoke('auth-login', {
-                body: { 
-                  email: session.user?.email,
-                  sessionToken: session.access_token 
-                }
-              });
-
-              if (error || data?.error) {
-                return;
-              }
-
-              const userData = data.user;
-              setUser(userData);
-              setNeedsPasswordChange(data.needsPasswordChange || false);
-              
-              localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-              localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
-            } catch (e) {
-              // Error fetching profile
-            }
-          }, 0);
         }
+        // Removemos a chamada redundante para auth-login aqui
+        // O login() já fez a chamada e salvou os dados no cache
       }
 
       if (event === 'SIGNED_OUT') {
@@ -80,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       })
       .catch((error) => {
+        console.error('Erro ao obter sessão:', error);
         setIsLoading(false);
       });
 
