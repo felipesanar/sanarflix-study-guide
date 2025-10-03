@@ -40,9 +40,14 @@ Deno.serve(async (req) => {
     });
   }
   try {
-    // Inicializa o cliente Supabase. É seguro usar a chave anônima aqui,
-    // pois as operações de auth e a consulta à tabela 'users' devem ser permitidas pelas suas políticas (RLS).
-    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+    // Inicializa dois clientes Supabase:
+    // 1. Cliente anônimo para autenticação
+    const supabaseAnon = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+    // 2. Cliente service_role para consultas que precisam bypassa RLS
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '', 
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
     // Extrai email e senha do corpo da requisição
     const { email, password, sessionToken } = await req.json();
     if (!email || (!password && !sessionToken)) {
@@ -60,58 +65,25 @@ Deno.serve(async (req) => {
     let sessionData, signInError, user;
     
     if (sessionToken) {
-      // Magic link authentication - precisa estabelecer sessão antes de buscar perfil
-      // getUser() sozinho não estabelece contexto de auth para RLS funcionar
-      try {
-        // Primeiro, estabelece a sessão no cliente para RLS funcionar
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: sessionToken,
-          refresh_token: '' // refresh_token não é obrigatório para validação
-        });
-        
-        if (sessionError) {
-          return new Response(JSON.stringify({
-            error: 'Falha ao estabelecer sessão'
-          }), {
-            status: 401,
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-        
-        // Agora que a sessão está estabelecida, busca o usuário
-        const { data: userData, error } = await supabase.auth.getUser();
-        if (error || !userData.user) {
-          return new Response(JSON.stringify({
-            error: 'Session token inválido'
-          }), {
-            status: 401,
-            headers: {
-              ...corsHeaders,
-              'Content-Type': 'application/json'
-            }
-          });
-        }
-        user = userData.user;
-        sessionData = { user: userData.user, session: null };
-        signInError = null;
-      } catch (e) {
-        console.error('Erro ao processar sessionToken:', e);
+      // Magic link authentication
+      const { data: userData, error } = await supabaseAnon.auth.getUser(sessionToken);
+      if (error || !userData.user) {
         return new Response(JSON.stringify({
-          error: 'Erro ao processar token de sessão'
+          error: 'Session token inválido'
         }), {
-          status: 500,
+          status: 401,
           headers: {
             ...corsHeaders,
             'Content-Type': 'application/json'
           }
         });
       }
+      user = userData.user;
+      sessionData = { user: userData.user, session: null };
+      signInError = null;
     } else {
       // Password authentication
-      const authResult = await supabase.auth.signInWithPassword({
+      const authResult = await supabaseAnon.auth.signInWithPassword({
         email: email,
         password: password
       });
@@ -148,10 +120,9 @@ Deno.serve(async (req) => {
     // ETAPA 2: Verificar a flag 'must_change_password' nos metadados do usuário
     const needsPasswordChange = user.user_metadata?.must_change_password === true;
     // ETAPA 3: Buscar o perfil detalhado do usuário na tabela `public.users`
-    // Usamos o `user.id` da sessão para encontrar o perfil correspondente.
+    // Usamos o cliente admin para bypassar RLS, já que a edge function precisa acessar dados do usuário
     // SECURITY: Reduced PII exposure - only fetch necessary fields
-    // IMPORTANTE: Convertemos user.id para TEXT pois o campo id na tabela users é TEXT
-    const { data: userProfile, error: profileError } = await supabase
+    const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('users')
       .select('nome, id_ies, semestre')
       .eq('id', user.id)
@@ -189,7 +160,7 @@ Deno.serve(async (req) => {
     // Buscar nome da IES se houver id_ies
     let iesNome: string | null = null;
     if (userProfile.id_ies) {
-      const { data: iesData, error: iesError } = await supabase
+      const { data: iesData, error: iesError } = await supabaseAdmin
         .from('ies')
         .select('nome')
         .eq('id', userProfile.id_ies)
