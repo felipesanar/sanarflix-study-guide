@@ -82,7 +82,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         enamed: false,
         cronogramaEnamed: false,
         dashboard: false,
-        SimuladoDesempenho: false,
+        SimuladoDesempenho: true,
         userManagement: false,
         intensivoUSCS: true // USCS tem acesso à página exclusiva
       };
