@@ -3,14 +3,8 @@ import { AccessRules, User } from '@/types';
 // Helper function to check if user is B2B (excluding B2C and USCS)
 export const isB2BUser = (user: User | null): boolean => {
   if (!user) return false;
-  const B2C_IES_ID = 'abec7c7d-ef07-4871-9e19-090f4d951e5e';
-  const USCS_IES_IDS = [
-    'e40a0ec1-1150-40e6-b492-8b8e3f8db593', // USCS principal
-    '954aad2f-4030-4d5d-b27a-19eb8fac05cf', // USCS secundário
-  ];
-  
-  // Excluir B2C e USCS do acesso B2B
-  return user.id_ies !== B2C_IES_ID && !USCS_IES_IDS.includes(user.id_ies);
+  const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
+  return user.id_ies == B2B_IES_ID;
 };
 
 export const getAccessRules = (user: User | null): AccessRules => {
