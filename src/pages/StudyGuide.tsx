@@ -233,27 +233,40 @@ export const StudyGuide: React.FC = () => {
     if (!searchQuery.trim()) return groupedData;
 
     const query = searchQuery.toLowerCase();
+    
     return groupedData
-      .map((materia) => ({
-        ...materia,
-        temas: materia.temas
-          .map((tema) => ({
-            ...tema,
-            subtemas: tema.subtemas
-              .map((subtema) => ({
-                ...subtema,
-                aulas: subtema.aulas.filter(
-                  (aula) =>
-                    materia.materia.toLowerCase().includes(query) ||
-                    tema.tema.toLowerCase().includes(query) ||
-                    subtema.subtema.toLowerCase().includes(query) ||
-                    aula.aula.toLowerCase().includes(query)
-                ),
-              }))
-              .filter((st) => st.aulas.length > 0),
-          }))
-          .filter((t) => t.subtemas.length > 0),
-      }))
+      .map((materiaItem) => {
+        const filteredTemas = materiaItem.temas
+          .map((temaItem) => {
+            const filteredSubtemas = temaItem.subtemas
+              .map((subtemaItem) => {
+                const filteredAulas = subtemaItem.aulas.filter(
+                  (aulaItem) =>
+                    materiaItem.materia.toLowerCase().includes(query) ||
+                    temaItem.tema.toLowerCase().includes(query) ||
+                    subtemaItem.subtema.toLowerCase().includes(query) ||
+                    aulaItem.aula.toLowerCase().includes(query)
+                );
+                
+                return {
+                  ...subtemaItem,
+                  aulas: filteredAulas
+                };
+              })
+              .filter((st) => st.aulas.length > 0);
+            
+            return {
+              ...temaItem,
+              subtemas: filteredSubtemas
+            };
+          })
+          .filter((t) => t.subtemas.length > 0);
+        
+        return {
+          ...materiaItem,
+          temas: filteredTemas
+        };
+      })
       .filter((m) => m.temas.length > 0);
   }, [groupedData, searchQuery]);
 
