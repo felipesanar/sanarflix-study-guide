@@ -100,19 +100,20 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // RLS policy already filters by id_ies using get_user_ies_id()
-        // No need to add manual filter - let RLS handle it
-        const { data, error } = await supabase
-          .from('conteudos')
-          .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz');
+        // Use edge function to fetch conteudos (bypasses RLS issues)
+        const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
         if (error) {
-          console.error('Supabase error:', error);
+          console.error('Edge function error:', error);
           throw error;
         }
 
+        if (!response?.data) {
+          throw new Error('Invalid response from server');
+        }
+
         // Transform data to match ConteudoData interface
-        const transformedData: ConteudoData[] = (data || []).map((item: any) => ({
+        const transformedData: ConteudoData[] = (response.data || []).map((item: any) => ({
           id: item.id,
           id_ies: item.id_ies,
           semestre: item.semestre || '',

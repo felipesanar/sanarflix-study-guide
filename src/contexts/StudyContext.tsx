@@ -26,18 +26,16 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || !user.semestre) return;
 
     try {
-      // RLS policy filters by id_ies automatically using get_user_ies_id()
-      // Also filter by semestre to get only current semester content
-      const { data: conteudosData, error } = await supabase
-        .from('conteudos')
-        .select('*')
-        .eq('semestre', user.semestre.toString());
+      // Use edge function to fetch conteudos (bypasses RLS issues)
+      const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
       if (error) {
         console.error('Error loading study contents:', error);
         setStudyContents([]);
         return;
       }
+
+      const conteudosData = response?.data || [];
 
       if (!conteudosData || conteudosData.length === 0) {
         setStudyContents([]);
