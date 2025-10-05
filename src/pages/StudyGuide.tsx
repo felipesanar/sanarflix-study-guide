@@ -100,13 +100,11 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Ensure id_ies is treated as UUID by converting to string if needed
-        const iesId = typeof user.id_ies === 'string' ? user.id_ies : String(user.id_ies);
-        
+        // Cast id_ies to UUID explicitly for the query
         const { data, error } = await supabase
           .from('conteudos')
           .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-          .eq('id_ies', iesId);
+          .filter('id_ies', 'eq', user.id_ies);
 
         if (error) {
           console.error('Supabase error:', error);
