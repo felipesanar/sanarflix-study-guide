@@ -115,14 +115,17 @@ export const StudyGuide: React.FC = () => {
         }
 
         if (!response?.data) {
+          console.error('Invalid response:', response);
           throw new Error('Invalid response from server');
         }
+
+        console.log('Conteudos fetched:', response.data.length, 'items');
 
         // Transform data to match ConteudoData interface
         const transformedData: ConteudoData[] = (response.data || []).map((item: any) => ({
           id: item.id,
           id_ies: item.id_ies,
-          semestre: item.semestre || '',
+          semestre: item.semestre?.toString() || '',
           materia: item.materia || '',
           tema: item.tema || '',
           subtema: item.subtema || '',
@@ -134,9 +137,20 @@ export const StudyGuide: React.FC = () => {
 
         setConteudos(transformedData);
         
-        // Auto-select user's current semester
-        if (user.semestre) {
-          setSelectedSemestre(user.semestre.toString());
+        // Auto-select user's current semester if available
+        if (user.semestre && transformedData.length > 0) {
+          const userSemestre = user.semestre.toString();
+          const hasUserSemestre = transformedData.some(c => 
+            c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+          );
+          
+          if (hasUserSemestre) {
+            setSelectedSemestre(userSemestre);
+          } else {
+            // Select first available semester
+            const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
+            setSelectedSemestre(firstSemestre);
+          }
         }
       } catch (error) {
         console.error('Error fetching conteudos:', error);
@@ -164,11 +178,19 @@ export const StudyGuide: React.FC = () => {
 
   // Group conteudos by structure
   const groupedData = useMemo(() => {
-    if (!selectedSemestre) return [];
+    if (!selectedSemestre || !conteudos || conteudos.length === 0) return [];
 
-    const filtered = conteudos.filter(
-      (c) => c.semestre === selectedSemestre || c.semestre === `${selectedSemestre}º Semestre`
-    );
+    // Filter by selected semester - handle both numeric and text formats
+    const filtered = conteudos.filter((c) => {
+      if (!c.semestre) return false;
+      const semestreStr = c.semestre.toString().toLowerCase();
+      const selectedStr = selectedSemestre.toLowerCase();
+      
+      // Match exact number or text like "internato"
+      return semestreStr === selectedStr || 
+             semestreStr === `${selectedStr}º semestre` ||
+             semestreStr.includes(selectedStr);
+    });
 
     const materiaMap = new Map<string, Materia>();
 
@@ -241,9 +263,14 @@ export const StudyGuide: React.FC = () => {
       return { totalAulas: 0, completed: 0, percentage: 0, pendingAulas: [] };
     }
 
-    const semestreAulas = conteudos.filter(
-      (c) => c.semestre === selectedSemestre || c.semestre === `${selectedSemestre}º Semestre`
-    );
+    const semestreAulas = conteudos.filter((c) => {
+      if (!c.semestre) return false;
+      const semestreStr = c.semestre.toString().toLowerCase();
+      const selectedStr = selectedSemestre.toLowerCase();
+      return semestreStr === selectedStr || 
+             semestreStr === `${selectedStr}º semestre` ||
+             semestreStr.includes(selectedStr);
+    });
     
     const totalAulas = semestreAulas.length;
     const completed = Array.from(completedItems).filter((id) =>
@@ -265,12 +292,21 @@ export const StudyGuide: React.FC = () => {
     const semestreSet = new Set<string>();
     conteudos.forEach((c) => {
       if (c.semestre) {
-        const semestreNum = c.semestre.replace('º Semestre', '').trim();
-        semestreSet.add(semestreNum);
+        // Keep original format (can be "1", "2", "INTERNATO", etc.)
+        const semestreValue = c.semestre.toString().replace('º Semestre', '').trim();
+        semestreSet.add(semestreValue);
       }
     });
     
-    return Array.from(semestreSet).sort((a, b) => parseInt(a) - parseInt(b));
+    // Sort: numbers first, then text
+    return Array.from(semestreSet).sort((a, b) => {
+      const aNum = parseInt(a);
+      const bNum = parseInt(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      if (!isNaN(aNum)) return -1;
+      if (!isNaN(bNum)) return 1;
+      return a.localeCompare(b);
+    });
   }, [conteudos]);
 
   const getAulaId = (item: ConteudoData) => {
@@ -370,11 +406,17 @@ export const StudyGuide: React.FC = () => {
                   <SelectValue placeholder="Selecione o semestre" />
                 </SelectTrigger>
                 <SelectContent>
-                  {semestres.map((sem) => (
-                    <SelectItem key={sem} value={sem}>
-                      {sem}º Semestre
-                    </SelectItem>
-                  ))}
+                  {semestres.map((sem) => {
+                    // Display formatted name (add "º Semestre" only for numbers)
+                    const isNumeric = !isNaN(parseInt(sem));
+                    const displayName = isNumeric ? `${sem}º Semestre` : sem;
+                    
+                    return (
+                      <SelectItem key={sem} value={sem}>
+                        {displayName}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
