@@ -343,19 +343,34 @@ export const StudyGuide: React.FC = () => {
     const semestreSet = new Set<string>();
     conteudos.forEach((conteudoItem) => {
       if (conteudoItem.semestre) {
-        // Keep original format (can be "1", "2", "INTERNATO", etc.)
-        const semestreValue = conteudoItem.semestre.toString().replace('º Semestre', '').trim();
+        // Keep original format - clean up common variations
+        let semestreValue = conteudoItem.semestre.toString().trim();
+        
+        // Remove "º Semestre" suffix if present
+        semestreValue = semestreValue.replace(/º\s*Semestre/i, '').trim();
+        
+        // Normalize common variations
+        if (semestreValue.match(/^internato$/i)) {
+          semestreValue = 'INTERNATO';
+        }
+        
         semestreSet.add(semestreValue);
       }
     });
     
-    // Sort: numbers first, then text
+    // Sort: numbers first (1-12), then text (INTERNATO, etc.)
     return Array.from(semestreSet).sort((a, b) => {
       const aNum = parseInt(a);
       const bNum = parseInt(b);
+      
+      // Both are numbers - sort numerically
       if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      
+      // Numbers come before text
       if (!isNaN(aNum)) return -1;
       if (!isNaN(bNum)) return 1;
+      
+      // Both are text - sort alphabetically
       return a.localeCompare(b);
     });
   }, [conteudos]);
