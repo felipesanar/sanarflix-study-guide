@@ -56,10 +56,10 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '954aad2f-4030-4d5d-b27a-19eb8fac05cf':
       return {
-        studyGuide: false,
+        studyGuide: true,
         enamed: true,
         cronogramaEnamed: false,
-        dashboard: false,
+        dashboard: true,
         SimuladoDesempenho: false,
         userManagement: false,
         intensivoUSCS: false // USCS tem acesso à página exclusiva
