@@ -77,9 +77,15 @@ export const StudyGuide: React.FC = () => {
     if (stored) {
       try {
         const data = JSON.parse(stored);
-        setCompletedItems(new Set(data));
+        // Ensure data is an array before creating Set
+        if (Array.isArray(data)) {
+          setCompletedItems(new Set(data));
+        } else {
+          setCompletedItems(new Set());
+        }
       } catch (e) {
         console.error('Error loading progress:', e);
+        setCompletedItems(new Set());
       }
     }
   }, []);
@@ -231,20 +237,22 @@ export const StudyGuide: React.FC = () => {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const totalAulas = conteudos.filter(
+    if (!selectedSemestre || !conteudos || conteudos.length === 0) {
+      return { totalAulas: 0, completed: 0, percentage: 0, pendingAulas: [] };
+    }
+
+    const semestreAulas = conteudos.filter(
       (c) => c.semestre === selectedSemestre || c.semestre === `${selectedSemestre}º Semestre`
-    ).length;
+    );
+    
+    const totalAulas = semestreAulas.length;
     const completed = Array.from(completedItems).filter((id) =>
       id.startsWith(`${selectedSemestre}-`)
     ).length;
     const percentage = totalAulas > 0 ? Math.round((completed / totalAulas) * 100) : 0;
 
-    const pendingAulas = conteudos
-      .filter(
-        (c) =>
-          (c.semestre === selectedSemestre || c.semestre === `${selectedSemestre}º Semestre`) &&
-          !completedItems.has(getAulaId(c))
-      )
+    const pendingAulas = semestreAulas
+      .filter((c) => !completedItems.has(getAulaId(c)))
       .slice(0, 3);
 
     return { totalAulas, completed, percentage, pendingAulas };
@@ -252,10 +260,17 @@ export const StudyGuide: React.FC = () => {
 
   // Get unique semestres
   const semestres = useMemo(() => {
-    const unique = new Set(
-      conteudos.map((c) => c.semestre.replace('º Semestre', '').trim())
-    );
-    return Array.from(unique).sort((a, b) => parseInt(a) - parseInt(b));
+    if (!conteudos || conteudos.length === 0) return [];
+    
+    const semestreSet = new Set<string>();
+    conteudos.forEach((c) => {
+      if (c.semestre) {
+        const semestreNum = c.semestre.replace('º Semestre', '').trim();
+        semestreSet.add(semestreNum);
+      }
+    });
+    
+    return Array.from(semestreSet).sort((a, b) => parseInt(a) - parseInt(b));
   }, [conteudos]);
 
   const getAulaId = (item: ConteudoData) => {
