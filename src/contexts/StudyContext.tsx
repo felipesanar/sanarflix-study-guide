@@ -26,11 +26,11 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || !user.semestre) return;
 
     try {
-      // Query conteudos directly with proper UUID casting
+      // RLS policy filters by id_ies automatically using get_user_ies_id()
+      // Also filter by semestre to get only current semester content
       const { data: conteudosData, error } = await supabase
         .from('conteudos')
         .select('*')
-        .eq('id_ies', user.id_ies)
         .eq('semestre', user.semestre.toString());
 
       if (error) {

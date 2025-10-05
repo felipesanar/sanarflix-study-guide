@@ -100,11 +100,11 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Cast id_ies to UUID explicitly for the query
+        // RLS policy already filters by id_ies using get_user_ies_id()
+        // No need to add manual filter - let RLS handle it
         const { data, error } = await supabase
           .from('conteudos')
-          .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-          .filter('id_ies', 'eq', user.id_ies);
+          .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz');
 
         if (error) {
           console.error('Supabase error:', error);
