@@ -181,9 +181,9 @@ export const StudyGuide: React.FC = () => {
     if (!selectedSemestre || !conteudos || conteudos.length === 0) return [];
 
     // Filter by selected semester - handle both numeric and text formats
-    const filtered = conteudos.filter((c) => {
-      if (!c.semestre) return false;
-      const semestreStr = c.semestre.toString().toLowerCase();
+    const filtered = conteudos.filter((conteudoItem) => {
+      if (!conteudoItem.semestre) return false;
+      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
       const selectedStr = selectedSemestre.toLowerCase();
       
       // Match exact number or text like "internato"
@@ -276,9 +276,9 @@ export const StudyGuide: React.FC = () => {
       return { totalAulas: 0, completed: 0, percentage: 0, pendingAulas: [] };
     }
 
-    const semestreAulas = conteudos.filter((c) => {
-      if (!c.semestre) return false;
-      const semestreStr = c.semestre.toString().toLowerCase();
+    const semestreAulas = conteudos.filter((conteudoItem) => {
+      if (!conteudoItem.semestre) return false;
+      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
       const selectedStr = selectedSemestre.toLowerCase();
       return semestreStr === selectedStr || 
              semestreStr === `${selectedStr}º semestre` ||
@@ -286,13 +286,14 @@ export const StudyGuide: React.FC = () => {
     });
     
     const totalAulas = semestreAulas.length;
-    const completed = Array.from(completedItems).filter((id) =>
-      id.startsWith(`${selectedSemestre}-`)
+    const completedArray = Array.from(completedItems);
+    const completed = completedArray.filter((itemId) =>
+      itemId.startsWith(`${selectedSemestre}-`)
     ).length;
     const percentage = totalAulas > 0 ? Math.round((completed / totalAulas) * 100) : 0;
 
     const pendingAulas = semestreAulas
-      .filter((c) => !completedItems.has(getAulaId(c)))
+      .filter((aulaItem) => !completedItems.has(getAulaId(aulaItem)))
       .slice(0, 3);
 
     return { totalAulas, completed, percentage, pendingAulas };
@@ -303,10 +304,10 @@ export const StudyGuide: React.FC = () => {
     if (!conteudos || conteudos.length === 0) return [];
     
     const semestreSet = new Set<string>();
-    conteudos.forEach((c) => {
-      if (c.semestre) {
+    conteudos.forEach((conteudoItem) => {
+      if (conteudoItem.semestre) {
         // Keep original format (can be "1", "2", "INTERNATO", etc.)
-        const semestreValue = c.semestre.toString().replace('º Semestre', '').trim();
+        const semestreValue = conteudoItem.semestre.toString().replace('º Semestre', '').trim();
         semestreSet.add(semestreValue);
       }
     });
