@@ -176,6 +176,43 @@ export const StudyGuide: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Helper functions (must be defined before useMemo)
+  const getAulaId = (item: ConteudoData) => {
+    return `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
+  };
+
+  const isCompleted = (item: ConteudoData) => {
+    return completedItems.has(getAulaId(item));
+  };
+
+  const toggleCompletion = (item: ConteudoData) => {
+    const id = getAulaId(item);
+    const newSet = new Set(completedItems);
+    
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    
+    setCompletedItems(newSet);
+    saveProgress(newSet);
+  };
+
+  const getMateriaIcon = (materia: string) => {
+    const lower = materia.toLowerCase();
+    if (lower.includes('anatomia')) return '🦴';
+    if (lower.includes('fisiologia')) return '❤️';
+    if (lower.includes('bioquímica')) return '🧪';
+    if (lower.includes('farmacologia')) return '💊';
+    if (lower.includes('patologia')) return '🔬';
+    if (lower.includes('clínica')) return '🩺';
+    if (lower.includes('cirurgia')) return '⚕️';
+    if (lower.includes('pediatria')) return '👶';
+    if (lower.includes('ginecologia')) return '🤰';
+    return '📚';
+  };
+
   // Group conteudos by structure
   const groupedData = useMemo(() => {
     if (!selectedSemestre || !conteudos || conteudos.length === 0) return [];
@@ -323,41 +360,6 @@ export const StudyGuide: React.FC = () => {
     });
   }, [conteudos]);
 
-  const getAulaId = (item: ConteudoData) => {
-    return `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
-  };
-
-  const toggleCompletion = (item: ConteudoData) => {
-    const id = getAulaId(item);
-    const newSet = new Set(completedItems);
-    
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    
-    setCompletedItems(newSet);
-    saveProgress(newSet);
-  };
-
-  const isCompleted = (item: ConteudoData) => {
-    return completedItems.has(getAulaId(item));
-  };
-
-  const getMateriaIcon = (materia: string) => {
-    const lower = materia.toLowerCase();
-    if (lower.includes('anatomia')) return '🦴';
-    if (lower.includes('fisiologia')) return '❤️';
-    if (lower.includes('bioquímica')) return '🧪';
-    if (lower.includes('farmacologia')) return '💊';
-    if (lower.includes('patologia')) return '🔬';
-    if (lower.includes('clínica')) return '🩺';
-    if (lower.includes('cirurgia')) return '⚕️';
-    if (lower.includes('pediatria')) return '👶';
-    if (lower.includes('ginecologia')) return '🤰';
-    return '📚';
-  };
 
   if (isLoading) {
     return (
