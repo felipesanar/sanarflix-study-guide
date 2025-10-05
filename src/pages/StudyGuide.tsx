@@ -99,12 +99,19 @@ export const StudyGuide: React.FC = () => {
 
       try {
         setIsLoading(true);
+        
+        // Ensure id_ies is treated as UUID by converting to string if needed
+        const iesId = typeof user.id_ies === 'string' ? user.id_ies : String(user.id_ies);
+        
         const { data, error } = await supabase
           .from('conteudos')
           .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-          .eq('id_ies', user.id_ies);
+          .eq('id_ies', iesId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          throw error;
+        }
 
         // Transform data to match ConteudoData interface
         const transformedData: ConteudoData[] = (data || []).map((item: any) => ({
