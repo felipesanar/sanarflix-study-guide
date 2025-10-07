@@ -71,7 +71,18 @@ export const getAccessRules = (user: User | null): AccessRules => {
         enamed: true,
         cronogramaEnamed: false,
         dashboard: false,
-        SimuladoDesempenho: false,
+        SimuladoDesempenho: true,
+        userManagement: false,
+        intensivoUSCS: false
+      };
+
+      case '5c6e697f-853c-415b-8690-65a27a9384f0':
+      return {
+        studyGuide: false,
+        enamed: true,
+        cronogramaEnamed: false,
+        dashboard: false,
+        SimuladoDesempenho: true,
         userManagement: false,
         intensivoUSCS: false
       };
