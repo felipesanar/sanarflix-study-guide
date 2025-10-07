@@ -71,7 +71,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
         enamed: true,
         cronogramaEnamed: false,
         dashboard: false,
-        SimuladoDesempenho: true,
+        SimuladoDesempenho: false,
         userManagement: false,
         intensivoUSCS: false
       };
