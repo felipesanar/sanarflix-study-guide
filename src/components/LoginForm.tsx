@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
-import { getAccessRules } from '@/utils/accessRules';
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { getAccessRules } from "@/utils/accessRules";
 export const LoginForm: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -24,17 +24,16 @@ export const LoginForm: React.FC = () => {
       // Determine default route based on access rules (B2C -> cronograma)
       setTimeout(() => {
         try {
-          const stored = localStorage.getItem('sanarflix-user');
-          let target = '/intensivao-enamed';
+          const stored = localStorage.getItem("sanarflix-user");
+          let target = "/intensivao-enamed";
           if (stored) {
             const parsed = JSON.parse(stored);
             const rules = getAccessRules(parsed);
-            target = rules.cronogramaEnamed ? '/cronograma-enamed' : '/intensivao-enamed';
+            target = rules.cronogramaEnamed ? "/cronograma-enamed" : "/intensivao-enamed";
           }
           navigate(target, { replace: true });
         } catch (err) {
-          
-          navigate('/intensivao-enamed', { replace: true });
+          navigate("/intensivao-enamed", { replace: true });
         }
       }, 50);
     }
@@ -61,7 +60,6 @@ export const LoginForm: React.FC = () => {
         duration: 4000,
       });
     } catch (err: any) {
-      
       toast({
         title: "Não foi possível enviar o e-mail",
         description: err?.message || "Tente novamente em instantes.",
@@ -96,11 +94,9 @@ export const LoginForm: React.FC = () => {
               <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">
                 Faça seu login
               </CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-muted-foreground">
-                Acesse com suas credenciais do Sanarflix
-              </CardDescription>
+              <CardDescription className="text-neutral-600 dark:text-muted-foreground"></CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
@@ -153,18 +149,13 @@ export const LoginForm: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-end -mt-2">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="px-0 text-primary"
-                    onClick={handleResetPassword}
-                  >
+                  <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword}>
                     Esqueci a senha
                   </Button>
                 </div>
 
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full h-12 bg-primary hover:bg-primary-dark text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]"
                   disabled={isLoading}
                 >
@@ -174,11 +165,10 @@ export const LoginForm: React.FC = () => {
                       Entrando...
                     </>
                   ) : (
-                    'Entrar'
+                    "Entrar"
                   )}
                 </Button>
               </form>
-
             </CardContent>
           </Card>
         </div>
