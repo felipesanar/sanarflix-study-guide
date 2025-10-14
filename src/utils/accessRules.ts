@@ -76,6 +76,17 @@ export const getAccessRules = (user: User | null): AccessRules => {
         intensivoUSCS: false
       };
 
+      case '3e51663e-8766-4881-bfd1-0921678ed014':
+      return {
+        studyGuide: false,
+        enamed: true,
+        cronogramaEnamed: true,
+        dashboard: false,
+        SimuladoDesempenho: true,
+        userManagement: false,
+        intensivoUSCS: false
+      };
+
       case '5c6e697f-853c-415b-8690-65a27a9384f0':
       return {
         studyGuide: false,
