@@ -80,7 +80,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       return {
         studyGuide: false,
         enamed: true,
-        cronogramaEnamed: true,
+        cronogramaEnamed: false,
         dashboard: false,
         SimuladoDesempenho: true,
         userManagement: false,
