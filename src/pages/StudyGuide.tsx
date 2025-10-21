@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -16,15 +16,25 @@ import {
   Target,
   Sparkles,
   ArrowUp,
-  Calendar
+  Calendar,
+  BookMarked,
+  GraduationCap,
+  LayoutGrid,
+  List,
+  Bookmark,
+  Plus,
+  X,
+  Clock3
 } from 'lucide-react';
+import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 interface Aula {
@@ -70,6 +80,72 @@ export const StudyGuide: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [selectedMateria, setSelectedMateria] = useState<string>('');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  
+  // Interface para eventos do calendário
+  interface CalendarEvent {
+    id: string;
+    title: string;
+    materia: string;
+    day: number; // 0-6 (domingo-sábado)
+    startTime: string;
+    endTime: string;
+    color: string;
+  }
+  
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const dragControls = useDragControls();
+  
+  // Função para gerar uma cor consistente baseada no nome da matéria
+  const getMateriaColor = (materia: string) => {
+    let hash = 0;
+    for (let i = 0; i < materia.length; i++) {
+      hash = materia.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    const colors = [
+      '#4361ee', '#3a0ca3', '#7209b7', '#f72585', 
+      '#4cc9f0', '#4895ef', '#560bad', '#f3722c',
+      '#06d6a0', '#118ab2', '#073b4c', '#ff006e'
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+  
+  // Função para adicionar evento ao calendário
+  const addEventToCalendar = (materia: string, day: number) => {
+    // Gerar horários aleatórios para demonstração
+    const startHour = Math.floor(Math.random() * 12) + 8; // Entre 8h e 19h
+    const duration = Math.floor(Math.random() * 2) + 1; // 1 ou 2 horas
+    const endHour = startHour + duration;
+    
+    const startTime = `${startHour.toString().padStart(2, '0')}:00`;
+    const endTime = `${endHour.toString().padStart(2, '0')}:00`;
+    
+    const newEvent: CalendarEvent = {
+      id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: materia,
+      materia,
+      day,
+      startTime,
+      endTime,
+      color: getMateriaColor(materia)
+    };
+    
+    setCalendarEvents(prev => [...prev, newEvent]);
+    toast({
+      title: "Evento adicionado",
+      description: `${materia} adicionado ao calendário para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][day]}`,
+      variant: "default",
+    });
+  };
+  
+  // Função para remover evento do calendário
+  const removeEventFromCalendar = (id: string) => {
+    setCalendarEvents(prev => prev.filter(event => event.id !== id));
+  };
 
   // Load completed items from localStorage
   useEffect(() => {
@@ -201,7 +277,7 @@ export const StudyGuide: React.FC = () => {
 
   const getMateriaIcon = (materia: string) => {
     const lower = materia.toLowerCase();
-    if (lower.includes('anatomia')) return '🦴';
+    if (lower.includes('anatomia')) return '🧠';
     if (lower.includes('fisiologia')) return '❤️';
     if (lower.includes('bioquímica')) return '🧪';
     if (lower.includes('farmacologia')) return '💊';
@@ -210,7 +286,67 @@ export const StudyGuide: React.FC = () => {
     if (lower.includes('cirurgia')) return '⚕️';
     if (lower.includes('pediatria')) return '👶';
     if (lower.includes('ginecologia')) return '🤰';
+    if (lower.includes('microbiologia')) return '🦠';
+    if (lower.includes('imunologia')) return '🛡️';
+    if (lower.includes('parasitologia')) return '🦟';
+    if (lower.includes('histologia')) return '🔬';
+    if (lower.includes('embriologia')) return '👶';
     return '📚';
+  };
+  
+  // Função para gerar cor baseada no nome da matéria (consistente)
+  const getMateriaColor = (materia: string): string => {
+    const colors = [
+      'hsl(var(--primary))',
+      'hsl(214 76% 38%)',
+      'hsl(24 100% 57%)',
+      'hsl(262 83% 58%)',
+      'hsl(316 73% 52%)',
+      'hsl(142 71% 45%)',
+      'hsl(43 96% 58%)',
+      'hsl(187 100% 42%)',
+      'hsl(355 78% 56%)',
+    ];
+    
+    // Hash simples para garantir que a mesma matéria sempre tenha a mesma cor
+    const hash = materia.split('').reduce((acc, char) => {
+      return acc + char.charCodeAt(0);
+    }, 0);
+    
+    return colors[hash % colors.length];
+  };
+  
+  // Esta função já está definida anteriormente no código, então esta é uma duplicata
+  
+  // Função para adicionar evento ao calendário
+  const addEventToCalendar = (materia: string, day: number) => {
+    // Gera horários aleatórios para demonstração
+    const startHour = Math.floor(Math.random() * 12) + 8; // Entre 8h e 19h
+    const duration = Math.floor(Math.random() * 2) + 1; // 1 ou 2 horas
+    const startTime = `${startHour}:00`;
+    const endTime = `${startHour + duration}:00`;
+    
+    const newEvent: CalendarEvent = {
+      id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: materia,
+      materia: materia,
+      day: day,
+      startTime: startTime,
+      endTime: endTime,
+      color: getMateriaColor(materia)
+    };
+    
+    setCalendarEvents(prev => [...prev, newEvent]);
+    
+    toast({
+      title: 'Evento adicionado',
+      description: `${materia} adicionado ao calendário`,
+    });
+  };
+  
+  // Função para remover evento do calendário
+  const removeEventFromCalendar = (eventId: string) => {
+    setCalendarEvents(prev => prev.filter(event => event.id !== eventId));
   };
 
   // Group conteudos by structure
@@ -461,229 +597,442 @@ export const StudyGuide: React.FC = () => {
             {/* Dashboard Section */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* Progress Card */}
-              <Card className="premium-card hover-lift">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    Progresso do Semestre
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold">{stats.percentage}%</span>
-                      <span className="text-sm text-muted-foreground">
-                        {stats.completed} de {stats.totalAulas} aulas
-                      </span>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Card className="premium-card hover-lift shadow-lg border-primary/10">
+                  <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 to-transparent">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      Progresso do Semestre
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold">{stats.percentage}%</span>
+                        <span className="text-sm text-muted-foreground">
+                          {stats.completed} de {stats.totalAulas} aulas
+                        </span>
+                      </div>
+                      <Progress value={stats.percentage} className="h-2" />
+                      {stats.percentage >= 80 && (
+                        <p className="text-xs text-primary flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Excelente progresso!
+                        </p>
+                      )}
                     </div>
-                    <Progress value={stats.percentage} className="h-2" />
-                    {stats.percentage >= 80 && (
-                      <p className="text-xs text-primary flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" />
-                        Excelente progresso!
-                      </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Today's Study */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="md:col-span-2"
+              >
+                <Card className="premium-card hover-lift shadow-lg border-primary/10">
+                  <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 to-transparent">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Target className="h-4 w-4 text-primary" />
+                      O Que Estudar Hoje
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {stats.pendingAulas.length > 0 ? (
+                      <div className="space-y-2">
+                        {stats.pendingAulas.map((aula, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-accent transition-colors"
+                          >
+                            <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                            <span className="flex-1">{aula.aula}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {aula.materia}
+                            </Badge>
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Dica: Estude em blocos de 25min para máxima retenção
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Parabéns! Você completou todas as aulas deste semestre.
+                      </div>
                     )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* View Mode Selector */}
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Seu Plano de Estudos</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={viewMode === 'list' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('list')}
+                  className="gap-1"
+                >
+                  <List className="h-4 w-4" />
+                  Lista
+                </Button>
+                <Button 
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'} 
+                  size="sm" 
+                  onClick={() => setViewMode('calendar')}
+                  className="gap-1"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Calendário
+                </Button>
+              </div>
+            </div>
+
+            {/* Matéria Selector */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Card className="border-primary/10 shadow-md">
+                <CardContent className="pt-6 pb-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant={selectedMateria === '' ? 'default' : 'outline'}
+                      onClick={() => setSelectedMateria('')}
+                      className="gap-2"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      Todas as Matérias
+                    </Button>
+                    {filteredMaterias.map((materia, idx) => (
+                      <Button 
+                        key={idx}
+                        variant={selectedMateria === materia.materia ? 'default' : 'outline'}
+                        onClick={() => setSelectedMateria(materia.materia)}
+                        className="gap-2"
+                      >
+                        <span className="text-lg">{getMateriaIcon(materia.materia)}</span>
+                        {materia.materia}
+                      </Button>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Today's Study */}
-              <Card className="premium-card hover-lift md:col-span-2">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Target className="h-4 w-4 text-primary" />
-                    O Que Estudar Hoje
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {stats.pendingAulas.length > 0 ? (
-                    <div className="space-y-2">
-                      {stats.pendingAulas.map((aula, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-accent transition-colors"
-                        >
-                          <ChevronRight className="h-4 w-4 text-primary shrink-0" />
-                          <span className="flex-1">{aula.aula}</span>
-                          <Badge variant="outline" className="text-xs">
-                            {aula.materia}
-                          </Badge>
-                        </div>
-                      ))}
-                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Dica: Estude em blocos de 25min para máxima retenção
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Parabéns! Você completou todas as aulas deste semestre.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            </motion.div>
 
             {/* Content */}
-            {filteredMaterias.length === 0 ? (
-              <Card className="p-12">
-                <div className="text-center space-y-3">
-                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
-                  <h3 className="text-lg font-semibold">Nenhum conteúdo encontrado</h3>
-                  <p className="text-muted-foreground">
-                    {searchQuery
-                      ? 'Tente uma busca diferente ou limpe os filtros.'
-                      : 'Não há conteúdos disponíveis para este semestre.'}
-                  </p>
-                </div>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {filteredMaterias.map((materia, mIdx) => (
-                  <Card key={mIdx} className="premium-card overflow-hidden">
-                    <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
-                      <CardTitle className="flex items-center gap-3">
-                        <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
-                        <div className="flex-1">
-                          <h2 className="text-xl font-bold">{materia.materia}</h2>
-                          <p className="text-sm text-muted-foreground font-normal">
-                            {materia.temas.reduce(
-                              (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
-                              0
-                            )}{' '}
-                            aulas disponíveis
-                          </p>
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="pt-6">
-                      <Accordion type="multiple" className="space-y-4">
-                        {materia.temas.map((tema, tIdx) => (
-                          <AccordionItem
-                            key={tIdx}
-                            value={`tema-${mIdx}-${tIdx}`}
-                            className="border rounded-lg px-4"
+            <AnimatePresence mode="wait">
+              {viewMode === 'list' ? (
+                <motion.div 
+                  key="list-view"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {filteredMaterias.length === 0 ? (
+                    <Card className="p-12">
+                      <div className="text-center space-y-3">
+                        <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
+                        <h3 className="text-lg font-semibold">Nenhum conteúdo encontrado</h3>
+                        <p className="text-muted-foreground">
+                          {searchQuery
+                            ? 'Tente uma busca diferente ou limpe os filtros.'
+                            : 'Não há conteúdos disponíveis para este semestre.'}
+                        </p>
+                      </div>
+                    </Card>
+                  ) : (
+                    <div className="space-y-6">
+                      {filteredMaterias
+                        .filter(materia => selectedMateria === '' || materia.materia === selectedMateria)
+                        .map((materia, mIdx) => (
+                          <motion.div
+                            key={mIdx}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, delay: mIdx * 0.1 }}
                           >
-                            <AccordionTrigger className="hover:no-underline">
-                              <div className="flex items-center gap-3 flex-1 text-left">
-                                <Brain className="h-5 w-5 text-primary shrink-0" />
-                                <div className="flex-1">
-                                  <h3 className="font-semibold">{tema.tema}</h3>
-                                  <p className="text-xs text-muted-foreground">
-                                    {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
-                                  </p>
-                                </div>
-                              </div>
-                            </AccordionTrigger>
+                            <Card className="premium-card overflow-hidden shadow-lg border-primary/10">
+                              <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
+                                <CardTitle className="flex items-center gap-3">
+                                  <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
+                                  <div className="flex-1">
+                                    <h2 className="text-xl font-bold">{materia.materia}</h2>
+                                    <p className="text-sm text-muted-foreground font-normal">
+                                      {materia.temas.reduce(
+                                        (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                                        0
+                                      )}{' '}
+                                      aulas disponíveis
+                                    </p>
+                                  </div>
+                                </CardTitle>
+                              </CardHeader>
 
-                            <AccordionContent className="space-y-3 pt-4">
-                              {tema.subtemas.map((subtema, stIdx) => (
-                                <div key={stIdx} className="space-y-2">
-                                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                    <ChevronRight className="h-4 w-4" />
-                                    {subtema.subtema}
-                                  </h4>
-
-                                  <div className="space-y-2 ml-6">
-                                    {subtema.aulas.map((aula, aIdx) => {
-                                      const aulaData: ConteudoData = {
-                                        semestre: selectedSemestre,
-                                        materia: materia.materia,
-                                        tema: tema.tema,
-                                        subtema: subtema.subtema,
-                                        aula: aula.aula,
-                                        link_aula: aula.link_aula,
-                                        link_pdf: aula.link_pdf,
-                                        link_quiz: aula.link_quiz,
-                                      };
-                                      const completed = isCompleted(aulaData);
-
-                                      return (
-                                        <div
-                                          key={aIdx}
-                                          className={cn(
-                                            'p-4 rounded-lg border transition-all',
-                                            completed
-                                              ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                                              : 'bg-card hover:bg-accent'
-                                          )}
-                                        >
-                                          <div className="flex items-start gap-3">
-                                            <button
-                                              onClick={() => toggleCompletion(aulaData)}
-                                              className="shrink-0 mt-1"
-                                            >
-                                              {completed ? (
-                                                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                              ) : (
-                                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
-                                              )}
-                                            </button>
-
-                                            <div className="flex-1 space-y-2">
-                                              <h5
-                                                className={cn(
-                                                  'font-medium',
-                                                  completed && 'line-through text-muted-foreground'
-                                                )}
-                                              >
-                                                {aula.aula}
-                                              </h5>
-
-                                              <div className="flex flex-wrap gap-2">
-                                                {aula.link_aula && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="gap-2"
-                                                    onClick={() => window.open(aula.link_aula!, '_blank')}
-                                                  >
-                                                    <Play className="h-3 w-3" />
-                                                    Assistir Aula
-                                                  </Button>
-                                                )}
-                                                {aula.link_pdf && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="gap-2"
-                                                    onClick={() => window.open(aula.link_pdf!, '_blank')}
-                                                  >
-                                                    <FileText className="h-3 w-3" />
-                                                    Material PDF
-                                                  </Button>
-                                                )}
-                                                {aula.link_quiz && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="gap-2"
-                                                    onClick={() => window.open(aula.link_quiz!, '_blank')}
-                                                  >
-                                                    <Brain className="h-3 w-3" />
-                                                    Fazer Quiz
-                                                  </Button>
-                                                )}
-                                              </div>
-                                            </div>
+                              <CardContent className="pt-6">
+                                <Accordion type="multiple" className="space-y-4">
+                                  {materia.temas.map((tema, tIdx) => (
+                                    <AccordionItem
+                                      key={tIdx}
+                                      value={`tema-${mIdx}-${tIdx}`}
+                                      className="border rounded-lg px-4 shadow-sm"
+                                    >
+                                      <AccordionTrigger className="hover:no-underline">
+                                        <div className="flex items-center gap-3 flex-1 text-left">
+                                          <Brain className="h-5 w-5 text-primary shrink-0" />
+                                          <div className="flex-1">
+                                            <h3 className="font-semibold">{tema.tema}</h3>
+                                            <p className="text-xs text-muted-foreground">
+                                              {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
+                                            </p>
                                           </div>
                                         </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              ))}
-                            </AccordionContent>
-                          </AccordionItem>
+                                      </AccordionTrigger>
+
+                                      <AccordionContent className="space-y-3 pt-4">
+                                        {tema.subtemas.map((subtema, stIdx) => (
+                                          <div key={stIdx} className="space-y-2">
+                                            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                              <ChevronRight className="h-4 w-4" />
+                                              {subtema.subtema}
+                                            </h4>
+
+                                            <div className="space-y-2 ml-6">
+                                              {subtema.aulas.map((aula, aIdx) => {
+                                                const aulaData: ConteudoData = {
+                                                  semestre: selectedSemestre,
+                                                  materia: materia.materia,
+                                                  tema: tema.tema,
+                                                  subtema: subtema.subtema,
+                                                  aula: aula.aula,
+                                                  link_aula: aula.link_aula,
+                                                  link_pdf: aula.link_pdf,
+                                                  link_quiz: aula.link_quiz,
+                                                };
+                                                const completed = isCompleted(aulaData);
+
+                                                return (
+                                                  <motion.div
+                                                    key={aIdx}
+                                                    whileHover={{ scale: 1.01 }}
+                                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                                                    className={cn(
+                                                      'p-4 rounded-lg border transition-all shadow-sm',
+                                                      completed
+                                                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                                                        : 'bg-card hover:bg-accent'
+                                                    )}
+                                                  >
+                                                    <div className="flex items-start gap-3">
+                                                      <button
+                                                        onClick={() => toggleCompletion(aulaData)}
+                                                        className="shrink-0 mt-1"
+                                                      >
+                                                        {completed ? (
+                                                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                                        ) : (
+                                                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
+                                                        )}
+                                                      </button>
+
+                                                      <div className="flex-1 space-y-2">
+                                                        <h5
+                                                          className={cn(
+                                                            'font-medium',
+                                                            completed && 'line-through text-muted-foreground'
+                                                          )}
+                                                        >
+                                                          {aula.aula}
+                                                        </h5>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                          {aula.link_aula && (
+                                                            <Button
+                                                              size="sm"
+                                                              variant="outline"
+                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                                              onClick={() => window.open(aula.link_aula!, '_blank')}
+                                                            >
+                                                              <Play className="h-3 w-3" />
+                                                              Assistir Aula
+                                                            </Button>
+                                                          )}
+                                                          {aula.link_pdf && (
+                                                            <Button
+                                                              size="sm"
+                                                              variant="outline"
+                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                                              onClick={() => window.open(aula.link_pdf!, '_blank')}
+                                                            >
+                                                              <FileText className="h-3 w-3" />
+                                                              Material PDF
+                                                            </Button>
+                                                          )}
+                                                          {aula.link_quiz && (
+                                                            <Button
+                                                              size="sm"
+                                                              variant="outline"
+                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                                              onClick={() => window.open(aula.link_quiz!, '_blank')}
+                                                            >
+                                                              <Brain className="h-3 w-3" />
+                                                              Fazer Quiz
+                                                            </Button>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  </motion.div>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </AccordionContent>
+                                    </AccordionItem>
+                                  ))}
+                                </Accordion>
+                              </CardContent>
+                            </Card>
+                          </motion.div>
                         ))}
-                      </Accordion>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="calendar-view"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="shadow-lg border-primary/10 hover:shadow-xl transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        Calendário de Estudos
+                      </CardTitle>
+                      <CardDescription>
+                        Arraste e solte as matérias para planejar seus estudos
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[600px] bg-accent/30 rounded-lg p-4 relative glass-effect">
+                        <div className="grid grid-cols-7 gap-2 h-full">
+                          {Array.from({ length: 7 }).map((_, dayIdx) => (
+                            <div key={dayIdx} className="flex flex-col h-full">
+                              <div className="text-center font-medium p-2 bg-primary/10 rounded-t-lg">
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx]}
+                              </div>
+                              <div 
+                                className="flex-1 bg-background rounded-b-lg border border-border p-2 space-y-2 overflow-y-auto hover:bg-accent/10 transition-colors"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  if (draggedItem) {
+                                    addEventToCalendar(draggedItem, dayIdx);
+                                    setDraggedItem(null);
+                                  }
+                                }}
+                              >
+                                {/* Eventos do calendário */}
+                                {calendarEvents
+                                  .filter(event => event.day === dayIdx)
+                                  .map((event) => (
+                                    <motion.div
+                                      key={event.id}
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      className="p-2 rounded-md text-sm border cursor-move hover-lift premium-card"
+                                      style={{ 
+                                        backgroundColor: `${event.color}20`,
+                                        borderColor: `${event.color}30`
+                                      }}
+                                      drag
+                                      dragControls={dragControls}
+                                      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                                      dragElastic={0.2}
+                                      dragMomentum={false}
+                                      whileDrag={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                                    >
+                                      <div className="flex justify-between items-start">
+                                        <div className="font-medium flex items-center gap-1">
+                                          <span>{getMateriaIcon(event.materia)}</span>
+                                          {event.title}
+                                        </div>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                                          onClick={() => removeEventFromCalendar(event.id)}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <div className="text-xs flex items-center gap-1 mt-1">
+                                        <Clock3 className="h-3 w-3" />
+                                        {event.startTime} - {event.endTime}
+                                      </div>
+                                    </motion.div>
+                                  ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Matérias disponíveis para arrastar */}
+                        <motion.div 
+                          className="absolute bottom-4 left-4 right-4 bg-background p-3 rounded-lg border shadow-md"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <h4 className="text-sm font-medium mb-2">Arraste para adicionar ao calendário:</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {filteredMaterias.map((materia, idx) => (
+                              <motion.div 
+                                key={idx} 
+                                className="bg-primary/10 px-3 py-1 rounded-full text-sm border border-primary/20 cursor-move flex items-center gap-1 hover:bg-primary/20 transition-colors"
+                                draggable
+                                onDragStart={() => setDraggedItem(materia.materia)}
+                                onDragEnd={() => setDraggedItem(null)}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <span className="text-sm">{getMateriaIcon(materia.materia)}</span>
+                                {materia.materia}
+                              </motion.div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      </div>
                     </CardContent>
+                    <CardFooter className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Dica: Planeje seus estudos semanalmente para melhor organização
+                      </div>
+                    </CardFooter>
                   </Card>
-                ))}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
 
