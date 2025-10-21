@@ -23,7 +23,20 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      "@typescript-eslint/no-unused-vars": "off",
+      // Regras de segurança
+      "no-console": "warn",
+      "no-debugger": "error",
+      "no-eval": "error",
+      
+      // Regras de TypeScript
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      "@typescript-eslint/prefer-optional-chain": "error",
+      
+      // Regras de React
+      "react-hooks/exhaustive-deps": "error",
+      "react/jsx-key": "error",
     },
   }
 );

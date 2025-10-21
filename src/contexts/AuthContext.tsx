@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import Logger from '@/utils/logger';
+import { validateUser } from '@/utils/validation';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -21,10 +23,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
-            setUser(parsed);
-            setNeedsPasswordChange(cachedNeeds === 'true');
+            const validation = validateUser(parsed);
+            
+            if (validation.success) {
+              setUser(parsed);
+              setNeedsPasswordChange(cachedNeeds === 'true');
+            } else {
+              Logger.warn('Invalid cached user data', validation.error);
+              localStorage.removeItem('sanarflix-user');
+              localStorage.removeItem('sanarflix-needs-password-change');
+            }
           } catch (e) {
-            // Error parsing cached user
+            Logger.error('Error parsing cached user data', e);
+            localStorage.removeItem('sanarflix-user');
+            localStorage.removeItem('sanarflix-needs-password-change');
           }
         } else if (session?.access_token) {
           // Fluxo via magic link/callback: buscar perfil de forma deferida
@@ -95,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (error) {
+        Logger.error('Login communication error', error);
         toast({
           title: "Erro no login",
           description: "Erro de comunicação com o servidor",

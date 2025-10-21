@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useWebVitals } from "@/hooks/usePerformance";
 import { AppSidebar } from '@/components/AppSidebar';
 import { Layout } from '@/components/Layout';
 import { LoginForm } from '@/components/LoginForm';
@@ -190,22 +192,29 @@ const AppContent = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <BrowserRouter>
-          <AuthProvider>
-            <AuthWrapper>
-              <AppContent />
-            </AuthWrapper>
-          </AuthProvider>
-        </BrowserRouter>
-      </ThemeProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Monitorar Web Vitals
+  useWebVitals();
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <BrowserRouter>
+              <AuthProvider>
+                <AuthWrapper>
+                  <AppContent />
+                </AuthWrapper>
+              </AuthProvider>
+            </BrowserRouter>
+          </ThemeProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;
