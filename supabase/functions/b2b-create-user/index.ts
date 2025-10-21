@@ -1,9 +1,29 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const createUserSchema = z.object({
+  nome: z.string()
+    .trim()
+    .min(2, 'Nome deve ter pelo menos 2 caracteres')
+    .max(100, 'Nome muito longo')
+    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, 'Nome deve conter apenas letras e espaços'),
+  email: z.string()
+    .trim()
+    .email('Email inválido')
+    .max(255, 'Email muito longo'),
+  id_ies: z.string()
+    .uuid('ID da IES deve ser um UUID válido'),
+  semestre: z.number()
+    .int('Semestre deve ser um número inteiro')
+    .min(1, 'Semestre mínimo: 1')
+    .max(12, 'Semestre máximo: 12')
+});
 
 function generatePassword() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -73,14 +93,23 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { nome, email, id_ies, semestre } = body ?? {};
-
-    if (!nome || !email || !id_ies || typeof semestre === "undefined") {
-      return new Response(
-        JSON.stringify({ error: "Campos obrigatórios: nome, email, id_ies, semestre" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    
+    // Validate input with zod schema
+    let validatedData;
+    try {
+      validatedData = createUserSchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        return new Response(
+          JSON.stringify({ error: 'Validation failed', details: errorMessages }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw error;
     }
+
+    const { nome, email, id_ies, semestre } = validatedData;
 
     const password = generatePassword();
 

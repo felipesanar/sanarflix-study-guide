@@ -1,5 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts"
+
+// Input validation schema
+const passwordSchema = z.object({
+  newPassword: z.string()
+    .min(8, 'Senha deve ter pelo menos 8 caracteres')
+    .max(100, 'Senha muito longa')
+    .regex(/[A-Z]/, 'Senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[a-z]/, 'Senha deve conter pelo menos uma letra minúscula')
+    .regex(/[0-9]/, 'Senha deve conter pelo menos um número')
+});
 
 // SECURITY: Flexible CORS configuration with origin validation for known environments
 const isAllowedOrigin = (origin?: string | null): boolean => {
@@ -57,17 +68,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { newPassword } = await req.json().catch(() => ({}))
-
-    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
-      return new Response(
-        JSON.stringify({ error: 'Senha inválida. Mínimo de 6 caracteres.' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+    const body = await req.json().catch(() => ({}))
+    
+    // Validate input with zod schema
+    let validatedData;
+    try {
+      validatedData = passwordSchema.parse(body);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+        return new Response(
+          JSON.stringify({ error: 'Validation failed', details: errorMessages }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw error;
     }
+
+    const { newPassword } = validatedData;
 
     const authHeader = req.headers.get('Authorization') || ''
     const token = authHeader.replace('Bearer ', '')
