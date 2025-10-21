@@ -34,13 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.removeItem('sanarflix-needs-password-change');
             }
           } catch (e) {
-<<<<<<< HEAD
             Logger.error('Error parsing cached user data', e);
             localStorage.removeItem('sanarflix-user');
             localStorage.removeItem('sanarflix-needs-password-change');
-=======
-            console.error('Erro ao parsear usuário em cache:', e);
->>>>>>> fb520739eeb3bbf45fcad3b93784436f92b9cfc5
           }
         }
         // Removemos a chamada redundante para auth-login aqui
