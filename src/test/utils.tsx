@@ -41,8 +41,9 @@ const customRender = (
   options?: Omit<RenderOptions, 'wrapper'>
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
-// Re-export tudo
+// Re-export tudo de testing-library
 export * from '@testing-library/react';
+export { default as userEvent } from '@testing-library/user-event';
 export { customRender as render };
 
 // Utilitários de teste

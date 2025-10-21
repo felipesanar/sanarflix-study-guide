@@ -228,9 +228,9 @@ export const sanitizeInput = (input: string): string => {
  * Validação de arquivo CSV
  */
 export const csvFileSchema = z.object({
-  name: z.string().endsWith('.csv', 'Arquivo deve ter extensão .csv'),
-  size: z.number().max(5 * 1024 * 1024, 'Arquivo deve ter no máximo 5MB'),
-  type: z.string().includes('csv', 'Tipo de arquivo deve ser CSV'),
+  name: z.string().endsWith('.csv', { message: 'Arquivo deve ter extensão .csv' }),
+  size: z.number().max(5 * 1024 * 1024, { message: 'Arquivo deve ter no máximo 5MB' }),
+  type: z.string().refine((val) => val.includes('csv') || val === '', { message: 'Tipo de arquivo deve ser CSV' }),
 });
 
 export const validateCsvFile = (file: File) => {

@@ -64,7 +64,7 @@ export const useAsyncPerformance = () => {
 export const useWebVitals = () => {
   useEffect(() => {
     // Importação dinâmica para reduzir bundle size
-    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+    import('web-vitals').then(({ onCLS, onINP, onFCP, onLCP, onTTFB }) => {
       const reportMetric = (metric: any) => {
         Logger.performance(`WebVital: ${metric.name}`, metric.value, {
           id: metric.id,
@@ -73,11 +73,11 @@ export const useWebVitals = () => {
         });
       };
 
-      getCLS(reportMetric);
-      getFID(reportMetric);
-      getFCP(reportMetric);
-      getLCP(reportMetric);
-      getTTFB(reportMetric);
+      onCLS(reportMetric);
+      onINP(reportMetric);
+      onFCP(reportMetric);
+      onLCP(reportMetric);
+      onTTFB(reportMetric);
     }).catch(() => {
       // web-vitals não disponível, ignorar silenciosamente
     });
