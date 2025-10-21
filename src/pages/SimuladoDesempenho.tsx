@@ -272,10 +272,10 @@ export const SimuladoDesempenho: React.FC = () => {
       // ATUALIZAÇÃO: Os 3 argumentos são enviados para a RPC
       const { data, error } = await supabase.rpc('get_questions_by_subspecialty', { 
         sub_name: subspecialtyName,
+        p_simulado_id: selectedSimulado,
         area_name: areaName,
-        specialty_name: specialtyName,
-        p_simulado_id: selectedSimulado 
-      });
+        specialty_name: specialtyName
+      } as any);
       if (error) throw error;
       if (data && data.length > 0) { 
         const mappedQuestions = data.map((q: any) => ({

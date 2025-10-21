@@ -26,25 +26,24 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || !user.semestre) return;
 
     try {
-      // Bypass TS typing on Supabase RPC since generated types are empty
-      const { data: conteudosData, error } = await (supabase as any)
-        .rpc('get_conteudos_for_user', {
-          user_id_ies: user.id_ies,
-          user_semestre: user.semestre
-        });
+      // Use edge function to fetch conteudos (bypasses RLS issues)
+      const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
       if (error) {
+        console.error('Error loading study contents:', error);
         setStudyContents([]);
         return;
       }
+
+      const conteudosData = response?.data || [];
 
       if (!conteudosData || conteudosData.length === 0) {
         setStudyContents([]);
         return;
       }
 
-      // Process JSONB content
-      const processedContents = processConteudosJsonb(conteudosData[0]?.conteudos);
+      // Process raw conteudos data - data is already flat, not JSONB nested
+      const processedContents = processConteudosData(conteudosData);
       setStudyContents(processedContents);
 
       // Load progress from database
@@ -133,6 +132,24 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
 
     return disciplineProgress;
+  };
+
+  // Process flat conteudos data from the new table structure
+  const processConteudosData = (conteudosData: any[]): StudyContent[] => {
+    if (!conteudosData || conteudosData.length === 0) {
+      return [];
+    }
+
+    // Transform flat rows to StudyContent structure
+    return conteudosData.map((item, index) => ({
+      id: item.id || `content_${index}`,
+      name: item.aula || 'Conteúdo sem título',
+      discipline: item.materia || 'Geral',
+      week: parseInt(item.semestre) || 1,
+      sanarflixUrl: item.link_aula || item.link_pdf || item.link_quiz || '#',
+      completed: false,
+      type: (item.link_aula ? 'video' : (item.link_pdf ? 'reading' : 'exercise')) as 'video' | 'reading' | 'exercise'
+    }));
   };
 
   const processConteudosJsonb = (conteudosJsonb: any): StudyContent[] => {

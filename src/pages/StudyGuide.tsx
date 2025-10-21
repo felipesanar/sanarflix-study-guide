@@ -1,304 +1,715 @@
-
-import React, { useState, useEffect } from 'react';
-import { StudySemesterSelector } from '@/components/StudySemesterSelector';
-import { StudyMateriaCard } from '@/components/StudyMateriaCard';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, Loader2, AlertCircle } from 'lucide-react';
-import { studyGuideApi, ApiSemestre, ApiMateria } from '@/services/studyGuideApi';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  BookOpen, 
+  Search, 
+  TrendingUp, 
+  Clock, 
+  CheckCircle2,
+  AlertCircle,
+  ChevronRight,
+  Play,
+  FileText,
+  Brain,
+  Target,
+  Sparkles,
+  ArrowUp,
+  Calendar
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
 
-// Cache key for localStorage
-const getCacheKey = (iesName: string) => `study-guide-${iesName}`;
+interface Aula {
+  aula: string;
+  link_aula?: string | null;
+  link_pdf?: string | null;
+  link_quiz?: string | null;
+}
+
+interface Subtema {
+  subtema: string;
+  aulas: Aula[];
+}
+
+interface Tema {
+  tema: string;
+  subtemas: Subtema[];
+}
+
+interface Materia {
+  materia: string;
+  temas: Tema[];
+}
+
+interface ConteudoData {
+  id?: string;
+  id_ies?: string;
+  semestre: string;
+  materia: string;
+  tema: string;
+  subtema: string;
+  aula: string;
+  link_aula?: string | null;
+  link_pdf?: string | null;
+  link_quiz?: string | null;
+}
 
 export const StudyGuide: React.FC = () => {
   const { user } = useAuth();
-  const [semestres, setSemestres] = useState<ApiSemestre[]>([]);
-  const [selectedSemestre, setSelectedSemestre] = useState<number | null>(null);
-  const [materias, setMaterias] = useState<ApiMateria[]>([]);
-  const [selectedMateria, setSelectedMateria] = useState<string>('all');
+  const [conteudos, setConteudos] = useState<ConteudoData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedSemestre, setSelectedSemestre] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
-  // Carregar dados do cache ou da API
+  // Load completed items from localStorage
   useEffect(() => {
-    const loadCachedOrFreshData = async () => {
-      if (!user?.ies_nome) {
-        setError('Usuário não vinculado a uma IES');
+    const stored = localStorage.getItem('study-progress');
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        // Ensure data is an array before creating Set
+        if (Array.isArray(data)) {
+          setCompletedItems(new Set(data));
+        } else {
+          setCompletedItems(new Set());
+        }
+      } catch (e) {
+        console.error('Error loading progress:', e);
+        setCompletedItems(new Set());
+      }
+    }
+  }, []);
+
+  // Save completed items to localStorage
+  const saveProgress = (items: Set<string>) => {
+    localStorage.setItem('study-progress', JSON.stringify([...items]));
+  };
+
+  // Fetch conteudos from Supabase
+  useEffect(() => {
+    const fetchConteudos = async () => {
+      if (!user?.id_ies || !user?.semestre) {
         setIsLoading(false);
         return;
       }
 
-      const cacheKey = getCacheKey(user.ies_nome);
-      
       try {
-        // Tentar carregar do cache primeiro
-        const cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          const { semestres: cachedSemestres, materiasBySemestre, timestamp } = JSON.parse(cached);
-          const now = Date.now();
-          const oneHour = 60 * 60 * 1000;
-          
-          // Se o cache é válido (menos de 1 hora), usar dados do cache
-          if (now - timestamp < oneHour) {
-            setSemestres(cachedSemestres);
-            
-            // Auto-selecionar o semestre atual do usuário se disponível
-            if (user.semestre && cachedSemestres.find((s: ApiSemestre) => s.numero === user.semestre)) {
-              setSelectedSemestre(user.semestre);
-              if (materiasBySemestre[user.semestre]) {
-                setMaterias(materiasBySemestre[user.semestre]);
-              }
-            }
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Cache inválido ou inexistente, buscar da API
         setIsLoading(true);
-        setError(null);
         
-        const semestresList = await studyGuideApi.getSemestresByIES(user.ies_nome);
-        setSemestres(semestresList);
-        
-        // Auto-selecionar o semestre atual do usuário se disponível
-        let initialMaterias: ApiMateria[] = [];
-        if (user.semestre && semestresList.find(s => s.numero === user.semestre)) {
-          setSelectedSemestre(user.semestre);
-          try {
-            initialMaterias = await studyGuideApi.getMateriasBySemestre(user.ies_nome, user.semestre);
-            setMaterias(initialMaterias);
-          } catch (err) {
-            // Error loading initial materials
-          }
+        // Use edge function to fetch conteudos (bypasses RLS issues)
+        const { data: response, error } = await supabase.functions.invoke('get-study-contents');
+
+        if (error) {
+          console.error('Edge function error:', error);
+          throw error;
         }
 
-        // Salvar no cache
-        const cacheData = {
-          semestres: semestresList,
-          materiasBySemestre: user.semestre ? { [user.semestre]: initialMaterias } : {},
-          timestamp: Date.now()
-        };
-        localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+        if (!response?.data) {
+          console.error('Invalid response:', response);
+          throw new Error('Invalid response from server');
+        }
+
+        console.log('Conteudos fetched:', response.data.length, 'items');
+
+        // Transform data to match ConteudoData interface
+        const transformedData: ConteudoData[] = (response.data || []).map((item: any) => ({
+          id: item.id,
+          id_ies: item.id_ies,
+          semestre: item.semestre?.toString() || '',
+          materia: item.materia || '',
+          tema: item.tema || '',
+          subtema: item.subtema || '',
+          aula: item.aula || '',
+          link_aula: item.link_aula,
+          link_pdf: item.link_pdf,
+          link_quiz: item.link_quiz,
+        }));
+
+        setConteudos(transformedData);
         
-      } catch (err) {
-        setError('Erro ao carregar dados do guia de estudos');
+        // Auto-select user's current semester if available
+        if (user.semestre && transformedData.length > 0) {
+          const userSemestre = user.semestre.toString();
+          const hasUserSemestre = transformedData.some(c => 
+            c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+          );
+          
+          if (hasUserSemestre) {
+            setSelectedSemestre(userSemestre);
+          } else {
+            // Select first available semester
+            const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
+            setSelectedSemestre(firstSemestre);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching conteudos:', error);
         toast({
-          title: "Erro",
-          description: "Não foi possível carregar os dados do guia de estudos",
-          variant: "destructive",
+          title: 'Erro',
+          description: 'Não foi possível carregar os conteúdos',
+          variant: 'destructive',
         });
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadCachedOrFreshData();
+    fetchConteudos();
   }, [user]);
 
-  // Carregar matérias quando um semestre for selecionado
+  // Scroll to top button
   useEffect(() => {
-    const loadMaterias = async () => {
-      if (!user?.ies_nome || !selectedSemestre) {
-        setMaterias([]);
-        return;
-      }
-
-      // Verificar cache primeiro
-      const cacheKey = getCacheKey(user.ies_nome);
-      const cached = localStorage.getItem(cacheKey);
-      
-      if (cached) {
-        const { materiasBySemestre } = JSON.parse(cached);
-        if (materiasBySemestre[selectedSemestre]) {
-          setMaterias(materiasBySemestre[selectedSemestre]);
-          return;
-        }
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-        const materiasList = await studyGuideApi.getMateriasBySemestre(user.ies_nome, selectedSemestre);
-        setMaterias(materiasList);
-        
-        // Atualizar cache
-        if (cached) {
-          const cacheData = JSON.parse(cached);
-          cacheData.materiasBySemestre[selectedSemestre] = materiasList;
-          cacheData.timestamp = Date.now();
-          localStorage.setItem(cacheKey, JSON.stringify(cacheData));
-        }
-      } catch (err) {
-        setError('Erro ao carregar conteúdos do semestre');
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os conteúdos do semestre",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
     };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-    loadMaterias();
-  }, [user, selectedSemestre]);
-
-  const handleSemestreChange = (semestre: number) => {
-    setSelectedSemestre(semestre);
-    setSelectedMateria('all'); // Reset materia filter when changing semester
+  // Helper functions (must be defined before useMemo)
+  const getAulaId = (item: ConteudoData) => {
+    return `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
   };
 
-  const handleMateriaChange = (materiaId: string) => {
-    setSelectedMateria(materiaId);
+  const isCompleted = (item: ConteudoData) => {
+    return completedItems.has(getAulaId(item));
   };
 
-  // Filter materias based on selection
-  const filteredMaterias = selectedMateria === 'all' 
-    ? materias 
-    : materias.filter(materia => materia.id === selectedMateria);
+  const toggleCompletion = (item: ConteudoData) => {
+    const id = getAulaId(item);
+    const newSet = new Set(completedItems);
+    
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    
+    setCompletedItems(newSet);
+    saveProgress(newSet);
+  };
 
-  if (error) {
+  const getMateriaIcon = (materia: string) => {
+    const lower = materia.toLowerCase();
+    if (lower.includes('anatomia')) return '🦴';
+    if (lower.includes('fisiologia')) return '❤️';
+    if (lower.includes('bioquímica')) return '🧪';
+    if (lower.includes('farmacologia')) return '💊';
+    if (lower.includes('patologia')) return '🔬';
+    if (lower.includes('clínica')) return '🩺';
+    if (lower.includes('cirurgia')) return '⚕️';
+    if (lower.includes('pediatria')) return '👶';
+    if (lower.includes('ginecologia')) return '🤰';
+    return '📚';
+  };
+
+  // Group conteudos by structure
+  const groupedData = useMemo(() => {
+    if (!selectedSemestre || !conteudos || conteudos.length === 0) return [];
+
+    // Filter by selected semester - handle both numeric and text formats
+    const filtered = conteudos.filter((conteudoItem) => {
+      if (!conteudoItem.semestre) return false;
+      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
+      const selectedStr = selectedSemestre.toLowerCase();
+      
+      // Match exact number or text like "internato"
+      return semestreStr === selectedStr || 
+             semestreStr === `${selectedStr}º semestre` ||
+             semestreStr.includes(selectedStr);
+    });
+
+    const materiaMap = new Map<string, Materia>();
+
+    filtered.forEach((item) => {
+      const materia = item.materia;
+      const tema = item.tema || 'Sem tema';
+      const subtema = item.subtema || 'Sem subtema';
+      const aula: Aula = {
+        aula: item.aula,
+        link_aula: item.link_aula,
+        link_pdf: item.link_pdf,
+        link_quiz: item.link_quiz,
+      };
+
+      if (!materiaMap.has(materia)) {
+        materiaMap.set(materia, { materia, temas: [] });
+      }
+
+      const materiaObj = materiaMap.get(materia)!;
+      let temaObj = materiaObj.temas.find((t) => t.tema === tema);
+      if (!temaObj) {
+        temaObj = { tema, subtemas: [] };
+        materiaObj.temas.push(temaObj);
+      }
+
+      let subtemaObj = temaObj.subtemas.find((st) => st.subtema === subtema);
+      if (!subtemaObj) {
+        subtemaObj = { subtema, aulas: [] };
+        temaObj.subtemas.push(subtemaObj);
+      }
+
+      subtemaObj.aulas.push(aula);
+    });
+
+    return Array.from(materiaMap.values());
+  }, [conteudos, selectedSemestre]);
+
+  // Filter by search
+  const filteredMaterias = useMemo(() => {
+    if (!searchQuery.trim()) return groupedData;
+
+    const query = searchQuery.toLowerCase();
+    
+    return groupedData
+      .map((materiaItem) => {
+        const filteredTemas = materiaItem.temas
+          .map((temaItem) => {
+            const filteredSubtemas = temaItem.subtemas
+              .map((subtemaItem) => {
+                const filteredAulas = subtemaItem.aulas.filter(
+                  (aulaItem) =>
+                    materiaItem.materia.toLowerCase().includes(query) ||
+                    temaItem.tema.toLowerCase().includes(query) ||
+                    subtemaItem.subtema.toLowerCase().includes(query) ||
+                    aulaItem.aula.toLowerCase().includes(query)
+                );
+                
+                return {
+                  ...subtemaItem,
+                  aulas: filteredAulas
+                };
+              })
+              .filter((st) => st.aulas.length > 0);
+            
+            return {
+              ...temaItem,
+              subtemas: filteredSubtemas
+            };
+          })
+          .filter((t) => t.subtemas.length > 0);
+        
+        return {
+          ...materiaItem,
+          temas: filteredTemas
+        };
+      })
+      .filter((m) => m.temas.length > 0);
+  }, [groupedData, searchQuery]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    if (!selectedSemestre || !conteudos || conteudos.length === 0) {
+      return { totalAulas: 0, completed: 0, percentage: 0, pendingAulas: [] };
+    }
+
+    const semestreAulas = conteudos.filter((conteudoItem) => {
+      if (!conteudoItem.semestre) return false;
+      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
+      const selectedStr = selectedSemestre.toLowerCase();
+      return semestreStr === selectedStr || 
+             semestreStr === `${selectedStr}º semestre` ||
+             semestreStr.includes(selectedStr);
+    });
+    
+    const totalAulas = semestreAulas.length;
+    const completedArray = Array.from(completedItems);
+    const completed = completedArray.filter((itemId) =>
+      itemId.startsWith(`${selectedSemestre}-`)
+    ).length;
+    const percentage = totalAulas > 0 ? Math.round((completed / totalAulas) * 100) : 0;
+
+    const pendingAulas = semestreAulas
+      .filter((aulaItem) => !completedItems.has(getAulaId(aulaItem)))
+      .slice(0, 3);
+
+    return { totalAulas, completed, percentage, pendingAulas };
+  }, [conteudos, selectedSemestre, completedItems]);
+
+  // Get unique semestres
+  const semestres = useMemo(() => {
+    if (!conteudos || conteudos.length === 0) return [];
+    
+    const semestreSet = new Set<string>();
+    conteudos.forEach((conteudoItem) => {
+      if (conteudoItem.semestre) {
+        // Keep original format - clean up common variations
+        let semestreValue = conteudoItem.semestre.toString().trim();
+        
+        // Remove "º Semestre" suffix if present
+        semestreValue = semestreValue.replace(/º\s*Semestre/i, '').trim();
+        
+        // Normalize common variations
+        if (semestreValue.match(/^internato$/i)) {
+          semestreValue = 'INTERNATO';
+        }
+        
+        semestreSet.add(semestreValue);
+      }
+    });
+    
+    // Sort: numbers first (1-12), then text (INTERNATO, etc.)
+    return Array.from(semestreSet).sort((a, b) => {
+      const aNum = parseInt(a);
+      const bNum = parseInt(b);
+      
+      // Both are numbers - sort numerically
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      
+      // Numbers come before text
+      if (!isNaN(aNum)) return -1;
+      if (!isNaN(bNum)) return 1;
+      
+      // Both are text - sort alphabetically
+      return a.localeCompare(b);
+    });
+  }, [conteudos]);
+
+
+  if (isLoading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="text-muted-foreground">Carregando seu guia de estudos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user?.id_ies) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <Card className="max-w-2xl mx-auto">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
+              <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+              <p className="text-muted-foreground">
+                Você precisa estar vinculado a uma instituição para acessar o guia de estudos.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <BookOpen className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Guia de Estudos</h1>
-            <p className="text-muted-foreground">
-              {user?.ies_nome}
-            </p>
-          </div>
-        </div>
-      </div>
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl">
+                <BookOpen className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
+                <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
+              </div>
+            </div>
 
-      {/* Filters */}
-      <div className="bg-card p-4 rounded-lg shadow-sm border border-input mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Semester Selector */}
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-foreground whitespace-nowrap">
-              Selecionar Semestre:
-            </label>
-            <div className="min-w-[200px]">
-              <Select 
-                value={selectedSemestre?.toString() || ''} 
-                onValueChange={(value) => handleSemestreChange(parseInt(value))}
-                disabled={isLoading || semestres.length === 0}
-              >
-                <SelectTrigger className="h-9 bg-card">
-                  <SelectValue placeholder={isLoading ? "Carregando..." : "Escolha um semestre"} />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por matéria, tema ou aula..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Selecione o semestre" />
                 </SelectTrigger>
                 <SelectContent>
-                  {semestres.map((semestre) => (
-                    <SelectItem key={semestre.id} value={semestre.numero.toString()}>
-                      {semestre.numero}º Semestre
-                    </SelectItem>
-                  ))}
+                  {semestres.map((sem) => {
+                    // Display formatted name (add "º Semestre" only for numbers)
+                    const isNumeric = !isNaN(parseInt(sem));
+                    const displayName = isNumeric ? `${sem}º Semestre` : sem;
+                    
+                    return (
+                      <SelectItem key={sem} value={sem}>
+                        {displayName}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
           </div>
-
-          {/* Materia Filter */}
-          {selectedSemestre && materias.length > 0 && (
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-foreground whitespace-nowrap">
-                Filtrar por Matéria:
-              </label>
-              <div className="min-w-[200px]">
-                <Select value={selectedMateria} onValueChange={handleMateriaChange}>
-                  <SelectTrigger className="h-9 bg-card">
-                    <SelectValue placeholder="Todas as matérias" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as matérias</SelectItem>
-                    {materias.map((materia) => (
-                      <SelectItem key={materia.id} value={materia.id}>
-                        {materia.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2 text-muted-foreground">Carregando conteúdos...</span>
-          </div>
-        ) : !selectedSemestre ? (
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Selecione um semestre
-            </h3>
-            <p className="text-muted-foreground">
-              Escolha um semestre acima para visualizar os conteúdos de estudo.
-            </p>
-          </div>
-        ) : materias.length === 0 ? (
-          <div className="text-center py-12">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Nenhum conteúdo disponível
-            </h3>
-            <p className="text-muted-foreground">
-              Não há conteúdos disponíveis para este semestre.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-foreground">
-                {selectedMateria !== 'all' 
-                  ? materias.find(m => m.id === selectedMateria)?.nome || 'Matéria'
-                  : `Conteúdos - ${selectedSemestre}º Semestre`
-                }
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({filteredMaterias.length} {filteredMaterias.length === 1 ? 'matéria' : 'matérias'})
-                </span>
-              </h2>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        {selectedSemestre && (
+          <>
+            {/* Dashboard Section */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {/* Progress Card */}
+              <Card className="premium-card hover-lift">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    Progresso do Semestre
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold">{stats.percentage}%</span>
+                      <span className="text-sm text-muted-foreground">
+                        {stats.completed} de {stats.totalAulas} aulas
+                      </span>
+                    </div>
+                    <Progress value={stats.percentage} className="h-2" />
+                    {stats.percentage >= 80 && (
+                      <p className="text-xs text-primary flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Excelente progresso!
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Today's Study */}
+              <Card className="premium-card hover-lift md:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Target className="h-4 w-4 text-primary" />
+                    O Que Estudar Hoje
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {stats.pendingAulas.length > 0 ? (
+                    <div className="space-y-2">
+                      {stats.pendingAulas.map((aula, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-accent transition-colors"
+                        >
+                          <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+                          <span className="flex-1">{aula.aula}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {aula.materia}
+                          </Badge>
+                        </div>
+                      ))}
+                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Dica: Estude em blocos de 25min para máxima retenção
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      Parabéns! Você completou todas as aulas deste semestre.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="space-y-6">
-              {filteredMaterias.map((materia) => (
-                <StudyMateriaCard 
-                  key={materia.id} 
-                  materia={materia} 
-                  hideTitle={selectedMateria !== 'all'} 
-                  semestre={selectedSemestre!}
-                  iesNome={user?.ies_nome || ''}
-                />
-              ))}
+            {/* Content */}
+            {filteredMaterias.length === 0 ? (
+              <Card className="p-12">
+                <div className="text-center space-y-3">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
+                  <h3 className="text-lg font-semibold">Nenhum conteúdo encontrado</h3>
+                  <p className="text-muted-foreground">
+                    {searchQuery
+                      ? 'Tente uma busca diferente ou limpe os filtros.'
+                      : 'Não há conteúdos disponíveis para este semestre.'}
+                  </p>
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {filteredMaterias.map((materia, mIdx) => (
+                  <Card key={mIdx} className="premium-card overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                      <CardTitle className="flex items-center gap-3">
+                        <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
+                        <div className="flex-1">
+                          <h2 className="text-xl font-bold">{materia.materia}</h2>
+                          <p className="text-sm text-muted-foreground font-normal">
+                            {materia.temas.reduce(
+                              (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                              0
+                            )}{' '}
+                            aulas disponíveis
+                          </p>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="pt-6">
+                      <Accordion type="multiple" className="space-y-4">
+                        {materia.temas.map((tema, tIdx) => (
+                          <AccordionItem
+                            key={tIdx}
+                            value={`tema-${mIdx}-${tIdx}`}
+                            className="border rounded-lg px-4"
+                          >
+                            <AccordionTrigger className="hover:no-underline">
+                              <div className="flex items-center gap-3 flex-1 text-left">
+                                <Brain className="h-5 w-5 text-primary shrink-0" />
+                                <div className="flex-1">
+                                  <h3 className="font-semibold">{tema.tema}</h3>
+                                  <p className="text-xs text-muted-foreground">
+                                    {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
+                                  </p>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+
+                            <AccordionContent className="space-y-3 pt-4">
+                              {tema.subtemas.map((subtema, stIdx) => (
+                                <div key={stIdx} className="space-y-2">
+                                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                    <ChevronRight className="h-4 w-4" />
+                                    {subtema.subtema}
+                                  </h4>
+
+                                  <div className="space-y-2 ml-6">
+                                    {subtema.aulas.map((aula, aIdx) => {
+                                      const aulaData: ConteudoData = {
+                                        semestre: selectedSemestre,
+                                        materia: materia.materia,
+                                        tema: tema.tema,
+                                        subtema: subtema.subtema,
+                                        aula: aula.aula,
+                                        link_aula: aula.link_aula,
+                                        link_pdf: aula.link_pdf,
+                                        link_quiz: aula.link_quiz,
+                                      };
+                                      const completed = isCompleted(aulaData);
+
+                                      return (
+                                        <div
+                                          key={aIdx}
+                                          className={cn(
+                                            'p-4 rounded-lg border transition-all',
+                                            completed
+                                              ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                                              : 'bg-card hover:bg-accent'
+                                          )}
+                                        >
+                                          <div className="flex items-start gap-3">
+                                            <button
+                                              onClick={() => toggleCompletion(aulaData)}
+                                              className="shrink-0 mt-1"
+                                            >
+                                              {completed ? (
+                                                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                              ) : (
+                                                <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
+                                              )}
+                                            </button>
+
+                                            <div className="flex-1 space-y-2">
+                                              <h5
+                                                className={cn(
+                                                  'font-medium',
+                                                  completed && 'line-through text-muted-foreground'
+                                                )}
+                                              >
+                                                {aula.aula}
+                                              </h5>
+
+                                              <div className="flex flex-wrap gap-2">
+                                                {aula.link_aula && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="gap-2"
+                                                    onClick={() => window.open(aula.link_aula!, '_blank')}
+                                                  >
+                                                    <Play className="h-3 w-3" />
+                                                    Assistir Aula
+                                                  </Button>
+                                                )}
+                                                {aula.link_pdf && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="gap-2"
+                                                    onClick={() => window.open(aula.link_pdf!, '_blank')}
+                                                  >
+                                                    <FileText className="h-3 w-3" />
+                                                    Material PDF
+                                                  </Button>
+                                                )}
+                                                {aula.link_quiz && (
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="gap-2"
+                                                    onClick={() => window.open(aula.link_quiz!, '_blank')}
+                                                  >
+                                                    <Brain className="h-3 w-3" />
+                                                    Fazer Quiz
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {!selectedSemestre && (
+          <Card className="p-12">
+            <div className="text-center space-y-3">
+              <Calendar className="h-12 w-12 text-muted-foreground mx-auto" />
+              <h3 className="text-lg font-semibold">Selecione um Semestre</h3>
+              <p className="text-muted-foreground">
+                Escolha um semestre acima para começar seus estudos.
+              </p>
             </div>
-          </div>
+          </Card>
         )}
       </div>
+
+      {/* Scroll to Top */}
+      {showScrollTop && (
+        <Button
+          size="icon"
+          className="fixed bottom-8 right-8 rounded-full shadow-lg z-50"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 };

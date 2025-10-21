@@ -62,22 +62,40 @@ export type Database = {
       }
       conteudos: {
         Row: {
-          conteudos: Json
+          aula: string | null
           id: string
           id_ies: string
-          semestre: number
+          link_aula: string | null
+          link_pdf: string | null
+          link_quiz: string | null
+          materia: string
+          semestre: string
+          subtema: string | null
+          tema: string | null
         }
         Insert: {
-          conteudos: Json
+          aula?: string | null
           id?: string
           id_ies: string
-          semestre: number
+          link_aula?: string | null
+          link_pdf?: string | null
+          link_quiz?: string | null
+          materia: string
+          semestre: string
+          subtema?: string | null
+          tema?: string | null
         }
         Update: {
-          conteudos?: Json
+          aula?: string | null
           id?: string
           id_ies?: string
-          semestre?: number
+          link_aula?: string | null
+          link_pdf?: string | null
+          link_quiz?: string | null
+          materia?: string
+          semestre?: string
+          subtema?: string | null
+          tema?: string | null
         }
         Relationships: [
           {
@@ -374,12 +392,6 @@ export type Database = {
           total: number
         }[]
       }
-      get_conteudos_for_user: {
-        Args: { user_id_ies: string; user_semestre: number }
-        Returns: {
-          conteudos: Json
-        }[]
-      }
       get_current_user_faculty: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -399,18 +411,13 @@ export type Database = {
         Returns: Database["public"]["CompositeTypes"]["question_details_type"]
       }
       get_questions_by_subspecialty: {
-        Args: { p_simulado_id: number; sub_name: string }
-        Returns: {
-          a: string
-          b: string
-          c: string
-          comentario: string
-          d: string
-          enunciado: string
-          gabarito: string
-          id: string
-          imagem: string
-        }[]
+        Args: {
+          area_name: string
+          p_simulado_id: number
+          specialty_name: string
+          sub_name: string
+        }
+        Returns: Record<string, unknown>[]
       }
       get_simulado_performance: {
         Args: Record<PropertyKey, never>
