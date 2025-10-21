@@ -25,7 +25,10 @@ import {
   Bookmark,
   Plus,
   X,
-  Clock3
+  Clock3,
+  Edit2,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -36,6 +39,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 interface Aula {
@@ -83,6 +87,9 @@ export const StudyGuide: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [selectedEventMateria, setSelectedEventMateria] = useState<string | null>(null);
   
   // Interface para eventos do calendário
   interface CalendarEvent {
@@ -98,6 +105,27 @@ export const StudyGuide: React.FC = () => {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const dragControls = useDragControls();
+  
+  // Load calendar events from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('calendar-events');
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        if (Array.isArray(data)) {
+          setCalendarEvents(data);
+        }
+      } catch (e) {
+        console.error('Error loading calendar events:', e);
+      }
+    }
+  }, []);
+  
+  // Save calendar events to localStorage
+  const saveCalendarEvents = (events: CalendarEvent[]) => {
+    localStorage.setItem('calendar-events', JSON.stringify(events));
+    setCalendarEvents(events);
+  };
   
   // Função para gerar uma cor consistente baseada no nome da matéria
   const getMateriaColor = (materia: string) => {
@@ -135,7 +163,9 @@ export const StudyGuide: React.FC = () => {
       color: getMateriaColor(materia)
     };
     
-    setCalendarEvents(prev => [...prev, newEvent]);
+    const updatedEvents = [...calendarEvents, newEvent];
+    saveCalendarEvents(updatedEvents);
+    
     toast({
       title: "Evento adicionado",
       description: `${materia} adicionado ao calendário para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][day]}`,
@@ -145,7 +175,24 @@ export const StudyGuide: React.FC = () => {
   
   // Função para remover evento do calendário
   const removeEventFromCalendar = (id: string) => {
-    setCalendarEvents(prev => prev.filter(event => event.id !== id));
+    const updatedEvents = calendarEvents.filter(event => event.id !== id);
+    saveCalendarEvents(updatedEvents);
+  };
+  
+  // Função para abrir sheet com conteúdos da matéria
+  const openMateriaSheet = (materia: string) => {
+    setSelectedEventMateria(materia);
+    setSheetOpen(true);
+  };
+  
+  // Confirmar edições do calendário
+  const confirmEditMode = () => {
+    setIsEditMode(false);
+    toast({
+      title: "Alterações salvas",
+      description: "Seu calendário foi atualizado com sucesso",
+      variant: "default",
+    });
   };
 
   // Load completed items from localStorage
@@ -426,6 +473,12 @@ export const StudyGuide: React.FC = () => {
 
     return { totalAulas, completed, percentage, pendingAulas };
   }, [conteudos, selectedSemestre, completedItems]);
+
+  // Get materia contents for sheet
+  const selectedMateriaContents = useMemo(() => {
+    if (!selectedEventMateria) return null;
+    return groupedData.find(m => m.materia === selectedEventMateria);
+  }, [selectedEventMateria, groupedData]);
 
   // Get unique semestres
   const semestres = useMemo(() => {
@@ -944,13 +997,40 @@ export const StudyGuide: React.FC = () => {
                 >
                   <Card className="shadow-lg border-primary/10 hover:shadow-xl transition-all duration-300">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" />
-                        Calendário de Estudos
-                      </CardTitle>
-                      <CardDescription>
-                        Arraste e solte as matérias para planejar seus estudos
-                      </CardDescription>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5 text-primary" />
+                            Calendário de Estudos
+                          </CardTitle>
+                          <CardDescription>
+                            {isEditMode ? 'Organize suas matérias na semana' : 'Clique nas matérias para ver os conteúdos'}
+                          </CardDescription>
+                        </div>
+                        <div>
+                          {!isEditMode ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setIsEditMode(true)}
+                              className="gap-2"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                              Editar
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={confirmEditMode}
+                              className="gap-2"
+                            >
+                              <Check className="h-4 w-4" />
+                              Confirmar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="h-[600px] bg-accent/30 rounded-lg p-4 relative glass-effect">
@@ -979,33 +1059,42 @@ export const StudyGuide: React.FC = () => {
                                       key={event.id}
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
-                                      className="p-2 rounded-md text-sm border cursor-move hover-lift premium-card"
+                                      className={cn(
+                                        "p-2 rounded-md text-sm border premium-card",
+                                        isEditMode ? "cursor-move hover-lift" : "cursor-pointer hover:opacity-80 transition-opacity"
+                                      )}
                                       style={{ 
                                         backgroundColor: `${event.color}20`,
                                         borderColor: `${event.color}30`
                                       }}
-                                      drag
-                                      dragControls={dragControls}
+                                      drag={isEditMode}
+                                      dragControls={isEditMode ? dragControls : undefined}
                                       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
                                       dragElastic={0.2}
                                       dragMomentum={false}
-                                      whileDrag={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
+                                      whileDrag={isEditMode ? { scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" } : undefined}
+                                      onClick={() => !isEditMode && openMateriaSheet(event.materia)}
                                     >
                                       <div className="flex justify-between items-start">
-                                        <div className="font-medium flex items-center gap-1">
+                                        <div className="font-medium flex items-center gap-1 flex-1">
                                           <span>{getMateriaIcon(event.materia)}</span>
-                                          {event.title}
+                                          <span className="truncate">{event.title}</span>
                                         </div>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive"
-                                          onClick={() => removeEventFromCalendar(event.id)}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
+                                        {isEditMode && (
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeEventFromCalendar(event.id);
+                                            }}
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        )}
                                       </div>
-                                      <div className="text-xs flex items-center gap-1 mt-1">
+                                      <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
                                         <Clock3 className="h-3 w-3" />
                                         {event.startTime} - {event.endTime}
                                       </div>
@@ -1016,37 +1105,45 @@ export const StudyGuide: React.FC = () => {
                           ))}
                         </div>
                         
-                        {/* Matérias disponíveis para arrastar */}
-                        <motion.div 
-                          className="absolute bottom-4 left-4 right-4 bg-background p-3 rounded-lg border shadow-md"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.2 }}
-                        >
-                          <h4 className="text-sm font-medium mb-2">Arraste para adicionar ao calendário:</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {filteredMaterias.map((materia, idx) => (
-                              <motion.div 
-                                key={idx} 
-                                className="bg-primary/10 px-3 py-1 rounded-full text-sm border border-primary/20 cursor-move flex items-center gap-1 hover:bg-primary/20 transition-colors"
-                                draggable
-                                onDragStart={() => setDraggedItem(materia.materia)}
-                                onDragEnd={() => setDraggedItem(null)}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.98 }}
-                              >
-                                <span className="text-sm">{getMateriaIcon(materia.materia)}</span>
-                                {materia.materia}
-                              </motion.div>
-                            ))}
-                          </div>
-                        </motion.div>
+                        {/* Matérias disponíveis para arrastar - apenas no modo de edição */}
+                        {isEditMode && (
+                          <motion.div 
+                            className="absolute bottom-4 left-4 right-4 bg-background p-3 rounded-lg border shadow-md"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                          >
+                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                              <Plus className="h-4 w-4" />
+                              Arraste para adicionar ao calendário:
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {filteredMaterias.map((materia, idx) => (
+                                <motion.div 
+                                  key={idx} 
+                                  className="bg-primary/10 px-3 py-1 rounded-full text-sm border border-primary/20 cursor-move flex items-center gap-1 hover:bg-primary/20 transition-colors"
+                                  draggable
+                                  onDragStart={() => setDraggedItem(materia.materia)}
+                                  onDragEnd={() => setDraggedItem(null)}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.98 }}
+                                >
+                                  <span className="text-sm">{getMateriaIcon(materia.materia)}</span>
+                                  {materia.materia}
+                                </motion.div>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
                       </div>
                     </CardContent>
                     <CardFooter className="text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        Dica: Planeje seus estudos semanalmente para melhor organização
+                        {isEditMode 
+                          ? 'Dica: Arraste as matérias para organizar sua semana de estudos'
+                          : 'Dica: Clique nas matérias para ver os conteúdos disponíveis'
+                        }
                       </div>
                     </CardFooter>
                   </Card>
@@ -1055,6 +1152,148 @@ export const StudyGuide: React.FC = () => {
             </AnimatePresence>
           </>
         )}
+
+        {/* Sheet lateral com conteúdos da matéria */}
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <span className="text-2xl">{selectedMateriaContents && getMateriaIcon(selectedMateriaContents.materia)}</span>
+                {selectedMateriaContents?.materia}
+              </SheetTitle>
+              <SheetDescription>
+                {selectedMateriaContents && 
+                  `${selectedMateriaContents.temas.reduce(
+                    (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                    0
+                  )} aulas disponíveis`
+                }
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="mt-6 space-y-4">
+              {selectedMateriaContents?.temas.map((tema, tIdx) => (
+                <Accordion key={tIdx} type="multiple" className="space-y-2">
+                  <AccordionItem
+                    value={`tema-${tIdx}`}
+                    className="border rounded-lg px-4 shadow-sm"
+                  >
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-3 flex-1 text-left">
+                        <Brain className="h-5 w-5 text-primary shrink-0" />
+                        <div className="flex-1">
+                          <h3 className="font-semibold">{tema.tema}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
+                          </p>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+
+                    <AccordionContent className="space-y-3 pt-4">
+                      {tema.subtemas.map((subtema, stIdx) => (
+                        <div key={stIdx} className="space-y-2">
+                          <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <ChevronRight className="h-4 w-4" />
+                            {subtema.subtema}
+                          </h4>
+
+                          <div className="space-y-2 ml-6">
+                            {subtema.aulas.map((aula, aIdx) => {
+                              const aulaData: ConteudoData = {
+                                semestre: selectedSemestre,
+                                materia: selectedMateriaContents.materia,
+                                tema: tema.tema,
+                                subtema: subtema.subtema,
+                                aula: aula.aula,
+                                link_aula: aula.link_aula,
+                                link_pdf: aula.link_pdf,
+                                link_quiz: aula.link_quiz,
+                              };
+                              const completed = isCompleted(aulaData);
+
+                              return (
+                                <div
+                                  key={aIdx}
+                                  className={cn(
+                                    'p-3 rounded-lg border transition-all shadow-sm',
+                                    completed
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
+                                      : 'bg-card hover:bg-accent'
+                                  )}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <button
+                                      onClick={() => toggleCompletion(aulaData)}
+                                      className="shrink-0 mt-1"
+                                    >
+                                      {completed ? (
+                                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                      ) : (
+                                        <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
+                                      )}
+                                    </button>
+
+                                    <div className="flex-1 space-y-2">
+                                      <h5
+                                        className={cn(
+                                          'font-medium text-sm',
+                                          completed && 'line-through text-muted-foreground'
+                                        )}
+                                      >
+                                        {aula.aula}
+                                      </h5>
+
+                                      <div className="flex flex-wrap gap-2">
+                                        {aula.link_aula && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                            onClick={() => window.open(aula.link_aula!, '_blank')}
+                                          >
+                                            <Play className="h-3 w-3" />
+                                            Aula
+                                          </Button>
+                                        )}
+                                        {aula.link_pdf && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                            onClick={() => window.open(aula.link_pdf!, '_blank')}
+                                          >
+                                            <FileText className="h-3 w-3" />
+                                            PDF
+                                          </Button>
+                                        )}
+                                        {aula.link_quiz && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
+                                            onClick={() => window.open(aula.link_quiz!, '_blank')}
+                                          >
+                                            <Brain className="h-3 w-3" />
+                                            Quiz
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {!selectedSemestre && (
           <Card className="p-12">
