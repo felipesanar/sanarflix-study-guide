@@ -294,61 +294,6 @@ export const StudyGuide: React.FC = () => {
     if (lower.includes('embriologia')) return '👶';
     return '📚';
   };
-  
-  // Função para gerar cor baseada no nome da matéria (consistente)
-  const getMateriaColor = (materia: string): string => {
-    const colors = [
-      'hsl(var(--primary))',
-      'hsl(214 76% 38%)',
-      'hsl(24 100% 57%)',
-      'hsl(262 83% 58%)',
-      'hsl(316 73% 52%)',
-      'hsl(142 71% 45%)',
-      'hsl(43 96% 58%)',
-      'hsl(187 100% 42%)',
-      'hsl(355 78% 56%)',
-    ];
-    
-    // Hash simples para garantir que a mesma matéria sempre tenha a mesma cor
-    const hash = materia.split('').reduce((acc, char) => {
-      return acc + char.charCodeAt(0);
-    }, 0);
-    
-    return colors[hash % colors.length];
-  };
-  
-  // Esta função já está definida anteriormente no código, então esta é uma duplicata
-  
-  // Função para adicionar evento ao calendário
-  const addEventToCalendar = (materia: string, day: number) => {
-    // Gera horários aleatórios para demonstração
-    const startHour = Math.floor(Math.random() * 12) + 8; // Entre 8h e 19h
-    const duration = Math.floor(Math.random() * 2) + 1; // 1 ou 2 horas
-    const startTime = `${startHour}:00`;
-    const endTime = `${startHour + duration}:00`;
-    
-    const newEvent: CalendarEvent = {
-      id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: materia,
-      materia: materia,
-      day: day,
-      startTime: startTime,
-      endTime: endTime,
-      color: getMateriaColor(materia)
-    };
-    
-    setCalendarEvents(prev => [...prev, newEvent]);
-    
-    toast({
-      title: 'Evento adicionado',
-      description: `${materia} adicionado ao calendário`,
-    });
-  };
-  
-  // Função para remover evento do calendário
-  const removeEventFromCalendar = (eventId: string) => {
-    setCalendarEvents(prev => prev.filter(event => event.id !== eventId));
-  };
 
   // Group conteudos by structure
   const groupedData = useMemo(() => {
