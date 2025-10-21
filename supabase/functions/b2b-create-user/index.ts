@@ -78,9 +78,10 @@ Deno.serve(async (req) => {
     });
 
     if (roleErr) {
-      console.error('Error checking admin role:', roleErr);
+      // SECURITY: Log detailed error server-side only
+      console.error('[Internal] Error checking admin role:', roleErr);
       return new Response(
-        JSON.stringify({ error: "Failed to verify permissions" }),
+        JSON.stringify({ error: "Erro ao verificar permissões" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -174,9 +175,10 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : "Erro inesperado";
+    // SECURITY: Log detailed error server-side only
+    console.error('[Internal] User creation error:', e);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: "Erro ao processar requisição" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

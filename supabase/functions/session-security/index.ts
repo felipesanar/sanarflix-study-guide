@@ -103,13 +103,12 @@ Deno.serve(async (req) => {
     })
 
   } catch (error) {
-    console.error('Session security error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    // SECURITY: Log detailed error server-side only, return generic message to client
+    console.error('[Internal] Session security error:', error)
     
     return new Response(
       JSON.stringify({ 
-        error: 'Internal server error',
-        message: errorMessage 
+        error: 'Erro ao processar requisição de segurança'
       }),
       {
         status: 500,

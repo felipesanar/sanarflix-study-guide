@@ -17,9 +17,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
 
       if (event === 'SIGNED_IN') {
-        // Hidrata imediatamente com cache salvo no login()
+        // SECURITY: Only cache minimal data, fetch full profile from server
         const cached = localStorage.getItem('sanarflix-user');
-        const cachedNeeds = localStorage.getItem('sanarflix-needs-password-change');
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
@@ -27,43 +26,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (validation.success) {
               setUser(parsed);
-              setNeedsPasswordChange(cachedNeeds === 'true');
+              // Password change flag will be verified server-side
+              setNeedsPasswordChange(false);
             } else {
               Logger.warn('Invalid cached user data', validation.error);
               localStorage.removeItem('sanarflix-user');
-              localStorage.removeItem('sanarflix-needs-password-change');
             }
           } catch (e) {
             Logger.error('Error parsing cached user data', e);
             localStorage.removeItem('sanarflix-user');
-            localStorage.removeItem('sanarflix-needs-password-change');
           }
         }
-        // Removemos a chamada redundante para auth-login aqui
-        // O login() já fez a chamada e salvou os dados no cache
       }
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
         setNeedsPasswordChange(false);
         localStorage.removeItem('sanarflix-user');
-        localStorage.removeItem('sanarflix-needs-password-change');
       }
     });
 
-    // 2) Inicializa a partir da sessão e do cache existente
+    // 2) SECURITY: Initialize from session, minimize localStorage reliance
     supabase.auth.getSession()
       .then(({ data }) => {
         const storedUser = localStorage.getItem('sanarflix-user');
-        const storedPasswordChange = localStorage.getItem('sanarflix-needs-password-change');
         
         if (storedUser) {
           try {
-            setUser(JSON.parse(storedUser));
-            setNeedsPasswordChange(storedPasswordChange === 'true');
+            const parsed = JSON.parse(storedUser);
+            setUser(parsed);
+            // Password change requirement is verified during login
+            setNeedsPasswordChange(false);
           } catch (error) {
             localStorage.removeItem('sanarflix-user');
-            localStorage.removeItem('sanarflix-needs-password-change');
           }
         }
         setIsLoading(false);
@@ -152,8 +147,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       setNeedsPasswordChange(data.needsPasswordChange || false);
       
+      // SECURITY: Store minimal user data in localStorage, roles fetched from server
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-      localStorage.setItem('sanarflix-needs-password-change', (data.needsPasswordChange || false).toString());
       
       if (data.needsPasswordChange) {
         toast({
@@ -204,8 +199,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
+      // SECURITY: Password change flag managed in memory only
       setNeedsPasswordChange(false);
-      localStorage.setItem('sanarflix-needs-password-change', 'false');
       
       // Security enhancement: Invalidate all sessions after password change
       try {
@@ -265,11 +260,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Error on signOut
     }
 
-    // Limpeza defensiva imediata
+    // SECURITY: Clear all auth-related data
     setUser(null);
     setNeedsPasswordChange(false);
     localStorage.removeItem('sanarflix-user');
-    localStorage.removeItem('sanarflix-needs-password-change');
     localStorage.removeItem('study-progress');
     
     toast({

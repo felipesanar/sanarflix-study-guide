@@ -103,9 +103,10 @@ Deno.serve(async (req) => {
     const { data: userData, error: getUserError } = await supabase.auth.getUser(token)
 
     if (getUserError || !userData?.user) {
-      console.log('Password update - getUser error:', getUserError)
+      // SECURITY: Log detailed error server-side only
+      console.log('[Internal] Password update - getUser error:', getUserError)
       return new Response(
-        JSON.stringify({ error: 'Usuário não encontrado' }),
+        JSON.stringify({ error: 'Não autenticado' }),
         {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -118,7 +119,8 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase.auth.admin.updateUserById(userId, { password: newPassword })
 
     if (updateError) {
-      console.log('Password update error:', updateError)
+      // SECURITY: Log detailed error server-side only
+      console.log('[Internal] Password update error:', updateError)
       return new Response(
         JSON.stringify({ error: 'Erro ao atualizar senha' }),
         {
@@ -137,9 +139,10 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Password update error:', error)
+    // SECURITY: Log detailed error server-side only
+    console.error('[Internal] Password update error:', error)
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor' }),
+      JSON.stringify({ error: 'Erro ao processar requisição' }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

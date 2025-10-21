@@ -129,9 +129,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (profileError) {
-      console.error('Erro ao buscar perfil em public.users:', profileError);
+      // SECURITY: Log detailed error server-side only
+      console.error('[Internal] Profile fetch error:', profileError);
       return new Response(JSON.stringify({
-        error: 'Erro ao buscar perfil do usuário.'
+        error: 'Erro ao processar autenticação.'
       }), {
         status: 500,
         headers: {
@@ -142,12 +143,13 @@ Deno.serve(async (req) => {
     }
 
     if (!userProfile) {
-      console.error('Usuário autenticado sem perfil em public.users.', {
+      // SECURITY: Log detailed info server-side only
+      console.error('[Internal] User authenticated without profile:', {
         user_id: user.id,
         email: user.email
       });
       return new Response(JSON.stringify({
-        error: 'Perfil do usuário não encontrado.'
+        error: 'Perfil não encontrado. Contate o suporte.'
       }), {
         status: 404,
         headers: {
@@ -166,7 +168,8 @@ Deno.serve(async (req) => {
         .eq('id', userProfile.id_ies)
         .single();
       if (iesError) {
-        console.warn('Falha ao obter nome da IES:', iesError);
+        // SECURITY: Log detailed error server-side only
+        console.warn('[Internal] IES fetch error:', iesError);
       } else {
         iesNome = iesData?.nome ?? null;
       }
@@ -182,7 +185,8 @@ Deno.serve(async (req) => {
         userRoles = rolesData;
       }
     } catch (roleError) {
-      console.warn('Failed to fetch user roles:', roleError);
+      // SECURITY: Log detailed error server-side only
+      console.warn('[Internal] Role fetch error:', roleError);
     }
     
     // ETAPA 4: Construir e retornar a resposta completa para o front-end
@@ -209,10 +213,10 @@ Deno.serve(async (req) => {
       }
     });
   } catch (error) {
-    console.error('Erro inesperado na função de login:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro interno do servidor';
+    // SECURITY: Log detailed error server-side only, return generic message to client
+    console.error('[Internal] Login function error:', error);
     return new Response(JSON.stringify({
-      error: errorMessage
+      error: 'Erro ao processar login. Tente novamente.'
     }), {
       status: 500,
       headers: {
