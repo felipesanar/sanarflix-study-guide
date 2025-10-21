@@ -172,11 +172,19 @@ export const StudyGuide: React.FC = () => {
     localStorage.setItem('study-progress', JSON.stringify([...items]));
   };
 
-  // Fetch conteudos from Supabase
+  // Ref to track if data has been loaded
+  const hasLoadedData = useRef(false);
+
+  // Fetch conteudos from Supabase - only on mount, not on visibility changes
   useEffect(() => {
     const fetchConteudos = async () => {
       if (!user?.id_ies || !user?.semestre) {
         setIsLoading(false);
+        return;
+      }
+
+      // Prevent refetch if already loaded
+      if (hasLoadedData.current && conteudos.length > 0) {
         return;
       }
 
@@ -213,9 +221,10 @@ export const StudyGuide: React.FC = () => {
         }));
 
         setConteudos(transformedData);
+        hasLoadedData.current = true;
         
         // Auto-select user's current semester if available
-        if (user.semestre && transformedData.length > 0) {
+        if (user.semestre && transformedData.length > 0 && !selectedSemestre) {
           const userSemestre = user.semestre.toString();
           const hasUserSemestre = transformedData.some(c => 
             c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
@@ -242,7 +251,7 @@ export const StudyGuide: React.FC = () => {
     };
 
     fetchConteudos();
-  }, [user]);
+  }, [user?.id_ies, user?.semestre]);
 
   // Scroll to top button
   useEffect(() => {
