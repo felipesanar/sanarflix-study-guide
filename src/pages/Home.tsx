@@ -4,7 +4,10 @@ import { getAccessRules } from '@/utils/accessRules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { useNavigate } from 'react-router-dom';
+import { useStudy } from '@/contexts/StudyContext';
+import { useUniversity } from '@/contexts/UniversityContext';
 import {
   BookOpen,
   GraduationCap,
@@ -17,7 +20,9 @@ import {
   Megaphone,
   ArrowRight,
   Target,
-  Clock
+  Clock,
+  PieChart,
+  ListChecks
 } from 'lucide-react';
 
 interface ResourceCard {
@@ -33,6 +38,8 @@ export const Home: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const accessRules = getAccessRules(user);
+  const { progress, studyContents } = useStudy();
+  const { currentPromotion } = useUniversity();
 
   const allResources: Record<string, ResourceCard> = {
     studyGuide: {
@@ -111,6 +118,27 @@ export const Home: React.FC = () => {
     }
   ];
 
+  // Insights de progresso
+  const totalCompleted = progress.completedItems.length;
+  const totalItems = progress.totalItems;
+  const totalProgress = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0;
+
+  const disciplineProgress = Object.entries(progress.progressByDiscipline).map(([name, d]) => ({
+    name,
+    completed: d.completed,
+    total: d.total,
+    remaining: d.total - d.completed,
+    percentage: d.percentage
+  }));
+  const topRemaining = disciplineProgress.sort((a,b) => b.remaining - a.remaining)[0];
+
+  const typeCounts = studyContents.reduce((acc, c) => {
+    acc[c.type] = (acc[c.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const nextContents = studyContents.filter(c => !c.completed).slice(0, 3);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto px-4 py-8 space-y-8">
@@ -125,7 +153,7 @@ export const Home: React.FC = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-l-4 border-l-primary">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -161,7 +189,52 @@ export const Home: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="border-l-4 border-l-primary">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="w-full">
+                  <p className="text-sm text-muted-foreground">Progresso Geral</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <Progress value={totalProgress} className="flex-1" />
+                    <span className="text-2xl font-bold">{totalProgress}%</span>
+                  </div>
+                </div>
+                <PieChart className="h-8 w-8 text-primary opacity-50" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Continue estudando */}
+        {nextContents.length > 0 && (
+          <Card className="border-2 border-primary/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5 text-primary" />
+                Continue de onde parou
+              </CardTitle>
+              <CardDescription>Próximos conteúdos recomendados para hoje</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {nextContents.map((c) => (
+                  <div key={c.id} className="p-4 rounded-lg border bg-accent/10">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium truncate">{c.name}</p>
+                      <Badge variant="outline">{c.discipline}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Tipo: {c.type === 'video' ? 'Vídeo' : c.type === 'exercise' ? 'Exercício' : 'Leitura'}</p>
+                    <Button variant="ghost" size="sm" className="mt-3" onClick={() => navigate('/guia-estudos')}>
+                      Abrir no Guia
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Resources Grid */}
         <div>
@@ -169,7 +242,6 @@ export const Home: React.FC = () => {
             <BookOpen className="h-6 w-6 text-primary" />
             Seus Recursos
           </h2>
-          
           {availableResources.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -225,6 +297,63 @@ export const Home: React.FC = () => {
           )}
         </div>
 
+        {/* Insights rápidos */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-primary" />
+            Insights Rápidos
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Progresso Geral</CardTitle>
+                <CardDescription>Resumo do seu avanço</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex items-center gap-4">
+                  <Progress value={totalProgress} className="flex-1" />
+                  <span className="text-xl font-bold">{totalProgress}%</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{totalCompleted} de {totalItems} itens concluídos</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Disciplina Prioritária</CardTitle>
+                <CardDescription>Onde focar agora</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {topRemaining ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{topRemaining.name}</p>
+                      <p className="text-xs text-muted-foreground">{topRemaining.completed}/{topRemaining.total} concluídos</p>
+                    </div>
+                    <Badge variant="outline">{topRemaining.remaining} pendentes</Badge>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sem dados suficientes</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Tipos de Conteúdo</CardTitle>
+                <CardDescription>Distribuição disponível</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex items-center gap-4">
+                  <Badge variant="secondary">Vídeos: {typeCounts['video'] || 0}</Badge>
+                  <Badge variant="secondary">Exercícios: {typeCounts['exercise'] || 0}</Badge>
+                  <Badge variant="secondary">Leituras: {typeCounts['reading'] || 0}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         {/* Announcements & News */}
         <div>
           <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
@@ -268,13 +397,13 @@ export const Home: React.FC = () => {
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex-1">
                 <h3 className="text-2xl font-bold mb-2">
-                  Conheça a Sanar+
+                  {currentPromotion.title}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Acesse milhares de questões, videoaulas e materiais complementares para sua preparação
+                  {currentPromotion.description}
                 </p>
-                <Button className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90">
-                  Saiba Mais
+                <Button className="bg-gradient-to-r from-primary to-purple-600 hover:opacity-90" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
+                  {currentPromotion.ctaText}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
