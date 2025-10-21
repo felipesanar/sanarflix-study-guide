@@ -171,6 +171,20 @@ Deno.serve(async (req) => {
         iesNome = iesData?.nome ?? null;
       }
     }
+    
+    // Buscar roles do usuário
+    let userRoles: string[] = [];
+    try {
+      const { data: rolesData, error: rolesError } = await supabaseAdmin.rpc('get_user_roles', {
+        _user_id: user.id
+      });
+      if (!rolesError && rolesData) {
+        userRoles = rolesData;
+      }
+    } catch (roleError) {
+      console.warn('Failed to fetch user roles:', roleError);
+    }
+    
     // ETAPA 4: Construir e retornar a resposta completa para o front-end
     // SECURITY: Removed CPF from response to reduce PII exposure
     const responsePayload = {
@@ -180,7 +194,8 @@ Deno.serve(async (req) => {
         nome: userProfile.nome,
         id_ies: userProfile.id_ies,
         semestre: userProfile.semestre,
-        ies_nome: iesNome
+        ies_nome: iesNome,
+        roles: userRoles
         // CPF removed from response for security
       },
       session: sessionData.session,

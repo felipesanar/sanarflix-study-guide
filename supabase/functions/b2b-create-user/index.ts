@@ -51,17 +51,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check B2B access by IES
-    const B2B_IES_ID = "9f21b138-0027-44c8-9660-dc6706d57bc0";
-    const { data: callerProfile, error: profileErr } = await supabaseAdmin
-      .from("users")
-      .select("id_ies")
-      .eq("id", userData.user.id)
-      .single();
+    // Check admin role using has_role function (secure against privilege escalation)
+    const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
+      _user_id: userData.user.id,
+      _role: 'admin'
+    });
 
-    if (profileErr || !callerProfile || callerProfile.id_ies !== B2B_IES_ID) {
+    if (roleErr) {
+      console.error('Error checking admin role:', roleErr);
       return new Response(
-        JSON.stringify({ error: "Forbidden: B2B access required" }),
+        JSON.stringify({ error: "Failed to verify permissions" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!hasAdminRole) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Admin role required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

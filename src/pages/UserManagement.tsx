@@ -81,15 +81,15 @@ const UserManagement: React.FC = () => {
     fetchIesList();
   }, [toast]);
 
-  // Verifica se o usuário tem acesso B2B
-  const hasB2BAccess = user?.id_ies === '9f21b138-0027-44c8-9660-dc6706d57bc0';
+  // Verifica se o usuário tem role de admin (seguro contra escalação de privilégios)
+  const isAdmin = user?.roles?.includes('admin') || false;
 
-  if (!hasB2BAccess) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Alert className="max-w-md">
           <AlertDescription>
-            Você não tem permissão para acessar esta página. Esta funcionalidade é restrita a usuários B2B.
+            Você não tem permissão para acessar esta página. Esta funcionalidade é restrita a administradores.
           </AlertDescription>
         </Alert>
       </div>

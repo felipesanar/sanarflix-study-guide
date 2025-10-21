@@ -304,9 +304,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
-          cpf: string | null
           email: string
           id: string
           id_ies: string | null
@@ -314,7 +337,6 @@ export type Database = {
           semestre: number | null
         }
         Insert: {
-          cpf?: string | null
           email: string
           id: string
           id_ies?: string | null
@@ -322,7 +344,6 @@ export type Database = {
           semestre?: number | null
         }
         Update: {
-          cpf?: string | null
           email?: string
           id?: string
           id_ies?: string | null
@@ -341,35 +362,7 @@ export type Database = {
       }
     }
     Views: {
-      users_basic: {
-        Row: {
-          id: string | null
-          id_ies: string | null
-          nome: string | null
-          semestre: number | null
-        }
-        Insert: {
-          id?: string | null
-          id_ies?: string | null
-          nome?: string | null
-          semestre?: number | null
-        }
-        Update: {
-          id?: string | null
-          id_ies?: string | null
-          nome?: string | null
-          semestre?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_ies"
-            columns: ["id_ies"]
-            isOneToOne: false
-            referencedRelation: "ies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       get_all_user_performance_by_area: {
@@ -446,6 +439,10 @@ export type Database = {
         Args: Record<PropertyKey, never> | { p_simulado_id: number }
         Returns: Json
       }
+      get_user_roles: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"][]
+      }
       get_user_simulados: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -453,9 +450,16 @@ export type Database = {
           nome: string
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user" | "b2b_partner"
     }
     CompositeTypes: {
       question_details_type: {
@@ -592,6 +596,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user", "b2b_partner"],
+    },
   },
 } as const

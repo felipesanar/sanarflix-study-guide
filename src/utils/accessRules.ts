@@ -1,10 +1,9 @@
 import { AccessRules, User } from '@/types';
 
-// Helper function to check if user is B2B (excluding B2C and USCS)
+// Helper function to check if user has admin role
 export const isB2BUser = (user: User | null): boolean => {
   if (!user) return false;
-  const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
-  return user.id_ies == B2B_IES_ID;
+  return user.roles?.includes('admin') || user.roles?.includes('b2b_partner') || false;
 };
 
 export const getAccessRules = (user: User | null): AccessRules => {
@@ -41,16 +40,34 @@ export const getAccessRules = (user: User | null): AccessRules => {
     };
   }
 
-  // Regras para IES específicas (usuários B2B)
+  // Regras baseadas em role (seguro contra escalação de privilégios)
+  const isAdmin = user.roles?.includes('admin') || false;
+  const isB2BPartner = user.roles?.includes('b2b_partner') || false;
+  
+  // Usuários com role admin ou b2b_partner
+  if (isAdmin || isB2BPartner) {
+    return {
+      studyGuide: true,
+      enamed: true,
+      cronogramaEnamed: false,
+      dashboard: true,
+      SimuladoDesempenho: true,
+      userManagement: isAdmin, // Só admin pode gerenciar usuários
+      intensivoUSCS: false
+    };
+  }
+  
+  // Regras para IES específicas (usuários regulares)
   switch (id_ies) {
     case '9f21b138-0027-44c8-9660-dc6706d57bc0':
+      // B2B IES (fallback se não tiver role)
       return {
         studyGuide: true,
         enamed: true,
-        cronogramaEnamed: false, // B2B não precisa do cronograma limitado
+        cronogramaEnamed: false,
         dashboard: true,
         SimuladoDesempenho: true,
-        userManagement: true,
+        userManagement: false,
         intensivoUSCS: false
       };
 

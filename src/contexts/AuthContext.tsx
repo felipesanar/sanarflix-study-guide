@@ -127,9 +127,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token,
           });
+          
+          // Fetch user roles after session is established
+          try {
+            const { data: rolesData } = await supabase.rpc('get_user_roles', { 
+              _user_id: userData.id 
+            });
+            
+            if (rolesData) {
+              userData.roles = rolesData;
+            }
+          } catch (roleError) {
+            Logger.warn('Failed to fetch user roles', roleError);
+            userData.roles = [];
+          }
         } catch (e) {
           // Failed to set session
+          userData.roles = [];
         }
+      } else {
+        userData.roles = [];
       }
 
       setUser(userData);
