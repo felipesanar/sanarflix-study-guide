@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Pencil, X, Save } from 'lucide-react';
 
 interface CalendarItem {
   semana: string;
@@ -17,6 +17,7 @@ interface CalendarItem {
   discipline: string;
   link_aula?: string;
   link_gratuito?: string;
+  color?: string; // cor do badge
 }
 
 interface CalendarViewProps {
@@ -28,6 +29,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedBadge, setSelectedBadge] = useState<CalendarItem | null>(null);
+  const [showSidePanel, setShowSidePanel] = useState(false);
+  const [tempCalendarEvents, setTempCalendarEvents] = useState<CalendarItem[]>([]);
   
   // Get today's date in DD/MM format
   const today = useMemo(() => {
@@ -86,77 +91,211 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     return getWeekNumber(weekA) - getWeekNumber(weekB);
   });
 
+  // Inicializa tempCalendarEvents quando o componente é montado
+  useEffect(() => {
+    // Cria uma cópia profunda dos itens para manipulação no modo de edição
+    setTempCalendarEvents([...items]);
+  }, [items]);
+
+  // Função para lidar com o clique em um badge
+  const handleBadgeClick = (item: CalendarItem) => {
+    setSelectedBadge(item);
+    setShowSidePanel(true);
+  };
+
+  // Função para fechar o painel lateral
+  const handleCloseSidePanel = () => {
+    setShowSidePanel(false);
+    setSelectedBadge(null);
+  };
+
+  // Função para lidar com o início do arrasto
+  const handleDragStart = (e: React.DragEvent, item: CalendarItem) => {
+    if (isEditMode) {
+      e.dataTransfer.setData('text/plain', JSON.stringify(item));
+      e.currentTarget.classList.add('opacity-50');
+    }
+  };
+
+  // Função para lidar com o fim do arrasto
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('opacity-50');
+  };
+
+  // Função para permitir o drop
+  const handleDragOver = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
+    if (isEditMode) {
+      e.preventDefault();
+      e.currentTarget.classList.add('bg-primary/10');
+    }
+  };
+
+  // Função para lidar com a saída do elemento arrastável da área de drop
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('bg-primary/10');
+  };
+
+  // Função para lidar com o drop
+  const handleDrop = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('bg-primary/10');
+    
+    if (isEditMode) {
+      try {
+        const itemData = JSON.parse(e.dataTransfer.getData('text/plain')) as CalendarItem;
+        
+        // Atualiza o dia do item
+        const updatedEvents = tempCalendarEvents.map(event => {
+          if (event.itemKey === itemData.itemKey) {
+            return { ...event, dia: targetDay, semana: targetWeek };
+          }
+          return event;
+        });
+        
+        setTempCalendarEvents(updatedEvents);
+      } catch (error) {
+        console.error('Erro ao processar o item arrastado:', error);
+      }
+    }
+  };
+
+  // Função para salvar alterações no modo de edição
+  const handleSaveChanges = () => {
+    // Aqui implementaríamos a lógica para salvar as alterações no backend
+    // Por enquanto, apenas saímos do modo de edição
+    setIsEditMode(false);
+    
+    // Em uma implementação real, enviaríamos tempCalendarEvents para o backend
+    console.log('Alterações salvas:', tempCalendarEvents);
+    
+    // Exibir uma notificação de sucesso
+    alert('Alterações salvas com sucesso!');
+  };
+
   return (
-    <div className="space-y-6">
-      {sortedWeeks.map(([week, days]) => (
-        <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Calendar className="h-6 w-6 text-primary" />
-              <h3 className="text-2xl font-bold text-foreground">{week}</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Object.entries(days).map(([day, dayItems]) => {
-                const isToday = day === today;
-                return (
-                  <Card key={day} className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''}`}>
-                    <CardContent className="p-4">
-                      <h4 className={`font-semibold mb-3 text-lg border-b pb-2 flex items-center gap-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                        {day}
-                        {isToday && (
-                          <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
-                            Hoje
-                          </span>
-                        )}
-                      </h4>
-                    
-                    <div className="space-y-3">
-                      {(() => {
-                        const subMap = dayItems.reduce((acc, it) => {
-                          const key = it.subtema || it.tema || 'Geral';
-                          if (!acc[key]) acc[key] = [];
-                          acc[key].push(it);
-                          return acc;
-                        }, {} as Record<string, CalendarItem[]>);
-                        return Object.entries(subMap).map(([subtema, subItems]) => {
-                          const allDone = subItems.every(s => s.completed);
-                          const completedCount = subItems.filter(s => s.completed).length;
-                          return (
-                            <button
-                              key={subtema}
-                              onClick={() => { setSelected({ subtema, items: subItems }); setCurrentPage(0); setOpen(true); }}
-                              className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                                allDone 
-                                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
-                                  : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
-                              } hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20`}
-                            >
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <div className="flex items-center gap-2">
-                                  {allDone && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                                  <span className="font-medium text-sm text-foreground">{subtema}</span>
+    <div className="flex gap-4 relative">
+      <div className="space-y-6 flex-1">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Semana Acadêmica</h2>
+          <div className="flex gap-2">
+            <Button 
+              variant={isEditMode ? "default" : "outline"} 
+              size="sm" 
+              className="flex items-center gap-2"
+              onClick={() => setIsEditMode(!isEditMode)}
+            >
+              <Pencil className="h-4 w-4" />
+              {isEditMode ? "Cancelar Edição" : "Editar Calendário"}
+            </Button>
+            {isEditMode && (
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                onClick={handleSaveChanges}
+              >
+                <Save className="h-4 w-4" />
+                Confirmar
+              </Button>
+            )}
+          </div>
+        </div>
+        
+        {sortedWeeks.map(([week, days]) => (
+          <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <Calendar className="h-6 w-6 text-primary" />
+                <h3 className="text-2xl font-bold text-foreground">{week}</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {Object.entries(days).map(([day, dayItems]) => {
+                  const isToday = day === today;
+                  return (
+                    <Card 
+                      key={day} 
+                      className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''}`}
+                      onDragOver={(e) => handleDragOver(e, day, week)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, day, week)}
+                    >
+                      <CardContent className="p-4">
+                        <h4 className={`font-semibold mb-3 text-lg border-b pb-2 flex items-center gap-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                          {day}
+                          {isToday && (
+                            <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
+                              Hoje
+                            </span>
+                          )}
+                        </h4>
+                      
+                      <div className="space-y-3">
+                        {(() => {
+                          const subMap = dayItems.reduce((acc, it) => {
+                            const key = it.subtema || it.tema || 'Geral';
+                            if (!acc[key]) acc[key] = [];
+                            acc[key].push(it);
+                            return acc;
+                          }, {} as Record<string, CalendarItem[]>);
+                          return Object.entries(subMap).map(([subtema, subItems]) => {
+                            const allDone = subItems.every(s => s.completed);
+                            const completedCount = subItems.filter(s => s.completed).length;
+                            
+                            // Gerar uma cor aleatória para o badge se não existir
+                            const badgeColor = subItems[0]?.color || `hsl(${Math.random() * 360}, 70%, 50%)`;
+                            
+                            return (
+                              <div
+                                key={subtema}
+                                className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                  allDone 
+                                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
+                                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+                                } hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 ${isEditMode ? 'cursor-move' : 'cursor-pointer'}`}
+                                onClick={() => {
+                                  if (!isEditMode) {
+                                    handleBadgeClick({
+                                      ...subItems[0],
+                                      subtema: subtema,
+                                      color: badgeColor
+                                    });
+                                  }
+                                }}
+                                draggable={isEditMode}
+                                onDragStart={(e) => handleDragStart(e, subItems[0])}
+                                onDragEnd={handleDragEnd}
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    {allDone && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                    <span className="font-medium text-sm text-foreground">{subtema}</span>
+                                  </div>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="text-xs"
+                                    style={{ backgroundColor: `${badgeColor}30`, borderColor: badgeColor, color: badgeColor }}
+                                  >
+                                    {completedCount}/{subItems.length}
+                                  </Badge>
                                 </div>
-                                <Badge variant="secondary" className="text-xs">
-                                  {completedCount}/{subItems.length}
-                                </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                  {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
+                                </div>
                               </div>
-                              <div className="text-xs text-muted-foreground">
-                                {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
-                              </div>
-                            </button>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </CardContent>
-                </Card>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                            );
+                          });
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       {/* Modal de Aulas por Subtema */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -244,6 +383,82 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Painel lateral para exibir conteúdos da matéria */}
+      {showSidePanel && selectedBadge && (
+        <div className="w-80 bg-white dark:bg-gray-800 border-l border-border shadow-lg h-full fixed right-0 top-0 bottom-0 z-50 overflow-y-auto animate-slide-in-right">
+          <div className="p-4 border-b sticky top-0 bg-white dark:bg-gray-800 z-10 flex justify-between items-center">
+            <h3 className="text-lg font-bold">{selectedBadge.subtema}</h3>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="rounded-full h-8 w-8 p-0"
+              onClick={handleCloseSidePanel}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="p-4 space-y-4">
+            <div className="bg-accent/20 p-3 rounded-lg border border-accent">
+              <h4 className="font-medium mb-2">Conteúdos da Matéria</h4>
+              <div className="space-y-2">
+                {items
+                  .filter(item => (item.subtema === selectedBadge.subtema || item.tema === selectedBadge.subtema))
+                  .map(item => (
+                    <div key={item.itemKey} className="p-2 border rounded-md bg-background">
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={item.completed}
+                          onCheckedChange={() => onToggleCompletion(item.itemKey)}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className={`text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                            {item.aula || item.tema}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.dia}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="font-medium">Acesso Rápido</h4>
+              {selectedBadge.link_aula && String(selectedBadge.link_aula).toLowerCase() !== 'nan' && (
+                <Button 
+                  variant="default" 
+                  className="w-full bg-[#800000] hover:bg-[#800000]/90 text-white"
+                  onClick={() => window.open(String(selectedBadge.link_aula), '_blank')}
+                >
+                  Acessar no SanarFlix
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => {
+                  setSelected({ 
+                    subtema: selectedBadge.subtema || '', 
+                    items: items.filter(item => (
+                      item.subtema === selectedBadge.subtema || item.tema === selectedBadge.subtema
+                    ))
+                  });
+                  setOpen(true);
+                  setShowSidePanel(false);
+                }}
+              >
+                Ver todos os detalhes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

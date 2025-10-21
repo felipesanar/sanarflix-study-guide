@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useUniversity } from '@/contexts/UniversityContext';
 import { 
   BookOpen, 
   Search, 
@@ -602,28 +603,51 @@ export const StudyGuide: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <Card className="premium-card hover-lift shadow-lg border-primary/10">
-                  <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 to-transparent">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      Progresso do Semestre
+                <Card 
+                  className="premium-card hover-lift shadow-lg border-primary/10 cursor-pointer overflow-hidden h-full"
+                  onClick={() => {
+                    const { currentPromotion } = useUniversity();
+                    toast({
+                      title: currentPromotion.title,
+                      description: currentPromotion.description,
+                      action: (
+                        <Button variant="default" size="sm" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
+                          {currentPromotion.ctaText}
+                        </Button>
+                      ),
+                    });
+                    window.open(currentPromotion.ctaLink, "_blank");
+                  }}
+                >
+                  <div className="absolute top-0 right-0 bg-primary text-white px-2 py-1 text-xs font-bold rounded-bl-lg z-10">
+                    PREMIUM
+                  </div>
+                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
+                  <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
+                  <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/60">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-white">
+                      <Sparkles className="h-4 w-4" />
+                      Oferta Especial
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">{stats.percentage}%</span>
-                        <span className="text-sm text-muted-foreground">
-                          {stats.completed} de {stats.totalAulas} aulas
-                        </span>
+                  <CardContent className="pt-4 relative z-0">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/10 p-3 rounded-full">
+                          <GraduationCap className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg">Sanar Premium</h3>
+                          <p className="text-sm text-muted-foreground">Exclusivo para alunos da sua universidade</p>
+                        </div>
                       </div>
-                      <Progress value={stats.percentage} className="h-2" />
-                      {stats.percentage >= 80 && (
-                        <p className="text-xs text-primary flex items-center gap-1">
-                          <Sparkles className="h-3 w-3" />
-                          Excelente progresso!
-                        </p>
-                      )}
+                      <div className="bg-accent/30 p-3 rounded-lg border border-accent">
+                        <p className="text-sm">Acesse simulados, questões comentadas e materiais exclusivos para sua preparação!</p>
+                      </div>
+                      <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md">
+                        <Sparkles className="h-4 w-4" />
+                        Conhecer agora
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -644,29 +668,71 @@ export const StudyGuide: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {stats.pendingAulas.length > 0 ? (
-                      <div className="space-y-2">
-                        {stats.pendingAulas.map((aula, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-accent transition-colors"
-                          >
-                            <ChevronRight className="h-4 w-4 text-primary shrink-0" />
-                            <span className="flex-1">{aula.aula}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {aula.materia}
-                            </Badge>
-                          </div>
-                        ))}
+                    {calendarEvents.filter(event => {
+                      // Pegar eventos do dia atual (0-6, onde 0 é domingo)
+                      const today = new Date().getDay();
+                      return event.day === today;
+                    }).length > 0 ? (
+                      <div className="space-y-3">
+                        {calendarEvents
+                          .filter(event => {
+                            const today = new Date().getDay();
+                            return event.day === today;
+                          })
+                          .map((event, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent hover:shadow-md transition-all"
+                            >
+                              <div 
+                                className="h-8 w-8 rounded-full flex items-center justify-center text-white"
+                                style={{ backgroundColor: event.color }}
+                              >
+                                {getMateriaIcon(event.materia)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium">{event.title}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs py-0 h-5">
+                                    {event.materia}
+                                  </Badge>
+                                  <span className="mx-1">•</span>
+                                  <Clock3 className="h-3 w-3" />
+                                  {event.startTime} - {event.endTime}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 rounded-full"
+                                onClick={() => removeEventFromCalendar(event.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
                         <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           Dica: Estude em blocos de 25min para máxima retenção
                         </p>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Parabéns! Você completou todas as aulas deste semestre.
+                      <div className="flex flex-col items-center gap-3 py-4">
+                        <Calendar className="h-12 w-12 text-muted-foreground opacity-50" />
+                        <div className="text-center">
+                          <p className="text-sm font-medium">Nenhuma matéria agendada para hoje</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Arraste matérias para o calendário para planejar seus estudos
+                          </p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => setViewMode('calendar')}
+                        >
+                          Ir para o calendário
+                        </Button>
                       </div>
                     )}
                   </CardContent>
