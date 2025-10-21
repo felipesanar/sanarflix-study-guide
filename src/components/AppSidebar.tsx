@@ -18,9 +18,15 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { getAccessRules, isB2BUser } from '@/utils/accessRules';
-import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText, TrendingUp } from 'lucide-react';
+import { BookOpen, BarChart3, LogOut, User, Zap, ClipboardCheck, UserCog, ChevronDown, ChevronRight, FileText, TrendingUp, Home as HomeIcon } from 'lucide-react';
 
 const menuItems = [
+  {
+    title: 'Início',
+    url: '/home',
+    icon: HomeIcon,
+    accessKey: 'home' as const,
+  },
   {
     title: 'Intensivão ENAMED',
     url: '/intensivao-enamed',
@@ -158,6 +164,20 @@ export function AppSidebar() {
           
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Home - Always visible for authenticated users */}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink 
+                    to="/home" 
+                    end 
+                    className={getNavCls}
+                  >
+                    <HomeIcon className={`h-5 w-5 ${collapsed ? 'mx-auto' : 'mr-3'} transition-all duration-200`} />
+                    {!collapsed && <span className="animate-fade-in transition-all duration-200">Início</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
               {/* Guia de Estudos - Parent Item with Collapsible Children */}
               {(accessRules.studyGuide || accessRules.dashboard) && (
                 <SidebarMenuItem>

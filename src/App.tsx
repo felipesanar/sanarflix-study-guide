@@ -27,6 +27,7 @@ import { CronogramaEnamed } from "./pages/CronogramaEnamed";
 import { ThemeProvider } from "next-themes";
 import IntensivoEnamedUSCS from "./pages/IntensivoEnamedUSCS";
 import Analytics from "./pages/Analytics";
+import { Home } from "./pages/Home";
 
 const queryClient = new QueryClient();
 
@@ -70,11 +71,9 @@ const AppContent = () => {
     );
   }
 
-  // Determine default route for launch
+  // Redirect authenticated users to home
   const getDefaultRoute = () => {
-    // Priority order: USCS page, B2C cronograma, others get intensivao
-    if (accessRules.intensivoUSCS) return "/intensivo-uscs";
-    return accessRules.cronogramaEnamed ? "/cronograma-enamed" : "/intensivao-enamed";
+    return "/home";
   };
 
   return (
@@ -82,6 +81,18 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+
+        {/* Home Page - Always available for authenticated users */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Home />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
         {accessRules.studyGuide && (
           <Route
