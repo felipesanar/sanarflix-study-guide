@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Pencil, X, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CalendarItem {
   semana: string;
@@ -91,7 +92,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     return getWeekNumber(weekA) - getWeekNumber(weekB);
   });
 
-  // Inicializa tempCalendarEvents quando o componente é montado
+  // Inicializa tempCalendarEvents quando o componente é montado ou quando items muda
   useEffect(() => {
     // Cria uma cópia profunda dos itens para manipulação no modo de edição
     setTempCalendarEvents([...items]);
@@ -99,8 +100,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
   // Função para lidar com o clique em um badge
   const handleBadgeClick = (item: CalendarItem) => {
-    setSelectedBadge(item);
-    setShowSidePanel(true);
+    if (!isEditMode) {
+      setSelectedBadge(item);
+      setShowSidePanel(true);
+    }
   };
 
   // Função para fechar o painel lateral
@@ -126,19 +129,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const handleDragOver = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
     if (isEditMode) {
       e.preventDefault();
-      e.currentTarget.classList.add('bg-primary/10');
+      e.currentTarget.classList.add('bg-primary/10', 'border-dashed', 'border-primary');
     }
   };
 
   // Função para lidar com a saída do elemento arrastável da área de drop
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('bg-primary/10');
+    e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
   };
 
   // Função para lidar com o drop
   const handleDrop = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('bg-primary/10');
+    e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
     
     if (isEditMode) {
       try {
@@ -153,8 +156,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
         });
         
         setTempCalendarEvents(updatedEvents);
+        toast.success(`Item movido para ${targetDay} em ${targetWeek}`);
       } catch (error) {
         console.error('Erro ao processar o item arrastado:', error);
+        toast.error('Erro ao mover o item');
       }
     }
   };
@@ -169,7 +174,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     console.log('Alterações salvas:', tempCalendarEvents);
     
     // Exibir uma notificação de sucesso
-    alert('Alterações salvas com sucesso!');
+    toast.success('Alterações salvas com sucesso!');
   };
 
   return (
@@ -201,6 +206,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
           </div>
         </div>
         
+        <div className="grid grid-cols-7 gap-2 mb-4">
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Dom</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Seg</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Ter</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Qua</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Qui</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Sex</div>
+          <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Sab</div>
+        </div>
+        
         {sortedWeeks.map(([week, days]) => (
           <Card key={week} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-lg">
             <CardContent className="p-6">
@@ -209,13 +224,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                 <h3 className="text-2xl font-bold text-foreground">{week}</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
                 {Object.entries(days).map(([day, dayItems]) => {
                   const isToday = day === today;
                   return (
                     <Card 
                       key={day} 
-                      className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''}`}
+                      className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
                       onDragOver={(e) => handleDragOver(e, day, week)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, day, week)}
@@ -253,15 +268,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                                     ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
                                     : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                                 } hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 ${isEditMode ? 'cursor-move' : 'cursor-pointer'}`}
-                                onClick={() => {
-                                  if (!isEditMode) {
-                                    handleBadgeClick({
-                                      ...subItems[0],
-                                      subtema: subtema,
-                                      color: badgeColor
-                                    });
-                                  }
-                                }}
+                                onClick={() => handleBadgeClick({
+                                  ...subItems[0],
+                                  subtema: subtema,
+                                  color: badgeColor
+                                })}
                                 draggable={isEditMode}
                                 onDragStart={(e) => handleDragStart(e, subItems[0])}
                                 onDragEnd={handleDragEnd}
@@ -282,6 +293,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                                 <div className="text-xs text-muted-foreground">
                                   {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
                                 </div>
+                                {isEditMode && (
+                                  <div className="mt-2 text-xs text-primary italic">
+                                    Arraste para mover
+                                  </div>
+                                )}
                               </div>
                             );
                           });
