@@ -56,16 +56,16 @@ export const Dashboard: React.FC = () => {
   }];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 w-full max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-primary-100 rounded-lg">
-            <BarChart3 className="h-6 w-6 text-primary-600" />
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <div className="p-1.5 sm:p-2 bg-primary-100 rounded-lg">
+            <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard de Progresso</h1>
-            <p className="text-gray-600">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">Dashboard de Progresso</h1>
+            <p className="text-sm sm:text-base text-gray-600">
               Acompanhe seu desempenho no {user?.ies_nome} - {user?.semestre}º período
             </p>
           </div>
@@ -73,7 +73,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
         <ProgressCard
           title="Progresso Geral"
           current={totalCompleted}
@@ -126,7 +126,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
         {/* Bar Chart - Progress by Discipline */}
         <Card>
           <CardHeader>
@@ -214,7 +214,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Radial Progress and Content Types */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Radial Progress */}
         <Card>
           <CardHeader>

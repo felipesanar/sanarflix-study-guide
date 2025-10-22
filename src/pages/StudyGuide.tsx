@@ -532,13 +532,13 @@ export const StudyGuide: React.FC = () => {
 
   if (!user?.id_ies) {
     return (
-      <div className="container mx-auto px-4 py-12">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-12">
         <Card className="max-w-2xl mx-auto">
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 p-4 sm:p-6">
             <div className="text-center space-y-4">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
-              <h2 className="text-2xl font-bold">Acesso Restrito</h2>
-              <p className="text-muted-foreground">
+              <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto" />
+              <h2 className="text-xl sm:text-2xl font-bold">Acesso Restrito</h2>
+              <p className="text-sm sm:text-base text-muted-foreground">
                 Você precisa estar vinculado a uma instituição para acessar o guia de estudos.
               </p>
             </div>
@@ -552,14 +552,14 @@ export const StudyGuide: React.FC = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <BookOpen className="h-6 w-6 text-primary" />
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-4">
+          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg sm:rounded-xl">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
                 <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
               </div>
             </div>
@@ -598,11 +598,11 @@ export const StudyGuide: React.FC = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-3 sm:space-y-4 md:space-y-6">
         {selectedSemestre && (
           <>
             {/* Dashboard Section */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {/* Progress Card */}
 
               {/* Today's Study */}

@@ -519,19 +519,19 @@ const allAulas: AulaItem[] = useMemo(() => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-red-lightest to-white dark:bg-background dark:bg-none p-3 sm:p-4 md:p-6">
+      <div className="w-full max-w-7xl mx-auto space-y-3 sm:space-y-4 md:space-y-6">
         {/* Header com título e logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
+        <div className="text-center mb-4 sm:mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white">
               Intensivão
             </h1>
             <div className="flex items-center gap-2">
-              <span className="text-2xl lg:text-3xl font-bold text-teal-600 dark:text-teal-400">
+              <span className="text-xl sm:text-2xl lg:text-3xl font-bold text-teal-600 dark:text-teal-400">
                 enamed
               </span>
-              <span className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0 sm:mt-2 text-center sm:text-left">
                 Exame Nacional de Avaliação<br />
                 da Formação Médica
               </span>

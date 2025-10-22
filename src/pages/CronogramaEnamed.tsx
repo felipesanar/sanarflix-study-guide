@@ -289,11 +289,11 @@ export const CronogramaEnamed: React.FC = () => {
   // Se está carregando, mostrar indicador de carregamento
   if (loadingCronograma) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-        <div className="container mx-auto max-w-7xl">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-            <p className="text-lg text-muted-foreground mt-4">Carregando cronograma...</p>
+            <div className="animate-spin rounded-full h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 border-b-2 border-primary mx-auto"></div>
+            <p className="text-base sm:text-lg text-muted-foreground mt-4">Carregando cronograma...</p>
           </div>
         </div>
       </div>
@@ -303,10 +303,10 @@ export const CronogramaEnamed: React.FC = () => {
   // Se houver erro, mostrar mensagem
   if (cronogramaError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-        <div className="container mx-auto max-w-7xl">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center">
-            <p className="text-lg text-red-600 dark:text-red-400">{cronogramaError}</p>
+            <p className="text-base sm:text-lg text-red-600 dark:text-red-400">{cronogramaError}</p>
             <Button onClick={() => window.location.reload()} className="mt-4">
               Tentar novamente
             </Button>
@@ -317,16 +317,16 @@ export const CronogramaEnamed: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-      <div className="container mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+      <div className="w-full max-w-7xl mx-auto">
         {/* Header */}
-        <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-primary/90 to-primary shadow-xl">
+        <div className="relative mb-4 sm:mb-6 md:mb-8 overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-primary/90 to-primary shadow-lg sm:shadow-xl">
           <div className="absolute inset-0 bg-black/20"></div>
-          <div className="relative p-8 text-white">
+          <div className="relative p-4 sm:p-6 md:p-8 text-white">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div className="mb-4 md:mb-0">
-                <h1 className="text-4xl font-bold mb-2">Cronograma ENAMED</h1>
-                <p className="text-primary-foreground/90 text-lg">
+              <div className="mb-2 sm:mb-4 md:mb-0">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2">Cronograma ENAMED</h1>
+                <p className="text-primary-foreground/90 text-sm sm:text-base md:text-lg">
                   Seu cronograma personalizado de estudos
                 </p>
               </div>
@@ -335,7 +335,7 @@ export const CronogramaEnamed: React.FC = () => {
         </div>
 
         {/* Botões fixos do topo */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6 md:mb-8">
           <Button
             onClick={() => window.open(GUIA_CRONOGRAMA_PDF, '_blank')}
             variant="outline"
@@ -347,7 +347,7 @@ export const CronogramaEnamed: React.FC = () => {
         </div>
 
         {/* Cards de progresso */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-8">
           <Card className="bg-white/70 dark:bg-gray-800/70 backdrop-blur border-0 shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-semibold">

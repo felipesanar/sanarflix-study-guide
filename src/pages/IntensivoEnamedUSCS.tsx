@@ -281,11 +281,11 @@ const IntensivoEnamedUSCS: React.FC = () => {
 
   if (loading || loadingIntensivo) {
     return (
-      <div className="min-h-screen bg-background dark:bg-background py-8 px-4">
-        <div className="container mx-auto max-w-7xl">
+      <div className="min-h-screen bg-background dark:bg-background py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-            <p className="text-lg text-muted-foreground mt-4">Carregando conteúdo...</p>
+            <div className="animate-spin rounded-full h-16 w-16 sm:h-24 sm:w-24 md:h-32 md:w-32 border-b-2 border-primary mx-auto"></div>
+            <p className="text-base sm:text-lg text-muted-foreground mt-4">Carregando conteúdo...</p>
           </div>
         </div>
       </div>
@@ -295,10 +295,10 @@ const IntensivoEnamedUSCS: React.FC = () => {
   // Se houver erro, mostrar mensagem
   if (intensivoError) {
     return (
-      <div className="min-h-screen bg-background dark:bg-background py-8 px-4">
-        <div className="container mx-auto max-w-7xl">
+      <div className="min-h-screen bg-background dark:bg-background py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+        <div className="w-full max-w-7xl mx-auto">
           <div className="text-center">
-            <p className="text-lg text-red-600 dark:text-red-400">{intensivoError}</p>
+            <p className="text-base sm:text-lg text-red-600 dark:text-red-400">{intensivoError}</p>
             <Button onClick={() => window.location.reload()} className="mt-4">
               Tentar novamente
             </Button>
@@ -336,13 +336,13 @@ const IntensivoEnamedUSCS: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background dark:bg-background">
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
         {/* Premium Header with USCS Branding */}
-        <div className="relative mb-12 overflow-hidden rounded-3xl bg-gradient-premium shadow-2xl">
+        <div className="relative mb-4 sm:mb-6 md:mb-12 overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-premium shadow-lg sm:shadow-2xl">
           <div className="absolute inset-0 bg-black/10 dark:bg-black/30"></div>
           <div className="absolute inset-0 backdrop-blur-[2px]"></div>
           
-          <div className="relative p-8 lg:p-12">
+          <div className="relative p-4 sm:p-6 md:p-8 lg:p-12">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
               <div className="flex flex-col lg:flex-row lg:items-center gap-6">
                 {/* USCS Logo */}
@@ -356,14 +356,14 @@ const IntensivoEnamedUSCS: React.FC = () => {
                 
                 {/* Title and Description */}
                 <div>
-                  <h1 className="text-4xl lg:text-5xl font-display font-bold mb-3 text-center lg:text-left text-black dark:text-white">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display font-bold mb-2 sm:mb-3 text-center lg:text-left text-black dark:text-white">
                     Intensivo Enamed
                   </h1>
-                  <div className="flex items-center gap-2 mb-3 justify-center lg:justify-start">
-                    <GraduationCap className="h-6 w-6 text-uscs-orange" />
-                    <span className="text-xl font-semibold text-black dark:text-white/90">USCS</span>
+                  <div className="flex items-center gap-2 mb-2 sm:mb-3 justify-center lg:justify-start">
+                    <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6 text-uscs-orange" />
+                    <span className="text-lg sm:text-xl font-semibold text-black dark:text-white/90">USCS</span>
                   </div>
-                  <p className="text-black/70 dark:text-white/80 text-lg max-w-2xl text-center lg:text-left leading-relaxed">
+                  <p className="text-black/70 dark:text-white/80 text-sm sm:text-base md:text-lg max-w-2xl text-center lg:text-left leading-relaxed">
                     Cronograma de estudos exclusivo para alunos da Universidade Municipal de São Caetano do Sul
                   </p>
                 </div>
@@ -373,7 +373,7 @@ const IntensivoEnamedUSCS: React.FC = () => {
         </div>
 
         {/* Premium Progress Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-6 md:mb-10">
           {/* Overall Progress Card */}
           <Card className="premium-card hover-lift bg-gradient-card-light dark:bg-gradient-card-dark border-0 shadow-xl">
             <CardHeader className="pb-4">

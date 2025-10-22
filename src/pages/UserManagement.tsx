@@ -328,10 +328,10 @@ const UserManagement: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Gestão de Usuários</h1>
-        <p className="text-muted-foreground">Criar usuários unitariamente ou em lote via CSV</p>
+    <div className="w-full max-w-7xl mx-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestão de Usuários</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Criar usuários unitariamente ou em lote via CSV</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
