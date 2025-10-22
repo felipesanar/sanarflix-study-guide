@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { useUniversity } from '@/contexts/UniversityContext';
 import { 
   BookOpen, 
-  Search, 
+  Search,
   TrendingUp, 
   Clock, 
   CheckCircle2,
