@@ -136,8 +136,8 @@ export const Home: React.FC = () => {
         if (simuladosRes.error || !Array.isArray(simuladosRes.data) || simuladosRes.data.length === 0) return;
         const latestSimulado = simuladosRes.data[0];
         const r = await supabase.rpc('get_user_rankings', { p_simulado_id: latestSimulado.id }).single();
-        if (!r.error && r.data && r.data.rankingIES) {
-          setRankingIES(r.data.rankingIES);
+        if (!r.error && r.data && (r.data as any).rankingIES) {
+          setRankingIES((r.data as any).rankingIES);
         }
       } catch {}
     })();
@@ -313,7 +313,7 @@ export const Home: React.FC = () => {
                 <div className="w-full md:w-64 h-40 md:h-44">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="95%" data={[{ name: 'Progresso', value: totalProgress, fill: '#8B5CF6' }]}> 
-                      <RadialBar minAngle={15} clockWise dataKey="value" cornerRadius={10} />
+                      <RadialBar dataKey="value" cornerRadius={10} />
                     </RadialBarChart>
                   </ResponsiveContainer>
                 </div>
@@ -407,7 +407,7 @@ export const Home: React.FC = () => {
                 <div className="h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="90%" data={[{ name: 'Progresso', value: totalProgress, fill: '#3B82F6' }]}> 
-                      <RadialBar minAngle={15} clockWise dataKey="value" cornerRadius={10} />
+                      <RadialBar dataKey="value" cornerRadius={10} />
                     </RadialBarChart>
                   </ResponsiveContainer>
                 </div>
