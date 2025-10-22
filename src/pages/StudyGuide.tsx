@@ -6,7 +6,6 @@ import { useUniversity } from '@/contexts/UniversityContext';
 import { 
   BookOpen, 
   Search,
-  TrendingUp, 
   Clock, 
   CheckCircle2,
   AlertCircle,
@@ -605,60 +604,6 @@ export const StudyGuide: React.FC = () => {
             {/* Dashboard Section */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* Progress Card */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <Card 
-                  className="premium-card hover-lift shadow-lg border-primary/10 cursor-pointer overflow-hidden h-full"
-                  onClick={() => {
-                    const { currentPromotion } = useUniversity();
-                    toast({
-                      title: currentPromotion.title,
-                      description: currentPromotion.description,
-                      action: (
-                        <Button variant="default" size="sm" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
-                          {currentPromotion.ctaText}
-                        </Button>
-                      ),
-                    });
-                    window.open(currentPromotion.ctaLink, "_blank");
-                  }}
-                >
-                  <div className="absolute top-0 right-0 bg-primary text-white px-2 py-1 text-xs font-bold rounded-bl-lg z-10">
-                    PREMIUM
-                  </div>
-                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
-                  <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
-                  <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/60">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2 text-white">
-                      <Sparkles className="h-4 w-4" />
-                      Oferta Especial
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-4 relative z-0">
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 p-3 rounded-full">
-                          <GraduationCap className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg">Sanar Premium</h3>
-                          <p className="text-sm text-muted-foreground">Exclusivo para alunos da sua universidade</p>
-                        </div>
-                      </div>
-                      <div className="bg-accent/30 p-3 rounded-lg border border-accent">
-                        <p className="text-sm">Acesse simulados, questões comentadas e materiais exclusivos para sua preparação!</p>
-                      </div>
-                      <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md">
-                        <Sparkles className="h-4 w-4" />
-                        Conhecer agora
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
 
               {/* Today's Study */}
               <motion.div 
