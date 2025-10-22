@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
-import { Menu, User } from 'lucide-react';
+import { Menu, User, Home, BookOpen, Zap } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
+import { NavLink } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -65,9 +66,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pb-16 md:pb-0 transition-all duration-300">
             {children}
           </main>
+
+          {/* Mobile bottom navigation (below 768px) */}
+          <nav
+            aria-label="Barra de navegação móvel"
+            className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70 border-t border-border px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+          >
+            <div className="grid grid-cols-4 gap-2">
+              <NavLink to="/home" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50'}` }>
+                <Home className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[11px]">Início</span>
+              </NavLink>
+              <NavLink to="/guia-estudos" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50'}` }>
+                <BookOpen className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[11px]">Guia</span>
+              </NavLink>
+              <NavLink to="/intensivao-enamed" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition-all duration-300 ${isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50'}` }>
+                <Zap className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[11px]">Intensivão</span>
+              </NavLink>
+              <button className="flex flex-col items-center justify-center gap-1 py-2 rounded-lg transition-all duration-300 text-muted-foreground hover:bg-accent/50" aria-label="Abrir menu">
+                <SidebarTrigger className="rounded-full">
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </SidebarTrigger>
+                <span className="text-[11px]">Menu</span>
+              </button>
+            </div>
+          </nav>
         </div>
       </div>
 

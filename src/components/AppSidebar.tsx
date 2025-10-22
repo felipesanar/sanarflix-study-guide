@@ -222,6 +222,7 @@ export function AppSidebar() {
               <motion.img
                 src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
                 alt="Sanarflix"
+                loading="lazy"
                 className="w-12 h-12 rounded-2xl shadow-lg object-contain ring-2 ring-blue-500/20"
                 whileHover={{ scale: 1.05, rotate: 2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}

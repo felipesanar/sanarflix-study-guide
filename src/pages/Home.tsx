@@ -250,74 +250,77 @@ export const Home: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Oferta Especial - Premium */}
-        <Card className="premium-card hover-lift shadow-lg border-primary/10 cursor-pointer overflow-hidden" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
-          <div className="absolute top-0 right-0 bg-primary text-white px-2 py-1 text-xs font-bold rounded-bl-lg z-10">PREMIUM</div>
-          <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
-          <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/60">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-white">
-              <Sparkles className="h-4 w-4" />
-              Oferta Especial
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4 relative z-0">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 p-3 rounded-full">
-                  <GraduationCap className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg">{currentPromotion.title || 'Sanar Premium'}</h3>
-                  <p className="text-sm text-muted-foreground">Exclusivo para alunos da sua universidade</p>
-                </div>
-              </div>
-              <div className="bg-accent/30 p-3 rounded-lg border border-accent">
-                <p className="text-sm">{currentPromotion.description || 'Acesse simulados, questões comentadas e materiais exclusivos para sua preparação!'}</p>
-              </div>
-              <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
+        {/* Oferta Especial - Premium e Minha Jornada em layout responsivo */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[3fr_2fr] gap-4 md:gap-6 items-stretch transition-all duration-300">
+          {/* Oferta Especial - Premium */}
+          <Card className="premium-card hover-lift shadow-lg border-primary/10 cursor-pointer overflow-hidden h-full" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
+            <div className="absolute top-0 right-0 bg-primary text-white px-2 py-1 text-xs font-bold rounded-bl-lg z-10">PREMIUM</div>
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
+            <CardHeader className="pb-3 bg-gradient-to-r from-primary to-primary/60">
+              <CardTitle className="text-sm md:text-base font-medium flex items-center gap-2 text-white">
                 <Sparkles className="h-4 w-4" />
-                {currentPromotion.ctaText || 'Conhecer agora'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Minha Jornada (Hero) */}
-        <Card className="premium-card hover-lift bg-gradient-to-r from-[#1E40AF]/90 via-[#1E40AF]/70 to-[#8B5CF6]/80 text-white border-0 shadow-xl">
-          <CardContent className="py-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex-1 space-y-3">
+                Oferta Especial
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 relative z-0">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                    <Sparkles className="h-6 w-6" />
+                  <div className="bg-primary/10 p-3 rounded-full">
+                    <GraduationCap className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm opacity-80">Sua jornada</p>
-                    <h3 className="text-2xl md:text-3xl font-bold">{totalProgress}% concluído</h3>
+                    <h3 className="font-bold text-lg md:text-xl">{currentPromotion.title || 'Sanar Premium'}</h3>
+                    <p className="text-sm md:text-base text-muted-foreground">Exclusivo para alunos da sua universidade</p>
                   </div>
                 </div>
-                <p className="text-sm md:text-base opacity-90">Você tem {nextContents.length} missões de hoje no Guia de Estudos</p>
-                <div className="flex gap-3">
-                  <Button variant="secondary" className="bg-white text-[#1E40AF] hover:bg-white/90" onClick={() => navigate('/guia-estudos')}>
-                    Continuar Estudando
-                  </Button>
-                  <Button variant="ghost" className="text-white" onClick={() => navigate('/dashboard')}>
-                    Ver análise completa
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                <div className="bg-accent/30 p-3 rounded-lg border border-accent">
+                  <p className="text-sm md:text-base">{currentPromotion.description || 'Acesse simulados, questões comentadas e materiais exclusivos para sua preparação!'}</p>
+                </div>
+                <Button className="w-full gap-2 bg-primary hover:bg-primary/90 shadow-md" onClick={() => window.open(currentPromotion.ctaLink, '_blank')}>
+                  <Sparkles className="h-4 w-4" />
+                  {currentPromotion.ctaText || 'Conhecer agora'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Minha Jornada (Hero) */}
+          <Card className="premium-card hover-lift bg-gradient-to-r from-[#1E40AF]/90 via-[#1E40AF]/70 to-[#8B5CF6]/80 text-white border-0 shadow-xl h-full">
+            <CardContent className="py-6 md:py-8 h-full">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 h-full">
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm opacity-80">Sua jornada</p>
+                      <h3 className="text-2xl md:text-3xl font-bold">{totalProgress}% concluído</h3>
+                    </div>
+                  </div>
+                  <p className="text-sm md:text-base opacity-90">Você tem {nextContents.length} missões de hoje no Guia de Estudos</p>
+                  <div className="flex gap-3">
+                    <Button variant="secondary" className="bg-white text-[#1E40AF] hover:bg-white/90" onClick={() => navigate('/guia-estudos')}>
+                      Continuar Estudando
+                    </Button>
+                    <Button variant="ghost" className="text-white" onClick={() => navigate('/dashboard')}>
+                      Ver análise completa
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="w-full md:w-64 h-40 md:h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="95%" data={[{ name: 'Progresso', value: totalProgress, fill: '#8B5CF6' }]}> 
+                      <RadialBar minAngle={15} clockWise dataKey="value" cornerRadius={10} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-              <div className="w-full md:w-64 h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="95%" data={[{ name: 'Progresso', value: totalProgress, fill: '#8B5CF6' }]}> 
-                    <RadialBar minAngle={15} clockWise dataKey="value" cornerRadius={10} />
-                  </RadialBarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Meu Dia */}
         <div>
