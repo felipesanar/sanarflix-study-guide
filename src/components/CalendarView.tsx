@@ -35,6 +35,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [tempCalendarEvents, setTempCalendarEvents] = useState<CalendarItem[]>([]);
   
+  // Ref to scroll to calendar
+  const calendarRef = React.useRef<HTMLDivElement>(null);
+  
   // Get today's date in DD/MM format
   const today = useMemo(() => {
     const now = new Date();
@@ -178,7 +181,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   };
 
   return (
-    <div className="flex gap-4 relative">
+    <div className="flex gap-4 relative" data-calendar-view ref={calendarRef}>
       <div className="space-y-6 flex-1">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Semana Acadêmica</h2>

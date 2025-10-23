@@ -224,6 +224,18 @@ const allAulas: AulaItem[] = useMemo(() => {
     setViewMode(newMode);
     localStorage.setItem('enamed-view-mode', newMode);
   };
+
+  // Scroll to calendar when calendar view is selected
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      setTimeout(() => {
+        const calendarElement = document.querySelector('[data-calendar-view]');
+        if (calendarElement) {
+          calendarElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [viewMode]);
   // Buscar cronograma completo da API oficial
   useEffect(() => {
     let active = true;

@@ -47,6 +47,18 @@ const IntensivoEnamedUSCS: React.FC = () => {
     localStorage.setItem('intensivo-uscs-view-mode', newMode);
   };
 
+  // Scroll to calendar when calendar view is selected
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      setTimeout(() => {
+        const calendarElement = document.querySelector('[data-calendar-view]');
+        if (calendarElement) {
+          calendarElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [viewMode]);
+
   // Buscar conteúdo do intensivo
   useEffect(() => {
     let active = true;
