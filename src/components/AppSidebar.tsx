@@ -128,30 +128,25 @@ export function AppSidebar() {
     }
   }, [currentPath]);
 
-  // Premium glassmorphism styles
-  const glassStyle = "backdrop-blur-xl bg-white/10 dark:bg-black/10 border border-white/20 dark:border-white/10";
-  const activeGlassStyle = "backdrop-blur-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 shadow-lg shadow-blue-500/10";
-  const hoverGlassStyle = "hover:backdrop-blur-xl hover:bg-white/15 dark:hover:bg-white/5 hover:border-white/30 hover:shadow-md hover:shadow-blue-500/5 hover:scale-[1.02]";
-
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
       isActive 
-        ? `${activeGlassStyle} text-white font-medium` 
-        : `${glassStyle} ${hoverGlassStyle} text-slate-700 dark:text-slate-300`
+        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
+        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
     }`;
 
   const getParentNavCls = (isOpen: boolean) =>
     `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
       isOpen 
-        ? `${activeGlassStyle} text-white font-medium` 
-        : `${glassStyle} ${hoverGlassStyle} text-slate-700 dark:text-slate-300`
+        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
+        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
     }`;
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
     `group relative overflow-hidden rounded-lg ml-6 pl-4 transition-all duration-300 ease-out ${
       isActive 
-        ? `${activeGlassStyle} text-white font-medium` 
-        : `${glassStyle} ${hoverGlassStyle} text-slate-600 dark:text-slate-400`
+        ? 'bg-primary/90 text-primary-foreground font-medium shadow-sm' 
+        : 'bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70'
     }`;
 
   const MenuItem = ({ item, className, children }: { item: any, className?: string, children?: React.ReactNode }) => {
@@ -161,7 +156,7 @@ export function AppSidebar() {
           <item.icon className={`h-5 w-5 transition-all duration-300 ${collapsed ? 'mx-auto' : ''}`} />
           {!collapsed && (
             <motion.div
-              className="absolute -inset-1 rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+              className="absolute -inset-1 rounded-full bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               layoutId={`icon-glow-${item.title}`}
             />
           )}
@@ -260,7 +255,7 @@ export function AppSidebar() {
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.4 }}
-              className={`${glassStyle} rounded-2xl p-4 ${collapsed ? 'px-2' : ''} shadow-lg`}
+              className={`bg-card border border-border rounded-2xl p-4 ${collapsed ? 'px-2' : ''} shadow-sm`}
             >
               <div className="flex items-center gap-3">
                 <div className="relative">
