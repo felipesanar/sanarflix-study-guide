@@ -340,9 +340,7 @@ export function AppSidebar() {
                     <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                       <CollapsibleTrigger asChild>
                         <SidebarMenuButton className={getParentNavCls(studyGuideOpen)} aria-expanded={studyGuideOpen} aria-controls="submenu-guia-estudos">
-                          <MenuItem item={{ title: 'Guia de Estudos', icon: BookOpen }}>
-                            <span className="text-xs text-muted-foreground">Seu hub de estudos</span>
-                          </MenuItem>
+                          <MenuItem item={{ title: 'Guia de Estudos', icon: BookOpen }} />
                           <div className="ml-auto" aria-hidden="true">
                             {studyGuideOpen ? (
                               <ChevronDown className="h-4 w-4" />
