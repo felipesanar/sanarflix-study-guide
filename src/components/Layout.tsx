@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
-import { Menu, User, Home, BookOpen, Zap, BarChart3, Calendar } from 'lucide-react';
+import { Menu, User, Home, BookOpen, Zap } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAccessRules } from '@/utils/accessRules';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +23,6 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user } = useAuth();
   const [changeOpen, setChangeOpen] = useState(false);
-  const accessRules = getAccessRules(user);
 
   const initials = (user?.nome || '')
     .split(' ')
@@ -33,25 +31,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     .join('')
     .toUpperCase();
 
-  // Dynamic mobile navigation items based on user access
-  const mobileNavItems = [
-    { to: '/home', icon: Home, label: 'Início', show: true },
-    { to: '/guia-estudos', icon: BookOpen, label: 'Guia', show: accessRules.studyGuide },
-    { to: '/intensivao-enamed', icon: Zap, label: 'Intensivão', show: accessRules.enamed },
-    { to: '/desempenho-simulado', icon: BarChart3, label: 'Desempenho', show: accessRules.SimuladoDesempenho },
-    { to: '/cronograma-enamed', icon: Calendar, label: 'Cronograma', show: accessRules.cronogramaEnamed },
-  ].filter(item => item.show);
-
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background text-foreground">
+      <div className="min-h-screen w-full bg-background text-foreground flex">
         <AppSidebar />
         
-        <div className="flex-1 flex flex-col">
-          {/* Header with trigger, profile and theme toggle - HIDDEN ON MOBILE */}
-          <header className="hidden md:flex h-14 bg-background border-b border-border shadow-sm items-center px-4">
+        <SidebarInset className="flex-1 flex flex-col min-h-screen">
+          {/* Header with trigger, profile and theme toggle */}
+          <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors-smooth">
+              <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors">
                 <Menu className="h-5 w-5 text-foreground" />
               </SidebarTrigger>
             </div>
@@ -76,73 +65,38 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </header>
 
-          {/* Main content */}
-          <main className="flex-1 overflow-auto pb-16 md:pb-0 transition-all duration-300">
+          {/* Main content area */}
+          <main className="flex-1 overflow-auto pb-20 md:pb-0">
             {children}
           </main>
 
-          {/* Mobile bottom navigation (below 768px) - DYNAMIC BASED ON ACCESS */}
+          {/* Mobile bottom navigation (below 768px) */}
           <nav
             aria-label="Barra de navegação móvel"
-            className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 border-t border-border shadow-lg"
+            className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-lg"
           >
-            <div 
-              className="grid gap-1 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
-              style={{ gridTemplateColumns: `repeat(${Math.min(mobileNavItems.length + 1, 5)}, minmax(0, 1fr))` }}
-            >
-              {mobileNavItems.map((item) => (
-                <NavLink 
-                  key={item.to}
-                  to={item.to} 
-                  end 
-                  className={({ isActive }) => 
-                    `flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition-all duration-300 ${
-                      isActive 
-                        ? 'bg-primary text-primary-foreground shadow-sm' 
-                        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                    }`
-                  }
-                >
-                  <item.icon className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-[10px] font-medium truncate w-full text-center">{item.label}</span>
-                </NavLink>
-              ))}
-              
-              {/* User Profile Icon */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button 
-                    className="flex flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition-all duration-300 text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                    aria-label="Menu do perfil"
-                  >
-                    <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
-                      <User className="h-3 w-3" aria-hidden="true" />
-                    </div>
-                    <span className="text-[10px] font-medium">Perfil</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="mb-2">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user?.nome || 'Usuário'}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setChangeOpen(true)}>
-                    Alterar senha
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <div className="flex items-center justify-between w-full">
-                      <span>Tema</span>
-                      <ThemeToggle />
-                    </div>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="grid grid-cols-4 gap-1">
+              <NavLink to="/home" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
+                <Home className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[10px] font-medium">Início</span>
+              </NavLink>
+              <NavLink to="/guia-estudos" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
+                <BookOpen className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[10px] font-medium">Guia</span>
+              </NavLink>
+              <NavLink to="/intensivao-enamed" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
+                <Zap className="h-5 w-5" aria-hidden="true" />
+                <span className="text-[10px] font-medium">Intensivão</span>
+              </NavLink>
+              <button className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95" aria-label="Abrir menu">
+                <SidebarTrigger className="p-0">
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                </SidebarTrigger>
+                <span className="text-[10px] font-medium">Menu</span>
+              </button>
             </div>
           </nav>
-        </div>
+        </SidebarInset>
       </div>
 
       <ChangePasswordDialog open={changeOpen} onOpenChange={setChangeOpen} />

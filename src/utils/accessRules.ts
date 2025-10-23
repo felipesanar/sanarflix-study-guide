@@ -11,6 +11,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
   if (!user) {
     // Retorna as regras padrão para um usuário deslogado ou em carregamento
     return {
+      home: true,
       studyGuide: false,
       enamed: false,
       cronogramaEnamed: false,
@@ -30,6 +31,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
   // Verificar se é usuário B2C
   if (id_ies === B2C_IES_ID) {
     return {
+      home: true,
       studyGuide: false,
       enamed: false, // B2C não tem acesso ao intensivão completo
       cronogramaEnamed: true, // B2C só tem acesso ao cronograma dos últimos 30 dias
@@ -47,6 +49,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
   // Usuários com role admin ou b2b_partner
   if (isAdmin || isB2BPartner) {
     return {
+      home: true,
       studyGuide: true,
       enamed: true,
       cronogramaEnamed: false,
@@ -62,6 +65,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
     case '9f21b138-0027-44c8-9660-dc6706d57bc0':
       // B2B IES (fallback se não tiver role)
       return {
+        home: true,
         studyGuide: true,
         enamed: true,
         cronogramaEnamed: false,
@@ -73,6 +77,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '954aad2f-4030-4d5d-b27a-19eb8fac05cf':
       return {
+        home: true,
         studyGuide: true,
         enamed: true,
         cronogramaEnamed: false,
@@ -84,6 +89,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '12cfa7f2-45ba-406f-9e4d-aa719a6b94ca':
       return {
+        home: true,
         studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
@@ -95,6 +101,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '3e51663e-8766-4881-bfd1-0921678ed014':
       return {
+        home: true,
         studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
@@ -106,6 +113,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '5c6e697f-853c-415b-8690-65a27a9384f0':
       return {
+        home: true,
         studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
@@ -117,6 +125,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case '314b3bb2-a758-42d6-a9bb-e68e2fb35bba':
       return {
+        home: true,
         studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,
@@ -128,6 +137,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
       case 'e40a0ec1-1150-40e6-b492-8b8e3f8db593':
       return {
+        home: true,
         studyGuide: false,
         enamed: false,
         cronogramaEnamed: false,
@@ -140,6 +150,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
     default:
       // Outras IES - acesso padrão ao intensivão completo
       return {
+        home: true,
         studyGuide: false,
         enamed: true,
         cronogramaEnamed: false,

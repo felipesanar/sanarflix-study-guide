@@ -109,9 +109,9 @@ export const Home: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       {/* MOBILE VERSION - Simplified */}
-      <div className="md:hidden max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4">
+      <div className="md:hidden max-w-7xl mx-auto px-3 sm:px-4 pt-2 pb-3 space-y-3 sm:space-y-4">
         {/* Welcome Section - Mobile */}
         <div className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 rounded-xl p-4 sm:p-5 text-primary-foreground shadow-lg">
           <div className="flex flex-col gap-1.5 sm:gap-2">
@@ -280,7 +280,7 @@ export const Home: React.FC = () => {
       </div>
 
       {/* DESKTOP VERSION - Complete Layout */}
-      <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+      <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-6 space-y-6">
         {/* Welcome Banner - Desktop */}
         <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden">
           <CardContent className="p-8">

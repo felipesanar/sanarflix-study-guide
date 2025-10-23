@@ -10,6 +10,7 @@ export interface User {
 }
 
 export interface AccessRules {
+  home: boolean;
   studyGuide: boolean;
   enamed: boolean;
   cronogramaEnamed: boolean;

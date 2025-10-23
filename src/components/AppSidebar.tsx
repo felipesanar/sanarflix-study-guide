@@ -207,11 +207,12 @@ export function AppSidebar() {
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <Sidebar
-        className={`${collapsed ? 'w-16' : 'w-72'} transition-all duration-500 ease-out border-r-0 shadow-2xl bg-gradient-to-b from-slate-50/95 via-white/90 to-slate-100/95 dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-2xl`}
+        data-testid="app-sidebar"
+        className={`transition-all duration-500 ease-out bg-sidebar text-sidebar-foreground border-r border-border [--sidebar-width:16rem] md:[--sidebar-width:17rem] lg:[--sidebar-width:18rem] xl:[--sidebar-width:20rem]`}
         collapsible="icon"
       >
         {/* Premium Header with Brand Identity */}
-        <SidebarHeader className={`p-6 ${collapsed ? 'px-3' : ''} border-b border-white/20 dark:border-white/10`}>
+        <SidebarHeader className={`p-4 md:p-5 lg:p-6 ${collapsed ? 'px-3' : ''} border-b border-border`}> 
           <motion.div 
             className="flex items-center gap-4"
             initial={{ y: -10, opacity: 0 }}
@@ -223,12 +224,12 @@ export function AppSidebar() {
                 src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
                 alt="Sanarflix"
                 loading="lazy"
-                className="w-12 h-12 rounded-2xl shadow-lg object-contain ring-2 ring-blue-500/20"
+                className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-2xl shadow-lg object-contain ring-2 ring-primary/20"
                 whileHover={{ scale: 1.05, rotate: 2 }}
                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
               />
               <motion.div
-                className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0"
+                className="absolute -inset-1 rounded-2xl bg-primary/10 opacity-0"
                 whileHover={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               />
@@ -242,10 +243,8 @@ export function AppSidebar() {
                   transition={{ duration: 0.3 }}
                   className="flex-1"
                 >
-                  <h2 className="font-bold text-xl bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                    Sanarflix
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                  <h2 className="font-bold text-lg lg:text-xl">Sanarflix</h2>
+                  <p className="text-xs md:text-sm text-muted-foreground font-medium">
                     Guia de Estudos
                   </p>
                 </motion.div>
@@ -254,7 +253,7 @@ export function AppSidebar() {
           </motion.div>
         </SidebarHeader>
 
-        <SidebarContent className="p-4 space-y-6">
+        <SidebarContent className="p-3 md:p-4 space-y-5 md:space-y-6 overflow-y-auto">
           {/* Premium User Profile */}
           {user && (
             <motion.div
@@ -265,11 +264,11 @@ export function AppSidebar() {
             >
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                    <User className="h-5 w-5 text-white" />
+                  <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-primary rounded-xl shadow-lg">
+                    <User className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
                   </div>
                   <motion.div
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"
+                    className="absolute -top-1 -right-1 w-3.5 h-3.5 md:w-4 md:h-4 bg-green-500 rounded-full border-2 border-background"
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   />
@@ -284,17 +283,17 @@ export function AppSidebar() {
                       className="min-w-0 flex-1"
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">
+                        <p className="text-xs md:text-sm font-semibold truncate">
                           {user.nome}
                         </p>
                         {isB2BUser(user) && (
-                          <Badge variant="secondary" className="text-xs bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30">
+                          <Badge variant="secondary" className="text-xs">
                             <Crown className="h-3 w-3 mr-1" />
                             PRO
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {user.ies_nome} • {user.semestre}º período
                       </p>
                     </motion.div>
@@ -309,95 +308,92 @@ export function AppSidebar() {
             <AnimatePresence>
               {!collapsed && (
                 <motion.div
-                  initial={{ opacity: 0, y: -5 }}
+                  initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
                   transition={{ delay: 0.3, duration: 0.3 }}
                 >
-                  <SidebarGroupLabel className="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                    <Sparkles className="h-3 w-3" />
+                  <SidebarGroupLabel className="text-xs uppercase tracking-wide text-muted-foreground">
                     Menu Principal
                   </SidebarGroupLabel>
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <SidebarGroupContent>
-              <SidebarMenu className="space-y-2">
-                {/* Home - Always visible */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                >
+              <SidebarMenu>
+                {/* Home - primeiro item com prioridade */}
+                {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item) => (
+                  <motion.div
+                    key={item.title}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35, duration: 0.3 }}
+                  >
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
+                          <MenuItem item={item} />
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </motion.div>
+                ))}
+
+                {/* Study Guide Area */}
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45, duration: 0.3 }}>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink to="/home" end className={getNavCls}>
-                        <MenuItem item={{ title: 'Início', icon: HomeIcon, description: 'Página inicial do seu hub de estudos' }} />
-                      </NavLink>
-                    </SidebarMenuButton>
+                    <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className={getParentNavCls(studyGuideOpen)} aria-expanded={studyGuideOpen} aria-controls="submenu-guia-estudos">
+                          <MenuItem item={{ title: 'Guia de Estudos', icon: BookOpen }}>
+                            <span className="text-xs text-muted-foreground">Seu hub de estudos</span>
+                          </MenuItem>
+                          <div className="ml-auto" aria-hidden="true">
+                            {studyGuideOpen ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </div>
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <AnimatePresence>
+                        {studyGuideOpen && (
+                          <CollapsibleContent id="submenu-guia-estudos">
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="mt-2 space-y-1 border-l-2 border-border ml-6"
+                            >
+                              {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item, index) => (
+                                <motion.div
+                                  key={item.title}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: index * 0.1, duration: 0.3 }}
+                                >
+                                  <SidebarMenuItem>
+                                    <SidebarMenuButton asChild>
+                                      <NavLink to={item.url} end className={getChildNavCls}>
+                                        <MenuItem item={item} className="py-2" />
+                                      </NavLink>
+                                    </SidebarMenuButton>
+                                  </SidebarMenuItem>
+                                </motion.div>
+                              ))}
+                            </motion.div>
+                          </CollapsibleContent>
+                        )}
+                      </AnimatePresence>
+                    </Collapsible>
                   </SidebarMenuItem>
                 </motion.div>
 
-                {/* Study Guide - Collapsible */}
-                {(accessRules.studyGuide || accessRules.dashboard) && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5, duration: 0.3 }}
-                  >
-                    <SidebarMenuItem>
-                      <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className={getParentNavCls(studyGuideOpen)}>
-                            <MenuItem item={{ title: 'Guia de Estudos', icon: BookOpen, description: 'Seus materiais de estudo' }}>
-                              <motion.div
-                                animate={{ rotate: studyGuideOpen ? 90 : 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="ml-auto"
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </motion.div>
-                            </MenuItem>
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <AnimatePresence>
-                          {!collapsed && studyGuideOpen && (
-                            <CollapsibleContent>
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.3 }}
-                                className="mt-2 space-y-1 border-l-2 border-gradient-to-b from-blue-400/30 to-purple-400/30 ml-6"
-                              >
-                                {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item, index) => (
-                                  <motion.div
-                                    key={item.title}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                                  >
-                                    <SidebarMenuItem>
-                                      <SidebarMenuButton asChild>
-                                        <NavLink to={item.url} end className={getChildNavCls}>
-                                          <MenuItem item={item} className="py-2" />
-                                        </NavLink>
-                                      </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                  </motion.div>
-                                ))}
-                              </motion.div>
-                            </CollapsibleContent>
-                          )}
-                        </AnimatePresence>
-                      </Collapsible>
-                    </SidebarMenuItem>
-                  </motion.div>
-                )}
-
-                {/* Other Menu Items */}
+                {/* Outros itens (exceto Início) */}
                 {menuItems.filter(item => {
+                  if (item.accessKey === 'home') return false;
                   if (item.accessKey === 'analytics') {
                     return isB2BUser(user);
                   }
@@ -423,8 +419,8 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* Premium Footer */}
-        <SidebarFooter className="p-4 border-t border-white/20 dark:border-white/10 space-y-3">
+        {/* Footer */}
+        <SidebarFooter className="p-4 border-t border-border space-y-3">
           <AnimatePresence>
             {!collapsed && (
               <motion.div
@@ -434,48 +430,14 @@ export function AppSidebar() {
                 transition={{ duration: 0.3 }}
                 className="flex gap-2"
               >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`flex-1 ${glassStyle} ${hoverGlassStyle} rounded-xl`}
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`flex-1 ${glassStyle} ${hoverGlassStyle} rounded-xl`}
-                >
-                  <HelpCircle className="h-4 w-4" />
+                <Button variant="outline" className="flex-1">Configurações</Button>
+                <Button variant="destructive" onClick={logout} className="flex-1">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
                 </Button>
               </motion.div>
             )}
           </AnimatePresence>
-          
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Button
-              onClick={logout}
-              variant="ghost"
-              className={`w-full justify-start ${glassStyle} hover:bg-red-500/10 hover:border-red-400/30 hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-all duration-300 ${
-                collapsed ? 'px-3' : ''
-              }`}
-            >
-              <LogOut className={`h-4 w-4 ${collapsed ? 'mx-auto' : 'mr-3'}`} />
-              {!collapsed && (
-                <motion.span
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="font-medium"
-                >
-                  Sair
-                </motion.span>
-              )}
-            </Button>
-          </motion.div>
         </SidebarFooter>
       </Sidebar>
     </motion.div>
