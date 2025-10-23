@@ -151,9 +151,9 @@ export function AppSidebar() {
 
   const MenuItem = ({ item, className, children }: { item: any, className?: string, children?: React.ReactNode }) => {
     const content = (
-      <div className={`flex items-center gap-3 p-3 ${className || ''}`}>
+      <div className={`flex items-center gap-3 p-3 ${className || ''} ${collapsed ? 'justify-center' : ''}`}>
         <div className="relative">
-          <item.icon className={`h-5 w-5 transition-all duration-300 ${collapsed ? 'mx-auto' : ''}`} />
+          <item.icon className={`h-5 w-5 transition-all duration-300 ${collapsed ? '' : ''}`} />
           {!collapsed && (
             <motion.div
               className="absolute -inset-1 rounded-full bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
@@ -348,17 +348,28 @@ export function AppSidebar() {
                             setStudyGuideOpen(!studyGuideOpen);
                           }}
                         >
-                          <div className={`flex items-center gap-3 p-3 w-full`}>
-                            <div className="relative">
-                              <BookOpen className={`h-5 w-5 transition-all duration-300 ${collapsed ? 'mx-auto' : ''}`} />
-                              {!collapsed && (
+                          {collapsed ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center justify-center p-3 w-full">
+                                    <BookOpen className="h-5 w-5 transition-all duration-300" />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="right" className="ml-2">
+                                  <div className="text-sm font-medium">Guia de Estudos</div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <div className="flex items-center gap-3 p-3 w-full">
+                              <div className="relative">
+                                <BookOpen className="h-5 w-5 transition-all duration-300" />
                                 <motion.div
                                   className="absolute -inset-1 rounded-full bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                                   layoutId="icon-glow-guia-estudos"
                                 />
-                              )}
-                            </div>
-                            {!collapsed && (
+                              </div>
                               <motion.div
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -368,8 +379,6 @@ export function AppSidebar() {
                               >
                                 <span className="block font-medium text-sm truncate">Guia de Estudos</span>
                               </motion.div>
-                            )}
-                            {!collapsed && (
                               <div className="ml-auto" aria-hidden="true">
                                 {studyGuideOpen ? (
                                   <ChevronDown className="h-4 w-4" />
@@ -377,8 +386,8 @@ export function AppSidebar() {
                                   <ChevronRight className="h-4 w-4" />
                                 )}
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <AnimatePresence>
@@ -454,10 +463,12 @@ export function AppSidebar() {
                 transition={{ duration: 0.3 }}
                 className="flex gap-2"
               >
-                <Button variant="outline" className="flex-1">Configurações</Button>
-                <Button variant="destructive" onClick={logout} className="flex-1">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
+                <Button variant="outline" className="flex-1" size={collapsed ? "icon" : "default"}>
+                  {collapsed ? <Settings className="h-4 w-4" /> : 'Configurações'}
+                </Button>
+                <Button variant="destructive" onClick={logout} className="flex-1" size={collapsed ? "icon" : "default"}>
+                  <LogOut className="h-4 w-4" />
+                  {!collapsed && <span className="ml-2">Sair</span>}
                 </Button>
               </motion.div>
             )}
