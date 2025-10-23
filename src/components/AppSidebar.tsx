@@ -203,7 +203,7 @@ export function AppSidebar() {
     >
       <Sidebar
         data-testid="app-sidebar"
-        className="bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
+        className="hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
         collapsible="icon"
       >
         {/* Premium Header with Brand Identity */}

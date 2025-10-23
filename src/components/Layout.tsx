@@ -86,12 +86,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <Zap className="h-5 w-5" aria-hidden="true" />
                 <span className="text-[10px] font-medium">Intensivão</span>
               </NavLink>
-              <button className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95" aria-label="Abrir menu">
-                <SidebarTrigger className="p-0">
-                  <Menu className="h-5 w-5" aria-hidden="true" />
-                </SidebarTrigger>
-                <span className="text-[10px] font-medium">Menu</span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95" aria-label="Perfil do usuário">
+                    <User className="h-5 w-5" aria-hidden="true" />
+                    <span className="text-[10px] font-medium">Conta</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="mb-2">
+                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setChangeOpen(true)}>
+                    Alterar senha
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </nav>
       </SidebarInset>
