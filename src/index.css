@@ -281,56 +281,7 @@ div[style*="Edit with Lovable"],
   z-index: -9999 !important;
 }
 
-/* Tema automático conforme configuração do sistema */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 0 0% 0%;
-    --foreground: 220 13% 91%;
-
-    --card: 220 13% 10%;
-    --card-foreground: 220 13% 91%;
-
-    --popover: 220 13% 10%;
-    --popover-foreground: 220 13% 91%;
-
-    --primary: 0 65% 45%;
-    --primary-foreground: 0 0% 98%;
-
-    --secondary: 220 13% 12%;
-    --secondary-foreground: 220 13% 91%;
-
-    --muted: 220 13% 12%;
-    --muted-foreground: 220 9% 63%;
-
-    --accent: 220 13% 12%;
-    --accent-foreground: 220 13% 91%;
-
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 220 13% 14%;
-    --card-border: 220 13% 14%;
-    --input: 220 13% 14%;
-    --ring: 214 76% 38%;
-
-    --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 0 65% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 6%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 214 76% 38%;
-
-    --progress-track: 220 13% 17%;
-    --progress-indicator: 0 65% 45%;
-    --active-selection: 214 76% 38%;
-    --toggle-list: 214 76% 55%;
-
-    --scrollbar-track: 220 13% 8%;
-    --scrollbar-thumb: 220 13% 26%;
-  }
-}
+/* Removido prefers-color-scheme: usamos .dark via ThemeProvider (next-themes) */
 
 a[href*="lovable.dev"], 
 iframe[src*="lovable.dev"],
