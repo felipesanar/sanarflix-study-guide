@@ -339,13 +339,44 @@ export function AppSidebar() {
                   <SidebarMenuItem>
                     <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className={getParentNavCls(studyGuideOpen)} aria-expanded={studyGuideOpen} aria-controls="submenu-guia-estudos">
-                          <MenuItem item={{ title: 'Guia de Estudos', icon: BookOpen }} />
-                          <div className="ml-auto" aria-hidden="true">
-                            {studyGuideOpen ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
+                        <SidebarMenuButton 
+                          className={getParentNavCls(studyGuideOpen)} 
+                          aria-expanded={studyGuideOpen} 
+                          aria-controls="submenu-guia-estudos"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setStudyGuideOpen(!studyGuideOpen);
+                          }}
+                        >
+                          <div className={`flex items-center gap-3 p-3 w-full`}>
+                            <div className="relative">
+                              <BookOpen className={`h-5 w-5 transition-all duration-300 ${collapsed ? 'mx-auto' : ''}`} />
+                              {!collapsed && (
+                                <motion.div
+                                  className="absolute -inset-1 rounded-full bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                  layoutId="icon-glow-guia-estudos"
+                                />
+                              )}
+                            </div>
+                            {!collapsed && (
+                              <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="flex-1 min-w-0"
+                              >
+                                <span className="block font-medium text-sm truncate">Guia de Estudos</span>
+                              </motion.div>
+                            )}
+                            {!collapsed && (
+                              <div className="ml-auto" aria-hidden="true">
+                                {studyGuideOpen ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </div>
                             )}
                           </div>
                         </SidebarMenuButton>
