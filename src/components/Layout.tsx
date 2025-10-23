@@ -33,12 +33,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full bg-background text-foreground flex">
-        <AppSidebar />
-        
-        <SidebarInset className="flex-1 flex flex-col min-h-screen">
-          {/* Header with trigger, profile and theme toggle */}
-          <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4">
+      <AppSidebar />
+      <SidebarInset className="flex-1 flex flex-col min-h-screen w-full">
+        {/* Header with trigger, profile and theme toggle */}
+        <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4 w-full">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors">
                 <Menu className="h-5 w-5 text-foreground" />
@@ -96,8 +94,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </button>
             </div>
           </nav>
-        </SidebarInset>
-      </div>
+      </SidebarInset>
 
       <ChangePasswordDialog open={changeOpen} onOpenChange={setChangeOpen} />
     </SidebarProvider>

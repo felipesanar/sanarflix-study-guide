@@ -203,9 +203,8 @@ export function AppSidebar() {
     >
       <Sidebar
         data-testid="app-sidebar"
-        className={`transition-all duration-500 ease-out bg-sidebar text-sidebar-foreground border-r border-sidebar-border [--sidebar-width:16rem] md:[--sidebar-width:17rem] lg:[--sidebar-width:18rem] xl:[--sidebar-width:20rem]`}
+        className="bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
         collapsible="icon"
-        style={{ zIndex: 40 }}
       >
         {/* Premium Header with Brand Identity */}
         <SidebarHeader className={`p-4 md:p-5 lg:p-6 ${collapsed ? 'px-3' : ''} border-b border-border`}> 
