@@ -22,8 +22,6 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts';
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
@@ -104,9 +102,6 @@ export const Home: React.FC = () => {
     );
   }
 
-  const progressData = [
-    { name: 'Progresso', value: 0, fill: 'hsl(var(--primary))' }
-  ];
 
   return (
     <div className="bg-background">
@@ -373,32 +368,33 @@ export const Home: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-center mb-6">
-                  <RadialBarChart
-                    width={200}
-                    height={200}
-                    cx={100}
-                    cy={100}
-                    innerRadius={60}
-                    outerRadius={90}
-                    barSize={15}
-                    data={progressData}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-                    <RadialBar
-                      background
-                      dataKey="value"
-                      cornerRadius={10}
-                      fill="hsl(var(--primary))"
-                    />
-                    <text x={100} y={95} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-2xl font-bold">
-                      {progressData[0].value}%
-                    </text>
-                    <text x={100} y={115} textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-xs">
-                      concluído
-                    </text>
-                  </RadialBarChart>
+                  <div className="relative w-48 h-48">
+                    <svg className="w-full h-full" viewBox="0 0 200 200">
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r="75"
+                        fill="none"
+                        stroke="hsl(var(--muted))"
+                        strokeWidth="15"
+                      />
+                      <circle
+                        cx="100"
+                        cy="100"
+                        r="75"
+                        fill="none"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="15"
+                        strokeDasharray={`${0 * 4.71} 471`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 100 100)"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold">0%</span>
+                      <span className="text-xs text-muted-foreground">concluído</span>
+                    </div>
+                  </div>
                 </div>
 
                 <Button 
