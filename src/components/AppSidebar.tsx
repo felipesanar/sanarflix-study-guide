@@ -203,7 +203,9 @@ export function AppSidebar() {
     >
       <Sidebar
         data-testid="app-sidebar"
-        className="hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
+        className={`hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${
+          collapsed ? 'w-0 min-w-0 !-translate-x-full opacity-0 invisible pointer-events-none' : ''
+        }`}
         collapsible="icon"
       >
         {/* Premium Header with Brand Identity */}
