@@ -37,11 +37,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <SidebarInset className="flex-1 flex flex-col min-h-screen w-full">
         {/* Header with trigger, profile and theme toggle */}
         <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4 w-full">
-            <div className="flex items-center gap-2">
+            {/* Desktop - Menu Trigger */}
+            <div className="hidden md:flex items-center gap-2">
               <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors">
                 <Menu className="h-5 w-5 text-foreground" />
               </SidebarTrigger>
             </div>
+            
+            {/* Mobile - Logo */}
+            <div className="flex md:hidden items-center gap-2">
+              <img 
+                src="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" 
+                alt="Sanarflix" 
+                className="h-8 w-auto"
+              />
+            </div>
+            
             <div className="ml-auto flex items-center gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
