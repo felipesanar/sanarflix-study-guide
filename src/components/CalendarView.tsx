@@ -233,12 +233,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                   return (
                     <Card 
                       key={day} 
-                      className={`bg-white dark:bg-gray-700 border shadow-sm ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
+                      className={`bg-white dark:bg-gray-700 border shadow-sm overflow-hidden ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
                       onDragOver={(e) => handleDragOver(e, day, week)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, day, week)}
                     >
-                      <CardContent className="p-4">
+                       <CardContent className="p-4 overflow-hidden">
                         <h4 className={`font-semibold mb-3 text-lg border-b pb-2 flex items-center gap-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
                           {day}
                           {isToday && (
@@ -248,7 +248,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                           )}
                         </h4>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-3 relative">
                         {(() => {
                           const subMap = dayItems.reduce((acc, it) => {
                             const key = it.subtema || it.tema || 'Geral';
@@ -266,12 +266,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                             return (
                               <div
                                 key={subtema}
-                                className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                className={`relative w-full max-w-full text-left p-3 rounded-lg border transition-all duration-200 ${
                                   allDone 
                                     ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
                                     : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                                 } hover:shadow-md hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 ${isEditMode ? 'cursor-move' : 'cursor-pointer'}`}
-                                onClick={() => handleBadgeClick({
+                                onClick={() => !isEditMode && handleBadgeClick({
                                   ...subItems[0],
                                   subtema: subtema,
                                   color: badgeColor
@@ -280,14 +280,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                                 onDragStart={(e) => handleDragStart(e, subItems[0])}
                                 onDragEnd={handleDragEnd}
                               >
-                                <div className="flex items-center justify-between gap-2 mb-2">
-                                  <div className="flex items-center gap-2">
-                                    {allDone && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                                    <span className="font-medium text-sm text-foreground">{subtema}</span>
+                                <div className="flex items-center justify-between gap-2 mb-2 overflow-hidden">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    {allDone && <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />}
+                                    <span className="font-medium text-sm text-foreground truncate">{subtema}</span>
                                   </div>
                                   <Badge 
                                     variant="secondary" 
-                                    className="text-xs"
+                                    className="text-xs flex-shrink-0"
                                     style={{ backgroundColor: `${badgeColor}30`, borderColor: badgeColor, color: badgeColor }}
                                   >
                                     {completedCount}/{subItems.length}
@@ -297,8 +297,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                                   {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
                                 </div>
                                 {isEditMode && (
-                                  <div className="mt-2 text-xs text-primary italic">
-                                    Arraste para mover
+                                  <div className="mt-2 flex items-center justify-between gap-2">
+                                    <span className="text-xs text-primary italic">
+                                      Arraste para mover
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 rounded-full hover:bg-destructive hover:text-destructive-foreground flex-shrink-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const updatedEvents = tempCalendarEvents.filter(
+                                          event => event.itemKey !== subItems[0].itemKey
+                                        );
+                                        setTempCalendarEvents(updatedEvents);
+                                        toast.success('Item removido');
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
                                   </div>
                                 )}
                               </div>
