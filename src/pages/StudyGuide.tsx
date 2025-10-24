@@ -90,6 +90,9 @@ export const StudyGuide: React.FC = () => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedEventMateria, setSelectedEventMateria] = useState<string | null>(null);
   
+  // Refs para os cards de matérias
+  const materiaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  
   // Interface para eventos do calendário
   interface CalendarEvent {
     id: string;
@@ -182,6 +185,17 @@ export const StudyGuide: React.FC = () => {
   const openMateriaSheet = (materia: string) => {
     setSelectedEventMateria(materia);
     setSheetOpen(true);
+  };
+  
+  // Função para fazer scroll até o card da matéria
+  const scrollToMateria = (materia: string) => {
+    const materiaCard = materiaRefs.current.get(materia);
+    if (materiaCard) {
+      materiaCard.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start'
+      });
+    }
   };
   
   // Confirmar edições do calendário
@@ -634,7 +648,12 @@ export const StudyGuide: React.FC = () => {
                           .map((event, idx) => (
                             <div
                               key={idx}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent hover:shadow-md transition-all"
+                              className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent hover:shadow-md transition-all cursor-pointer"
+                              onClick={() => {
+                                setViewMode('list');
+                                setSelectedMateria(event.materia);
+                                setTimeout(() => scrollToMateria(event.materia), 100);
+                              }}
                             >
                               <div 
                                 className="h-8 w-8 rounded-full flex items-center justify-center text-white"
@@ -657,7 +676,10 @@ export const StudyGuide: React.FC = () => {
                                 variant="ghost" 
                                 size="sm" 
                                 className="h-8 w-8 p-0 rounded-full"
-                                onClick={() => removeEventFromCalendar(event.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeEventFromCalendar(event.id);
+                                }}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
@@ -784,6 +806,11 @@ export const StudyGuide: React.FC = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.4, delay: mIdx * 0.1 }}
+                            ref={(el) => {
+                              if (el) {
+                                materiaRefs.current.set(materia.materia, el);
+                              }
+                            }}
                           >
                             <Card className="premium-card overflow-hidden shadow-lg border-primary/10">
                               <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
