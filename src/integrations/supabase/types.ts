@@ -60,6 +60,42 @@ export type Database = {
           },
         ]
       }
+      calendar_subjects: {
+        Row: {
+          color: string
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          name: string
+          start_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color: string
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          name: string
+          start_time: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          name?: string
+          start_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conteudos: {
         Row: {
           aula: string | null
@@ -366,7 +402,7 @@ export type Database = {
     }
     Functions: {
       get_all_user_performance_by_area: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           acertos: number
           area_name: string
@@ -376,7 +412,7 @@ export type Database = {
         }[]
       }
       get_all_user_performance_by_specialty: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           acertos: number
           simulado_id: number
@@ -385,24 +421,34 @@ export type Database = {
           total: number
         }[]
       }
-      get_current_user_faculty: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_ies_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_current_user_semester: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
-      get_question_by_subspecialty: {
-        Args:
-          | { p_simulado_id?: number; sub_name: string }
-          | { sub_name: string }
-        Returns: Database["public"]["CompositeTypes"]["question_details_type"]
-      }
+      get_current_user_faculty: { Args: never; Returns: string }
+      get_current_user_ies_id: { Args: never; Returns: string }
+      get_current_user_semester: { Args: never; Returns: number }
+      get_question_by_subspecialty:
+        | {
+            Args: { sub_name: string }
+            Returns: Database["public"]["CompositeTypes"]["question_details_type"]
+            SetofOptions: {
+              from: "*"
+              to: "question_details_type"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { p_simulado_id?: number; sub_name: string }
+            Returns: {
+              a: string
+              b: string
+              c: string
+              comentario: string
+              d: string
+              enunciado: string
+              gabarito: string
+              id: string
+              imagem: string
+            }[]
+          }
       get_questions_by_subspecialty: {
         Args: {
           area_name: string
@@ -413,38 +459,33 @@ export type Database = {
         Returns: Record<string, unknown>[]
       }
       get_simulado_performance: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           acertos: number
           area_conhecimento: string
           total: number
         }[]
       }
-      get_user_ies_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_user_performance_aggregates: {
-        Args: Record<PropertyKey, never> | { p_simulado_id?: number }
-        Returns: Json
-      }
+      get_user_ies_id: { Args: never; Returns: string }
+      get_user_performance_aggregates:
+        | { Args: { p_simulado_id?: number }; Returns: Json }
+        | { Args: never; Returns: Json }
       get_user_ranking_in_ies: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           total_users: number
           user_rank: number
         }[]
       }
-      get_user_rankings: {
-        Args: Record<PropertyKey, never> | { p_simulado_id: number }
-        Returns: Json
-      }
+      get_user_rankings:
+        | { Args: never; Returns: Json }
+        | { Args: { p_simulado_id: number }; Returns: Json }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
       }
       get_user_simulados: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           id: number
           nome: string
