@@ -1005,7 +1005,7 @@ export const StudyGuide: React.FC = () => {
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
                                       className={cn(
-                                        "p-2 rounded-md text-sm border premium-card",
+                                        "p-2 rounded-md text-sm border premium-card overflow-hidden",
                                         isEditMode ? "cursor-move hover-lift" : "cursor-pointer hover:opacity-80 transition-opacity"
                                       )}
                                       style={{ 
@@ -1020,16 +1020,16 @@ export const StudyGuide: React.FC = () => {
                                       whileDrag={isEditMode ? { scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" } : undefined}
                                       onClick={() => !isEditMode && openMateriaSheet(event.materia)}
                                     >
-                                      <div className="flex justify-between items-start">
-                                        <div className="font-medium flex items-center gap-1 flex-1">
-                                          <span>{getMateriaIcon(event.materia)}</span>
+                                      <div className="flex justify-between items-start gap-2 min-w-0">
+                                        <div className="font-medium flex items-center gap-1 flex-1 min-w-0 overflow-hidden">
+                                          <span className="flex-shrink-0">{getMateriaIcon(event.materia)}</span>
                                           <span className="truncate">{event.title}</span>
                                         </div>
                                         {isEditMode && (
                                           <Button 
                                             variant="ghost" 
                                             size="icon" 
-                                            className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive shrink-0"
+                                            className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               removeEventFromCalendar(event.id);
@@ -1039,9 +1039,9 @@ export const StudyGuide: React.FC = () => {
                                           </Button>
                                         )}
                                       </div>
-                                      <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground">
-                                        <Clock3 className="h-3 w-3" />
-                                        {event.startTime} - {event.endTime}
+                                      <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground overflow-hidden">
+                                        <Clock3 className="h-3 w-3 flex-shrink-0" />
+                                        <span className="truncate">{event.startTime} - {event.endTime}</span>
                                       </div>
                                     </motion.div>
                                   ))}
