@@ -134,6 +134,56 @@
     @apply bg-background text-foreground font-sans;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Responsive container system for large screens */
+  .container-fluid {
+    width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    .container-fluid {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .container-fluid {
+      padding-left: 3rem;
+      padding-right: 3rem;
+      max-width: 1600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  }
+
+  @media (min-width: 1920px) {
+    .container-fluid {
+      padding-left: 4rem;
+      padding-right: 4rem;
+      max-width: 1800px;
+    }
+  }
+
+  /* Optimize content grid spacing for large screens */
+  .content-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 1024px) {
+    .content-grid {
+      gap: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .content-grid {
+      gap: 2rem;
+    }
+  }
 }
 
 @layer components {
