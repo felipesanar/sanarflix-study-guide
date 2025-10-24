@@ -75,10 +75,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </header>
 
           {/* Main content area */}
-          <main className="flex-1 overflow-auto pb-20 md:pb-0 w-full">
-            <div className="container-fluid">
-              {children}
-            </div>
+          <main className="flex-1 overflow-auto pb-20 md:pb-0">
+            {children}
           </main>
 
           {/* Mobile bottom navigation (below 768px) */}
