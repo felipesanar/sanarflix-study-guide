@@ -487,7 +487,30 @@ export const StudyGuide: React.FC = () => {
     return { totalAulas, completed, percentage, pendingAulas };
   }, [conteudos, selectedSemestre, completedItems]);
 
-  // Check if a materia is completely finished
+  // Check if a tema is completely finished
+  const isTemaCompleted = (materia: Materia, tema: Tema) => {
+    const allAulas: ConteudoData[] = [];
+    
+    tema.subtemas.forEach(subtema => {
+      subtema.aulas.forEach(aula => {
+        allAulas.push({
+          semestre: selectedSemestre,
+          materia: materia.materia,
+          tema: tema.tema,
+          subtema: subtema.subtema,
+          aula: aula.aula,
+          link_aula: aula.link_aula,
+          link_pdf: aula.link_pdf,
+          link_quiz: aula.link_quiz,
+        });
+      });
+    });
+    
+    if (allAulas.length === 0) return false;
+    
+    return allAulas.every(aula => isCompleted(aula));
+  };
+
   const isMateriaCompleted = (materia: Materia) => {
     const allAulas: ConteudoData[] = [];
     
@@ -937,23 +960,51 @@ export const StudyGuide: React.FC = () => {
 
                               <CardContent className="pt-6">
                                 <Accordion type="multiple" className="space-y-4">
-                                  {materia.temas.map((tema, tIdx) => (
-                                    <AccordionItem
-                                      key={tIdx}
-                                      value={`tema-${mIdx}-${tIdx}`}
-                                      className="border rounded-lg px-4 shadow-sm"
-                                    >
-                                      <AccordionTrigger className="hover:no-underline">
-                                        <div className="flex items-center gap-3 flex-1 text-left">
-                                          <Brain className="h-5 w-5 text-primary shrink-0" />
-                                          <div className="flex-1">
-                                            <h3 className="font-semibold">{tema.tema}</h3>
-                                            <p className="text-xs text-muted-foreground">
-                                              {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
-                                            </p>
+                                  {materia.temas.map((tema, tIdx) => {
+                                    const temaCompleted = isTemaCompleted(materia, tema);
+                                    const temaAulasCount = tema.subtemas.reduce((s, st) => s + st.aulas.length, 0);
+                                    
+                                    return (
+                                      <AccordionItem
+                                        key={tIdx}
+                                        value={`tema-${mIdx}-${tIdx}`}
+                                        className={cn(
+                                          "border rounded-lg px-4 shadow-sm transition-all",
+                                          temaCompleted 
+                                            ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20" 
+                                            : ""
+                                        )}
+                                      >
+                                        <AccordionTrigger className="hover:no-underline">
+                                          <div className="flex items-center gap-3 flex-1 text-left">
+                                            <div className={cn(
+                                              "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0",
+                                              temaCompleted 
+                                                ? "bg-green-500 border-green-500 text-white" 
+                                                : "border-muted-foreground/30"
+                                            )}>
+                                              {temaCompleted && <Check className="h-3 w-3" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <h3 className={cn(
+                                                "font-semibold",
+                                                temaCompleted && "text-green-700 dark:text-green-400"
+                                              )}>
+                                                {tema.tema}
+                                                {temaCompleted && <span className="ml-2">✓</span>}
+                                              </h3>
+                                              <p className={cn(
+                                                "text-xs",
+                                                temaCompleted 
+                                                  ? "text-green-600 dark:text-green-400" 
+                                                  : "text-muted-foreground"
+                                              )}>
+                                                {temaAulasCount} aulas
+                                                {temaCompleted && <span className="ml-2 font-medium">• Concluído</span>}
+                                              </p>
+                                            </div>
                                           </div>
-                                        </div>
-                                      </AccordionTrigger>
+                                        </AccordionTrigger>
 
                                       <AccordionContent className="space-y-3 pt-4">
                                         {tema.subtemas.map((subtema, stIdx) => (
@@ -1056,7 +1107,8 @@ export const StudyGuide: React.FC = () => {
                                         ))}
                                       </AccordionContent>
                                     </AccordionItem>
-                                  ))}
+                                    );
+                                  })}
                                 </Accordion>
                               </CardContent>
                             </Card>
