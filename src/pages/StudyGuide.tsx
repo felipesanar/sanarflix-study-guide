@@ -487,6 +487,59 @@ export const StudyGuide: React.FC = () => {
     return { totalAulas, completed, percentage, pendingAulas };
   }, [conteudos, selectedSemestre, completedItems]);
 
+  // Check if a materia is completely finished
+  const isMateriaCompleted = (materia: Materia) => {
+    const allAulas: ConteudoData[] = [];
+    
+    materia.temas.forEach(tema => {
+      tema.subtemas.forEach(subtema => {
+        subtema.aulas.forEach(aula => {
+          allAulas.push({
+            semestre: selectedSemestre,
+            materia: materia.materia,
+            tema: tema.tema,
+            subtema: subtema.subtema,
+            aula: aula.aula,
+            link_aula: aula.link_aula,
+            link_pdf: aula.link_pdf,
+            link_quiz: aula.link_quiz,
+          });
+        });
+      });
+    });
+    
+    if (allAulas.length === 0) return false;
+    
+    return allAulas.every(aula => isCompleted(aula));
+  };
+
+  // Calculate materia progress percentage
+  const getMateriaProgress = (materia: Materia) => {
+    const allAulas: ConteudoData[] = [];
+    
+    materia.temas.forEach(tema => {
+      tema.subtemas.forEach(subtema => {
+        subtema.aulas.forEach(aula => {
+          allAulas.push({
+            semestre: selectedSemestre,
+            materia: materia.materia,
+            tema: tema.tema,
+            subtema: subtema.subtema,
+            aula: aula.aula,
+            link_aula: aula.link_aula,
+            link_pdf: aula.link_pdf,
+            link_quiz: aula.link_quiz,
+          });
+        });
+      });
+    });
+    
+    if (allAulas.length === 0) return 0;
+    
+    const completedCount = allAulas.filter(aula => isCompleted(aula)).length;
+    return Math.round((completedCount / allAulas.length) * 100);
+  };
+
   // Get materia contents for sheet
   const selectedMateriaContents = useMemo(() => {
     if (!selectedEventMateria) return null;
@@ -812,22 +865,75 @@ export const StudyGuide: React.FC = () => {
                               }
                             }}
                           >
-                            <Card className="premium-card overflow-hidden shadow-lg border-primary/10">
-                              <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
-                                <CardTitle className="flex items-center gap-3">
-                                  <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
-                                  <div className="flex-1">
-                                    <h2 className="text-xl font-bold">{materia.materia}</h2>
-                                    <p className="text-sm text-muted-foreground font-normal">
-                                      {materia.temas.reduce(
-                                        (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
-                                        0
-                                      )}{' '}
-                                      aulas disponíveis
-                                    </p>
-                                  </div>
-                                </CardTitle>
-                              </CardHeader>
+                            {(() => {
+                              const materiaCompleted = isMateriaCompleted(materia);
+                              const progress = getMateriaProgress(materia);
+                              const totalAulas = materia.temas.reduce(
+                                (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                                0
+                              );
+                              
+                              return (
+                                <Card className={cn(
+                                  "premium-card overflow-hidden shadow-lg transition-all duration-300",
+                                  materiaCompleted 
+                                    ? "border-green-500/50 bg-gradient-to-br from-green-50/50 via-background to-background dark:from-green-950/20 dark:via-background dark:to-background" 
+                                    : "border-primary/10"
+                                )}>
+                                  <CardHeader className={cn(
+                                    "relative",
+                                    materiaCompleted 
+                                      ? "bg-gradient-to-r from-green-500/10 to-transparent" 
+                                      : "bg-gradient-to-r from-primary/10 to-transparent"
+                                  )}>
+                                    {materiaCompleted && (
+                                      <div className="absolute top-4 right-4">
+                                        <Badge className="bg-green-500 hover:bg-green-600 text-white border-green-500 gap-1.5 px-3 py-1">
+                                          <Check className="h-3 w-3" />
+                                          Concluída
+                                        </Badge>
+                                      </div>
+                                    )}
+                                    <CardTitle className="flex items-center gap-3 pr-24">
+                                      <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
+                                      <div className="flex-1 min-w-0">
+                                        <h2 className={cn(
+                                          "text-xl font-bold",
+                                          materiaCompleted && "text-green-700 dark:text-green-400"
+                                        )}>
+                                          {materia.materia}
+                                          {materiaCompleted && <span className="ml-2">🏆</span>}
+                                        </h2>
+                                        <p className="text-sm text-muted-foreground font-normal">
+                                          {totalAulas} aulas disponíveis
+                                        </p>
+                                      </div>
+                                    </CardTitle>
+                                    
+                                    {/* Progress Bar */}
+                                    <div className="mt-3 space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">
+                                          Progresso: {progress}%
+                                        </span>
+                                        {materiaCompleted && (
+                                          <span className="text-green-600 dark:text-green-400 font-medium">
+                                            ✓ Completa
+                                          </span>
+                                        )}
+                                      </div>
+                                      <Progress 
+                                        value={progress} 
+                                        className={cn(
+                                          "h-2",
+                                          materiaCompleted && "bg-green-200 dark:bg-green-900/30"
+                                        )}
+                                        style={materiaCompleted ? {
+                                          '--progress-indicator': '142 71% 45%'
+                                        } as React.CSSProperties : undefined}
+                                      />
+                                    </div>
+                                  </CardHeader>
 
                               <CardContent className="pt-6">
                                 <Accordion type="multiple" className="space-y-4">
@@ -954,6 +1060,8 @@ export const StudyGuide: React.FC = () => {
                                 </Accordion>
                               </CardContent>
                             </Card>
+                              );
+                            })()}
                           </motion.div>
                         ))}
                     </div>
