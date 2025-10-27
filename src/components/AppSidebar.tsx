@@ -196,11 +196,7 @@ export function AppSidebar() {
   };
 
   return (
-    <motion.div
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
+    <div>
       <Sidebar
         data-testid="app-sidebar"
         className={`hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${
@@ -210,12 +206,7 @@ export function AppSidebar() {
       >
         {/* Premium Header with Brand Identity */}
         <SidebarHeader className={`p-4 md:p-5 lg:p-6 ${collapsed ? 'px-3' : ''} border-b border-border`}> 
-          <motion.div 
-            className="flex items-center gap-4"
-            initial={{ y: -10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.4 }}
-          >
+          <div className="flex items-center gap-4">
             <div className="relative">
               <motion.img
                 src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
@@ -247,16 +238,13 @@ export function AppSidebar() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </div>
         </SidebarHeader>
 
         <SidebarContent className="p-3 md:p-4 space-y-5 md:space-y-6 overflow-y-auto">
           {/* Premium User Profile */}
           {user && (
-            <motion.div
-              initial={{ y: 10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
+            <div
               className={`bg-card border border-border rounded-2xl p-4 ${collapsed ? 'px-2' : ''} shadow-sm`}
             >
               <div className="flex items-center gap-3">
@@ -297,22 +285,18 @@ export function AppSidebar() {
                   )}
                 </AnimatePresence>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {/* Main Navigation */}
           <SidebarGroup>
             <AnimatePresence>
               {!collapsed && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
-                >
+                <div>
                   <SidebarGroupLabel className="text-xs uppercase tracking-wide text-muted-foreground">
                     Menu Principal
                   </SidebarGroupLabel>
-                </motion.div>
+                </div>
               )}
             </AnimatePresence>
 
@@ -320,12 +304,7 @@ export function AppSidebar() {
               <SidebarMenu>
                 {/* Home - primeiro item com prioridade */}
                 {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.35, duration: 0.3 }}
-                  >
+                  <div key={item.title}>
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
@@ -333,11 +312,11 @@ export function AppSidebar() {
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  </motion.div>
+                  </div>
                 ))}
 
                 {/* Study Guide Area */}
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45, duration: 0.3 }}>
+                <div>
                   <SidebarMenuItem>
                     <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                       <CollapsibleTrigger asChild>
@@ -424,7 +403,7 @@ export function AppSidebar() {
                       </AnimatePresence>
                     </Collapsible>
                   </SidebarMenuItem>
-                </motion.div>
+                </div>
 
                 {/* Outros itens (exceto Início) */}
                 {menuItems.filter(item => {
@@ -434,12 +413,7 @@ export function AppSidebar() {
                   }
                   return accessRules[item.accessKey];
                 }).map((item, index) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.6 + index * 0.1, duration: 0.3 }}
-                  >
+                  <div key={item.title}>
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} end className={getNavCls}>
@@ -447,7 +421,7 @@ export function AppSidebar() {
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  </motion.div>
+                  </div>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -477,6 +451,6 @@ export function AppSidebar() {
           </AnimatePresence>
         </SidebarFooter>
       </Sidebar>
-    </motion.div>
+    </div>
   );
 }
