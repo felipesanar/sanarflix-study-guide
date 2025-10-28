@@ -143,24 +143,24 @@ export function AppSidebar() {
   }, []);
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+    `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive 
-        ? 'bg-sidebar-accent text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm'
-        : 'bg-sidebar-accent text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
+        ? 'bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm'
+        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
     }`;
 
   const getParentNavCls = (isActive: boolean) =>
-    `group relative overflow-hidden rounded transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+    `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive 
-        ? 'bg-sidebar-accent text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm'
-        : 'bg-sidebar-accent text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
+        ? 'bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm'
+        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
     }`;
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded ml-6 pl-4 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+    `group relative overflow-hidden rounded ml-6 pl-4 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive 
-        ? 'bg-sidebar-accent/60 text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm' 
-        : 'bg-sidebar-accent/50 text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]'
+        ? 'bg-sidebar-accent/60 text-sidebar-foreground font-semibold shadow-sm' 
+        : 'bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]'
     }`;
 
   const MenuItem = ({ item, className, children, isActive, delay = 0 }: { item: any, className?: string, children?: React.ReactNode, isActive?: boolean, delay?: number }) => {
