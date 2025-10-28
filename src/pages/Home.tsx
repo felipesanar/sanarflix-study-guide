@@ -22,6 +22,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
@@ -108,7 +109,12 @@ export const Home: React.FC = () => {
       {/* MOBILE VERSION - Simplified */}
       <div className="md:hidden max-w-7xl mx-auto px-3 sm:px-4 pt-2 pb-3 space-y-3 sm:space-y-4">
         {/* Welcome Section - Mobile */}
-        <div className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 rounded-xl p-4 sm:p-5 text-primary-foreground shadow-lg">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 rounded-xl p-4 sm:p-5 text-primary-foreground shadow-lg"
+        >
           <div className="flex flex-col gap-1.5 sm:gap-2">
             <p className="text-xs sm:text-sm opacity-90 font-medium">{getGreeting()},</p>
             <h1 className="text-xl sm:text-2xl font-bold leading-tight">
@@ -118,7 +124,7 @@ export const Home: React.FC = () => {
               Continue sua jornada de aprendizado 🎯
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Quick Stats - Mobile Grid */}
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
@@ -180,29 +186,30 @@ export const Home: React.FC = () => {
             {resourceCards.map((card) => {
               const Icon = card.icon;
               return (
-                <Card
-                  key={card.path}
-                  className="group cursor-pointer hover:shadow-lg transition-all duration-300 border-0 overflow-hidden"
-                  onClick={() => navigate(card.path)}
-                >
-                  <div className={`h-1.5 bg-gradient-to-r ${card.color}`} />
-                  <CardContent className="p-3 sm:p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className={`inline-flex p-2 rounded-lg bg-gradient-to-br ${card.color} mb-2`}>
-                          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                <motion.div key={card.path} whileHover={{ y: -2, scale: 1.01 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="group">
+                  <Card
+                    className="cursor-pointer hover:shadow-lg transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out border-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    onClick={() => navigate(card.path)}
+                  >
+                    <div className={`h-1.5 bg-gradient-to-r ${card.color}`} />
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className={`inline-flex p-2 rounded-lg bg-gradient-to-br ${card.color} mb-2`}>
+                            <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                          </div>
+                          <h3 className="text-sm sm:text-base font-semibold mb-0.5 group-hover:text-primary transition-colors truncate">
+                            {card.title}
+                          </h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
+                            {card.description}
+                          </p>
                         </div>
-                        <h3 className="text-sm sm:text-base font-semibold mb-0.5 group-hover:text-primary transition-colors truncate">
-                          {card.title}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                          {card.description}
-                        </p>
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                       </div>
-                      <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               );
             })}
           </div>
@@ -218,9 +225,11 @@ export const Home: React.FC = () => {
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 space-y-2">
             {announcements.map((announcement, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="flex gap-2 p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="flex gap-2 p-2.5 rounded-lg bg-muted/30 hover:bg-muted/50 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
               >
                 <div className={`flex-shrink-0 w-1 rounded-full ${
                   announcement.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
@@ -238,7 +247,7 @@ export const Home: React.FC = () => {
                     {announcement.description}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </CardContent>
         </Card>
@@ -263,7 +272,7 @@ export const Home: React.FC = () => {
                 <Button 
                   variant="secondary" 
                   size="sm"
-                  className="w-full bg-white text-red-600 hover:bg-white/90 font-semibold text-xs"
+                  className="w-full bg-white text-red-600 hover:bg-white/90 font-semibold text-xs transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
                   onClick={() => window.open('https://sanarflix.com.br', '_blank')}
                 >
                   Conhecer Planos
@@ -277,34 +286,36 @@ export const Home: React.FC = () => {
       {/* DESKTOP VERSION - Complete Layout */}
       <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-6 space-y-6">
         {/* Welcome Banner - Desktop */}
-        <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm opacity-90 font-medium mb-2">{getGreeting()},</p>
-                <h1 className="text-4xl font-bold mb-3">
-                  {user?.nome || 'Estudante'}
-                </h1>
-                <p className="text-base opacity-90 max-w-2xl mb-6">
-                  Pronto para estudar no dia de hoje? 🎯
-                </p>
-                <Button 
-                  variant="secondary"
-                  onClick={() => navigate('/guia-estudos')}
-                  className="bg-white/10 hover:bg-white/20 border border-white/30"
-                >
-                  Continuar estudos
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-              <div className="hidden xl:block">
-                <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
-                  <Trophy className="h-16 w-16 text-white" />
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: 'easeOut' }}>
+          <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm opacity-90 font-medium mb-2">{getGreeting()},</p>
+                  <h1 className="text-4xl font-bold mb-3">
+                    {user?.nome || 'Estudante'}
+                  </h1>
+                  <p className="text-base opacity-90 max-w-2xl mb-6">
+                    Pronto para estudar no dia de hoje? 🎯
+                  </p>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => navigate('/guia-estudos')}
+                    className="bg-white/10 hover:bg-white/20 border border-white/30 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
+                  >
+                    Continuar estudos
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="hidden xl:block">
+                  <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
+                    <Trophy className="h-16 w-16 text-white" />
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Main Grid - Desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-stretch">
@@ -321,7 +332,7 @@ export const Home: React.FC = () => {
               <CardContent className="space-y-6">
                 {/* Study Blocks */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                  <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover:bg-muted cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out">
                     <div className="flex-shrink-0 w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                       <BookOpen className="h-6 w-6 text-primary" />
                     </div>
@@ -330,24 +341,24 @@ export const Home: React.FC = () => {
                       <p className="text-xs text-muted-foreground">Medicina • 7ª Série / 13º período</p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
+                  </motion.div>
 
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/20 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out">
                       <Clock className="h-5 w-5 text-amber-600 mb-2" />
                       <p className="text-xs text-muted-foreground mb-1">Cronologia</p>
                       <p className="text-lg font-bold">Em dia</p>
-                    </div>
-                    <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    </motion.div>
+                    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out">
                       <BarChart3 className="h-5 w-5 text-blue-600 mb-2" />
                       <p className="text-xs text-muted-foreground mb-1">Desempenho</p>
                       <p className="text-lg font-bold">Médio</p>
-                    </div>
-                    <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                    </motion.div>
+                    <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="p-4 bg-green-500/10 rounded-lg border border-green-500/20 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out">
                       <CheckCircle2 className="h-5 w-5 text-green-600 mb-2" />
                       <p className="text-xs text-muted-foreground mb-1">Aulas</p>
                       <p className="text-lg font-bold">0</p>
-                    </div>
+                    </motion.div>
                   </div>
                 </div>
               </CardContent>
@@ -398,7 +409,7 @@ export const Home: React.FC = () => {
                 </div>
 
                 <Button 
-                  className="w-full" 
+                  className="w-full transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out" 
                   onClick={() => navigate('/guia-estudos')}
                 >
                   Ver detalhes completos
@@ -420,10 +431,12 @@ export const Home: React.FC = () => {
               {resourceCards.slice(0, 3).map((card) => {
                 const Icon = card.icon;
                 return (
-                  <div
+                  <motion.div
                     key={card.path}
                     onClick={() => navigate(card.path)}
-                    className="flex items-center gap-3 p-3 bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors group"
+                    whileHover={{ x: 4 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="flex items-center gap-3 p-3 bg-muted/30 hover:bg-muted/50 rounded-lg cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out group"
                   >
                     <div className={`p-2 rounded-lg bg-gradient-to-br ${card.color}`}>
                       <Icon className="h-4 w-4 text-white" />
@@ -437,7 +450,7 @@ export const Home: React.FC = () => {
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  </div>
+                  </motion.div>
                 );
               })}
             </CardContent>
@@ -498,9 +511,11 @@ export const Home: React.FC = () => {
           <CardContent>
             <div className="grid gap-4">
               {announcements.map((announcement, index) => (
-                <div
+                <motion.div
                   key={index}
-                  className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                  whileHover={{ x: 4 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="flex items-start gap-4 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 cursor-pointer transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
                 >
                   <div className={`flex-shrink-0 w-2 h-full rounded-full ${
                     announcement.type === 'success' ? 'bg-green-500' : 'bg-blue-500'
@@ -511,12 +526,12 @@ export const Home: React.FC = () => {
                       <span className="text-xs text-muted-foreground">{announcement.date}</span>
                     </div>
                     <p className="text-sm text-muted-foreground">{announcement.description}</p>
-                    <Button variant="link" className="px-0 h-auto mt-2 text-xs">
+                    <Button variant="link" className="px-0 h-auto mt-2 text-xs transition-colors">
                       Acessar agora
                       <ChevronRight className="ml-1 h-3 w-3" />
                     </Button>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </CardContent>

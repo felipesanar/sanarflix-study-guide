@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Menu, User, Home, BookOpen, Zap } from 'lucide-react';
@@ -85,24 +86,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-lg"
           >
             <div className="grid grid-cols-4 gap-1">
-              <NavLink to="/home" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
-                <Home className="h-5 w-5" aria-hidden="true" />
-                <span className="text-[10px] font-medium">Início</span>
-              </NavLink>
-              <NavLink to="/guia-estudos" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
-                <BookOpen className="h-5 w-5" aria-hidden="true" />
-                <span className="text-[10px] font-medium">Guia</span>
-              </NavLink>
-              <NavLink to="/intensivao-enamed" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95'}` }>
-                <Zap className="h-5 w-5" aria-hidden="true" />
-                <span className="text-[10px] font-medium">Intensivão</span>
-              </NavLink>
+              <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
+                <NavLink to="/home" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
+                  <Home className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-[10px] font-medium">Início</span>
+                </NavLink>
+              </motion.div>
+              <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
+                <NavLink to="/guia-estudos" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
+                  <BookOpen className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-[10px] font-medium">Guia</span>
+                </NavLink>
+              </motion.div>
+              <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
+                <NavLink to="/intensivao-enamed" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
+                  <Zap className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-[10px] font-medium">Intensivão</span>
+                </NavLink>
+              </motion.div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-all duration-200 text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95" aria-label="Perfil do usuário">
+                  <motion.button whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label="Perfil do usuário">
                     <User className="h-5 w-5" aria-hidden="true" />
                     <span className="text-[10px] font-medium">Conta</span>
-                  </button>
+                  </motion.button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="mb-2">
                   <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>

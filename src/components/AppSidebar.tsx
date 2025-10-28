@@ -117,6 +117,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const accessRules = getAccessRules(user);
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
+  const [initialAnim, setInitialAnim] = useState(false);
 
   const isActive = (path: string) => currentPath === path;
   const isStudyGuideAreaActive = () => 
@@ -128,36 +129,51 @@ export function AppSidebar() {
     }
   }, [currentPath]);
 
+  // Executa animação inicial apenas no primeiro carregamento da sessão
+  React.useEffect(() => {
+    const hasRun = sessionStorage.getItem('sidebarAnimated') === 'true';
+    if (!hasRun) {
+      setInitialAnim(true);
+      const t = setTimeout(() => {
+        sessionStorage.setItem('sidebarAnimated', 'true');
+        setInitialAnim(false);
+      }, 1000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
+    `group relative overflow-hidden rounded transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive 
-        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
-        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
+        ? 'bg-sidebar-accent text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm'
+        : 'bg-sidebar-accent text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
     }`;
 
-  const getParentNavCls = (isOpen: boolean) =>
-    `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
-      isOpen 
-        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
-        : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
+  const getParentNavCls = (isActive: boolean) =>
+    `group relative overflow-hidden rounded transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+      isActive 
+        ? 'bg-sidebar-accent text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm'
+        : 'bg-sidebar-accent text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]'
     }`;
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded-lg ml-6 pl-4 transition-all duration-300 ease-out ${
+    `group relative overflow-hidden rounded ml-6 pl-4 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive 
-        ? 'bg-primary/90 text-primary-foreground font-medium shadow-sm' 
-        : 'bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70'
+        ? 'bg-sidebar-accent/60 text-sidebar-foreground ring-1 ring-[#FF0000] ring-offset-1 font-semibold shadow-sm' 
+        : 'bg-sidebar-accent/50 text-sidebar-foreground border border-transparent hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]'
     }`;
 
-  const MenuItem = ({ item, className, children }: { item: any, className?: string, children?: React.ReactNode }) => {
-    const content = (
-      <div className={`flex items-center gap-3 p-3 ${className || ''} ${collapsed ? 'justify-center' : ''}`}>
+  const MenuItem = ({ item, className, children, isActive, delay = 0 }: { item: any, className?: string, children?: React.ReactNode, isActive?: boolean, delay?: number }) => {
+    const row = (
+      <div className={`flex items-center gap-3 p-3 will-change-transform will-change-opacity ${className || ''} ${collapsed ? 'justify-center' : ''}`}>
         <div className="relative">
-          <item.icon className={`h-5 w-5 transition-all duration-300 ${collapsed ? '' : ''}`} />
+          <item.icon className={`h-5 w-5 transition-transform duration-300 ${isActive ? 'scale-[1.05] text-primary' : ''}`} />
         </div>
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <span className="block font-medium text-sm truncate">{item.title}</span>
+            <span className="block font-medium text-sm truncate">
+              {item.title}
+            </span>
             {children}
           </div>
         )}
@@ -169,7 +185,13 @@ export function AppSidebar() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              {content}
+              {initialAnim ? (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay }}>
+                  {row}
+                </motion.div>
+              ) : (
+                row
+              )}
             </TooltipTrigger>
             <TooltipContent side="right" className="ml-2">
               <div className="text-sm font-medium">{item.title}</div>
@@ -180,7 +202,11 @@ export function AppSidebar() {
       );
     }
 
-    return content;
+    return initialAnim ? (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay }}>
+        {row}
+      </motion.div>
+    ) : row;
   };
 
   return (
@@ -264,11 +290,11 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {/* Home - primeiro item com prioridade */}
-                {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item) => (
+                {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item, idx) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
-                        <MenuItem item={item} />
+                        <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -279,7 +305,7 @@ export function AppSidebar() {
                   <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton 
-                        className={getParentNavCls(studyGuideOpen)} 
+                        className={getParentNavCls(isStudyGuideAreaActive())} 
                         aria-expanded={studyGuideOpen} 
                         aria-controls="submenu-guia-estudos"
                         onClick={(e) => {
@@ -303,7 +329,9 @@ export function AppSidebar() {
                         ) : (
                           <div className="flex items-center gap-3 p-3 w-full">
                             <BookOpen className="h-5 w-5 transition-all duration-300" />
-                            <span className="block font-medium text-sm truncate flex-1">Guia de Estudos</span>
+                            <span className="block font-medium text-sm truncate flex-1">
+                              Guia de Estudos
+                            </span>
                             <div className="ml-auto transition-transform duration-300" aria-hidden="true" style={{ transform: studyGuideOpen ? 'rotate(0deg)' : 'rotate(-90deg)' }}>
                               <ChevronDown className="h-4 w-4" />
                             </div>
@@ -314,11 +342,11 @@ export function AppSidebar() {
                     {studyGuideOpen && (
                       <CollapsibleContent id="submenu-guia-estudos">
                         <div className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
-                          {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item) => (
+                          {studyGuideItems.filter(item => accessRules[item.accessKey]).map((item, idx) => (
                             <SidebarMenuItem key={item.title}>
                               <SidebarMenuButton asChild>
                                 <NavLink to={item.url} end className={getChildNavCls}>
-                                  <MenuItem item={item} className="py-2" />
+                                  <MenuItem item={item} className="py-2" isActive={currentPath === item.url} delay={idx * 0.1} />
                                 </NavLink>
                               </SidebarMenuButton>
                             </SidebarMenuItem>
@@ -336,11 +364,11 @@ export function AppSidebar() {
                     return isB2BUser(user);
                   }
                   return accessRules[item.accessKey];
-                }).map((item) => (
+                }).map((item, idx) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url} end className={getNavCls}>
-                        <MenuItem item={item} />
+                        <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
