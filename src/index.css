@@ -3,6 +3,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Initial animation for sidebar buttons - only on page load */
+@keyframes sidebar-button-initial {
+  0% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.initial-animation.animate-fade-in {
+  animation: sidebar-button-initial 300ms ease-in-out forwards;
+  opacity: 0;
+}
+
 @layer base {
 :root {
     /* Background colors - premium clean design */

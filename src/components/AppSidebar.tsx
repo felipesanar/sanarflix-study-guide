@@ -117,6 +117,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const accessRules = getAccessRules(user);
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const isActive = (path: string) => currentPath === path;
   const isStudyGuideAreaActive = () => 
@@ -128,24 +129,31 @@ export function AppSidebar() {
     }
   }, [currentPath]);
 
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsInitialLoad(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
+    `initial-animation group relative overflow-hidden rounded-xl transition-all duration-300 ease-in-out ${
       isActive 
-        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
+        ? 'bg-primary text-primary-foreground font-semibold shadow-lg scale-[1.02]' 
         : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
     }`;
 
   const getParentNavCls = (isOpen: boolean) =>
-    `group relative overflow-hidden rounded-xl transition-all duration-300 ease-out ${
+    `initial-animation group relative overflow-hidden rounded-xl transition-all duration-300 ease-in-out ${
       isOpen 
-        ? 'bg-primary text-primary-foreground font-medium shadow-md' 
+        ? 'bg-primary text-primary-foreground font-semibold shadow-lg scale-[1.02]' 
         : 'bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm'
     }`;
 
   const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded-lg ml-6 pl-4 transition-all duration-300 ease-out ${
+    `initial-animation group relative overflow-hidden rounded-lg ml-6 pl-4 transition-all duration-300 ease-in-out ${
       isActive 
-        ? 'bg-primary/90 text-primary-foreground font-medium shadow-sm' 
+        ? 'bg-primary/90 text-primary-foreground font-semibold shadow-md border-l-4 border-primary-foreground/30' 
         : 'bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70'
     }`;
 
@@ -303,8 +311,12 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {/* Home - primeiro item com prioridade */}
-                {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item) => (
-                  <div key={item.title}>
+                {menuItems.filter(item => item.accessKey === 'home' && accessRules[item.accessKey]).map((item, idx) => (
+                  <div 
+                    key={item.title}
+                    className={isInitialLoad ? 'animate-fade-in' : ''}
+                    style={{ animationDelay: `${idx * 50}ms` }}
+                  >
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
@@ -316,7 +328,10 @@ export function AppSidebar() {
                 ))}
 
                 {/* Study Guide Area */}
-                <div>
+                <div
+                  className={isInitialLoad ? 'animate-fade-in' : ''}
+                  style={{ animationDelay: '50ms' }}
+                >
                   <SidebarMenuItem>
                     <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                       <CollapsibleTrigger asChild>
@@ -413,7 +428,11 @@ export function AppSidebar() {
                   }
                   return accessRules[item.accessKey];
                 }).map((item, index) => (
-                  <div key={item.title}>
+                  <div 
+                    key={item.title}
+                    className={isInitialLoad ? 'animate-fade-in' : ''}
+                    style={{ animationDelay: `${(index + 2) * 50}ms` }}
+                  >
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} end className={getNavCls}>
