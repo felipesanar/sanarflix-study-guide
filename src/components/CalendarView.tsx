@@ -228,8 +228,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
   // Função para ativar modo premium
   const handleActivatePremiumMode = () => {
+    console.log('Ativando modo premium...');
+    setTempCalendarEvents([...items]);
     setIsPremiumEditMode(true);
     setIsEditMode(false);
+    setShowSidePanel(false);
     toast.success('Modo de Edição Premium ativado!', {
       description: 'Arraste e solte matérias para reorganizar sua semana',
       icon: '✨',
@@ -239,8 +242,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
   // Renderizar modo premium em tela cheia
   if (isPremiumEditMode) {
+    console.log('Renderizando modo premium, eventos:', tempCalendarEvents.length);
     return (
-      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md animate-fade-in">
+      <div className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-background overflow-hidden">
         {/* Header flutuante minimalista */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b shadow-sm">
           <div className="container mx-auto px-6 py-4">
