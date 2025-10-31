@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Save, Eye, X, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { format } from 'date-fns';
 
 interface IES {
   id: string;
@@ -45,7 +46,7 @@ interface Props {
   iesList: IES[];
   searchIes: string;
   setSearchIes: (search: string) => void;
-  onSave: () => void;
+  onSave: (configToSave: AnnouncementConfig) => void;
   onCancel: () => void;
   onDuplicate?: () => void;
 }
@@ -71,9 +72,47 @@ export const AnnouncementEditor: React.FC<Props> = ({
     }
   };
 
-  const filteredIes = iesList.filter(ies => 
+  const filteredIes = iesList.filter(ies =>
     ies.nome.toLowerCase().includes(searchIes.toLowerCase())
   );
+
+  // Converter UTC para local time para exibição
+  const getLocalDatetimeString = (utcDate: string | null): string => {
+    if (!utcDate) return '';
+    try {
+      const date = new Date(utcDate);
+      // Formatar para datetime-local input (YYYY-MM-DDTHH:mm)
+      return format(date, "yyyy-MM-dd'T'HH:mm");
+    } catch (e) {
+      console.error('Error parsing date:', e);
+      return '';
+    }
+  };
+
+  // Converter local time para UTC antes de salvar
+  const convertLocalToUTC = (localDatetime: string): string => {
+    if (!localDatetime) return '';
+    try {
+      // O datetime-local retorna formato: "2025-01-15T14:30"
+      const localDate = new Date(localDatetime);
+      // Converter para ISO string (UTC)
+      return localDate.toISOString();
+    } catch (e) {
+      console.error('Error converting to UTC:', e);
+      return '';
+    }
+  };
+
+  const handleSave = () => {
+    // Converter data de expiração para UTC antes de salvar
+    const configToSave = {
+      ...config,
+      data_expiracao: config.data_expiracao 
+        ? convertLocalToUTC(config.data_expiracao)
+        : null
+    };
+    onSave(configToSave);
+  };
 
   const palette = colorPalettes[config.paleta_cores as keyof typeof colorPalettes] || colorPalettes.primary;
 
@@ -314,12 +353,15 @@ export const AnnouncementEditor: React.FC<Props> = ({
                 <Input
                   id="data_expiracao"
                   type="datetime-local"
-                  value={config.data_expiracao || ''}
+                  value={config.data_expiracao ? getLocalDatetimeString(config.data_expiracao) : ''}
                   onChange={(e) => setConfig({ ...config, data_expiracao: e.target.value || null })}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Horário local (será convertido para UTC ao salvar)
+                </p>
               </div>
 
-              <Button onClick={onSave} className="w-full">
+              <Button onClick={handleSave} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
                 {config.id ? 'Atualizar Aviso' : 'Salvar Aviso'}
               </Button>
