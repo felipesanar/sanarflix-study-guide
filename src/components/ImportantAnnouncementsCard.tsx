@@ -61,7 +61,14 @@ export const ImportantAnnouncementsCard: React.FC = () => {
 
   const handleClick = () => {
     if (announcement.link_botao) {
-      window.open(announcement.link_botao, '_blank');
+      let url = announcement.link_botao;
+      
+      // Adicionar https:// se a URL não começar com http:// ou https://
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `https://${url}`;
+      }
+      
+      window.open(url, '_blank');
     }
   };
 
