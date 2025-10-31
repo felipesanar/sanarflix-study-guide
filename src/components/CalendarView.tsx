@@ -292,31 +292,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
         {/* Grid expandido do calendário */}
         <div className="container mx-auto px-6 py-8 h-[calc(100vh-80px)] overflow-auto">
           <div className="grid grid-cols-7 gap-4 h-full">
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dayName, index) => {
-              const dayNumber = String(index).padStart(2, '0');
-              
-              // Encontra itens para este dia
-              const dayItems = tempCalendarEvents.filter(item => {
-                const itemDayIndex = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].indexOf(
-                  item.dia.split(' ')[0]
+            {sortedWeeks.map(([weekName, weekDays]) => {
+              return Object.entries(weekDays).map(([dayName, dayItems]) => {
+                const allItemsForDay = tempCalendarEvents.filter(item => 
+                  item.dia === dayName && item.semana === weekName
                 );
-                return itemDayIndex === index;
-              });
 
-              return (
-                <div
-                  key={dayName}
-                  className="flex flex-col min-h-[500px] bg-card rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-all duration-300"
-                  onDragOver={(e) => handleDragOver(e, dayName, 'Semana 1')}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, dayName, 'Semana 1')}
-                >
-                  <div className="p-4 border-b bg-primary/5 rounded-t-xl">
-                    <h3 className="text-lg font-bold text-center">{dayName}</h3>
-                  </div>
-                  
-                  <div className="flex-1 p-3 space-y-3 overflow-y-auto">
-                    {dayItems.map(item => {
+                return (
+                  <div
+                    key={`${weekName}-${dayName}`}
+                    className="flex flex-col min-h-[500px] bg-card rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-all duration-300"
+                    onDragOver={(e) => handleDragOver(e, dayName, weekName)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, dayName, weekName)}
+                  >
+                    <div className="p-4 border-b bg-primary/5 rounded-t-xl">
+                      <h3 className="text-lg font-bold text-center">{dayName}</h3>
+                      <p className="text-xs text-center text-muted-foreground mt-1">{weekName}</p>
+                    </div>
+                    
+                    <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+                      {allItemsForDay.map(item => {
                       const subMap = tempCalendarEvents.filter(it => 
                         (it.subtema === item.subtema || it.tema === item.tema) &&
                         it.dia === item.dia
@@ -382,18 +378,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                             </Badge>
                           </div>
                         </div>
-                      );
-                    })}
-                    
-                    {dayItems.length === 0 && (
-                      <div className="flex items-center justify-center h-32 text-muted-foreground text-sm border-2 border-dashed border-border/50 rounded-lg">
-                        Arraste matérias aqui
-                      </div>
-                    )}
+                        );
+                      })}
+                      
+                      {allItemsForDay.length === 0 && (
+                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm border-2 border-dashed border-border/50 rounded-lg">
+                          Arraste matérias aqui
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            }).flat()}
           </div>
         </div>
 
