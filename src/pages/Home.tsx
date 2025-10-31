@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { ImportantAnnouncementsCard } from '@/components/ImportantAnnouncementsCard';
 
 export const Home: React.FC = () => {
   const { user } = useAuth();
@@ -285,37 +286,41 @@ export const Home: React.FC = () => {
 
       {/* DESKTOP VERSION - Complete Layout */}
       <div className="hidden md:block max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-6 space-y-6">
-        {/* Welcome Banner - Desktop */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: 'easeOut' }}>
-          <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm opacity-90 font-medium mb-2">{getGreeting()},</p>
-                  <h1 className="text-4xl font-bold mb-3">
-                    {user?.nome || 'Estudante'}
-                  </h1>
-                  <p className="text-base opacity-90 max-w-2xl mb-6">
-                    Pronto para estudar no dia de hoje? 🎯
-                  </p>
-                  <Button 
-                    variant="secondary"
-                    onClick={() => navigate('/guia-estudos')}
-                    className="bg-white/10 hover:bg-white/20 border border-white/30 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
-                  >
-                    Continuar estudos
-                    <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="hidden xl:block">
-                  <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
-                    <Trophy className="h-16 w-16 text-white" />
+        {/* Welcome Banner & Important Announcements - Desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: 'easeOut' }}>
+            <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden h-full">
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between h-full">
+                  <div className="flex-1">
+                    <p className="text-sm opacity-90 font-medium mb-2">{getGreeting()},</p>
+                    <h1 className="text-4xl font-bold mb-3">
+                      {user?.nome || 'Estudante'}
+                    </h1>
+                    <p className="text-base opacity-90 max-w-2xl mb-6">
+                      Pronto para estudar no dia de hoje? 🎯
+                    </p>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => navigate('/guia-estudos')}
+                      className="bg-white/10 hover:bg-white/20 border border-white/30 transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out"
+                    >
+                      Continuar estudos
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="hidden xl:block">
+                    <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center">
+                      <Trophy className="h-16 w-16 text-white" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <ImportantAnnouncementsCard />
+        </div>
 
         {/* Main Grid - Desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 items-stretch">
