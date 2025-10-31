@@ -61,7 +61,7 @@ export const ImportantAnnouncementsCard: React.FC = () => {
 
   const handleClick = () => {
     if (announcement.link_botao) {
-      window.location.href = announcement.link_botao;
+      window.open(announcement.link_botao, '_blank');
     }
   };
 
