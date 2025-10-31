@@ -43,7 +43,12 @@ export const ImportantAnnouncementsCard: React.FC = () => {
       .limit(1)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      console.error('Erro ao buscar avisos:', error);
+      return;
+    }
+
+    if (data) {
       setAnnouncement(data);
     }
   };
