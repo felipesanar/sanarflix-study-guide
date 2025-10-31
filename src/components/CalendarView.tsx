@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Pencil, X, Save } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Pencil, X, Save, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CalendarItem {
@@ -31,9 +31,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isPremiumEditMode, setIsPremiumEditMode] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState<CalendarItem | null>(null);
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [tempCalendarEvents, setTempCalendarEvents] = useState<CalendarItem[]>([]);
+  const [draggedItem, setDraggedItem] = useState<CalendarItem | null>(null);
   
   // Ref to scroll to calendar
   const calendarRef = React.useRef<HTMLDivElement>(null);
@@ -117,36 +119,66 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
   // Função para lidar com o início do arrasto
   const handleDragStart = (e: React.DragEvent, item: CalendarItem) => {
-    if (isEditMode) {
+    if (isEditMode || isPremiumEditMode) {
       e.dataTransfer.setData('text/plain', JSON.stringify(item));
-      e.currentTarget.classList.add('opacity-50');
+      e.dataTransfer.effectAllowed = 'move';
+      setDraggedItem(item);
+      
+      // Premium mode: adiciona classe de lift effect
+      if (isPremiumEditMode) {
+        e.currentTarget.classList.add('scale-110', 'shadow-2xl', 'z-50');
+      } else {
+        e.currentTarget.classList.add('opacity-50');
+      }
     }
   };
 
   // Função para lidar com o fim do arrasto
   const handleDragEnd = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
+    
+    if (isPremiumEditMode) {
+      e.currentTarget.classList.remove('scale-110', 'shadow-2xl', 'z-50');
+    } else {
+      e.currentTarget.classList.remove('opacity-50');
+    }
   };
 
   // Função para permitir o drop
   const handleDragOver = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
-    if (isEditMode) {
+    if (isEditMode || isPremiumEditMode) {
       e.preventDefault();
-      e.currentTarget.classList.add('bg-primary/10', 'border-dashed', 'border-primary');
+      e.dataTransfer.dropEffect = 'move';
+      
+      if (isPremiumEditMode) {
+        e.currentTarget.classList.add('bg-green-500/20', 'border-2', 'border-green-500', 'border-dashed', 'animate-pulse');
+      } else {
+        e.currentTarget.classList.add('bg-primary/10', 'border-dashed', 'border-primary');
+      }
     }
   };
 
   // Função para lidar com a saída do elemento arrastável da área de drop
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
+    if (isPremiumEditMode) {
+      e.currentTarget.classList.remove('bg-green-500/20', 'border-2', 'border-green-500', 'border-dashed', 'animate-pulse');
+    } else {
+      e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
+    }
   };
 
   // Função para lidar com o drop
   const handleDrop = (e: React.DragEvent, targetDay: string, targetWeek: string) => {
     e.preventDefault();
-    e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
     
-    if (isEditMode) {
+    // Remove classes de feedback visual
+    if (isPremiumEditMode) {
+      e.currentTarget.classList.remove('bg-green-500/20', 'border-2', 'border-green-500', 'border-dashed', 'animate-pulse');
+    } else {
+      e.currentTarget.classList.remove('bg-primary/10', 'border-dashed', 'border-primary');
+    }
+    
+    if (isEditMode || isPremiumEditMode) {
       try {
         const itemData = JSON.parse(e.dataTransfer.getData('text/plain')) as CalendarItem;
         
@@ -159,7 +191,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
         });
         
         setTempCalendarEvents(updatedEvents);
-        toast.success(`Item movido para ${targetDay} em ${targetWeek}`);
+        setDraggedItem(null);
+        toast.success(`Item movido para ${targetDay} em ${targetWeek}`, {
+          icon: '✅',
+          duration: 2000
+        });
       } catch (error) {
         console.error('Erro ao processar o item arrastado:', error);
         toast.error('Erro ao mover o item');
@@ -169,16 +205,205 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
 
   // Função para salvar alterações no modo de edição
   const handleSaveChanges = () => {
-    // Aqui implementaríamos a lógica para salvar as alterações no backend
-    // Por enquanto, apenas saímos do modo de edição
     setIsEditMode(false);
+    setIsPremiumEditMode(false);
     
     // Em uma implementação real, enviaríamos tempCalendarEvents para o backend
     console.log('Alterações salvas:', tempCalendarEvents);
     
     // Exibir uma notificação de sucesso
-    toast.success('Alterações salvas com sucesso!');
+    toast.success('Alterações salvas com sucesso!', {
+      icon: '🎉',
+      duration: 3000
+    });
   };
+
+  // Função para cancelar alterações
+  const handleCancelChanges = () => {
+    setTempCalendarEvents([...items]);
+    setIsEditMode(false);
+    setIsPremiumEditMode(false);
+    toast.info('Alterações descartadas');
+  };
+
+  // Função para ativar modo premium
+  const handleActivatePremiumMode = () => {
+    setIsPremiumEditMode(true);
+    setIsEditMode(false);
+    toast.success('Modo de Edição Premium ativado!', {
+      description: 'Arraste e solte matérias para reorganizar sua semana',
+      icon: '✨',
+      duration: 3000
+    });
+  };
+
+  // Renderizar modo premium em tela cheia
+  if (isPremiumEditMode) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md animate-fade-in">
+        {/* Header flutuante minimalista */}
+        <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b shadow-sm">
+          <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelChanges}
+                  className="gap-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Voltar
+                </Button>
+                <div className="h-6 w-px bg-border" />
+                <div className="flex items-center gap-2">
+                  <Pencil className="h-5 w-5 text-primary" />
+                  <h1 className="text-lg font-semibold">Editando Calendário</h1>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary">
+                    Modo Premium
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelChanges}
+                  className="gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancelar
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSaveChanges}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Salvar Alterações
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Grid expandido do calendário */}
+        <div className="container mx-auto px-6 py-8 h-[calc(100vh-80px)] overflow-auto">
+          <div className="grid grid-cols-7 gap-4 h-full">
+            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dayName, index) => {
+              const dayNumber = String(index).padStart(2, '0');
+              
+              // Encontra itens para este dia
+              const dayItems = tempCalendarEvents.filter(item => {
+                const itemDayIndex = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].indexOf(
+                  item.dia.split(' ')[0]
+                );
+                return itemDayIndex === index;
+              });
+
+              return (
+                <div
+                  key={dayName}
+                  className="flex flex-col min-h-[500px] bg-card rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-all duration-300"
+                  onDragOver={(e) => handleDragOver(e, dayName, 'Semana 1')}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, dayName, 'Semana 1')}
+                >
+                  <div className="p-4 border-b bg-primary/5 rounded-t-xl">
+                    <h3 className="text-lg font-bold text-center">{dayName}</h3>
+                  </div>
+                  
+                  <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+                    {dayItems.map(item => {
+                      const subMap = tempCalendarEvents.filter(it => 
+                        (it.subtema === item.subtema || it.tema === item.tema) &&
+                        it.dia === item.dia
+                      );
+                      
+                      const allDone = subMap.every(s => s.completed);
+                      const badgeColor = item.color || `hsl(${Math.random() * 360}, 70%, 50%)`;
+                      
+                      return (
+                        <div
+                          key={item.itemKey}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, item)}
+                          onDragEnd={handleDragEnd}
+                          className={`
+                            p-4 rounded-lg border-2 cursor-move
+                            transition-all duration-200 hover:shadow-lg hover:scale-105
+                            ${allDone ? 'bg-green-50 dark:bg-green-900/20 border-green-500' : 'bg-background border-border'}
+                            ${draggedItem?.itemKey === item.itemKey ? 'opacity-50' : 'opacity-100'}
+                          `}
+                          style={{
+                            minHeight: '100px',
+                            background: allDone 
+                              ? undefined 
+                              : `linear-gradient(135deg, ${badgeColor}10, ${badgeColor}05)`
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              {allDone && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                              <span className="font-medium text-sm">
+                                {item.subtema || item.tema}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updatedEvents = tempCalendarEvents.filter(
+                                  event => event.itemKey !== item.itemKey
+                                );
+                                setTempCalendarEvents(updatedEvents);
+                                toast.success('Item removido');
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge 
+                              variant="secondary" 
+                              className="text-xs"
+                              style={{ 
+                                backgroundColor: `${badgeColor}30`, 
+                                borderColor: badgeColor, 
+                                color: badgeColor 
+                              }}
+                            >
+                              {item.discipline}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {dayItems.length === 0 && (
+                      <div className="flex items-center justify-center h-32 text-muted-foreground text-sm border-2 border-dashed border-border/50 rounded-lg">
+                        Arraste matérias aqui
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Dica flutuante */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-fade-in">
+          <span className="text-sm font-medium">💡 Dica: Arraste as matérias para reorganizar sua semana de estudos</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-4 relative" data-calendar-view ref={calendarRef}>
@@ -187,13 +412,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
           <h2 className="text-2xl font-bold">Semana Acadêmica</h2>
           <div className="flex gap-2">
             <Button 
-              variant={isEditMode ? "default" : "outline"} 
+              variant="default"
               size="sm" 
-              className="flex items-center gap-2"
-              onClick={() => setIsEditMode(!isEditMode)}
+              className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+              onClick={handleActivatePremiumMode}
             >
               <Pencil className="h-4 w-4" />
-              {isEditMode ? "Cancelar Edição" : "Editar Calendário"}
+              ✨ Editar Calendário
             </Button>
             {isEditMode && (
               <Button 
