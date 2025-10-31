@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          data_expiracao: string | null
+          descricao: string
+          id: string
+          ies_excluidas: string[] | null
+          ies_selecionadas: string[] | null
+          link_botao: string | null
+          paleta_cores: string
+          prioridade: string
+          texto_botao: string
+          titulo: string
+          updated_at: string
+          visibilidade: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_expiracao?: string | null
+          descricao: string
+          id?: string
+          ies_excluidas?: string[] | null
+          ies_selecionadas?: string[] | null
+          link_botao?: string | null
+          paleta_cores?: string
+          prioridade?: string
+          texto_botao?: string
+          titulo: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          data_expiracao?: string | null
+          descricao?: string
+          id?: string
+          ies_excluidas?: string[] | null
+          ies_selecionadas?: string[] | null
+          link_botao?: string | null
+          paleta_cores?: string
+          prioridade?: string
+          texto_botao?: string
+          titulo?: string
+          updated_at?: string
+          visibilidade?: string
+        }
+        Relationships: []
+      }
       answer_progress_enamed: {
         Row: {
           answer_id: string
