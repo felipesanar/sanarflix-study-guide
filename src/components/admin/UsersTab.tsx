@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+const { useState, useEffect } = React;
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
