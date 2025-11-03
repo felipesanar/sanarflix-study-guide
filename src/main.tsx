@@ -5,6 +5,10 @@ import './index.css'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { Toaster } from './components/ui/toaster.tsx'
 import { UniversityProvider } from './contexts/UniversityContext.tsx'
+import { registerSW } from 'virtual:pwa-register'
+
+// Register service worker for PWA with auto update
+registerSW({ immediate: true })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

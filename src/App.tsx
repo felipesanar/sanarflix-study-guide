@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWebVitals } from "@/hooks/usePerformance";
 import { AppSidebar } from '@/components/AppSidebar';
@@ -14,20 +15,20 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { AuthWrapper } from '@/components/AuthWrapper';
 import { getAccessRules } from '@/utils/accessRules';
-import { StudyGuide } from "./pages/StudyGuide";
-import { Dashboard } from "./pages/Dashboard";
-import { IntensivaoEnamed } from "./pages/IntensivaoEnamed";
-import { SimuladoDesempenho } from "./pages/SimuladoDesempenho";
-import UserManagement from "./pages/UserManagement";
-import ResetPassword from "./pages/ResetPassword";
-import AuthCallbackPage from "./pages/AuthCallback";
-import NotFound from "./pages/NotFound";
-import { SignupB2C } from "./pages/SignupB2C";
-import { CronogramaEnamed } from "./pages/CronogramaEnamed";
+const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default: m.StudyGuide })));
+const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const IntensivaoEnamed = lazy(() => import("./pages/IntensivaoEnamed").then(m => ({ default: m.IntensivaoEnamed })));
+const SimuladoDesempenho = lazy(() => import("./pages/SimuladoDesempenho").then(m => ({ default: m.SimuladoDesempenho })));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
+const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m => ({ default: m.CronogramaEnamed })));
 import { ThemeProvider } from "next-themes";
-import IntensivoEnamedUSCS from "./pages/IntensivoEnamedUSCS";
-import Analytics from "./pages/Analytics";
-import { Home } from "./pages/Home";
+const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,14 @@ const AppContent = () => {
 
   return (
     <StudyProvider>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando...</p>
+          </div>
+        </div>
+      }>
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -199,6 +208,7 @@ const AppContent = () => {
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
     </StudyProvider>
   );
 };
