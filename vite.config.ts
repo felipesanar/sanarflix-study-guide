@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => ({
     componentTagger(),
     // PWA with runtime caching and precache for offline capability
     VitePWA({
+      devOptions: {
+        enabled: false,
+      },
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
