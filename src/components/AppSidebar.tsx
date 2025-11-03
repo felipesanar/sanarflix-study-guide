@@ -358,7 +358,7 @@ export function AppSidebar() {
                     </CollapsibleTrigger>
                     {studyGuideOpen && (
                       <CollapsibleContent id="submenu-guia-estudos">
-                        <div className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
+                        <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
                           {studyGuideItems
                             .filter((item) => accessRules[item.accessKey])
                             .map((item, idx) => (
@@ -375,7 +375,7 @@ export function AppSidebar() {
                                 </SidebarMenuButton>
                               </SidebarMenuItem>
                             ))}
-                        </div>
+                        </SidebarMenu>
                       </CollapsibleContent>
                     )}
                   </Collapsible>

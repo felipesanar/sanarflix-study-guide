@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = new Set<string>([
   'https://preview--sanarflix-study-guide.lovable.app',
   'https://guiadeestudos.sanar.com.br',
   'http://localhost:5173',
+  'http://localhost:8080',
 ]);
 
 const isAllowedOrigin = (origin?: string): boolean => {
