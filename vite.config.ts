@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' &&
     componentTagger(),
-    // PWA with runtime caching and precache for offline capability
+    // PWA apenas em produção para evitar problemas de manifest/CORS no preview
+    mode === 'production' &&
     VitePWA({
       devOptions: {
         enabled: false,
@@ -48,7 +49,6 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         runtimeCaching: [
           {
-            // API cache with NetworkFirst and 15 minutes cache
             urlPattern: ({ url }) => url.host.endsWith('.supabase.co'),
             handler: 'NetworkFirst',
             options: {
@@ -56,38 +56,35 @@ export default defineConfig(({ mode }) => ({
               networkTimeoutSeconds: 5,
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 15 * 60, // 15 minutes
+                maxAgeSeconds: 15 * 60,
               },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            // Static images cache
             urlPattern: ({ request }) => request.destination === 'image',
             handler: 'CacheFirst',
             options: {
               cacheName: 'images',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
-            // Fonts cache
             urlPattern: ({ request, url }) => request.destination === 'font' || url.host.includes('fonts.gstatic.com'),
             handler: 'CacheFirst',
             options: {
               cacheName: 'fonts',
               expiration: {
                 maxEntries: 30,
-                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+                maxAgeSeconds: 60 * 60 * 24 * 365,
               },
             },
           },
           {
-            // Static assets (js, css) with Stale-While-Revalidate
             urlPattern: ({ request }) => ['style', 'script', 'worker'].includes(request.destination),
             handler: 'StaleWhileRevalidate',
             options: {
@@ -124,13 +121,9 @@ export default defineConfig(({ mode }) => ({
     cssMinify: true,
     rollupOptions: {
       output: {
+        // Simplificar a divisão de vendors para reduzir riscos de ordem de carregamento
         manualChunks(id) {
-          // Vendors
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
-            if (id.includes('@radix-ui') || id.includes('framer-motion') || id.includes('lucide-react')) return 'vendor-ui';
-            if (id.includes('recharts')) return 'vendor-charts';
-            if (id.includes('zod') || id.includes('date-fns') || id.includes('clsx') || id.includes('class-variance-authority')) return 'vendor-utils';
             return 'vendor';
           }
 
