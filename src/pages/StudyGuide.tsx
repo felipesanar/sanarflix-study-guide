@@ -250,6 +250,29 @@ export const StudyGuide: React.FC = () => {
 
       try {
         setIsLoading(true);
+        const startTime = performance.now();
+        
+        // Tentar cache primeiro
+        const cacheKey = `study_contents_${user.id_ies}_${user.semestre}`;
+        const cached = sessionStorage.getItem(cacheKey);
+        
+        if (cached) {
+          try {
+            const cachedData = JSON.parse(cached);
+            const cacheAge = Date.now() - (cachedData.timestamp || 0);
+            
+            // Usar cache se tiver menos de 1 hora
+            if (cacheAge < 3600000) {
+              setConteudos(cachedData.data);
+              hasLoadedData.current = true;
+              setIsLoading(false);
+              console.log('Loaded from cache in', (performance.now() - startTime).toFixed(2), 'ms');
+              return;
+            }
+          } catch (e) {
+            sessionStorage.removeItem(cacheKey);
+          }
+        }
         
         // Use edge function to fetch conteudos (bypasses RLS issues)
         const { data: response, error } = await supabase.functions.invoke('get-study-contents');
@@ -282,6 +305,15 @@ export const StudyGuide: React.FC = () => {
 
         setConteudos(transformedData);
         hasLoadedData.current = true;
+        
+        // Armazenar em cache
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: transformedData,
+          timestamp: Date.now()
+        }));
+        
+        const loadTime = performance.now() - startTime;
+        console.log('Study contents loaded in', loadTime.toFixed(2), 'ms');
         
         // Auto-select user's current semester if available
         if (user.semestre && transformedData.length > 0 && !selectedSemestre) {

@@ -72,7 +72,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    const startTime = performance.now();
     setIsLoading(true);
+    
+    // Preload recursos em paralelo com autenticação
+    import('../utils/preload').then(({ preloadPostLoginResources }) => {
+      preloadPostLoginResources();
+    });
     
     try {
       const { data, error } = await supabase.functions.invoke('auth-login', {
@@ -149,6 +155,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // SECURITY: Store minimal user data in localStorage, roles fetched from server
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+      
+      // Cache otimizado de dados do usuário
+      import('../utils/performanceCache').then(({ performanceCache }) => {
+        performanceCache.setUserData(userData);
+      });
+      
+      // Métricas de performance do login
+      const loginDuration = performance.now() - startTime;
+      if (loginDuration > 2000) {
+        console.warn(`Slow login: ${loginDuration.toFixed(2)}ms`);
+      }
       
       if (data.needsPasswordChange) {
         toast({
