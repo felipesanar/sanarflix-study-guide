@@ -265,6 +265,24 @@ export const StudyGuide: React.FC = () => {
             if (cacheAge < 3600000) {
               setConteudos(cachedData.data);
               hasLoadedData.current = true;
+              
+              // Auto-selecionar semestre do usuário após carregar do cache
+              if (user.semestre && !selectedSemestre) {
+                const userSemestre = user.semestre.toString();
+                const hasUserSemestre = cachedData.data.some((c: ConteudoData) => 
+                  c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+                );
+                
+                if (hasUserSemestre) {
+                  setSelectedSemestre(userSemestre);
+                } else {
+                  const firstSemestre = cachedData.data[0]?.semestre.replace('º Semestre', '').trim();
+                  if (firstSemestre) {
+                    setSelectedSemestre(firstSemestre);
+                  }
+                }
+              }
+              
               setIsLoading(false);
               console.log('Loaded from cache in', (performance.now() - startTime).toFixed(2), 'ms');
               return;
@@ -316,7 +334,7 @@ export const StudyGuide: React.FC = () => {
         console.log('Study contents loaded in', loadTime.toFixed(2), 'ms');
         
         // Auto-select user's current semester if available
-        if (user.semestre && transformedData.length > 0 && !selectedSemestre) {
+        if (user.semestre && transformedData.length > 0) {
           const userSemestre = user.semestre.toString();
           const hasUserSemestre = transformedData.some(c => 
             c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
@@ -324,10 +342,12 @@ export const StudyGuide: React.FC = () => {
           
           if (hasUserSemestre) {
             setSelectedSemestre(userSemestre);
+            console.log('Auto-selected user semester:', userSemestre);
           } else {
             // Select first available semester
             const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
             setSelectedSemestre(firstSemestre);
+            console.log('User semester not found, selected first available:', firstSemestre);
           }
         }
       } catch (error) {
