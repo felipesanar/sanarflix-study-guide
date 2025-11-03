@@ -1,5 +1,5 @@
 
-import React from 'react';
+import * as React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';

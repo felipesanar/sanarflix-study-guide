@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
+const { useEffect, useState } = React;
 import { useAuth } from '@/contexts/AuthContext';
 import { getAccessRules } from '@/utils/accessRules';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
