@@ -16,7 +16,7 @@ interface PageWrapperProps {
 export const PageWrapper = ({ 
   children, 
   loadingMessage,
-  minLoadTime = 1000,
+  minLoadTime = 600,
   waitForData = true,
   skeleton,
   enforceMinTime = true

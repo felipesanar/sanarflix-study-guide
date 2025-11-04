@@ -123,7 +123,7 @@ const AppContent = () => {
               <Layout>
                 <PageWrapper 
                   loadingMessage="Carregando início..." 
-                  minLoadTime={1000} 
+                  minLoadTime={600} 
                   waitForData={true}
                   enforceMinTime={true}
                   skeleton={<HomePageSkeleton />}
@@ -143,7 +143,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando guia de estudos..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                     skeleton={<StudyGuideSkeleton />}
@@ -164,7 +164,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando desempenho..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                   >
@@ -184,7 +184,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando dashboard..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                     skeleton={<DashboardSkeleton />}
@@ -205,7 +205,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando intensivão..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                     skeleton={<IntensivaoSkeleton />}
@@ -226,7 +226,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando cronograma..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                     skeleton={<IntensivaoSkeleton />}
@@ -247,7 +247,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando gestão..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                   >
@@ -267,7 +267,7 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando intensivo USCS..." 
-                    minLoadTime={1000} 
+                    minLoadTime={600} 
                     waitForData={true}
                     enforceMinTime={true}
                   >
@@ -286,7 +286,7 @@ const AppContent = () => {
               <Layout>
                 <PageWrapper 
                   loadingMessage="Carregando analytics..." 
-                  minLoadTime={1000} 
+                  minLoadTime={600} 
                   waitForData={true}
                   enforceMinTime={true}
                 >
