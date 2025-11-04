@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary';
 import { runStartupDiagnostics } from './utils/diagnostics';
+import { preloadCommonResources, setupLinkPrefetch } from './utils/preload';
 
 // Run diagnostics before rendering
 if (!runStartupDiagnostics()) {
@@ -26,4 +27,15 @@ if (!runStartupDiagnostics()) {
       </ChunkLoadErrorBoundary>
     </React.StrictMode>,
   );
+
+  // Iniciar preload de recursos após montagem inicial
+  if (document.readyState === 'complete') {
+    preloadCommonResources();
+    setupLinkPrefetch();
+  } else {
+    window.addEventListener('load', () => {
+      preloadCommonResources();
+      setupLinkPrefetch();
+    });
+  }
 }
