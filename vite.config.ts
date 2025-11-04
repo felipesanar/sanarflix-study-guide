@@ -121,19 +121,17 @@ export default defineConfig(({ mode }) => ({
     cssMinify: true,
     rollupOptions: {
       output: {
-        // Simplificar a divisão de vendors para reduzir riscos de ordem de carregamento
         manualChunks(id) {
+          // Garantir que react e react-dom estejam no vendor chunk principal
           if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'vendor-ui';
+            }
             return 'vendor';
           }
-
-          // App feature chunks
-          if (id.includes('/src/pages/UserManagement')) return 'admin';
-          if (id.includes('/src/pages/Analytics')) return 'analytics';
-          if (id.includes('/src/pages/StudyGuide') || id.includes('/src/components/Study')) return 'study-guide';
-          if (id.includes('/src/pages/IntensivaoEnamed') || id.includes('/src/pages/IntensivoEnamedUSCS')) return 'intensivo';
-
-          return undefined;
         },
       },
     },
