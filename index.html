@@ -19,6 +19,77 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Critical CSS para prevenir FOUC -->
+    <style>
+      /* Reset básico */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      /* Previne flash de conteúdo não-estilizado */
+      html { 
+        background: #ffffff;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        html { background: #000000; }
+      }
+      
+      body {
+        margin: 0;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+      }
+      
+      body.loaded {
+        opacity: 1;
+      }
+      
+      /* Previne CLS (Cumulative Layout Shift) */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Skeleton base styles */
+      .skeleton-shimmer {
+        background: linear-gradient(
+          90deg,
+          rgba(220, 220, 220, 0.1) 0%,
+          rgba(220, 220, 220, 0.3) 50%,
+          rgba(220, 220, 220, 0.1) 100%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        .skeleton-shimmer {
+          background: linear-gradient(
+            90deg,
+            rgba(55, 55, 55, 0.1) 0%,
+            rgba(55, 55, 55, 0.3) 50%,
+            rgba(55, 55, 55, 0.1) 100%
+          );
+        }
+      }
+      
+      @keyframes shimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+      }
+      
+      /* Previne flash branco em transições */
+      .page-transition {
+        animation: fadeIn 0.3s ease-in-out;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
     <!-- Preload critical logo image for above-the-fold rendering -->
     <link rel="preload" as="image" href="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" />
     <!-- Preload critical modules for faster initial load -->
@@ -49,5 +120,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Adiciona classe 'loaded' ao body quando o DOM estiver pronto
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          requestAnimationFrame(() => {
+            document.body.classList.add('loaded');
+          });
+        });
+      } else {
+        requestAnimationFrame(() => {
+          document.body.classList.add('loaded');
+        });
+      }
+    </script>
   </body>
 </html>

@@ -29,6 +29,7 @@ import { ThemeProvider } from "next-themes";
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
 import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
+import { PageTransition } from '@/components/PageTransition';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -42,10 +43,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 mx-auto" />
+            <Skeleton className="h-3 w-24 mx-auto" />
+          </div>
         </div>
       </div>
     );
@@ -87,17 +91,37 @@ const AppContent = () => {
     <StudyProvider>
       <Suspense fallback={
         <Layout>
-          <div className="p-4 md:p-6">
-            <div className="max-w-7xl mx-auto space-y-4">
-              <Skeleton className="h-14 w-full rounded-lg" />
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[1,2,3,4].map(i => (
-                  <Skeleton key={i} className="h-24 rounded-lg" />
-                ))}
+          <PageTransition>
+            <div className="p-4 md:p-6 animate-fade-in">
+              <div className="max-w-7xl mx-auto space-y-6">
+                {/* Header skeleton */}
+                <div className="space-y-3">
+                  <Skeleton className="h-8 w-48 rounded-lg" />
+                  <Skeleton className="h-4 w-72 rounded-lg" />
+                </div>
+                
+                {/* Cards grid skeleton */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="space-y-3 p-4 border border-border rounded-lg bg-card">
+                      <Skeleton className="h-12 w-12 rounded-lg" />
+                      <Skeleton className="h-6 w-full rounded-lg" />
+                      <Skeleton className="h-4 w-3/4 rounded-lg" />
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Content skeleton */}
+                <div className="space-y-4">
+                  <Skeleton className="h-[200px] w-full rounded-lg" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Skeleton className="h-[160px] rounded-lg" />
+                    <Skeleton className="h-[160px] rounded-lg" />
+                  </div>
+                </div>
               </div>
-              <Skeleton className="h-64 w-full rounded-lg" />
             </div>
-          </div>
+          </PageTransition>
         </Layout>
       }>
       <Routes>
@@ -110,7 +134,9 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <Home />
+                <PageTransition>
+                  <Home />
+                </PageTransition>
               </Layout>
             </ProtectedRoute>
           }
@@ -122,7 +148,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <StudyGuide />
+                  <PageTransition>
+                    <StudyGuide />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -135,7 +163,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <SimuladoDesempenho />
+                  <PageTransition>
+                    <SimuladoDesempenho />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -148,7 +178,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <Dashboard />
+                  <PageTransition>
+                    <Dashboard />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -161,7 +193,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <IntensivaoEnamed />
+                  <PageTransition>
+                    <IntensivaoEnamed />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -174,7 +208,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <CronogramaEnamed />
+                  <PageTransition>
+                    <CronogramaEnamed />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -187,7 +223,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <UserManagement />
+                  <PageTransition>
+                    <UserManagement />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -200,7 +238,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <IntensivoEnamedUSCS />
+                  <PageTransition>
+                    <IntensivoEnamedUSCS />
+                  </PageTransition>
                 </Layout>
               </ProtectedRoute>
             }
@@ -212,7 +252,9 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <Analytics />
+                <PageTransition>
+                  <Analytics />
+                </PageTransition>
               </Layout>
             </ProtectedRoute>
           }
