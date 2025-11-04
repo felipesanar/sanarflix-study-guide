@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' &&
     componentTagger(),
-    // PWA apenas em produção para evitar problemas de manifest/CORS no preview
+    // PWA desabilitado temporariamente para testes de MIME type
+    /*
     mode === 'production' &&
     VitePWA({
       devOptions: {
@@ -95,6 +96,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
     }),
+    */
     // Brotli compression for all static assets
     viteCompression({
       verbose: false,
