@@ -91,17 +91,6 @@
     </style>
     <!-- Preload critical logo image for above-the-fold rendering -->
     <link rel="preload" as="image" href="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" />
-    <!-- Preload critical modules for faster initial load -->
-    <link rel="modulepreload" href="/src/main.tsx" />
-    <script>
-      // Force React to load first by ensuring vendor chunk is prioritized
-      if ('modulepreload' in HTMLLinkElement.prototype) {
-        const reactPreload = document.createElement('link');
-        reactPreload.rel = 'modulepreload';
-        reactPreload.as = 'script';
-        document.head.appendChild(reactPreload);
-      }
-    </script>
 
     <link rel="icon" type="image/png" href="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" />
     <link rel="apple-touch-icon" href="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" />
