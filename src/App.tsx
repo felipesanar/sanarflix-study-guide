@@ -26,6 +26,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
 const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m => ({ default: m.CronogramaEnamed })));
 import { ThemeProvider } from "next-themes";
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
@@ -81,12 +82,19 @@ const AppContent = () => {
   return (
     <StudyProvider>
       <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando...</p>
+        <Layout>
+          <div className="p-4 md:p-6">
+            <div className="max-w-7xl mx-auto space-y-4">
+              <Skeleton className="h-14 w-full rounded-lg" />
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[1,2,3,4].map(i => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))}
+              </div>
+              <Skeleton className="h-64 w-full rounded-lg" />
+            </div>
           </div>
-        </div>
+        </Layout>
       }>
       <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
