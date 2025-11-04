@@ -16,19 +16,7 @@ Deno.serve(async (req) => {
     console.log('get-study-contents: Method:', req.method);
     console.log('get-study-contents: Headers:', Object.fromEntries(req.headers.entries()));
 
-    // Create Supabase client with service role to bypass RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    // Get the authorization header
+    // Get the authorization header first
     const authHeader = req.headers.get('Authorization');
     console.log('get-study-contents: Auth header present:', !!authHeader);
     
@@ -40,11 +28,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create Supabase client with user's token to verify authentication
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+        auth: {
+          persistSession: false,
+        },
+      }
+    );
+
     // Verify the user's JWT token
-    const token = authHeader.replace('Bearer ', '');
     console.log('get-study-contents: Verifying token...');
-    
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
 
     if (authError) {
       console.error('get-study-contents: Auth error:', authError);
@@ -63,6 +65,18 @@ Deno.serve(async (req) => {
     }
 
     console.log('get-study-contents: User authenticated:', user.id);
+
+    // Now create admin client to fetch data bypassing RLS
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
