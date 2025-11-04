@@ -1,5 +1,4 @@
-import * as React from 'react';
-const { useState } = React;
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, Check } from 'lucide-react';

@@ -1,5 +1,4 @@
-import * as React from 'react';
-const { createContext, useContext, useState } = React;
+import React, { createContext, useContext, useState } from 'react';
 type ReactNode = React.ReactNode;
 
 // Tipos de promoções que podem ser exibidas

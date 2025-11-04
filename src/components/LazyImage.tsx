@@ -1,5 +1,4 @@
-import * as React from 'react';
-const { useState, useEffect, useRef } = React;
+import React, { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {

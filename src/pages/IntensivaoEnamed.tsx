@@ -1,5 +1,4 @@
-import * as React from 'react';
-const { useState, useMemo, useCallback, useEffect } = React;
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import guiaEstudosBanner from '@/assets/guia-estudos-banner.png';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';

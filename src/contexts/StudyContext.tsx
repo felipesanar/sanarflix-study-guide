@@ -1,5 +1,4 @@
-import * as React from 'react';
-const { createContext, useContext, useState, useEffect } = React;
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StudyContextType, StudyContent, Progress } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';

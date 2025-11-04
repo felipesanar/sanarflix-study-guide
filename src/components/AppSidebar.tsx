@@ -1,5 +1,4 @@
-import * as React from "react";
-const { useState } = React;
+import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
