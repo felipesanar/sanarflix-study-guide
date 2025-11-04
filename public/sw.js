@@ -96,7 +96,8 @@ async function cacheFirst(request, cacheName) {
   
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // Só cacheia GET requests com respostas OK
+    if (response.ok && request.method === 'GET') {
       cache.put(request, response.clone());
     }
     return response;
@@ -112,7 +113,8 @@ async function staleWhileRevalidate(request, cacheName) {
   const cached = await cache.match(request);
   
   const fetchPromise = fetch(request).then((response) => {
-    if (response.ok) {
+    // Só cacheia GET requests com respostas OK
+    if (response.ok && request.method === 'GET') {
       cache.put(request, response.clone());
     }
     return response;
@@ -128,7 +130,8 @@ async function staleWhileRevalidate(request, cacheName) {
 async function networkFirst(request, cacheName) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // Só cacheia GET requests com respostas OK
+    if (response.ok && request.method === 'GET') {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
@@ -155,6 +158,16 @@ self.addEventListener('fetch', (event) => {
   
   // Ignora requisições de chrome-extension, etc
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+  
+  // Ignora requisições POST, PUT, DELETE (só cacheia GET)
+  if (request.method !== 'GET') {
+    return;
+  }
+  
+  // Ignora auth-bridge e outras URLs problemáticas
+  if (url.hostname === 'lovable.dev' || url.pathname.includes('auth-bridge')) {
     return;
   }
   
