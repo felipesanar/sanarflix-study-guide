@@ -16,10 +16,10 @@ interface PageWrapperProps {
 export const PageWrapper = ({ 
   children, 
   loadingMessage,
-  minLoadTime = 600,
+  minLoadTime = 0,
   waitForData = true,
   skeleton,
-  enforceMinTime = true
+  enforceMinTime = false
 }: PageWrapperProps) => {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
