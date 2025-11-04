@@ -1,3 +1,5 @@
+import { fetchWithCache } from '@/utils/performanceCache';
+
 const STUDY_GUIDE_API_BASE_URL = 'https://gvqvrmkizemwsasmupmo.functions.supabase.co/study-guide-proxy';
 
 export interface ApiAula {
@@ -117,34 +119,50 @@ function toApiMaterias(materias: RemoteMateria[]): ApiMateria[] {
 export const studyGuideApi = {
   // Lista os semestres disponíveis para uma IES pelo NOME (não por ID)
   async getSemestresByIES(iesName: string): Promise<ApiSemestre[]> {
-    try {
-      const safeName = encodeURIComponent((iesName || '').trim());
-      const data: IESResponse = await fetchJsonFromHtml(`${STUDY_GUIDE_API_BASE_URL}/${safeName}`);
-      const topKey = Object.keys(data)[0];
-      const iesKey = (data as any)[decodeURIComponent(safeName)] ? decodeURIComponent(safeName) : topKey;
-      const semestresKeys = Object.keys((data as any)[iesKey] || {});
-      const numeros = semestresKeys
-        .map((k) => parseInt(k, 10))
-        .filter((n) => !Number.isNaN(n))
-        .sort((a, b) => a - b);
-      return numeros.map((numero) => ({ id: `${iesKey}-${numero}`, numero, materias: [] }));
-    } catch (error) {
-      throw error;
-    }
+    const cacheKey = `study_semestres_${iesName}`;
+    
+    return fetchWithCache(
+      cacheKey,
+      async () => {
+        try {
+          const safeName = encodeURIComponent((iesName || '').trim());
+          const data: IESResponse = await fetchJsonFromHtml(`${STUDY_GUIDE_API_BASE_URL}/${safeName}`);
+          const topKey = Object.keys(data)[0];
+          const iesKey = (data as any)[decodeURIComponent(safeName)] ? decodeURIComponent(safeName) : topKey;
+          const semestresKeys = Object.keys((data as any)[iesKey] || {});
+          const numeros = semestresKeys
+            .map((k) => parseInt(k, 10))
+            .filter((n) => !Number.isNaN(n))
+            .sort((a, b) => a - b);
+          return numeros.map((numero) => ({ id: `${iesKey}-${numero}`, numero, materias: [] }));
+        } catch (error) {
+          throw error;
+        }
+      },
+      30 * 60 * 1000 // 30 minutos
+    );
   },
 
   // Retorna as matérias para uma IES (NOME) e semestre (número)
   async getMateriasBySemestre(iesName: string, semestreNumero: number): Promise<ApiMateria[]> {
-    try {
-      const safeName = encodeURIComponent((iesName || '').trim());
-      const url = `${STUDY_GUIDE_API_BASE_URL}/${safeName}/${semestreNumero}`;
-      const data: IESResponse = await fetchJsonFromHtml(url);
-      const topKey = Object.keys(data)[0];
-      const iesKey = (data as any)[decodeURIComponent(safeName)] ? decodeURIComponent(safeName) : topKey;
-      const raw = (data as any)[iesKey]?.[String(semestreNumero)] || [];
-      return toApiMaterias(raw as RemoteMateria[]);
-    } catch (error) {
-      throw error;
-    }
+    const cacheKey = `study_materias_${iesName}_${semestreNumero}`;
+    
+    return fetchWithCache(
+      cacheKey,
+      async () => {
+        try {
+          const safeName = encodeURIComponent((iesName || '').trim());
+          const url = `${STUDY_GUIDE_API_BASE_URL}/${safeName}/${semestreNumero}`;
+          const data: IESResponse = await fetchJsonFromHtml(url);
+          const topKey = Object.keys(data)[0];
+          const iesKey = (data as any)[decodeURIComponent(safeName)] ? decodeURIComponent(safeName) : topKey;
+          const raw = (data as any)[iesKey]?.[String(semestreNumero)] || [];
+          return toApiMaterias(raw as RemoteMateria[]);
+        } catch (error) {
+          throw error;
+        }
+      },
+      30 * 60 * 1000 // 30 minutos
+    );
   },
 };

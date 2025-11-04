@@ -41,10 +41,11 @@ const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })))
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos (antes era cacheTime)
+      staleTime: 30 * 60 * 1000, // 30 minutos - dados são considerados "fresh"
+      gcTime: 60 * 60 * 1000, // 1 hora - mantém em cache mesmo inativo
       refetchOnWindowFocus: false,
-      refetchOnReconnect: true,
+      refetchOnReconnect: false, // Não revalidar em reconexão
+      refetchOnMount: false, // Não revalidar ao montar se há cache
       retry: 1,
     },
   },
