@@ -123,8 +123,9 @@ const AppContent = () => {
               <Layout>
                 <PageWrapper 
                   loadingMessage="Carregando início..." 
-                  minLoadTime={500} 
+                  minLoadTime={1000} 
                   waitForData={true}
+                  enforceMinTime={true}
                   skeleton={<HomePageSkeleton />}
                 >
                   <Home />
@@ -142,8 +143,9 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando guia de estudos..." 
-                    minLoadTime={500} 
+                    minLoadTime={1000} 
                     waitForData={true}
+                    enforceMinTime={true}
                     skeleton={<StudyGuideSkeleton />}
                   >
                     <StudyGuide />
@@ -160,7 +162,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando desempenho..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando desempenho..." 
+                    minLoadTime={1000} 
+                    waitForData={true}
+                    enforceMinTime={true}
+                  >
                     <SimuladoDesempenho />
                   </PageWrapper>
                 </Layout>
@@ -177,8 +184,9 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando dashboard..." 
-                    minLoadTime={500} 
+                    minLoadTime={1000} 
                     waitForData={true}
+                    enforceMinTime={true}
                     skeleton={<DashboardSkeleton />}
                   >
                     <Dashboard />
@@ -197,8 +205,9 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando intensivão..." 
-                    minLoadTime={500} 
+                    minLoadTime={1000} 
                     waitForData={true}
+                    enforceMinTime={true}
                     skeleton={<IntensivaoSkeleton />}
                   >
                     <IntensivaoEnamed />
@@ -217,8 +226,9 @@ const AppContent = () => {
                 <Layout>
                   <PageWrapper 
                     loadingMessage="Carregando cronograma..." 
-                    minLoadTime={500} 
+                    minLoadTime={1000} 
                     waitForData={true}
+                    enforceMinTime={true}
                     skeleton={<IntensivaoSkeleton />}
                   >
                     <CronogramaEnamed />
@@ -235,7 +245,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando gestão..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando gestão..." 
+                    minLoadTime={1000} 
+                    waitForData={true}
+                    enforceMinTime={true}
+                  >
                     <UserManagement />
                   </PageWrapper>
                 </Layout>
@@ -250,7 +265,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando intensivo USCS..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando intensivo USCS..." 
+                    minLoadTime={1000} 
+                    waitForData={true}
+                    enforceMinTime={true}
+                  >
                     <IntensivoEnamedUSCS />
                   </PageWrapper>
                 </Layout>
@@ -264,7 +284,12 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageWrapper loadingMessage="Carregando analytics..." minLoadTime={500} waitForData={true}>
+                <PageWrapper 
+                  loadingMessage="Carregando analytics..." 
+                  minLoadTime={1000} 
+                  waitForData={true}
+                  enforceMinTime={true}
+                >
                   <Analytics />
                 </PageWrapper>
               </Layout>
