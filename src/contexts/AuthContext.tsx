@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import Logger from '@/utils/logger';
 import { validateUser } from '@/utils/validation';
+import { useTabSync } from '@/hooks/useTabSync';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -11,6 +12,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
+
+  // Tab sync handler
+  const handleTabSync = useCallback((message: { type: string; data?: any }) => {
+    if (message.type === 'LOGOUT') {
+      setUser(null);
+      setNeedsPasswordChange(false);
+      localStorage.removeItem('sanarflix-user');
+    } else if (message.type === 'LOGIN' && message.data) {
+      setUser(message.data);
+      setNeedsPasswordChange(false);
+    }
+  }, []);
+
+  const { broadcast } = useTabSync(handleTabSync);
 
   useEffect(() => {
     // 1) Listener síncrono do estado de auth (evita deadlocks)
@@ -156,6 +171,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // SECURITY: Store minimal user data in localStorage, roles fetched from server
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       
+      // Broadcast login para outras abas
+      broadcast({ type: 'LOGIN', data: userData });
+      
       // Cache otimizado de dados do usuário
       import('../utils/performanceCache').then(({ performanceCache }) => {
         performanceCache.setUserData(userData);
@@ -270,6 +288,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    // Broadcast logout para outras abas
+    broadcast({ type: 'LOGOUT' });
+    
     try {
       // Encerra sessão do Supabase (dispara SIGNED_OUT)
       supabase.auth.signOut();

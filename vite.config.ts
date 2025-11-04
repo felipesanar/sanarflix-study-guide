@@ -122,17 +122,21 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Garantir que react e react-dom estejam no vendor chunk principal
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
+            // React DEVE ser carregado primeiro - chunk único com todas dependências
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler') || id.includes('@radix-ui')) {
+              return 'react-vendor';
             }
-            if (id.includes('@radix-ui')) {
-              return 'vendor-ui';
+            
+            // Libs de dados separadas
+            if (id.includes('@tanstack') || id.includes('@supabase')) {
+              return 'vendor-data';
             }
+            
             return 'vendor';
           }
         },
+        chunkFileNames: 'assets/[name]-[hash].js',
       },
     },
   },
