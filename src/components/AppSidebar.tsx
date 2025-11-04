@@ -358,13 +358,18 @@ export function AppSidebar() {
                     </CollapsibleTrigger>
                     <CollapsibleContent 
                       id="submenu-guia-estudos"
-                      className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                      className="overflow-hidden data-[state=open]:animate-drawer-slide-down data-[state=closed]:animate-drawer-slide-up"
                     >
-                      <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
+                      <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6">
                         {studyGuideItems
                           .filter((item) => accessRules[item.accessKey])
                           .map((item, idx) => (
-                            <SidebarMenuItem key={item.title}>
+                            <SidebarMenuItem 
+                              key={item.title}
+                              style={{
+                                animation: studyGuideOpen ? `fade-in 0.3s ease-out ${idx * 0.05}s both` : 'none'
+                              }}
+                            >
                               <SidebarMenuButton asChild>
                                 <NavLink to={item.url} end className={getChildNavCls}>
                                   <MenuItem
