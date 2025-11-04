@@ -106,7 +106,7 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageWrapper loadingMessage="Carregando início..." minLoadTime={600}>
+                <PageWrapper loadingMessage="Carregando início..." minLoadTime={500} waitForData={true}>
                   <Home />
                 </PageWrapper>
               </Layout>
@@ -120,7 +120,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando guia de estudos..." minLoadTime={900}>
+                  <PageWrapper loadingMessage="Carregando guia de estudos..." minLoadTime={500} waitForData={true}>
                     <StudyGuide />
                   </PageWrapper>
                 </Layout>
@@ -135,7 +135,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando desempenho..." minLoadTime={1000}>
+                  <PageWrapper loadingMessage="Carregando desempenho..." minLoadTime={500} waitForData={true}>
                     <SimuladoDesempenho />
                   </PageWrapper>
                 </Layout>
@@ -150,7 +150,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando dashboard..." minLoadTime={900}>
+                  <PageWrapper loadingMessage="Carregando dashboard..." minLoadTime={500} waitForData={true}>
                     <Dashboard />
                   </PageWrapper>
                 </Layout>
@@ -165,7 +165,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando intensivão..." minLoadTime={1000}>
+                  <PageWrapper loadingMessage="Carregando intensivão..." minLoadTime={500} waitForData={true}>
                     <IntensivaoEnamed />
                   </PageWrapper>
                 </Layout>
@@ -180,7 +180,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando cronograma..." minLoadTime={1000}>
+                  <PageWrapper loadingMessage="Carregando cronograma..." minLoadTime={500} waitForData={true}>
                     <CronogramaEnamed />
                   </PageWrapper>
                 </Layout>
@@ -195,7 +195,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando gestão..." minLoadTime={900}>
+                  <PageWrapper loadingMessage="Carregando gestão..." minLoadTime={500} waitForData={true}>
                     <UserManagement />
                   </PageWrapper>
                 </Layout>
@@ -210,7 +210,7 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando intensivo USCS..." minLoadTime={1000}>
+                  <PageWrapper loadingMessage="Carregando intensivo USCS..." minLoadTime={500} waitForData={true}>
                     <IntensivoEnamedUSCS />
                   </PageWrapper>
                 </Layout>
@@ -224,7 +224,7 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageWrapper loadingMessage="Carregando analytics..." minLoadTime={1000}>
+                <PageWrapper loadingMessage="Carregando analytics..." minLoadTime={500} waitForData={true}>
                   <Analytics />
                 </PageWrapper>
               </Layout>

@@ -1,24 +1,34 @@
 import { ReactNode, useState, useEffect, useRef } from 'react';
+import { useIsFetching, useIsMutating } from '@tanstack/react-query';
 import { PageLoader } from './PageLoader';
 import { PageTransition } from './PageTransition';
 
 interface PageWrapperProps {
   children: ReactNode;
   loadingMessage?: string;
-  minLoadTime?: number; // tempo mínimo de loading em ms para evitar flash
+  minLoadTime?: number;
+  waitForData?: boolean; // Se deve aguardar dados da API
 }
 
 export const PageWrapper = ({ 
   children, 
   loadingMessage,
-  minLoadTime = 800 // Aumentado para 800ms para garantir carregamento completo
+  minLoadTime = 800,
+  waitForData = true // Por padrão, aguarda dados da API
 }: PageWrapperProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [contentReady, setContentReady] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
   const mountTimeRef = useRef(Date.now());
+  const hasShownContentRef = useRef(false);
+  
+  // Monitora se há requisições em andamento
+  const isFetching = useIsFetching();
+  const isMutating = useIsMutating();
+  const hasActiveRequests = isFetching > 0 || isMutating > 0;
 
+  // Marca conteúdo como pronto no DOM
   useEffect(() => {
-    // Aguarda o conteúdo estar no DOM
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setContentReady(true);
@@ -26,22 +36,33 @@ export const PageWrapper = ({
     });
   }, []);
 
+  // Controla o tempo mínimo
   useEffect(() => {
-    if (!contentReady) return;
-
     const elapsedTime = Date.now() - mountTimeRef.current;
     const remainingTime = Math.max(0, minLoadTime - elapsedTime);
 
-    // Aguarda o tempo mínimo E o conteúdo estar pronto
     const timer = setTimeout(() => {
-      // Adiciona um frame extra para garantir que tudo foi renderizado
-      requestAnimationFrame(() => {
-        setIsLoading(false);
-      });
+      setMinTimeElapsed(true);
     }, remainingTime);
 
     return () => clearTimeout(timer);
-  }, [contentReady, minLoadTime]);
+  }, [minLoadTime]);
+
+  // Decide quando parar o loading
+  useEffect(() => {
+    // Só no primeiro carregamento
+    if (hasShownContentRef.current) return;
+
+    const shouldShow = contentReady && minTimeElapsed && (!waitForData || !hasActiveRequests);
+
+    if (shouldShow) {
+      // Aguarda um frame extra para garantir renderização completa
+      requestAnimationFrame(() => {
+        setIsLoading(false);
+        hasShownContentRef.current = true;
+      });
+    }
+  }, [contentReady, minTimeElapsed, hasActiveRequests, waitForData]);
 
   if (isLoading) {
     return <PageLoader message={loadingMessage} />;
