@@ -28,25 +28,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's token to verify authentication
-    const supabaseUser = createClient(
+    // Extract token from Bearer header
+    const token = authHeader.replace('Bearer ', '');
+    console.log('get-study-contents: Token extracted, length:', token.length);
+
+    // Create admin client to verify JWT token
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
-        global: {
-          headers: {
-            Authorization: authHeader,
-          },
-        },
         auth: {
-          persistSession: false,
-        },
+          autoRefreshToken: false,
+          persistSession: false
+        }
       }
     );
 
-    // Verify the user's JWT token
+    // Verify the user's JWT token by passing it directly
     console.log('get-study-contents: Verifying token...');
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError) {
       console.error('get-study-contents: Auth error:', authError);
@@ -65,18 +65,6 @@ Deno.serve(async (req) => {
     }
 
     console.log('get-study-contents: User authenticated:', user.id);
-
-    // Now create admin client to fetch data bypassing RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
