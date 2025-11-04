@@ -30,6 +30,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
 import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 import { PageTransition } from '@/components/PageTransition';
+import { PageWrapper } from '@/components/PageWrapper';
+import { PageLoader } from '@/components/PageLoader';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -91,37 +93,7 @@ const AppContent = () => {
     <StudyProvider>
       <Suspense fallback={
         <Layout>
-          <PageTransition>
-            <div className="p-4 md:p-6 animate-fade-in">
-              <div className="max-w-7xl mx-auto space-y-6">
-                {/* Header skeleton */}
-                <div className="space-y-3">
-                  <Skeleton className="h-8 w-48 rounded-lg" />
-                  <Skeleton className="h-4 w-72 rounded-lg" />
-                </div>
-                
-                {/* Cards grid skeleton */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className="space-y-3 p-4 border border-border rounded-lg bg-card">
-                      <Skeleton className="h-12 w-12 rounded-lg" />
-                      <Skeleton className="h-6 w-full rounded-lg" />
-                      <Skeleton className="h-4 w-3/4 rounded-lg" />
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Content skeleton */}
-                <div className="space-y-4">
-                  <Skeleton className="h-[200px] w-full rounded-lg" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Skeleton className="h-[160px] rounded-lg" />
-                    <Skeleton className="h-[160px] rounded-lg" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </PageTransition>
+          <PageLoader message="Carregando aplicação..." />
         </Layout>
       }>
       <Routes>
@@ -134,9 +106,9 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageTransition>
+                <PageWrapper loadingMessage="Carregando início...">
                   <Home />
-                </PageTransition>
+                </PageWrapper>
               </Layout>
             </ProtectedRoute>
           }
@@ -148,9 +120,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando guia de estudos...">
                     <StudyGuide />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -163,9 +135,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando desempenho...">
                     <SimuladoDesempenho />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -178,9 +150,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando dashboard...">
                     <Dashboard />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -193,9 +165,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando intensivão...">
                     <IntensivaoEnamed />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -208,9 +180,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando cronograma...">
                     <CronogramaEnamed />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -223,9 +195,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando gestão...">
                     <UserManagement />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -238,9 +210,9 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageTransition>
+                  <PageWrapper loadingMessage="Carregando intensivo USCS...">
                     <IntensivoEnamedUSCS />
-                  </PageTransition>
+                  </PageWrapper>
                 </Layout>
               </ProtectedRoute>
             }
@@ -252,9 +224,9 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageTransition>
+                <PageWrapper loadingMessage="Carregando analytics...">
                   <Analytics />
-                </PageTransition>
+                </PageWrapper>
               </Layout>
             </ProtectedRoute>
           }
