@@ -5,6 +5,7 @@ import './index.css';
 import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary';
 import { runStartupDiagnostics } from './utils/diagnostics';
 import { preloadCommonResources, setupLinkPrefetch } from './utils/preload';
+import { registerServiceWorker } from './utils/serviceWorker';
 
 // Run diagnostics before rendering
 if (!runStartupDiagnostics()) {
@@ -32,10 +33,12 @@ if (!runStartupDiagnostics()) {
   if (document.readyState === 'complete') {
     preloadCommonResources();
     setupLinkPrefetch();
+    registerServiceWorker();
   } else {
     window.addEventListener('load', () => {
       preloadCommonResources();
       setupLinkPrefetch();
+      registerServiceWorker();
     });
   }
 }

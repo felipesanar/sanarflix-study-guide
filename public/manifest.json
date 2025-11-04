@@ -1,0 +1,21 @@
+{
+  "name": "Sanarflix - Guia de Estudos",
+  "short_name": "Sanarflix",
+  "description": "Plataforma de estudos desenvolvida em parceria com faculdades",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0EA5E9",
+  "icons": [
+    {
+      "src": "/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
