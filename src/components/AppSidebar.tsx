@@ -356,28 +356,29 @@ export function AppSidebar() {
                         )}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
-                    {studyGuideOpen && (
-                      <CollapsibleContent id="submenu-guia-estudos">
-                        <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
-                          {studyGuideItems
-                            .filter((item) => accessRules[item.accessKey])
-                            .map((item, idx) => (
-                              <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton asChild>
-                                  <NavLink to={item.url} end className={getChildNavCls}>
-                                    <MenuItem
-                                      item={item}
-                                      className="py-2"
-                                      isActive={currentPath === item.url}
-                                      delay={idx * 0.1}
-                                    />
-                                  </NavLink>
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                      </CollapsibleContent>
-                    )}
+                    <CollapsibleContent 
+                      id="submenu-guia-estudos"
+                      className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                    >
+                      <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6 transition-all duration-300">
+                        {studyGuideItems
+                          .filter((item) => accessRules[item.accessKey])
+                          .map((item, idx) => (
+                            <SidebarMenuItem key={item.title}>
+                              <SidebarMenuButton asChild>
+                                <NavLink to={item.url} end className={getChildNavCls}>
+                                  <MenuItem
+                                    item={item}
+                                    className="py-2"
+                                    isActive={currentPath === item.url}
+                                    delay={idx * 0.1}
+                                  />
+                                </NavLink>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                      </SidebarMenu>
+                    </CollapsibleContent>
                   </Collapsible>
                 </SidebarMenuItem>
 
