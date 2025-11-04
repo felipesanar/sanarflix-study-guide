@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.custom-email-templates]
 verify_jwt = false
+
+[functions.get-study-contents]
+verify_jwt = true

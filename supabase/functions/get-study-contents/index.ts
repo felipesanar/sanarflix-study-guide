@@ -12,6 +12,10 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('get-study-contents: Request received');
+    console.log('get-study-contents: Method:', req.method);
+    console.log('get-study-contents: Headers:', Object.fromEntries(req.headers.entries()));
+
     // Create Supabase client with service role to bypass RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -26,7 +30,10 @@ Deno.serve(async (req) => {
 
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
+    console.log('get-study-contents: Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('get-study-contents: Missing authorization header');
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -35,14 +42,27 @@ Deno.serve(async (req) => {
 
     // Verify the user's JWT token
     const token = authHeader.replace('Bearer ', '');
+    console.log('get-study-contents: Verifying token...');
+    
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (authError || !user) {
+    if (authError) {
+      console.error('get-study-contents: Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
+        JSON.stringify({ error: 'Invalid token', details: authError.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (!user) {
+      console.error('get-study-contents: No user found');
+      return new Response(
+        JSON.stringify({ error: 'User not found' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('get-study-contents: User authenticated:', user.id);
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
@@ -51,12 +71,23 @@ Deno.serve(async (req) => {
       .eq('id', user.id)
       .single();
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error('get-study-contents: User fetch error:', userError);
       return new Response(
-        JSON.stringify({ error: 'User not found' }),
+        JSON.stringify({ error: 'Failed to fetch user data', details: userError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!userData) {
+      console.error('get-study-contents: User data not found');
+      return new Response(
+        JSON.stringify({ error: 'User not found in database' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('get-study-contents: User IES:', userData.id_ies, 'Semester:', userData.semestre);
 
     // Fetch conteudos for the user's IES
     const { data: conteudos, error: conteudosError } = await supabaseAdmin
@@ -65,12 +96,14 @@ Deno.serve(async (req) => {
       .eq('id_ies', userData.id_ies);
 
     if (conteudosError) {
-      console.error('Error fetching conteudos:', conteudosError);
+      console.error('get-study-contents: Error fetching conteudos:', conteudosError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch conteudos', details: conteudosError }),
+        JSON.stringify({ error: 'Failed to fetch conteudos', details: conteudosError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('get-study-contents: Found', conteudos?.length || 0, 'conteudos');
 
     return new Response(
       JSON.stringify({ data: conteudos || [] }),
@@ -78,7 +111,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in get-study-contents function:', error);
+    console.error('get-study-contents: Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
