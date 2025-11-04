@@ -11,103 +11,12 @@
     <title>Guia de Estudos Sanarflix</title>
     <meta name="description" content="Guia de Estudos Personalizado para Medicina - Sanarflix" />
     <meta name="author" content="Sanarflix" />
-    
-    <!-- Critical CSS Inline - Prevents FOUC -->
-    <style>
-      /* Critical styles for immediate render */
-      :root {
-        --background: 0 0% 100%;
-        --foreground: 222.2 84% 4.9%;
-        --primary: 221.2 83.2% 53.3%;
-        --primary-foreground: 210 40% 98%;
-      }
-      
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      html, body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-        background-color: hsl(var(--background));
-        color: hsl(var(--foreground));
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-      
-      #root {
-        min-height: 100vh;
-      }
-      
-      /* Branded Loading Screen */
-      .initial-loader {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, hsl(221.2 83.2% 53.3%), hsl(221.2 83.2% 43.3%));
-        z-index: 9999;
-        transition: opacity 0.5s ease-out;
-      }
-      
-      .initial-loader.hidden {
-        opacity: 0;
-        pointer-events: none;
-      }
-      
-      .loader-logo {
-        width: 120px;
-        height: 120px;
-        margin-bottom: 32px;
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-      
-      .loader-spinner {
-        width: 48px;
-        height: 48px;
-        border: 4px solid rgba(255, 255, 255, 0.2);
-        border-top-color: white;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      }
-      
-      .loader-text {
-        margin-top: 24px;
-        color: white;
-        font-size: 16px;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-      }
-      
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-      
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.8; }
-      }
-      
-      /* Prevent flash of unstyled content */
-      body:not(.loaded) #root {
-        opacity: 0;
-      }
-      
-      body.loaded #root {
-        opacity: 1;
-        transition: opacity 0.3s ease-in;
-      }
-    </style>
     <!-- DNS Prefetch & Preconnect for critical domains -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Preload critical logo image for above-the-fold rendering -->
     <link rel="preload" as="image" href="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" />
     <!-- Preload critical modules for faster initial load -->
@@ -136,33 +45,7 @@
   </head>
 
   <body>
-    <!-- Branded Initial Loading Screen -->
-    <div class="initial-loader" id="initial-loader">
-      <img 
-        src="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" 
-        alt="Sanarflix Logo" 
-        class="loader-logo"
-      />
-      <div class="loader-spinner"></div>
-      <p class="loader-text">Carregando plataforma...</p>
-    </div>
-    
     <div id="root"></div>
-    
-    <script>
-      // Hide loader when React is ready
-      window.addEventListener('load', () => {
-        setTimeout(() => {
-          const loader = document.getElementById('initial-loader');
-          if (loader) {
-            loader.classList.add('hidden');
-            setTimeout(() => loader.remove(), 500);
-          }
-          document.body.classList.add('loaded');
-        }, 100);
-      });
-    </script>
-    
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

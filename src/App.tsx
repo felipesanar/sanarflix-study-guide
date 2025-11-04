@@ -40,10 +40,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto"></div>
-          <p className="text-muted-foreground font-medium">Autenticando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Carregando...</p>
         </div>
       </div>
     );
@@ -81,10 +81,10 @@ const AppContent = () => {
   return (
     <StudyProvider>
       <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary mx-auto"></div>
-            <p className="text-muted-foreground font-medium">Carregando conteúdo...</p>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando...</p>
           </div>
         </div>
       }>

@@ -28,24 +28,12 @@ if (!runStartupDiagnostics()) {
     </React.StrictMode>,
   );
 
-  // Hide initial loader and mark as loaded
-  const hideLoader = () => {
-    const loader = document.getElementById('initial-loader');
-    if (loader) {
-      loader.classList.add('hidden');
-      setTimeout(() => loader.remove(), 500);
-    }
-    document.body.classList.add('loaded');
-  };
-
   // Iniciar preload de recursos após montagem inicial
   if (document.readyState === 'complete') {
-    hideLoader();
     preloadCommonResources();
     setupLinkPrefetch();
   } else {
     window.addEventListener('load', () => {
-      hideLoader();
       preloadCommonResources();
       setupLinkPrefetch();
     });
