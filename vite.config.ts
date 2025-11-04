@@ -121,20 +121,14 @@ export default defineConfig(({ mode }) => ({
     cssMinify: true,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            // React DEVE ser carregado primeiro - chunk único com todas dependências
-            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler') || id.includes('@radix-ui')) {
-              return 'react-vendor';
-            }
-            
-            // Libs de dados separadas
-            if (id.includes('@tanstack') || id.includes('@supabase')) {
-              return 'vendor-data';
-            }
-            
-            return 'vendor';
-          }
+        manualChunks: {
+          // Forçar React e todas suas dependências no mesmo chunk
+          'react-vendor': [
+            'react',
+            'react-dom',
+            'react/jsx-runtime',
+            'scheduler'
+          ],
         },
         chunkFileNames: 'assets/[name]-[hash].js',
       },
