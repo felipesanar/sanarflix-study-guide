@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
 import { AuthWrapper } from '@/components/AuthWrapper';
 import { getAccessRules } from '@/utils/accessRules';
+import { useDataPrefetch } from '@/hooks/useDataPrefetch';
 const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default: m.StudyGuide })));
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const IntensivaoEnamed = lazy(() => import("./pages/IntensivaoEnamed").then(m => ({ default: m.IntensivaoEnamed })));
@@ -32,11 +33,22 @@ import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 import { PageTransition } from '@/components/PageTransition';
 import { PageWrapper } from '@/components/PageWrapper';
 import { PageLoader } from '@/components/PageLoader';
+import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton, IntensivaoSkeleton } from '@/components/skeletons';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutos
+      gcTime: 10 * 60 * 1000, // 10 minutos (antes era cacheTime)
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      retry: 1,
+    },
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -70,6 +82,9 @@ const AppContent = () => {
   
   // Sistema de prefetch inteligente baseado em probabilidade
   useIntelligentPrefetch();
+  
+  // Prefetch de dados das rotas adjacentes
+  useDataPrefetch();
 
 
   if (!user) {
@@ -93,7 +108,7 @@ const AppContent = () => {
     <StudyProvider>
       <Suspense fallback={
         <Layout>
-          <PageLoader message="Carregando aplicação..." />
+          <HomePageSkeleton />
         </Layout>
       }>
       <Routes>
@@ -106,7 +121,12 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <PageWrapper loadingMessage="Carregando início..." minLoadTime={500} waitForData={true}>
+                <PageWrapper 
+                  loadingMessage="Carregando início..." 
+                  minLoadTime={500} 
+                  waitForData={true}
+                  skeleton={<HomePageSkeleton />}
+                >
                   <Home />
                 </PageWrapper>
               </Layout>
@@ -120,7 +140,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando guia de estudos..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando guia de estudos..." 
+                    minLoadTime={500} 
+                    waitForData={true}
+                    skeleton={<StudyGuideSkeleton />}
+                  >
                     <StudyGuide />
                   </PageWrapper>
                 </Layout>
@@ -150,7 +175,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando dashboard..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando dashboard..." 
+                    minLoadTime={500} 
+                    waitForData={true}
+                    skeleton={<DashboardSkeleton />}
+                  >
                     <Dashboard />
                   </PageWrapper>
                 </Layout>
@@ -165,7 +195,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando intensivão..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando intensivão..." 
+                    minLoadTime={500} 
+                    waitForData={true}
+                    skeleton={<IntensivaoSkeleton />}
+                  >
                     <IntensivaoEnamed />
                   </PageWrapper>
                 </Layout>
@@ -180,7 +215,12 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <PageWrapper loadingMessage="Carregando cronograma..." minLoadTime={500} waitForData={true}>
+                  <PageWrapper 
+                    loadingMessage="Carregando cronograma..." 
+                    minLoadTime={500} 
+                    waitForData={true}
+                    skeleton={<IntensivaoSkeleton />}
+                  >
                     <CronogramaEnamed />
                   </PageWrapper>
                 </Layout>

@@ -7,14 +7,16 @@ interface PageWrapperProps {
   children: ReactNode;
   loadingMessage?: string;
   minLoadTime?: number;
-  waitForData?: boolean; // Se deve aguardar dados da API
+  waitForData?: boolean;
+  skeleton?: ReactNode; // Skeleton específico da página
 }
 
 export const PageWrapper = ({ 
   children, 
   loadingMessage,
   minLoadTime = 800,
-  waitForData = true // Por padrão, aguarda dados da API
+  waitForData = true,
+  skeleton
 }: PageWrapperProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [contentReady, setContentReady] = useState(false);
@@ -65,7 +67,8 @@ export const PageWrapper = ({
   }, [contentReady, minTimeElapsed, hasActiveRequests, waitForData]);
 
   if (isLoading) {
-    return <PageLoader message={loadingMessage} />;
+    // Usa skeleton específico se fornecido, senão usa PageLoader genérico
+    return skeleton || <PageLoader message={loadingMessage} />;
   }
 
   return (
