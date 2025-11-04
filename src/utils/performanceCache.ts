@@ -126,3 +126,28 @@ export const fetchWithCache = async <T>(
   
   return data;
 };
+
+// Stale-While-Revalidate: retorna cache imediatamente e revalida em background
+export const swrFetch = async <T>(
+  cacheKey: string,
+  fetchFn: () => Promise<T>,
+  {
+    ttl = 7200000, // 2h
+    onUpdate,
+  }: { ttl?: number; onUpdate?: (data: T) => void } = {}
+): Promise<T | null> => {
+  const cached = performanceCache.getPersistent<T>(cacheKey) || performanceCache.getSession<T>(cacheKey);
+  // Dispara revalidação em background
+  Promise.resolve()
+    .then(fetchFn)
+    .then((fresh) => {
+      performanceCache.setSession(cacheKey, fresh);
+      performanceCache.setPersistent(cacheKey, fresh, ttl);
+      if (onUpdate) onUpdate(fresh);
+    })
+    .catch(() => {
+      // Falhas silenciosas na revalidação não devem quebrar a UI
+    });
+
+  return cached ?? null;
+};

@@ -26,7 +26,7 @@ interface CalendarViewProps {
   onToggleCompletion: (itemKey: string) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompletion }) => {
+const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleCompletion }) => {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<{ subtema: string; items: CalendarItem[] } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -46,6 +46,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     const day = now.getDate().toString().padStart(2, '0');
     const month = (now.getMonth() + 1).toString().padStart(2, '0');
     return `${day}/${month}`;
+  }, []);
+
+  // Stable color generator to avoid flickering on re-renders
+  const colorForKey = React.useCallback((key: string) => {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      hash = ((hash << 5) - hash) + key.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 70%, 50%)`;
   }, []);
 
   // Group items by week first, then by day within each week
@@ -323,7 +334,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                       );
                       
                       const allDone = subMap.every(s => s.completed);
-                      const badgeColor = item.color || `hsl(${Math.random() * 360}, 70%, 50%)`;
+                      const badgeColor = item.color || colorForKey(item.subtema || item.tema || item.itemKey);
                       
                       return (
                         <div
@@ -487,7 +498,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
                             const completedCount = subItems.filter(s => s.completed).length;
                             
                             // Gerar uma cor aleatória para o badge se não existir
-                            const badgeColor = subItems[0]?.color || `hsl(${Math.random() * 360}, 70%, 50%)`;
+                            const badgeColor = subItems[0]?.color || colorForKey(subtema);
                             
                             return (
                               <div
@@ -724,3 +735,5 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ items, onToggleCompl
     </div>
   );
 };
+
+export const CalendarView = React.memo(CalendarViewInner);

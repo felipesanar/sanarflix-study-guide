@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { swrFetch } from '@/utils/performanceCache';
 import { toast } from '@/hooks/use-toast';
 import { useUniversity } from '@/contexts/UniversityContext';
 import { 
@@ -235,7 +236,7 @@ export const StudyGuide: React.FC = () => {
   // Ref to track if data has been loaded
   const hasLoadedData = useRef(false);
 
-  // Fetch conteudos from Supabase - only on mount, not on visibility changes
+  // Fetch conteudos com SWR cache - apenas na montagem ou quando mudar IES/semestre
   useEffect(() => {
     const fetchConteudos = async () => {
       if (!user?.id_ies || !user?.semestre) {
@@ -251,63 +252,76 @@ export const StudyGuide: React.FC = () => {
       try {
         setIsLoading(true);
         const startTime = performance.now();
-        
-        // Tentar cache primeiro
         const cacheKey = `study_contents_${user.id_ies}_${user.semestre}`;
-        const cached = sessionStorage.getItem(cacheKey);
-        
-        if (cached) {
-          try {
-            const cachedData = JSON.parse(cached);
-            const cacheAge = Date.now() - (cachedData.timestamp || 0);
-            
-            // Usar cache se tiver menos de 1 hora
-            if (cacheAge < 3600000) {
-              setConteudos(cachedData.data);
+
+        // SWR: tentar entregar cache instantâneo e revalidar em background
+        const cached = await swrFetch<ConteudoData[]>(
+          cacheKey,
+          async () => {
+            const { data: response, error } = await supabase.functions.invoke('get-study-contents');
+            if (error) throw error;
+            if (!response?.data) throw new Error('Invalid response from server');
+            const transformed: ConteudoData[] = (response.data || []).map((item: any) => ({
+              id: item.id,
+              id_ies: item.id_ies,
+              semestre: item.semestre?.toString() || '',
+              materia: item.materia || '',
+              tema: item.tema || '',
+              subtema: item.subtema || '',
+              aula: item.aula || '',
+              link_aula: item.link_aula,
+              link_pdf: item.link_pdf,
+              link_quiz: item.link_quiz,
+            }));
+            return transformed;
+          },
+          {
+            ttl: 2 * 60 * 60 * 1000,
+            onUpdate: (fresh) => {
+              setConteudos(fresh);
               hasLoadedData.current = true;
-              
-              // Auto-selecionar semestre do usuário após carregar do cache
-              if (user.semestre && !selectedSemestre) {
+              // Auto-select semestre após revalidação
+              if (user.semestre && fresh.length > 0) {
                 const userSemestre = user.semestre.toString();
-                const hasUserSemestre = cachedData.data.some((c: ConteudoData) => 
+                const hasUserSemestre = fresh.some(c => 
                   c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
                 );
-                
                 if (hasUserSemestre) {
                   setSelectedSemestre(userSemestre);
                 } else {
-                  const firstSemestre = cachedData.data[0]?.semestre.replace('º Semestre', '').trim();
-                  if (firstSemestre) {
-                    setSelectedSemestre(firstSemestre);
-                  }
+                  const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
+                  setSelectedSemestre(firstSemestre);
                 }
               }
-              
-              setIsLoading(false);
-              console.log('Loaded from cache in', (performance.now() - startTime).toFixed(2), 'ms');
-              return;
             }
-          } catch (e) {
-            sessionStorage.removeItem(cacheKey);
           }
+        );
+
+        if (cached && cached.length > 0) {
+          setConteudos(cached);
+          hasLoadedData.current = true;
+          // Auto-selecionar semestre baseado no cache
+          if (user.semestre) {
+            const userSemestre = user.semestre.toString();
+            const hasUserSemestre = cached.some(c => 
+              c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+            );
+            if (hasUserSemestre) {
+              setSelectedSemestre(userSemestre);
+            } else {
+              const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
+              setSelectedSemestre(firstSemestre);
+            }
+          }
+          setIsLoading(false);
+          console.log('Loaded from cache in', (performance.now() - startTime).toFixed(2), 'ms');
+          return;
         }
-        
-        // Use edge function to fetch conteudos (bypasses RLS issues)
+
+        // Se não há cache, aguardar primeiro fetch
         const { data: response, error } = await supabase.functions.invoke('get-study-contents');
-
-        if (error) {
-          console.error('Edge function error:', error);
-          throw error;
-        }
-
-        if (!response?.data) {
-          console.error('Invalid response:', response);
-          throw new Error('Invalid response from server');
-        }
-
-        console.log('Conteudos fetched:', response.data.length, 'items');
-
-        // Transform data to match ConteudoData interface
+        if (error) throw error;
+        if (!response?.data) throw new Error('Invalid response from server');
         const transformedData: ConteudoData[] = (response.data || []).map((item: any) => ({
           id: item.id,
           id_ies: item.id_ies,
@@ -320,34 +334,20 @@ export const StudyGuide: React.FC = () => {
           link_pdf: item.link_pdf,
           link_quiz: item.link_quiz,
         }));
-
         setConteudos(transformedData);
         hasLoadedData.current = true;
-        
-        // Armazenar em cache
-        sessionStorage.setItem(cacheKey, JSON.stringify({
-          data: transformedData,
-          timestamp: Date.now()
-        }));
-        
         const loadTime = performance.now() - startTime;
         console.log('Study contents loaded in', loadTime.toFixed(2), 'ms');
-        
-        // Auto-select user's current semester if available
         if (user.semestre && transformedData.length > 0) {
           const userSemestre = user.semestre.toString();
           const hasUserSemestre = transformedData.some(c => 
             c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
           );
-          
           if (hasUserSemestre) {
             setSelectedSemestre(userSemestre);
-            console.log('Auto-selected user semester:', userSemestre);
           } else {
-            // Select first available semester
             const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
             setSelectedSemestre(firstSemestre);
-            console.log('User semester not found, selected first available:', firstSemestre);
           }
         }
       } catch (error) {

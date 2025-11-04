@@ -26,6 +26,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
 const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m => ({ default: m.CronogramaEnamed })));
 import { ThemeProvider } from "next-themes";
+import { ScrollManager } from '@/components/ScrollManager';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -225,6 +226,7 @@ const App = () => {
           <Sonner />
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <BrowserRouter>
+              <ScrollManager />
               <AuthProvider>
                 <AuthWrapper>
                   <AppContent />

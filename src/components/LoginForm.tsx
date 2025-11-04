@@ -82,6 +82,11 @@ export const LoginForm: React.FC = () => {
               src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
               alt="Logo Sanarflix"
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
+              loading="eager"
+              decoding="async"
+              fetchpriority="high"
+              width="48"
+              height="48"
             />
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">Sanarflix</h1>
@@ -181,6 +186,7 @@ export const LoginForm: React.FC = () => {
           alt="Guia de Estudos - Plataforma desenvolvida em parceria com as faculdades para otimizar seus estudos"
           className="w-full h-full object-cover"
           loading="lazy"
+          decoding="async"
         />
       </div>
     </div>
