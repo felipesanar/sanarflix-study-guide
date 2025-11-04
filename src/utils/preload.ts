@@ -2,23 +2,20 @@
  * Sistema de preload inteligente para recursos críticos
  */
 
-// Preload de recursos pós-login (mais agressivo)
+// Preload de recursos pós-login (somente componentes críticos)
 export const preloadPostLoginResources = async (): Promise<void> => {
   const preloads = [
-    import('../pages/StudyGuide'),
-    import('../pages/Home'),
-    import('../components/CalendarView'),
-    import('../components/ProgressCard'),
     import('../components/Layout'),
+    import('../components/ProgressCard'),
   ];
   
   // Preload não-bloqueante com prioridade
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
       Promise.allSettled(preloads);
-    }, { timeout: 2000 });
+    }, { timeout: 3000 });
   } else {
-    Promise.allSettled(preloads);
+    setTimeout(() => Promise.allSettled(preloads), 1000);
   }
 };
 
@@ -61,18 +58,14 @@ export const preloadInteractiveComponents = (): void => {
   }
 };
 
-// Preload estratégico baseado em uso comum
+// Preload estratégico baseado em uso comum (reduzido)
 export const preloadCommonResources = (): void => {
   if ('requestIdleCallback' in window) {
     requestIdleCallback(() => {
       preloadInteractiveComponents();
-      preloadPostLoginResources();
-    }, { timeout: 1000 });
+    }, { timeout: 2000 });
   } else {
-    setTimeout(() => {
-      preloadInteractiveComponents();
-      preloadPostLoginResources();
-    }, 1000);
+    setTimeout(preloadInteractiveComponents, 1500);
   }
 };
 

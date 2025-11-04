@@ -28,6 +28,7 @@ const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m =>
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
+import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -60,6 +61,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const AppContent = () => {
   const { user } = useAuth();
   const accessRules = getAccessRules(user);
+  
+  // Sistema de prefetch inteligente baseado em probabilidade
+  useIntelligentPrefetch();
 
 
   if (!user) {
