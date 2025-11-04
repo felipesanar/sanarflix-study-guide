@@ -1,4 +1,4 @@
-# 📊 Análise Profunda da Aplicação SanarFlix - Guia de Estudos
+# 📊 Análise da Aplicação SanarFlix - Guia de Estudos
 
 ## 🔍 Visão Geral da Aplicação
 
