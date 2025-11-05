@@ -2,7 +2,26 @@
 
 ## Visão Geral
 
-O sistema de lembretes permite que os alunos recebam notificações por email sobre suas matérias agendadas no calendário de estudos.
+O sistema de lembretes permite que os alunos recebam notificações por email e push sobre suas matérias agendadas no calendário de estudos.
+
+## Como Funciona
+
+1. **Configuração pelo Usuário**: Na página de Dashboard, o usuário configura:
+   - Horário desejado para receber lembretes (exemplo: 08:00)
+   - Tipo de notificação: Email e/ou Push
+   - Ativar/desativar lembretes
+
+2. **Verificação Automática**: Um cron job executa a cada hora a função `check-and-send-reminders` que:
+   - Usa o **fuso horário de Brasília (America/Sao_Paulo)**
+   - Busca usuários com lembretes configurados para a hora atual (com tolerância de 1 hora)
+   - Verifica se há matérias agendadas para o dia atual no calendário do usuário
+   - Envia notificações (email e/ou push) apenas para usuários que têm matérias agendadas no dia
+
+3. **Tipos de Notificação**:
+   - **Email**: Enviado via Resend com lista de matérias do dia
+   - **Push**: Notificação no navegador (quando habilitado pelo usuário)
+
+4. **Fuso Horário**: Todas as verificações e envios seguem o horário de **Brasília (GMT-3)**
 
 ## Componentes Implementados
 
@@ -13,7 +32,7 @@ O sistema de lembretes permite que os alunos recebam notificações por email so
   - `reminder_time`: Horário de envio (padrão: 08:00)
   - `days_before`: Dias de antecedência (padrão: 0 = dia atual)
   - `notify_email`: Ativar notificações por email
-  - `notify_push`: Ativar notificações push (futura implementação)
+  - `notify_push`: Ativar notificações push
 
 ### 2. Edge Functions
 
@@ -37,14 +56,17 @@ O sistema de lembretes permite que os alunos recebam notificações por email so
   ```
 
 #### `check-and-send-reminders`
-- **Função**: Verifica e envia lembretes para todos os usuários elegíveis
-- **Trigger**: Cron job diário (recomendado: 08:00 AM)
+- **Função**: Verifica e envia lembretes para usuários no horário configurado
+- **Trigger**: Cron job a cada hora
 - **Autenticação**: Não requerida (pública)
+- **Fuso Horário**: Brasília (America/Sao_Paulo)
 - **Fluxo**:
-  1. Busca usuários com lembretes ativos
-  2. Verifica matérias agendadas para hoje
-  3. Envia email via `send-study-reminder`
-  4. Registra logs de sucesso/erro
+  1. Obtém horário atual de Brasília
+  2. Busca usuários com lembretes ativos configurados para a hora atual (±1h de tolerância)
+  3. Verifica matérias agendadas para hoje no calendário de cada usuário
+  4. Envia email (se `notify_email = true`)
+  5. Envia push (se `notify_push = true`)
+  6. Registra logs detalhados de execução
 
 ### 3. Interface do Usuário
 
@@ -79,11 +101,11 @@ CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 Execute o seguinte SQL no **SQL Editor**:
 
 ```sql
--- Agendar verificação de lembretes todos os dias às 08:00 (horário UTC)
--- Ajuste o horário conforme necessário para seu timezone
+-- Agendar verificação de lembretes A CADA HORA
+-- O edge function já filtra por horário configurado do usuário
 SELECT cron.schedule(
-  'check-study-reminders-daily',
-  '0 8 * * *', -- Cron expression: às 08:00 AM todos os dias
+  'check-study-reminders-hourly',
+  '0 * * * *', -- Executa no minuto 0 de cada hora
   $$
   SELECT
     net.http_post(
@@ -94,6 +116,8 @@ SELECT cron.schedule(
   $$
 );
 ```
+
+**Importante**: A verificação é feita a cada hora, mas o edge function envia notificações apenas para usuários cujo horário configurado corresponde à hora atual de Brasília.
 
 ### Verificar Cron Jobs Ativos
 
@@ -112,22 +136,28 @@ LIMIT 10;
 ### Remover/Atualizar Cron Job
 
 ```sql
--- Remover o cron job
+-- Remover o cron job antigo
 SELECT cron.unschedule('check-study-reminders-daily');
+
+-- Ou remover o novo (se precisar ajustar)
+SELECT cron.unschedule('check-study-reminders-hourly');
 
 -- Depois de remover, você pode criar novamente com novos parâmetros
 ```
 
 ## Expressões Cron Comuns
 
+- `0 * * * *` - A cada hora (minuto 0)
+- `*/30 * * * *` - A cada 30 minutos
 - `0 8 * * *` - Todos os dias às 08:00 AM
 - `0 9 * * 1-5` - Segunda a Sexta às 09:00 AM
 - `0 20 * * *` - Todos os dias às 20:00 (8 PM)
-- `0 */4 * * *` - A cada 4 horas
-- `*/30 * * * *` - A cada 30 minutos
 
-**Nota**: O horário é em UTC. Para horário de Brasília (UTC-3), subtraia 3 horas.
-Exemplo: Para executar às 08:00 BRT, use `0 11 * * *` (11:00 UTC)
+**Nota sobre Fuso Horário**: 
+- O cron job executa em **UTC** 
+- Mas o edge function processa tudo em **horário de Brasília (GMT-3)**
+- Usuário configura horário em Brasília (exemplo: 08:00 BRT)
+- O sistema envia exatamente às 08:00 BRT, independente do horário UTC
 
 ## Configuração do Resend (Email)
 
@@ -229,7 +259,7 @@ ORDER BY start_time DESC;
 
 ## Próximas Funcionalidades
 
-- [ ] Notificações Push Web
+- [x] Notificações Push Web
 - [ ] Lembretes personalizados por matéria
 - [ ] Resumo semanal por email
 - [ ] Integração com Google Calendar

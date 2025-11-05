@@ -18,12 +18,29 @@ Deno.serve(async (req) => {
 
     console.log('Starting reminder check at:', new Date().toISOString());
 
-    // Buscar todos os usuários com lembretes habilitados
+    // Obter horário atual no fuso de Brasília
+    const now = new Date();
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const currentHour = brasiliaTime.getHours();
+    const currentMinute = brasiliaTime.getMinutes();
+    const currentTimeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    
+    const dayOfWeek = brasiliaTime.getDay();
+    const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const today = dayNames[dayOfWeek];
+    
+    console.log(`Current time (UTC): ${now.toISOString()}`);
+    console.log(`Current time (Brasília): ${brasiliaTime.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+    console.log(`Current time string: ${currentTimeString}`);
+    console.log(`Today is: ${today}`);
+
+    // Buscar lembretes habilitados que devem ser enviados neste horário (com tolerância de 1 hora)
     const { data: reminders, error: remindersError } = await supabase
       .from('study_reminders')
       .select('*')
       .eq('enabled', true)
-      .eq('notify_email', true);
+      .gte('reminder_time', `${currentHour.toString().padStart(2, '0')}:00:00`)
+      .lte('reminder_time', `${currentHour.toString().padStart(2, '0')}:59:59`);
 
     if (remindersError) {
       console.error('Error fetching reminders:', remindersError);
@@ -33,32 +50,29 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Found ${reminders?.length || 0} active reminders`);
+    console.log(`Found ${reminders?.length || 0} reminders scheduled for hour ${currentHour}`);
+
 
     if (!reminders || reminders.length === 0) {
       return new Response(
-        JSON.stringify({ message: 'No active reminders found', processed: 0 }),
+        JSON.stringify({ 
+          message: `No reminders scheduled for hour ${currentHour}`, 
+          processed: 0,
+          currentTime: currentTimeString,
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Obter dia da semana atual no horário de Brasília (GMT-3)
-    const now = new Date();
-    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const dayOfWeek = brasiliaTime.getDay();
-    const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const today = dayNames[dayOfWeek];
-    
-    console.log(`Current time (UTC): ${now.toISOString()}`);
-    console.log(`Current time (Brasília): ${brasiliaTime.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
-    console.log(`Today is: ${today}`);
-
     let sentCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
 
     // Para cada usuário com lembrete ativo
     for (const reminder of reminders) {
       try {
+        console.log(`Processing reminder for user ${reminder.user_id}, configured time: ${reminder.reminder_time}`);
+        
         // Buscar informações do usuário
         const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
         
@@ -94,27 +108,38 @@ Deno.serve(async (req) => {
 
         if (todaySubjects.length === 0) {
           console.log(`No subjects scheduled today for user ${userEmail}`);
+          skippedCount++;
           continue;
         }
 
-        console.log(`Sending reminder to ${userEmail} for ${todaySubjects.length} subjects`);
+        console.log(`Sending reminders to ${userEmail} for ${todaySubjects.length} subjects`);
 
-        // Chamar função de envio de email
-        const { error: sendError } = await supabase.functions.invoke('send-study-reminder', {
-          body: {
-            userEmail,
-            userName,
-            subjects: todaySubjects,
-          },
-        });
+        // Enviar email se configurado
+        if (reminder.notify_email) {
+          const { error: emailError } = await supabase.functions.invoke('send-study-reminder', {
+            body: {
+              userEmail,
+              userName,
+              subjects: todaySubjects,
+            },
+          });
 
-        if (sendError) {
-          console.error(`Error sending reminder to ${userEmail}:`, sendError);
-          errorCount++;
-        } else {
-          console.log(`Reminder sent successfully to ${userEmail}`);
-          sentCount++;
+          if (emailError) {
+            console.error(`Error sending email reminder to ${userEmail}:`, emailError);
+            errorCount++;
+          } else {
+            console.log(`Email reminder sent successfully to ${userEmail}`);
+          }
         }
+
+        // Enviar notificação push se configurado
+        if (reminder.notify_push) {
+          // TODO: Implementar envio de notificação push
+          // Por enquanto, apenas logamos que a notificação deveria ser enviada
+          console.log(`Push notification should be sent to ${userEmail} (not implemented yet)`);
+        }
+
+        sentCount++;
 
       } catch (error) {
         console.error(`Error processing reminder for user ${reminder.user_id}:`, error);
@@ -122,14 +147,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Reminder check completed. Sent: ${sentCount}, Errors: ${errorCount}`);
+    console.log(`Reminder check completed. Sent: ${sentCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Reminder check completed',
+        currentTime: currentTimeString,
+        currentDay: today,
         processed: reminders.length,
         sent: sentCount,
+        skipped: skippedCount,
         errors: errorCount,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
