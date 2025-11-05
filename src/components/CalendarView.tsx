@@ -41,11 +41,12 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
   // Ref to scroll to calendar
   const calendarRef = React.useRef<HTMLDivElement>(null);
   
-  // Get today's date in DD/MM format
+  // Get today's date in DD/MM format (Brasília timezone)
   const today = useMemo(() => {
     const now = new Date();
-    const day = now.getDate().toString().padStart(2, '0');
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const day = brasiliaTime.getDate().toString().padStart(2, '0');
+    const month = (brasiliaTime.getMonth() + 1).toString().padStart(2, '0');
     return `${day}/${month}`;
   }, []);
 
