@@ -102,6 +102,8 @@ export const ReminderSettings: React.FC = () => {
           days_before: config.days_before,
           notify_email: config.notify_email,
           notify_push: config.notify_push,
+        }, {
+          onConflict: 'user_id'
         });
 
       if (error) {
