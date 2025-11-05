@@ -3,17 +3,25 @@ import * as React from "react"
 const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+  // Inicializa sincronamente com matchMedia para evitar troca de variante após primeira interação
+  const getInitial = () => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches
+  }
 
-  React.useEffect(() => {
+  const [isMobile, setIsMobile] = React.useState<boolean>(getInitial())
+
+  // Usa useLayoutEffect para atualizar antes da pintura e evitar flicker
+  React.useLayoutEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    const onChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches)
     }
+    // Garantir estado correto imediatamente
+    setIsMobile(mql.matches)
     mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  return !!isMobile
+  return isMobile
 }

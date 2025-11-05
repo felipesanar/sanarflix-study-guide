@@ -116,7 +116,6 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const accessRules = getAccessRules(user);
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
-  const [initialAnim, setInitialAnim] = useState(false);
 
   const isActive = (path: string) => currentPath === path;
   const isStudyGuideAreaActive = () =>
@@ -128,39 +127,28 @@ export function AppSidebar() {
     }
   }, [currentPath]);
 
-  // Executa animação inicial apenas no primeiro carregamento da sessão
-  React.useEffect(() => {
-    const hasRun = sessionStorage.getItem("sidebarAnimated") === "true";
-    if (!hasRun) {
-      setInitialAnim(true);
-      const t = setTimeout(() => {
-        sessionStorage.setItem("sidebarAnimated", "true");
-        setInitialAnim(false);
-      }, 1000);
-      return () => clearTimeout(t);
-    }
-  }, []);
+  // Removida animação inicial para evitar reflows e melhorar continuidade
 
-  const getNavCls = ({ isActive }: { isActive: boolean }) =>
+  const getNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
     `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive
         ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
         : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
-    }`;
+    }`, []);
 
-  const getParentNavCls = (isActive: boolean) =>
+  const getParentNavCls = React.useCallback((isActive: boolean) =>
     `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive
         ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
         : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
-    }`;
+    }`, []);
 
-  const getChildNavCls = ({ isActive }: { isActive: boolean }) =>
+  const getChildNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
     `group relative overflow-hidden rounded ml-6 pl-4 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive
         ? "bg-sidebar-accent/60 text-sidebar-foreground font-semibold shadow-sm"
         : "bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]"
-    }`;
+    }`, []);
 
   const MenuItem = ({
     item,
@@ -177,7 +165,7 @@ export function AppSidebar() {
   }) => {
     const row = (
       <div
-        className={`flex items-center gap-3 p-3 will-change-transform will-change-opacity ${className || ""} ${collapsed ? "justify-center" : ""}`}
+        className={`flex items-center gap-3 p-3 ${className || ""} ${collapsed ? "justify-center" : ""}`}
       >
         <div className="relative">
           <item.icon
@@ -195,37 +183,19 @@ export function AppSidebar() {
 
     if (collapsed) {
       return (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {initialAnim ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay }}
-                >
-                  {row}
-                </motion.div>
-              ) : (
-                row
-              )}
-            </TooltipTrigger>
-            <TooltipContent side="right" className="ml-2">
-              <div className="text-sm font-medium">{item.title}</div>
-              <div className="text-xs text-muted-foreground">{item.description}</div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {row}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="ml-2">
+            <div className="text-sm font-medium">{item.title}</div>
+            <div className="text-xs text-muted-foreground">{item.description}</div>
+          </TooltipContent>
+        </Tooltip>
       );
     }
 
-    return initialAnim ? (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay }}>
-        {row}
-      </motion.div>
-    ) : (
-      row
-    );
+    return row;
   };
 
   return (
@@ -323,24 +293,18 @@ export function AppSidebar() {
                         className={getParentNavCls(isStudyGuideAreaActive())}
                         aria-expanded={studyGuideOpen}
                         aria-controls="submenu-guia-estudos"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setStudyGuideOpen(!studyGuideOpen);
-                        }}
                       >
                         {collapsed ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center justify-center p-3 w-full">
-                                  <BookOpen className="h-5 w-5 transition-all duration-300" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="ml-2">
-                                <div className="text-sm font-medium">Guia de Estudos</div>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-center p-3 w-full">
+                                <BookOpen className="h-5 w-5 transition-all duration-300" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="ml-2">
+                              <div className="text-sm font-medium">Guia de Estudos</div>
+                            </TooltipContent>
+                          </Tooltip>
                         ) : (
                           <div className="flex items-center gap-3 p-3 w-full">
                             <BookOpen className="h-5 w-5 transition-all duration-300" />
@@ -371,7 +335,7 @@ export function AppSidebar() {
                               }}
                             >
                               <SidebarMenuButton asChild>
-                                <NavLink to={item.url} end className={getChildNavCls}>
+                                <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
                                   <MenuItem
                                     item={item}
                                     className="py-2"
@@ -399,7 +363,7 @@ export function AppSidebar() {
                   .map((item, idx) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end className={getNavCls}>
+                        <NavLink to={item.url} end className={getNavCls} aria-label={`Ir para ${item.title}`}>
                           <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
                         </NavLink>
                       </SidebarMenuButton>

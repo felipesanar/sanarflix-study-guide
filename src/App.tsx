@@ -107,12 +107,9 @@ const AppContent = () => {
 
   return (
     <StudyProvider>
-      <Suspense fallback={
-        <Layout>
-          <HomePageSkeleton />
-        </Layout>
-      }>
-      <Routes>
+      <Layout>
+        <Suspense fallback={<HomePageSkeleton />}>
+        <Routes>
         <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
@@ -121,15 +118,13 @@ const AppContent = () => {
           path="/home"
           element={
             <ProtectedRoute>
-              <Layout>
-                <PageWrapper 
-                  loadingMessage="Carregando início..." 
-                  waitForData={true}
-                  skeleton={<HomePageSkeleton />}
-                >
-                  <Home />
-                </PageWrapper>
-              </Layout>
+              <PageWrapper 
+                loadingMessage="Carregando início..." 
+                waitForData={true}
+                skeleton={<HomePageSkeleton />}
+              >
+                <Home />
+              </PageWrapper>
             </ProtectedRoute>
           }
         />
@@ -139,15 +134,13 @@ const AppContent = () => {
             path="/guia-estudos"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando guia de estudos..." 
-                    waitForData={true}
-                    skeleton={<StudyGuideSkeleton />}
-                  >
-                    <StudyGuide />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando guia de estudos..." 
+                  waitForData={true}
+                  skeleton={<StudyGuideSkeleton />}
+                >
+                  <StudyGuide />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -158,14 +151,12 @@ const AppContent = () => {
             path="/desempenho-simulado"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando desempenho..." 
-                    waitForData={true}
-                  >
-                    <SimuladoDesempenho />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando desempenho..." 
+                  waitForData={true}
+                >
+                  <SimuladoDesempenho />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -176,15 +167,13 @@ const AppContent = () => {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando dashboard..." 
-                    waitForData={true}
-                    skeleton={<DashboardSkeleton />}
-                  >
-                    <Dashboard />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando dashboard..." 
+                  waitForData={true}
+                  skeleton={<DashboardSkeleton />}
+                >
+                  <Dashboard />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -195,15 +184,13 @@ const AppContent = () => {
             path="/intensivao-enamed"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando intensivão..." 
-                    waitForData={true}
-                    skeleton={<IntensivaoSkeleton />}
-                  >
-                    <IntensivaoEnamed />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando intensivão..." 
+                  waitForData={true}
+                  skeleton={<IntensivaoSkeleton />}
+                >
+                  <IntensivaoEnamed />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -214,15 +201,13 @@ const AppContent = () => {
             path="/cronograma-enamed"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando cronograma..." 
-                    waitForData={true}
-                    skeleton={<IntensivaoSkeleton />}
-                  >
-                    <CronogramaEnamed />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando cronograma..." 
+                  waitForData={true}
+                  skeleton={<IntensivaoSkeleton />}
+                >
+                  <CronogramaEnamed />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -233,14 +218,12 @@ const AppContent = () => {
             path="/gestao-usuarios"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando gestão..." 
-                    waitForData={true}
-                  >
-                    <UserManagement />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando gestão..." 
+                  waitForData={true}
+                >
+                  <UserManagement />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -251,14 +234,12 @@ const AppContent = () => {
             path="/intensivo-uscs"
             element={
               <ProtectedRoute>
-                <Layout>
-                  <PageWrapper 
-                    loadingMessage="Carregando intensivo USCS..." 
-                    waitForData={true}
-                  >
-                    <IntensivoEnamedUSCS />
-                  </PageWrapper>
-                </Layout>
+                <PageWrapper 
+                  loadingMessage="Carregando intensivo USCS..." 
+                  waitForData={true}
+                >
+                  <IntensivoEnamedUSCS />
+                </PageWrapper>
               </ProtectedRoute>
             }
           />
@@ -268,22 +249,21 @@ const AppContent = () => {
           path="/analytics"
           element={
             <ProtectedRoute>
-              <Layout>
-                <PageWrapper 
-                  loadingMessage="Carregando analytics..." 
-                  waitForData={true}
-                >
-                  <Analytics />
-                </PageWrapper>
-              </Layout>
+              <PageWrapper 
+                loadingMessage="Carregando analytics..." 
+                waitForData={true}
+              >
+                <Analytics />
+              </PageWrapper>
             </ProtectedRoute>
           }
         />
 
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
-      </Suspense>
+        </Routes>
+        </Suspense>
+      </Layout>
     </StudyProvider>
   );
 };
