@@ -210,6 +210,62 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Notificações Push
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push notification received:', event);
+  
+  let data = {
+    title: 'Sanarflix - Lembrete de Estudo',
+    body: 'Você tem matérias agendadas para hoje!',
+    icon: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
+    badge: '/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png',
+    tag: 'study-reminder',
+    requireInteraction: false,
+  };
+  
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      data = { ...data, ...payload };
+    } catch (error) {
+      console.error('[SW] Error parsing push data:', error);
+    }
+  }
+  
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon,
+      badge: data.badge,
+      tag: data.tag,
+      requireInteraction: data.requireInteraction,
+      data: data.data || {},
+    })
+  );
+});
+
+// Click em notificação
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event);
+  
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Se já existe uma janela aberta, foca nela
+      for (const client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Caso contrário, abre uma nova janela
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});
+
 // Mensagens do cliente
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {

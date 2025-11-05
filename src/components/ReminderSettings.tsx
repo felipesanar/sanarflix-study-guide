@@ -7,6 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Bell, Clock, Mail, Smartphone, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  isNotificationSupported, 
+  requestNotificationPermission, 
+  getNotificationPermission,
+  sendTestNotification 
+} from '@/utils/notifications';
 
 interface ReminderConfig {
   enabled: boolean;
@@ -19,6 +25,7 @@ interface ReminderConfig {
 export const ReminderSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<string>('default');
   const [config, setConfig] = useState<ReminderConfig>({
     enabled: true,
     reminder_time: '08:00',
@@ -26,6 +33,12 @@ export const ReminderSettings: React.FC = () => {
     notify_email: true,
     notify_push: false,
   });
+
+  useEffect(() => {
+    if (isNotificationSupported()) {
+      setNotificationPermission(getNotificationPermission());
+    }
+  }, []);
 
   useEffect(() => {
     loadReminderConfig();
@@ -106,6 +119,51 @@ export const ReminderSettings: React.FC = () => {
       toast.error('Erro ao salvar configurações');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEnablePushNotifications = async () => {
+    try {
+      const permission = await requestNotificationPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        setConfig({ ...config, notify_push: true });
+        toast.success('Notificações push ativadas!', {
+          icon: '🔔',
+          duration: 3000,
+        });
+      } else {
+        toast.error('Permissão de notificação negada', {
+          description: 'Habilite as notificações nas configurações do navegador',
+        });
+      }
+    } catch (error) {
+      console.error('Error enabling push notifications:', error);
+      toast.error('Erro ao ativar notificações push');
+    }
+  };
+
+  const handleTestPushNotification = async () => {
+    try {
+      const success = await sendTestNotification(
+        '📚 Sanarflix - Teste de Notificação',
+        'As notificações push estão funcionando corretamente! 🎉'
+      );
+      
+      if (success) {
+        toast.success('Notificação de teste enviada!', {
+          icon: '🔔',
+          duration: 3000,
+        });
+      } else {
+        toast.error('Erro ao enviar notificação de teste', {
+          description: 'Verifique se as permissões estão habilitadas',
+        });
+      }
+    } catch (error) {
+      console.error('Error sending test push notification:', error);
+      toast.error('Erro ao enviar notificação de teste');
     }
   };
 
@@ -237,15 +295,23 @@ export const ReminderSettings: React.FC = () => {
                   <div className="space-y-0.5">
                     <Label htmlFor="notify_push">Notificações Push</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receber notificações no navegador (em breve)
+                      {notificationPermission === 'granted' 
+                        ? 'Notificações ativadas no navegador' 
+                        : 'Receber notificações no navegador'}
                     </p>
                   </div>
                 </div>
                 <Switch
                   id="notify_push"
-                  checked={config.notify_push}
-                  onCheckedChange={(checked) => setConfig({ ...config, notify_push: checked })}
-                  disabled
+                  checked={config.notify_push && notificationPermission === 'granted'}
+                  onCheckedChange={(checked) => {
+                    if (checked && notificationPermission !== 'granted') {
+                      handleEnablePushNotifications();
+                    } else {
+                      setConfig({ ...config, notify_push: checked });
+                    }
+                  }}
+                  disabled={!isNotificationSupported()}
                 />
               </div>
             </div>
@@ -253,7 +319,7 @@ export const ReminderSettings: React.FC = () => {
         )}
 
         {/* Botões de Ação */}
-        <div className="flex gap-2 pt-4">
+        <div className="flex flex-wrap gap-2 pt-4">
           <Button
             onClick={handleSave}
             disabled={saving}
@@ -270,7 +336,18 @@ export const ReminderSettings: React.FC = () => {
               className="flex items-center gap-2"
             >
               <Mail className="h-4 w-4" />
-              Enviar Teste
+              Teste Email
+            </Button>
+          )}
+
+          {config.enabled && config.notify_push && notificationPermission === 'granted' && (
+            <Button
+              variant="outline"
+              onClick={handleTestPushNotification}
+              className="flex items-center gap-2"
+            >
+              <Bell className="h-4 w-4" />
+              Teste Push
             </Button>
           )}
         </div>
