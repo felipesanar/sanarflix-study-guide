@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Calendar, CheckCircle2, ChevronLeft, ChevronRight, Pencil, X, Save, Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CalendarItem {
   semana: string;
@@ -108,10 +109,48 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
     return getWeekNumber(weekA) - getWeekNumber(weekB);
   });
 
-  // Inicializa tempCalendarEvents quando o componente é montado ou quando items muda
+  // Carrega arranjos salvos do backend ao inicializar
   useEffect(() => {
-    // Cria uma cópia profunda dos itens para manipulação no modo de edição
-    setTempCalendarEvents([...items]);
+    const loadSavedArrangements = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) return;
+
+        const { data: arrangements, error } = await supabase
+          .from('calendar_arrangements')
+          .select('*')
+          .eq('user_id', userData.user.id);
+
+        if (error) {
+          console.error('Erro ao carregar arranjos:', error);
+          setTempCalendarEvents([...items]);
+          return;
+        }
+
+        if (arrangements && arrangements.length > 0) {
+          // Aplica os arranjos salvos aos items
+          const arrangedItems = items.map(item => {
+            const savedArrangement = arrangements.find(arr => arr.item_key === item.itemKey);
+            if (savedArrangement) {
+              return {
+                ...item,
+                dia: savedArrangement.day,
+                semana: savedArrangement.week,
+              };
+            }
+            return item;
+          });
+          setTempCalendarEvents(arrangedItems);
+        } else {
+          setTempCalendarEvents([...items]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar arranjos:', error);
+        setTempCalendarEvents([...items]);
+      }
+    };
+
+    loadSavedArrangements();
   }, [items]);
 
   // Função para lidar com o clique em um badge
@@ -215,18 +254,46 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
   };
 
   // Função para salvar alterações no modo de edição
-  const handleSaveChanges = () => {
-    setIsEditMode(false);
-    setIsPremiumEditMode(false);
-    
-    // Em uma implementação real, enviaríamos tempCalendarEvents para o backend
-    console.log('Alterações salvas:', tempCalendarEvents);
-    
-    // Exibir uma notificação de sucesso
-    toast.success('Alterações salvas com sucesso!', {
-      icon: '🎉',
-      duration: 3000
-    });
+  const handleSaveChanges = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Você precisa estar autenticado para salvar alterações');
+        return;
+      }
+
+      // Prepara os dados para salvar
+      const arrangements = tempCalendarEvents.map((item, index) => ({
+        item_key: item.itemKey,
+        week: item.semana,
+        day: item.dia,
+        position: index,
+      }));
+
+      // Chama a edge function para salvar
+      const { data, error } = await supabase.functions.invoke('save-calendar-arrangement', {
+        body: { arrangements },
+      });
+
+      if (error) {
+        console.error('Erro ao salvar arranjos:', error);
+        toast.error('Erro ao salvar alterações do calendário');
+        return;
+      }
+
+      console.log('Alterações salvas:', data);
+      
+      setIsEditMode(false);
+      setIsPremiumEditMode(false);
+      
+      toast.success('Alterações salvas com sucesso!', {
+        icon: '🎉',
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Erro ao salvar alterações:', error);
+      toast.error('Erro ao salvar alterações do calendário');
+    }
   };
 
   // Função para cancelar alterações

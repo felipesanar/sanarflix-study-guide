@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.get-study-contents]
 verify_jwt = true
+
+[functions.save-calendar-arrangement]
+verify_jwt = true

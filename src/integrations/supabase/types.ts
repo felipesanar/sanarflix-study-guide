@@ -114,6 +114,39 @@ export type Database = {
           },
         ]
       }
+      calendar_arrangements: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          item_key: string
+          position: number
+          updated_at: string
+          user_id: string
+          week: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          id?: string
+          item_key: string
+          position: number
+          updated_at?: string
+          user_id: string
+          week: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          item_key?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+          week?: string
+        }
+        Relationships: []
+      }
       calendar_subjects: {
         Row: {
           color: string
