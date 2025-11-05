@@ -42,12 +42,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Obter dia da semana atual (0 = Domingo, 6 = Sábado)
+    // Obter dia da semana atual no horário de Brasília (GMT-3)
     const now = new Date();
-    const dayOfWeek = now.getDay();
+    const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const dayOfWeek = brasiliaTime.getDay();
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const today = dayNames[dayOfWeek];
     
+    console.log(`Current time (UTC): ${now.toISOString()}`);
+    console.log(`Current time (Brasília): ${brasiliaTime.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
     console.log(`Today is: ${today}`);
 
     let sentCount = 0;
