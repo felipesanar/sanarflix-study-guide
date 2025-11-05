@@ -11,9 +11,9 @@ O sistema de lembretes permite que os alunos recebam notificações por email e 
    - Tipo de notificação: Email e/ou Push
    - Ativar/desativar lembretes
 
-2. **Verificação Automática**: Um cron job executa a cada hora a função `check-and-send-reminders` que:
+2. **Verificação Automática**: Um cron job executa a cada minuto a função `check-and-send-reminders` que:
    - Usa o **fuso horário de Brasília (America/Sao_Paulo)**
-   - Busca usuários com lembretes configurados para a hora atual (com tolerância de 1 hora)
+   - Busca usuários com lembretes configurados para o horário exato (hora:minuto)
    - Verifica se há matérias agendadas para o dia atual no calendário do usuário
    - Envia notificações (email e/ou push) apenas para usuários que têm matérias agendadas no dia
 
@@ -56,13 +56,13 @@ O sistema de lembretes permite que os alunos recebam notificações por email e 
   ```
 
 #### `check-and-send-reminders`
-- **Função**: Verifica e envia lembretes para usuários no horário configurado
-- **Trigger**: Cron job a cada hora
+- **Função**: Verifica e envia lembretes para usuários no horário exato configurado
+- **Trigger**: Cron job a cada minuto
 - **Autenticação**: Não requerida (pública)
 - **Fuso Horário**: Brasília (America/Sao_Paulo)
 - **Fluxo**:
-  1. Obtém horário atual de Brasília
-  2. Busca usuários com lembretes ativos configurados para a hora atual (±1h de tolerância)
+  1. Obtém horário atual de Brasília (hora e minuto)
+  2. Busca usuários com lembretes ativos configurados para o horário exato (hora:minuto:00)
   3. Verifica matérias agendadas para hoje no calendário de cada usuário
   4. Envia email (se `notify_email = true`)
   5. Envia push (se `notify_push = true`)
@@ -83,6 +83,10 @@ Integrado na página **Dashboard** (`src/pages/Dashboard.tsx`)
 
 ## Configuração do Cron Job
 
+### ⚠️ AÇÃO MANUAL NECESSÁRIA ⚠️
+
+Você precisa configurar o cron job no Supabase para executar **A CADA MINUTO** para garantir que os lembretes sejam enviados no horário exato configurado pelo usuário.
+
 ### Pré-requisitos
 1. Acesse o painel do Supabase: https://supabase.com/dashboard/project/gvqvrmkizemwsasmupmo
 2. Vá para **SQL Editor**
@@ -96,16 +100,26 @@ CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 ```
 
-### Criar o Cron Job
+### Remover Cron Job Antigo (se existir)
+
+Se você já tinha um cron job configurado para executar a cada hora, remova-o primeiro:
+
+```sql
+-- Remover o cron job antigo
+SELECT cron.unschedule('check-study-reminders-hourly');
+```
+
+### Criar o Novo Cron Job (A CADA MINUTO)
 
 Execute o seguinte SQL no **SQL Editor**:
 
 ```sql
--- Agendar verificação de lembretes A CADA HORA
--- O edge function já filtra por horário configurado do usuário
+-- Agendar verificação de lembretes A CADA MINUTO
+-- O edge function envia notificações apenas para usuários cujo horário configurado 
+-- corresponde EXATAMENTE ao minuto atual (hora:minuto)
 SELECT cron.schedule(
-  'check-study-reminders-hourly',
-  '0 * * * *', -- Executa no minuto 0 de cada hora
+  'check-study-reminders-minutely',
+  '* * * * *', -- Executa a cada minuto
   $$
   SELECT
     net.http_post(
@@ -117,7 +131,7 @@ SELECT cron.schedule(
 );
 ```
 
-**Importante**: A verificação é feita a cada hora, mas o edge function envia notificações apenas para usuários cujo horário configurado corresponde à hora atual de Brasília.
+**Importante**: O edge function agora verifica o horário exato (hora:minuto) configurado pelo usuário no fuso de Brasília e envia notificações apenas quando há correspondência exata.
 
 ### Verificar Cron Jobs Ativos
 
@@ -136,28 +150,28 @@ LIMIT 10;
 ### Remover/Atualizar Cron Job
 
 ```sql
--- Remover o cron job antigo
-SELECT cron.unschedule('check-study-reminders-daily');
-
--- Ou remover o novo (se precisar ajustar)
-SELECT cron.unschedule('check-study-reminders-hourly');
+-- Remover o cron job que executa a cada minuto
+SELECT cron.unschedule('check-study-reminders-minutely');
 
 -- Depois de remover, você pode criar novamente com novos parâmetros
 ```
 
 ## Expressões Cron Comuns
 
-- `0 * * * *` - A cada hora (minuto 0)
+- `* * * * *` - A cada minuto ✅ **USADO ATUALMENTE**
+- `*/5 * * * *` - A cada 5 minutos
 - `*/30 * * * *` - A cada 30 minutos
+- `0 * * * *` - A cada hora (minuto 0)
 - `0 8 * * *` - Todos os dias às 08:00 AM
 - `0 9 * * 1-5` - Segunda a Sexta às 09:00 AM
 - `0 20 * * *` - Todos os dias às 20:00 (8 PM)
 
-**Nota sobre Fuso Horário**: 
-- O cron job executa em **UTC** 
-- Mas o edge function processa tudo em **horário de Brasília (GMT-3)**
-- Usuário configura horário em Brasília (exemplo: 08:00 BRT)
-- O sistema envia exatamente às 08:00 BRT, independente do horário UTC
+**Nota sobre Fuso Horário e Precisão**: 
+- O cron job executa em **UTC** a cada minuto
+- O edge function processa tudo em **horário de Brasília (GMT-3)**
+- Usuário configura horário em Brasília com precisão de minuto (exemplo: 08:30 BRT)
+- O sistema envia **EXATAMENTE** às 08:30 BRT, independente do horário UTC
+- A verificação é feita comparando hora:minuto:00 configurado com hora:minuto:00 atual em Brasília
 
 ## Configuração do Resend (Email)
 

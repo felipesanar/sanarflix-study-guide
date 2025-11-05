@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const currentHour = brasiliaTime.getHours();
     const currentMinute = brasiliaTime.getMinutes();
-    const currentTimeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    const currentTimeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}:00`;
     
     const dayOfWeek = brasiliaTime.getDay();
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -34,13 +34,12 @@ Deno.serve(async (req) => {
     console.log(`Current time string: ${currentTimeString}`);
     console.log(`Today is: ${today}`);
 
-    // Buscar lembretes habilitados que devem ser enviados neste horário (com tolerância de 1 hora)
+    // Buscar lembretes habilitados configurados para o horário exato (hora:minuto)
     const { data: reminders, error: remindersError } = await supabase
       .from('study_reminders')
       .select('*')
       .eq('enabled', true)
-      .gte('reminder_time', `${currentHour.toString().padStart(2, '0')}:00:00`)
-      .lte('reminder_time', `${currentHour.toString().padStart(2, '0')}:59:59`);
+      .eq('reminder_time', currentTimeString);
 
     if (remindersError) {
       console.error('Error fetching reminders:', remindersError);
@@ -50,13 +49,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Found ${reminders?.length || 0} reminders scheduled for hour ${currentHour}`);
+    console.log(`Found ${reminders?.length || 0} reminders scheduled for ${currentTimeString}`);
 
 
     if (!reminders || reminders.length === 0) {
       return new Response(
         JSON.stringify({ 
-          message: `No reminders scheduled for hour ${currentHour}`, 
+          message: `No reminders scheduled for ${currentTimeString}`, 
           processed: 0,
           currentTime: currentTimeString,
         }),
