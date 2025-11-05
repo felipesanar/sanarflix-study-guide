@@ -400,6 +400,42 @@ export type Database = {
         }
         Relationships: []
       }
+      study_reminders: {
+        Row: {
+          created_at: string
+          days_before: number
+          enabled: boolean
+          id: string
+          notify_email: boolean
+          notify_push: boolean
+          reminder_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_before?: number
+          enabled?: boolean
+          id?: string
+          notify_email?: boolean
+          notify_push?: boolean
+          reminder_time?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_before?: number
+          enabled?: boolean
+          id?: string
+          notify_email?: boolean
+          notify_push?: boolean
+          reminder_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           completed_at: string

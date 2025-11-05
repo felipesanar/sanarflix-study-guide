@@ -6,6 +6,7 @@ import { ProgressCard } from '@/components/ProgressCard';
 import { useStudy } from '@/contexts/StudyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { BarChart3, Target, TrendingUp, Award, BookOpen, CheckCircle } from 'lucide-react';
+import { ReminderSettings } from '@/components/ReminderSettings';
 
 const COLORS = {
   primary: '#2563eb',
@@ -283,6 +284,11 @@ export const Dashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Reminder Settings */}
+      <div className="mt-6">
+        <ReminderSettings />
       </div>
     </div>
   );

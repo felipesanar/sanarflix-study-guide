@@ -50,3 +50,9 @@ verify_jwt = true
 
 [functions.save-calendar-arrangement]
 verify_jwt = true
+
+[functions.send-study-reminder]
+verify_jwt = false
+
+[functions.check-and-send-reminders]
+verify_jwt = false
