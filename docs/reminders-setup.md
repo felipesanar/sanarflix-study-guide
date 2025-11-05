@@ -98,11 +98,13 @@ SELECT cron.schedule(
 ### Verificar Cron Jobs Ativos
 
 ```sql
--- Listar todos os cron jobs
-SELECT * FROM cron.job;
+-- Listar todos os cron jobs (anote o jobid)
+SELECT jobid, schedule, command, nodename, nodeport, database, username, active 
+FROM cron.job;
 
--- Ver histórico de execuções
+-- Ver histórico de execuções (substitua 1 pelo jobid correto)
 SELECT * FROM cron.job_run_details 
+WHERE jobid = 1
 ORDER BY start_time DESC 
 LIMIT 10;
 ```
@@ -184,8 +186,12 @@ Na interface do Dashboard:
 ### Ver Logs do Cron
 
 ```sql
+-- Primeiro encontre o jobid
+SELECT jobid FROM cron.job LIMIT 1;
+
+-- Depois use o jobid para ver os logs
 SELECT * FROM cron.job_run_details 
-WHERE jobname = 'check-study-reminders-daily'
+WHERE jobid = 1  -- Substitua pelo jobid encontrado
 ORDER BY start_time DESC 
 LIMIT 20;
 ```
@@ -211,13 +217,13 @@ SELECT * FROM calendar_arrangements WHERE user_id = 'user-uuid';
 
 1. Verificar se o cron job está ativo:
 ```sql
-SELECT * FROM cron.job WHERE jobname = 'check-study-reminders-daily';
+SELECT * FROM cron.job;
 ```
 
-2. Verificar últimas execuções:
+2. Verificar últimas execuções (substitua 1 pelo jobid correto):
 ```sql
 SELECT * FROM cron.job_run_details 
-WHERE jobname = 'check-study-reminders-daily'
+WHERE jobid = 1
 ORDER BY start_time DESC;
 ```
 
