@@ -157,15 +157,6 @@ export const useHomeData = () => {
     const studyGuideData = studyGuideRes.data;
     if (studyGuideData && studyGuideData.length > 0) {
       setHasStudyGuide(true);
-      items.push({
-        id: 'guia',
-        type: 'guia',
-        title: 'Guia de Estudos',
-        subtitle: 'Continue seus estudos',
-        path: '/guia-estudos',
-        icon: 'BookOpen',
-        color: 'from-blue-500 to-cyan-500',
-      });
     }
 
     // Process cronograma
@@ -174,19 +165,20 @@ export const useHomeData = () => {
       setHasCronograma(true);
     }
 
-    // Matéria do dia (do calendário) + sugestão de aula não concluída
+    // ⭐ Matérias do dia (do calendário) + sugestão de aula não concluída para cada uma
     try {
       // 🌍 Usar fuso de Brasília (GMT-3) para consistência com sistema de lembretes
       const today = getBrazilDayOfWeek(); // 0 (Dom) - 6 (Sáb)
+      
+      // Buscar TODAS as matérias agendadas para hoje (remover limit)
       const { data: todaySubjects } = await supabase
         .from('calendar_subjects')
         .select('*')
         .eq('user_id', user.id)
         .eq('day_of_week', today)
-        .order('start_time', { ascending: true })
-        .limit(1);
+        .order('start_time', { ascending: true });
 
-      let subjectName: string | null = todaySubjects && todaySubjects[0]?.name ? todaySubjects[0].name : null;
+      let subjectsToProcess: string[] = [];
 
       /**
        * 📚 LÓGICA DE FALLBACK DO CALENDÁRIO:
@@ -203,9 +195,12 @@ export const useHomeData = () => {
        * Comportamento:
        * - Primeiro tenta calendar_subjects (fonte primária)
        * - Se vazio, tenta calendar_arrangements (fallback)
-       * - Se ambos vazios, não mostra matéria do dia
+       * - Se ambos vazios, não mostra matérias do dia
        */
-      if (!subjectName) {
+      if (todaySubjects && todaySubjects.length > 0) {
+        subjectsToProcess = todaySubjects.map((s: any) => s.name);
+      } else {
+        // Fallback: usar calendar_arrangements
         const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const todayName = dayNames[today];
         const { data: arrangements } = await supabase
@@ -213,13 +208,18 @@ export const useHomeData = () => {
           .select('*')
           .eq('user_id', user.id)
           .eq('day', todayName)
-          .order('position', { ascending: true })
-          .limit(1);
-        subjectName = arrangements && arrangements[0]?.item_key ? arrangements[0].item_key : null;
+          .order('position', { ascending: true });
+        
+        if (arrangements && arrangements.length > 0) {
+          subjectsToProcess = arrangements.map((a: any) => a.item_key);
+        }
       }
 
-      if (subjectName) {
-        // Buscar aulas da matéria
+      // Processar cada matéria do dia
+      for (const subjectName of subjectsToProcess) {
+        if (!subjectName) continue;
+
+        // Buscar aulas da matéria no guia de estudos
         const { data: materiaConteudos } = await supabase
           .from('conteudos')
           .select('id, aula, materia, link_aula')
@@ -247,7 +247,7 @@ export const useHomeData = () => {
           id: `materia-${subjectName}`,
           type: 'materia',
           title: subjectName,
-          subtitle: suggestion ? `Sugestão: ${suggestion.aula}` : 'Matéria do dia',
+          subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada para hoje',
           path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
           icon: 'BookOpen',
           color: 'from-emerald-500 to-teal-500',
@@ -256,35 +256,39 @@ export const useHomeData = () => {
       }
     } catch (e) {
       // Falha opcional ao sugerir aula - não bloquear Meu Dia
-      console.warn('Falha ao montar matéria do dia/sugestão de aula:', e);
+      console.warn('Falha ao montar matérias do dia/sugestão de aulas:', e);
     }
 
-    // Process intensivo (já carregado em paralelo)
-    const intensivoData = intensivoRes.data;
-    if (intensivoData && intensivoData.length > 0) {
-      items.push({
-        id: 'intensivo',
-        type: 'intensivo',
-        title: 'Intensivo ENAMED',
-        subtitle: 'Conteúdo focado',
-        path: '/intensivao-enamed',
-        icon: 'Zap',
-        color: 'from-purple-500 to-pink-500',
-      });
-    }
+    // Adicionar Intensivo e Simulado apenas se não houver matérias do dia
+    // (para não poluir a lista quando já tem conteúdo programado)
+    if (items.length === 0) {
+      // Process intensivo (já carregado em paralelo)
+      const intensivoData = intensivoRes.data;
+      if (intensivoData && intensivoData.length > 0) {
+        items.push({
+          id: 'intensivo',
+          type: 'intensivo',
+          title: 'Intensivo ENAMED',
+          subtitle: 'Conteúdo focado disponível',
+          path: '/intensivao-enamed',
+          icon: 'Zap',
+          color: 'from-purple-500 to-pink-500',
+        });
+      }
 
-    // Process simulado (já carregado em paralelo)
-    const simuladoData = simuladoRes.data;
-    if (simuladoData && simuladoData.length > 0) {
-      items.push({
-        id: 'simulado',
-        type: 'simulado',
-        title: 'Simulado Disponível',
-        subtitle: 'Teste seus conhecimentos',
-        path: '/desempenho-simulado',
-        icon: 'BarChart3',
-        color: 'from-orange-500 to-red-500',
-      });
+      // Process simulado (já carregado em paralelo)
+      const simuladoData = simuladoRes.data;
+      if (simuladoData && simuladoData.length > 0) {
+        items.push({
+          id: 'simulado',
+          type: 'simulado',
+          title: 'Simulado Disponível',
+          subtitle: 'Teste seus conhecimentos',
+          path: '/desempenho-simulado',
+          icon: 'BarChart3',
+          color: 'from-orange-500 to-red-500',
+        });
+      }
     }
 
     setMeuDiaItems(items);
