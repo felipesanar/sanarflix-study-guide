@@ -277,17 +277,27 @@ export default function SanarClass() {
                   key={lesson.id} 
                   className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-2 overflow-hidden"
                 >
-                  {/* Preview */}
-                  {lesson.preview_url && (
-                    <div className="aspect-video bg-muted relative overflow-hidden">
-                      <img 
-                        src={lesson.preview_url} 
-                        alt={lesson.titulo}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  {/* Preview do Documento */}
+                  <div className="relative h-56 bg-muted overflow-hidden">
+                    {lesson.formato === 'pdf' ? (
+                      <iframe
+                        src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                        className="w-full h-full pointer-events-none scale-150 origin-top"
+                        title={`Preview de ${lesson.titulo}`}
+                        style={{ marginTop: '-20%' }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+                        <div className="text-center p-6">
+                          <FileText className="h-20 w-20 text-primary/30 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground uppercase font-semibold tracking-wide">
+                            Apresentação PPTX
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </div>
                   
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2 mb-2">
