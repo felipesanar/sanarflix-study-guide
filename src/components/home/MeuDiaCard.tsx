@@ -206,12 +206,12 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       
-                      {/* Conteúdo */}
+                      {/* Conteúdo - Hierarquia invertida: aula em destaque */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-foreground text-sm truncate">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="text-xs text-muted-foreground truncate">
                             {item.title}
-                          </h4>
+                          </p>
                           {/* Badge de origem */}
                           {item.source === 'calendar' && (
                             <Badge 
@@ -233,9 +233,9 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                           )}
                         </div>
                         {item.subtitle && (
-                          <p className="text-xs text-muted-foreground truncate">
+                          <h4 className="font-semibold text-foreground truncate">
                             {item.subtitle}
-                          </p>
+                          </h4>
                         )}
                       </div>
                       

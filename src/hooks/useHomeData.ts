@@ -326,7 +326,8 @@ export const useHomeData = () => {
           });
 
           const processedCronogramaItems = (await Promise.all(cronogramaPromises)).filter((item) => item !== null) as MeuDiaItem[];
-          items.push(...processedCronogramaItems);
+          // Limitar a 2 itens do cronograma ENAMED
+          items.push(...processedCronogramaItems.slice(0, 2));
         } catch (error) {
           console.warn('⚠️ [Meu Dia] Erro ao buscar Cronograma ENAMED:', error);
         }
@@ -381,15 +382,31 @@ export const useHomeData = () => {
 
         const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
         console.log('✅ [Meu Dia] Matérias processadas:', subjectItems.length);
-        items.push(...subjectItems);
+        // Limitar a 2 matérias do calendário
+        items.push(...subjectItems.slice(0, 2));
       }
     } catch (e) {
       console.error('❌ [Meu Dia] Erro ao montar matérias:', e);
     }
 
-    console.log('📊 [Meu Dia] Total de items:', items.length);
+    console.log('📊 [Meu Dia] Total de items antes dos fallbacks:', items.length);
 
-    // Adicionar Intensivo e Simulado apenas se não houver matérias
+    // Sempre adicionar Simulado Disponível se houver simulados
+    const simuladoData = simuladoRes.data;
+    if (simuladoData && simuladoData.length > 0) {
+      items.push({
+        id: 'simulado',
+        type: 'simulado',
+        title: 'Simulado Disponível',
+        subtitle: 'Teste seus conhecimentos',
+        path: '/desempenho-simulado',
+        icon: 'BarChart3',
+        color: 'from-orange-500 to-red-500',
+        source: 'fallback' as const,
+      });
+    }
+
+    // Adicionar Intensivo apenas se não houver matérias
     if (items.length === 0) {
       const intensivoData = intensivoRes.data;
       if (intensivoData && intensivoData.length > 0) {
@@ -401,20 +418,6 @@ export const useHomeData = () => {
           path: '/intensivao-enamed',
           icon: 'Zap',
           color: 'from-purple-500 to-pink-500',
-          source: 'fallback' as const,
-        });
-      }
-
-      const simuladoData = simuladoRes.data;
-      if (simuladoData && simuladoData.length > 0) {
-        items.push({
-          id: 'simulado',
-          type: 'simulado',
-          title: 'Simulado Disponível',
-          subtitle: 'Teste seus conhecimentos',
-          path: '/desempenho-simulado',
-          icon: 'BarChart3',
-          color: 'from-orange-500 to-red-500',
           source: 'fallback' as const,
         });
       }
