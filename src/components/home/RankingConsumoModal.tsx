@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { motion } from 'framer-motion';
 import { 
   Dialog, 
   DialogContent, 
@@ -14,13 +14,6 @@ import {
   CardTitle,
   CardDescription 
 } from '@/components/ui/card';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -30,7 +23,8 @@ import {
   X,
   BookOpen,
   TrendingUp,
-  Award
+  Award,
+  Gift
 } from 'lucide-react';
 
 interface RankingConsumoModalProps {
@@ -59,10 +53,6 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
   open, 
   onOpenChange 
 }) => {
-  const [semestreSelecionado, setSemestreSelecionado] = useState<string>(
-    String(mockUserData.semestre)
-  );
-
   const getPercentile = (rank: number, total: number) => {
     if (total === 0) return 0;
     return Math.round(((total - rank + 1) / total) * 100);
@@ -97,21 +87,22 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
             Veja sua posição em aulas assistidas e questões respondidas na sua instituição.
           </DialogDescription>
 
-          {/* Filtro de Semestre */}
-          <div className="flex items-center gap-3 pt-2">
-            <label className="text-sm font-medium">Semestre:</label>
-            <Select value={semestreSelecionado} onValueChange={setSemestreSelecionado}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((sem) => (
-                  <SelectItem key={sem} value={String(sem)}>
-                    {sem}º Semestre
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Aviso de Premiação */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-amber-500/10 to-amber-500/5 rounded-lg border border-amber-500/20">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <Gift className="h-5 w-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm text-amber-900 dark:text-amber-100 mb-1">
+                  🏆 Premiação Semestral
+                </h4>
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Ao final do semestre, os <span className="font-semibold">2 melhores alunos por ciclo</span> são premiados! 
+                  Continue estudando e melhore sua posição no ranking.
+                </p>
+              </div>
+            </div>
           </div>
         </DialogHeader>
 
