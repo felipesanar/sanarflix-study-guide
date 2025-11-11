@@ -219,16 +219,52 @@ export const useHomeData = () => {
         console.log('🔄 [Meu Dia] Buscando no Cronograma ENAMED');
         try {
           const cronogramaItems = await cronogramaEnamedApi.getAllContent();
+          console.log('🔍 [Meu Dia] Total de itens do Cronograma:', cronogramaItems.length);
+          
+          if (cronogramaItems.length > 0) {
+            // Mostrar exemplos de data_aula para debug
+            console.log('📅 [Meu Dia] Exemplos de data_aula:', 
+              cronogramaItems.slice(0, 5).map(i => ({ 
+                id: i.id, 
+                data_aula: i.data_aula,
+                semana: i.semana,
+                subtema: i.subtema 
+              }))
+            );
+          }
+          
           const brazilDate = getBrazilDate();
           const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          console.log('🔍 [Meu Dia] Procurando por data:', todayStr);
           
           // Filtrar por data_aula que contenha a data de hoje
-          const todayCronogramaItems = cronogramaItems.filter(item => 
-            item.data_aula && item.data_aula.includes(todayStr)
-          );
-          console.log('🔍 [Meu Dia] Cronograma ENAMED para hoje:', todayCronogramaItems.length);
+          // OU por semana atual (como fallback)
+          const todayCronogramaItems = cronogramaItems.filter(item => {
+            if (item.data_aula && item.data_aula.includes(todayStr)) {
+              return true;
+            }
+            // Fallback: pegar itens da semana atual se não houver por data específica
+            if (item.semana) {
+              const weekMatch = item.semana.match(/semana[_\s]*(\d+)/i);
+              if (weekMatch) {
+                const weekNum = parseInt(weekMatch[1]);
+                const currentWeek = Math.ceil(brazilDate.getDate() / 7);
+                return weekNum === currentWeek;
+              }
+            }
+            return false;
+          });
           
-          for (const cronItem of todayCronogramaItems.slice(0, 3)) {
+          console.log('🔍 [Meu Dia] Cronograma ENAMED filtrado:', todayCronogramaItems.length);
+          
+          // Se ainda não tiver nada, pegar os primeiros 3 itens como fallback
+          const itemsToShow = todayCronogramaItems.length > 0 
+            ? todayCronogramaItems.slice(0, 3)
+            : cronogramaItems.slice(0, 3);
+          
+          console.log('📋 [Meu Dia] Itens a exibir do Cronograma:', itemsToShow.length);
+          
+          for (const cronItem of itemsToShow) {
             items.push({
               id: `cronograma-${cronItem.id}`,
               type: 'materia',
