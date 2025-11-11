@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBrazilDayOfWeek } from '@/utils/timezone';
+import { getBrazilDayOfWeek, getBrazilDate } from '@/utils/timezone';
+import { cronogramaEnamedApi } from '@/services/cronogramaEnamedApi';
 
 export interface MeuDiaItem {
   id: string;
@@ -173,7 +174,7 @@ export const useHomeData = () => {
       console.log('🔍 [Meu Dia] Dia da semana (GMT-3):', today);
       console.log('🔍 [Meu Dia] User ID:', user.id);
       
-      // Buscar TODAS as matérias agendadas para hoje (remover limit)
+      // Buscar TODAS as matérias agendadas para hoje
       const { data: todaySubjects, error: subjectsError } = await supabase
         .from('calendar_subjects')
         .select('*')
@@ -186,23 +187,6 @@ export const useHomeData = () => {
 
       let subjectsToProcess: string[] = [];
 
-      /**
-       * 📚 LÓGICA DE FALLBACK DO CALENDÁRIO:
-       * 
-       * 1. calendar_subjects: Tabela principal com matérias fixas do calendário
-       *    - Criada quando usuário define horários de aula no calendário
-       *    - Contém: nome da matéria, dia da semana, horário inicial/final, cor
-       * 
-       * 2. calendar_arrangements: Tabela de rearranjos personalizados (modo premium)
-       *    - Permite mover/reordenar matérias temporariamente
-       *    - Contém: item_key (nome da matéria), week, day, position
-       *    - Usado quando usuário personaliza layout do calendário
-       * 
-       * Comportamento:
-       * - Primeiro tenta calendar_subjects (fonte primária)
-       * - Se vazio, tenta calendar_arrangements (fallback)
-       * - Se ambos vazios, não mostra matérias do dia
-       */
       if (todaySubjects && todaySubjects.length > 0) {
         subjectsToProcess = todaySubjects.map((s: any) => s.name);
         console.log('✅ [Meu Dia] Usando calendar_subjects:', subjectsToProcess);
@@ -228,76 +212,99 @@ export const useHomeData = () => {
         }
       }
 
-      console.log('📋 [Meu Dia] Total de matérias a processar:', subjectsToProcess.length);
+      console.log('📋 [Meu Dia] Total de matérias do calendário:', subjectsToProcess.length);
 
-      // 🚀 Paralelizar queries para todas as matérias
-      const subjectPromises = subjectsToProcess.map(async (subjectName) => {
-        if (!subjectName) return null;
-
+      // Se não encontrou no calendário pessoal, buscar no Cronograma ENAMED
+      if (subjectsToProcess.length === 0) {
+        console.log('🔄 [Meu Dia] Buscando no Cronograma ENAMED');
         try {
-          // Buscar conteúdos e progresso em paralelo
-          const [materiaConteudosRes, completedRes] = await Promise.all([
-            supabase
-              .from('conteudos')
-              .select('id, aula, materia, link_aula')
-              .eq('id_ies', user.id_ies)
-              .eq('semestre', user.semestre.toString())
-              .eq('materia', subjectName)
-              .not('link_aula', 'is', null)
-              .limit(20),
-            supabase
-              .from('study_progress')
-              .select('content_id')
-              .eq('user_id', user.id)
-              .eq('materia_id', subjectName)
-              .eq('semestre', user.semestre)
-              .eq('ies_nome', user.ies_nome || '')
-              .eq('content_type', 'aula')
-              .eq('completed', true)
-          ]);
-
-          const materiaConteudos = materiaConteudosRes.data;
-          const completed = completedRes.data;
-
-          const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
-          const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
-
-          return {
-            id: `materia-${subjectName}`,
-            type: 'materia' as const,
-            title: subjectName,
-            subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada para hoje',
-            path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
-            icon: 'BookOpen',
-            color: 'from-emerald-500 to-teal-500',
-            lessonLink: suggestion?.link_aula || undefined,
-          };
+          const cronogramaItems = await cronogramaEnamedApi.getAllContent();
+          const brazilDate = getBrazilDate();
+          const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          
+          // Filtrar por data_aula que contenha a data de hoje
+          const todayCronogramaItems = cronogramaItems.filter(item => 
+            item.data_aula && item.data_aula.includes(todayStr)
+          );
+          console.log('🔍 [Meu Dia] Cronograma ENAMED para hoje:', todayCronogramaItems.length);
+          
+          for (const cronItem of todayCronogramaItems.slice(0, 3)) {
+            items.push({
+              id: `cronograma-${cronItem.id}`,
+              type: 'materia',
+              title: cronItem.subtema || cronItem.tema || 'Matéria',
+              subtitle: cronItem.titulo || 'Cronograma ENAMED',
+              path: '/cronograma-enamed',
+              icon: 'BookOpen',
+              color: 'from-purple-500 to-indigo-500',
+              lessonLink: cronItem.link_aula || cronItem.link_gratuito || undefined,
+            });
+          }
         } catch (error) {
-          console.warn(`Erro ao processar matéria ${subjectName}:`, error);
-          return null;
+          console.warn('⚠️ [Meu Dia] Erro ao buscar Cronograma ENAMED:', error);
         }
-      });
+      } else {
+        // Processar matérias do calendário pessoal
+        const subjectPromises = subjectsToProcess.map(async (subjectName) => {
+          if (!subjectName) return null;
 
-      // Aguardar todas as queries e filtrar nulos
-      const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
-      console.log('✅ [Meu Dia] Matérias processadas com sucesso:', subjectItems.length);
-      items.push(...subjectItems);
+          try {
+            const [materiaConteudosRes, completedRes] = await Promise.all([
+              supabase
+                .from('conteudos')
+                .select('id, aula, materia, link_aula')
+                .eq('id_ies', user.id_ies)
+                .eq('semestre', user.semestre.toString())
+                .eq('materia', subjectName)
+                .not('link_aula', 'is', null)
+                .limit(20),
+              supabase
+                .from('study_progress')
+                .select('content_id')
+                .eq('user_id', user.id)
+                .eq('materia_id', subjectName)
+                .eq('semestre', user.semestre)
+                .eq('ies_nome', user.ies_nome || '')
+                .eq('content_type', 'aula')
+                .eq('completed', true)
+            ]);
+
+            const materiaConteudos = materiaConteudosRes.data;
+            const completed = completedRes.data;
+
+            const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
+            const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
+
+            return {
+              id: `materia-${subjectName}`,
+              type: 'materia' as const,
+              title: subjectName,
+              subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
+              path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
+              icon: 'BookOpen',
+              color: 'from-emerald-500 to-teal-500',
+              lessonLink: suggestion?.link_aula || undefined,
+            };
+          } catch (error) {
+            console.warn(`Erro ao processar matéria ${subjectName}:`, error);
+            return null;
+          }
+        });
+
+        const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
+        console.log('✅ [Meu Dia] Matérias processadas:', subjectItems.length);
+        items.push(...subjectItems);
+      }
     } catch (e) {
-      // Falha opcional ao sugerir aula - não bloquear Meu Dia
-      console.error('❌ [Meu Dia] Erro ao montar matérias do dia:', e);
+      console.error('❌ [Meu Dia] Erro ao montar matérias:', e);
     }
 
-    console.log('📊 [Meu Dia] Total de items antes de adicionar Intensivo/Simulado:', items.length);
+    console.log('📊 [Meu Dia] Total de items:', items.length);
 
-    // Adicionar Intensivo e Simulado apenas se não houver matérias do dia
-    // (para não poluir a lista quando já tem conteúdo programado)
+    // Adicionar Intensivo e Simulado apenas se não houver matérias
     if (items.length === 0) {
-      console.log('ℹ️ [Meu Dia] Nenhuma matéria encontrada, adicionando Intensivo e Simulado como fallback');
-      
-      // Process intensivo (já carregado em paralelo)
       const intensivoData = intensivoRes.data;
       if (intensivoData && intensivoData.length > 0) {
-        console.log('✅ [Meu Dia] Adicionando Intensivo ENAMED');
         items.push({
           id: 'intensivo',
           type: 'intensivo',
@@ -309,10 +316,8 @@ export const useHomeData = () => {
         });
       }
 
-      // Process simulado (já carregado em paralelo)
       const simuladoData = simuladoRes.data;
       if (simuladoData && simuladoData.length > 0) {
-        console.log('✅ [Meu Dia] Adicionando Simulado Disponível');
         items.push({
           id: 'simulado',
           type: 'simulado',
@@ -323,11 +328,8 @@ export const useHomeData = () => {
           color: 'from-orange-500 to-red-500',
         });
       }
-    } else {
-      console.log('✅ [Meu Dia] Exibindo matérias do calendário (sem Intensivo/Simulado)');
     }
 
-    console.log('📋 [Meu Dia] Items finais:', items);
     setMeuDiaItems(items);
     return {
       items,
