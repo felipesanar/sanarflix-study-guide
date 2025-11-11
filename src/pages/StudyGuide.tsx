@@ -701,53 +701,104 @@ export const StudyGuide: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background container-compact">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-        <div className="w-full max-w-7xl mx-auto py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg sm:rounded-xl">
-                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+      {/* Header - Modo Normal e Modo Edição */}
+      {viewMode === 'calendar' && isEditMode ? (
+        // Header Modo Premium - Edição do Calendário
+        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-md">
+          <div className="w-full max-w-7xl mx-auto py-4 px-4 md:px-6 lg:px-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setIsEditMode(false)}
+                  className="gap-2"
+                >
+                  <ChevronRight className="h-4 w-4 rotate-180" />
+                  Voltar
+                </Button>
+                <div className="flex items-center gap-3">
+                  <Edit2 className="h-5 w-5 text-primary" />
+                  <div>
+                    <h1 className="text-xl font-bold">Editando Calendário</h1>
+                  </div>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    Modo Premium
+                  </Badge>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
-                <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setIsEditMode(false)}
+                  className="gap-2"
+                >
+                  <X className="h-4 w-4" />
+                  Cancelar
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={confirmEditMode}
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="h-4 w-4" />
+                  Salvar Alterações
+                </Button>
               </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por matéria, tema ou aula..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Selecione o semestre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semestres.map((sem) => {
-                    // Display formatted name (add "º Semestre" only for numbers)
-                    const isNumeric = !isNaN(parseInt(sem));
-                    const displayName = isNumeric ? `${sem}º Semestre` : sem;
-                    
-                    return (
-                      <SelectItem key={sem} value={sem}>
-                        {displayName}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        // Header Normal
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+          <div className="w-full max-w-7xl mx-auto py-3 sm:py-4">
+            <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg sm:rounded-xl">
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
+                  <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por matéria, tema ou aula..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Selecione o semestre" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {semestres.map((sem) => {
+                      // Display formatted name (add "º Semestre" only for numbers)
+                      const isNumeric = !isNaN(parseInt(sem));
+                      const displayName = isNumeric ? `${sem}º Semestre` : sem;
+                      
+                      return (
+                        <SelectItem key={sem} value={sem}>
+                          {displayName}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-3 sm:space-y-4 md:space-y-6">
         {selectedSemestre && (
@@ -1197,32 +1248,20 @@ export const StudyGuide: React.FC = () => {
                             Calendário de Estudos
                           </CardTitle>
                           <CardDescription>
-                            {isEditMode ? 'Organize suas matérias na semana' : 'Clique nas matérias para ver os conteúdos'}
+                            {isEditMode ? 'Arraste as matérias para reorganizar sua semana de estudos' : 'Clique nas matérias para ver os conteúdos'}
                           </CardDescription>
                         </div>
-                        <div>
-                          {!isEditMode ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setIsEditMode(true)}
-                              className="gap-2"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                              Editar
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="default" 
-                              size="sm"
-                              onClick={confirmEditMode}
-                              className="gap-2"
-                            >
-                              <Check className="h-4 w-4" />
-                              Confirmar
-                            </Button>
-                          )}
-                        </div>
+                        {!isEditMode && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setIsEditMode(true)}
+                            className="gap-2"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                            Editar
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -1330,15 +1369,18 @@ export const StudyGuide: React.FC = () => {
                         )}
                       </div>
                     </CardContent>
-                    <CardFooter className="text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        {isEditMode 
-                          ? 'Dica: Arraste as matérias para organizar sua semana de estudos'
-                          : 'Dica: Clique nas matérias para ver os conteúdos disponíveis'
-                        }
-                      </div>
-                    </CardFooter>
+                    {isEditMode && (
+                      <CardFooter className="bg-orange-50 dark:bg-orange-950/20 border-t border-orange-200 dark:border-orange-900">
+                        <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                          <div className="bg-orange-500 rounded-full p-1">
+                            <Sparkles className="h-3 w-3 text-white" />
+                          </div>
+                          <span className="text-sm font-medium">
+                            Dica: Arraste as matérias para reorganizar sua semana de estudos
+                          </span>
+                        </div>
+                      </CardFooter>
+                    )}
                   </Card>
                 </motion.div>
               )}
