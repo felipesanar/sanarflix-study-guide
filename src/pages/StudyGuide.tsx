@@ -1458,16 +1458,16 @@ export const StudyGuide: React.FC = () => {
                         </div>
 
                         {/* Calendar Grid */}
-                        <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6">
-                          <div className="bg-accent/30 rounded-xl p-6 relative">
-                            <div className="grid grid-cols-7 gap-3 mb-4">
+                        <div className="w-full px-4 md:px-6 lg:px-8 py-6">
+                          <div className="bg-accent/30 rounded-xl p-6 relative overflow-x-auto">
+                            <div className="grid grid-cols-7 gap-4 mb-4" style={{ minWidth: '1200px' }}>
                               {Array.from({ length: 7 }).map((_, dayIdx) => (
-                                <div key={dayIdx} className="flex flex-col min-h-[500px]">
+                                <div key={dayIdx} className="flex flex-col min-h-[500px] min-w-[160px]">
                                   <div className="text-center font-semibold p-3 bg-primary/10 rounded-t-lg text-sm">
                                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx]}
                                   </div>
                                   <div 
-                                    className="flex-1 bg-background rounded-b-lg border-2 border-border p-3 space-y-2 overflow-y-auto hover:bg-accent/10 transition-colors"
+                                    className="flex-1 bg-background rounded-b-lg border-2 border-border p-4 space-y-3 overflow-y-auto hover:bg-accent/10 transition-colors"
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={(e) => {
                                       e.preventDefault();
@@ -1484,17 +1484,17 @@ export const StudyGuide: React.FC = () => {
                                           key={event.id}
                                           initial={{ opacity: 0, y: 10 }}
                                           animate={{ opacity: 1, y: 0 }}
-                                          className="p-3 rounded-lg text-sm border-2 premium-card cursor-move hover-lift"
+                                          className="p-4 rounded-lg text-sm border-2 premium-card cursor-move hover-lift"
                                           style={{ 
                                             backgroundColor: `${event.color}20`,
                                             borderColor: `${event.color}`
                                           }}
                                           whileHover={{ scale: 1.02 }}
                                         >
-                                          <div className="flex justify-between items-start gap-2 min-w-0">
-                                            <div className="font-medium flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
-                                              <span className="flex-shrink-0 text-base">{getMateriaIcon(event.materia)}</span>
-                                              <span className="truncate font-semibold">{event.title}</span>
+                                          <div className="flex justify-between items-start gap-2">
+                                            <div className="font-medium flex items-center gap-2 flex-1 min-w-0">
+                                              <span className="flex-shrink-0 text-lg">{getMateriaIcon(event.materia)}</span>
+                                              <span className="font-semibold leading-snug break-words">{event.title}</span>
                                             </div>
                                             <Button 
                                               variant="ghost" 
@@ -1508,9 +1508,9 @@ export const StudyGuide: React.FC = () => {
                                               <Trash2 className="h-3 w-3" />
                                             </Button>
                                           </div>
-                                          <div className="text-xs flex items-center gap-1 mt-2 text-muted-foreground overflow-hidden">
+                                          <div className="text-xs flex items-center gap-1 mt-2 text-muted-foreground">
                                             <Clock3 className="h-3 w-3 flex-shrink-0" />
-                                            <span className="truncate font-medium">{event.startTime} - {event.endTime}</span>
+                                            <span className="font-medium">{event.startTime} - {event.endTime}</span>
                                           </div>
                                         </motion.div>
                                       ))}
