@@ -37,6 +37,9 @@ interface Questao {
   alternativa_e: string | null;
   correta: 'A' | 'B' | 'C' | 'D' | 'E';
   comentario: string | null;
+  feedback_corretas: string | null;
+  imagem: string | null;
+  observacao: string | null;
 }
 
 interface PreviewData {
@@ -135,13 +138,13 @@ export default function SimuladosTab() {
           setUploadProgress(40);
 
           // Validar colunas obrigatórias
-          const requiredColumns = ['enunciado', 'alternativa_a', 'alternativa_b', 'alternativa_c', 'alternativa_d', 'correta'];
+          const requiredColumns = ['enunciado', 'a', 'b', 'c', 'd', 'e', 'correta'];
           const firstRow = jsonData[0] as any;
-          const columns = Object.keys(firstRow).map(k => k.toLowerCase());
+          const columns = Object.keys(firstRow).map(k => k.toLowerCase().trim());
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
-            throw new Error(`O arquivo está incompleto. Colunas faltando: ${missingColumns.join(', ')}`);
+            throw new Error(`O arquivo está incompleto. Colunas obrigatórias faltando: ${missingColumns.join(', ')}`);
           }
 
           setUploadProgress(60);
@@ -150,19 +153,22 @@ export default function SimuladosTab() {
           const questoes: Questao[] = jsonData.map((row: any, index) => {
             const normalizedRow: any = {};
             Object.keys(row).forEach(key => {
-              normalizedRow[key.toLowerCase()] = row[key];
+              normalizedRow[key.toLowerCase().trim()] = row[key];
             });
 
             return {
               ordem: index + 1,
               enunciado: normalizedRow.enunciado || '',
-              alternativa_a: normalizedRow.alternativa_a || '',
-              alternativa_b: normalizedRow.alternativa_b || '',
-              alternativa_c: normalizedRow.alternativa_c || '',
-              alternativa_d: normalizedRow.alternativa_d || '',
-              alternativa_e: normalizedRow.alternativa_e || null,
-              correta: (normalizedRow.correta?.toUpperCase() || 'A') as 'A' | 'B' | 'C' | 'D' | 'E',
-              comentario: normalizedRow.comentario || null
+              alternativa_a: normalizedRow.a || '',
+              alternativa_b: normalizedRow.b || '',
+              alternativa_c: normalizedRow.c || '',
+              alternativa_d: normalizedRow.d || '',
+              alternativa_e: normalizedRow.e || null,
+              correta: (normalizedRow.correta?.toString().toUpperCase() || 'A') as 'A' | 'B' | 'C' | 'D' | 'E',
+              comentario: null,
+              feedback_corretas: normalizedRow['feedback das respostas corretas'] || null,
+              imagem: normalizedRow['imagem da questão'] || normalizedRow['imagem da questao'] || null,
+              observacao: normalizedRow['observação'] || normalizedRow['observacao'] || null
             };
           });
 
@@ -302,7 +308,10 @@ export default function SimuladosTab() {
         alternativa_d: q.alternativa_d,
         alternativa_e: q.alternativa_e,
         correta: q.correta as 'A' | 'B' | 'C' | 'D' | 'E',
-        comentario: q.comentario
+        comentario: q.comentario,
+        feedback_corretas: q.feedback_corretas,
+        imagem: q.imagem,
+        observacao: q.observacao
       }));
 
       setQuestoesVisualizacao(questoesFormatadas);
@@ -356,14 +365,16 @@ export default function SimuladosTab() {
       if (error) throw error;
 
       const exportData = questoes?.map(q => ({
-        enunciado: q.enunciado,
-        alternativa_a: q.alternativa_a,
-        alternativa_b: q.alternativa_b,
-        alternativa_c: q.alternativa_c,
-        alternativa_d: q.alternativa_d,
-        alternativa_e: q.alternativa_e || '',
-        correta: q.correta,
-        comentario: q.comentario || ''
+        ENUNCIADO: q.enunciado,
+        A: q.alternativa_a,
+        B: q.alternativa_b,
+        C: q.alternativa_c,
+        D: q.alternativa_d,
+        E: q.alternativa_e || '',
+        CORRETA: q.correta,
+        'Feedback das respostas corretas': q.feedback_corretas || '',
+        'IMAGEM DA QUESTÃO': q.imagem || '',
+        'OBSERVAÇÃO': q.observacao || ''
       }));
 
       const ws = XLSX.utils.json_to_sheet(exportData || []);
@@ -563,6 +574,13 @@ export default function SimuladosTab() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <p className="font-medium">{questao.enunciado}</p>
+                  {questao.imagem && (
+                    <img 
+                      src={questao.imagem} 
+                      alt="Imagem da questão" 
+                      className="max-w-full h-auto rounded-lg border"
+                    />
+                  )}
                   <div className="space-y-1 pl-4">
                     <p>A) {questao.alternativa_a}</p>
                     <p>B) {questao.alternativa_b}</p>
@@ -571,6 +589,12 @@ export default function SimuladosTab() {
                     {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
                   </div>
                   <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
+                  {questao.feedback_corretas && (
+                    <p className="text-blue-600 text-xs italic">Feedback: {questao.feedback_corretas}</p>
+                  )}
+                  {questao.observacao && (
+                    <p className="text-muted-foreground text-xs italic">Obs: {questao.observacao}</p>
+                  )}
                   {questao.comentario && (
                     <p className="text-muted-foreground italic">{questao.comentario}</p>
                   )}
@@ -701,6 +725,13 @@ export default function SimuladosTab() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   <p className="font-medium">{questao.enunciado}</p>
+                  {questao.imagem && (
+                    <img 
+                      src={questao.imagem} 
+                      alt="Imagem da questão" 
+                      className="max-w-full h-auto rounded-lg border"
+                    />
+                  )}
                   <div className="space-y-1 pl-4">
                     <p>A) {questao.alternativa_a}</p>
                     <p>B) {questao.alternativa_b}</p>
@@ -709,6 +740,12 @@ export default function SimuladosTab() {
                     {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
                   </div>
                   <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
+                  {questao.feedback_corretas && (
+                    <p className="text-blue-600 text-xs italic">Feedback: {questao.feedback_corretas}</p>
+                  )}
+                  {questao.observacao && (
+                    <p className="text-muted-foreground text-xs italic">Obs: {questao.observacao}</p>
+                  )}
                   {questao.comentario && (
                     <p className="text-muted-foreground italic">{questao.comentario}</p>
                   )}

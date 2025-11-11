@@ -415,7 +415,10 @@ export type Database = {
           correta: string
           created_at: string | null
           enunciado: string
+          feedback_corretas: string | null
           id: string
+          imagem: string | null
+          observacao: string | null
           ordem: number
           simulado_id: string
           updated_at: string | null
@@ -430,7 +433,10 @@ export type Database = {
           correta: string
           created_at?: string | null
           enunciado: string
+          feedback_corretas?: string | null
           id?: string
+          imagem?: string | null
+          observacao?: string | null
           ordem: number
           simulado_id: string
           updated_at?: string | null
@@ -445,7 +451,10 @@ export type Database = {
           correta?: string
           created_at?: string | null
           enunciado?: string
+          feedback_corretas?: string | null
           id?: string
+          imagem?: string | null
+          observacao?: string | null
           ordem?: number
           simulado_id?: string
           updated_at?: string | null
