@@ -43,7 +43,6 @@ export default function SanarClass() {
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProfessor, setSelectedProfessor] = useState<string>("all");
   const [selectedDisciplina, setSelectedDisciplina] = useState<string>("all");
   const [selectedSemestre, setSelectedSemestre] = useState<string>("all");
   const [selectedFormato, setSelectedFormato] = useState<string>("all");
@@ -54,7 +53,6 @@ export default function SanarClass() {
   const [selectedLesson, setSelectedLesson] = useState<SanarClassLesson | null>(null);
 
   // Opções únicas para filtros
-  const [professores, setProfessores] = useState<string[]>([]);
   const [disciplinas, setDisciplinas] = useState<string[]>([]);
   const [semestres, setSemestres] = useState<number[]>([]);
 
@@ -64,7 +62,7 @@ export default function SanarClass() {
 
   useEffect(() => {
     applyFilters();
-  }, [lessons, searchTerm, selectedProfessor, selectedDisciplina, selectedSemestre, selectedFormato]);
+  }, [lessons, searchTerm, selectedDisciplina, selectedSemestre, selectedFormato]);
 
   const fetchLessons = async () => {
     if (!user?.id_ies) return;
@@ -82,11 +80,9 @@ export default function SanarClass() {
       setLessons((data as SanarClassLesson[]) || []);
       
       // Extrair valores únicos para filtros
-      const uniqueProfessores = [...new Set(data?.map(l => l.professor) || [])];
       const uniqueDisciplinas = [...new Set(data?.map(l => l.disciplina) || [])];
       const uniqueSemestres = [...new Set(data?.map(l => l.semestre) || [])].sort((a, b) => a - b);
       
-      setProfessores(uniqueProfessores);
       setDisciplinas(uniqueDisciplinas);
       setSemestres(uniqueSemestres);
     } catch (error) {
@@ -106,11 +102,6 @@ export default function SanarClass() {
         lesson.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lesson.professor.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    }
-
-    // Filtro por professor
-    if (selectedProfessor !== "all") {
-      filtered = filtered.filter(lesson => lesson.professor === selectedProfessor);
     }
 
     // Filtro por disciplina
@@ -133,7 +124,6 @@ export default function SanarClass() {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedProfessor("all");
     setSelectedDisciplina("all");
     setSelectedSemestre("all");
     setSelectedFormato("all");
@@ -149,10 +139,6 @@ export default function SanarClass() {
     toast.success('Download iniciado');
   };
 
-  const filterByProfessor = (professorName: string) => {
-    setSelectedProfessor(professorName);
-    setViewModalOpen(false);
-  };
 
   if (loading) {
     return (
@@ -203,13 +189,13 @@ export default function SanarClass() {
       <section className="px-4 pb-8">
         <div className="container mx-auto max-w-6xl">
           <Card className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Filter className="h-4 w-4" />
                 Filtros
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 pt-0">
               {/* Busca */}
               <div className="relative">
                 <Input
@@ -222,19 +208,7 @@ export default function SanarClass() {
               </div>
 
               {/* Filtros em grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Select value={selectedProfessor} onValueChange={setSelectedProfessor}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os docentes" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os docentes</SelectItem>
-                    {professores.map(prof => (
-                      <SelectItem key={prof} value={prof}>{prof}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Select value={selectedDisciplina} onValueChange={setSelectedDisciplina}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todas as disciplinas" />
@@ -275,6 +249,7 @@ export default function SanarClass() {
                 variant="outline" 
                 onClick={clearFilters}
                 className="w-full sm:w-auto gap-2"
+                size="sm"
               >
                 <X className="h-4 w-4" />
                 Limpar filtros
@@ -437,12 +412,11 @@ export default function SanarClass() {
                   Baixar
                 </Button>
                 <Button 
-                  variant="outline"
-                  onClick={() => filterByProfessor(selectedLesson.professor)}
-                  className="gap-2 flex-1"
+                  variant="secondary"
+                  onClick={() => setViewModalOpen(false)}
+                  className="flex-1"
                 >
-                  <User className="h-4 w-4" />
-                  Ver outras aulas do professor
+                  Fechar
                 </Button>
               </div>
             </>
