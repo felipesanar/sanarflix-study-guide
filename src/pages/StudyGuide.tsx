@@ -1459,7 +1459,7 @@ export const StudyGuide: React.FC = () => {
 
                         {/* Calendar Grid */}
                         <div className="w-full px-4 md:px-6 lg:px-8 py-6">
-                          <div className="bg-accent/30 rounded-xl p-6 relative overflow-x-auto">
+                          <div className="bg-accent/30 rounded-xl p-6 relative">
                             {/* Matérias disponíveis - MOVIDO PARA CIMA */}
                             <motion.div 
                               className="bg-background p-4 rounded-xl border-2 border-primary/20 shadow-lg mb-6"
@@ -1489,40 +1489,64 @@ export const StudyGuide: React.FC = () => {
                               </div>
                             </motion.div>
 
-                            <div className="grid grid-cols-7 gap-4" style={{ minWidth: '1200px' }}>
+                            <div className="grid grid-cols-7 gap-4 mb-4" style={{ minWidth: '1200px' }}>
                               {Array.from({ length: 7 }).map((_, dayIdx) => (
-                                <div key={dayIdx} className="flex flex-col h-[400px]">
+                                <div key={dayIdx} className="flex flex-col h-[400px] min-w-[160px]">
                                   <div className="text-center font-semibold p-3 bg-primary/10 rounded-t-lg text-sm">
                                     {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx]}
                                   </div>
                                   <div 
                                     className="flex-1 bg-background rounded-b-lg border-2 border-border p-4 space-y-3 overflow-y-auto hover:bg-accent/10 transition-colors"
-                              className="bg-background p-4 rounded-xl border-2 border-primary/20 shadow-lg"
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.2 }}
-                            >
-                              <h4 className="text-base font-semibold mb-3 flex items-center gap-2 text-primary">
-                                <Plus className="h-5 w-5" />
-                                Arraste para adicionar ao calendário:
-                              </h4>
-                              <div className="flex flex-wrap gap-2">
-                                {filteredMaterias.map((materia, idx) => (
-                                  <motion.div 
-                                    key={idx} 
-                                    className="bg-primary/10 px-4 py-2 rounded-full text-sm border-2 border-primary/20 cursor-move flex items-center gap-2 hover:bg-primary/20 hover:border-primary/40 transition-colors font-medium"
-                                    draggable
-                                    onDragStart={() => setDraggedItem(materia.materia)}
-                                    onDragEnd={() => setDraggedItem(null)}
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.98 }}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      if (draggedItem) {
+                                        addEventToCalendar(draggedItem, dayIdx);
+                                        setDraggedItem(null);
+                                      }
+                                    }}
                                   >
-                                    <span className="text-base">{getMateriaIcon(materia.materia)}</span>
-                                    {materia.materia}
-                                  </motion.div>
-                                ))}
-                              </div>
-                            </motion.div>
+                                    {calendarEvents
+                                      .filter(event => event.day === dayIdx)
+                                      .map((event) => (
+                                        <motion.div
+                                          key={event.id}
+                                          initial={{ opacity: 0, y: 10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          className="p-4 rounded-lg text-sm border-2 premium-card cursor-move hover-lift"
+                                          style={{ 
+                                            backgroundColor: `${event.color}20`,
+                                            borderColor: `${event.color}`
+                                          }}
+                                          whileHover={{ scale: 1.02 }}
+                                        >
+                                          <div className="flex justify-between items-start gap-2">
+                                            <div className="font-medium flex items-center gap-2 flex-1 min-w-0">
+                                              <span className="flex-shrink-0 text-lg">{getMateriaIcon(event.materia)}</span>
+                                              <span className="font-semibold leading-snug break-words">{event.title}</span>
+                                            </div>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeEventFromCalendar(event.id);
+                                              }}
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                          <div className="text-xs flex items-center gap-1 mt-2 text-muted-foreground">
+                                            <Clock3 className="h-3 w-3 flex-shrink-0" />
+                                            <span className="font-medium">{event.startTime} - {event.endTime}</span>
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </motion.div>
