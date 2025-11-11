@@ -424,13 +424,21 @@ export default function SanarClassTab() {
                 id="arquivo_url"
                 value={formData.arquivo_url}
                 onChange={(e) => setFormData({ ...formData, arquivo_url: e.target.value })}
-                placeholder="https://..."
+                placeholder="https://drive.google.com/file/d/SEU_FILE_ID/preview"
                 type="url"
               />
-              <p className="text-xs text-muted-foreground">
-                💡 Use links de visualização direta (ex: Google Drive em modo preview, Dropbox com ?dl=0, ou PDFs hospedados). 
-                O preview será gerado automaticamente a partir deste link.
-              </p>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p className="font-medium">📋 Como obter o link correto do Google Drive:</p>
+                <ol className="list-decimal list-inside space-y-0.5 ml-2">
+                  <li>Abra o arquivo no Google Drive</li>
+                  <li>Clique em "Compartilhar" → "Qualquer pessoa com o link"</li>
+                  <li>Copie o link compartilhado (formato: https://drive.google.com/file/d/FILE_ID/view)</li>
+                  <li>Substitua <code className="bg-muted px-1 rounded">/view</code> por <code className="bg-muted px-1 rounded">/preview</code> no final do link</li>
+                </ol>
+                <p className="text-amber-600 dark:text-amber-500 font-medium mt-2">
+                  ⚠️ O link DEVE terminar com /preview para funcionar corretamente
+                </p>
+              </div>
             </div>
           </div>
 

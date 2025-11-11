@@ -278,16 +278,10 @@ export default function SanarClass() {
                   className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-2 overflow-hidden"
                 >
                   {/* Preview */}
-                  {lesson.preview_url && (
-                    <div className="aspect-video bg-muted relative overflow-hidden">
-                      <img 
-                        src={lesson.preview_url} 
-                        alt={lesson.titulo}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </div>
-                  )}
+                  <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 relative overflow-hidden flex items-center justify-center">
+                    <FileText className="h-16 w-16 text-muted-foreground/30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  </div>
                   
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2 mb-2">
