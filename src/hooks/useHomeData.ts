@@ -16,6 +16,11 @@ export interface MeuDiaItem {
   lessonLink?: string;
   // Origem dos dados: calendário pessoal ou cronograma ENAMED
   source?: 'calendar' | 'cronograma_enamed' | 'fallback';
+  // Metadados para deep linking
+  aulaId?: string;      // ID da aula específica
+  aulaNome?: string;    // Nome completo da aula
+  temaNome?: string;    // Nome do tema
+  subtemaNome?: string; // Nome do subtema
 }
 
 export interface RankingData {
@@ -363,16 +368,40 @@ export const useHomeData = () => {
             const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
             const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
 
+            // Buscar informações completas (tema e subtema) da aula sugerida
+            let temaNome: string | undefined;
+            let subtemaNome: string | undefined;
+            
+            if (suggestion) {
+              const { data: aulaCompleta } = await supabase
+                .from('conteudos')
+                .select('tema, subtema')
+                .eq('id', suggestion.id)
+                .single();
+              
+              if (aulaCompleta) {
+                temaNome = aulaCompleta.tema;
+                subtemaNome = aulaCompleta.subtema;
+              }
+            }
+
               return {
                 id: `materia-${subjectName}`,
                 type: 'materia' as const,
                 title: subjectName,
                 subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
-                path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
+                path: suggestion && temaNome
+                  ? `/guia-estudos?materia=${encodeURIComponent(subjectName)}&aula=${encodeURIComponent(suggestion.aula)}&tema=${encodeURIComponent(temaNome)}&subtema=${encodeURIComponent(subtemaNome || '')}`
+                  : `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
                 icon: 'BookOpen',
                 color: 'from-emerald-500 to-teal-500',
                 lessonLink: suggestion?.link_aula || undefined,
                 source: 'calendar' as const,
+                // Metadados para deep linking
+                aulaId: suggestion?.id,
+                aulaNome: suggestion?.aula,
+                temaNome,
+                subtemaNome,
               };
           } catch (error) {
             console.warn(`Erro ao processar matéria ${subjectName}:`, error);

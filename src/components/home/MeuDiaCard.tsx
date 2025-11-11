@@ -157,7 +157,13 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   const navigate = useNavigate();
 
   const handleItemClick = (item: MeuDiaItem) => {
-    navigate(item.path);
+    // Se tem metadados para deep link, navegar com query params completos
+    if (item.aulaNome && item.temaNome) {
+      navigate(item.path);
+    } else {
+      // Navegação normal para matérias sem aula sugerida
+      navigate(item.path);
+    }
   };
 
   const handleLessonClick = (e: React.MouseEvent, link: string) => {

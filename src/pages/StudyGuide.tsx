@@ -89,14 +89,26 @@ export const StudyGuide: React.FC = () => {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState<string>('');
+  const [deepLinkAula, setDeepLinkAula] = useState<string | null>(null);
+  const [deepLinkTema, setDeepLinkTema] = useState<string | null>(null);
+  const [deepLinkSubtema, setDeepLinkSubtema] = useState<string | null>(null);
+  const aulaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const location = useLocation();
-  // Pré-seleciona matéria via query string: /guia-estudos?materia=Cardiologia
+  
+  // Pré-seleciona matéria via query string e processa deep link
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get('materia');
+    const aula = params.get('aula');
+    const tema = params.get('tema');
+    const subtema = params.get('subtema');
+    
     if (m) {
       setSelectedMateria(m);
     }
+    if (aula) setDeepLinkAula(aula);
+    if (tema) setDeepLinkTema(tema);
+    if (subtema) setDeepLinkSubtema(subtema);
   }, [location.search]);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [isEditMode, setIsEditMode] = useState(false);
@@ -382,6 +394,69 @@ export const StudyGuide: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Deep link: auto-expande tema e faz scroll para aula
+  useEffect(() => {
+    if (!isLoading && deepLinkAula && deepLinkTema && selectedMateria) {
+      // Aguardar renderização completa
+      const timer = setTimeout(() => {
+        // 1. Expandir accordion do tema
+        const temaElements = document.querySelectorAll(`[data-tema]`);
+        let temaElement: Element | null = null;
+        
+        temaElements.forEach((el) => {
+          if (el.getAttribute('data-tema') === deepLinkTema) {
+            temaElement = el;
+          }
+        });
+        
+        if (temaElement) {
+          // Forçar click para expandir o accordion
+          (temaElement as HTMLElement).click();
+          
+          // 2. Aguardar expansão e fazer scroll para aula
+          setTimeout(() => {
+            const aulaElement = aulaRefs.current.get(deepLinkAula);
+            if (aulaElement) {
+              aulaElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+              });
+              
+              // Highlight temporário
+              aulaElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+              setTimeout(() => {
+                aulaElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+              }, 3000);
+            } else {
+              // Fallback: mostrar toast se aula não encontrada
+              toast({
+                title: 'Aula não encontrada',
+                description: 'A aula sugerida não está disponível no momento.',
+                variant: 'default',
+              });
+            }
+            
+            // Limpar deep link params
+            setDeepLinkAula(null);
+            setDeepLinkTema(null);
+            setDeepLinkSubtema(null);
+          }, 400);
+        } else {
+          toast({
+            title: 'Tema não encontrado',
+            description: 'O tema da aula não foi localizado.',
+            variant: 'default',
+          });
+          setDeepLinkAula(null);
+          setDeepLinkTema(null);
+          setDeepLinkSubtema(null);
+        }
+      }, 600);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, deepLinkAula, deepLinkTema, selectedMateria]);
 
   // Helper functions (must be defined before useMemo)
   const getAulaId = (item: ConteudoData) => {
@@ -1087,7 +1162,10 @@ export const StudyGuide: React.FC = () => {
                                             : ""
                                         )}
                                       >
-                                        <AccordionTrigger className="hover:no-underline">
+                                        <AccordionTrigger 
+                                          className="hover:no-underline"
+                                          data-tema={tema.tema}
+                                        >
                                           <div className="flex items-center gap-3 flex-1 text-left">
                                             <div className={cn(
                                               "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0",
@@ -1143,6 +1221,10 @@ export const StudyGuide: React.FC = () => {
                                                 return (
                                                   <motion.div
                                                     key={aIdx}
+                                                    ref={(el) => {
+                                                      if (el) aulaRefs.current.set(aula.aula, el);
+                                                    }}
+                                                    data-aula={aula.aula}
                                                     whileHover={{ scale: 1.01 }}
                                                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                                                     className={cn(
