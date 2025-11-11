@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 export interface MeuDiaItem {
   id: string;
@@ -120,14 +121,31 @@ export const useHomeData = () => {
 
     const items: MeuDiaItem[] = [];
 
-    // Check for study guide content
-    const { data: studyGuideData } = await supabase
-      .from('conteudos')
-      .select('*')
-      .eq('id_ies', user.id_ies)
-      .eq('semestre', user.semestre.toString())
-      .limit(1);
+    // 🚀 Paralelizar queries principais para melhor performance
+    const [studyGuideRes, cronogramaRes, intensivoRes, simuladoRes] = await Promise.all([
+      supabase
+        .from('conteudos')
+        .select('*')
+        .eq('id_ies', user.id_ies)
+        .eq('semestre', user.semestre.toString())
+        .limit(1),
+      supabase
+        .from('calendar_subjects')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(1),
+      supabase
+        .from('intensivouscs')
+        .select('*')
+        .limit(1),
+      supabase
+        .from('Simulados')
+        .select('id, Simulado')
+        .limit(1),
+    ]);
 
+    // Process study guide
+    const studyGuideData = studyGuideRes.data;
     if (studyGuideData && studyGuideData.length > 0) {
       setHasStudyGuide(true);
       items.push({
@@ -141,20 +159,16 @@ export const useHomeData = () => {
       });
     }
 
-    // Check for cronograma
-    const { data: cronogramaData } = await supabase
-      .from('calendar_subjects')
-      .select('*')
-      .eq('user_id', user.id)
-      .limit(1);
-
+    // Process cronograma
+    const cronogramaData = cronogramaRes.data;
     if (cronogramaData && cronogramaData.length > 0) {
       setHasCronograma(true);
     }
 
     // Matéria do dia (do calendário) + sugestão de aula não concluída
     try {
-      const today = new Date().getDay(); // 0 (Dom) - 6 (Sáb)
+      // 🌍 Usar fuso de Brasília (GMT-3) para consistência com sistema de lembretes
+      const today = getBrazilDayOfWeek(); // 0 (Dom) - 6 (Sáb)
       const { data: todaySubjects } = await supabase
         .from('calendar_subjects')
         .select('*')
@@ -220,12 +234,8 @@ export const useHomeData = () => {
       console.warn('Falha ao montar matéria do dia/sugestão de aula:', e);
     }
 
-    // Check for intensivo
-    const { data: intensivoData } = await supabase
-      .from('intensivouscs')
-      .select('*')
-      .limit(1);
-
+    // Process intensivo (já carregado em paralelo)
+    const intensivoData = intensivoRes.data;
     if (intensivoData && intensivoData.length > 0) {
       items.push({
         id: 'intensivo',
@@ -238,12 +248,8 @@ export const useHomeData = () => {
       });
     }
 
-    // Check for pending simulado
-    const { data: simuladoData } = await supabase
-      .from('Simulados')
-      .select('id, Simulado')
-      .limit(1);
-
+    // Process simulado (já carregado em paralelo)
+    const simuladoData = simuladoRes.data;
     if (simuladoData && simuladoData.length > 0) {
       items.push({
         id: 'simulado',
@@ -274,11 +280,15 @@ export const useHomeData = () => {
 
       if (rankingData && typeof rankingData === 'object') {
         const ranking = rankingData as any;
+        // Mock determinístico para ranking de conteúdo (baseado no user.id)
+        const userIdHash = user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const mockConteudoRank = (userIdHash % 50) + 1;
+        
         const next: RankingData = {
           simuladoRank: ranking.rankingIES?.rank,
           simuladoTotal: ranking.rankingIES?.total,
-          // Mock data for content consumption ranking
-          conteudoRank: Math.floor(Math.random() * 50) + 1,
+          // Mock determinístico - sempre retorna o mesmo valor para o mesmo usuário
+          conteudoRank: mockConteudoRank,
           conteudoTotal: 150,
         };
         setRankings(next);
