@@ -427,9 +427,8 @@ export const StudyGuide: React.FC = () => {
               aulaElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
               setTimeout(() => {
                 aulaElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-              }, 3000);
+              }, 2000);
             } else {
-              // Fallback: mostrar toast se aula não encontrada
               toast({
                 title: 'Aula não encontrada',
                 description: 'A aula sugerida não está disponível no momento.',
@@ -441,7 +440,7 @@ export const StudyGuide: React.FC = () => {
             setDeepLinkAula(null);
             setDeepLinkTema(null);
             setDeepLinkSubtema(null);
-          }, 400);
+          }, 200);
         } else {
           toast({
             title: 'Tema não encontrado',
@@ -452,7 +451,7 @@ export const StudyGuide: React.FC = () => {
           setDeepLinkTema(null);
           setDeepLinkSubtema(null);
         }
-      }, 600);
+      }, 300);
       
       return () => clearTimeout(timer);
     }
