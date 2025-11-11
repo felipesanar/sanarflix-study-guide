@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Trophy, TrendingUp, ChevronRight, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RankingData } from '@/hooks/useHomeData';
 import { Progress } from '@/components/ui/progress';
+import { RankingConsumoModal } from './RankingConsumoModal';
 
 interface RankingCardProps {
   data: RankingData;
@@ -12,6 +13,7 @@ interface RankingCardProps {
 
 export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
   const navigate = useNavigate();
+  const [showRankingConsumoModal, setShowRankingConsumoModal] = useState(false);
 
   const getPercentile = (rank: number, total: number) => {
     if (total === 0) return 0;
@@ -69,7 +71,7 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
         {/* Ranking de Consumo (Mock) */}
         <motion.div
           whileHover={{ scale: 1.02 }}
-          onClick={() => navigate('/analytics')}
+          onClick={() => setShowRankingConsumoModal(true)}
           className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20 cursor-pointer hover:border-blue-500/40 transition-all group"
         >
           <div className="flex items-start justify-between mb-3">
@@ -104,6 +106,12 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
           )}
         </motion.div>
       </CardContent>
+
+      {/* Modal de Ranking de Consumo */}
+      <RankingConsumoModal 
+        open={showRankingConsumoModal} 
+        onOpenChange={setShowRankingConsumoModal} 
+      />
     </Card>
   );
 };
