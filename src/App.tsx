@@ -20,6 +20,8 @@ const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default:
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
 const IntensivaoEnamed = lazy(() => import("./pages/IntensivaoEnamed").then(m => ({ default: m.IntensivaoEnamed })));
 const SimuladoDesempenho = lazy(() => import("./pages/SimuladoDesempenho").then(m => ({ default: m.SimuladoDesempenho })));
+const Simulados = lazy(() => import("./pages/Simulados"));
+const ModoProva = lazy(() => import("./pages/ModoProva"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
@@ -146,6 +148,31 @@ const AppContent = () => {
             }
           />
         )}
+
+        {/* Rota de Simulados */}
+        <Route
+          path="/simulados"
+          element={
+            <ProtectedRoute>
+              <PageWrapper 
+                loadingMessage="Carregando simulados..." 
+                waitForData={true}
+              >
+                <Simulados />
+              </PageWrapper>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Modo Prova - Sem Layout */}
+        <Route
+          path="/simulados/:id/prova"
+          element={
+            <ProtectedRoute>
+              <ModoProva />
+            </ProtectedRoute>
+          }
+        />
 
         {accessRules.SimuladoDesempenho && (
           <Route

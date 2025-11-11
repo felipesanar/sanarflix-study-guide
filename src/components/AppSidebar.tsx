@@ -55,6 +55,13 @@ const menuItems = [
     description: "Aulas da sua IES com o Sanarflix",
   },
   {
+    title: "Simulados",
+    url: "/simulados",
+    icon: ClipboardCheck,
+    accessKey: "home" as const,
+    description: "Simulados completos e desempenho",
+  },
+  {
     title: "Intensivão ENAMED",
     url: "/intensivao-enamed",
     icon: Zap,
@@ -74,13 +81,6 @@ const menuItems = [
     icon: FileText,
     accessKey: "cronogramaEnamed" as const,
     description: "Seu cronograma personalizado",
-  },
-  {
-    title: "Desempenho Simulado",
-    url: "/desempenho-simulado",
-    icon: ClipboardCheck,
-    accessKey: "SimuladoDesempenho" as const,
-    description: "Análise do seu desempenho",
   },
   {
     title: "Portal do Admin",
