@@ -1256,7 +1256,7 @@ export const StudyGuide: React.FC = () => {
                             {isEditMode ? '✨ Arraste as matérias para reorganizar sua semana de estudos' : 'Clique nas matérias para ver os conteúdos'}
                           </CardDescription>
                         </div>
-                        {!isEditMode ? (
+                        {!isEditMode && (
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -1266,27 +1266,6 @@ export const StudyGuide: React.FC = () => {
                             <Edit2 className="h-4 w-4" />
                             Editar
                           </Button>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setIsEditMode(false)}
-                              className="gap-2"
-                            >
-                              <X className="h-4 w-4" />
-                              Cancelar
-                            </Button>
-                            <Button 
-                              variant="default" 
-                              size="sm"
-                              onClick={confirmEditMode}
-                              className="gap-2 bg-green-600 hover:bg-green-700"
-                            >
-                              <Check className="h-4 w-4" />
-                              Salvar
-                            </Button>
-                          </div>
                         )}
                       </div>
                     </CardHeader>
@@ -1300,14 +1279,6 @@ export const StudyGuide: React.FC = () => {
                               </div>
                               <div 
                                 className="flex-1 bg-background rounded-b-lg border border-border p-2 space-y-2 overflow-y-auto hover:bg-accent/10 transition-colors"
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  if (draggedItem) {
-                                    addEventToCalendar(draggedItem, dayIdx);
-                                    setDraggedItem(null);
-                                  }
-                                }}
                               >
                                 {/* Eventos do calendário */}
                                 {calendarEvents
@@ -1317,40 +1288,18 @@ export const StudyGuide: React.FC = () => {
                                       key={event.id}
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
-                                      className={cn(
-                                        "p-2 rounded-md text-sm border premium-card overflow-hidden",
-                                        isEditMode ? "cursor-move hover-lift" : "cursor-pointer hover:opacity-80 transition-opacity"
-                                      )}
+                                      className="p-2 rounded-md text-sm border premium-card overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                                       style={{ 
                                         backgroundColor: `${event.color}20`,
                                         borderColor: `${event.color}30`
                                       }}
-                                      drag={isEditMode}
-                                      dragControls={isEditMode ? dragControls : undefined}
-                                      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                                      dragElastic={0.2}
-                                      dragMomentum={false}
-                                      whileDrag={isEditMode ? { scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" } : undefined}
-                                      onClick={() => !isEditMode && openMateriaSheet(event.materia)}
+                                      onClick={() => openMateriaSheet(event.materia)}
                                     >
                                       <div className="flex justify-between items-start gap-2 min-w-0">
                                         <div className="font-medium flex items-center gap-1 flex-1 min-w-0 overflow-hidden">
                                           <span className="flex-shrink-0">{getMateriaIcon(event.materia)}</span>
                                           <span className="truncate">{event.title}</span>
                                         </div>
-                                        {isEditMode && (
-                                          <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            className="h-5 w-5 rounded-full hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              removeEventFromCalendar(event.id);
-                                            }}
-                                          >
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        )}
                                       </div>
                                       <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground overflow-hidden">
                                         <Clock3 className="h-3 w-3 flex-shrink-0" />
@@ -1362,52 +1311,166 @@ export const StudyGuide: React.FC = () => {
                             </div>
                           ))}
                         </div>
-                        
-                        {/* Matérias disponíveis para arrastar - apenas no modo de edição */}
-                        {isEditMode && (
-                          <motion.div 
-                            className="absolute bottom-4 left-4 right-4 bg-background p-3 rounded-lg border shadow-md"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                          >
-                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                              <Plus className="h-4 w-4" />
-                              Arraste para adicionar ao calendário:
-                            </h4>
-                            <div className="flex flex-wrap gap-2">
-                              {filteredMaterias.map((materia, idx) => (
-                                <motion.div 
-                                  key={idx} 
-                                  className="bg-primary/10 px-3 py-1 rounded-full text-sm border border-primary/20 cursor-move flex items-center gap-1 hover:bg-primary/20 transition-colors"
-                                  draggable
-                                  onDragStart={() => setDraggedItem(materia.materia)}
-                                  onDragEnd={() => setDraggedItem(null)}
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.98 }}
-                                >
-                                  <span className="text-sm">{getMateriaIcon(materia.materia)}</span>
-                                  {materia.materia}
-                                </motion.div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
                       </div>
                     </CardContent>
-                    {isEditMode && (
-                      <CardFooter className="bg-orange-50 dark:bg-orange-950/20 border-t border-orange-200 dark:border-orange-900">
-                        <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
-                          <div className="bg-orange-500 rounded-full p-1">
-                            <Sparkles className="h-3 w-3 text-white" />
-                          </div>
-                          <span className="text-sm font-medium">
-                            Dica: Arraste as matérias para reorganizar sua semana de estudos
-                          </span>
-                        </div>
-                      </CardFooter>
-                    )}
                   </Card>
+
+                  {/* Modal de Tela Cheia para Modo de Edição */}
+                  <AnimatePresence>
+                    {isEditMode && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[9999] bg-background"
+                      >
+                        {/* Header */}
+                        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-md">
+                          <div className="w-full max-w-7xl mx-auto py-4 px-4 md:px-6 lg:px-8">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => setIsEditMode(false)}
+                                  className="gap-2"
+                                >
+                                  <ChevronRight className="h-4 w-4 rotate-180" />
+                                  Voltar
+                                </Button>
+                                <div className="flex items-center gap-3">
+                                  <Calendar className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <h1 className="text-xl font-bold">Calendário de Estudos</h1>
+                                  </div>
+                                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                                    Modo Premium
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => setIsEditMode(false)}
+                                  className="gap-2"
+                                >
+                                  <X className="h-4 w-4" />
+                                  Cancelar
+                                </Button>
+                                <Button 
+                                  variant="default" 
+                                  size="sm"
+                                  onClick={confirmEditMode}
+                                  className="gap-2 bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="h-4 w-4" />
+                                  Salvar Alterações
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                              <Sparkles className="h-4 w-4" />
+                              Arraste as matérias para reorganizar sua semana de estudos
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Calendar Grid */}
+                        <div className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+                          <div className="bg-accent/30 rounded-xl p-6 relative">
+                            <div className="grid grid-cols-7 gap-3 mb-4">
+                              {Array.from({ length: 7 }).map((_, dayIdx) => (
+                                <div key={dayIdx} className="flex flex-col min-h-[500px]">
+                                  <div className="text-center font-semibold p-3 bg-primary/10 rounded-t-lg text-sm">
+                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx]}
+                                  </div>
+                                  <div 
+                                    className="flex-1 bg-background rounded-b-lg border-2 border-border p-3 space-y-2 overflow-y-auto hover:bg-accent/10 transition-colors"
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                      e.preventDefault();
+                                      if (draggedItem) {
+                                        addEventToCalendar(draggedItem, dayIdx);
+                                        setDraggedItem(null);
+                                      }
+                                    }}
+                                  >
+                                    {calendarEvents
+                                      .filter(event => event.day === dayIdx)
+                                      .map((event) => (
+                                        <motion.div
+                                          key={event.id}
+                                          initial={{ opacity: 0, y: 10 }}
+                                          animate={{ opacity: 1, y: 0 }}
+                                          className="p-3 rounded-lg text-sm border-2 premium-card cursor-move hover-lift"
+                                          style={{ 
+                                            backgroundColor: `${event.color}20`,
+                                            borderColor: `${event.color}`
+                                          }}
+                                          whileHover={{ scale: 1.02 }}
+                                        >
+                                          <div className="flex justify-between items-start gap-2 min-w-0">
+                                            <div className="font-medium flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+                                              <span className="flex-shrink-0 text-base">{getMateriaIcon(event.materia)}</span>
+                                              <span className="truncate font-semibold">{event.title}</span>
+                                            </div>
+                                            <Button 
+                                              variant="ghost" 
+                                              size="icon" 
+                                              className="h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                removeEventFromCalendar(event.id);
+                                              }}
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                          <div className="text-xs flex items-center gap-1 mt-2 text-muted-foreground overflow-hidden">
+                                            <Clock3 className="h-3 w-3 flex-shrink-0" />
+                                            <span className="truncate font-medium">{event.startTime} - {event.endTime}</span>
+                                          </div>
+                                        </motion.div>
+                                      ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Matérias disponíveis */}
+                            <motion.div 
+                              className="bg-background p-4 rounded-xl border-2 border-primary/20 shadow-lg"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                            >
+                              <h4 className="text-base font-semibold mb-3 flex items-center gap-2 text-primary">
+                                <Plus className="h-5 w-5" />
+                                Arraste para adicionar ao calendário:
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {filteredMaterias.map((materia, idx) => (
+                                  <motion.div 
+                                    key={idx} 
+                                    className="bg-primary/10 px-4 py-2 rounded-full text-sm border-2 border-primary/20 cursor-move flex items-center gap-2 hover:bg-primary/20 hover:border-primary/40 transition-colors font-medium"
+                                    draggable
+                                    onDragStart={() => setDraggedItem(materia.materia)}
+                                    onDragEnd={() => setDraggedItem(null)}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.98 }}
+                                  >
+                                    <span className="text-base">{getMateriaIcon(materia.materia)}</span>
+                                    {materia.materia}
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>
