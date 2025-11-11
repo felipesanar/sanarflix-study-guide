@@ -27,6 +27,7 @@ export type Database = {
           link_botao: string | null
           paleta_cores: string
           prioridade: string
+          semestre_destino: number | null
           texto_botao: string
           titulo: string
           updated_at: string
@@ -44,6 +45,7 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          semestre_destino?: number | null
           texto_botao?: string
           titulo: string
           updated_at?: string
@@ -61,12 +63,42 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          semestre_destino?: number | null
           texto_botao?: string
           titulo?: string
           updated_at?: string
           visibilidade?: string
         }
         Relationships: []
+      }
+      announcements_viewed: {
+        Row: {
+          announcement_id: string
+          id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_viewed_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       answer_progress_enamed: {
         Row: {

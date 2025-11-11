@@ -36,7 +36,7 @@ import { PageLoader } from '@/components/PageLoader';
 import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton, IntensivaoSkeleton } from '@/components/skeletons';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
-const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
+const Home = lazy(() => import("./pages/Home"));
 
 const queryClient = new QueryClient({
   defaultOptions: {

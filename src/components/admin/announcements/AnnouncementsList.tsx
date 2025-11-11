@@ -20,13 +20,14 @@ interface Announcement {
   link_botao: string | null;
   texto_botao: string;
   ativo: boolean;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'muito_alta';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
   data_expiracao: string | null;
   created_at: string;
   paleta_cores: string;
+  semestre_destino?: number | null;
 }
 
 interface Props {

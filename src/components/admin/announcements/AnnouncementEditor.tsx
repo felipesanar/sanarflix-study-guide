@@ -27,10 +27,11 @@ interface AnnouncementConfig {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'muito_alta';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
+  semestre_destino?: number | null;
 }
 
 const colorPalettes = {
@@ -270,8 +271,35 @@ export const AnnouncementEditor: React.FC<Props> = ({
                     <SelectItem value="baixa">Baixa</SelectItem>
                     <SelectItem value="media">Média</SelectItem>
                     <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="muito_alta">Muito Alta (Pop-up)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="semestre">Semestre de Destino (opcional)</Label>
+                <Select
+                  value={config.semestre_destino?.toString() || 'todos'}
+                  onValueChange={(value) => setConfig({ 
+                    ...config, 
+                    semestre_destino: value === 'todos' ? null : parseInt(value) 
+                  })}
+                >
+                  <SelectTrigger id="semestre">
+                    <SelectValue placeholder="Todos os semestres" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os semestres</SelectItem>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((sem) => (
+                      <SelectItem key={sem} value={sem.toString()}>
+                        {sem}º Semestre
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Deixe em "Todos os semestres" para exibir o aviso para todos os alunos
+                </p>
               </div>
             </CardContent>
           </Card>
