@@ -215,45 +215,57 @@ export const useHomeData = () => {
         }
       }
 
-      // Processar cada matéria do dia
-      for (const subjectName of subjectsToProcess) {
-        if (!subjectName) continue;
+      // 🚀 Paralelizar queries para todas as matérias
+      const subjectPromises = subjectsToProcess.map(async (subjectName) => {
+        if (!subjectName) return null;
 
-        // Buscar aulas da matéria no guia de estudos
-        const { data: materiaConteudos } = await supabase
-          .from('conteudos')
-          .select('id, aula, materia, link_aula')
-          .eq('id_ies', user.id_ies)
-          .eq('semestre', user.semestre.toString())
-          .eq('materia', subjectName)
-          .not('link_aula', 'is', null)
-          .limit(20);
+        try {
+          // Buscar conteúdos e progresso em paralelo
+          const [materiaConteudosRes, completedRes] = await Promise.all([
+            supabase
+              .from('conteudos')
+              .select('id, aula, materia, link_aula')
+              .eq('id_ies', user.id_ies)
+              .eq('semestre', user.semestre.toString())
+              .eq('materia', subjectName)
+              .not('link_aula', 'is', null)
+              .limit(20),
+            supabase
+              .from('study_progress')
+              .select('content_id')
+              .eq('user_id', user.id)
+              .eq('materia_id', subjectName)
+              .eq('semestre', user.semestre)
+              .eq('ies_nome', user.ies_nome || '')
+              .eq('content_type', 'aula')
+              .eq('completed', true)
+          ]);
 
-        // Buscar itens concluídos pelo usuário para essa matéria
-        const { data: completed } = await supabase
-          .from('study_progress')
-          .select('content_id')
-          .eq('user_id', user.id)
-          .eq('materia_id', subjectName)
-          .eq('semestre', user.semestre)
-          .eq('ies_nome', user.ies_nome || '')
-          .eq('content_type', 'aula')
-          .eq('completed', true);
+          const materiaConteudos = materiaConteudosRes.data;
+          const completed = completedRes.data;
 
-        const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
-        const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
+          const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
+          const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
 
-        items.push({
-          id: `materia-${subjectName}`,
-          type: 'materia',
-          title: subjectName,
-          subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada para hoje',
-          path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
-          icon: 'BookOpen',
-          color: 'from-emerald-500 to-teal-500',
-          lessonLink: suggestion?.link_aula || undefined,
-        });
-      }
+          return {
+            id: `materia-${subjectName}`,
+            type: 'materia' as const,
+            title: subjectName,
+            subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada para hoje',
+            path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
+            icon: 'BookOpen',
+            color: 'from-emerald-500 to-teal-500',
+            lessonLink: suggestion?.link_aula || undefined,
+          };
+        } catch (error) {
+          console.warn(`Erro ao processar matéria ${subjectName}:`, error);
+          return null;
+        }
+      });
+
+      // Aguardar todas as queries e filtrar nulos
+      const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
+      items.push(...subjectItems);
     } catch (e) {
       // Falha opcional ao sugerir aula - não bloquear Meu Dia
       console.warn('Falha ao montar matérias do dia/sugestão de aulas:', e);
