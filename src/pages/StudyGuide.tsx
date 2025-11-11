@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { swrFetch } from '@/utils/performanceCache';
 import { toast } from '@/hooks/use-toast';
 import { useUniversity } from '@/contexts/UniversityContext';
+import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { 
   BookOpen, 
   Search,
@@ -80,6 +81,7 @@ interface ConteudoData {
 
 export const StudyGuide: React.FC = () => {
   const { user } = useAuth();
+  const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
   const [conteudos, setConteudos] = useState<ConteudoData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSemestre, setSelectedSemestre] = useState<string>('');
@@ -119,26 +121,20 @@ export const StudyGuide: React.FC = () => {
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const dragControls = useDragControls();
   
-  // Load calendar events from localStorage
+  // Sync calendar events with Supabase (via useCalendarSync)
   useEffect(() => {
-    const stored = localStorage.getItem('calendar-events');
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        if (Array.isArray(data)) {
-          setCalendarEvents(data);
-        }
-      } catch (e) {
-        console.error('Error loading calendar events:', e);
-      }
-    }
-  }, []);
-  
-  // Save calendar events to localStorage
-  const saveCalendarEvents = (events: CalendarEvent[]) => {
-    localStorage.setItem('calendar-events', JSON.stringify(events));
+    // Convert subjects from Supabase to CalendarEvent format
+    const events: CalendarEvent[] = subjects.map(s => ({
+      id: s.id || `temp-${s.dayOfWeek}-${s.startTime}`,
+      title: s.name,
+      materia: s.name,
+      day: s.dayOfWeek,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      color: s.color
+    }));
     setCalendarEvents(events);
-  };
+  }, [subjects]);
   
   // Função para gerar uma cor consistente baseada no nome da matéria
   const getMateriaColor = (materia: string) => {
@@ -156,8 +152,8 @@ export const StudyGuide: React.FC = () => {
     return colors[Math.abs(hash) % colors.length];
   };
   
-  // Função para adicionar evento ao calendário
-  const addEventToCalendar = (materia: string, day: number) => {
+  // Função para adicionar evento ao calendário (salva no Supabase)
+  const addEventToCalendar = async (materia: string, day: number) => {
     // Gerar horários aleatórios para demonstração
     const startHour = Math.floor(Math.random() * 12) + 8; // Entre 8h e 19h
     const duration = Math.floor(Math.random() * 2) + 1; // 1 ou 2 horas
@@ -166,30 +162,33 @@ export const StudyGuide: React.FC = () => {
     const startTime = `${startHour.toString().padStart(2, '0')}:00`;
     const endTime = `${endHour.toString().padStart(2, '0')}:00`;
     
-    const newEvent: CalendarEvent = {
-      id: `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: materia,
-      materia,
-      day,
+    await addSubject({
+      name: materia,
+      dayOfWeek: day,
       startTime,
       endTime,
       color: getMateriaColor(materia)
-    };
-    
-    const updatedEvents = [...calendarEvents, newEvent];
-    saveCalendarEvents(updatedEvents);
+    });
     
     toast({
-      title: "Evento adicionado",
-      description: `${materia} adicionado ao calendário para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][day]}`,
+      title: "Matéria adicionada",
+      description: `${materia} adicionado ao seu calendário pessoal para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][day]}`,
       variant: "default",
     });
   };
   
-  // Função para remover evento do calendário
-  const removeEventFromCalendar = (id: string) => {
-    const updatedEvents = calendarEvents.filter(event => event.id !== id);
-    saveCalendarEvents(updatedEvents);
+  // Função para remover evento do calendário (remove do Supabase)
+  const removeEventFromCalendar = async (id: string) => {
+    const event = calendarEvents.find(e => e.id === id);
+    if (!event) return;
+    
+    await removeSubject(event.day, event.startTime);
+    
+    toast({
+      title: "Matéria removida",
+      description: "Matéria removida do calendário",
+      variant: "default",
+    });
   };
   
   // Função para abrir sheet com conteúdos da matéria

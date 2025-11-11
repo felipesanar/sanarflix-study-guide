@@ -20,7 +20,9 @@ Armazena as matérias configuradas pelo usuário no calendário semanal.
 - `created_at` (timestamp): Data de criação
 - `updated_at` (timestamp): Data de atualização
 
-**Usado em:** Card "O Que Estudar Hoje" na Home
+**Usado em:** 
+- Card "O Que Estudar Hoje" na Home
+- **Guia de Estudos** (`/guia-estudos`) - modo calendário
 
 #### 2. `calendar_arrangements`
 Armazena os rearranjos personalizados do cronograma ENAMED (quando o usuário move itens no modo de edição).
@@ -67,6 +69,7 @@ Armazena os rearranjos personalizados do cronograma ENAMED (quando o usuário mo
    - Mantém localStorage sempre atualizado
 
 **Onde é usado:**
+- **Guia de Estudos** (`/guia-estudos`) - modo calendário (arrastar matérias para dias)
 - Página "O Que Estudar Hoje" (componente QuickActionsDock)
 - Card "Meu Dia" na Home (busca matérias do dia)
 
