@@ -382,13 +382,10 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer */}
-        <SidebarFooter className="p-4 border-t border-border space-y-3">
+        <SidebarFooter className="p-4 border-t border-border">
           {!collapsed && (
-            <div className="flex gap-2 transition-opacity duration-300">
-              <Button variant="outline" className="flex-1" size={collapsed ? "icon" : "default"}>
-                {collapsed ? <Settings className="h-4 w-4" /> : "Configurações"}
-              </Button>
-              <Button variant="destructive" onClick={logout} className="flex-1" size={collapsed ? "icon" : "default"}>
+            <div className="transition-opacity duration-300">
+              <Button variant="destructive" onClick={logout} className="w-full" size={collapsed ? "icon" : "default"}>
                 <LogOut className="h-4 w-4" />
                 {!collapsed && <span className="ml-2">Sair</span>}
               </Button>

@@ -327,33 +327,33 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
         {/* Header flutuante minimalista */}
         <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b shadow-sm">
           <div className="container mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between px-2 py-2">
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleCancelChanges}
-                  className="gap-2"
+                  className="gap-2 h-8 px-2"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Voltar
                 </Button>
-                <div className="h-6 w-px bg-border" />
+                <div className="h-5 w-px bg-border" />
                 <div className="flex items-center gap-2">
-                  <Pencil className="h-5 w-5 text-primary" />
-                  <h1 className="text-lg font-semibold">Editando Calendário</h1>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <h1 className="text-base font-semibold">Calendário de Estudos</h1>
+                  <Badge variant="secondary" className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                     Modo Premium
                   </Badge>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleCancelChanges}
-                  className="gap-2"
+                  className="gap-1.5 h-8 px-3"
                 >
                   <X className="h-4 w-4" />
                   Cancelar
@@ -362,7 +362,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
                   variant="default"
                   size="sm"
                   onClick={handleSaveChanges}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  className="gap-1.5 h-8 px-3 bg-green-600 hover:bg-green-700"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   Salvar Alterações

@@ -1471,18 +1471,18 @@ export const StudyGuide: React.FC = () => {
                                 <Plus className="h-5 w-5" />
                                 Arraste para adicionar ao calendário:
                               </h4>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-1.5">
                                 {filteredMaterias.map((materia, idx) => (
                                   <motion.div 
                                     key={idx} 
-                                    className="bg-primary/10 px-4 py-2 rounded-full text-sm border-2 border-primary/20 cursor-move flex items-center gap-2 hover:bg-primary/20 hover:border-primary/40 transition-colors font-medium"
+                                    className="bg-primary/10 px-3 py-1.5 rounded-full text-[12px] border border-primary/20 cursor-move flex items-center gap-1.5 hover:bg-primary/15 hover:border-primary/30 transition-colors"
                                     draggable
                                     onDragStart={() => setDraggedItem(materia.materia)}
                                     onDragEnd={() => setDraggedItem(null)}
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.98 }}
                                   >
-                                    <span className="text-base">{getMateriaIcon(materia.materia)}</span>
+                                    <span className="text-[14px] leading-none">{getMateriaIcon(materia.materia)}</span>
                                     {materia.materia}
                                   </motion.div>
                                 ))}
