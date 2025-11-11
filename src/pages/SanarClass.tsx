@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,9 +38,6 @@ interface SanarClassLesson {
 
 export default function SanarClass() {
   const { user } = useAuth();
-  const [lessons, setLessons] = useState<SanarClassLesson[]>([]);
-  const [filteredLessons, setFilteredLessons] = useState<SanarClassLesson[]>([]);
-  const [loading, setLoading] = useState(true);
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,48 +50,44 @@ export default function SanarClass() {
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<SanarClassLesson | null>(null);
 
-  // Opções únicas para filtros
-  const [disciplinas, setDisciplinas] = useState<string[]>([]);
-  const [semestres, setSemestres] = useState<number[]>([]);
-
-  useEffect(() => {
-    fetchLessons();
-  }, [user]);
-
-  useEffect(() => {
-    applyFilters();
-  }, [lessons, searchTerm, selectedDisciplina, selectedSemestre, selectedFormato]);
-
-  const fetchLessons = async () => {
-    if (!user?.id_ies) return;
-    
-    setLoading(true);
-    try {
+  // Buscar aulas com React Query (com cache)
+  const { data: lessons = [], isLoading: loading } = useQuery({
+    queryKey: ['sanarclass-lessons', user?.id_ies],
+    queryFn: async () => {
+      if (!user?.id_ies) return [];
+      
       const { data, error } = await supabase
         .from('sanarclass_lessons')
         .select('*')
         .eq('ies_id', user.id_ies)
         .order('data_publicacao', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar aulas:', error);
+        toast.error('Erro ao carregar aulas do SanarClass');
+        throw error;
+      }
 
-      setLessons((data as SanarClassLesson[]) || []);
-      
-      // Extrair valores únicos para filtros
-      const uniqueDisciplinas = [...new Set(data?.map(l => l.disciplina) || [])];
-      const uniqueSemestres = [...new Set(data?.map(l => l.semestre) || [])].sort((a, b) => a - b);
-      
-      setDisciplinas(uniqueDisciplinas);
-      setSemestres(uniqueSemestres);
-    } catch (error) {
-      console.error('Erro ao buscar aulas:', error);
-      toast.error('Erro ao carregar aulas do SanarClass');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return (data as SanarClassLesson[]) || [];
+    },
+    enabled: !!user?.id_ies,
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
+    gcTime: 10 * 60 * 1000, // Mantém em cache por 10 minutos
+  });
 
-  const applyFilters = () => {
+  // Opções únicas para filtros (memoizado)
+  const { disciplinas, semestres } = useMemo(() => {
+    const uniqueDisciplinas = [...new Set(lessons.map(l => l.disciplina))];
+    const uniqueSemestres = [...new Set(lessons.map(l => l.semestre))].sort((a, b) => a - b);
+    
+    return {
+      disciplinas: uniqueDisciplinas,
+      semestres: uniqueSemestres
+    };
+  }, [lessons]);
+
+  // Aplicar filtros (memoizado)
+  const filteredLessons = useMemo(() => {
     let filtered = [...lessons];
 
     // Filtro de busca
@@ -119,8 +113,8 @@ export default function SanarClass() {
       filtered = filtered.filter(lesson => lesson.formato === selectedFormato);
     }
 
-    setFilteredLessons(filtered);
-  };
+    return filtered;
+  }, [lessons, searchTerm, selectedDisciplina, selectedSemestre, selectedFormato]);
 
   const clearFilters = () => {
     setSearchTerm("");
