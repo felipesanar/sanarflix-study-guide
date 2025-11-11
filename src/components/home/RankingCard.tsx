@@ -33,8 +33,24 @@ const getPercentile = (position: number, total: number) => {
 export const RankingCard = ({ rankings }: RankingCardProps) => {
   const mainRanking = rankings.find(r => r.type === 'geral') || rankings[0];
 
-  if (!mainRanking) {
-    return null;
+  if (!mainRanking || mainRanking.position === 0) {
+    return (
+      <Card className="premium-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-uscs-orange" />
+            Meu Ranking
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            <Trophy className="h-16 w-16 mx-auto mb-4 opacity-20" />
+            <p className="mb-2">Sem dados de ranking ainda.</p>
+            <p className="text-sm">Complete atividades para aparecer no ranking!</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   const percentile = getPercentile(mainRanking.position, mainRanking.total);

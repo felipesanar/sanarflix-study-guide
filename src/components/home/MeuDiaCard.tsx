@@ -49,10 +49,30 @@ export const MeuDiaCard = ({ items }: MeuDiaCardProps) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-muted-foreground space-y-4">
             <Calendar className="h-16 w-16 mx-auto mb-4 opacity-20" />
-            <p className="mb-2">Você não inseriu nenhuma matéria em seu calendário.</p>
-            <p className="text-sm">👉 Adicione agora no seu Guia de Estudos.</p>
+            <div>
+              <p className="mb-2">Você não tem atividades agendadas para hoje.</p>
+              <p className="text-sm">👉 Configure seu plano de estudos para começar!</p>
+            </div>
+            <div className="flex gap-2 justify-center pt-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/guia-estudos')}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+              >
+                Guia de Estudos
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/cronograma-enamed')}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium"
+              >
+                Cronograma
+              </motion.button>
+            </div>
           </div>
         </CardContent>
       </Card>

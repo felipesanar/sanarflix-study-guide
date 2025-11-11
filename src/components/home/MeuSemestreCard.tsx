@@ -24,6 +24,11 @@ interface MeuSemestreCardProps {
 }
 
 export const MeuSemestreCard = ({ topAulas, conteudosRelacionados }: MeuSemestreCardProps) => {
+  // Não renderizar se não houver dados
+  if (topAulas.length === 0 && conteudosRelacionados.length === 0) {
+    return null;
+  }
+
   return (
     <Card className="premium-card col-span-full">
       <CardHeader>
@@ -39,35 +44,42 @@ export const MeuSemestreCard = ({ topAulas, conteudosRelacionados }: MeuSemestre
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
               Mais Acessadas pelos Colegas
             </h3>
-            <div className="space-y-3">
-              {topAulas.map((aula, index) => (
-                <motion.div
-                  key={aula.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-all group"
-                >
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{aula.titulo}</div>
-                    <div className="text-sm text-muted-foreground">{aula.materia}</div>
-                    <div className="text-xs text-muted-foreground">{aula.acessos} acessos</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => window.open(aula.link, '_blank')}
+            {topAulas.length > 0 ? (
+              <div className="space-y-3">
+                {topAulas.map((aula, index) => (
+                  <motion.div
+                    key={aula.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-all group"
                   >
-                    <Play className="h-4 w-4 mr-1" />
-                    Assistir
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary font-bold">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{aula.titulo}</div>
+                      <div className="text-sm text-muted-foreground">{aula.materia}</div>
+                      <div className="text-xs text-muted-foreground">{aula.acessos} acessos</div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => window.open(aula.link, '_blank')}
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      Assistir
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">Nenhuma aula disponível no momento</p>
+              </div>
+            )}
           </div>
 
           {/* Coluna Direita: Conteúdos Relacionados */}
@@ -75,35 +87,42 @@ export const MeuSemestreCard = ({ topAulas, conteudosRelacionados }: MeuSemestre
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
               Provas e Conteúdos Relacionados
             </h3>
-            <div className="space-y-3">
-              {conteudosRelacionados.map((conteudo, index) => (
-                <motion.div
-                  key={conteudo.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-all group"
-                >
-                  <div className={`p-2 rounded-lg ${conteudo.tipo === 'prova' ? 'bg-uscs-blue/10' : 'bg-uscs-orange/10'}`}>
-                    <FileText className={`h-5 w-5 ${conteudo.tipo === 'prova' ? 'text-uscs-blue' : 'text-uscs-orange'}`} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium">{conteudo.titulo}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {conteudo.tipo === 'prova' ? 'Prova Anterior' : 'Conteúdo de Reforço'}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => window.open(conteudo.link, '_blank')}
+            {conteudosRelacionados.length > 0 ? (
+              <div className="space-y-3">
+                {conteudosRelacionados.map((conteudo, index) => (
+                  <motion.div
+                    key={conteudo.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-all group"
                   >
-                    Ver
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
+                    <div className={`p-2 rounded-lg ${conteudo.tipo === 'prova' ? 'bg-uscs-blue/10' : 'bg-uscs-orange/10'}`}>
+                      <FileText className={`h-5 w-5 ${conteudo.tipo === 'prova' ? 'text-uscs-blue' : 'text-uscs-orange'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium">{conteudo.titulo}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {conteudo.tipo === 'prova' ? 'Prova Anterior' : 'Conteúdo de Reforço'}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => window.open(conteudo.link, '_blank')}
+                    >
+                      Ver
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                <p className="text-sm">Nenhum conteúdo relacionado disponível</p>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
