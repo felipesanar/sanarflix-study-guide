@@ -25,6 +25,12 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
     return 'from-red-500/20 to-red-500/5';
   };
 
+  const getPerformanceBorderColor = (nota: number) => {
+    if (nota >= 70) return 'border-green-500/40';
+    if (nota >= 50) return 'border-amber-500/40';
+    return 'border-red-500/40';
+  };
+
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
       <CardHeader className="py-5">
@@ -52,7 +58,7 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
         ) : (
           <div className="space-y-5">
             {/* Performance Circle */}
-            <div className={`relative mx-auto w-36 h-36 rounded-full bg-gradient-to-br ${getPerformanceGradient(data.nota)} flex items-center justify-center border-4 border-background shadow-lg`}>
+            <div className={`relative mx-auto w-36 h-36 rounded-full bg-gradient-to-br ${getPerformanceGradient(data.nota)} flex items-center justify-center border-4 ${getPerformanceBorderColor(data.nota)} shadow-lg`}>
               <div className="text-center">
                 <div className={`text-4xl font-bold ${getPerformanceColor(data.nota)}`}>
                   {data.nota}%
