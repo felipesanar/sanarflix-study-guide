@@ -36,6 +36,7 @@ import { PageLoader } from '@/components/PageLoader';
 import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton, IntensivaoSkeleton } from '@/components/skeletons';
 const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const SanarClass = lazy(() => import("./pages/SanarClass"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
 
 const queryClient = new QueryClient({
@@ -254,6 +255,21 @@ const AppContent = () => {
                 waitForData={true}
               >
                 <Analytics />
+              </PageWrapper>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* SanarClass - Available for all authenticated users */}
+        <Route
+          path="/sanarclass"
+          element={
+            <ProtectedRoute>
+              <PageWrapper 
+                loadingMessage="Carregando SanarClass..." 
+                waitForData={true}
+              >
+                <SanarClass />
               </PageWrapper>
             </ProtectedRoute>
           }

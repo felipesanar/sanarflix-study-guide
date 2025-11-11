@@ -48,6 +48,13 @@ const menuItems = [
     description: "Página inicial do seu hub de estudos",
   },
   {
+    title: "SanarClass",
+    url: "/sanarclass",
+    icon: Sparkles,
+    accessKey: "home" as const,
+    description: "Aulas da sua IES com o Sanarflix",
+  },
+  {
     title: "Intensivão ENAMED",
     url: "/intensivao-enamed",
     icon: Zap,

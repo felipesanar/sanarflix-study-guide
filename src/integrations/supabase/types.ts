@@ -404,6 +404,59 @@ export type Database = {
           },
         ]
       }
+      sanarclass_lessons: {
+        Row: {
+          arquivo_url: string
+          created_at: string
+          data_publicacao: string
+          disciplina: string
+          formato: string
+          id: string
+          ies_id: string
+          preview_url: string | null
+          professor: string
+          semestre: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_url: string
+          created_at?: string
+          data_publicacao?: string
+          disciplina: string
+          formato: string
+          id?: string
+          ies_id: string
+          preview_url?: string | null
+          professor: string
+          semestre: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_url?: string
+          created_at?: string
+          data_publicacao?: string
+          disciplina?: string
+          formato?: string
+          id?: string
+          ies_id?: string
+          preview_url?: string | null
+          professor?: string
+          semestre?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sanarclass_lessons_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Simulados: {
         Row: {
           id: number

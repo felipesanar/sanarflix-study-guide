@@ -3,7 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
-import { Shield, Users, Bell } from 'lucide-react';
+import SanarClassTab from '@/components/admin/SanarClassTab';
+import { Shield, Users, Bell, FileText } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -40,7 +41,7 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Usuários
@@ -48,6 +49,10 @@ const UserManagement: React.FC = () => {
             <TabsTrigger value="avisos" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
               Avisos
+            </TabsTrigger>
+            <TabsTrigger value="sanarclass" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              SanarClass
             </TabsTrigger>
           </TabsList>
 
@@ -57,6 +62,10 @@ const UserManagement: React.FC = () => {
 
           <TabsContent value="avisos" className="mt-6">
             <AnnouncementsTab />
+          </TabsContent>
+
+          <TabsContent value="sanarclass" className="mt-6">
+            <SanarClassTab />
           </TabsContent>
         </Tabs>
       </div>
