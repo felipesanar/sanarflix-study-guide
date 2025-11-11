@@ -532,28 +532,28 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
                 <h3 className="text-2xl font-bold text-foreground">{week}</h3>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+              <div className="grid grid-cols-7 gap-3">
                 {Object.entries(days).map(([day, dayItems]) => {
                   const isToday = day === today;
                   return (
                     <Card 
                       key={day} 
-                      className={`bg-white dark:bg-gray-700 border shadow-sm overflow-hidden ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
+                      className={`bg-white dark:bg-gray-700 border shadow-sm overflow-hidden min-h-[180px] max-h-[280px] ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
                       onDragOver={(e) => handleDragOver(e, day, week)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, day, week)}
                     >
-                       <CardContent className="p-4 overflow-hidden">
-                        <h4 className={`font-semibold mb-3 text-lg border-b pb-2 flex items-center gap-2 ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                       <CardContent className="p-3 overflow-hidden h-full flex flex-col">
+                        <h4 className={`font-semibold mb-2 text-base border-b pb-1.5 flex items-center gap-2 flex-shrink-0 ${isToday ? 'text-primary' : 'text-foreground'}`}>
                           {day}
                           {isToday && (
-                            <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium">
+                            <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full font-medium">
                               Hoje
                             </span>
                           )}
                         </h4>
                       
-                      <div className="space-y-3 relative">
+                      <div className="space-y-2 relative overflow-y-auto flex-1">
                         {(() => {
                           const subMap = dayItems.reduce((acc, it) => {
                             const key = it.subtema || it.tema || 'Geral';
@@ -571,7 +571,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
                             return (
                               <div
                                 key={subtema}
-                                className={`relative w-full max-w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                className={`relative w-full max-w-full text-left p-2 rounded-md border transition-all duration-200 ${
                                   allDone 
                                     ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
                                     : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
@@ -585,20 +585,20 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
                                 onDragStart={(e) => handleDragStart(e, subItems[0])}
                                 onDragEnd={handleDragEnd}
                               >
-                                <div className="flex items-center justify-between gap-2 mb-2 overflow-hidden">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    {allDone && <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />}
-                                    <span className="font-medium text-sm text-foreground truncate">{subtema}</span>
+                                <div className="flex items-center justify-between gap-1.5 mb-1 overflow-hidden">
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    {allDone && <CheckCircle2 className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />}
+                                    <span className="font-medium text-xs text-foreground truncate">{subtema}</span>
                                   </div>
                                   <Badge 
                                     variant="secondary" 
-                                    className="text-xs flex-shrink-0"
+                                    className="text-[10px] px-1.5 py-0 flex-shrink-0"
                                     style={{ backgroundColor: `${badgeColor}30`, borderColor: badgeColor, color: badgeColor }}
                                   >
                                     {completedCount}/{subItems.length}
                                   </Badge>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-[10px] text-muted-foreground">
                                   {subItems.length} conteúdo{subItems.length > 1 ? 's' : ''}
                                 </div>
                                 {isEditMode && (
