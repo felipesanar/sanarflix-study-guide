@@ -1,0 +1,747 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format } from 'date-fns';
+
+interface Simulado {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  data_liberacao: string | null;
+  data_encerramento: string | null;
+  duracao_minutos: number;
+  status: 'ativo' | 'rascunho' | 'encerrado';
+  created_at: string;
+  questoes_count?: number;
+}
+
+interface Questao {
+  id?: string;
+  ordem: number;
+  enunciado: string;
+  alternativa_a: string;
+  alternativa_b: string;
+  alternativa_c: string;
+  alternativa_d: string;
+  alternativa_e: string | null;
+  correta: 'A' | 'B' | 'C' | 'D' | 'E';
+  comentario: string | null;
+}
+
+interface PreviewData {
+  questoes: Questao[];
+  config: {
+    nome: string;
+    descricao: string;
+    data_liberacao: string;
+    data_encerramento: string;
+    duracao_minutos: number;
+    status: 'ativo' | 'rascunho' | 'encerrado';
+  };
+}
+
+export default function SimuladosTab() {
+  const { toast } = useToast();
+  const [simulados, setSimulados] = useState<Simulado[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showQuestoesModal, setShowQuestoesModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedSimulado, setSelectedSimulado] = useState<Simulado | null>(null);
+  const [questoesVisualizacao, setQuestoesVisualizacao] = useState<Questao[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
+  const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
+
+  const [configForm, setConfigForm] = useState({
+    nome: '',
+    descricao: '',
+    data_liberacao: '',
+    data_encerramento: '',
+    duracao_minutos: 180,
+    status: 'rascunho' as 'ativo' | 'rascunho' | 'encerrado'
+  });
+
+  useEffect(() => {
+    fetchSimulados();
+  }, []);
+
+  const fetchSimulados = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('simulados_admin')
+        .select('*, questoes_simulado(count)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const simuladosComContagem = data.map(s => ({
+        id: s.id,
+        nome: s.nome,
+        descricao: s.descricao,
+        data_liberacao: s.data_liberacao,
+        data_encerramento: s.data_encerramento,
+        duracao_minutos: s.duracao_minutos,
+        status: s.status as 'ativo' | 'rascunho' | 'encerrado',
+        created_at: s.created_at,
+        questoes_count: s.questoes_simulado?.[0]?.count || 0
+      }));
+
+      setSimulados(simuladosComContagem);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao carregar simulados',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      setUploadProgress(20);
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const data = event.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          setUploadProgress(40);
+
+          // Validar colunas obrigatórias
+          const requiredColumns = ['enunciado', 'alternativa_a', 'alternativa_b', 'alternativa_c', 'alternativa_d', 'correta'];
+          const firstRow = jsonData[0] as any;
+          const columns = Object.keys(firstRow).map(k => k.toLowerCase());
+
+          const missingColumns = requiredColumns.filter(col => !columns.includes(col));
+          if (missingColumns.length > 0) {
+            throw new Error(`O arquivo está incompleto. Colunas faltando: ${missingColumns.join(', ')}`);
+          }
+
+          setUploadProgress(60);
+
+          // Processar questões
+          const questoes: Questao[] = jsonData.map((row: any, index) => {
+            const normalizedRow: any = {};
+            Object.keys(row).forEach(key => {
+              normalizedRow[key.toLowerCase()] = row[key];
+            });
+
+            return {
+              ordem: index + 1,
+              enunciado: normalizedRow.enunciado || '',
+              alternativa_a: normalizedRow.alternativa_a || '',
+              alternativa_b: normalizedRow.alternativa_b || '',
+              alternativa_c: normalizedRow.alternativa_c || '',
+              alternativa_d: normalizedRow.alternativa_d || '',
+              alternativa_e: normalizedRow.alternativa_e || null,
+              correta: (normalizedRow.correta?.toUpperCase() || 'A') as 'A' | 'B' | 'C' | 'D' | 'E',
+              comentario: normalizedRow.comentario || null
+            };
+          });
+
+          setUploadProgress(80);
+
+          setPreviewData({
+            questoes,
+            config: {
+              nome: file.name.replace('.xlsx', ''),
+              descricao: '',
+              data_liberacao: '',
+              data_encerramento: '',
+              duracao_minutos: 180,
+              status: 'rascunho'
+            }
+          });
+
+          setUploadProgress(100);
+          setShowPreviewModal(true);
+        } catch (error: any) {
+          toast({
+            title: 'Erro ao processar arquivo',
+            description: error.message,
+            variant: 'destructive'
+          });
+        } finally {
+          setUploading(false);
+          setUploadProgress(0);
+        }
+      };
+
+      reader.readAsBinaryString(file);
+    } catch (error: any) {
+      toast({
+        title: 'Erro no upload',
+        description: error.message,
+        variant: 'destructive'
+      });
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleConfirmPreview = () => {
+    if (previewData) {
+      setConfigForm(previewData.config);
+      setShowPreviewModal(false);
+      setShowConfigModal(true);
+    }
+  };
+
+  const handleSaveSimulado = async () => {
+    if (!previewData || !configForm.nome) {
+      toast({
+        title: 'Erro',
+        description: 'Nome do simulado é obrigatório',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      // Criar simulado
+      const { data: simulado, error: simuladoError } = await supabase
+        .from('simulados_admin')
+        .insert({
+          nome: configForm.nome,
+          descricao: configForm.descricao || null,
+          data_liberacao: configForm.data_liberacao || null,
+          data_encerramento: configForm.data_encerramento || null,
+          duracao_minutos: configForm.duracao_minutos,
+          status: configForm.status
+        })
+        .select()
+        .single();
+
+      if (simuladoError) throw simuladoError;
+
+      // Inserir questões
+      const questoesComSimuladoId = previewData.questoes.map(q => ({
+        ...q,
+        simulado_id: simulado.id
+      }));
+
+      const { error: questoesError } = await supabase
+        .from('questoes_simulado')
+        .insert(questoesComSimuladoId);
+
+      if (questoesError) throw questoesError;
+
+      toast({
+        title: 'Simulado criado com sucesso!',
+        description: `${previewData.questoes.length} questões foram adicionadas.`
+      });
+
+      setShowConfigModal(false);
+      setPreviewData(null);
+      setConfigForm({
+        nome: '',
+        descricao: '',
+        data_liberacao: '',
+        data_encerramento: '',
+        duracao_minutos: 180,
+        status: 'rascunho'
+      });
+      fetchSimulados();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar simulado',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleVisualizarQuestoes = async (simulado: Simulado) => {
+    try {
+      const { data, error } = await supabase
+        .from('questoes_simulado')
+        .select('*')
+        .eq('simulado_id', simulado.id)
+        .order('ordem');
+
+      if (error) throw error;
+
+      const questoesFormatadas = (data || []).map(q => ({
+        id: q.id,
+        ordem: q.ordem,
+        enunciado: q.enunciado,
+        alternativa_a: q.alternativa_a,
+        alternativa_b: q.alternativa_b,
+        alternativa_c: q.alternativa_c,
+        alternativa_d: q.alternativa_d,
+        alternativa_e: q.alternativa_e,
+        correta: q.correta as 'A' | 'B' | 'C' | 'D' | 'E',
+        comentario: q.comentario
+      }));
+
+      setQuestoesVisualizacao(questoesFormatadas);
+      setSelectedSimulado(simulado);
+      setShowQuestoesModal(true);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao carregar questões',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleDeleteSimulado = async () => {
+    if (!selectedSimulado) return;
+
+    try {
+      const { error } = await supabase
+        .from('simulados_admin')
+        .delete()
+        .eq('id', selectedSimulado.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Simulado excluído',
+        description: 'O simulado e todas as suas questões foram removidos.'
+      });
+
+      setShowDeleteModal(false);
+      setSelectedSimulado(null);
+      fetchSimulados();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleExportSimulado = async (simulado: Simulado) => {
+    try {
+      const { data: questoes, error } = await supabase
+        .from('questoes_simulado')
+        .select('*')
+        .eq('simulado_id', simulado.id)
+        .order('ordem');
+
+      if (error) throw error;
+
+      const exportData = questoes?.map(q => ({
+        enunciado: q.enunciado,
+        alternativa_a: q.alternativa_a,
+        alternativa_b: q.alternativa_b,
+        alternativa_c: q.alternativa_c,
+        alternativa_d: q.alternativa_d,
+        alternativa_e: q.alternativa_e || '',
+        correta: q.correta,
+        comentario: q.comentario || ''
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData || []);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Questões');
+      XLSX.writeFile(wb, `${simulado.nome}.xlsx`);
+
+      toast({
+        title: 'Exportação concluída',
+        description: 'O arquivo foi baixado com sucesso.'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro na exportação',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, { variant: any; label: string; icon: string }> = {
+      ativo: { variant: 'default', label: 'Ativo', icon: '🟢' },
+      rascunho: { variant: 'secondary', label: 'Rascunho', icon: '🟡' },
+      encerrado: { variant: 'destructive', label: 'Encerrado', icon: '🔴' }
+    };
+
+    const config = variants[status] || variants.rascunho;
+    return (
+      <Badge variant={config.variant}>
+        {config.icon} {config.label}
+      </Badge>
+    );
+  };
+
+  const filteredSimulados = simulados.filter(s => {
+    const matchesSearch = s.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'todos' || s.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-6 w-6 text-primary" />
+            Gerenciamento de Simulados
+          </CardTitle>
+          <CardDescription>
+            Faça upload, edite e gerencie simulados completos em formato .xlsx
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Upload Section */}
+          <div className="border-2 border-dashed rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
+            <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="font-semibold mb-2">Upload de Simulado</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Arraste um arquivo .xlsx ou clique para selecionar
+            </p>
+            <Input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="max-w-xs mx-auto cursor-pointer"
+            />
+            {uploading && (
+              <div className="mt-4 space-y-2">
+                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-primary h-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processando arquivo... {uploadProgress}%
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar simulados..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="ativo">Ativos</SelectItem>
+                <SelectItem value="rascunho">Rascunhos</SelectItem>
+                <SelectItem value="encerrado">Encerrados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Simulados List */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredSimulados.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum simulado encontrado</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Questões</TableHead>
+                    <TableHead>Data de Criação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSimulados.map((simulado) => (
+                    <TableRow key={simulado.id}>
+                      <TableCell className="font-medium">{simulado.nome}</TableCell>
+                      <TableCell>{getStatusBadge(simulado.status)}</TableCell>
+                      <TableCell>{simulado.questoes_count || 0}</TableCell>
+                      <TableCell>
+                        {format(new Date(simulado.created_at), 'dd/MM/yyyy')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVisualizarQuestoes(simulado)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleExportSimulado(simulado)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedSimulado(simulado);
+                              setShowDeleteModal(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              Pré-visualização do Upload
+            </DialogTitle>
+            <DialogDescription>
+              Revise as primeiras 5 questões antes de confirmar
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {previewData?.questoes.slice(0, 5).map((questao, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle className="text-sm">Questão {questao.ordem}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="font-medium">{questao.enunciado}</p>
+                  <div className="space-y-1 pl-4">
+                    <p>A) {questao.alternativa_a}</p>
+                    <p>B) {questao.alternativa_b}</p>
+                    <p>C) {questao.alternativa_c}</p>
+                    <p>D) {questao.alternativa_d}</p>
+                    {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
+                  </div>
+                  <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
+                  {questao.comentario && (
+                    <p className="text-muted-foreground italic">{questao.comentario}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+            {previewData && previewData.questoes.length > 5 && (
+              <p className="text-center text-muted-foreground">
+                ... e mais {previewData.questoes.length - 5} questões
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreviewModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmPreview}>
+              Confirmar e Configurar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Config Modal */}
+      <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configurar Simulado</DialogTitle>
+            <DialogDescription>
+              Defina as informações do simulado antes de salvar
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nome do Simulado *</Label>
+              <Input
+                value={configForm.nome}
+                onChange={(e) => setConfigForm({ ...configForm, nome: e.target.value })}
+                placeholder="Ex: Simulado ENAMED 2024"
+              />
+            </div>
+            <div>
+              <Label>Descrição</Label>
+              <Textarea
+                value={configForm.descricao}
+                onChange={(e) => setConfigForm({ ...configForm, descricao: e.target.value })}
+                placeholder="Descrição opcional do simulado"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Data de Liberação</Label>
+                <Input
+                  type="datetime-local"
+                  value={configForm.data_liberacao}
+                  onChange={(e) => setConfigForm({ ...configForm, data_liberacao: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Data de Encerramento</Label>
+                <Input
+                  type="datetime-local"
+                  value={configForm.data_encerramento}
+                  onChange={(e) => setConfigForm({ ...configForm, data_encerramento: e.target.value })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Duração (minutos)</Label>
+              <Input
+                type="number"
+                value={configForm.duracao_minutos}
+                onChange={(e) => setConfigForm({ ...configForm, duracao_minutos: parseInt(e.target.value) })}
+              />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={configForm.status}
+                onValueChange={(value: any) => setConfigForm({ ...configForm, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rascunho">🟡 Rascunho</SelectItem>
+                  <SelectItem value="ativo">🟢 Ativo</SelectItem>
+                  <SelectItem value="encerrado">🔴 Encerrado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConfigModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveSimulado} disabled={uploading}>
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Salvar Simulado
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Questões Modal */}
+      <Dialog open={showQuestoesModal} onOpenChange={setShowQuestoesModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Questões - {selectedSimulado?.nome}</DialogTitle>
+            <DialogDescription>
+              {questoesVisualizacao.length} questões cadastradas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {questoesVisualizacao.map((questao, index) => (
+              <Card key={questao.id || index}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">Questão {questao.ordem}</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingQuestao(questao)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p className="font-medium">{questao.enunciado}</p>
+                  <div className="space-y-1 pl-4">
+                    <p>A) {questao.alternativa_a}</p>
+                    <p>B) {questao.alternativa_b}</p>
+                    <p>C) {questao.alternativa_c}</p>
+                    <p>D) {questao.alternativa_d}</p>
+                    {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
+                  </div>
+                  <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
+                  {questao.comentario && (
+                    <p className="text-muted-foreground italic">{questao.comentario}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Confirmar Exclusão
+            </DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir o simulado "{selectedSimulado?.nome}"?
+              Esta ação não pode ser desfeita e todas as questões serão removidas.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteSimulado}>
+              Excluir Simulado
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

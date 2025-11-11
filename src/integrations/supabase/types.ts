@@ -404,6 +404,62 @@ export type Database = {
           },
         ]
       }
+      questoes_simulado: {
+        Row: {
+          alternativa_a: string
+          alternativa_b: string
+          alternativa_c: string
+          alternativa_d: string
+          alternativa_e: string | null
+          comentario: string | null
+          correta: string
+          created_at: string | null
+          enunciado: string
+          id: string
+          ordem: number
+          simulado_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          alternativa_a: string
+          alternativa_b: string
+          alternativa_c: string
+          alternativa_d: string
+          alternativa_e?: string | null
+          comentario?: string | null
+          correta: string
+          created_at?: string | null
+          enunciado: string
+          id?: string
+          ordem: number
+          simulado_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          alternativa_a?: string
+          alternativa_b?: string
+          alternativa_c?: string
+          alternativa_d?: string
+          alternativa_e?: string | null
+          comentario?: string | null
+          correta?: string
+          created_at?: string | null
+          enunciado?: string
+          id?: string
+          ordem?: number
+          simulado_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questoes_simulado_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sanarclass_lessons: {
         Row: {
           arquivo_url: string
@@ -469,6 +525,45 @@ export type Database = {
         Update: {
           id?: number
           Simulado?: string
+        }
+        Relationships: []
+      }
+      simulados_admin: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_encerramento: string | null
+          data_liberacao: string | null
+          descricao: string | null
+          duracao_minutos: number
+          id: string
+          nome: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_encerramento?: string | null
+          data_liberacao?: string | null
+          descricao?: string | null
+          duracao_minutos: number
+          id?: string
+          nome: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_encerramento?: string | null
+          data_liberacao?: string | null
+          descricao?: string | null
+          duracao_minutos?: number
+          id?: string
+          nome?: string
+          status?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
