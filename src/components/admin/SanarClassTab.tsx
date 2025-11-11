@@ -61,7 +61,6 @@ interface LessonFormData {
   semestre: string;
   formato: 'pdf' | 'pptx';
   arquivo_url: string;
-  preview_url: string;
   ies_id: string;
 }
 
@@ -85,7 +84,6 @@ export default function SanarClassTab() {
     semestre: "",
     formato: "pdf",
     arquivo_url: "",
-    preview_url: "",
     ies_id: "",
   });
 
@@ -128,7 +126,6 @@ export default function SanarClassTab() {
       semestre: "",
       formato: "pdf",
       arquivo_url: "",
-      preview_url: "",
       ies_id: "",
     });
   };
@@ -151,7 +148,7 @@ export default function SanarClassTab() {
           semestre: parseInt(formData.semestre),
           formato: formData.formato,
           arquivo_url: formData.arquivo_url,
-          preview_url: formData.preview_url || null,
+          preview_url: formData.arquivo_url, // Usa o mesmo link do documento
           ies_id: formData.ies_id,
         });
 
@@ -189,7 +186,7 @@ export default function SanarClassTab() {
           semestre: parseInt(formData.semestre),
           formato: formData.formato,
           arquivo_url: formData.arquivo_url,
-          preview_url: formData.preview_url || null,
+          preview_url: formData.arquivo_url, // Usa o mesmo link do documento
           ies_id: formData.ies_id,
         })
         .eq('id', selectedLesson.id);
@@ -242,7 +239,6 @@ export default function SanarClassTab() {
       semestre: lesson.semestre.toString(),
       formato: lesson.formato,
       arquivo_url: lesson.arquivo_url,
-      preview_url: lesson.preview_url || "",
       ies_id: lesson.ies_id,
     });
     setEditModalOpen(true);
@@ -431,17 +427,10 @@ export default function SanarClassTab() {
                 placeholder="https://..."
                 type="url"
               />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="preview_url">Link do preview (opcional)</Label>
-              <Input
-                id="preview_url"
-                value={formData.preview_url}
-                onChange={(e) => setFormData({ ...formData, preview_url: e.target.value })}
-                placeholder="https://..."
-                type="url"
-              />
+              <p className="text-xs text-muted-foreground">
+                💡 Use links de visualização direta (ex: Google Drive em modo preview, Dropbox com ?dl=0, ou PDFs hospedados). 
+                O preview será gerado automaticamente a partir deste link.
+              </p>
             </div>
           </div>
 
@@ -552,16 +541,10 @@ export default function SanarClassTab() {
                 onChange={(e) => setFormData({ ...formData, arquivo_url: e.target.value })}
                 type="url"
               />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="edit-preview_url">Link do preview (opcional)</Label>
-              <Input
-                id="edit-preview_url"
-                value={formData.preview_url}
-                onChange={(e) => setFormData({ ...formData, preview_url: e.target.value })}
-                type="url"
-              />
+              <p className="text-xs text-muted-foreground">
+                💡 Use links de visualização direta (ex: Google Drive em modo preview, Dropbox com ?dl=0, ou PDFs hospedados). 
+                O preview será gerado automaticamente a partir deste link.
+              </p>
             </div>
           </div>
 
