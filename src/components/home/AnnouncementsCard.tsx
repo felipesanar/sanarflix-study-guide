@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Bell, ChevronRight, X } from 'lucide-react';
+import { Bell, ChevronRight, X, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Announcement {
@@ -16,7 +16,16 @@ interface Announcement {
   texto_botao: string;
   paleta_cores: string;
   prioridade: string;
+  created_at?: string;
 }
+
+// Ícones por prioridade
+const priorityIcons = {
+  'Muito Alta': AlertCircle,
+  'Alta': AlertTriangle,
+  'Media': Bell,
+  'Baixa': Info,
+};
 
 const colorPalettes: Record<string, { gradient: string; badge: string; text: string }> = {
   primary: { 
@@ -58,7 +67,7 @@ export const AnnouncementsCard: React.FC = () => {
 
     const { data, error } = await supabase
       .from('announcements')
-      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade')
+      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade, created_at')
       .eq('ativo', true)
       .order('prioridade', { ascending: false })
       .order('created_at', { ascending: false });
@@ -70,10 +79,56 @@ export const AnnouncementsCard: React.FC = () => {
 
     if (data && data.length > 0) {
       setAnnouncements(data);
+      
+      // Verifica se há aviso com prioridade "Muito Alta" para mostrar popup
+      const highPriorityAnnouncement = data.find(a => a.prioridade === 'Muito Alta');
+      if (highPriorityAnnouncement) {
+        checkAndShowPopup(highPriorityAnnouncement);
+      }
     }
   };
 
-  // Removed popup functionality for now - will be added when migration is applied
+  const checkAndShowPopup = async (announcement: Announcement) => {
+    if (!user) return;
+
+    // Verifica se o usuário já visualizou este aviso
+    const { data: viewed } = await supabase
+      .from('announcements_viewed')
+      .select('id')
+      .eq('announcement_id', announcement.id)
+      .eq('user_id', user.id)
+      .single();
+
+    // Se não visualizou, mostra o popup
+    if (!viewed) {
+      setPopupAnnouncement(announcement);
+      setShowPopup(true);
+    }
+  };
+
+  const handleClosePopup = async () => {
+    if (!popupAnnouncement || !user) return;
+
+    // Marca como visualizado
+    await supabase
+      .from('announcements_viewed')
+      .insert({
+        announcement_id: popupAnnouncement.id,
+        user_id: user.id,
+      });
+
+    setShowPopup(false);
+    setPopupAnnouncement(null);
+  };
+
+  // Verifica se o aviso é "novo" (criado há menos de 24h)
+  const isNewAnnouncement = (announcement: Announcement): boolean => {
+    if (!announcement.created_at) return false;
+    const createdAt = new Date(announcement.created_at);
+    const now = new Date();
+    const diffInHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+    return diffInHours < 24;
+  };
 
 
   const handleAnnouncementClick = (announcement: Announcement) => {
@@ -90,6 +145,8 @@ export const AnnouncementsCard: React.FC = () => {
   if (!mainAnnouncement) return null;
 
   const palette = colorPalettes[mainAnnouncement.paleta_cores] || colorPalettes.primary;
+  const IconComponent = priorityIcons[mainAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
+  const isNew = isNewAnnouncement(mainAnnouncement);
 
   return (
     <>
@@ -103,19 +160,21 @@ export const AnnouncementsCard: React.FC = () => {
         <Card className={`relative h-full border-0 bg-gradient-to-br ${palette.gradient} shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}>
           {/* brilho ambiente */}
           <div className="pointer-events-none absolute -bottom-20 -right-20 w-72 h-72 bg-white/20 blur-3xl rounded-full" />
-          <div className="absolute top-4 right-4 z-10">
-            <Badge variant="default" className={palette.badge}>
-              <Bell className="h-3 w-3 mr-1" />
-              Novo
-            </Badge>
-          </div>
+          {isNew && (
+            <div className="absolute top-4 right-4 z-10">
+              <Badge variant="default" className={palette.badge}>
+                <Bell className="h-3 w-3 mr-1" />
+                Novo
+              </Badge>
+            </div>
+          )}
 
           <CardHeader className="pb-4 space-y-2">
-            <div className="flex items-start gap-3">
+            <div className="flex items-center gap-3">
               <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${palette.gradient} rounded-xl flex items-center justify-center ring-1 ring-border`}>
-                <Bell className={`h-6 w-6 ${palette.text}`} />
+                <IconComponent className={`h-6 w-6 ${palette.text}`} />
               </div>
-              <div className="flex-1 min-w-0 pt-1">
+              <div className="flex-1 min-w-0">
                 <CardTitle className="text-xl font-semibold leading-tight">
                   {mainAnnouncement.titulo}
                 </CardTitle>
@@ -143,6 +202,43 @@ export const AnnouncementsCard: React.FC = () => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Pop-up Modal para avisos de prioridade "Muito Alta" */}
+      <AnimatePresence>
+        {showPopup && popupAnnouncement && (
+          <Dialog open={showPopup} onOpenChange={handleClosePopup}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`flex-shrink-0 w-14 h-14 bg-gradient-to-br ${colorPalettes[popupAnnouncement.paleta_cores]?.gradient || colorPalettes.primary.gradient} rounded-xl flex items-center justify-center ring-1 ring-border`}>
+                    {(() => {
+                      const PopupIcon = priorityIcons[popupAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
+                      const popupPalette = colorPalettes[popupAnnouncement.paleta_cores] || colorPalettes.primary;
+                      return <PopupIcon className={`h-7 w-7 ${popupPalette.text}`} />;
+                    })()}
+                  </div>
+                  <DialogTitle className="text-lg font-semibold flex-1">
+                    {popupAnnouncement.titulo}
+                  </DialogTitle>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {popupAnnouncement.descricao}
+                </p>
+
+                <Button 
+                  className="w-full"
+                  onClick={handleClosePopup}
+                >
+                  Estou ciente
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
     </>
   );
 };
