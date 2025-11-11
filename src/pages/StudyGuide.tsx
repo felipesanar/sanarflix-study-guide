@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { swrFetch } from '@/utils/performanceCache';
@@ -86,6 +87,15 @@ export const StudyGuide: React.FC = () => {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState<string>('');
+  const location = useLocation();
+  // Pré-seleciona matéria via query string: /guia-estudos?materia=Cardiologia
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const m = params.get('materia');
+    if (m) {
+      setSelectedMateria(m);
+    }
+  }, [location.search]);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [isEditMode, setIsEditMode] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);

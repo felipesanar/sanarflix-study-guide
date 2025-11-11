@@ -19,7 +19,7 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
 
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader>
+      <CardHeader className="py-5">
         <CardTitle className="flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
           Meu Semestre

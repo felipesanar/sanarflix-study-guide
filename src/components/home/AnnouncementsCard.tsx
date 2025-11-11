@@ -98,8 +98,11 @@ export const AnnouncementsCard: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut', delay: 0.1 }}
         className="h-full"
+        whileHover={{ y: -2 }}
       >
-        <Card className={`h-full border-0 bg-gradient-to-br ${palette.gradient} shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}>
+        <Card className={`relative h-full border-0 bg-gradient-to-br ${palette.gradient} shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}>
+          {/* brilho ambiente */}
+          <div className="pointer-events-none absolute -bottom-20 -right-20 w-72 h-72 bg-white/20 blur-3xl rounded-full" />
           <div className="absolute top-4 right-4 z-10">
             <Badge variant="default" className={palette.badge}>
               <Bell className="h-3 w-3 mr-1" />
@@ -121,23 +124,25 @@ export const AnnouncementsCard: React.FC = () => {
             <div className="h-px bg-gradient-to-r from-border via-border/50 to-transparent" />
           </CardHeader>
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-5">
             <p className="text-sm text-muted-foreground leading-relaxed">
               {mainAnnouncement.descricao}
             </p>
 
             <Button 
-              className={`w-full group/btn ${palette.text} bg-card hover:bg-accent shadow-sm hover:shadow-md transition-all duration-300`}
+              className={`relative w-full group/btn ${palette.text} bg-card hover:bg-accent shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}
               onClick={() => handleAnnouncementClick(mainAnnouncement)}
               variant="outline"
             >
+              <span className="pointer-events-none absolute inset-0 opacity-0 group-hover/btn:opacity-100 transition-opacity">
+                <span className="absolute -left-10 top-0 h-full w-16 rotate-12 bg-current/10 blur-sm" />
+              </span>
               <span className="flex-1">{mainAnnouncement.texto_botao}</span>
               <ChevronRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
             </Button>
           </CardContent>
         </Card>
       </motion.div>
-
     </>
   );
 };

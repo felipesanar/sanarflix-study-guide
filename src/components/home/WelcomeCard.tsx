@@ -40,9 +40,13 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
+      style={{ perspective: 1000 }}
+      whileHover={{ y: -2 }}
     >
-      <Card className="border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-xl overflow-hidden h-full">
-        <CardContent className="p-8">
+      <Card className="relative border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-2xl overflow-hidden h-full">
+        {/* brilho radial dinâmico */}
+        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-white/10 blur-3xl rounded-full" />
+        <CardContent className="p-7">
           <div className="flex items-center justify-between h-full">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
@@ -58,8 +62,12 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
               <Button 
                 variant="secondary"
                 onClick={handleContinueStudy}
-                className="bg-white/10 hover:bg-white/20 border border-white/30 backdrop-blur-sm transition-all duration-300 group"
+                className="relative bg-white/10 hover:bg-white/20 border border-white/30 backdrop-blur-sm transition-all duration-300 group overflow-hidden"
               >
+                {/* brilho ao passar o mouse */}
+                <span className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="absolute -left-8 top-0 h-full w-16 rotate-12 bg-white/10 blur-sm" />
+                </span>
                 {hasStudyGuide ? (
                   <>
                     <BookOpen className="mr-2 h-4 w-4" />
@@ -80,9 +88,12 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
               </Button>
             </div>
             <div className="hidden xl:block">
-              <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <motion.div
+                whileHover={{ scale: 1.04, rotateZ: 1 }}
+                className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm ring-1 ring-white/20"
+              >
                 <BookOpen className="h-16 w-16 text-white" />
-              </div>
+              </motion.div>
             </div>
           </div>
         </CardContent>

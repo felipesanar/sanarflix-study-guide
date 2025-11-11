@@ -20,14 +20,14 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
 
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader>
+      <CardHeader className="py-5">
         <CardTitle className="flex items-center gap-2">
           <Trophy className="h-5 w-5 text-amber-500" />
           Ranking do Aluno
         </CardTitle>
         <CardDescription>Sua posição entre os colegas</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-5">
         {/* Ranking de Simulado */}
         <motion.div
           whileHover={{ scale: 1.02 }}

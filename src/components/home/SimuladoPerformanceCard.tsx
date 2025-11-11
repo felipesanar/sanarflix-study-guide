@@ -27,7 +27,7 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
 
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader>
+      <CardHeader className="py-5">
         <CardTitle className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-primary" />
           Desempenho no Simulado
@@ -50,9 +50,9 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Performance Circle */}
-            <div className={`relative mx-auto w-40 h-40 rounded-full bg-gradient-to-br ${getPerformanceGradient(data.nota)} flex items-center justify-center border-4 border-background shadow-lg`}>
+            <div className={`relative mx-auto w-36 h-36 rounded-full bg-gradient-to-br ${getPerformanceGradient(data.nota)} flex items-center justify-center border-4 border-background shadow-lg`}>
               <div className="text-center">
                 <div className={`text-4xl font-bold ${getPerformanceColor(data.nota)}`}>
                   {data.nota}%

@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Zap, BarChart3, ChevronRight, Calendar } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BookOpen, Zap, BarChart3, ChevronRight, Calendar, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 
@@ -21,7 +22,7 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({ items, hasStudyGuide }) 
 
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader>
+      <CardHeader className="py-5">
         <CardTitle className="flex items-center gap-2">
           <Calendar className="h-5 w-5 text-primary" />
           Meu Dia
@@ -72,6 +73,20 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({ items, hasStudyGuide }) 
                       <p className="text-xs text-muted-foreground">{item.subtitle}</p>
                     )}
                   </div>
+                  {item.lessonLink ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs mr-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(item.lessonLink!, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <PlayCircle className="h-3 w-3 mr-1" />
+                      Assistir aula sugerida
+                    </Button>
+                  ) : null}
                   <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.div>
               );

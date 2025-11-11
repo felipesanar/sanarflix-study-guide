@@ -33,10 +33,7 @@ export class ChunkLoadErrorBoundary extends Component<Props, State> {
     console.error('Chunk loading error:', error, errorInfo);
     
     if (this.state.errorType === 'chunk') {
-      // Auto-retry após 2s
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+      // Não recarregar automaticamente; permitir ação manual do usuário
     }
   }
 
@@ -46,8 +43,14 @@ export class ChunkLoadErrorBoundary extends Component<Props, State> {
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold mb-2">Carregando recursos...</h2>
-            <p className="text-muted-foreground">A página será recarregada automaticamente</p>
+            <h2 className="text-xl font-semibold mb-2">Falha ao carregar recursos</h2>
+            <p className="text-muted-foreground mb-4">Isso pode acontecer após uma atualização. Tente recarregar.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:opacity-90"
+            >
+              Recarregar página
+            </button>
           </div>
         </div>
       );
