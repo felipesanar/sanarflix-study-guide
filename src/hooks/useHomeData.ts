@@ -14,6 +14,8 @@ export interface MeuDiaItem {
   color: string;
   // Link direto para aula sugerida (caso exista)
   lessonLink?: string;
+  // Origem dos dados: calendário pessoal ou cronograma ENAMED
+  source?: 'calendar' | 'cronograma_enamed' | 'fallback';
 }
 
 export interface RankingData {
@@ -305,6 +307,7 @@ export const useHomeData = () => {
                 icon: 'BookOpen',
                 color: 'from-purple-500 to-indigo-500',
                 lessonLink: suggestion?.link_aula || cronItem.link_aula || cronItem.link_gratuito || undefined,
+                source: 'cronograma_enamed' as const,
               };
             } catch (error) {
               console.warn(`Erro ao processar matéria ${materiaName}:`, error);
@@ -317,6 +320,7 @@ export const useHomeData = () => {
                 icon: 'BookOpen',
                 color: 'from-purple-500 to-indigo-500',
                 lessonLink: cronItem.link_aula || cronItem.link_gratuito || undefined,
+                source: 'cronograma_enamed' as const,
               };
             }
           });
@@ -358,16 +362,17 @@ export const useHomeData = () => {
             const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
             const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
 
-            return {
-              id: `materia-${subjectName}`,
-              type: 'materia' as const,
-              title: subjectName,
-              subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
-              path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
-              icon: 'BookOpen',
-              color: 'from-emerald-500 to-teal-500',
-              lessonLink: suggestion?.link_aula || undefined,
-            };
+              return {
+                id: `materia-${subjectName}`,
+                type: 'materia' as const,
+                title: subjectName,
+                subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
+                path: `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
+                icon: 'BookOpen',
+                color: 'from-emerald-500 to-teal-500',
+                lessonLink: suggestion?.link_aula || undefined,
+                source: 'calendar' as const,
+              };
           } catch (error) {
             console.warn(`Erro ao processar matéria ${subjectName}:`, error);
             return null;
@@ -396,6 +401,7 @@ export const useHomeData = () => {
           path: '/intensivao-enamed',
           icon: 'Zap',
           color: 'from-purple-500 to-pink-500',
+          source: 'fallback' as const,
         });
       }
 
@@ -409,6 +415,7 @@ export const useHomeData = () => {
           path: '/desempenho-simulado',
           icon: 'BarChart3',
           color: 'from-orange-500 to-red-500',
+          source: 'fallback' as const,
         });
       }
     }

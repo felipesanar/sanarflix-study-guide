@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
+import { BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle, CalendarCheck, FileText } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -207,9 +208,30 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                       
                       {/* Conteúdo */}
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-foreground text-sm truncate">
-                          {item.title}
-                        </h4>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-foreground text-sm truncate">
+                            {item.title}
+                          </h4>
+                          {/* Badge de origem */}
+                          {item.source === 'calendar' && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1.5 py-0 h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            >
+                              <CalendarCheck className="w-3 h-3" />
+                              Meu Calendário
+                            </Badge>
+                          )}
+                          {item.source === 'cronograma_enamed' && (
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400"
+                            >
+                              <FileText className="w-3 h-3" />
+                              Cronograma ENAMED
+                            </Badge>
+                          )}
+                        </div>
                         {item.subtitle && (
                           <p className="text-xs text-muted-foreground truncate">
                             {item.subtitle}
