@@ -19,8 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Trophy, 
   PlayCircle, 
-  FileCheck, 
-  X,
+  FileCheck,
   BookOpen,
   TrendingUp,
   Award,
@@ -69,20 +68,10 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-primary" />
-              Ranking de Consumo de Conteúdo
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onOpenChange(false)}
-              className="h-8 w-8"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-primary" />
+            Ranking de Consumo de Conteúdo
+          </DialogTitle>
           <DialogDescription className="text-base">
             Veja sua posição em aulas assistidas e questões respondidas na sua instituição.
           </DialogDescription>
