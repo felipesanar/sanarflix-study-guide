@@ -1,0 +1,111 @@
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { BookOpen, PlayCircle, FileText, ChevronRight } from 'lucide-react';
+import { TopAula } from '@/hooks/useHomeData';
+
+interface MeuSemestreCardProps {
+  topAulas: TopAula[];
+  conteudosRelacionados: any[];
+}
+
+export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, conteudosRelacionados }) => {
+  const handleWatchClass = (link: string) => {
+    if (link && link !== '#') {
+      window.open(link, '_blank');
+    }
+  };
+
+  return (
+    <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-primary" />
+          Meu Semestre
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: Top 3 Classes */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Top 3 Aulas Mais Acessadas
+            </h3>
+            {topAulas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma aula disponível</p>
+            ) : (
+              <div className="space-y-3">
+                {topAulas.map((aula, index) => (
+                  <motion.div
+                    key={aula.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="p-3 bg-gradient-to-r from-blue-500/10 to-transparent rounded-lg border border-blue-500/20 hover:border-blue-500/40 transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <span className="text-sm font-bold text-blue-600">#{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold line-clamp-1 mb-0.5">
+                          {aula.nome}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">{aula.materia}</p>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleWatchClass(aula.link)}
+                      className="w-full mt-2 text-xs group-hover:bg-blue-500/10"
+                    >
+                      <PlayCircle className="h-3 w-3 mr-1" />
+                      Assistir agora
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: Related Content */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Conteúdos Relacionados
+            </h3>
+            {conteudosRelacionados.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum conteúdo disponível</p>
+            ) : (
+              <div className="space-y-3">
+                {conteudosRelacionados.map((conteudo, index) => (
+                  <motion.div
+                    key={conteudo.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 + 0.3 }}
+                    className="p-3 bg-gradient-to-r from-purple-500/10 to-transparent rounded-lg border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold line-clamp-1">
+                          {conteudo.titulo}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">{conteudo.tipo}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
