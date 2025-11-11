@@ -62,6 +62,7 @@ interface LessonFormData {
   formato: 'pdf' | 'pptx';
   arquivo_url: string;
   ies_id: string;
+  arquivo?: File | null;
 }
 
 export default function SanarClassTab() {
@@ -69,6 +70,7 @@ export default function SanarClassTab() {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   // Modal states
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -127,18 +129,62 @@ export default function SanarClassTab() {
       formato: "pdf",
       arquivo_url: "",
       ies_id: "",
+      arquivo: null,
     });
+  };
+
+  const handleFileUpload = async (file: File): Promise<string> => {
+    try {
+      setUploading(true);
+      
+      // Gerar nome único para o arquivo
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(7);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${timestamp}-${randomString}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload do arquivo para o Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('sanarclass-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Obter URL pública do arquivo
+      const { data: { publicUrl } } = supabase.storage
+        .from('sanarclass-files')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Erro ao fazer upload:', error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleAddLesson = async () => {
     if (!formData.titulo || !formData.professor || !formData.disciplina || 
-        !formData.semestre || !formData.arquivo_url || !formData.ies_id) {
+        !formData.semestre || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    if (!formData.arquivo) {
+      toast.error('Faça upload do arquivo');
       return;
     }
 
     setSaving(true);
     try {
+      // Upload do arquivo
+      const arquivoUrl = await handleFileUpload(formData.arquivo);
+
       const { error } = await supabase
         .from('sanarclass_lessons')
         .insert({
@@ -147,8 +193,8 @@ export default function SanarClassTab() {
           disciplina: formData.disciplina,
           semestre: parseInt(formData.semestre),
           formato: formData.formato,
-          arquivo_url: formData.arquivo_url,
-          preview_url: formData.arquivo_url, // Usa o mesmo link do documento
+          arquivo_url: arquivoUrl,
+          preview_url: arquivoUrl,
           ies_id: formData.ies_id,
         });
 
@@ -170,13 +216,30 @@ export default function SanarClassTab() {
     if (!selectedLesson) return;
     
     if (!formData.titulo || !formData.professor || !formData.disciplina || 
-        !formData.semestre || !formData.arquivo_url || !formData.ies_id) {
+        !formData.semestre || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
     setSaving(true);
     try {
+      let arquivoUrl = formData.arquivo_url;
+
+      // Se um novo arquivo foi selecionado, faz upload
+      if (formData.arquivo) {
+        arquivoUrl = await handleFileUpload(formData.arquivo);
+        
+        // Deletar arquivo antigo se existir
+        if (selectedLesson.arquivo_url) {
+          const oldPath = selectedLesson.arquivo_url.split('/').pop();
+          if (oldPath) {
+            await supabase.storage
+              .from('sanarclass-files')
+              .remove([oldPath]);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('sanarclass_lessons')
         .update({
@@ -185,8 +248,8 @@ export default function SanarClassTab() {
           disciplina: formData.disciplina,
           semestre: parseInt(formData.semestre),
           formato: formData.formato,
-          arquivo_url: formData.arquivo_url,
-          preview_url: formData.arquivo_url, // Usa o mesmo link do documento
+          arquivo_url: arquivoUrl,
+          preview_url: arquivoUrl,
           ies_id: formData.ies_id,
         })
         .eq('id', selectedLesson.id);
@@ -211,6 +274,16 @@ export default function SanarClassTab() {
 
     setSaving(true);
     try {
+      // Deletar arquivo do storage
+      if (selectedLesson.arquivo_url) {
+        const filePath = selectedLesson.arquivo_url.split('/').pop();
+        if (filePath) {
+          await supabase.storage
+            .from('sanarclass-files')
+            .remove([filePath]);
+        }
+      }
+
       const { error } = await supabase
         .from('sanarclass_lessons')
         .delete()
@@ -419,18 +492,26 @@ export default function SanarClassTab() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="arquivo_url">Link do documento *</Label>
+              <Label htmlFor="arquivo">Upload do arquivo (PDF ou PPTX) *</Label>
               <Input
-                id="arquivo_url"
-                value={formData.arquivo_url}
-                onChange={(e) => setFormData({ ...formData, arquivo_url: e.target.value })}
-                placeholder="https://..."
-                type="url"
+                id="arquivo"
+                type="file"
+                accept=".pdf,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setFormData({ ...formData, arquivo: file });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
-                💡 Use links de visualização direta (ex: Google Drive em modo preview, Dropbox com ?dl=0, ou PDFs hospedados). 
-                O preview será gerado automaticamente a partir deste link.
+                📎 Tamanho máximo: 50MB. O arquivo será automaticamente comprimido para economizar espaço.
               </p>
+              {formData.arquivo && (
+                <p className="text-xs text-green-600">
+                  ✓ Arquivo selecionado: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
             </div>
           </div>
 
@@ -438,11 +519,11 @@ export default function SanarClassTab() {
             <Button variant="outline" onClick={() => setAddModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAddLesson} disabled={saving}>
-              {saving ? (
+            <Button onClick={handleAddLesson} disabled={saving || uploading}>
+              {saving || uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
+                  {uploading ? 'Fazendo upload...' : 'Salvando...'}
                 </>
               ) : (
                 'Adicionar aula'
@@ -534,17 +615,32 @@ export default function SanarClassTab() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="edit-arquivo_url">Link do documento *</Label>
+              <Label htmlFor="edit-arquivo">Arquivo atual</Label>
+              {formData.arquivo_url && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  📄 Arquivo: {formData.arquivo_url.split('/').pop()}
+                </p>
+              )}
+              <Label htmlFor="edit-arquivo-novo">Substituir arquivo (opcional)</Label>
               <Input
-                id="edit-arquivo_url"
-                value={formData.arquivo_url}
-                onChange={(e) => setFormData({ ...formData, arquivo_url: e.target.value })}
-                type="url"
+                id="edit-arquivo-novo"
+                type="file"
+                accept=".pdf,.pptx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setFormData({ ...formData, arquivo: file });
+                  }
+                }}
               />
               <p className="text-xs text-muted-foreground">
-                💡 Use links de visualização direta (ex: Google Drive em modo preview, Dropbox com ?dl=0, ou PDFs hospedados). 
-                O preview será gerado automaticamente a partir deste link.
+                📎 Deixe em branco para manter o arquivo atual. Máximo: 50MB.
               </p>
+              {formData.arquivo && (
+                <p className="text-xs text-green-600">
+                  ✓ Novo arquivo: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
             </div>
           </div>
 
@@ -561,11 +657,11 @@ export default function SanarClassTab() {
             <Button variant="outline" onClick={() => setEditModalOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditLesson} disabled={saving}>
-              {saving ? (
+            <Button onClick={handleEditLesson} disabled={saving || uploading}>
+              {saving || uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
+                  {uploading ? 'Fazendo upload...' : 'Salvando...'}
                 </>
               ) : (
                 'Salvar alterações'
