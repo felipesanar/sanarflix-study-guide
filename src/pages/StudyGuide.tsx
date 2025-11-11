@@ -1246,12 +1246,17 @@ export const StudyGuide: React.FC = () => {
                           <CardTitle className="flex items-center gap-2">
                             <Calendar className="h-5 w-5 text-primary" />
                             Calendário de Estudos
+                            {isEditMode && (
+                              <Badge variant="secondary" className="ml-2 bg-primary/10 text-primary border-primary/20">
+                                Modo Premium
+                              </Badge>
+                            )}
                           </CardTitle>
                           <CardDescription>
-                            {isEditMode ? 'Arraste as matérias para reorganizar sua semana de estudos' : 'Clique nas matérias para ver os conteúdos'}
+                            {isEditMode ? '✨ Arraste as matérias para reorganizar sua semana de estudos' : 'Clique nas matérias para ver os conteúdos'}
                           </CardDescription>
                         </div>
-                        {!isEditMode && (
+                        {!isEditMode ? (
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -1261,6 +1266,27 @@ export const StudyGuide: React.FC = () => {
                             <Edit2 className="h-4 w-4" />
                             Editar
                           </Button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setIsEditMode(false)}
+                              className="gap-2"
+                            >
+                              <X className="h-4 w-4" />
+                              Cancelar
+                            </Button>
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={confirmEditMode}
+                              className="gap-2 bg-green-600 hover:bg-green-700"
+                            >
+                              <Check className="h-4 w-4" />
+                              Salvar
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CardHeader>
