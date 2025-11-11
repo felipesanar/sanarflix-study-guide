@@ -40,6 +40,7 @@ export interface TopAula {
 export const useHomeData = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [meuDiaItems, setMeuDiaItems] = useState<MeuDiaItem[]>([]);
   const [hasStudyGuide, setHasStudyGuide] = useState(false);
   const [hasCronograma, setHasCronograma] = useState(false);
@@ -88,31 +89,39 @@ export const useHomeData = () => {
     if (!silent) {
       setLoading(true);
     }
-    const [meuDiaRes, rankingsRes, topAulasRes, simuladoRes] = await Promise.all([
-      fetchMeuDia(),
-      fetchRankings(),
-      fetchTopAulas(),
-      fetchSimuladoData(),
-    ]);
-    setLoading(false);
+    
+    try {
+      setError(null);
+      const [meuDiaRes, rankingsRes, topAulasRes, simuladoRes] = await Promise.all([
+        fetchMeuDia(),
+        fetchRankings(),
+        fetchTopAulas(),
+        fetchSimuladoData(),
+      ]);
+      setLoading(false);
 
-    // Atualiza cache com dados atuais
-    if (cacheKey) {
-      try {
-        const payload = {
-          timestamp: Date.now(),
-          meuDiaItems: meuDiaRes?.items ?? meuDiaItems,
-          hasStudyGuide: meuDiaRes?.hasStudyGuide ?? hasStudyGuide,
-          hasCronograma: meuDiaRes?.hasCronograma ?? hasCronograma,
-          rankings: rankingsRes ?? rankings,
-          topAulas: topAulasRes?.aulas ?? topAulas,
-          conteudosRelacionados: topAulasRes?.relacionados ?? conteudosRelacionados,
-          simuladoData: simuladoRes ?? simuladoData,
-        };
-        sessionStorage.setItem(cacheKey, JSON.stringify(payload));
-      } catch (e) {
-        console.warn('Falha ao salvar cache da Home:', e);
+      // Atualiza cache com dados atuais
+      if (cacheKey) {
+        try {
+          const payload = {
+            timestamp: Date.now(),
+            meuDiaItems: meuDiaRes?.items ?? meuDiaItems,
+            hasStudyGuide: meuDiaRes?.hasStudyGuide ?? hasStudyGuide,
+            hasCronograma: meuDiaRes?.hasCronograma ?? hasCronograma,
+            rankings: rankingsRes ?? rankings,
+            topAulas: topAulasRes?.aulas ?? topAulas,
+            conteudosRelacionados: topAulasRes?.relacionados ?? conteudosRelacionados,
+            simuladoData: simuladoRes ?? simuladoData,
+          };
+          sessionStorage.setItem(cacheKey, JSON.stringify(payload));
+        } catch (e) {
+          console.warn('Falha ao salvar cache da Home:', e);
+        }
       }
+    } catch (error) {
+      console.error('Erro ao carregar dados da Home:', error);
+      setError('Não foi possível carregar os dados. Tente novamente.');
+      setLoading(false);
     }
   };
 
@@ -179,7 +188,23 @@ export const useHomeData = () => {
 
       let subjectName: string | null = todaySubjects && todaySubjects[0]?.name ? todaySubjects[0].name : null;
 
-      // Fallback: usar calendar_arrangements quando não há registros em calendar_subjects
+      /**
+       * 📚 LÓGICA DE FALLBACK DO CALENDÁRIO:
+       * 
+       * 1. calendar_subjects: Tabela principal com matérias fixas do calendário
+       *    - Criada quando usuário define horários de aula no calendário
+       *    - Contém: nome da matéria, dia da semana, horário inicial/final, cor
+       * 
+       * 2. calendar_arrangements: Tabela de rearranjos personalizados (modo premium)
+       *    - Permite mover/reordenar matérias temporariamente
+       *    - Contém: item_key (nome da matéria), week, day, position
+       *    - Usado quando usuário personaliza layout do calendário
+       * 
+       * Comportamento:
+       * - Primeiro tenta calendar_subjects (fonte primária)
+       * - Se vazio, tenta calendar_arrangements (fallback)
+       * - Se ambos vazios, não mostra matéria do dia
+       */
       if (!subjectName) {
         const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const todayName = dayNames[today];
@@ -386,6 +411,7 @@ export const useHomeData = () => {
 
   return {
     loading,
+    error,
     meuDiaItems,
     hasStudyGuide,
     hasCronograma,

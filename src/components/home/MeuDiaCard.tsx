@@ -1,93 +1,238 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Zap, BarChart3, ChevronRight, Calendar, PlayCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface MeuDiaCardProps {
   items: MeuDiaItem[];
   hasStudyGuide: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-const iconMap = {
+const iconMap: Record<string, any> = {
   BookOpen,
   Zap,
   BarChart3,
 };
 
-export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({ items, hasStudyGuide }) => {
+// Estado vazio enriquecido com ilustração e onboarding
+const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
+  const navigate = useNavigate();
+  
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-4">
+      {/* Ilustração SVG de calendário vazio */}
+      <div className="mb-6 relative">
+        <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+          <Calendar className="w-16 h-16 text-muted-foreground/40" />
+        </div>
+        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-background border-2 border-primary/20 flex items-center justify-center">
+          <span className="text-lg">📚</span>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-semibold text-foreground mb-2">
+        Nenhuma atividade para hoje
+      </h3>
+      
+      <p className="text-sm text-muted-foreground text-center mb-6 max-w-xs">
+        {hasStudyGuide 
+          ? "Você não tem matérias agendadas para hoje no seu calendário."
+          : "Configure seu plano de estudos para começar a estudar de forma organizada."
+        }
+      </p>
+
+      {/* Mini onboarding: 3 passos */}
+      {!hasStudyGuide && (
+        <div className="w-full max-w-sm mb-6 space-y-3">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">1</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Configure seu guia</p>
+              <p className="text-xs text-muted-foreground">Escolha suas matérias e semestre</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">2</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Monte seu calendário</p>
+              <p className="text-xs text-muted-foreground">Organize os horários de estudo</p>
+            </div>
+          </div>
+          
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-xs font-bold text-primary">3</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Acompanhe seu progresso</p>
+              <p className="text-xs text-muted-foreground">Veja suas estatísticas diárias</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Button
+        onClick={() => navigate(hasStudyGuide ? '/cronograma-enamed' : '/guia-estudos')}
+        className="gap-2"
+      >
+        {hasStudyGuide ? (
+          <>
+            <Calendar className="w-4 h-4" />
+            Configurar Calendário
+          </>
+        ) : (
+          <>
+            <BookOpen className="w-4 h-4" />
+            Configurar Guia de Estudos
+          </>
+        )}
+      </Button>
+    </div>
+  );
+};
+
+// Loading granular: skeleton individual para cada tipo de item
+const LoadingSkeleton = () => {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center gap-3 p-4 rounded-xl border border-border/50">
+          <Skeleton className="w-12 h-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="w-8 h-8 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// Estado de erro com botão de retry
+const ErrorState = ({ onRetry }: { onRetry?: () => void }) => {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 px-4">
+      <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+        <AlertCircle className="w-8 h-8 text-destructive" />
+      </div>
+      
+      <h3 className="text-lg font-semibold text-foreground mb-2">
+        Erro ao carregar dados
+      </h3>
+      
+      <p className="text-sm text-muted-foreground text-center mb-6 max-w-xs">
+        Não foi possível carregar suas atividades. Verifique sua conexão e tente novamente.
+      </p>
+
+      {onRetry && (
+        <Button onClick={onRetry} variant="outline" className="gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Tentar novamente
+        </Button>
+      )}
+    </div>
+  );
+};
+
+export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({ 
+  items, 
+  hasStudyGuide,
+  loading = false,
+  error = null,
+  onRetry
+}) => {
   const navigate = useNavigate();
 
+  const handleItemClick = (item: MeuDiaItem) => {
+    navigate(item.path);
+  };
+
+  const handleLessonClick = (e: React.MouseEvent, link: string) => {
+    e.stopPropagation();
+    window.open(link, '_blank', 'noopener,noreferrer');
+  };
+
   return (
-    <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader className="py-5">
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-primary" />
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <Calendar className="w-5 h-5 text-primary" />
           Meu Dia
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {items.length === 0 ? (
-          <div className="text-center py-8 space-y-4">
-            <div className="w-16 h-16 mx-auto bg-muted rounded-full flex items-center justify-center">
-              <Calendar className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">
-                Você não inseriu nenhuma matéria no seu calendário.
-              </p>
-              <button
-                onClick={() => navigate('/guia-estudos')}
-                className="text-primary hover:underline text-sm font-medium inline-flex items-center gap-1"
-              >
-                👉 Adicione agora no seu Guia de Estudos
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        ) : (
+      <CardContent>
+        {/* Estado de loading */}
+        {loading && <LoadingSkeleton />}
+        
+        {/* Estado de erro */}
+        {!loading && error && <ErrorState onRetry={onRetry} />}
+        
+        {/* Estado vazio */}
+        {!loading && !error && items.length === 0 && (
+          <EmptyState hasStudyGuide={hasStudyGuide} />
+        )}
+        
+        {/* Estado com dados */}
+        {!loading && !error && items.length > 0 && (
           <div className="space-y-3">
             {items.map((item, index) => {
-              const Icon = iconMap[item.icon as keyof typeof iconMap] || BookOpen;
-              
+              const Icon = iconMap[item.icon] || BookOpen;
               return (
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ x: 4 }}
-                  onClick={() => navigate(item.path)}
-                  className="flex items-center gap-3 p-4 bg-gradient-to-r from-muted/50 to-transparent rounded-lg hover:from-muted cursor-pointer transition-all duration-300 group"
+                  onClick={() => handleItemClick(item)}
+                  className="group cursor-pointer"
                 >
-                  <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${item.color} rounded-lg flex items-center justify-center shadow-sm`}>
-                    <Icon className="h-6 w-6 text-white" />
+                  <div className="p-4 rounded-xl border border-border/50 hover:border-primary/50 hover:shadow-md transition-all bg-card">
+                    <div className="flex items-center gap-3">
+                      {/* Ícone com gradiente */}
+                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0`}>
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      
+                      {/* Conteúdo */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-foreground text-sm truncate">
+                          {item.title}
+                        </h4>
+                        {item.subtitle && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {item.subtitle}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Botão de ação */}
+                      {item.lessonLink ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1 text-xs flex-shrink-0"
+                          onClick={(e) => handleLessonClick(e, item.lessonLink!)}
+                        >
+                          Assistir aula
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
+                      ) : (
+                        <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-sm mb-0.5 group-hover:text-primary transition-colors">
-                      {item.title}
-                    </h4>
-                    {item.subtitle && (
-                      <p className="text-xs text-muted-foreground">{item.subtitle}</p>
-                    )}
-                  </div>
-                  {item.lessonLink ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-xs mr-2"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(item.lessonLink!, '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      <PlayCircle className="h-3 w-3 mr-1" />
-                      Assistir aula sugerida
-                    </Button>
-                  ) : null}
-                  <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </motion.div>
               );
             })}

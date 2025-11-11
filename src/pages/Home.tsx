@@ -13,6 +13,7 @@ import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 export const Home: React.FC = () => {
   const {
     loading,
+    error,
     meuDiaItems,
     hasStudyGuide,
     hasCronograma,
@@ -20,6 +21,7 @@ export const Home: React.FC = () => {
     topAulas,
     conteudosRelacionados,
     simuladoData,
+    refetch,
   } = useHomeData();
 
   if (loading) {
@@ -86,7 +88,13 @@ export const Home: React.FC = () => {
               custom={1}
               className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6"
           >
-              <MeuDiaCard items={meuDiaItems} hasStudyGuide={hasStudyGuide} />
+              <MeuDiaCard 
+                items={meuDiaItems} 
+                hasStudyGuide={hasStudyGuide}
+                loading={loading}
+                error={error}
+                onRetry={refetch}
+              />
               <RankingCard data={rankings} />
           </motion.div>
   
