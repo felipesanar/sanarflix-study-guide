@@ -170,13 +170,19 @@ export const useHomeData = () => {
       // 🌍 Usar fuso de Brasília (GMT-3) para consistência com sistema de lembretes
       const today = getBrazilDayOfWeek(); // 0 (Dom) - 6 (Sáb)
       
+      console.log('🔍 [Meu Dia] Dia da semana (GMT-3):', today);
+      console.log('🔍 [Meu Dia] User ID:', user.id);
+      
       // Buscar TODAS as matérias agendadas para hoje (remover limit)
-      const { data: todaySubjects } = await supabase
+      const { data: todaySubjects, error: subjectsError } = await supabase
         .from('calendar_subjects')
         .select('*')
         .eq('user_id', user.id)
         .eq('day_of_week', today)
         .order('start_time', { ascending: true });
+
+      console.log('🔍 [Meu Dia] Calendar subjects encontrados:', todaySubjects?.length || 0, todaySubjects);
+      if (subjectsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
 
       let subjectsToProcess: string[] = [];
 
@@ -199,21 +205,30 @@ export const useHomeData = () => {
        */
       if (todaySubjects && todaySubjects.length > 0) {
         subjectsToProcess = todaySubjects.map((s: any) => s.name);
+        console.log('✅ [Meu Dia] Usando calendar_subjects:', subjectsToProcess);
       } else {
         // Fallback: usar calendar_arrangements
         const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const todayName = dayNames[today];
-        const { data: arrangements } = await supabase
+        console.log('🔄 [Meu Dia] Tentando fallback para calendar_arrangements, dia:', todayName);
+        
+        const { data: arrangements, error: arrangementsError } = await supabase
           .from('calendar_arrangements')
           .select('*')
           .eq('user_id', user.id)
           .eq('day', todayName)
           .order('position', { ascending: true });
         
+        console.log('🔍 [Meu Dia] Calendar arrangements encontrados:', arrangements?.length || 0, arrangements);
+        if (arrangementsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_arrangements:', arrangementsError);
+        
         if (arrangements && arrangements.length > 0) {
           subjectsToProcess = arrangements.map((a: any) => a.item_key);
+          console.log('✅ [Meu Dia] Usando calendar_arrangements:', subjectsToProcess);
         }
       }
+
+      console.log('📋 [Meu Dia] Total de matérias a processar:', subjectsToProcess.length);
 
       // 🚀 Paralelizar queries para todas as matérias
       const subjectPromises = subjectsToProcess.map(async (subjectName) => {
@@ -265,18 +280,24 @@ export const useHomeData = () => {
 
       // Aguardar todas as queries e filtrar nulos
       const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
+      console.log('✅ [Meu Dia] Matérias processadas com sucesso:', subjectItems.length);
       items.push(...subjectItems);
     } catch (e) {
       // Falha opcional ao sugerir aula - não bloquear Meu Dia
-      console.warn('Falha ao montar matérias do dia/sugestão de aulas:', e);
+      console.error('❌ [Meu Dia] Erro ao montar matérias do dia:', e);
     }
+
+    console.log('📊 [Meu Dia] Total de items antes de adicionar Intensivo/Simulado:', items.length);
 
     // Adicionar Intensivo e Simulado apenas se não houver matérias do dia
     // (para não poluir a lista quando já tem conteúdo programado)
     if (items.length === 0) {
+      console.log('ℹ️ [Meu Dia] Nenhuma matéria encontrada, adicionando Intensivo e Simulado como fallback');
+      
       // Process intensivo (já carregado em paralelo)
       const intensivoData = intensivoRes.data;
       if (intensivoData && intensivoData.length > 0) {
+        console.log('✅ [Meu Dia] Adicionando Intensivo ENAMED');
         items.push({
           id: 'intensivo',
           type: 'intensivo',
@@ -291,6 +312,7 @@ export const useHomeData = () => {
       // Process simulado (já carregado em paralelo)
       const simuladoData = simuladoRes.data;
       if (simuladoData && simuladoData.length > 0) {
+        console.log('✅ [Meu Dia] Adicionando Simulado Disponível');
         items.push({
           id: 'simulado',
           type: 'simulado',
@@ -301,8 +323,11 @@ export const useHomeData = () => {
           color: 'from-orange-500 to-red-500',
         });
       }
+    } else {
+      console.log('✅ [Meu Dia] Exibindo matérias do calendário (sem Intensivo/Simulado)');
     }
 
+    console.log('📋 [Meu Dia] Items finais:', items);
     setMeuDiaItems(items);
     return {
       items,
