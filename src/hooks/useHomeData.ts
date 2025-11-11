@@ -492,12 +492,20 @@ export const useHomeData = () => {
   const fetchTopAulas = async () => {
     if (!user?.id_ies || !user?.semestre) return;
 
+    // Query com contagem real de views do usuário
     const { data } = await supabase
       .from('conteudos')
-      .select('id, aula, materia, link_aula')
+      .select(`
+        id, 
+        aula, 
+        materia, 
+        link_aula,
+        aula_views!left(count)
+      `)
       .eq('id_ies', user.id_ies)
       .eq('semestre', user.semestre.toString())
       .not('link_aula', 'is', null)
+      .order('aula_views(count)', { ascending: false })
       .limit(3);
 
     if (data) {

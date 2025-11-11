@@ -146,6 +146,38 @@ export type Database = {
           },
         ]
       }
+      aula_views: {
+        Row: {
+          conteudo_id: string
+          created_at: string
+          id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          conteudo_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          conteudo_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aula_views_conteudo_id_fkey"
+            columns: ["conteudo_id"]
+            isOneToOne: false
+            referencedRelation: "conteudos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_arrangements: {
         Row: {
           created_at: string

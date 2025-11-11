@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BookOpen, PlayCircle, FileText, ChevronRight } from 'lucide-react';
 import { TopAula } from '@/hooks/useHomeData';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface MeuSemestreCardProps {
   topAulas: TopAula[];
@@ -11,8 +13,25 @@ interface MeuSemestreCardProps {
 }
 
 export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, conteudosRelacionados }) => {
-  const handleWatchClass = (link: string) => {
+  const handleWatchClass = async (aulaId: string, link: string) => {
     if (link && link !== '#') {
+      // Registrar visualização no Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { error } = await supabase
+          .from('aula_views')
+          .insert({
+            user_id: user.id,
+            conteudo_id: aulaId,
+          });
+
+        if (error) {
+          console.error('Erro ao registrar visualização:', error);
+        }
+      }
+
+      // Abrir aula
       window.open(link, '_blank');
     }
   };
@@ -58,7 +77,7 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleWatchClass(aula.link)}
+                      onClick={() => handleWatchClass(aula.id, aula.link)}
                       className="w-full mt-2 text-xs group-hover:bg-blue-500/10"
                     >
                       <PlayCircle className="h-3 w-3 mr-1" />
