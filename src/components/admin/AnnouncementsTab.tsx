@@ -29,11 +29,10 @@ interface AnnouncementConfig {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta' | 'muito_alta';
+  prioridade: 'baixa' | 'media' | 'alta';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
-  semestre_destino?: number | null;
 }
 
 interface Announcement {
@@ -45,12 +44,11 @@ interface Announcement {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta' | 'muito_alta';
+  prioridade: 'baixa' | 'media' | 'alta';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
   created_at: string;
-  semestre_destino?: number | null;
 }
 
 const defaultConfig: AnnouncementConfig = {
