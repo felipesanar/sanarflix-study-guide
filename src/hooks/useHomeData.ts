@@ -526,7 +526,7 @@ export const useHomeData = () => {
 
     try {
       const { data: answerData } = await supabase
-        .from('answer_progress_enamed')
+        .from('answer_progress')
         .select('simulado, correct, question_id')
         .eq('email', user.email)
         .order('simulado', { ascending: false });

@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
 
     // Inserir respostas corrigidas
     const { error: insertError } = await supabaseClient
-      .from('answer_progress_enamed')
+      .from('answer_progress')
       .insert(respostasParaSalvar);
 
     if (insertError) {

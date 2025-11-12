@@ -100,7 +100,7 @@ export type Database = {
           },
         ]
       }
-      answer_progress_enamed: {
+      answer_progress: {
         Row: {
           answer_id: string
           correct: boolean
