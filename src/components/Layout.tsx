@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -24,6 +24,8 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user } = useAuth();
   const [changeOpen, setChangeOpen] = useState(false);
+  const location = useLocation();
+  const isModoProva = /^\/simulados\/\d+\/prova$/.test(location.pathname);
 
   const initials = (user?.nome || '')
     .split(' ')
@@ -34,16 +36,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      {!isModoProva && <AppSidebar />}
       <SidebarInset className="flex-1 flex flex-col min-h-screen w-full transition-all duration-300">
         {/* Header with trigger, profile and theme toggle */}
         <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4 w-full">
             {/* Desktop - Menu Trigger */}
-            <div className="hidden md:flex items-center gap-2">
-              <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors">
-                <Menu className="h-5 w-5 text-foreground" />
-              </SidebarTrigger>
-            </div>
+            {!isModoProva && (
+              <div className="hidden md:flex items-center gap-2">
+                <SidebarTrigger className="p-2 hover:bg-accent rounded-md transition-colors">
+                  <Menu className="h-5 w-5 text-foreground" />
+                </SidebarTrigger>
+              </div>
+            )}
             
             {/* Mobile - Logo */}
             <div className="flex md:hidden items-center gap-2">
@@ -81,6 +85,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </main>
 
           {/* Mobile bottom navigation (below 768px) */}
+          {!isModoProva && (
           <nav
             aria-label="Barra de navegação móvel"
             className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-lg"
@@ -121,6 +126,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </DropdownMenu>
             </div>
           </nav>
+          )}
       </SidebarInset>
 
       <ChangePasswordDialog open={changeOpen} onOpenChange={setChangeOpen} />

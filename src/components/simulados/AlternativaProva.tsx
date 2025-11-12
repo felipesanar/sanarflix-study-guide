@@ -29,7 +29,7 @@ export const AlternativaProva = ({
       )}
       onClick={!eliminada ? onSelecionar : undefined}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <div
           className={cn(
             'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors',
