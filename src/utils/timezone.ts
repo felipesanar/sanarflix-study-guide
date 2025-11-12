@@ -33,3 +33,49 @@ export const getBrazilDate = (): Date => {
 export const getBrazilHour = (): number => {
   return getBrazilDate().getHours();
 };
+
+/**
+ * Converts a local datetime-local input value to Brazil timezone ISO string
+ * @param datetimeLocalValue - Value from datetime-local input (YYYY-MM-DDTHH:mm)
+ * @returns ISO string in Brazil timezone
+ */
+export const datetimeLocalToBrazilISO = (datetimeLocalValue: string): string => {
+  if (!datetimeLocalValue) return '';
+  
+  // Parse the datetime-local value
+  const [date, time] = datetimeLocalValue.split('T');
+  const [year, month, day] = date.split('-');
+  const [hour, minute] = time.split(':');
+  
+  // Create date string in format that toLocaleString accepts
+  const dateStr = `${month}/${day}/${year} ${hour}:${minute}:00`;
+  
+  // Convert to Brazil timezone and then to ISO
+  const brazilDate = new Date(new Date(dateStr).toLocaleString('en-US', { 
+    timeZone: 'America/Sao_Paulo' 
+  }));
+  
+  return brazilDate.toISOString();
+};
+
+/**
+ * Converts a Brazil timezone ISO string to datetime-local input format
+ * @param isoString - ISO string
+ * @returns datetime-local format (YYYY-MM-DDTHH:mm)
+ */
+export const brazilISOToDatetimeLocal = (isoString: string): string => {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);
+  const brazilDate = new Date(date.toLocaleString('en-US', { 
+    timeZone: 'America/Sao_Paulo' 
+  }));
+  
+  const year = brazilDate.getFullYear();
+  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
+  const day = String(brazilDate.getDate()).padStart(2, '0');
+  const hour = String(brazilDate.getHours()).padStart(2, '0');
+  const minute = String(brazilDate.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+};

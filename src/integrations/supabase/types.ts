@@ -412,15 +412,21 @@ export type Database = {
           alternativa_d: string
           alternativa_e: string | null
           comentario: string | null
+          competencia: string | null
           correta: string
           created_at: string | null
           enunciado: string
+          especialidade: string | null
           feedback_corretas: string | null
+          grande_area: string | null
+          grau_dificuldade: string | null
           id: string
           imagem: string | null
+          numero_questao: number | null
           observacao: string | null
           ordem: number
           simulado_id: string
+          tema: string | null
           updated_at: string | null
         }
         Insert: {
@@ -430,15 +436,21 @@ export type Database = {
           alternativa_d: string
           alternativa_e?: string | null
           comentario?: string | null
+          competencia?: string | null
           correta: string
           created_at?: string | null
           enunciado: string
+          especialidade?: string | null
           feedback_corretas?: string | null
+          grande_area?: string | null
+          grau_dificuldade?: string | null
           id?: string
           imagem?: string | null
+          numero_questao?: number | null
           observacao?: string | null
           ordem: number
           simulado_id: string
+          tema?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -448,15 +460,21 @@ export type Database = {
           alternativa_d?: string
           alternativa_e?: string | null
           comentario?: string | null
+          competencia?: string | null
           correta?: string
           created_at?: string | null
           enunciado?: string
+          especialidade?: string | null
           feedback_corretas?: string | null
+          grande_area?: string | null
+          grau_dificuldade?: string | null
           id?: string
           imagem?: string | null
+          numero_questao?: number | null
           observacao?: string | null
           ordem?: number
           simulado_id?: string
+          tema?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -575,6 +593,42 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      simulados_ies: {
+        Row: {
+          created_at: string | null
+          id: string
+          ies_id: string
+          simulado_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ies_id: string
+          simulado_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ies_id?: string
+          simulado_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulados_ies_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "simulados_ies_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       study_progress: {
         Row: {

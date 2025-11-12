@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter } from 'lucide-react';
+import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
+import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Simulado {
   id: string;
@@ -28,6 +30,12 @@ interface Simulado {
 interface Questao {
   id?: string;
   ordem: number;
+  numero_questao?: number;
+  grande_area?: string;
+  especialidade?: string;
+  tema?: string;
+  grau_dificuldade?: string;
+  competencia?: string;
   enunciado: string;
   alternativa_a: string;
   alternativa_b: string;
@@ -39,6 +47,11 @@ interface Questao {
   feedback_corretas: string | null;
   imagem: string | null;
   observacao: string | null;
+}
+
+interface IES {
+  id: string;
+  nome: string;
 }
 
 interface PreviewData {
@@ -69,6 +82,8 @@ export default function SimuladosTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
+  const [iesList, setIesList] = useState<IES[]>([]);
+  const [selectedIES, setSelectedIES] = useState<string[]>([]);
 
   const [configForm, setConfigForm] = useState({
     nome: '',
@@ -81,7 +96,22 @@ export default function SimuladosTab() {
 
   useEffect(() => {
     fetchSimulados();
+    fetchIES();
   }, []);
+
+  const fetchIES = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ies')
+        .select('id, nome')
+        .order('nome');
+
+      if (error) throw error;
+      setIesList(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar IES:', error);
+    }
+  };
 
   const fetchSimulados = async () => {
     try {
@@ -137,38 +167,69 @@ export default function SimuladosTab() {
 
           setUploadProgress(40);
 
-          // Validar colunas obrigatórias
-          const requiredColumns = ['enunciado', 'a', 'b', 'c', 'd', 'e', 'correta'];
+          // Validar colunas obrigatórias (novo padrão)
+          const requiredColumns = [
+            'número da questão',
+            'grande área',
+            'especialidade',
+            'tema',
+            'grau de dificuldade',
+            'competência',
+            'enunciado da questão',
+            'alternativa a',
+            'alternativa b',
+            'alternativa c',
+            'alternativa d',
+            'comentário da questão',
+            'alternativa correta'
+          ];
+          
           const firstRow = jsonData[0] as any;
           const columns = Object.keys(firstRow).map(k => k.toLowerCase().trim());
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
-            throw new Error(`O arquivo está incompleto. Colunas obrigatórias faltando: ${missingColumns.join(', ')}`);
+            throw new Error(
+              `O arquivo está incompleto. Colunas obrigatórias faltando:\n${missingColumns.join(', ')}\n\nColunas esperadas:\n${requiredColumns.join(', ')}`
+            );
           }
 
           setUploadProgress(60);
 
-          // Processar questões
+          // Processar questões com novo padrão
           const questoes: Questao[] = jsonData.map((row: any, index) => {
             const normalizedRow: any = {};
             Object.keys(row).forEach(key => {
               normalizedRow[key.toLowerCase().trim()] = row[key];
             });
 
+            // Validar alternativa correta
+            const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
+            if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
+              throw new Error(
+                `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
+              );
+            }
+
             return {
               ordem: index + 1,
-              enunciado: normalizedRow.enunciado || '',
-              alternativa_a: normalizedRow.a || '',
-              alternativa_b: normalizedRow.b || '',
-              alternativa_c: normalizedRow.c || '',
-              alternativa_d: normalizedRow.d || '',
-              alternativa_e: normalizedRow.e || null,
-              correta: (normalizedRow.correta?.toString().toUpperCase() || 'A') as 'A' | 'B' | 'C' | 'D' | 'E',
-              comentario: null,
-              feedback_corretas: normalizedRow['feedback das respostas corretas'] || null,
-              imagem: normalizedRow['imagem da questão'] || normalizedRow['imagem da questao'] || null,
-              observacao: normalizedRow['observação'] || normalizedRow['observacao'] || null
+              numero_questao: normalizedRow['número da questão'] || index + 1,
+              grande_area: normalizedRow['grande área'] || '',
+              especialidade: normalizedRow['especialidade'] || '',
+              tema: normalizedRow['tema'] || '',
+              grau_dificuldade: normalizedRow['grau de dificuldade'] || '',
+              competencia: normalizedRow['competência'] || '',
+              enunciado: normalizedRow['enunciado da questão'] || '',
+              alternativa_a: normalizedRow['alternativa a'] || '',
+              alternativa_b: normalizedRow['alternativa b'] || '',
+              alternativa_c: normalizedRow['alternativa c'] || '',
+              alternativa_d: normalizedRow['alternativa d'] || '',
+              alternativa_e: null,
+              correta: correta as 'A' | 'B' | 'C' | 'D',
+              comentario: normalizedRow['comentário da questão'] || null,
+              feedback_corretas: null,
+              imagem: normalizedRow['imagem/gráfico/tabela'] || null,
+              observacao: null
             };
           });
 
@@ -230,8 +291,25 @@ export default function SimuladosTab() {
       return;
     }
 
+    if (selectedIES.length === 0) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione ao menos uma IES para disponibilizar este simulado.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     try {
       setUploading(true);
+
+      // Converter datas para timezone de Brasília
+      const dataLiberacaoISO = configForm.data_liberacao 
+        ? datetimeLocalToBrazilISO(configForm.data_liberacao)
+        : null;
+      const dataEncerramentoISO = configForm.data_encerramento
+        ? datetimeLocalToBrazilISO(configForm.data_encerramento)
+        : null;
 
       // Criar simulado
       const { data: simulado, error: simuladoError } = await supabase
@@ -239,8 +317,8 @@ export default function SimuladosTab() {
         .insert({
           nome: configForm.nome,
           descricao: configForm.descricao || null,
-          data_liberacao: configForm.data_liberacao || null,
-          data_encerramento: configForm.data_encerramento || null,
+          data_liberacao: dataLiberacaoISO,
+          data_encerramento: dataEncerramentoISO,
           duracao_minutos: configForm.duracao_minutos,
           status: configForm.status
         })
@@ -261,13 +339,26 @@ export default function SimuladosTab() {
 
       if (questoesError) throw questoesError;
 
+      // Inserir associações com IES
+      const iesAssociations = selectedIES.map(iesId => ({
+        simulado_id: simulado.id,
+        ies_id: iesId
+      }));
+
+      const { error: iesError } = await supabase
+        .from('simulados_ies')
+        .insert(iesAssociations);
+
+      if (iesError) throw iesError;
+
       toast({
         title: 'Simulado criado com sucesso!',
-        description: `${previewData.questoes.length} questões foram adicionadas.`
+        description: `${previewData.questoes.length} questões foram adicionadas para ${selectedIES.length} IES.`
       });
 
       setShowConfigModal(false);
       setPreviewData(null);
+      setSelectedIES([]);
       setConfigForm({
         nome: '',
         descricao: '',
@@ -564,47 +655,90 @@ export default function SimuladosTab() {
               Pré-visualização do Upload
             </DialogTitle>
             <DialogDescription>
-              Revise as primeiras 5 questões antes de confirmar
+              Revise as primeiras 3 questões antes de confirmar
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {previewData?.questoes.slice(0, 5).map((questao, index) => (
+            {previewData?.questoes.slice(0, 3).map((questao, index) => (
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="text-sm">Questão {questao.ordem}</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p className="font-medium">{questao.enunciado}</p>
-                  {questao.imagem && (
-                    <img 
-                      src={questao.imagem} 
-                      alt="Imagem da questão" 
-                      className="max-w-full h-auto rounded-lg border"
-                    />
-                  )}
-                  <div className="space-y-1 pl-4">
-                    <p>A) {questao.alternativa_a}</p>
-                    <p>B) {questao.alternativa_b}</p>
-                    <p>C) {questao.alternativa_c}</p>
-                    <p>D) {questao.alternativa_d}</p>
-                    {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
+                <CardContent className="space-y-3 text-sm">
+                  {/* Metadados da questão */}
+                  <div className="grid grid-cols-2 gap-2 text-xs border-b pb-3">
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Grande Área:</span>
+                      <p>{questao.grande_area || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Especialidade:</span>
+                      <p>{questao.especialidade || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Tema:</span>
+                      <p>{questao.tema || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-muted-foreground">Dificuldade:</span>
+                      <p>{questao.grau_dificuldade || 'N/A'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-semibold text-muted-foreground">Competência:</span>
+                      <p>{questao.competencia || 'N/A'}</p>
+                    </div>
                   </div>
-                  <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
-                  {questao.feedback_corretas && (
-                    <p className="text-blue-600 text-xs italic">Feedback: {questao.feedback_corretas}</p>
+
+                  {/* Enunciado */}
+                  <div>
+                    <p className="font-medium">{questao.enunciado}</p>
+                  </div>
+
+                  {/* Imagem/Gráfico/Tabela */}
+                  {questao.imagem && (
+                    <div>
+                      <img 
+                        src={questao.imagem} 
+                        alt="Imagem/Gráfico/Tabela da questão" 
+                        className="max-w-full h-auto rounded-lg border"
+                      />
+                    </div>
                   )}
-                  {questao.observacao && (
-                    <p className="text-muted-foreground text-xs italic">Obs: {questao.observacao}</p>
-                  )}
+
+                  {/* Alternativas */}
+                  <div className="space-y-1 pl-4">
+                    <p className={questao.correta === 'A' ? 'text-green-600 font-semibold' : ''}>
+                      A) {questao.alternativa_a}
+                    </p>
+                    <p className={questao.correta === 'B' ? 'text-green-600 font-semibold' : ''}>
+                      B) {questao.alternativa_b}
+                    </p>
+                    <p className={questao.correta === 'C' ? 'text-green-600 font-semibold' : ''}>
+                      C) {questao.alternativa_c}
+                    </p>
+                    <p className={questao.correta === 'D' ? 'text-green-600 font-semibold' : ''}>
+                      D) {questao.alternativa_d}
+                    </p>
+                  </div>
+
+                  {/* Resposta Correta */}
+                  <div className="border-t pt-2">
+                    <p className="text-green-600 font-medium">✓ Alternativa Correta: {questao.correta}</p>
+                  </div>
+
+                  {/* Comentário */}
                   {questao.comentario && (
-                    <p className="text-muted-foreground italic">{questao.comentario}</p>
+                    <div className="bg-muted/50 p-2 rounded">
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Comentário:</p>
+                      <p className="text-xs">{questao.comentario}</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
             ))}
-            {previewData && previewData.questoes.length > 5 && (
+            {previewData && previewData.questoes.length > 3 && (
               <p className="text-center text-muted-foreground">
-                ... e mais {previewData.questoes.length - 5} questões
+                ... e mais {previewData.questoes.length - 3} questões
               </p>
             )}
           </div>
@@ -653,6 +787,9 @@ export default function SimuladosTab() {
                   value={configForm.data_liberacao}
                   onChange={(e) => setConfigForm({ ...configForm, data_liberacao: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Horário de Brasília (UTC−3)
+                </p>
               </div>
               <div>
                 <Label>Data de Encerramento</Label>
@@ -661,8 +798,44 @@ export default function SimuladosTab() {
                   value={configForm.data_encerramento}
                   onChange={(e) => setConfigForm({ ...configForm, data_encerramento: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Horário de Brasília (UTC−3)
+                </p>
               </div>
             </div>
+
+            <div>
+              <Label>Selecionar IES *</Label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                {iesList.map((ies) => (
+                  <div key={ies.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`ies-${ies.id}`}
+                      checked={selectedIES.includes(ies.id)}
+                      onCheckedChange={(checked) => {
+                        setSelectedIES(prev =>
+                          checked
+                            ? [...prev, ies.id]
+                            : prev.filter(id => id !== ies.id)
+                        );
+                      }}
+                    />
+                    <label
+                      htmlFor={`ies-${ies.id}`}
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      {ies.nome}
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {selectedIES.length === 0 && (
+                <p className="text-xs text-destructive mt-1">
+                  ⚠️ Selecione ao menos uma IES para disponibilizar este simulado.
+                </p>
+              )}
+            </div>
+
             <div>
               <Label>Duração (minutos)</Label>
               <Input
