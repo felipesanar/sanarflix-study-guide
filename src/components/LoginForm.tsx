@@ -83,8 +83,6 @@ export const LoginForm: React.FC = () => {
               alt="Logo Sanarflix"
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
               loading="eager"
-              decoding="async"
-              fetchpriority="high"
               width="48"
               height="48"
             />

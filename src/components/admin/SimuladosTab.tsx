@@ -783,26 +783,13 @@ export default function SimuladosTab() {
     </div>
   );
 }
-  // Carrega a lib XLSX sob demanda. Tenta pacote local e depois CDN como fallback.
-  const loadXLSX = async () => {
-    try {
-      const mod: any = await import('xlsx');
-      return mod.default || mod;
-    } catch (err) {
-      try {
-        const mod: any = await import('https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs');
-        toast({
-          title: 'Usando fallback via CDN',
-          description: 'A biblioteca xlsx não está instalada localmente; carregada da CDN.',
-        });
-        return mod.default || mod;
-      } catch (err2: any) {
-        toast({
-          title: 'Dependência xlsx indisponível',
-          description: 'Instale com `npm i xlsx` ou verifique sua conexão.',
-          variant: 'destructive'
-        });
-        throw err2;
-      }
-    }
-  };
+// Carrega a lib XLSX sob demanda
+const loadXLSX = async () => {
+  try {
+    const mod: any = await import('xlsx');
+    return mod.default || mod;
+  } catch (err) {
+    console.error('Erro ao carregar biblioteca xlsx:', err);
+    throw new Error('Biblioteca xlsx não disponível');
+  }
+};

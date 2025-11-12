@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
-import { useSimuladoStorage } from '@/hooks/useSimuladoStorage';
+
 import { Simulado } from '@/types/simulado';
 import { SimuladoCard } from './SimuladoCard';
 import { Input } from '@/components/ui/input';
@@ -34,10 +34,11 @@ export const SimuladosDisponiveis = () => {
       // Verificar se há progresso salvo para cada simulado
       const simuladosComStatus = await Promise.all(
         dados.map(async (sim) => {
-          const storage = useSimuladoStorage(sim.id);
-          const estado = storage.carregarEstado();
+          // Verificar localStorage diretamente sem usar o hook
+          const estadoKey = `simulado_${sim.id}_estado`;
+          const estadoStr = localStorage.getItem(estadoKey);
           
-          if (estado) {
+          if (estadoStr) {
             return { ...sim, status: 'em_andamento' as const };
           }
 
