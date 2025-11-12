@@ -42,6 +42,25 @@ Deno.serve(async (req) => {
     console.log(`Processando correção do simulado ${simulado_id} para usuário ${user_id}`);
     console.log(`Total de respostas: ${respostas.length}`);
 
+    // Buscar o ID numérico do simulado na tabela simulados_admin
+    const { data: simuladoData, error: simuladoError } = await supabaseClient
+      .from('simulados_admin')
+      .select('id')
+      .eq('id', simulado_id)
+      .single();
+
+    if (simuladoError || !simuladoData) {
+      console.error('Erro ao buscar simulado:', simuladoError);
+      throw new Error('Simulado não encontrado');
+    }
+
+    // Converter UUID para hash numérico estável
+    const simuladoNumerico = Math.abs(simulado_id.split('-').reduce((acc, part) => {
+      return acc + parseInt(part, 16);
+    }, 0));
+
+    console.log(`ID numérico do simulado: ${simuladoNumerico}`);
+
     // Buscar os gabaritos das questões respondidas
     const questaoIds = respostas
       .filter(r => r.resposta !== null)
@@ -65,7 +84,7 @@ Deno.serve(async (req) => {
       .filter(r => r.resposta !== null)
       .map(r => ({
         email: user_id,
-        simulado: parseInt(simulado_id, 10),
+        simulado: simuladoNumerico,
         question_id: r.questao_id,
         resposta_usuario: r.resposta,
         answer_id: crypto.randomUUID(),
