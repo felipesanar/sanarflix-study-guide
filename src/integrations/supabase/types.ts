@@ -106,6 +106,7 @@ export type Database = {
           correct: boolean
           email: string
           question_id: string
+          resposta_usuario: string | null
           simulado: number
         }
         Insert: {
@@ -113,6 +114,7 @@ export type Database = {
           correct: boolean
           email: string
           question_id: string
+          resposta_usuario?: string | null
           simulado: number
         }
         Update: {
@@ -120,6 +122,7 @@ export type Database = {
           correct?: boolean
           email?: string
           question_id?: string
+          resposta_usuario?: string | null
           simulado?: number
         }
         Relationships: [
@@ -129,13 +132,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["email"]
-          },
-          {
-            foreignKeyName: "answer_progress_enamed_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions_enamed"
-            referencedColumns: ["ID"]
           },
           {
             foreignKeyName: "answer_progress_enamed_simulado_fkey"
@@ -601,42 +597,6 @@ export type Database = {
             columns: ["ies_id"]
             isOneToOne: false
             referencedRelation: "ies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      simulados_ies: {
-        Row: {
-          created_at: string | null
-          id: string
-          ies_id: string
-          simulado_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          ies_id: string
-          simulado_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          ies_id?: string
-          simulado_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "simulados_ies_ies_id_fkey"
-            columns: ["ies_id"]
-            isOneToOne: false
-            referencedRelation: "ies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "simulados_ies_simulado_id_fkey"
-            columns: ["simulado_id"]
-            isOneToOne: false
-            referencedRelation: "simulados_admin"
             referencedColumns: ["id"]
           },
         ]
