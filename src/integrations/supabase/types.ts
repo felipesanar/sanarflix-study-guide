@@ -857,12 +857,24 @@ export type Database = {
           }
       get_questions_by_subspecialty: {
         Args: {
-          area_name: string
-          p_simulado_id: number
-          specialty_name: string
+          area_name?: string
+          p_simulado_id?: number
+          specialty_name?: string
           sub_name: string
         }
-        Returns: Record<string, unknown>[]
+        Returns: {
+          a: string
+          acertou: boolean
+          b: string
+          c: string
+          comentario: string
+          d: string
+          dificuldade: string
+          enunciado: string
+          gabarito: string
+          id: string
+          imagem: string
+        }[]
       }
       get_simulado_performance: {
         Args: never
@@ -874,8 +886,8 @@ export type Database = {
       }
       get_user_ies_id: { Args: never; Returns: string }
       get_user_performance_aggregates:
-        | { Args: never; Returns: Json }
         | { Args: { p_simulado_id?: number }; Returns: Json }
+        | { Args: never; Returns: Json }
       get_user_ranking_in_ies: {
         Args: never
         Returns: {
@@ -885,7 +897,7 @@ export type Database = {
       }
       get_user_rankings:
         | { Args: never; Returns: Json }
-        | { Args: { p_simulado_id: number }; Returns: Json }
+        | { Args: { p_simulado_id?: number }; Returns: Json }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
