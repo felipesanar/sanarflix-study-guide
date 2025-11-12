@@ -84,7 +84,7 @@ export const LoginForm: React.FC = () => {
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
               loading="eager"
               decoding="async"
-              fetchPriority="high"
+              fetchpriority="high"
               width="48"
               height="48"
             />

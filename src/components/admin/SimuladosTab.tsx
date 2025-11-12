@@ -10,7 +10,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 
@@ -130,10 +129,11 @@ export default function SimuladosTab() {
       reader.onload = async (event) => {
         try {
           const data = event.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
+          const XLSXLib = await loadXLSX();
+          const workbook = XLSXLib.read(data, { type: 'binary' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          const jsonData = XLSXLib.utils.sheet_to_json(worksheet);
 
           setUploadProgress(40);
 
@@ -377,10 +377,11 @@ export default function SimuladosTab() {
         'OBSERVAÇÃO': q.observacao || ''
       }));
 
-      const ws = XLSX.utils.json_to_sheet(exportData || []);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Questões');
-      XLSX.writeFile(wb, `${simulado.nome}.xlsx`);
+          const XLSXLib = await loadXLSX();
+          const ws = XLSXLib.utils.json_to_sheet(exportData || []);
+          const wb = XLSXLib.utils.book_new();
+          XLSXLib.utils.book_append_sheet(wb, ws, 'Questões');
+          XLSXLib.writeFile(wb, `${simulado.nome}.xlsx`);
 
       toast({
         title: 'Exportação concluída',
@@ -782,3 +783,26 @@ export default function SimuladosTab() {
     </div>
   );
 }
+  // Carrega a lib XLSX sob demanda. Tenta pacote local e depois CDN como fallback.
+  const loadXLSX = async () => {
+    try {
+      const mod: any = await import('xlsx');
+      return mod.default || mod;
+    } catch (err) {
+      try {
+        const mod: any = await import('https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs');
+        toast({
+          title: 'Usando fallback via CDN',
+          description: 'A biblioteca xlsx não está instalada localmente; carregada da CDN.',
+        });
+        return mod.default || mod;
+      } catch (err2: any) {
+        toast({
+          title: 'Dependência xlsx indisponível',
+          description: 'Instale com `npm i xlsx` ou verifique sua conexão.',
+          variant: 'destructive'
+        });
+        throw err2;
+      }
+    }
+  };
