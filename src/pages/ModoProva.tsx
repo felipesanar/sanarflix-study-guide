@@ -39,6 +39,7 @@ export const ModoProva = () => {
   const [estado, setEstado] = useState<EstadoSimulado | null>(null);
   const [mostrarDialogFinalizar, setMostrarDialogFinalizar] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [simuladoTitulo, setSimuladoTitulo] = useState('');
 
   // Controles de foco e tela cheia
   const { foraDeAba, foraDeTelaCheia, entrarTelaCheia } = useFocusControl({
@@ -78,6 +79,9 @@ export const ModoProva = () => {
     try {
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
+
+      const titulo = await simuladosApi.buscarTituloSimulado(simuladoId);
+      setSimuladoTitulo(titulo);
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
@@ -259,7 +263,7 @@ export const ModoProva = () => {
       {/* Cabeçalho */}
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Simulado ENAMED {simuladoId}</h1>
+          <h1 className="text-xl font-bold">{simuladoTitulo || 'Simulado'}</h1>
           <p className="text-sm text-muted-foreground">
             Questão {questaoAtual + 1} de {questoes.length}
           </p>

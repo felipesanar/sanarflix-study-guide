@@ -42,6 +42,17 @@ export const simuladosApi = {
     }));
   },
 
+  async buscarTituloSimulado(simuladoId: string): Promise<string> {
+    const { data, error } = await supabase
+      .from('simulados_admin')
+      .select('nome')
+      .eq('id', simuladoId)
+      .single();
+
+    if (error) throw error;
+    return data?.nome || '';
+  },
+
   async buscarQuestoesSimulado(simuladoId: string | number): Promise<Questao[]> {
     const { data, error } = await supabase
       .from('questoes_simulado')
