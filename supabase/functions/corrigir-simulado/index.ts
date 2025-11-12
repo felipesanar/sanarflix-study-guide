@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
       .filter(r => r.resposta !== null)
       .map(r => ({
         email: user_id,
-        simulado: simulado_id,
-        question_id: r.questao_id,
+        simulado: parseInt(simulado_id, 10),
+        question_id: parseInt(r.questao_id, 10),
         answer_id: crypto.randomUUID(),
         correct: gabaritos.get(r.questao_id) === r.resposta
       }));
