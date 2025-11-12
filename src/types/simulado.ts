@@ -1,5 +1,5 @@
 export interface Simulado {
-  id: number;
+  id: string;
   titulo: string;
   descricao: string;
   duracao_minutos: number;
@@ -33,7 +33,7 @@ export interface RespostaSimulado {
 }
 
 export interface EstadoSimulado {
-  simulado_id: number;
+  simulado_id: string;
   questao_atual: number;
   tempo_restante_segundos: number;
   respostas: Record<string, RespostaSimulado>;
@@ -43,7 +43,7 @@ export interface EstadoSimulado {
 }
 
 export interface ResultadoSimulado {
-  simulado_id: number;
+  simulado_id: string;
   user_id: string;
   respostas: RespostaSimulado[];
   tempo_total_segundos: number;

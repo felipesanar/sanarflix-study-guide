@@ -4,50 +4,67 @@ import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
 export const simuladosApi = {
   async listarSimulados(iesId: string): Promise<Simulado[]> {
     const { data, error } = await supabase
-      .from('Simulados')
+      .from('simulados_admin')
       .select('*')
       .order('id', { ascending: true });
 
     if (error) throw error;
 
-    // Transformar dados para o formato esperado
+    const idsStr = (data || [])
+      .map(s => String(s.id))
+      .filter(id => !!id);
+    let countsBySimulado: Record<string, number> = {};
+
+    if (idsStr.length > 0) {
+      const { data: qsData, error: qsError } = await supabase
+        .from('questoes_simulado')
+        .select('simulado_id')
+        .in('simulado_id', idsStr);
+
+      if (!qsError && qsData) {
+        countsBySimulado = qsData.reduce((acc: Record<string, number>, row: any) => {
+          const key = String(row.simulado_id);
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {});
+      }
+    }
+
     return (data || []).map(s => ({
       id: s.id,
-      titulo: s.Simulado || `Simulado ${s.id}`,
-      descricao: `Simulado completo com questões objetivas`,
-      duracao_minutos: 240, // 4 horas padrão
-      numero_questoes: 120, // padrão ENAMED
+      titulo: s.nome || `Simulado ${s.id}`,
+      descricao: s.descricao,
+      duracao_minutos: s.duracao_minutos,
+      numero_questoes: countsBySimulado[String(s.id)] ?? 0,
       status: 'disponivel' as const,
-      data_liberacao: new Date().toISOString(),
+      data_liberacao: s.data_liberacao,
       tema: 'Geral',
       professor: 'Equipe Sanarflix'
     }));
   },
 
-  async buscarQuestoesSimulado(simuladoId: number): Promise<Questao[]> {
+  async buscarQuestoesSimulado(simuladoId: string | number): Promise<Questao[]> {
     const { data, error } = await supabase
-      .from('questions_enamed')
-      .select(`
-        *,
-        questions_enamed_complement!inner(*)
-      `)
-      .limit(120);
+      .from('questoes_simulado')
+      .select('*')
+      .eq('simulado_id', String(simuladoId))
+      .order('ordem', { ascending: true });
 
     if (error) throw error;
 
-    return (data || []).map(q => ({
-      id: q.ID,
-      enunciado: (q as any).questions_enamed_complement?.ENUNCIADO || '',
-      alternativa_a: (q as any).questions_enamed_complement?.A || '',
-      alternativa_b: (q as any).questions_enamed_complement?.B || '',
-      alternativa_c: (q as any).questions_enamed_complement?.C || '',
-      alternativa_d: (q as any).questions_enamed_complement?.D || '',
-      gabarito: ((q as any).questions_enamed_complement?.gabarito || 'A') as 'A' | 'B' | 'C' | 'D',
-      imagem: (q as any).questions_enamed_complement?.IMAGEM,
-      tema: q['Tema (Grande Área)'] || 'Geral',
-      especialidade: q.Especialidade || 'Geral',
-      subespecialidade: q['Subespecialidade / Assunto Principal'] || 'Geral',
-      dificuldade: (q['NÍVEL DE DIFICULDADE'] || 'Médio') as 'Fácil' | 'Médio' | 'Difícil'
+    return (data || []).map((q: any) => ({
+      id: q.id,
+      enunciado: q.enunciado || '',
+      alternativa_a: q.alternativa_a || '',
+      alternativa_b: q.alternativa_b || '',
+      alternativa_c: q.alternativa_c || '',
+      alternativa_d: q.alternativa_d || '',
+      gabarito: (q.correta || 'A') as 'A' | 'B' | 'C' | 'D',
+      imagem: q.imagem || undefined,
+      tema: 'Geral',
+      especialidade: 'Geral',
+      subespecialidade: 'Geral',
+      dificuldade: 'Médio'
     }));
   },
 
@@ -67,15 +84,7 @@ export const simuladosApi = {
     if (error) throw error;
   },
 
-  async verificarProgressoSimulado(userId: string, simuladoId: number): Promise<boolean> {
-    const { data, error } = await supabase
-      .from('answer_progress_enamed')
-      .select('email')
-      .eq('email', userId)
-      .eq('simulado', simuladoId)
-      .limit(1);
-
-    if (error) throw error;
-    return (data || []).length > 0;
+  async verificarProgressoSimulado(userId: string, simuladoId: string): Promise<boolean> {
+    return false;
   }
 };

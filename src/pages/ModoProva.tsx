@@ -30,7 +30,7 @@ export const ModoProva = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const simuladoId = parseInt(id || '0');
+  const simuladoId = id || '';
 
   const storage = useSimuladoStorage(simuladoId);
   const [questoes, setQuestoes] = useState<Questao[]>([]);
@@ -138,7 +138,7 @@ export const ModoProva = () => {
     if (questaoAtual > 0) {
       const novoIndice = questaoAtual - 1;
       setQuestaoAtual(novoIndice);
-      
+
       const estadoAtual = storage.carregarEstado();
       if (estadoAtual) {
         storage.salvarEstado({ ...estadoAtual, questao_atual: novoIndice });
@@ -150,7 +150,7 @@ export const ModoProva = () => {
     if (questaoAtual < questoes.length - 1) {
       const novoIndice = questaoAtual + 1;
       setQuestaoAtual(novoIndice);
-      
+
       const estadoAtual = storage.carregarEstado();
       if (estadoAtual) {
         storage.salvarEstado({ ...estadoAtual, questao_atual: novoIndice });
@@ -160,7 +160,7 @@ export const ModoProva = () => {
 
   const handleIrParaQuestao = (index: number) => {
     setQuestaoAtual(index);
-    
+
     const estadoAtual = storage.carregarEstado();
     if (estadoAtual) {
       storage.salvarEstado({ ...estadoAtual, questao_atual: index });
@@ -174,7 +174,7 @@ export const ModoProva = () => {
       if (!estadoFinal || !user) return;
 
       const respostas = Object.values(estadoFinal.respostas);
-      
+
       await simuladosApi.enviarResultado({
         simulado_id: simuladoId,
         user_id: user.email,
@@ -185,7 +185,7 @@ export const ModoProva = () => {
       });
 
       storage.limparEstado();
-      
+
       toast.success('Simulado enviado com sucesso!', {
         description: 'Em breve, o resultado estará disponível na aba Desempenho.',
         duration: 5000

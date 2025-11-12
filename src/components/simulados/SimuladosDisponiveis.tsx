@@ -60,16 +60,15 @@ export const SimuladosDisponiveis = () => {
     }
   };
 
-  const handleIniciar = (id: number) => {
+  const handleIniciar = (id: string) => {
     navigate(`/simulados/${id}/prova`);
   };
 
-  const handleContinuar = (id: number) => {
+  const handleContinuar = (id: string) => {
     navigate(`/simulados/${id}/prova`);
   };
 
-  const handleVerDesempenho = (id: number) => {
-    // Navegar para aba de desempenho
+  const handleVerDesempenho = (id: string) => {
     navigate('/simulados?aba=desempenho');
   };
 
