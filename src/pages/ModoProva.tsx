@@ -298,7 +298,7 @@ export const ModoProva = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Área da Questão */}
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-5xl mx-auto space-y-6">
             {/* Enunciado */}
             <div className="bg-card p-6 rounded-xl border">
               <div className="flex items-start justify-between mb-4">
@@ -327,7 +327,7 @@ export const ModoProva = () => {
             </div>
 
             {/* Alternativas */}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {(['A', 'B', 'C', 'D'] as const).map(letra => (
                 <AlternativaProva
                   key={letra}

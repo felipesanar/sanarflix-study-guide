@@ -25,7 +25,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user } = useAuth();
   const [changeOpen, setChangeOpen] = useState(false);
   const location = useLocation();
-  const isModoProva = /^\/simulados\/\d+\/prova$/.test(location.pathname);
+  const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
 
   const initials = (user?.nome || '')
     .split(' ')
@@ -39,6 +39,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {!isModoProva && <AppSidebar />}
       <SidebarInset className="flex-1 flex flex-col min-h-screen w-full transition-all duration-300">
         {/* Header with trigger, profile and theme toggle */}
+        {!isModoProva && (
         <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4 w-full">
             {/* Desktop - Menu Trigger */}
             {!isModoProva && (
@@ -78,6 +79,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ThemeToggle />
             </div>
           </header>
+        )}
 
           {/* Main content area */}
           <main className="flex-1 overflow-auto pb-20 md:pb-0">

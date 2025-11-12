@@ -16,11 +16,11 @@ export const NavegacaoLateral = ({
   questoesMarcadasRevisao,
   onIrParaQuestao
 }: NavegacaoLateralProps) => {
-  const itemSize = 40;
-  const gap = 8;
+  const itemSize = 32;
+  const gap = 6;
   const rows = Math.min(10, Math.max(1, totalQuestoes));
   const columns = Math.ceil(totalQuestoes / rows);
-  const widthFactor = 1.4;
+  const widthFactor = 1.2;
   const sidebarWidth = Math.max(256, Math.ceil(columns * (itemSize + gap) * widthFactor)) + 32; // + padding
   return (
     <div
@@ -49,8 +49,7 @@ export const NavegacaoLateral = ({
         <div
           className="grid gap-2"
           style={{
-            gridAutoFlow: 'column',
-            gridTemplateRows: `repeat(${rows}, ${itemSize}px)`,
+            gridTemplateColumns: `repeat(${columns}, ${itemSize}px)`,
           }}
         >
           {Array.from({ length: totalQuestoes }, (_, i) => {
@@ -64,7 +63,7 @@ export const NavegacaoLateral = ({
                 key={i}
                 onClick={() => onIrParaQuestao(i)}
                 className={cn(
-                  'w-10 h-10 rounded-lg font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary',
+                  'w-8 h-8 rounded-md font-medium text-xs transition-all focus:outline-none focus:ring-2 focus:ring-primary',
                   atual && 'ring-2 ring-primary ring-offset-2',
                   respondida && !marcadaRevisao && 'bg-green-500 text-white hover:bg-green-600',
                   marcadaRevisao && 'bg-blue-500 text-white hover:bg-blue-600',
