@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface UseCronometroProps {
-  tempoInicialSegundos: number;
+  duracaoMinutos: number;
+  tempoJaDecorridoSegundos?: number;
   onTempoEsgotado: () => void;
   onAtualizarTempo: (tempo: number) => void;
 }
 
 export const useCronometro = ({
-  tempoInicialSegundos,
+  duracaoMinutos,
+  tempoJaDecorridoSegundos = 0,
   onTempoEsgotado,
   onAtualizarTempo
 }: UseCronometroProps) => {
-  const [tempoRestante, setTempoRestante] = useState(tempoInicialSegundos);
+  const tempoTotalSegundos = duracaoMinutos * 60;
+  const tempoInicialRestante = tempoTotalSegundos - tempoJaDecorridoSegundos;
+  const [tempoRestante, setTempoRestante] = useState(tempoInicialRestante);
   const [pausado, setPausado] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 

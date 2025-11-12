@@ -40,6 +40,7 @@ export const ModoProva = () => {
   const [mostrarDialogFinalizar, setMostrarDialogFinalizar] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [simuladoTitulo, setSimuladoTitulo] = useState('');
+  const [duracaoMinutos, setDuracaoMinutos] = useState(120);
 
   // Controles de foco e tela cheia
   const { foraDeAba, foraDeTelaCheia, entrarTelaCheia } = useFocusControl({
@@ -54,7 +55,8 @@ export const ModoProva = () => {
 
   // Cronômetro
   const cronometro = useCronometro({
-    tempoInicialSegundos: estado?.tempo_restante_segundos || 0,
+    duracaoMinutos,
+    tempoJaDecorridoSegundos: estado ? (duracaoMinutos * 60 - estado.tempo_restante_segundos) : 0,
     onTempoEsgotado: () => {
       toast.error('Tempo esgotado! Seu simulado será finalizado automaticamente.');
       setTimeout(() => finalizarSimulado(), 3000);
@@ -80,12 +82,13 @@ export const ModoProva = () => {
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
 
-      const titulo = await simuladosApi.buscarTituloSimulado(simuladoId);
+      const { titulo, duracao } = await simuladosApi.buscarDadosSimulado(simuladoId);
       setSimuladoTitulo(titulo);
+      setDuracaoMinutos(duracao);
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
-        estadoAtual = storage.inicializarEstado(questoesData.length, 7200);
+        estadoAtual = storage.inicializarEstado(questoesData.length, duracao * 60);
       }
 
       setEstado(estadoAtual);
@@ -183,7 +186,7 @@ export const ModoProva = () => {
         simulado_id: simuladoId,
         user_id: user.email,
         respostas,
-        tempo_total_segundos: 7200 - cronometro.tempoRestante,
+        tempo_total_segundos: (duracaoMinutos * 60) - cronometro.tempoRestante,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         finalizado_em: new Date().toISOString()
       });
