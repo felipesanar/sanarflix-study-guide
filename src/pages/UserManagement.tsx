@@ -44,7 +44,7 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-4 max-w-5xl">
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Usuários
@@ -61,14 +61,6 @@ const UserManagement: React.FC = () => {
               <ClipboardList className="h-4 w-4" />
               Simulados
             </TabsTrigger>
-            <TabsTrigger value="monitoramento" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Monitoramento
-            </TabsTrigger>
-            <TabsTrigger value="liberacoes" className="flex items-center gap-2">
-              <Unlock className="h-4 w-4" />
-              Liberações
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="usuarios" className="mt-6">
@@ -84,15 +76,32 @@ const UserManagement: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="simulados" className="mt-6">
-            <SimuladosTab />
-          </TabsContent>
+            <Tabs defaultValue="simulados" className="w-full">
+              <TabsList className="flex gap-2 w-full max-w-3xl">
+                <TabsTrigger value="simulados" className="flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Simulados
+                </TabsTrigger>
+                <TabsTrigger value="monitoramento" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Monitoramento
+                </TabsTrigger>
+                <TabsTrigger value="liberacoes" className="flex items-center gap-2">
+                  <Unlock className="h-4 w-4" />
+                  Liberações
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="monitoramento" className="mt-6">
-            <MonitoramentoTab />
-          </TabsContent>
-
-          <TabsContent value="liberacoes" className="mt-6">
-            <LiberacoesTab />
+              <TabsContent value="simulados" className="mt-6">
+                <SimuladosTab />
+              </TabsContent>
+              <TabsContent value="monitoramento" className="mt-6">
+                <MonitoramentoTab />
+              </TabsContent>
+              <TabsContent value="liberacoes" className="mt-6">
+                <LiberacoesTab />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </div>

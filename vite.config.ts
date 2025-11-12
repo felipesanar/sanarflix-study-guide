@@ -37,6 +37,9 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["xlsx"],
+  },
   build: {
     cssMinify: true,
     assetsInlineLimit: 4096,

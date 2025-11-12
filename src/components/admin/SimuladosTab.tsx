@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import * as XLSXLibStatic from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -955,11 +956,5 @@ export default function SimuladosTab() {
 }
 // Carrega a lib XLSX sob demanda
 const loadXLSX = async () => {
-  try {
-    const mod: any = await import('xlsx');
-    return mod.default || mod;
-  } catch (err) {
-    console.error('Erro ao carregar biblioteca xlsx:', err);
-    throw new Error('Biblioteca xlsx não disponível');
-  }
+  return XLSXLibStatic as any;
 };
