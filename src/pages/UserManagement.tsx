@@ -6,7 +6,8 @@ import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
 import SanarClassTab from '@/components/admin/SanarClassTab';
 import SimuladosTab from '@/components/admin/SimuladosTab';
 import MonitoramentoTab from '@/components/admin/MonitoramentoTab';
-import { Shield, Users, Bell, FileText, ClipboardList, BarChart3 } from 'lucide-react';
+import LiberacoesTab from '@/components/admin/LiberacoesTab';
+import { Shield, Users, Bell, FileText, ClipboardList, BarChart3, Unlock } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-5xl">
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Usuários
@@ -63,6 +64,10 @@ const UserManagement: React.FC = () => {
             <TabsTrigger value="monitoramento" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Monitoramento
+            </TabsTrigger>
+            <TabsTrigger value="liberacoes" className="flex items-center gap-2">
+              <Unlock className="h-4 w-4" />
+              Liberações
             </TabsTrigger>
           </TabsList>
 
@@ -84,6 +89,10 @@ const UserManagement: React.FC = () => {
 
           <TabsContent value="monitoramento" className="mt-6">
             <MonitoramentoTab />
+          </TabsContent>
+
+          <TabsContent value="liberacoes" className="mt-6">
+            <LiberacoesTab />
           </TabsContent>
         </Tabs>
       </div>
