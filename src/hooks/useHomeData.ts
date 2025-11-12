@@ -541,8 +541,8 @@ export const useHomeData = () => {
 
         // Get simulado name
         const { data: simuladoInfo } = await supabase
-          .from('Simulados')
-          .select('Simulado')
+          .from('simulados_admin')
+          .select('nome')
           .eq('id', latestSimulado)
           .single();
 

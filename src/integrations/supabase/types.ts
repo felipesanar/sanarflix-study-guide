@@ -107,7 +107,7 @@ export type Database = {
           email: string
           question_id: string
           resposta_usuario: string | null
-          simulado: number
+          simulado: string
         }
         Insert: {
           answer_id?: string
@@ -115,7 +115,7 @@ export type Database = {
           email: string
           question_id: string
           resposta_usuario?: string | null
-          simulado: number
+          simulado: string
         }
         Update: {
           answer_id?: string
@@ -123,7 +123,7 @@ export type Database = {
           email?: string
           question_id?: string
           resposta_usuario?: string | null
-          simulado?: number
+          simulado?: string
         }
         Relationships: [
           {
@@ -132,6 +132,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "fk_answer_progress_simulado"
+            columns: ["simulado"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
           },
         ]
       }
