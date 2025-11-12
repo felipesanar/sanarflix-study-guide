@@ -7,9 +7,9 @@ import { cn } from '@/lib/utils';
 
 interface SimuladoCardProps {
   simulado: Simulado;
-  onIniciar: (id: number) => void;
-  onContinuar: (id: number) => void;
-  onVerDesempenho: (id: number) => void;
+  onIniciar: (id: string) => void;
+  onContinuar: (id: string) => void;
+  onVerDesempenho: (id: string) => void;
 }
 
 export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho }: SimuladoCardProps) => {

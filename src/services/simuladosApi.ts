@@ -2,17 +2,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
 
 export const simuladosApi = {
-  async listarSimulados(iesId: string): Promise<Simulado[]> {
+  async listarSimulados(): Promise<Simulado[]> {
     const { data, error } = await supabase
       .from('simulados_admin')
       .select('*')
-      .order('id', { ascending: true });
+      .eq('status', 'ativo')
+      .order('data_liberacao', { ascending: false });
 
     if (error) throw error;
 
-    const idsStr = (data || [])
-      .map(s => String(s.id))
-      .filter(id => !!id);
+    const idsStr = (data || []).map(s => s.id);
     let countsBySimulado: Record<string, number> = {};
 
     if (idsStr.length > 0) {
@@ -61,27 +60,26 @@ export const simuladosApi = {
       alternativa_d: q.alternativa_d || '',
       gabarito: (q.correta || 'A') as 'A' | 'B' | 'C' | 'D',
       imagem: q.imagem || undefined,
-      tema: 'Geral',
-      especialidade: 'Geral',
-      subespecialidade: 'Geral',
-      dificuldade: 'Médio'
+      tema: q.tema || 'Geral',
+      especialidade: q.especialidade || 'Geral',
+      subespecialidade: q.grande_area || 'Geral',
+      dificuldade: q.grau_dificuldade || 'Médio'
     }));
   },
 
   async enviarResultado(resultado: ResultadoSimulado): Promise<void> {
-    const { error } = await supabase
-      .from('answer_progress_enamed')
-      .insert(
-        resultado.respostas.map(r => ({
-          email: resultado.user_id,
-          simulado: resultado.simulado_id,
-          question_id: r.questao_id,
-          answer_id: crypto.randomUUID(),
-          correct: false // será calculado pelo backend
-        }))
-      );
+    const { data, error } = await supabase.functions.invoke('corrigir-simulado', {
+      body: {
+        simulado_id: resultado.simulado_id,
+        user_id: resultado.user_id,
+        respostas: resultado.respostas,
+        tempo_total_segundos: resultado.tempo_total_segundos,
+        saidas_de_aba: resultado.saidas_de_aba
+      }
+    });
 
     if (error) throw error;
+    return data;
   },
 
   async verificarProgressoSimulado(userId: string, simuladoId: string): Promise<boolean> {

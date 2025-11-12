@@ -81,7 +81,7 @@ export const ModoProva = () => {
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
-        estadoAtual = storage.inicializarEstado(questoesData.length, 240);
+        estadoAtual = storage.inicializarEstado(questoesData.length, 7200);
       }
 
       setEstado(estadoAtual);
@@ -179,7 +179,7 @@ export const ModoProva = () => {
         simulado_id: simuladoId,
         user_id: user.email,
         respostas,
-        tempo_total_segundos: (240 * 60) - cronometro.tempoRestante,
+        tempo_total_segundos: 7200 - cronometro.tempoRestante,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         finalizado_em: new Date().toISOString()
       });

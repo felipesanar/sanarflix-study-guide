@@ -3,7 +3,7 @@ import { EstadoSimulado, RespostaSimulado } from '@/types/simulado';
 
 const STORAGE_PREFIX = 'simulado_';
 
-export const useSimuladoStorage = (simuladoId: number) => {
+export const useSimuladoStorage = (simuladoId: string) => {
   const getEstadoKey = () => `${STORAGE_PREFIX}${simuladoId}_estado`;
   
   const carregarEstado = useCallback((): EstadoSimulado | null => {

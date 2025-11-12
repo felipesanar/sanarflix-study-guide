@@ -25,11 +25,9 @@ export const SimuladosDisponiveis = () => {
   }, [user]);
 
   const carregarSimulados = async () => {
-    if (!user?.id_ies) return;
-
     setLoading(true);
     try {
-      const dados = await simuladosApi.listarSimulados(user.id_ies);
+      const dados = await simuladosApi.listarSimulados();
       
       // Verificar se há progresso salvo para cada simulado
       const simuladosComStatus = await Promise.all(

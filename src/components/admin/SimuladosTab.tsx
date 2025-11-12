@@ -83,7 +83,7 @@ export default function SimuladosTab() {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
-  const [selectedIES, setSelectedIES] = useState<string[]>([]);
+  const [selectedIES, setSelectedIES] = useState<string>('');
 
   const [configForm, setConfigForm] = useState({
     nome: '',
@@ -291,10 +291,10 @@ export default function SimuladosTab() {
       return;
     }
 
-    if (selectedIES.length === 0) {
+    if (!selectedIES) {
       toast({
         title: 'Erro',
-        description: 'Selecione ao menos uma IES para disponibilizar este simulado.',
+        description: 'Selecione a IES responsável por este simulado',
         variant: 'destructive'
       });
       return;
@@ -320,7 +320,8 @@ export default function SimuladosTab() {
           data_liberacao: dataLiberacaoISO,
           data_encerramento: dataEncerramentoISO,
           duracao_minutos: configForm.duracao_minutos,
-          status: configForm.status
+          status: configForm.status,
+          ies_id: selectedIES
         })
         .select()
         .single();
@@ -339,26 +340,14 @@ export default function SimuladosTab() {
 
       if (questoesError) throw questoesError;
 
-      // Inserir associações com IES
-      const iesAssociations = selectedIES.map(iesId => ({
-        simulado_id: simulado.id,
-        ies_id: iesId
-      }));
-
-      const { error: iesError } = await supabase
-        .from('simulados_ies')
-        .insert(iesAssociations);
-
-      if (iesError) throw iesError;
-
       toast({
         title: 'Simulado criado com sucesso!',
-        description: `${previewData.questoes.length} questões foram adicionadas para ${selectedIES.length} IES.`
+        description: `${previewData.questoes.length} questões foram adicionadas.`
       });
 
       setShowConfigModal(false);
       setPreviewData(null);
-      setSelectedIES([]);
+      setSelectedIES('');
       setConfigForm({
         nome: '',
         descricao: '',
@@ -805,33 +794,22 @@ export default function SimuladosTab() {
             </div>
 
             <div>
-              <Label>Selecionar IES *</Label>
-              <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
-                {iesList.map((ies) => (
-                  <div key={ies.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`ies-${ies.id}`}
-                      checked={selectedIES.includes(ies.id)}
-                      onCheckedChange={(checked) => {
-                        setSelectedIES(prev =>
-                          checked
-                            ? [...prev, ies.id]
-                            : prev.filter(id => id !== ies.id)
-                        );
-                      }}
-                    />
-                    <label
-                      htmlFor={`ies-${ies.id}`}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
+              <Label>IES Responsável *</Label>
+              <Select value={selectedIES} onValueChange={setSelectedIES}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a IES" />
+                </SelectTrigger>
+                <SelectContent>
+                  {iesList.map(ies => (
+                    <SelectItem key={ies.id} value={ies.id}>
                       {ies.nome}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {selectedIES.length === 0 && (
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!selectedIES && (
                 <p className="text-xs text-destructive mt-1">
-                  ⚠️ Selecione ao menos uma IES para disponibilizar este simulado.
+                  ⚠️ Selecione a IES responsável por este simulado
                 </p>
               )}
             </div>

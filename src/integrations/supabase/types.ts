@@ -564,6 +564,7 @@ export type Database = {
           descricao: string | null
           duracao_minutos: number
           id: string
+          ies_id: string | null
           nome: string
           status: string
           updated_at: string | null
@@ -576,6 +577,7 @@ export type Database = {
           descricao?: string | null
           duracao_minutos: number
           id?: string
+          ies_id?: string | null
           nome: string
           status?: string
           updated_at?: string | null
@@ -588,11 +590,20 @@ export type Database = {
           descricao?: string | null
           duracao_minutos?: number
           id?: string
+          ies_id?: string | null
           nome?: string
           status?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "simulados_admin_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       simulados_ies: {
         Row: {
