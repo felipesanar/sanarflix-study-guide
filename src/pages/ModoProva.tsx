@@ -7,6 +7,7 @@ import { useCronometro } from '@/hooks/useCronometro';
 import { useFocusControl } from '@/hooks/useFocusControl';
 import { Questao, EstadoSimulado } from '@/types/simulado';
 import { AlternativaProva } from '@/components/simulados/AlternativaProva';
+import { NavegacaoLateral } from '@/components/simulados/NavegacaoLateral';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -291,33 +292,7 @@ export const ModoProva = () => {
         </div>
       </div>
 
-      {/* Navegação de Questões - largura total sem scroll */}
-      <div className="px-6 py-3">
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: questoes.length }, (_, i) => {
-            const numero = i + 1;
-            const respondida = questoesRespondidas.has(i);
-            const marcadaRevisao = questoesMarcadasRevisao.has(i);
-            const atual = i === questaoAtual;
-
-            return (
-              <button
-                key={i}
-                onClick={() => handleIrParaQuestao(i)}
-                className={cn(
-                  'w-10 h-10 rounded-lg font-medium text-sm transition-all',
-                  atual && 'ring-2 ring-primary ring-offset-2',
-                  respondida && !marcadaRevisao && 'bg-green-500 text-white hover:bg-green-600',
-                  marcadaRevisao && 'bg-blue-500 text-white hover:bg-blue-600',
-                  !respondida && !marcadaRevisao && 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                )}
-              >
-                {numero}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Navegação movida para a lateral */}
 
       {/* Corpo */}
       <div className="flex-1 flex overflow-hidden">
@@ -398,7 +373,14 @@ export const ModoProva = () => {
           </div>
         </div>
 
-        {/* Navegação Lateral removida no Modo Prova */}
+        {/* Navegação Lateral */}
+        <NavegacaoLateral
+          totalQuestoes={questoes.length}
+          questaoAtual={questaoAtual}
+          questoesRespondidas={questoesRespondidas}
+          questoesMarcadasRevisao={questoesMarcadasRevisao}
+          onIrParaQuestao={handleIrParaQuestao}
+        />
       </div>
 
       {/* Dialog de Finalização */}

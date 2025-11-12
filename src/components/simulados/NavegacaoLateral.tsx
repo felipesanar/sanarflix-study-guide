@@ -1,6 +1,5 @@
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface NavegacaoLateralProps {
   totalQuestoes: number;
@@ -17,8 +16,17 @@ export const NavegacaoLateral = ({
   questoesMarcadasRevisao,
   onIrParaQuestao
 }: NavegacaoLateralProps) => {
+  const itemSize = 40;
+  const gap = 8;
+  const rows = Math.min(10, Math.max(1, totalQuestoes));
+  const columns = Math.ceil(totalQuestoes / rows);
+  const widthFactor = 1.4;
+  const sidebarWidth = Math.max(256, Math.ceil(columns * (itemSize + gap) * widthFactor)) + 32; // + padding
   return (
-    <div className="w-64 border-l bg-muted/20 p-4 flex flex-col gap-4">
+    <div
+      className="border-l bg-muted/20 p-4 flex flex-col gap-4"
+      style={{ width: sidebarWidth }}
+    >
       <div>
         <h3 className="font-semibold text-sm mb-3">Navegação</h3>
         <div className="space-y-2 text-xs">
@@ -37,8 +45,14 @@ export const NavegacaoLateral = ({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="grid grid-cols-5 gap-2">
+      <div className="flex-1">
+        <div
+          className="grid gap-2"
+          style={{
+            gridAutoFlow: 'column',
+            gridTemplateRows: `repeat(${rows}, ${itemSize}px)`,
+          }}
+        >
           {Array.from({ length: totalQuestoes }, (_, i) => {
             const numero = i + 1;
             const respondida = questoesRespondidas.has(i);
@@ -50,7 +64,7 @@ export const NavegacaoLateral = ({
                 key={i}
                 onClick={() => onIrParaQuestao(i)}
                 className={cn(
-                  'w-10 h-10 rounded-lg font-medium text-sm transition-all',
+                  'w-10 h-10 rounded-lg font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary',
                   atual && 'ring-2 ring-primary ring-offset-2',
                   respondida && !marcadaRevisao && 'bg-green-500 text-white hover:bg-green-600',
                   marcadaRevisao && 'bg-blue-500 text-white hover:bg-blue-600',
@@ -62,7 +76,7 @@ export const NavegacaoLateral = ({
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };

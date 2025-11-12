@@ -1,6 +1,8 @@
 import { fetchWithCache } from '@/utils/performanceCache';
+import { env } from '@/config/env';
+import { apiFetch } from '@/services/apiClient';
 
-const STUDY_GUIDE_API_BASE_URL = 'https://gvqvrmkizemwsasmupmo.functions.supabase.co/study-guide-proxy';
+const STUDY_GUIDE_API_BASE_URL = env.STUDY_GUIDE_API_BASE_URL;
 
 export interface ApiAula {
   id: string;
@@ -78,7 +80,7 @@ const slugify = (s: string) =>
     .replace(/(^-|-$)/g, '');
 
 async function fetchJsonFromHtml(url: string): Promise<any> {
-  const response = await fetch(url);
+  const response = await apiFetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch: ${response.status}`);
   }

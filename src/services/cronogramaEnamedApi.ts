@@ -1,6 +1,9 @@
 import { fetchWithCache } from '@/utils/performanceCache';
+import { env } from '@/config/env';
+import { apiFetch } from '@/services/apiClient';
+import Logger from '@/utils/logger';
 
-const CRONOGRAMA_API_URL = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/cronograma-enamed-proxy';
+const CRONOGRAMA_API_URL = env.CRONOGRAMA_API_URL;
 
 export interface CronogramaEnamedItem {
   id: string;
@@ -21,13 +24,12 @@ export const cronogramaEnamedApi = {
       'cronograma_all_content',
       async () => {
         try {
-          const response = await fetch(CRONOGRAMA_API_URL);
+          const response = await apiFetch(CRONOGRAMA_API_URL);
           if (!response.ok) {
             throw new Error('Failed to fetch cronograma content');
           }
           
           const data = await response.json();
-          console.log('Raw API response:', data);
           
           const normalizedItems: CronogramaEnamedItem[] = [];
           
@@ -36,7 +38,6 @@ export const cronogramaEnamedApi = {
             // Iterate through each area (Cirurgia, etc.)
             Object.keys(data.cronograma).forEach(areaKey => {
               const areaData = data.cronograma[areaKey];
-              console.log(`Processing area: ${areaKey}`, areaData);
               
               if (Array.isArray(areaData)) {
                 // Process each week in the area
@@ -77,11 +78,10 @@ export const cronogramaEnamedApi = {
             });
           }
           
-          console.log('Normalized items:', normalizedItems);
           return normalizedItems;
           
         } catch (error) {
-          console.error('Error fetching cronograma:', error);
+          Logger.error('Error fetching cronograma', error);
           return [];
         }
       },

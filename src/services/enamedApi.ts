@@ -1,6 +1,8 @@
 import { fetchWithCache } from '@/utils/performanceCache';
+import { env } from '@/config/env';
+import { apiFetch } from '@/services/apiClient';
 
-const ENAMED_API_BASE_URL = 'https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/enamed-proxy';
+const ENAMED_API_BASE_URL = env.ENAMED_API_BASE_URL;
 
 export interface EnamedContent {
   id: string;
@@ -18,7 +20,7 @@ export const enamedApi = {
       'enamed_all_content',
       async () => {
         try {
-          const response = await fetch(`${ENAMED_API_BASE_URL}`);
+          const response = await apiFetch(`${ENAMED_API_BASE_URL}`);
           if (!response.ok) {
             throw new Error('Failed to fetch ENAMED content');
           }
@@ -36,7 +38,7 @@ export const enamedApi = {
       `enamed_week_${week}`,
       async () => {
         try {
-          const response = await fetch(`${ENAMED_API_BASE_URL}?week=${week}`);
+          const response = await apiFetch(`${ENAMED_API_BASE_URL}?week=${week}`);
           if (!response.ok) {
             throw new Error('Failed to fetch ENAMED content by week');
           }
@@ -54,7 +56,7 @@ export const enamedApi = {
       `enamed_discipline_${disciplina}`,
       async () => {
         try {
-          const response = await fetch(`${ENAMED_API_BASE_URL}?disciplina=${encodeURIComponent(disciplina)}`);
+          const response = await apiFetch(`${ENAMED_API_BASE_URL}?disciplina=${encodeURIComponent(disciplina)}`);
           if (!response.ok) {
             throw new Error('Failed to fetch ENAMED content by discipline');
           }
