@@ -830,8 +830,8 @@ export type Database = {
       }
       get_user_ies_id: { Args: never; Returns: string }
       get_user_performance_aggregates:
-        | { Args: { p_simulado_id?: number }; Returns: Json }
         | { Args: never; Returns: Json }
+        | { Args: { p_simulado_id?: number }; Returns: Json }
       get_user_ranking_in_ies: {
         Args: never
         Returns: {
