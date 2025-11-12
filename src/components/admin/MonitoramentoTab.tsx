@@ -24,6 +24,13 @@ interface QuestaoErro {
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#10b981'];
 
+// Converter UUID para ID numérico estável
+const uuidToNumericId = (uuid: string): number => {
+  return Math.abs(uuid.split('-').reduce((acc, part) => {
+    return acc + parseInt(part, 16);
+  }, 0));
+};
+
 export const MonitoramentoTab = () => {
   const [loading, setLoading] = useState(true);
   const [simulados, setSimulados] = useState<SimuladoStats[]>([]);
@@ -50,10 +57,11 @@ export const MonitoramentoTab = () => {
       
       for (const sim of simuladosData || []) {
         // Contar total de alunos que fizeram o simulado
+        const simuladoNumerico = uuidToNumericId(sim.id);
         const { data: respostas, error: respostasError } = await supabase
           .from('answer_progress_enamed')
           .select('email, correct')
-          .eq('simulado', parseInt(sim.id));
+          .eq('simulado', simuladoNumerico);
 
         if (respostasError) throw respostasError;
 
@@ -90,10 +98,11 @@ export const MonitoramentoTab = () => {
   const carregarQuestoesComErro = async (simuladoId: string) => {
     try {
       // Buscar todas as respostas do simulado
+      const simuladoNumerico = uuidToNumericId(simuladoId);
       const { data: respostas, error: respostasError } = await supabase
         .from('answer_progress_enamed')
         .select('question_id, correct')
-        .eq('simulado', parseInt(simuladoId));
+        .eq('simulado', simuladoNumerico);
 
       if (respostasError) throw respostasError;
 
