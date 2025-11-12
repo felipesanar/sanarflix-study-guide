@@ -133,13 +133,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["email"]
           },
-          {
-            foreignKeyName: "answer_progress_enamed_simulado_fkey"
-            columns: ["simulado"]
-            isOneToOne: false
-            referencedRelation: "Simulados"
-            referencedColumns: ["id"]
-          },
         ]
       }
       aula_views: {
