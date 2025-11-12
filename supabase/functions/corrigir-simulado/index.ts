@@ -54,10 +54,10 @@ Deno.serve(async (req) => {
       throw new Error('Simulado não encontrado');
     }
 
-    // Converter UUID para hash numérico estável
-    const simuladoNumerico = Math.abs(simulado_id.split('-').reduce((acc, part) => {
+    // Converter UUID para hash numérico estável dentro do range de integer
+    const simuladoNumerico = Math.abs(simulado_id.split('-').reduce((acc: number, part: string) => {
       return acc + parseInt(part, 16);
-    }, 0));
+    }, 0)) % 2147483647;
 
     console.log(`ID numérico do simulado: ${simuladoNumerico}`);
 

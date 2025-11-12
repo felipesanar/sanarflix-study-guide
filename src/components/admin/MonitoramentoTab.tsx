@@ -24,11 +24,13 @@ interface QuestaoErro {
 
 const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#10b981'];
 
-// Converter UUID para ID numérico estável
+// Converter UUID para ID numérico estável dentro do range de integer do PostgreSQL
 const uuidToNumericId = (uuid: string): number => {
-  return Math.abs(uuid.split('-').reduce((acc, part) => {
+  const hash = Math.abs(uuid.split('-').reduce((acc, part) => {
     return acc + parseInt(part, 16);
   }, 0));
+  // Garantir que o valor fique dentro do range de integer (2147483647)
+  return hash % 2147483647;
 };
 
 export const MonitoramentoTab = () => {
