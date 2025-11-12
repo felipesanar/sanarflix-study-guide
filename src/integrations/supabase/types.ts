@@ -594,6 +594,50 @@ export type Database = {
           },
         ]
       }
+      simulados_finalizados: {
+        Row: {
+          finalizado_em: string
+          id: string
+          liberado_em: string | null
+          liberado_novamente: boolean
+          liberado_por: string | null
+          saidas_de_aba: number
+          simulado_id: string
+          tempo_total_segundos: number
+          user_id: string
+        }
+        Insert: {
+          finalizado_em?: string
+          id?: string
+          liberado_em?: string | null
+          liberado_novamente?: boolean
+          liberado_por?: string | null
+          saidas_de_aba?: number
+          simulado_id: string
+          tempo_total_segundos: number
+          user_id: string
+        }
+        Update: {
+          finalizado_em?: string
+          id?: string
+          liberado_em?: string | null
+          liberado_novamente?: boolean
+          liberado_por?: string | null
+          saidas_de_aba?: number
+          simulado_id?: string
+          tempo_total_segundos?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulados_finalizados_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       study_progress: {
         Row: {
           completed: boolean

@@ -40,7 +40,7 @@ export const SimuladosDisponiveis = () => {
             return { ...sim, status: 'em_andamento' as const };
           }
 
-          const concluido = await simuladosApi.verificarProgressoSimulado(user.email, sim.id);
+          const concluido = await simuladosApi.verificarProgressoSimulado(user.id, sim.id);
           if (concluido) {
             return { ...sim, status: 'concluido' as const };
           }

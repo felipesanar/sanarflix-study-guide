@@ -109,6 +109,21 @@ Deno.serve(async (req) => {
     console.log(`Correção concluída: ${acertos}/${total} acertos`);
     console.log(`Tempo total: ${tempo_total_segundos}s, Saídas de aba: ${saidas_de_aba}`);
 
+    // Registrar simulado como finalizado
+    const { error: finalizadoError } = await supabaseClient
+      .from('simulados_finalizados')
+      .insert({
+        user_id: user_id,
+        simulado_id: simulado_id,
+        tempo_total_segundos,
+        saidas_de_aba
+      });
+
+    if (finalizadoError) {
+      console.error('Erro ao registrar finalização:', finalizadoError);
+      // Não bloquear o fluxo se falhar o registro
+    }
+
     return new Response(
       JSON.stringify({
         message: 'Respostas enviadas com sucesso',

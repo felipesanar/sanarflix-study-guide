@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X } from 'lucide-react';
+import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X, Unlock } from 'lucide-react';
+import { LiberarSimuladoModal } from './LiberarSimuladoModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
@@ -84,6 +85,7 @@ export default function SimuladosTab() {
   const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
   const [selectedIES, setSelectedIES] = useState<string>('');
+  const [showLiberarModal, setShowLiberarModal] = useState(false);
 
   const [configForm, setConfigForm] = useState({
     nome: '',
@@ -501,9 +503,20 @@ export default function SimuladosTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-6 w-6 text-primary" />
-            Gerenciamento de Simulados
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-6 w-6 text-primary" />
+              Gerenciamento de Simulados
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowLiberarModal(true)}
+              className="gap-2"
+            >
+              <Unlock className="h-4 w-4" />
+              Liberar Simulado
+            </Button>
           </CardTitle>
           <CardDescription>
             Faça upload, edite e gerencie simulados completos em formato .xlsx
@@ -931,6 +944,12 @@ export default function SimuladosTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Liberar Simulado */}
+      <LiberarSimuladoModal
+        open={showLiberarModal}
+        onClose={() => setShowLiberarModal(false)}
+      />
     </div>
   );
 }

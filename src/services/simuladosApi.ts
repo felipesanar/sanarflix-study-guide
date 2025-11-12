@@ -108,6 +108,16 @@ export const simuladosApi = {
   },
 
   async verificarProgressoSimulado(userId: string, simuladoId: string): Promise<boolean> {
-    return false;
+    const { data, error } = await supabase
+      .from('simulados_finalizados')
+      .select('id, liberado_novamente')
+      .eq('user_id', userId)
+      .eq('simulado_id', simuladoId)
+      .maybeSingle();
+
+    if (error) throw error;
+    
+    // Retorna true se o simulado foi finalizado E não foi liberado novamente
+    return data !== null && !data.liberado_novamente;
   }
 };
