@@ -207,7 +207,7 @@ export const SimuladoDesempenho: React.FC = () => {
         return;
     }
     try {
-        const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([ supabase.rpc('get_user_simulados'), supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single(), supabase.from('users').select('semestre').eq('email', user.email).single() ]);
+        const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([ supabase.rpc('get_user_simulados'), supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId as any }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId as any }).single(), supabase.from('users').select('semestre').eq('email', user.email).single() ]);
         if (simuladosResult.error) throw simuladosResult.error; if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (userDataResult.error) throw userDataResult.error;
         const simuladosData = simuladosResult.data || [];
         setSimulados(simuladosData);
@@ -243,7 +243,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId}`;
         if (sessionStorage.getItem(CACHE_KEY)) continue;
         try {
-            const [pResult, rResult] = await Promise.all([supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single()]);
+            const [pResult, rResult] = await Promise.all([supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId as any }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId as any }).single()]);
             if (pResult.data) {
                 const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = pResult.data as any;
                 const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));

@@ -548,7 +548,7 @@ export const useHomeData = () => {
 
         // Get ranking
         const { data: rankingData } = await supabase
-          .rpc('get_user_rankings', { p_simulado_id: latestSimulado });
+          .rpc('get_user_rankings', { p_simulado_id: latestSimulado as any });
 
         let ranking = 0;
         let totalAlunos = 0;
@@ -564,7 +564,7 @@ export const useHomeData = () => {
           tempoGasto: '45min',
           ranking,
           totalAlunos,
-          simuladoNome: simuladoInfo?.Simulado || 'Simulado',
+          simuladoNome: simuladoInfo?.nome || 'Simulado',
         };
         setSimuladoData(next);
         return next;
