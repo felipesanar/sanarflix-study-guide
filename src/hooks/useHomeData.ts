@@ -544,11 +544,11 @@ export const useHomeData = () => {
           .from('simulados_admin')
           .select('nome')
           .eq('id', latestSimulado)
-          .single();
+          .maybeSingle();
 
         // Get ranking
         const { data: rankingData } = await supabase
-          .rpc('get_user_rankings', { p_simulado_id: latestSimulado as any });
+          .rpc('get_user_rankings', { p_simulado_id: latestSimulado });
 
         let ranking = 0;
         let totalAlunos = 0;
