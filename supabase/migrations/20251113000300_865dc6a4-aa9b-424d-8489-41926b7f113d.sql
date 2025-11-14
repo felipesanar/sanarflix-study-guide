@@ -222,25 +222,29 @@ AS $function$
 BEGIN
   RETURN QUERY
   SELECT 
-    q."ID" as id,
-    qc.gabarito,
-    qc."ENUNCIADO" as enunciado,
-    qc."A" as a,
-    qc."B" as b,
-    qc."C" as c,
-    qc."D" as d,
-    qc."Comentário" as comentario,
-    qc."IMAGEM" as imagem,
-    q."NÍVEL DE DIFICULDADE" as dificuldade,
-    ap.correct as acertou
-  FROM questions_enamed q
-  JOIN questions_enamed_complement qc ON q."ID" = qc."ID"
-  LEFT JOIN answer_progress ap ON q."ID" = ap.question_id::text 
-    AND ap.email = auth.email()
-    AND (p_simulado_id IS NULL OR ap.simulado = p_simulado_id)
-  WHERE q."Subespecialidade / Assunto Principal" = sub_name
-    AND (area_name IS NULL OR q."Tema (Grande Área)" = area_name)
-    AND (specialty_name IS NULL OR q."Especialidade" = specialty_name)
+    qs.id::text as id,
+    qs.correta as gabarito,
+    qs.enunciado as enunciado,
+    qs.alternativa_a as a,
+    qs.alternativa_b as b,
+    qs.alternativa_c as c,
+    qs.alternativa_d as d,
+    COALESCE(qs.comentario, '') as comentario,
+    COALESCE(qs.imagem, '') as imagem,
+    COALESCE(qs.grau_dificuldade::text, 'Médio') as dificuldade,
+    COALESCE(ap.acertou, false) as acertou
+  FROM questoes_simulado qs
+  LEFT JOIN (
+    SELECT question_id::text AS question_id, BOOL_OR(correct) AS acertou
+    FROM answer_progress
+    WHERE email = auth.email() AND (p_simulado_id IS NULL OR simulado = p_simulado_id)
+    GROUP BY question_id
+  ) ap ON qs.id::text = ap.question_id
+  WHERE (p_simulado_id IS NULL OR qs.simulado_id = p_simulado_id)
+    AND (area_name IS NULL OR qs.tema = area_name)
+    AND (specialty_name IS NULL OR qs.especialidade = specialty_name)
+    AND (sub_name IS NULL OR qs.grande_area = sub_name)
+  ORDER BY qs.ordem
   LIMIT 10;
 END;
 $function$;
