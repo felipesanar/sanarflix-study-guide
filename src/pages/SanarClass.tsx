@@ -17,14 +17,11 @@ import {
   Filter, 
   X, 
   GraduationCap,
-  MessageCircle,
   Sparkles,
   User
 } from "lucide-react";
-// Preview retorna ao comportamento original baseado em iframe escalado
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toBrazilDate } from '@/utils/timezone';
 
 interface SanarClassLesson {
   id: string;
@@ -149,11 +146,10 @@ export default function SanarClass() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-white/10 to-accent/10 backdrop-blur-sm"></div>
-      <div className="relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       {/* Hero Section */}
       <section className="relative py-16 px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
@@ -172,11 +168,12 @@ export default function SanarClass() {
             </p>
             
             <Button 
+              size="lg" 
               onClick={() => setInfoModalOpen(true)}
-              className="gap-2 w-full sm:w-auto px-4 sm:px-8 py-2 sm:py-3 text-xs sm:text-base !whitespace-normal text-center leading-tight break-words"
+              className="gap-2"
             >
-              <GraduationCap className="h-5 w-5 max-[360px]:hidden" />
-              <span className="block">Peça uma nova aula com seu professor</span>
+              <GraduationCap className="h-5 w-5" />
+              Peça uma nova aula com seu professor
             </Button>
           </div>
         </div>
@@ -185,7 +182,7 @@ export default function SanarClass() {
       {/* Filtros */}
       <section className="px-4 pb-8">
         <div className="container mx-auto max-w-6xl">
-          <Card className="bg-white/70 dark:bg-card backdrop-blur-md border-white/40 dark:border-border shadow-lg">
+          <Card className="border-2">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Filter className="h-4 w-4" />
@@ -205,9 +202,9 @@ export default function SanarClass() {
               </div>
 
               {/* Filtros em grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Select value={selectedDisciplina} onValueChange={setSelectedDisciplina}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todas as disciplinas" />
                   </SelectTrigger>
                   <SelectContent>
@@ -219,7 +216,7 @@ export default function SanarClass() {
                 </Select>
 
                 <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todos os semestres" />
                   </SelectTrigger>
                   <SelectContent>
@@ -231,7 +228,7 @@ export default function SanarClass() {
                 </Select>
 
                 <Select value={selectedFormato} onValueChange={setSelectedFormato}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue placeholder="Todos os formatos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,7 +257,7 @@ export default function SanarClass() {
       <section className="px-4 pb-16">
         <div className="container mx-auto max-w-6xl">
           {filteredLessons.length === 0 ? (
-            <Card className="bg-white/60 dark:bg-card backdrop-blur border-dashed border-2 border-white/40 dark:border-border">
+            <Card className="border-dashed border-2">
               <CardContent className="py-16 text-center space-y-4">
                 <BookOpen className="h-16 w-16 mx-auto text-muted-foreground/50" />
                 <div>
@@ -274,146 +271,82 @@ export default function SanarClass() {
               </CardContent>
             </Card>
           ) : (
-            <>
-              <div className="sm:hidden -mx-4 px-4 overflow-x-auto snap-x flex gap-3 pb-2">
-                {filteredLessons.map((lesson) => (
-                  <div key={lesson.id} className="snap-start w-[85vw] flex-shrink-0">
-                    <Card 
-                      className="group bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full"
-                    >
-                      <div className="relative h-44 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border">
-                        <iframe
-                          src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                          className="w-full h-full pointer-events-none scale-100 origin-top"
-                          title={`Preview de ${lesson.titulo}`}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                        <div className="absolute top-2 left-2 flex items-center gap-2">
-                          <Badge variant="default" className="bg-background/60 backdrop-blur text-foreground">
-                            {lesson.formato.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <Badge variant="secondary" className="shrink-0">
-                            {lesson.formato.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline">
-                            {lesson.semestre}º Sem
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
-                          {lesson.titulo}
-                        </CardTitle>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <User className="h-3 w-3" />
-                            <span className="text-xs font-medium truncate">{lesson.professor}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="h-3 w-3" />
-                            <span className="text-xs truncate">{lesson.disciplina}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {format(toBrazilDate(lesson.data_publicacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                          </p>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="w-full gap-2"
-                          onClick={() => handleViewLesson(lesson)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Visualizar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full gap-2"
-                          onClick={() => handleDownload(lesson)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                ))}
-              </div>
-
-              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredLessons.map((lesson) => (
-                  <Card 
-                    key={lesson.id} 
-                    className="group bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-                  >
-                    <div className="relative h-56 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredLessons.map((lesson) => (
+                <Card 
+                  key={lesson.id} 
+                  className="group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-2 overflow-hidden"
+                >
+                  {/* Preview do Documento */}
+                  <div className="relative h-56 bg-muted overflow-hidden">
+                    {lesson.formato === 'pdf' ? (
                       <iframe
                         src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                        className="w-full h-full pointer-events-none md:scale-150 md:origin-top md:-mt-[20%]"
+                        className="w-full h-full pointer-events-none scale-150 origin-top"
                         title={`Preview de ${lesson.titulo}`}
+                        style={{ marginTop: '-20%' }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                      <div className="absolute top-2 left-2 flex items-center gap-2">
-                        <Badge variant="default" className="bg-background/60 backdrop-blur text-foreground">
-                          {lesson.formato.toUpperCase()}
-                        </Badge>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+                        <div className="text-center p-6">
+                          <FileText className="h-20 w-20 text-primary/30 mx-auto mb-3" />
+                          <p className="text-sm text-muted-foreground uppercase font-semibold tracking-wide">
+                            Apresentação PPTX
+                          </p>
+                        </div>
                       </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                  </div>
+                  
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <Badge variant="secondary" className="shrink-0">
+                        {lesson.formato.toUpperCase()}
+                      </Badge>
+                      <Badge variant="outline">
+                        {lesson.semestre}º Sem
+                      </Badge>
                     </div>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <Badge variant="secondary" className="shrink-0">
-                          {lesson.formato.toUpperCase()}
-                        </Badge>
-                        <Badge variant="outline">
-                          {lesson.semestre}º Sem
-                        </Badge>
+                    <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
+                      {lesson.titulo}
+                    </CardTitle>
+                    <CardDescription className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3" />
+                        <span className="text-sm font-medium">{lesson.professor}</span>
                       </div>
-                      <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
-                        {lesson.titulo}
-                      </CardTitle>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3 w-3" />
-                          <span className="text-sm font-medium truncate">{lesson.professor}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-3 w-3" />
-                          <span className="text-sm truncate">{lesson.disciplina}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {format(toBrazilDate(lesson.data_publicacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-3 w-3" />
+                        <span className="text-sm">{lesson.disciplina}</span>
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        className="w-full gap-2"
-                        onClick={() => handleViewLesson(lesson)}
-                      >
-                        <Eye className="h-4 w-4" />
-                        Visualizar
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="w-full gap-2"
-                        onClick={() => handleDownload(lesson)}
-                      >
-                        <Download className="h-4 w-4" />
-                        Baixar
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(lesson.data_publicacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      </div>
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-2">
+                    <Button 
+                      variant="default" 
+                      className="w-full gap-2"
+                      onClick={() => handleViewLesson(lesson)}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Visualizar
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full gap-2"
+                      onClick={() => handleDownload(lesson)}
+                    >
+                      <Download className="h-4 w-4" />
+                      Baixar
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </section>
@@ -421,7 +354,7 @@ export default function SanarClass() {
       {/* Seção de Incentivo */}
       <section className="px-4 pb-16">
         <div className="container mx-auto max-w-4xl">
-          <Card className="bg-white/70 dark:bg-card backdrop-blur-md border border-primary/20 shadow-lg">
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5">
             <CardHeader className="text-center space-y-4 pb-6">
               <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <Sparkles className="h-8 w-8 text-primary" />
@@ -549,24 +482,9 @@ export default function SanarClass() {
                 💡 Dica: Aulas sobre temas específicos da sua região ou casos clínicos locais são excelentes sugestões!
               </p>
             </div>
-
-            <div className="flex justify-end pt-2">
-              <Button
-                className="gap-2"
-                onClick={() => {
-                  const msg = encodeURIComponent('Olá, tenho interesse em uma aula personalizada do SanarClass.');
-                  const url = `https://wa.me/5571993120049?text=${msg}`;
-                  window.open(url, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Falar no WhatsApp
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
-      </div>
     </div>
   );
 }

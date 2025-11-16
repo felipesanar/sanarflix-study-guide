@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { ChevronRight, BookOpen, Calendar, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBrazilHour } from '@/utils/timezone';
 
 interface WelcomeCardProps {
   hasStudyGuide: boolean;
@@ -17,7 +16,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
   const navigate = useNavigate();
 
   const getGreeting = () => {
-    const hour = getBrazilHour();
+    const hour = new Date().getHours();
     if (hour < 12) return { text: 'Bom dia', emoji: '☀️' };
     if (hour < 18) return { text: 'Boa tarde', emoji: '🌤️' };
     return { text: 'Boa noite', emoji: '🌙' };
@@ -44,26 +43,26 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
       style={{ perspective: 1000 }}
       whileHover={{ y: -2 }}
     >
-      <Card className="relative bg-white/10 dark:bg-card/10 backdrop-blur-xl border border-white/20 dark:border-border/40 ring-1 ring-white/30 shadow-2xl overflow-hidden h-full">
-        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-white/20 blur-3xl rounded-full" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10" />
-        <CardContent className="relative z-10 py-5 sm:py-6 md:py-7 pr-5 sm:pr-6 md:pr-7 pl-3 sm:pl-6 md:pl-7">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-start md:justify-between gap-4 ml-4 md:ml-0">
+      <Card className="relative border-0 bg-gradient-to-br from-primary via-primary/90 to-primary/80 text-primary-foreground shadow-2xl overflow-hidden h-full">
+        {/* brilho radial dinâmico */}
+        <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-white/10 blur-3xl rounded-full" />
+        <CardContent className="p-7">
+          <div className="flex items-center justify-between h-full">
             <div className="flex-1">
-              <div className="flex items-center gap-0 mb-2">
-                <span className="text-2xl">{greeting.emoji}</span>
+              <div className="flex items-center gap-2 mb-2">
                 <p className="text-sm opacity-90 font-medium">{greeting.text},</p>
+                <span className="text-2xl">{greeting.emoji}</span>
               </div>
-              <h1 className="text-4xl font-bold mb-2">
+              <h1 className="text-4xl font-bold mb-3">
                 {user?.nome || 'Estudante'}
               </h1>
-              <p className="text-base opacity-90 max-w-2xl mb-4">
+              <p className="text-base opacity-90 max-w-2xl mb-6">
                 Pronto para estudar hoje? 📚
               </p>
               <Button 
                 variant="secondary"
                 onClick={handleContinueStudy}
-                className="relative bg-primary text-primary-foreground hover:bg-primary/90 border border-primary/40 shadow-md transition-all duration-300 group overflow-hidden"
+                className="relative bg-white/10 hover:bg-white/20 border border-white/30 backdrop-blur-sm transition-all duration-300 group overflow-hidden"
               >
                 {/* brilho ao passar o mouse */}
                 <span className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">

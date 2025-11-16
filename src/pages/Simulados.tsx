@@ -23,9 +23,9 @@ export const Simulados = () => {
         <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
-            Simulados
+            Simulados Disponíveis
           </TabsTrigger>
-          <TabsTrigger value="desempenho" className="gap-2 px-5 sm:px-6 text-xs sm:text-sm">
+          <TabsTrigger value="desempenho" className="gap-2">
             <Trophy className="h-4 w-4" />
             Desempenho
           </TabsTrigger>

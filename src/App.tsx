@@ -316,24 +316,24 @@ const App = () => {
   useWebVitals();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <ScrollManager />
-            <AuthProvider>
-              <AuthWrapper>
-                <ErrorBoundary>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <BrowserRouter>
+              <ScrollManager />
+              <AuthProvider>
+                <AuthWrapper>
                   <AppContent />
-                </ErrorBoundary>
-              </AuthWrapper>
-            </AuthProvider>
-          </BrowserRouter>
-        </ThemeProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+                </AuthWrapper>
+              </AuthProvider>
+            </BrowserRouter>
+          </ThemeProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -35,14 +35,6 @@ export const getBrazilHour = (): number => {
 };
 
 /**
- * Converts a Date or ISO string to a Date object in Brazil timezone
- */
-export const toBrazilDate = (input: string | Date): Date => {
-  const date = typeof input === 'string' ? new Date(input) : input;
-  return new Date(date.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-};
-
-/**
  * Converts a local datetime-local input value to Brazil timezone ISO string
  * @param datetimeLocalValue - Value from datetime-local input (YYYY-MM-DDTHH:mm)
  * @returns ISO string in Brazil timezone

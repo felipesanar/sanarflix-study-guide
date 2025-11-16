@@ -15,7 +15,6 @@ import { LoginPrompt } from '@/components/analytics/LoginPrompt';
 import { isB2BUser } from '@/utils/accessRules';
 import { BarChart3, RefreshCw, Download, Info, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { getBrazilDate } from '@/utils/timezone';
 
 export interface AnalyticsFilters {
   dateRange: {
@@ -34,8 +33,8 @@ const Analytics = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [filters, setFilters] = useState<AnalyticsFilters>({
     dateRange: {
-      start: new Date(getBrazilDate().getTime() - 30 * 24 * 60 * 60 * 1000),
-      end: getBrazilDate()
+      start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      end: new Date()
     },
     course: '',
     university: '',

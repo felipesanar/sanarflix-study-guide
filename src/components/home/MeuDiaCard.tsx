@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle, CalendarCheck, FileText, GraduationCap, Trophy, Home as HomeIcon, ClipboardCheck, TrendingUp, UserCog } from 'lucide-react';
+import { BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle, CalendarCheck, FileText } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -15,28 +15,10 @@ interface MeuDiaCardProps {
   onRetry?: () => void;
 }
 
-const iconMap: Record<string, any> = { BookOpen, Zap, BarChart3 };
-const routeIconMap: Record<string, any> = {
-  '/home': HomeIcon,
-  '/guia-estudos': BookOpen,
-  '/dashboard': BarChart3,
-  '/sanarclass': GraduationCap,
-  '/simulados': ClipboardCheck,
-  '/intensivao-enamed': Zap,
-  '/intensivo-uscs': BookOpen,
-  '/cronograma-enamed': FileText,
-  '/analytics': TrendingUp,
-  '/gestao-usuarios': UserCog,
-};
-
-const resolveIcon = (path?: string, icon?: string) => {
-  if (path) {
-    for (const key of Object.keys(routeIconMap)) {
-      if (path === key || path.startsWith(key)) return routeIconMap[key];
-    }
-  }
-  if (icon && iconMap[icon]) return iconMap[icon];
-  return BookOpen;
+const iconMap: Record<string, any> = {
+  BookOpen,
+  Zap,
+  BarChart3,
 };
 
 // Estado vazio enriquecido com ilustração e onboarding
@@ -175,17 +157,11 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   const navigate = useNavigate();
 
   const handleItemClick = (item: MeuDiaItem) => {
-    if (item.icon === 'Trophy' || /simulado/i.test(item.title) || (item.path && item.path.includes('simulado'))) {
-      navigate('/simulados');
-      return;
-    }
-    if (item.source === 'cronograma_enamed') {
-      navigate('/intensivao-enamed');
-      return;
-    }
+    // Se tem metadados para deep link, navegar com query params completos
     if (item.aulaNome && item.temaNome) {
       navigate(item.path);
     } else {
+      // Navegação normal para matérias sem aula sugerida
       navigate(item.path);
     }
   };
@@ -193,11 +169,6 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   const handleLessonClick = (e: React.MouseEvent, link: string) => {
     e.stopPropagation();
     window.open(link, '_blank', 'noopener,noreferrer');
-  };
-
-  const cleanSubtitle = (s?: string) => {
-    if (!s) return s;
-    return s.replace(/^Aula\s*Sugerida:\s*/i, '').trim();
   };
 
   return (
@@ -223,12 +194,11 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
         {/* Estado com dados */}
         {!loading && !error && items.length > 0 && (
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-muted-foreground">Sugestões de hoje</h4>
             {items.map((item, index) => {
-              const Icon = resolveIcon(item.path, item.icon);
+              const Icon = iconMap[item.icon] || BookOpen;
               return (
                 <motion.div
-                  key={`${item.id}-${index}`}
+                  key={item.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -238,44 +208,39 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                   <div className="p-4 rounded-xl border border-border/50 hover:border-primary/50 hover:shadow-md transition-all bg-card">
                     <div className="flex items-center gap-3">
                       {/* Ícone com gradiente */}
-                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0 max-[380px]:hidden`}>
+                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0`}>
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       
                       {/* Conteúdo - Hierarquia invertida: aula em destaque */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 gap-y-1 mb-0.5 flex-wrap">
+                        <div className="flex items-center gap-2 mb-0.5">
                           <p className="text-xs text-muted-foreground truncate">
                             {item.title}
                           </p>
                           {/* Badge de origem */}
                           {item.source === 'calendar' && (
-                          <Badge 
-                            variant="outline" 
-                            className="text-[10px] px-1.5 py-0 h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 truncate max-w-[220px] sm:max-w-none"
-                          >
-                            <CalendarCheck className="w-3 h-3" />
-                            Meu Calendário
-                          </Badge>
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1.5 py-0 h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                            >
+                              <CalendarCheck className="w-3 h-3" />
+                              Meu Calendário
+                            </Badge>
                           )}
                           {item.source === 'cronograma_enamed' && (
-                          <Badge 
-                            variant="outline" 
-                            className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400 cursor-pointer hover:bg-purple-500/20 truncate max-w-[240px] sm:max-w-none"
-                            onClick={(e) => { e.stopPropagation(); navigate('/intensivao-enamed'); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate('/intensivao-enamed'); } }}
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Ir para Intensivão ENAMED"
-                          >
-                            <FileText className="w-3 h-3" />
-                            Cronograma ENAMED
-                          </Badge>
+                            <Badge 
+                              variant="outline" 
+                              className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400"
+                            >
+                              <FileText className="w-3 h-3" />
+                              Cronograma ENAMED
+                            </Badge>
                           )}
                         </div>
                         {item.subtitle && (
-                          <h4 className="font-semibold text-foreground w-full whitespace-normal break-words sm:truncate">
-                            {cleanSubtitle(item.subtitle)}
+                          <h4 className="font-semibold text-foreground truncate">
+                            {item.subtitle}
                           </h4>
                         )}
                       </div>
@@ -288,9 +253,7 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                           className="gap-1 text-xs flex-shrink-0"
                           onClick={(e) => handleLessonClick(e, item.lessonLink!)}
                         >
-                          <span>
-                            Assistir<span className="hidden sm:inline"> aula</span>
-                          </span>
+                          Assistir aula
                           <ArrowRight className="w-3 h-3" />
                         </Button>
                       ) : (

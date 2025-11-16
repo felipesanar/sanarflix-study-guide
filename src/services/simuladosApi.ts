@@ -76,6 +76,25 @@ export const simuladosApi = {
 
     if (error) throw error;
 
+    const normalizeImageUrl = (url?: string | null) => {
+      if (!url) return undefined;
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes('drive.google.com')) {
+          const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+          const id = m?.[1] || u.searchParams.get('id');
+          if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+        }
+        if (u.hostname.includes('docs.google.com')) {
+          const id = u.searchParams.get('id');
+          if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+        }
+        return url || undefined;
+      } catch {
+        return url || undefined;
+      }
+    };
+
     return (data || []).map((q: any) => ({
       id: q.id,
       enunciado: q.enunciado || '',
@@ -84,7 +103,7 @@ export const simuladosApi = {
       alternativa_c: q.alternativa_c || '',
       alternativa_d: q.alternativa_d || '',
       gabarito: (q.correta || 'A') as 'A' | 'B' | 'C' | 'D',
-      imagem: q.imagem || undefined,
+      imagem: normalizeImageUrl(q.imagem),
       tema: q.tema || 'Geral',
       especialidade: q.especialidade || 'Geral',
       subespecialidade: q.grande_area || 'Geral',

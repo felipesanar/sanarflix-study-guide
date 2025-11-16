@@ -156,9 +156,9 @@ export const useHomeData = () => {
         .select('*')
         .limit(1),
       supabase
-        .from('simulados_admin')
-        .select('id, nome, status')
-        .eq('status', 'ativo'),
+        .from('Simulados')
+        .select('id, Simulado')
+        .limit(1),
     ]);
 
     // Process study guide
@@ -420,35 +420,19 @@ export const useHomeData = () => {
 
     console.log('📊 [Meu Dia] Total de items antes dos fallbacks:', items.length);
 
-    // Adicionar "Simulado Disponível" somente se houver simulado ativo não respondido pelo usuário
-    try {
-      const { data: finalizados } = await supabase
-        .from('simulados_finalizados')
-        .select('simulado_id')
-        .eq('user_id', user.id);
-
-      const finalizadosIds = new Set((finalizados || []).map((r: any) => r.simulado_id));
-      const ativos = (simuladoRes.data || []) as any[];
-      const disponiveis = ativos.filter((s: any) => !finalizadosIds.has(s.id));
-      let availableSimulado = disponiveis[0] || null;
-      if (!availableSimulado && ativos.length > 0) {
-        availableSimulado = ativos[0];
-      }
-
-      if (availableSimulado) {
-        items.push({
-          id: `simulado-${availableSimulado.id}-${Date.now()}`,
-          type: 'simulado',
-          title: 'Simulado Disponível',
-          subtitle: availableSimulado.nome || 'Simulado',
-          path: '/simulados',
-          icon: 'Trophy',
-          color: 'from-orange-500 to-red-500',
-          source: 'fallback' as const,
-        });
-      }
-    } catch (e) {
-      console.warn('⚠️ [Meu Dia] Erro ao avaliar simulados disponíveis:', e);
+    // Sempre adicionar Simulado Disponível se houver simulados
+    const simuladoData = simuladoRes.data;
+    if (simuladoData && simuladoData.length > 0) {
+      items.push({
+        id: 'simulado',
+        type: 'simulado',
+        title: 'Simulado Disponível',
+        subtitle: 'Teste seus conhecimentos',
+        path: '/desempenho-simulado',
+        icon: 'BarChart3',
+        color: 'from-orange-500 to-red-500',
+        source: 'fallback' as const,
+      });
     }
 
     // Adicionar Intensivo apenas se não houver matérias
@@ -557,10 +541,10 @@ export const useHomeData = () => {
 
         // Get simulado name
         const { data: simuladoInfo } = await supabase
-          .from('Simulados')
-          .select('Simulado')
+          .from('simulados_admin')
+          .select('nome')
           .eq('id', latestSimulado)
-          .single();
+          .maybeSingle();
 
         // Get ranking
         const { data: rankingData } = await supabase
@@ -580,7 +564,7 @@ export const useHomeData = () => {
           tempoGasto: '45min',
           ranking,
           totalAlunos,
-          simuladoNome: simuladoInfo?.Simulado || 'Simulado',
+          simuladoNome: simuladoInfo?.nome || 'Simulado',
         };
         setSimuladoData(next);
         return next;
