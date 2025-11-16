@@ -107,7 +107,7 @@ export type Database = {
           email: string
           question_id: string
           resposta_usuario: string | null
-          simulado: number
+          simulado: string
         }
         Insert: {
           answer_id?: string
@@ -115,7 +115,7 @@ export type Database = {
           email: string
           question_id: string
           resposta_usuario?: string | null
-          simulado: number
+          simulado: string
         }
         Update: {
           answer_id?: string
@@ -123,7 +123,7 @@ export type Database = {
           email?: string
           question_id?: string
           resposta_usuario?: string | null
-          simulado?: number
+          simulado?: string
         }
         Relationships: [
           {
@@ -132,6 +132,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["email"]
+          },
+          {
+            foreignKeyName: "fk_answer_progress_simulado"
+            columns: ["simulado"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -812,7 +819,7 @@ export type Database = {
         Returns: {
           acertos: number
           area_name: string
-          simulado_id: number
+          simulado_id: string
           simulado_nome: string
           total: number
         }[]
@@ -857,12 +864,24 @@ export type Database = {
           }
       get_questions_by_subspecialty: {
         Args: {
-          area_name: string
-          p_simulado_id: number
-          specialty_name: string
+          area_name?: string
+          p_simulado_id?: string
+          specialty_name?: string
           sub_name: string
         }
-        Returns: Record<string, unknown>[]
+        Returns: {
+          a: string
+          acertou: boolean
+          b: string
+          c: string
+          comentario: string
+          d: string
+          dificuldade: string
+          enunciado: string
+          gabarito: string
+          id: string
+          imagem: string
+        }[]
       }
       get_simulado_performance: {
         Args: never
@@ -873,9 +892,10 @@ export type Database = {
         }[]
       }
       get_user_ies_id: { Args: never; Returns: string }
-      get_user_performance_aggregates:
-        | { Args: never; Returns: Json }
-        | { Args: { p_simulado_id?: number }; Returns: Json }
+      get_user_performance_aggregates: {
+        Args: { p_simulado_id?: string }
+        Returns: Json
+      }
       get_user_ranking_in_ies: {
         Args: never
         Returns: {
@@ -883,9 +903,7 @@ export type Database = {
           user_rank: number
         }[]
       }
-      get_user_rankings:
-        | { Args: never; Returns: Json }
-        | { Args: { p_simulado_id: number }; Returns: Json }
+      get_user_rankings: { Args: { p_simulado_id?: string }; Returns: Json }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

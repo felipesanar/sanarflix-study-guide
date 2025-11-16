@@ -26,6 +26,25 @@ import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check } from 'l
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+const normalizeImageUrl = (url?: string | null) => {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('drive.google.com')) {
+      const m = u.pathname.match(/\/file\/d\/([^/]+)/);
+      const id = m?.[1] || u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+    }
+    if (u.hostname.includes('docs.google.com')) {
+      const id = u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+    }
+    return url;
+  } catch {
+    return url || '';
+  }
+};
+
 export const ModoProva = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -328,6 +347,19 @@ export const ModoProva = () => {
                     src={questaoAtualData.imagem}
                     alt="Imagem da questão"
                     className="max-w-full rounded-lg border"
+                    onError={(e) => {
+                      const img = e.currentTarget as HTMLImageElement;
+                      try {
+                        const u = new URL(img.src);
+                        const id = u.searchParams.get('id') || (u.pathname.match(/\/file\/d\/([^/]+)/)?.[1]);
+                        if (id && (u.hostname.includes('drive.google.com') || u.hostname.includes('docs.google.com'))) {
+                          const step = img.dataset.driveRetry || '0';
+                          if (step === '0') { img.dataset.driveRetry = '1'; img.src = `https://drive.google.com/thumbnail?id=${id}&sz=w1000`; return; }
+                          if (step === '1') { img.dataset.driveRetry = '2'; img.src = `https://drive.usercontent.google.com/uc?id=${id}&export=download`; return; }
+                        }
+                      } catch {}
+                      img.style.display = 'none';
+                    }}
                   />
                 </div>
               )}
