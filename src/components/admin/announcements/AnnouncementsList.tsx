@@ -12,6 +12,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 
 interface Announcement {
   id: string;
@@ -77,7 +78,7 @@ export const AnnouncementsList: React.FC<Props> = ({
   };
 
   const getStatusBadge = (announcement: Announcement) => {
-    const isExpired = announcement.data_expiracao && new Date(announcement.data_expiracao) < new Date();
+    const isExpired = announcement.data_expiracao && toBrazilDate(announcement.data_expiracao) < getBrazilDate();
     
     if (isExpired) {
       return (
@@ -118,7 +119,7 @@ export const AnnouncementsList: React.FC<Props> = ({
                            ann.descricao.toLowerCase().includes(searchTerm.toLowerCase());
       
       // Filtro de status
-      const isExpired = ann.data_expiracao && new Date(ann.data_expiracao) < new Date();
+      const isExpired = ann.data_expiracao && toBrazilDate(ann.data_expiracao) < getBrazilDate();
       let matchesStatus = true;
       
       if (statusFilter === 'active') matchesStatus = ann.ativo && !isExpired;
@@ -129,7 +130,7 @@ export const AnnouncementsList: React.FC<Props> = ({
     })
     .sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return toBrazilDate(b.created_at).getTime() - toBrazilDate(a.created_at).getTime();
       } else if (sortBy === 'priority') {
         const priorityOrder = { alta: 3, media: 2, baixa: 1 };
         return priorityOrder[b.prioridade] - priorityOrder[a.prioridade];
@@ -270,7 +271,7 @@ export const AnnouncementsList: React.FC<Props> = ({
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {format(new Date(announcement.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {format(toBrazilDate(announcement.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </div>
                       
                       <div className="flex items-center gap-1">
@@ -281,7 +282,7 @@ export const AnnouncementsList: React.FC<Props> = ({
                       {announcement.data_expiracao && (
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          Expira: {format(new Date(announcement.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
+                          Expira: {format(toBrazilDate(announcement.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
                         </div>
                       )}
                     </div>

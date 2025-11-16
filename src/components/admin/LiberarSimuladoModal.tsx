@@ -15,6 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Search, Loader2, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toBrazilDate } from '@/utils/timezone';
 
 interface Usuario {
   id: string;
@@ -224,7 +227,7 @@ export const LiberarSimuladoModal = ({ open, onClose }: LiberarSimuladoModalProp
                       <div className="flex-1">
                         <p className="font-medium">{getSimuladoNome(sf.simulado_id)}</p>
                         <p className="text-xs text-muted-foreground">
-                          Finalizado em {new Date(sf.finalizado_em).toLocaleDateString('pt-BR')}
+                          Finalizado em {format(toBrazilDate(sf.finalizado_em), 'dd/MM/yyyy', { locale: ptBR })}
                         </p>
                       </div>
                       {sf.liberado_novamente ? (

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Upload, Download, Copy, Users, Shield } from 'lucide-react';
+import { getBrazilDate } from '@/utils/timezone';
 
 interface IES {
   id: string;
@@ -50,7 +51,7 @@ export const UsersTab: React.FC = () => {
   };
 
   const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = getBrazilDate().toLocaleTimeString('pt-BR');
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
   };
 

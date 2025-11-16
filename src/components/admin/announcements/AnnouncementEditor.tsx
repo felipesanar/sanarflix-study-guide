@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Bell, Save, Eye, X, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
+import { brazilISOToDatetimeLocal, datetimeLocalToBrazilISO } from '@/utils/timezone';
 
 interface IES {
   id: string;
@@ -27,17 +28,23 @@ interface AnnouncementConfig {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'critica';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
 }
 
 const colorPalettes = {
-  primary: { from: 'from-primary/20', to: 'to-primary/10', badge: 'bg-primary/10 text-primary border-primary/20' },
-  success: { from: 'from-green-500/20', to: 'to-green-500/10', badge: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  warning: { from: 'from-orange-500/20', to: 'to-orange-500/10', badge: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  danger: { from: 'from-red-500/20', to: 'to-red-500/10', badge: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  flame: { from: 'from-red-600 dark:from-red-700', to: 'to-orange-500 dark:to-orange-600', badge: 'bg-white/10 text-white border-white/20' },
+  emerald: { from: 'from-emerald-600 dark:from-emerald-700', to: 'to-teal-500 dark:to-teal-600', badge: 'bg-white/10 text-white border-white/20' },
+  royal: { from: 'from-blue-600 dark:from-blue-700', to: 'to-purple-600 dark:to-purple-700', badge: 'bg-white/10 text-white border-white/20' },
+  sunset: { from: 'from-orange-500 dark:from-orange-600', to: 'to-rose-500 dark:to-rose-600', badge: 'bg-white/10 text-white border-white/20' },
+  amethyst: { from: 'from-violet-600 dark:from-violet-700', to: 'to-fuchsia-600 dark:to-fuchsia-700', badge: 'bg-white/10 text-white border-white/20' },
+  flameSoft: { from: 'from-red-500/60 dark:from-red-600/60', to: 'to-orange-400/40 dark:to-orange-500/40', badge: 'bg-white/20 text-white border-white/30' },
+  emeraldSoft: { from: 'from-emerald-500/60 dark:from-emerald-600/60', to: 'to-teal-400/40 dark:to-teal-500/40', badge: 'bg-white/20 text-white border-white/30' },
+  royalSoft: { from: 'from-blue-500/60 dark:from-blue-600/60', to: 'to-purple-500/40 dark:to-purple-600/40', badge: 'bg-white/20 text-white border-white/30' },
+  sunsetSoft: { from: 'from-orange-400/60 dark:from-orange-500/60', to: 'to-rose-400/40 dark:to-rose-500/40', badge: 'bg-white/20 text-white border-white/30' },
+  amethystSoft: { from: 'from-violet-500/60 dark:from-violet-600/60', to: 'to-fuchsia-500/40 dark:to-fuchsia-600/40', badge: 'bg-white/20 text-white border-white/30' },
 };
 
 interface Props {
@@ -80,9 +87,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
   const getLocalDatetimeString = (utcDate: string | null): string => {
     if (!utcDate) return '';
     try {
-      const date = new Date(utcDate);
-      // Formatar para datetime-local input (YYYY-MM-DDTHH:mm)
-      return format(date, "yyyy-MM-dd'T'HH:mm");
+      return brazilISOToDatetimeLocal(utcDate);
     } catch (e) {
       console.error('Error parsing date:', e);
       return '';
@@ -93,10 +98,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
   const convertLocalToUTC = (localDatetime: string): string => {
     if (!localDatetime) return '';
     try {
-      // O datetime-local retorna formato: "2025-01-15T14:30"
-      const localDate = new Date(localDatetime);
-      // Converter para ISO string (UTC)
-      return localDate.toISOString();
+      return datetimeLocalToBrazilISO(localDatetime);
     } catch (e) {
       console.error('Error converting to UTC:', e);
       return '';
@@ -104,9 +106,17 @@ export const AnnouncementEditor: React.FC<Props> = ({
   };
 
   const handleSave = () => {
+    const mapPriorityForDB = (p: AnnouncementConfig['prioridade']): string => {
+      if (p === 'critica') return 'Muito Alta';
+      if (p === 'baixa') return 'Baixa';
+      if (p === 'media') return 'Media';
+      if (p === 'alta') return 'Alta';
+      return 'Media';
+    };
     // Converter data de expiração para UTC antes de salvar
     const configToSave = {
       ...config,
+      prioridade: mapPriorityForDB(config.prioridade),
       data_expiracao: config.data_expiracao 
         ? convertLocalToUTC(config.data_expiracao)
         : null
@@ -114,7 +124,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
     onSave(configToSave);
   };
 
-  const palette = colorPalettes[config.paleta_cores as keyof typeof colorPalettes] || colorPalettes.primary;
+  const palette = colorPalettes[config.paleta_cores as keyof typeof colorPalettes] || colorPalettes.flame;
 
   return (
     <div className="space-y-6">
@@ -147,45 +157,46 @@ export const AnnouncementEditor: React.FC<Props> = ({
             </CardTitle>
             <CardDescription>Como o aviso aparecerá na home</CardDescription>
           </CardHeader>
-          <CardContent>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-            >
-              <Card className={`border-0 bg-gradient-to-br ${palette.from} ${palette.to} shadow-lg`}>
-                <div className="absolute top-4 right-4 z-10">
-                  <Badge variant="default" className={palette.badge}>
-                    <Bell className="h-3 w-3 mr-1" />
-                    Novo
-                  </Badge>
-                </div>
-
-                <CardHeader className="pb-4 space-y-2">
-                  <div className="flex items-start gap-3">
-                    <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${palette.from} ${palette.to} rounded-xl flex items-center justify-center ring-1 ring-primary/10`}>
-                      <Bell className="h-6 w-6 text-primary" />
+              <CardContent>
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45 }}
+                >
+                  <Card className={`relative border-0 bg-gradient-to-br ${palette.from} ${palette.to} shadow-lg`}>
+                    <div className="pointer-events-none absolute -bottom-16 -right-16 w-56 h-56 bg-white/10 dark:bg-black/20 blur-3xl rounded-full" />
+                    <div className="absolute top-4 right-4 z-10">
+                      <Badge variant="default" className={palette.badge}>
+                        <Bell className="h-3 w-3 mr-1" />
+                        Novo
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <CardTitle className="text-xl font-semibold leading-tight">
-                        {config.titulo || 'Título do aviso'}
-                      </CardTitle>
-                    </div>
-                  </div>
-                  <div className="h-px bg-gradient-to-r from-border via-border/50 to-transparent" />
-                </CardHeader>
 
-                <CardContent className="space-y-6">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {config.descricao || 'Descrição do aviso'}
-                  </p>
-                  <Button className="w-full">
-                    {config.texto_botao || 'Texto do botão'}
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </CardContent>
+                    <CardHeader className="pb-4 space-y-2">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${palette.from} ${palette.to} rounded-xl flex items-center justify-center ring-2 ring-white/30 dark:ring-black/30`}>
+                          <Bell className={`h-6 w-6 ${config.prioridade === 'critica' ? 'text-white fill-white animate-pulse' : config.prioridade === 'alta' ? 'text-white fill-white/50' : config.prioridade === 'media' ? 'text-white fill-white/20' : 'text-white'}`}/>
+                        </div>
+                        <div className="flex-1 min-w-0 pt-1">
+                          <CardTitle className="text-xl font-semibold leading-tight text-white">
+                            {config.titulo || 'Título do aviso'}
+                          </CardTitle>
+                        </div>
+                      </div>
+                      <div className="h-px bg-gradient-to-r from-border via-border/50 to-transparent" />
+                    </CardHeader>
+
+                    <CardContent className="space-y-6">
+                      <p className="text-sm text-white leading-relaxed">
+                        {config.descricao || 'Descrição do aviso'}
+                      </p>
+                      <Button className="w-full text-white bg-black/30 hover:bg-black/40 dark:bg-black/40 dark:hover:bg-black/50">
+                        {config.texto_botao || 'Texto do botão'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </CardContent>
         </Card>
 
         {/* Editor */}
@@ -252,10 +263,16 @@ export const AnnouncementEditor: React.FC<Props> = ({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="primary">Azul/Roxo (Premium)</SelectItem>
-                    <SelectItem value="success">Verde (Sucesso)</SelectItem>
-                    <SelectItem value="warning">Laranja (Alerta)</SelectItem>
-                    <SelectItem value="danger">Vermelho (Urgente)</SelectItem>
+                    <SelectItem value="flame">Flame (Vermelho/Orange)</SelectItem>
+                    <SelectItem value="emerald">Emerald (Verde/Teal)</SelectItem>
+                    <SelectItem value="royal">Royal (Azul/Indigo/Púrpura)</SelectItem>
+                    <SelectItem value="sunset">Sunset (Laranja/Rosa/Rose)</SelectItem>
+                    <SelectItem value="amethyst">Amethyst (Violeta/Púrpura/Fúcsia)</SelectItem>
+                    <SelectItem value="flameSoft">Flame Soft</SelectItem>
+                    <SelectItem value="emeraldSoft">Emerald Soft</SelectItem>
+                    <SelectItem value="royalSoft">Royal Soft</SelectItem>
+                    <SelectItem value="sunsetSoft">Sunset Soft</SelectItem>
+                    <SelectItem value="amethystSoft">Amethyst Soft</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -270,6 +287,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
                     <SelectItem value="baixa">Baixa</SelectItem>
                     <SelectItem value="media">Média</SelectItem>
                     <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="critica">Crítica</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

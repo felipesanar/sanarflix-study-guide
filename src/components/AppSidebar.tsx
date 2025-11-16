@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { usePasswordDialog } from '@/contexts/PasswordDialogContext';
 import { getAccessRules, isB2BUser } from "@/utils/accessRules";
 import {
   BookOpen,
@@ -32,7 +34,7 @@ import {
   FileText,
   TrendingUp,
   Home as HomeIcon,
-  Sparkles,
+  GraduationCap,
   Crown,
   Settings,
   HelpCircle,
@@ -50,7 +52,7 @@ const menuItems = [
   {
     title: "SanarClass",
     url: "/sanarclass",
-    icon: Sparkles,
+    icon: GraduationCap,
     accessKey: "home" as const,
     description: "Aulas da sua IES com o Sanarflix",
   },
@@ -123,6 +125,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const accessRules = getAccessRules(user);
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
+  const passwordDialog = usePasswordDialog();
 
   const isActive = (path: string) => currentPath === path;
   const isStudyGuideAreaActive = () =>
@@ -237,36 +240,73 @@ export function AppSidebar() {
         <SidebarContent className="p-3 md:p-4 space-y-5 md:space-y-6 overflow-y-auto">
           {/* Premium User Profile */}
           {user && (
-            <div className={`bg-card border border-border rounded-2xl p-4 ${collapsed ? "px-2" : ""} shadow-sm`}>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-primary rounded-xl shadow-lg">
-                    <User className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
-                  </div>
-                  <motion.div
-                    className="absolute -top-1 -right-1 w-3.5 h-3.5 md:w-4 md:h-4 bg-green-500 rounded-full border-2 border-background"
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                </div>
-                {!collapsed && (
-                  <div className="min-w-0 flex-1 transition-opacity duration-300">
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-xs md:text-sm font-semibold truncate">{user.nome}</p>
-                      {isB2BUser(user) && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Crown className="h-3 w-3 mr-1" />
-                          PRO
-                        </Badge>
-                      )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className={`bg-card border border-border rounded-2xl p-4 ${collapsed ? "px-2" : ""} shadow-sm w-full text-left hover:bg-sidebar-accent/80 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 transition-colors cursor-pointer`}
+                  aria-label="Abrir opções de conta"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="flex items-center justify-center w-9 h-9 md:w-10 md:h-10 bg-primary rounded-xl shadow-lg">
+                        <User className="h-4 w-4 md:h-5 md:w-5 text-primary-foreground" />
+                      </div>
+                      <motion.div
+                        className="absolute -top-1 -right-1 w-3.5 h-3.5 md:w-4 md:h-4 bg-green-500 rounded-full border-2 border-background"
+                        animate={{ scale: [1, 1.2, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user.ies_nome} • {user.semestre}º período
-                    </p>
+                    {!collapsed && (
+                      <div className="min-w-0 flex-1 transition-opacity duration-300">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs md:text-sm font-semibold truncate">{user.nome}</p>
+                          {false && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Crown className="h-3 w-3 mr-1" />
+                              PRO
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user.ies_nome} • {user.semestre}º período
+                        </p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
+                </motion.button>
+              </PopoverTrigger>
+              <PopoverContent
+                side={collapsed ? 'bottom' : 'right'}
+                align="end"
+                sideOffset={8}
+                className="w-64 p-2 rounded-lg shadow-xl backdrop-blur-md bg-popover animate-in fade-in-0 slide-in-from-right-2"
+              >
+                <div className="flex flex-col">
+                  <Button
+                    variant="ghost"
+                    className="justify-start"
+                    onClick={() => passwordDialog.setOpen(true)}
+                  >
+                    Trocar a senha
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start"
+                    onClick={() => {
+                      const msg = encodeURIComponent('Olá, o meu semestre na plataforma Sanarflix Academy está errado.');
+                      const url = `https://wa.me/5571993120049?text=${msg}`;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    Semestre errado
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
 
           {/* Main Navigation */}

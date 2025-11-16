@@ -15,6 +15,7 @@ import { LiberarSimuladoModal } from './LiberarSimuladoModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
+import { toBrazilDate } from '@/utils/timezone';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface Simulado {
@@ -610,7 +611,7 @@ export default function SimuladosTab() {
                       <TableCell>{getStatusBadge(simulado.status)}</TableCell>
                       <TableCell>{simulado.questoes_count || 0}</TableCell>
                       <TableCell>
-                        {format(new Date(simulado.created_at), 'dd/MM/yyyy')}
+                        {format(toBrazilDate(simulado.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

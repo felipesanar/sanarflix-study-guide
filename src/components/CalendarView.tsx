@@ -37,9 +37,19 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [tempCalendarEvents, setTempCalendarEvents] = useState<CalendarItem[]>([]);
   const [draggedItem, setDraggedItem] = useState<CalendarItem | null>(null);
+  const [isDesktop, setIsDesktop] = useState<boolean>(typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true);
   
   // Ref to scroll to calendar
   const calendarRef = React.useRef<HTMLDivElement>(null);
+
+  // Detect viewport to disable calendar on mobile
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    setIsDesktop(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   
   // Get today's date in DD/MM format (Brasília timezone)
   const today = useMemo(() => {
@@ -320,7 +330,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
   };
 
   // Renderizar modo premium em tela cheia
-  if (isPremiumEditMode) {
+  if (isPremiumEditMode && isDesktop) {
     console.log('Renderizando modo premium, eventos:', tempCalendarEvents.length);
     return (
       <div className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-background overflow-hidden">
@@ -374,7 +384,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
 
         {/* Grid expandido do calendário */}
         <div className="container mx-auto px-6 py-8 h-[calc(100vh-80px)] overflow-auto">
-          <div className="grid grid-cols-7 gap-4 h-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 h-full">
             {sortedWeeks.map(([weekName, weekDays]) => {
               return Object.entries(weekDays).map(([dayName, dayItems]) => {
                 const allItemsForDay = tempCalendarEvents.filter(item => 
@@ -485,6 +495,22 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
     );
   }
 
+  // Mobile notice: calendar is desktop-only
+  if (!isDesktop) {
+    return (
+      <div className="w-full">
+        <Card className="bg-card/70 backdrop-blur border border-border">
+          <CardContent className="p-6 text-center space-y-3">
+            <Calendar className="h-6 w-6 mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              O calendário está disponível apenas no desktop. No mobile, utilize o modo Lista.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-4 relative" data-calendar-view ref={calendarRef}>
       <div className="space-y-6 flex-1">
@@ -514,7 +540,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
           </div>
         </div>
         
-        <div className="grid grid-cols-7 gap-2 mb-4">
+        <div className="hidden md:grid md:grid-cols-7 gap-2 mb-4">
           <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Dom</div>
           <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Seg</div>
           <div className="text-center font-medium text-sm p-2 bg-primary/10 rounded-md">Ter</div>
@@ -532,13 +558,13 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
                 <h3 className="text-2xl font-bold text-foreground">{week}</h3>
               </div>
               
-              <div className="grid grid-cols-7 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {Object.entries(days).map(([day, dayItems]) => {
                   const isToday = day === today;
                   return (
                     <Card 
                       key={day} 
-                      className={`bg-white dark:bg-gray-700 border shadow-sm overflow-hidden min-h-[180px] max-h-[280px] ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
+                      className={`w-full bg-white dark:bg-gray-700 border shadow-sm overflow-hidden min-h-[220px] ${isToday ? 'ring-2 ring-primary border-primary shadow-lg' : ''} ${isEditMode ? 'transition-all duration-200 hover:bg-primary/5' : ''}`}
                       onDragOver={(e) => handleDragOver(e, day, week)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, day, week)}

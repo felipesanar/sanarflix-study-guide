@@ -30,7 +30,8 @@ import {
   Clock3,
   Edit2,
   Check,
-  Trash2
+  Trash2,
+  BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -42,7 +43,9 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 interface Aula {
   aula: string;
@@ -80,12 +83,16 @@ interface ConteudoData {
 }
 
 export const StudyGuide: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
   const [conteudos, setConteudos] = useState<ConteudoData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSemestre, setSelectedSemestre] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [lastSearchTerm, setLastSearchTerm] = useState<string>('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState<string>('');
@@ -117,6 +124,43 @@ export const StudyGuide: React.FC = () => {
   
   // Refs para os cards de matérias
   const materiaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  
+  // Carregar último termo pesquisado e compor sugestões
+  useEffect(() => {
+    const saved = localStorage.getItem('studyguide:lastSearch');
+    if (saved) setLastSearchTerm(saved);
+  }, []);
+
+  useEffect(() => {
+    const normalizeSem = (s: string) => s.replace('º Semestre', '').trim();
+    const targetSem = selectedSemestre ? normalizeSem(selectedSemestre) : '';
+    const visible = conteudos.filter(c => {
+      const matchesSem = targetSem ? normalizeSem(c.semestre) === targetSem : true;
+      const matchesMateria = selectedMateria ? c.materia === selectedMateria : true;
+      return matchesSem && matchesMateria;
+    });
+    const aulaSet = new Set<string>();
+    visible.forEach(c => { if (c.aula) aulaSet.add(c.aula); });
+    const aulas = Array.from(aulaSet).map(a => a.trim()).filter(Boolean);
+    let base = aulas;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      // priorizar begins-with, depois contains
+      const starts = base.filter(s => s.toLowerCase().startsWith(q));
+      const contains = base.filter(s => !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+      base = [...starts, ...contains];
+    }
+    const list: string[] = [];
+    if (lastSearchTerm) {
+      const match = aulas.find(a => a.toLowerCase() === lastSearchTerm.trim().toLowerCase());
+      if (match) list.push(match);
+    }
+    for (const s of base) {
+      if (s !== lastSearchTerm) list.push(s);
+      if (list.length >= 4) break;
+    }
+    setSuggestions(list);
+  }, [conteudos, lastSearchTerm, searchQuery, selectedSemestre, selectedMateria]);
   
   // Interface para eventos do calendário
   interface CalendarEvent {
@@ -794,7 +838,7 @@ export const StudyGuide: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <Edit2 className="h-5 w-5 text-primary" />
                   <div>
-                    <h1 className="text-xl font-bold">Editando Calendário</h1>
+                    <h1 className="text-lg font-bold">Editando Calendário</h1>
                   </div>
                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                     Modo Premium
@@ -834,40 +878,75 @@ export const StudyGuide: React.FC = () => {
                   <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Guia de Estudos</h1>
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Guia de Estudos</h1>
                   <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por matéria, tema ou aula..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
+                <div className="relative flex-1 sm:w-80 md:w-[28rem] lg:w-[36rem] group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-600 opacity-100 drop-shadow-sm z-20 pointer-events-none" />
+                  <div className="relative z-0 rounded-2xl p-[2px] bg-gradient-to-r from-primary/30 via-primary/15 to-accent/30 group-focus-within:from-primary/50 group-focus-within:to-accent/50 transition-all">
+                    <Input
+                      placeholder="Buscar por matéria, tema ou aula..."
+                      value={searchQuery}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => {
+                        setTimeout(() => setShowSuggestions(false), 120);
+                        const v = searchQuery.trim();
+                        if (v) {
+                          localStorage.setItem('studyguide:lastSearch', v);
+                          setLastSearchTerm(v);
+                        }
+                      }}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const v = searchQuery.trim();
+                          if (v) {
+                            localStorage.setItem('studyguide:lastSearch', v);
+                            setLastSearchTerm(v);
+                            setShowSuggestions(false);
+                          }
+                        }
+                      }}
+                      className="pl-10 h-11 sm:h-12 rounded-xl bg-white/80 dark:bg-card backdrop-blur-md border border-white/40 dark:border-border shadow-md focus:shadow-lg focus:ring-2 focus:ring-red-500 focus:border-red-300 transition-all placeholder:text-muted-foreground/80"
+                    />
+                  </div>
+                  <AnimatePresence>
+                    {showSuggestions && suggestions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute left-0 right-0 top-full mt-2 z-30"
+                      >
+                        <div className="rounded-2xl border border-red-300 ring-1 ring-red-200 bg-white dark:bg-background shadow-lg overflow-hidden">
+                          <ul className="py-2">
+                            {suggestions.slice(0,4).map((sug, idx) => (
+                              <li key={`${sug}-${idx}`}>
+                                <button
+                                  type="button"
+                                  className="w-full text-left px-4 py-2 hover:bg-red-50/70 dark:hover:bg-accent/20 transition-colors"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => { setSearchQuery(sug); setShowSuggestions(false); }}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {lastSearchTerm && sug.toLowerCase() === lastSearchTerm.trim().toLowerCase() && (
+                                      <Clock3 className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                    <span>{sug}</span>
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-
-                <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
-                  <SelectTrigger className="w-full sm:w-48">
-                    <SelectValue placeholder="Selecione o semestre" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {semestres.map((sem) => {
-                      // Display formatted name (add "º Semestre" only for numbers)
-                      const isNumeric = !isNaN(parseInt(sem));
-                      const displayName = isNumeric ? `${sem}º Semestre` : sem;
-                      
-                      return (
-                        <SelectItem key={sem} value={sem}>
-                          {displayName}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
@@ -890,21 +969,31 @@ export const StudyGuide: React.FC = () => {
               >
                 <Card className="premium-card hover-lift shadow-lg border-primary/10">
                   <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 to-transparent">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <Target className="h-4 w-4 text-primary" />
-                      O Que Estudar Hoje
-                    </CardTitle>
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        <Target className="h-4 w-4 text-primary" />
+                        O Que Estudar Hoje
+                      </CardTitle>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-1 text-xs"
+                        onClick={() => navigate('/dashboard')}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        Progresso
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {calendarEvents.filter(event => {
-                      // Pegar eventos do dia atual (0-6, onde 0 é domingo)
-                      const today = new Date().getDay();
+                      const today = getBrazilDayOfWeek();
                       return event.day === today;
                     }).length > 0 ? (
                       <div className="space-y-3">
                         {calendarEvents
                           .filter(event => {
-                            const today = new Date().getDay();
+                            const today = getBrazilDayOfWeek();
                             return event.day === today;
                           })
                           .map((event, idx) => (
@@ -912,9 +1001,7 @@ export const StudyGuide: React.FC = () => {
                               key={idx}
                               className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent hover:shadow-md transition-all cursor-pointer"
                               onClick={() => {
-                                setViewMode('list');
-                                setSelectedMateria(event.materia);
-                                setTimeout(() => scrollToMateria(event.materia), 100);
+                                openMateriaSheet(event.materia);
                               }}
                             >
                               <div 
@@ -925,14 +1012,6 @@ export const StudyGuide: React.FC = () => {
                               </div>
                               <div className="flex-1">
                                 <div className="font-medium">{event.title}</div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                  <Badge variant="outline" className="text-xs py-0 h-5">
-                                    {event.materia}
-                                  </Badge>
-                                  <span className="mx-1">•</span>
-                                  <Clock3 className="h-3 w-3" />
-                                  {event.startTime} - {event.endTime}
-                                </div>
                               </div>
                               <Button 
                                 variant="ghost" 
@@ -979,9 +1058,9 @@ export const StudyGuide: React.FC = () => {
             {/* View Mode Selector */}
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">Seu Plano de Estudos</h2>
+                <h2 className="text-lg font-bold">Seu Plano de Estudos</h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Button 
                   variant={viewMode === 'list' ? 'default' : 'outline'} 
                   size="sm" 
@@ -1002,6 +1081,27 @@ export const StudyGuide: React.FC = () => {
                 </Button>
               </div>
             </div>
+            
+
+            {/* Filtro de semestre entre o seletor de modo e os filtros de matérias */}
+            <div className="mt-3 sm:mt-4">
+              <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
+                <SelectTrigger className="w-full sm:w-56 h-10 px-3 bg-white/60 dark:bg-card backdrop-blur-md border border-white/30 dark:border-border shadow-sm transition-all focus:ring-2 focus:ring-primary/40">
+                  <SelectValue placeholder="Selecione o semestre" />
+                </SelectTrigger>
+                <SelectContent>
+                  {semestres.map((sem) => {
+                    const isNumeric = !isNaN(parseInt(sem));
+                    const displayName = isNumeric ? `${sem}º Semestre` : sem;
+                    return (
+                      <SelectItem key={sem} value={sem}>
+                        {displayName}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Matéria Selector */}
             <motion.div 
@@ -1011,11 +1111,11 @@ export const StudyGuide: React.FC = () => {
             >
               <Card className="border-primary/10 shadow-md">
                 <CardContent className="pt-6 pb-4">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2 flex-nowrap sm:flex-wrap snap-x">
                     <Button 
                       variant={selectedMateria === '' ? 'default' : 'outline'}
                       onClick={() => setSelectedMateria('')}
-                      className="gap-2"
+                      className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
                     >
                       <BookOpen className="h-4 w-4" />
                       Todas as Matérias
@@ -1025,9 +1125,9 @@ export const StudyGuide: React.FC = () => {
                         key={idx}
                         variant={selectedMateria === materia.materia ? 'default' : 'outline'}
                         onClick={() => setSelectedMateria(materia.materia)}
-                        className="gap-2"
+                        className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
                       >
-                        <span className="text-lg">{getMateriaIcon(materia.materia)}</span>
+                        <span className="text-base sm:text-lg">{getMateriaIcon(materia.materia)}</span>
                         {materia.materia}
                       </Button>
                     ))}
@@ -1050,7 +1150,7 @@ export const StudyGuide: React.FC = () => {
                     <Card className="p-12">
                       <div className="text-center space-y-3">
                         <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
-                        <h3 className="text-lg font-semibold">Nenhum conteúdo encontrado</h3>
+                    <h3 className="text-base font-semibold">Nenhum conteúdo encontrado</h3>
                         <p className="text-muted-foreground">
                           {searchQuery
                             ? 'Tente uma busca diferente ou limpe os filtros.'
@@ -1103,17 +1203,17 @@ export const StudyGuide: React.FC = () => {
                                         </Badge>
                                       </div>
                                     )}
-                                    <CardTitle className="flex items-center gap-3 pr-24">
-                                      <span className="text-2xl">{getMateriaIcon(materia.materia)}</span>
+                                    <CardTitle className="flex items-center gap-3 pr-6 sm:pr-24">
+                                      <span className="text-xl sm:text-2xl">{getMateriaIcon(materia.materia)}</span>
                                       <div className="flex-1 min-w-0">
                                         <h2 className={cn(
-                                          "text-xl font-bold",
+                                          "text-lg sm:text-xl font-bold leading-snug break-words",
                                           materiaCompleted && "text-green-700 dark:text-green-400"
                                         )}>
                                           {materia.materia}
                                           {materiaCompleted && <span className="ml-2">🏆</span>}
                                         </h2>
-                                        <p className="text-sm text-muted-foreground font-normal">
+                                        <p className="text-xs sm:text-sm text-muted-foreground font-normal">
                                           {totalAulas} aulas disponíveis
                                         </p>
                                       </div>
@@ -1167,7 +1267,7 @@ export const StudyGuide: React.FC = () => {
                                         >
                                           <div className="flex items-center gap-3 flex-1 text-left">
                                             <div className={cn(
-                                              "flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all shrink-0",
+                                              "hidden",
                                               temaCompleted 
                                                 ? "bg-green-500 border-green-500 text-white" 
                                                 : "border-muted-foreground/30"
@@ -1320,7 +1420,16 @@ export const StudyGuide: React.FC = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Card className="shadow-lg border-primary/10 hover:shadow-xl transition-all duration-300">
+                  {/* Aviso mobile: calendário apenas no desktop */}
+                  <Card className="md:hidden shadow-lg border-primary/10">
+                    <CardContent className="p-6 text-center space-y-3">
+                      <Calendar className="h-6 w-6 mx-auto text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        O calendário está disponível apenas no desktop. No mobile, utilize o modo Lista.
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="hidden md:block shadow-lg border-primary/10 hover:shadow-xl transition-all duration-300">
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -1342,7 +1451,7 @@ export const StudyGuide: React.FC = () => {
                             variant="outline" 
                             size="sm"
                             onClick={() => setIsEditMode(true)}
-                            className="gap-2"
+                            className="gap-2 hidden md:flex"
                           >
                             <Edit2 className="h-4 w-4" />
                             Editar
@@ -1422,7 +1531,7 @@ export const StudyGuide: React.FC = () => {
                                 <div className="flex items-center gap-3">
                                   <Calendar className="h-5 w-5 text-primary" />
                                   <div>
-                                    <h1 className="text-xl font-bold">Calendário de Estudos</h1>
+                                    <h1 className="text-lg font-bold">Calendário de Estudos</h1>
                                   </div>
                                   <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
                                     Modo Premium
@@ -1467,7 +1576,7 @@ export const StudyGuide: React.FC = () => {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: 0.2 }}
                             >
-                              <h4 className="text-base font-semibold mb-3 flex items-center gap-2 text-primary">
+                              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2 text-primary">
                                 <Plus className="h-5 w-5" />
                                 Arraste para adicionar ao calendário:
                               </h4>
@@ -1489,7 +1598,7 @@ export const StudyGuide: React.FC = () => {
                               </div>
                             </motion.div>
 
-                            <div className="grid grid-cols-7 gap-4 mb-4" style={{ minWidth: '1200px' }}>
+                            <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-4">
                               {Array.from({ length: 7 }).map((_, dayIdx) => (
                                 <div key={dayIdx} className="flex flex-col h-[400px] min-w-[160px]">
                                   <div className="text-center font-semibold p-3 bg-primary/10 rounded-t-lg text-sm">
@@ -1563,7 +1672,7 @@ export const StudyGuide: React.FC = () => {
           <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2">
-                <span className="text-2xl">{selectedMateriaContents && getMateriaIcon(selectedMateriaContents.materia)}</span>
+                <span className="text-xl">{selectedMateriaContents && getMateriaIcon(selectedMateriaContents.materia)}</span>
                 {selectedMateriaContents?.materia}
               </SheetTitle>
               <SheetDescription>
@@ -1704,7 +1813,7 @@ export const StudyGuide: React.FC = () => {
           <Card className="p-12">
             <div className="text-center space-y-3">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto" />
-              <h3 className="text-lg font-semibold">Selecione um Semestre</h3>
+              <h3 className="text-base font-semibold">Selecione um Semestre</h3>
               <p className="text-muted-foreground">
                 Escolha um semestre acima para começar seus estudos.
               </p>
@@ -1713,16 +1822,7 @@ export const StudyGuide: React.FC = () => {
         )}
       </div>
 
-      {/* Scroll to Top */}
-      {showScrollTop && (
-        <Button
-          size="icon"
-          className="fixed bottom-8 right-8 rounded-full shadow-lg z-50"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        >
-          <ArrowUp className="h-4 w-4" />
-        </Button>
-      )}
+      
     </div>
   );
 };

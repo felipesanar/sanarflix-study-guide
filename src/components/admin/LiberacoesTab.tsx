@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Search, Unlock, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toBrazilDate } from '@/utils/timezone';
 
 interface SimuladoFinalizado {
   id: string;
@@ -197,7 +198,7 @@ export default function LiberacoesTab() {
                         {f.simulado_nome || 'Simulado não encontrado'}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(f.finalizado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {format(toBrazilDate(f.finalizado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       </TableCell>
                       <TableCell>{formatTempo(f.tempo_total_segundos)}</TableCell>
                       <TableCell>
@@ -241,7 +242,7 @@ export default function LiberacoesTab() {
                         )}
                         {f.liberado_novamente && f.liberado_em && (
                           <p className="text-xs text-muted-foreground">
-                            Liberado em {format(new Date(f.liberado_em), 'dd/MM/yyyy', { locale: ptBR })}
+                            Liberado em {format(toBrazilDate(f.liberado_em), 'dd/MM/yyyy', { locale: ptBR })}
                           </p>
                         )}
                       </TableCell>

@@ -13,6 +13,7 @@ import { ProgressAreaCard } from '@/components/ProgressAreaCard';
 import { CalendarView } from '@/components/CalendarView';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getBrazilDate } from '@/utils/timezone';
 
 // Ícone customizado para representar mulher grávida
 const PregnantWomanIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -523,7 +524,7 @@ const allAulas: AulaItem[] = useMemo(() => {
 
   // Calcular dias restantes para o ENAMED (19/10/2025)
   const diasRestantes = useMemo(() => {
-    const today = new Date();
+    const today = getBrazilDate();
     const enamedDate = new Date('2025-10-19');
     const diffTime = enamedDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));

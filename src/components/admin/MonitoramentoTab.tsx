@@ -59,11 +59,10 @@ export const MonitoramentoTab = () => {
       
       for (const sim of simuladosData || []) {
         // Contar total de alunos que fizeram o simulado
-        const simuladoNumerico = uuidToNumericId(sim.id);
         const { data: respostas, error: respostasError } = await supabase
           .from('answer_progress')
           .select('email, correct')
-          .eq('simulado', simuladoNumerico);
+          .eq('simulado', sim.id);
 
         if (respostasError) throw respostasError;
 
@@ -99,12 +98,11 @@ export const MonitoramentoTab = () => {
 
   const carregarQuestoesComErro = async (simuladoId: string) => {
     try {
-      // Buscar todas as respostas do simulado
-      const simuladoNumerico = uuidToNumericId(simuladoId);
+      // Buscar todas as respostas do simulado (UUID)
       const { data: respostas, error: respostasError } = await supabase
         .from('answer_progress')
         .select('question_id, correct')
-        .eq('simulado', simuladoNumerico);
+        .eq('simulado', simuladoId);
 
       if (respostasError) throw respostasError;
 
