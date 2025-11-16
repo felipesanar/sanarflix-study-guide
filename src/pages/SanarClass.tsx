@@ -168,7 +168,7 @@ export default function SanarClass() {
             </h1>
             
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Todas as aulas feitas pelos professores da sua instituição em parceria com o Sanarflix
+              Todas as aulas feitas pelo professores da sua instituição em parceria com o Sanarflix
             </p>
             
             <Button 
