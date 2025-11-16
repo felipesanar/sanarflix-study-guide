@@ -35,7 +35,6 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { toBrazilDate } from '@/utils/timezone';
 
 interface SanarClassLesson {
   id: string;
@@ -381,7 +380,7 @@ export default function SanarClassTab() {
                       <TableCell>{lesson.semestre}º</TableCell>
                       <TableCell className="uppercase">{lesson.formato}</TableCell>
                       <TableCell>
-                        {format(toBrazilDate(lesson.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(new Date(lesson.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button

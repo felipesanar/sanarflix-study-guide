@@ -19,10 +19,6 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
     if (total === 0) return 0;
     return Math.round(((total - rank + 1) / total) * 100);
   };
-  const getTopShare = (rank: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round((rank / total) * 100);
-  };
 
   return (
     <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -54,11 +50,9 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
                       de {data.simuladoTotal}
                     </span>
                   </h3>
-                  {getTopShare(data.simuladoRank, data.simuladoTotal) <= 49 && (
-                    <p className="text-xs text-muted-foreground">
-                      Você está entre os {getTopShare(data.simuladoRank, data.simuladoTotal)}% melhores
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Top {getPercentile(data.simuladoRank, data.simuladoTotal)}%
+                  </p>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Sem dados</p>
@@ -94,11 +88,9 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
                       de {data.conteudoTotal}
                     </span>
                   </h3>
-                  {getTopShare(data.conteudoRank, data.conteudoTotal) <= 49 && (
-                    <p className="text-xs text-muted-foreground">
-                      Você está entre os {getTopShare(data.conteudoRank, data.conteudoTotal)}% melhores
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Top {getPercentile(data.conteudoRank, data.conteudoTotal)}%
+                  </p>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Sem dados</p>

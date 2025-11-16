@@ -89,11 +89,7 @@ export const MonitoramentoTab = () => {
 
   const carregarQuestoesComErro = async (simuladoId: string) => {
     try {
-<<<<<<< HEAD
-      // Buscar todas as respostas do simulado (UUID)
-=======
       // Buscar todas as respostas do simulado
->>>>>>> e13761d083ee0dd1e454abc29c076c0d91e86719
       const { data: respostas, error: respostasError } = await supabase
         .from('answer_progress')
         .select('question_id, correct')
