@@ -29,7 +29,7 @@ interface AnnouncementConfig {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'critica';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
