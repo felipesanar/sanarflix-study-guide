@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useDeferredValue, useTransition } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,6 +53,14 @@ export default function SanarClass() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<SanarClassLesson | null>(null);
+  const [iframeLoading, setIframeLoading] = useState<boolean>(false);
+  const [renderCount, setRenderCount] = useState<number>(12);
+  const [isPending, startTransition] = useTransition();
+  const deferredSearch = useDeferredValue(searchTerm);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const bottomInView = useInView(bottomRef, { margin: "400px" });
+  const [pageReady, setPageReady] = useState(false);
+  const [gradIntro, setGradIntro] = useState(true);
 
   // Buscar aulas com React Query (com cache)
   const { data: lessons = [], isLoading: loading } = useQuery({
@@ -94,10 +103,10 @@ export default function SanarClass() {
     let filtered = [...lessons];
 
     // Filtro de busca
-    if (searchTerm) {
+    if (deferredSearch) {
       filtered = filtered.filter(lesson =>
-        lesson.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lesson.professor.toLowerCase().includes(searchTerm.toLowerCase())
+        lesson.titulo.toLowerCase().includes(deferredSearch.toLowerCase()) ||
+        lesson.professor.toLowerCase().includes(deferredSearch.toLowerCase())
       );
     }
 
@@ -128,6 +137,7 @@ export default function SanarClass() {
 
   const handleViewLesson = (lesson: SanarClassLesson) => {
     setSelectedLesson(lesson);
+    setIframeLoading(true);
     setViewModalOpen(true);
   };
 
@@ -137,20 +147,79 @@ export default function SanarClass() {
   };
 
 
+  useEffect(() => {
+    if (bottomInView && renderCount < filteredLessons.length) {
+      setRenderCount((c) => Math.min(c + 9, filteredLessons.length));
+    }
+  }, [bottomInView, filteredLessons.length, renderCount]);
+
+  useEffect(() => {
+    if (!loading) {
+      const id = requestAnimationFrame(() => setPageReady(true));
+      return () => cancelAnimationFrame(id);
+    } else {
+      setPageReady(false);
+    }
+  }, [loading]);
+
+  const visibleLessons = useMemo(() => filteredLessons.slice(0, renderCount), [filteredLessons, renderCount]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Carregando aulas...</p>
-        </div>
+      <div className="min-h-screen">
+        <section className="relative py-16 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
+              </div>
+              <div className="mx-auto h-10 w-64 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 animate-pulse" />
+              <div className="mx-auto h-4 w-96 max-w-[80%] rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+        </section>
+        <section className="px-4 pb-16">
+          <div className="container mx-auto max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border bg-white/60 dark:bg-card backdrop-blur p-4 space-y-3">
+                <div className="h-40 rounded-md bg-muted animate-pulse" />
+                <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
+                <div className="h-4 w-1/2 rounded bg-muted animate-pulse" />
+                <div className="flex gap-2">
+                  <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
+                  <div className="h-8 flex-1 rounded bg-muted animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!pageReady) {
+    return (
+      <div className="min-h-screen">
+        <section className="relative py-16 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center space-y-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
+              </div>
+              <div className="mx-auto h-10 w-64 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 animate-pulse" />
+              <div className="mx-auto h-4 w-96 max-w-[80%] rounded bg-muted animate-pulse" />
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-white/10 to-accent/10 backdrop-blur-sm"></div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-white/10 to-accent/10"></div>
       <div className="relative z-10">
       {/* Hero Section */}
       <section className="relative py-16 px-4 overflow-hidden">
@@ -160,24 +229,61 @@ export default function SanarClass() {
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
             </div>
-            
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-              <span className="bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-transparent">
-                SanarClass
-              </span>
-            </h1>
-            
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Todas as aulas feitas pelos professores da sua instituição em parceria com o Sanarflix
-            </p>
-            
-            <Button 
-              onClick={() => setInfoModalOpen(true)}
-              className="gap-2 w-full sm:w-auto px-4 sm:px-8 py-2 sm:py-3 text-xs sm:text-base !whitespace-normal text-center leading-tight break-words"
+              <motion.h1
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight"
+              >
+                {gradIntro ? (
+                  <motion.span
+                    initial={{ backgroundPositionX: "0%" }}
+                    animate={{ backgroundPositionX: "100%" }}
+                    transition={{ duration: 1.8, ease: [0.45, 0, 0.55, 1] }}
+                    className="bg-[linear-gradient(90deg,theme(colors.primary.DEFAULT),theme(colors.primary.400),theme(colors.accent.DEFAULT))] bg-clip-text text-transparent [background-size:200%]"
+                    style={{ willChange: 'background-position', display: 'inline-block' }}
+                    onAnimationComplete={() => setGradIntro(false)}
+                  >
+                    SanarClass
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    initial={false}
+                    animate={{ backgroundPositionX: "100%" }}
+                    transition={{ duration: 6, repeat: Infinity, repeatType: "mirror", ease: [0.45, 0, 0.55, 1], repeatDelay: 0.6 }}
+                    className="bg-[linear-gradient(90deg,theme(colors.primary.DEFAULT),theme(colors.primary.400),theme(colors.accent.DEFAULT))] bg-clip-text text-transparent [background-size:200%]"
+                    style={{ willChange: 'background-position', display: 'inline-block' }}
+                  >
+                    SanarClass
+                  </motion.span>
+                )}
+              </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto"
             >
-              <GraduationCap className="h-5 w-5 max-[360px]:hidden" />
-              <span className="block">Peça uma nova aula com seu professor</span>
-            </Button>
+              Todas as aulas feitas pelos professores da sua instituição em parceria com o Sanarflix
+            </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.985 }}
+              style={{ willChange: 'transform', transformOrigin: 'center' }}
+              className="transform-gpu"
+            >
+              <Button 
+                onClick={() => setInfoModalOpen(true)}
+                className="gap-2 w-full sm:w-auto px-4 sm:px-8 py-2 sm:py-3 text-xs sm:text-base !whitespace-normal text-center leading-tight break-words hover:shadow-lg hover:shadow-primary/20"
+              >
+                <GraduationCap className="h-5 w-5 max-[360px]:hidden" />
+                <span className="block">Peça uma nova aula com seu professor</span>
+              </Button>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -185,6 +291,7 @@ export default function SanarClass() {
       {/* Filtros */}
       <section className="px-4 pb-8">
         <div className="container mx-auto max-w-6xl">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
           <Card className="bg-white/70 dark:bg-card backdrop-blur-md border-white/40 dark:border-border shadow-lg">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -198,7 +305,7 @@ export default function SanarClass() {
                 <Input
                   placeholder="Buscar por nome da aula ou professor..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => startTransition(() => setSearchTerm(e.target.value))}
                   className="pl-10"
                 />
                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -253,6 +360,7 @@ export default function SanarClass() {
               </Button>
             </CardContent>
           </Card>
+          </motion.div>
         </div>
       </section>
 
@@ -276,13 +384,14 @@ export default function SanarClass() {
           ) : (
             <>
               <div className="sm:hidden -mx-4 px-4 overflow-x-auto snap-x flex gap-3 pb-2">
-                {filteredLessons.map((lesson) => (
-                  <div key={lesson.id} className="snap-start w-[85vw] flex-shrink-0">
+                {visibleLessons.map((lesson) => (
+                  <motion.div key={lesson.id} className="snap-start w-[85vw] flex-shrink-0" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
                     <Card 
-                      className="group bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full"
+                      className="group transform-gpu bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full"
                     >
-                      <div className="relative h-44 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border">
+                      <div className="relative h-44 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border transform-gpu" style={{ contain: 'layout paint size', willChange: 'transform' }}>
                         <iframe
+                          loading="lazy"
                           src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
                           className="w-full h-full pointer-events-none scale-100 origin-top"
                           title={`Preview de ${lesson.titulo}`}
@@ -341,18 +450,24 @@ export default function SanarClass() {
                         </Button>
                       </CardContent>
                     </Card>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
-              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {filteredLessons.map((lesson) => (
-                  <Card 
-                    key={lesson.id} 
-                    className="group bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+              <motion.div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" viewport={{ once: true, amount: 0.2 }}>
+                {visibleLessons.map((lesson, idx) => (
+                  <motion.div
+                    key={lesson.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <div className="relative h-56 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border">
+                  <Card 
+                    className="group transform-gpu bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="relative h-56 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border transform-gpu" style={{ contain: 'layout paint size', willChange: 'transform' }}>
                       <iframe
+                        loading="lazy"
                         src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
                         className="w-full h-full pointer-events-none md:scale-150 md:origin-top md:-mt-[20%]"
                         title={`Preview de ${lesson.titulo}`}
@@ -411,8 +526,10 @@ export default function SanarClass() {
                       </Button>
                     </CardContent>
                   </Card>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
+              <div ref={bottomRef} />
             </>
           )}
         </div>
@@ -421,6 +538,7 @@ export default function SanarClass() {
       {/* Seção de Incentivo */}
       <section className="px-4 pb-16">
         <div className="container mx-auto max-w-4xl">
+          <motion.div initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
           <Card className="bg-white/70 dark:bg-card backdrop-blur-md border border-primary/20 shadow-lg">
             <CardHeader className="text-center space-y-4 pb-6">
               <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
@@ -441,11 +559,12 @@ export default function SanarClass() {
               </Button>
             </CardContent>
           </Card>
+          </motion.div>
         </div>
       </section>
 
       {/* Modal de Visualização */}
-      <Dialog open={viewModalOpen} onOpenChange={setViewModalOpen}>
+      <Dialog open={viewModalOpen} onOpenChange={(o) => { setViewModalOpen(o); if (!o) setIframeLoading(false); }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {selectedLesson && (
             <>
@@ -466,11 +585,17 @@ export default function SanarClass() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden border-2">
+              <div className="aspect-video bg-muted rounded-lg overflow-hidden border-2 relative">
+                {iframeLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur z-10">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+                  </div>
+                )}
                 <iframe
                   src={selectedLesson.arquivo_url}
                   className="w-full h-full"
                   title={selectedLesson.titulo}
+                  onLoad={() => setIframeLoading(false)}
                 />
               </div>
 

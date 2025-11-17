@@ -10,6 +10,34 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
   }
 
   try {
+    const isProd = (import.meta as any)?.env?.PROD === true;
+    if (!isProd) {
+      return null;
+    }
+    const isTopLevel = window.top === window.self;
+    const isSecure = window.isSecureContext || location.hostname === 'localhost';
+    if (!isTopLevel || !isSecure) {
+      return null;
+    }
+
+    if (document.readyState !== 'complete') {
+      await new Promise<void>((resolve) => window.addEventListener('load', () => resolve(), { once: true }));
+    }
+
+    if (document.visibilityState === 'prerender') {
+      return null;
+    }
+
+    if (['blob:', 'data:', 'file:'].includes(location.protocol)) {
+      return null;
+    }
+
+    let existing: ServiceWorkerRegistration | null = null;
+    try {
+      existing = await navigator.serviceWorker.getRegistration();
+    } catch {}
+    if (existing) return existing;
+
     // Registra o Service Worker
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',

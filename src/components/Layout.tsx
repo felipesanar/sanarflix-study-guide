@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <SidebarInset className="flex-1 flex flex-col min-h-screen w-full transition-all duration-300">
         {/* Header with trigger, profile and theme toggle */}
         {!isModoProva && (
-        <header className="sticky top-0 z-50 h-14 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border shadow-sm flex items-center px-4 w-full">
+        <header className="sticky top-0 z-50 h-14 bg-white/10 dark:bg-transparent backdrop-blur-xl dark:backdrop-blur-none border border-white/20 dark:border-none shadow-lg dark:shadow-none flex items-center px-4 w-full">
             {/* Desktop - Menu Trigger */}
             {!isModoProva && (
               <div className="hidden md:flex items-center gap-2">

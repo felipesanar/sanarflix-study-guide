@@ -142,7 +142,6 @@ export const AnnouncementsCard: React.FC = () => {
       });
       setAnnouncements(sorted);
       
-      // Verifica se há aviso com prioridade "Muito Alta" para mostrar popup
       const highPriorityAnnouncement = data.find(a => a.prioridade === 'Muito Alta');
       if (highPriorityAnnouncement) {
         checkAndShowPopup(highPriorityAnnouncement);
@@ -221,7 +220,6 @@ export const AnnouncementsCard: React.FC = () => {
         whileHover={{ y: -2 }}
       >
         <Card className={`relative h-full border-0 bg-gradient-to-br ${palette.gradient} shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}>
-          {/* brilho ambiente */}
           <div className="pointer-events-none absolute -bottom-20 -right-20 w-72 h-72 bg-white/10 dark:bg-black/20 blur-3xl rounded-full" />
           {isNew && (
             <div className="absolute top-4 right-4 z-10">
@@ -251,17 +249,27 @@ export const AnnouncementsCard: React.FC = () => {
               {mainAnnouncement.descricao}
             </p>
 
-            <Button 
-              className={`relative w-full group/btn text-white bg-black/30 hover:bg-black/40 dark:bg-black/40 dark:hover:bg-black/50 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}
-              onClick={() => handleAnnouncementClick(mainAnnouncement)}
-              variant="outline"
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.985 }}
+              style={{ willChange: 'transform', transformOrigin: 'center' }}
+              className="transform-gpu"
             >
-              <span className="pointer-events-none absolute inset-0 opacity-0 group-hover/btn:opacity-100 transition-opacity">
-                <span className="absolute -left-10 top-0 h-full w-16 rotate-12 bg-white/15 dark:bg-white/10 blur-sm" />
-              </span>
-              <span className="flex-1">{mainAnnouncement.texto_botao}</span>
-              <ChevronRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
-            </Button>
+              <Button 
+                className={`relative w-full group/btn text-white bg-black/30 hover:bg-black/40 dark:bg-black/40 dark:hover:bg-black/50 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}
+                onClick={() => handleAnnouncementClick(mainAnnouncement)}
+                variant="outline"
+              >
+                <span className="pointer-events-none absolute inset-0 opacity-0 group-hover/btn:opacity-100 transition-opacity">
+                  <span className="absolute -left-10 top-0 h-full w-16 rotate-12 bg-white/15 dark:bg-white/10 blur-sm" />
+                </span>
+                <span className="flex-1">{mainAnnouncement.texto_botao}</span>
+                <ChevronRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
+              </Button>
+            </motion.div>
           </CardContent>
         </Card>
       </motion.div>

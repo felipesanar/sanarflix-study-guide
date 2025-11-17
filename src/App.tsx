@@ -315,6 +315,35 @@ const App = () => {
   // Monitorar Web Vitals
   useWebVitals();
 
+  React.useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.has('reset-cache')) {
+      (async () => {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+          if ((indexedDB as any)?.databases) {
+            const dbs = await (indexedDB as any).databases();
+            await Promise.all((dbs || []).map((db: any) => db?.name && indexedDB.deleteDatabase(db.name)));
+          }
+          if ('caches' in window) {
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+          }
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+        } finally {
+          const url = new URL(window.location.href);
+          sp.delete('reset-cache');
+          url.search = sp.toString();
+          window.location.replace(url.toString());
+        }
+      })();
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

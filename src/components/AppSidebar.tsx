@@ -212,13 +212,13 @@ export function AppSidebar() {
     <div>
       <Sidebar
         data-testid="app-sidebar"
-        className={`hidden md:flex bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${
+        className={`hidden md:flex bg-white/10 dark:bg-transparent backdrop-blur-xl dark:backdrop-blur-none text-sidebar-foreground border border-white/20 dark:border-none shadow-lg dark:shadow-none transition-all duration-300 ${
           collapsed ? "w-0 min-w-0 !-translate-x-full opacity-0 invisible pointer-events-none" : ""
         }`}
         collapsible="icon"
       >
         {/* Premium Header with Brand Identity */}
-        <SidebarHeader className={`p-4 md:p-5 lg:p-6 ${collapsed ? "px-3" : ""} border-b border-border`}>
+        <SidebarHeader className={`p-4 md:p-5 lg:p-6 ${collapsed ? "px-3" : ""} border-none`}>
           <div className="flex items-center gap-4">
             <div className="relative">
               <img
@@ -422,7 +422,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer */}
-        <SidebarFooter className="p-4 border-t border-border">
+        <SidebarFooter className="p-4 border-none">
           {!collapsed && (
             <div className="transition-opacity duration-300">
               <Button variant="destructive" onClick={logout} className="w-full" size={collapsed ? "icon" : "default"}>
