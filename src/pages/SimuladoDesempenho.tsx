@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 
 // --- Interfaces ---
-interface Simulado { id: number; nome: string; }
+interface Simulado { id: string; nome: string; }
 interface PerformanceData { name: string; total: number; acertos: number; percentual: number; }
 interface SpecialtyPerformanceData extends PerformanceData { area_name?: string; area_id?: number; }
 interface SubspecialtyPerformanceData extends PerformanceData { specialty_name?: string; specialty_id?: number; area_name?: string; }
@@ -142,7 +142,7 @@ const DecompositionTree: React.FC<{
   specialties: SpecialtyPerformanceData[]; 
   subspecialties: SubspecialtyPerformanceData[]; 
   onSubspecialtyClick: (subspecialtyName: string, areaName: string | null, specialtyName: string | null) => void; 
-  selectedSimulado: number | null; 
+  selectedSimulado: string | null; 
 }> = ({ overallStats, areas, specialties, subspecialties, onSubspecialtyClick, selectedSimulado }) => {
   const [selectedArea, setSelectedArea] = useState<string | null>(null);
   const [selectedSpecialty, setSelectedSpecialty] = useState<string | null>(null);
@@ -192,11 +192,11 @@ export const SimuladoDesempenho: React.FC = () => {
   const [selectedQuestions, setSelectedQuestions] = useState<ReviewedQuestion[]>([]);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const [simulados, setSimulados] = useState<Simulado[]>([]);
-  const [selectedSimulado, setSelectedSimulado] = useState<number | null>(null);
+  const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
   const [allPerformanceData, setAllPerformanceData] = useState<any[]>([]);
   const CACHE_KEY_PREFIX = `performanceData_${user?.id}`;
 
-  const fetchDataForView = async (simuladoId: number | null, forceRefresh = false) => {
+  const fetchDataForView = async (simuladoId: string | null, forceRefresh = false) => {
     if (!user) return;
     setLoading(true);
     const PERFORMANCE_CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId || 'all'}`;
@@ -207,10 +207,10 @@ export const SimuladoDesempenho: React.FC = () => {
         return;
     }
     try {
-        const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([ supabase.rpc('get_user_simulados'), supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single(), supabase.from('users').select('semestre').eq('email', user.email).single() ]);
+        const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([ supabase.rpc('get_user_simulados'), simuladoId ? supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_performance_aggregates').single(), simuladoId ? supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_rankings').single(), supabase.from('users').select('semestre').eq('email', user.email).single() ]);
         if (simuladosResult.error) throw simuladosResult.error; if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (userDataResult.error) throw userDataResult.error;
         const simuladosData = simuladosResult.data || [];
-        setSimulados(simuladosData);
+        setSimulados(simuladosData.map((s: any) => ({ ...s, id: s.id })));
         if (performanceResult.data) {
             const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any;
             const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
@@ -243,7 +243,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId}`;
         if (sessionStorage.getItem(CACHE_KEY)) continue;
         try {
-            const [pResult, rResult] = await Promise.all([supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single(), supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single()]);
+            const [pResult, rResult] = await Promise.all([simuladoId ? supabase.rpc('get_user_performance_aggregates', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_performance_aggregates').single(), simuladoId ? supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_rankings').single()]);
             if (pResult.data) {
                 const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = pResult.data as any;
                 const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
@@ -261,7 +261,7 @@ export const SimuladoDesempenho: React.FC = () => {
 
   const handleRefresh = () => { sessionStorage.clear(); fetchDataForView(selectedSimulado, true); };
   const handleSimuladoChange = (simuladoIdStr: string) => { 
-    const simuladoId = simuladoIdStr === 'all' ? null : Number(simuladoIdStr);
+    const simuladoId = simuladoIdStr === 'all' ? null : simuladoIdStr;
     setSelectedSimulado(simuladoId); 
   };
   

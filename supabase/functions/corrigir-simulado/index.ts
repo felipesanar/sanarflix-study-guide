@@ -54,12 +54,7 @@ Deno.serve(async (req) => {
       throw new Error('Simulado não encontrado');
     }
 
-    // Converter UUID para hash numérico estável dentro do range de integer
-    const simuladoNumerico = Math.abs(simulado_id.split('-').reduce((acc: number, part: string) => {
-      return acc + parseInt(part, 16);
-    }, 0)) % 2147483647;
-
-    console.log(`ID numérico do simulado: ${simuladoNumerico}`);
+    console.log(`Processando simulado UUID: ${simulado_id}`);
 
     // Buscar os gabaritos das questões respondidas
     const questaoIds = respostas
@@ -84,7 +79,7 @@ Deno.serve(async (req) => {
       .filter(r => r.resposta !== null)
       .map(r => ({
         email: user_id,
-        simulado: simuladoNumerico,
+        simulado: simulado_id,
         question_id: r.questao_id,
         resposta_usuario: r.resposta,
         answer_id: crypto.randomUUID(),

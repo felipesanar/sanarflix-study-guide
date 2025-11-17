@@ -114,12 +114,10 @@ export const AnnouncementEditor: React.FC<Props> = ({
       return 'Media';
     };
     // Converter data de expiração para UTC antes de salvar
-    const configToSave = {
+    const configToSave: AnnouncementConfig = {
       ...config,
-      prioridade: mapPriorityForDB(config.prioridade),
-      data_expiracao: config.data_expiracao 
-        ? convertLocalToUTC(config.data_expiracao)
-        : null
+      prioridade: config.prioridade as 'baixa' | 'media' | 'alta' | 'critica',
+      data_expiracao: config.data_expiracao ? datetimeLocalToBrazilISO(config.data_expiracao) : null
     };
     onSave(configToSave);
   };

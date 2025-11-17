@@ -224,7 +224,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 function NotificationsCenter() {
   const { user } = useAuth();
-  const [items, setItems] = React.useState<Array<{ id: string; titulo: string; prioridade: string; created_at?: string; link_botao?: string | null }>>([]);
+  const [items, setItems] = React.useState<Array<{ id: string; titulo: string; descricao: string; prioridade: string; created_at?: string; link_botao?: string | null }>>([]);
   const isExpired = (exp?: string) => (exp ? toBrazilDate(exp) < getBrazilDate() : false);
   React.useEffect(() => {
     let mounted = true;
