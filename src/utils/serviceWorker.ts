@@ -24,7 +24,7 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
       await new Promise<void>((resolve) => window.addEventListener('load', () => resolve(), { once: true }));
     }
 
-    if (document.visibilityState === 'prerender') {
+    if (document.visibilityState === 'hidden') {
       return null;
     }
 
