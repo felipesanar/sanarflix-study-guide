@@ -178,8 +178,7 @@ export const useHomeData = () => {
       // 🌍 Usar fuso de Brasília (GMT-3) para consistência com sistema de lembretes
       const today = getBrazilDayOfWeek(); // 0 (Dom) - 6 (Sáb)
       
-      console.log('🔍 [Meu Dia] Dia da semana (GMT-3):', today);
-      console.log('🔍 [Meu Dia] User ID:', user.id);
+      
       
       // Buscar TODAS as matérias agendadas para hoje
       const { data: todaySubjects, error: subjectsError } = await supabase
@@ -189,19 +188,18 @@ export const useHomeData = () => {
         .eq('day_of_week', today)
         .order('start_time', { ascending: true });
 
-      console.log('🔍 [Meu Dia] Calendar subjects encontrados:', todaySubjects?.length || 0, todaySubjects);
+      
       if (subjectsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
 
       let subjectsToProcess: string[] = [];
 
       if (todaySubjects && todaySubjects.length > 0) {
         subjectsToProcess = todaySubjects.map((s: any) => s.name);
-        console.log('✅ [Meu Dia] Usando calendar_subjects:', subjectsToProcess);
       } else {
         // Fallback: usar calendar_arrangements
         const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const todayName = dayNames[today];
-        console.log('🔄 [Meu Dia] Tentando fallback para calendar_arrangements, dia:', todayName);
+        
         
         const { data: arrangements, error: arrangementsError } = await supabase
           .from('calendar_arrangements')
@@ -210,39 +208,28 @@ export const useHomeData = () => {
           .eq('day', todayName)
           .order('position', { ascending: true });
         
-        console.log('🔍 [Meu Dia] Calendar arrangements encontrados:', arrangements?.length || 0, arrangements);
+        
         if (arrangementsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_arrangements:', arrangementsError);
         
         if (arrangements && arrangements.length > 0) {
           subjectsToProcess = arrangements.map((a: any) => a.item_key);
-          console.log('✅ [Meu Dia] Usando calendar_arrangements:', subjectsToProcess);
         }
       }
 
-      console.log('📋 [Meu Dia] Total de matérias do calendário:', subjectsToProcess.length);
+      
 
       // Se não encontrou no calendário pessoal, buscar no Cronograma ENAMED
       if (subjectsToProcess.length === 0) {
-        console.log('🔄 [Meu Dia] Buscando no Cronograma ENAMED');
+        
         try {
           const allCronogramaItems = await cronogramaEnamedApi.getAllContent();
-          console.log('🔍 [Meu Dia] Total de itens do Cronograma:', allCronogramaItems.length);
           
-          if (allCronogramaItems.length > 0) {
-            // Mostrar exemplos de data_aula para debug
-            console.log('📅 [Meu Dia] Exemplos de data_aula:', 
-              allCronogramaItems.slice(0, 5).map(i => ({ 
-                id: i.id, 
-                data_aula: i.data_aula,
-                semana: i.semana,
-                subtema: i.subtema 
-              }))
-            );
-          }
+          
+          
           
           const brazilDate = getBrazilDate();
           const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          console.log('🔍 [Meu Dia] Procurando por data:', todayStr);
+          
           
           // Filtrar por data_aula que contenha a data de hoje
           // OU por semana atual (como fallback)
@@ -262,14 +249,14 @@ export const useHomeData = () => {
             return false;
           });
           
-          console.log('🔍 [Meu Dia] Cronograma ENAMED filtrado:', todayCronogramaItems.length);
+          
           
           // Se ainda não tiver nada, pegar os primeiros 3 itens como fallback
           const itemsToShow = todayCronogramaItems.length > 0 
             ? todayCronogramaItems.slice(0, 3)
             : allCronogramaItems.slice(0, 3);
           
-          console.log('📋 [Meu Dia] Itens a exibir do Cronograma:', itemsToShow.length);
+          
           
           // Buscar aulas específicas do Guia de Estudos para cada matéria do Cronograma
           const cronogramaPromises = itemsToShow.map(async (cronItem) => {
@@ -410,7 +397,6 @@ export const useHomeData = () => {
         });
 
         const subjectItems = (await Promise.all(subjectPromises)).filter((item) => item !== null) as MeuDiaItem[];
-        console.log('✅ [Meu Dia] Matérias processadas:', subjectItems.length);
         // Limitar a 2 matérias do calendário
         items.push(...subjectItems.slice(0, 2));
       }
@@ -418,7 +404,7 @@ export const useHomeData = () => {
       console.error('❌ [Meu Dia] Erro ao montar matérias:', e);
     }
 
-    console.log('📊 [Meu Dia] Total de items antes dos fallbacks:', items.length);
+    
 
     // Adicionar "Simulado Disponível" somente se houver simulado ativo não respondido pelo usuário
     try {

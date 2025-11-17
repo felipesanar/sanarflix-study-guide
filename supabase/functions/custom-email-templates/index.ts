@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
       throw error
     }
 
-    console.log(`Email sent successfully to ${user.email} for action: ${email_action_type}`)
+    
 
   } catch (error) {
     console.error('Email function error:', error)

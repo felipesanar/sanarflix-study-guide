@@ -12,7 +12,7 @@ export const runStartupDiagnostics = (): boolean => {
     timestamp: new Date().toISOString(),
   };
 
-  console.log('🔍 Startup Diagnostics:', diagnostics);
+  
 
   if (!diagnostics.reactLoaded || !diagnostics.reactDomLoaded) {
     console.error('❌ CRITICAL: React not loaded properly');

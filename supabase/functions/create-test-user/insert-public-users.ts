@@ -22,7 +22,7 @@ async function inserirOuAtualizarPerfisDoCSV() {
       columns: ["id", "nome", "cpf", "email", "id_ies", "semestre"],
     });
 
-    console.log(`🚀 Encontrados ${perfis.length} perfis no CSV. Inserindo ou atualizando em public.users...`);
+    
 
     const perfisParaUpsert = perfis.map(p => ({
       ...p,
@@ -41,8 +41,7 @@ async function inserirOuAtualizarPerfisDoCSV() {
       throw error;
     }
 
-    console.log(`✅ ${data?.length || 0} perfis inseridos ou atualizados com sucesso em public.users!`);
-    console.log("\n🎉 Processo concluído!");
+    
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';

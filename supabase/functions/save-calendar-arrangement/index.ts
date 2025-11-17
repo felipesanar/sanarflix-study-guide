@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
     }
 
     const userId = userData.user.id;
-    console.log('Authenticated user:', userId);
 
     const { arrangements } = await req.json() as { arrangements: CalendarArrangement[] };
 
@@ -59,7 +58,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Saving ${arrangements.length} calendar arrangements for user ${userId}`);
+    
 
     // Delete existing arrangements for this user
     const { error: deleteError } = await supabaseAdmin
@@ -98,7 +97,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Calendar arrangements saved successfully');
+    
 
     return new Response(
       JSON.stringify({ 

@@ -20,7 +20,7 @@ if (!supabaseUrl || !serviceKey) {
 }
 const supabase = createClient(supabaseUrl, serviceKey);
 
-console.log("🚀 Iniciando migração de usuários (versão com vínculo explícito)...");
+ 
 
 try {
   // 1. Buscar todos os usuários da sua tabela PÚBLICA original
@@ -33,11 +33,9 @@ try {
   }
 
   if (!publicUsers || publicUsers.length === 0) {
-    console.log("Nenhum usuário encontrado em public.users para migrar.");
     Deno.exit(0);
   }
 
-  console.log(`Encontrados ${publicUsers.length} usuários para processar.`);
   const passwordsForAdmins = [];
   let successCount = 0;
   let skippedCount = 0;
@@ -45,8 +43,6 @@ try {
 
   // ######### INÍCIO DA MODIFICAÇÃO PRINCIPAL #########
   for (const user of publicUsers){
-    console.log(`---------------------------------`);
-    console.log(`Processando: ${user.email}`);
 
     try {
       // ETAPA 1: CRIAR O USUÁRIO NO SISTEMA DE AUTENTICAÇÃO
@@ -64,7 +60,6 @@ try {
       // Se o erro for "User already registered", pulamos a criação e o vínculo.
       if (createError) {
         if (createError.message.includes("User already registered")) {
-          console.log(`-> Usuário ${user.email} já existe no auth. Pulando.`);
           skippedCount++;
           continue; // Pula para o próximo usuário do loop
         }
@@ -76,7 +71,7 @@ try {
         throw new Error('Failed to create user in auth');
       }
       
-      console.log(`✅ Usuário criado no auth com ID: ${newAuthUser.id}`);
+      
 
       // ETAPA 2: VINCULAR O PERFIL EXISTENTE NA TABELA 'public.users'
       // Esta é a etapa crucial que resolve o problema do trigger.
@@ -90,7 +85,7 @@ try {
         throw new Error(`Falha ao VINCULAR o perfil para ${user.email}: ${updateError.message}`);
       }
 
-      console.log(`🔗 Perfil de ${user.email} vinculado com sucesso.`);
+      
 
       // Adiciona a senha à lista para o arquivo CSV
       passwordsForAdmins.push({
@@ -117,16 +112,12 @@ try {
     const csvHeader = "email,temporary_password\n";
     const csvBody = passwordsForAdmins.map((p)=>`${p.email},${p.temporary_password}`).join("\n");
     await Deno.writeTextFile("./senhas_temporarias.csv", csvHeader + csvBody);
-    console.log("\n✅ Arquivo 'senhas_temporarias.csv' gerado com sucesso!");
-    console.log("🔒 ATENÇÃO: Trate este arquivo com o máximo de segurança e apague-o após a comunicação com os usuários.");
+    
   }
 
-  console.log(`\n🎉 Migração concluída!`);
-  console.log(`- ${successCount} novos usuários migrados e vinculados com sucesso.`);
-  console.log(`- ${skippedCount} usuários já existiam e foram pulados.`);
+  
   if (errorDetails.length > 0) {
-    console.log(`- ${errorDetails.length} usuários falharam por outros motivos.`);
-    console.log("Detalhes dos erros:", errorDetails);
+    
   }
 
 } catch (e) {

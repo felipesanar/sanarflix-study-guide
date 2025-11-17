@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Fetching cronograma data from external API...');
+    
     
     // Fetch data from the external API
     const response = await fetch(EXTERNAL_API_URL, {
@@ -34,9 +34,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('API Response structure:', JSON.stringify(data, null, 2));
-    console.log(`Successfully fetched ${Array.isArray(data) ? data.length : 'unknown'} items from external API`);
-
+    
     // Return the data with CORS headers
     return new Response(JSON.stringify(data), {
       headers: {

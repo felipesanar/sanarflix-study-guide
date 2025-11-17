@@ -104,7 +104,6 @@ Deno.serve(async (req) => {
 
     if (getUserError || !userData?.user) {
       // SECURITY: Log detailed error server-side only
-      console.log('[Internal] Password update - getUser error:', getUserError)
       return new Response(
         JSON.stringify({ error: 'Não autenticado' }),
         {
@@ -120,7 +119,6 @@ Deno.serve(async (req) => {
 
     if (updateError) {
       // SECURITY: Log detailed error server-side only
-      console.log('[Internal] Password update error:', updateError)
       return new Response(
         JSON.stringify({ error: 'Erro ao atualizar senha' }),
         {

@@ -26,7 +26,7 @@ fs.createReadStream('usuarios.csv')
     usuarios.push(row);
   })
   .on('end', async () => {
-    console.log(`📥 ${usuarios.length} usuários lidos do CSV`);
+    
 
     for (const user of usuarios) {
       try {
@@ -47,7 +47,7 @@ fs.createReadStream('usuarios.csv')
           continue;
         }
 
-        console.log(`✅ Usuário criado: ${user.email}`);
+        
 
         // Note: users_public view was removed for security reasons
         // User data is now properly protected in the main users table with RLS policies
@@ -57,5 +57,5 @@ fs.createReadStream('usuarios.csv')
       }
     }
 
-    console.log('🏁 Importação finalizada.');
+    
   });

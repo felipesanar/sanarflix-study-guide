@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       </html>
     `;
 
-    console.log('Sending reminder email to:', userEmail);
+    
 
     const { data, error } = await resend.emails.send({
       from: 'Guia de Estudos <onboarding@resend.dev>',
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Email sent successfully:', data);
+    
 
     return new Response(
       JSON.stringify({ success: true, data }),

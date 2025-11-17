@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Starting reminder check at:', new Date().toISOString());
+    
 
     // Obter horário atual no fuso de Brasília
     const now = new Date();
@@ -29,10 +29,10 @@ Deno.serve(async (req) => {
     const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const today = dayNames[dayOfWeek];
     
-    console.log(`Current time (UTC): ${now.toISOString()}`);
-    console.log(`Current time (Brasília): ${brasiliaTime.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
-    console.log(`Current time string: ${currentTimeString}`);
-    console.log(`Today is: ${today}`);
+    
+    
+    
+    
 
     // Buscar lembretes habilitados configurados para o horário exato (hora:minuto)
     const { data: reminders, error: remindersError } = await supabase
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Found ${reminders?.length || 0} reminders scheduled for ${currentTimeString}`);
+    
 
 
     if (!reminders || reminders.length === 0) {
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     // Para cada usuário com lembrete ativo
     for (const reminder of reminders) {
       try {
-        console.log(`Processing reminder for user ${reminder.user_id}, configured time: ${reminder.reminder_time}`);
+        
         
         // Buscar informações do usuário
         const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
@@ -106,12 +106,11 @@ Deno.serve(async (req) => {
           }));
 
         if (todaySubjects.length === 0) {
-          console.log(`No subjects scheduled today for user ${userEmail}`);
           skippedCount++;
           continue;
         }
 
-        console.log(`Sending reminders to ${userEmail} for ${todaySubjects.length} subjects`);
+        
 
         // Enviar email se configurado
         if (reminder.notify_email) {
@@ -127,15 +126,12 @@ Deno.serve(async (req) => {
             console.error(`Error sending email reminder to ${userEmail}:`, emailError);
             errorCount++;
           } else {
-            console.log(`Email reminder sent successfully to ${userEmail}`);
           }
         }
 
         // Enviar notificação push se configurado
         if (reminder.notify_push) {
           // TODO: Implementar envio de notificação push
-          // Por enquanto, apenas logamos que a notificação deveria ser enviada
-          console.log(`Push notification should be sent to ${userEmail} (not implemented yet)`);
         }
 
         sentCount++;
@@ -146,7 +142,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Reminder check completed. Sent: ${sentCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
+    
 
     return new Response(
       JSON.stringify({ 

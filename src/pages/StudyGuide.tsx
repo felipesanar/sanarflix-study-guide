@@ -379,7 +379,6 @@ export const StudyGuide: React.FC = () => {
             }
           }
           setIsLoading(false);
-          console.log('Loaded from cache in', (performance.now() - startTime).toFixed(2), 'ms');
           return;
         }
 
@@ -402,7 +401,6 @@ export const StudyGuide: React.FC = () => {
         setConteudos(transformedData);
         hasLoadedData.current = true;
         const loadTime = performance.now() - startTime;
-        console.log('Study contents loaded in', loadTime.toFixed(2), 'ms');
         if (user.semestre && transformedData.length > 0) {
           const userSemestre = user.semestre.toString();
           const hasUserSemestre = transformedData.some(c => 

@@ -23,7 +23,7 @@ class Logger {
    */
   static info(message: string, data?: any) {
     if (this.isDevelopment) {
-      console.log(`[INFO] ${message}`, data);
+      
     }
     this.sendToMonitoring('info', message, data);
   }
@@ -159,7 +159,7 @@ class Logger {
     const message = `Performance: ${operation} took ${duration}ms`;
     
     if (this.isDevelopment) {
-      console.log(`[PERF] ${message}`, metadata);
+      
     }
 
     this.sendToMonitoring('info', message, {
@@ -176,7 +176,7 @@ class Logger {
     const message = `User Action: ${action}`;
     
     if (this.isDevelopment) {
-      console.log(`[USER] ${message}`, metadata);
+      
     }
 
     this.sendToMonitoring('info', message, {

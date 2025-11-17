@@ -35,10 +35,8 @@ const CACHE_STRATEGIES = {
 
 // Instalação - cacheia assets críticos
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing Service Worker...');
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
-      console.log('[SW] Precaching critical assets');
       return cache.addAll(CRITICAL_ASSETS);
     }).then(() => {
       return self.skipWaiting();
@@ -48,14 +46,12 @@ self.addEventListener('install', (event) => {
 
 // Ativação - limpa caches antigos
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating Service Worker...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('sanarflix-') && name !== STATIC_CACHE && name !== DYNAMIC_CACHE && name !== API_CACHE)
           .map((name) => {
-            console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -212,7 +208,6 @@ self.addEventListener('fetch', (event) => {
 
 // Notificações Push
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
   
   let data = {
     title: 'Sanarflix - Lembrete de Estudo',
@@ -246,7 +241,6 @@ self.addEventListener('push', (event) => {
 
 // Click em notificação
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
   
   event.notification.close();
   

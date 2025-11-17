@@ -98,7 +98,7 @@ const getIntensityColor = (intensity: number) => {
 
 export const DemographicsTab: React.FC<DemographicsTabProps> = ({ filters }) => {
   const handleSegmentFilter = (segment: string) => {
-    console.log(`Filtering by segment: ${segment}`);
+    
     // This would update the global filters
   };
 

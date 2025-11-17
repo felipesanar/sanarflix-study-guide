@@ -19,11 +19,10 @@ async function deleteAllAuthUsers() {
   const confirmation = prompt("Você tem ABSOLUTA CERTEZA que quer continuar? Digite 'apagar tudo' para confirmar:");
   
   if (confirmation !== 'apagar tudo') {
-    console.log("❌ Operação cancelada pelo usuário.");
     return;
   }
 
-  console.log("🚀 Iniciando exclusão de todos os usuários...");
+  
 
   try {
     let page = 1;
@@ -45,7 +44,6 @@ async function deleteAllAuthUsers() {
       usersOnPage = users;
 
       if (usersOnPage && usersOnPage.length > 0) {
-        console.log(`- Encontrados ${usersOnPage.length} usuários na página ${page}. Apagando...`);
         
         for (const user of usersOnPage) {
           const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
@@ -61,7 +59,7 @@ async function deleteAllAuthUsers() {
 
     } while (usersOnPage && usersOnPage.length > 0); // Continua enquanto houver usuários na página atual
     
-    console.log(`\n🎉 Processo concluído! ${totalDeletedCount} usuários foram apagados.`);
+    
 
   } catch (error) {
     console.error("Um erro fatal ocorreu durante a exclusão:", error);

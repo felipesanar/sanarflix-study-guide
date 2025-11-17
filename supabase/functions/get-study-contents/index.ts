@@ -12,13 +12,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('get-study-contents: Request received');
-    console.log('get-study-contents: Method:', req.method);
-    console.log('get-study-contents: Headers:', Object.fromEntries(req.headers.entries()));
+    
 
     // Get the authorization header first
     const authHeader = req.headers.get('Authorization');
-    console.log('get-study-contents: Auth header present:', !!authHeader);
+    
     
     if (!authHeader) {
       console.error('get-study-contents: Missing authorization header');
@@ -30,7 +28,6 @@ Deno.serve(async (req) => {
 
     // Extract token from Bearer header
     const token = authHeader.replace('Bearer ', '');
-    console.log('get-study-contents: Token extracted, length:', token.length);
 
     // Create admin client to verify JWT token
     const supabaseAdmin = createClient(
@@ -45,7 +42,7 @@ Deno.serve(async (req) => {
     );
 
     // Verify the user's JWT token by passing it directly
-    console.log('get-study-contents: Verifying token...');
+    
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
     if (authError) {
@@ -64,7 +61,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('get-study-contents: User authenticated:', user.id);
+    
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
@@ -89,7 +86,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('get-study-contents: User IES:', userData.id_ies, 'Semester:', userData.semestre);
+    
 
     // Fetch conteudos for the user's IES
     const { data: conteudos, error: conteudosError } = await supabaseAdmin
@@ -105,7 +102,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('get-study-contents: Found', conteudos?.length || 0, 'conteudos');
+    
 
     return new Response(
       JSON.stringify({ data: conteudos || [] }),

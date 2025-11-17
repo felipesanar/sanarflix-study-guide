@@ -25,11 +25,11 @@ async function criarUsuariosDoCSV() {
       columns: ["nome", "email", "id_ies", "semestre"], // Mapeia as colunas
     });
 
-    console.log(`🚀 Encontrados ${usuarios.length} usuários no CSV. Criando...`);
+    
 
     for (const usuario of usuarios) {
       try {
-        console.log(`\n📝 Criando usuário: ${usuario.email}...`);
+        
 
         // Senha padrão (pode ser personalizada)
         const senhaPadrao = "SenhaSegura@" + Math.random().toString(36).slice(2, 6);
@@ -50,9 +50,7 @@ async function criarUsuariosDoCSV() {
         // NOVO: Salva a credencial na lista se o usuário foi criado com sucesso.
         senhasGeradas.push({ email: data.user.email, senha: senhaPadrao });
 
-        console.log("✅ Usuário criado com sucesso!");
-        console.log(`- Email: ${data.user.email}`);
-        console.log(`- ID: ${data.user.id}`);
+        
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -63,17 +61,17 @@ async function criarUsuariosDoCSV() {
 
     // NOVO: Bloco para gerar o CSV com as senhas
     if (senhasGeradas.length > 0) {
-      console.log(`\n📄 Gerando arquivo CSV com ${senhasGeradas.length} senhas...`);
+      
       const csvHeader = "email,senha\n";
       const csvBody = senhasGeradas.map(cred => `${cred.email},${cred.senha}`).join("\n");
       await Deno.writeTextFile('./senhas_geradas.csv', csvHeader + csvBody);
-      console.log("✅ Arquivo 'senhas_geradas.csv' criado com sucesso na pasta do projeto.");
+      
       console.warn("🔒 ATENÇÃO: Trate este arquivo com o máximo de segurança e apague-o após o uso.");
     } else {
-        console.log("\nℹ️ Nenhum novo usuário foi criado, portanto, nenhum arquivo de senhas foi gerado.");
+        
     }
     
-    console.log("\n🎉 Processo concluído! Verifique o painel do Supabase.");
+    
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';

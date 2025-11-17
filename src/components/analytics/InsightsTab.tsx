@@ -159,7 +159,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ filters }) => {
   const handleAlertClick = (alert: any) => {
     setSelectedAlert(alert);
     // Filter data based on alert
-    console.log(`Filtering by alert: ${alert.message}`);
+    
   };
 
   return (

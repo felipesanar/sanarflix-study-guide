@@ -39,8 +39,7 @@ Deno.serve(async (req) => {
 
     const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba }: CorrecaoRequest = await req.json();
 
-    console.log(`Processando correção do simulado ${simulado_id} para usuário ${user_id}`);
-    console.log(`Total de respostas: ${respostas.length}`);
+    
 
     // Buscar o ID numérico do simulado na tabela simulados_admin
     const { data: simuladoData, error: simuladoError } = await supabaseClient
@@ -59,7 +58,7 @@ Deno.serve(async (req) => {
       return acc + parseInt(part, 16);
     }, 0)) % 2147483647;
 
-    console.log(`ID numérico do simulado: ${simuladoNumerico}`);
+    
 
     // Buscar os gabaritos das questões respondidas
     const questaoIds = respostas
@@ -91,7 +90,7 @@ Deno.serve(async (req) => {
         correct: gabaritos.get(r.questao_id) === r.resposta
       }));
 
-    console.log(`Inserindo ${respostasParaSalvar.length} respostas corrigidas`);
+    
 
     // Inserir respostas corrigidas
     const { error: insertError } = await supabaseClient
@@ -106,8 +105,7 @@ Deno.serve(async (req) => {
     const acertos = respostasParaSalvar.filter(r => r.correct).length;
     const total = respostasParaSalvar.length;
 
-    console.log(`Correção concluída: ${acertos}/${total} acertos`);
-    console.log(`Tempo total: ${tempo_total_segundos}s, Saídas de aba: ${saidas_de_aba}`);
+    
 
     // Registrar simulado como finalizado
     const { error: finalizadoError } = await supabaseClient

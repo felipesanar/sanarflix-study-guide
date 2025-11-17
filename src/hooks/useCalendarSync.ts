@@ -84,7 +84,7 @@ export const useCalendarSync = () => {
         if (error) throw error;
       }
 
-      console.log('✅ Matérias sincronizadas com o banco de dados');
+      
     } catch (error) {
       console.error('Erro ao salvar no banco:', error);
       throw error;

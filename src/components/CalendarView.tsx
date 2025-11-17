@@ -292,7 +292,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
         return;
       }
 
-      console.log('Alterações salvas:', data);
+      
       
       setIsEditMode(false);
       setIsPremiumEditMode(false);
@@ -317,7 +317,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
 
   // Função para ativar modo premium
   const handleActivatePremiumMode = () => {
-    console.log('Ativando modo premium...');
+    
     setTempCalendarEvents([...items]);
     setIsPremiumEditMode(true);
     setIsEditMode(false);
@@ -331,7 +331,7 @@ const CalendarViewInner: React.FC<CalendarViewProps> = ({ items, onToggleComplet
 
   // Renderizar modo premium em tela cheia
   if (isPremiumEditMode && isDesktop) {
-    console.log('Renderizando modo premium, eventos:', tempCalendarEvents.length);
+    
     return (
       <div className="fixed top-0 left-0 w-screen h-screen z-[9999] bg-background overflow-hidden">
         {/* Header flutuante minimalista */}

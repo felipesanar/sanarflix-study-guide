@@ -28,16 +28,11 @@ function buildCorsHeaders(origin?: string): Record<string, string> | null {
 
 Deno.serve(async (req: Request): Promise<Response> => {
   const origin = req.headers.get('origin') || undefined;
-  console.log('enamed-proxy: Request origin:', origin);
-  console.log('enamed-proxy: Request method:', req.method);
-  console.log('enamed-proxy: Request URL:', req.url);
   
   const corsHeaders = buildCorsHeaders(origin);
   
   // Reject requests from unauthorized origins
   if (!corsHeaders) {
-    console.log('enamed-proxy: Origin rejected:', origin);
-    console.log('enamed-proxy: Allowed origins:', Array.from(ALLOWED_ORIGINS));
     return new Response(
       JSON.stringify({ error: 'Origin não autorizado', origin, allowedOrigins: Array.from(ALLOWED_ORIGINS) }),
       { 
@@ -47,7 +42,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
   
-  console.log('enamed-proxy: Origin accepted:', origin);
+  
   
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {

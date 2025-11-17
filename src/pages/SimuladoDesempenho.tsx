@@ -237,7 +237,6 @@ export const SimuladoDesempenho: React.FC = () => {
   useEffect(() => {
     if (!user || !simulados || simulados.length === 0) return;
     const preloadAllSimulados = async () => {
-      console.log("🚀 Iniciando pré-carregamento dos outros simulados...");
       const idsToPreload = simulados.map(s => s.id);
       for (const simuladoId of idsToPreload) {
         const CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId}`;
