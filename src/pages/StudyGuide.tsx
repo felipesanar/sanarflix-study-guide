@@ -975,7 +975,7 @@ export const StudyGuide: React.FC = () => {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="gap-1 text-xs"
+                        className="gap-1 text-xs md:hidden"
                         onClick={() => navigate('/dashboard')}
                       >
                         <BarChart3 className="h-4 w-4" />

@@ -20,6 +20,7 @@ import {
   GraduationCap,
   MessageCircle,
   Sparkles,
+  Handshake,
   User
 } from "lucide-react";
 // Preview retorna ao comportamento original baseado em iframe escalado
@@ -171,8 +172,8 @@ export default function SanarClass() {
           <div className="container mx-auto max-w-6xl">
             <div className="text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
+                <Handshake className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Parceria SanarFlix</span>
               </div>
               <div className="mx-auto h-10 w-64 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 animate-pulse" />
               <div className="mx-auto h-4 w-96 max-w-[80%] rounded bg-muted animate-pulse" />
@@ -205,8 +206,8 @@ export default function SanarClass() {
           <div className="container mx-auto max-w-6xl">
             <div className="text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
+                <Handshake className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">Parceria SanarFlix</span>
               </div>
               <div className="mx-auto h-10 w-64 rounded-lg bg-gradient-to-r from-primary/20 via-primary/10 to-accent/20 animate-pulse" />
               <div className="mx-auto h-4 w-96 max-w-[80%] rounded bg-muted animate-pulse" />
@@ -226,8 +227,8 @@ export default function SanarClass() {
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-primary">Parceria Sanarflix</span>
+              <Handshake className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Parceria SanarFlix</span>
             </div>
               <motion.h1
                 initial={{ opacity: 0, y: 24, scale: 0.98 }}
