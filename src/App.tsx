@@ -207,7 +207,7 @@ const AppContent = () => {
           />
         )}
 
-        {accessRules.enamed && (
+        {accessRules.enamed && false && (
           <Route
             path="/intensivao-enamed"
             element={

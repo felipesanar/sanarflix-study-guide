@@ -25,15 +25,15 @@ export const LoginForm: React.FC = () => {
       setTimeout(() => {
         try {
           const stored = localStorage.getItem("sanarflix-user");
-          let target = "/intensivao-enamed";
+          let target = "/home";
           if (stored) {
             const parsed = JSON.parse(stored);
             const rules = getAccessRules(parsed);
-            target = rules.cronogramaEnamed ? "/cronograma-enamed" : "/intensivao-enamed";
+            target = rules.cronogramaEnamed ? "/cronograma-enamed" : "/home";
           }
           navigate(target, { replace: true });
         } catch (err) {
-          navigate("/intensivao-enamed", { replace: true });
+          navigate("/home", { replace: true });
         }
       }, 50);
     }

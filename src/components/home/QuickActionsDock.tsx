@@ -64,7 +64,7 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({ position = '
                   }}
                 >
                   <MessageCircle className="h-4 w-4" />
-                  WhatsApp
+                  Fale Conosco
                 </motion.button>
               </div>
             </div>

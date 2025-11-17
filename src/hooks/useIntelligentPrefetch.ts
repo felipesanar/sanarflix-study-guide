@@ -10,14 +10,14 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
   '/home': {
     '/guia-estudos': 0.7,
     '/desempenho-simulado': 0.4,
-    '/intensivao-enamed': 0.35,
+    
     '/dashboard': 0.3,
     '/cronograma-enamed': 0.25,
   },
   '/guia-estudos': {
     '/home': 0.5,
     '/desempenho-simulado': 0.3,
-    '/intensivao-enamed': 0.25,
+    
   },
   '/desempenho-simulado': {
     '/guia-estudos': 0.6,
@@ -29,13 +29,8 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
     '/analytics': 0.4,
     '/home': 0.3,
   },
-  '/intensivao-enamed': {
-    '/cronograma-enamed': 0.6,
-    '/guia-estudos': 0.4,
-    '/home': 0.3,
-  },
   '/cronograma-enamed': {
-    '/intensivao-enamed': 0.5,
+    
     '/guia-estudos': 0.4,
     '/home': 0.3,
   },
@@ -51,7 +46,7 @@ const ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/guia-estudos': () => import('../pages/StudyGuide'),
   '/desempenho-simulado': () => import('../pages/SimuladoDesempenho'),
   '/dashboard': () => import('../pages/Dashboard'),
-  '/intensivao-enamed': () => import('../pages/IntensivaoEnamed'),
+  
   '/cronograma-enamed': () => import('../pages/CronogramaEnamed'),
   '/analytics': () => import('../pages/Analytics'),
   '/gestao-usuarios': () => import('../pages/UserManagement'),

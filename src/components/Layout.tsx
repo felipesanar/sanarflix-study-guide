@@ -134,12 +134,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </motion.button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="mb-2 min-w-[220px]">
-                  <DropdownMenuItem asChild>
-                    <NavLink to="/intensivao-enamed" end className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" />
-                      Intensivão ENAMED
-                    </NavLink>
-                  </DropdownMenuItem>
+                  
                   <DropdownMenuItem asChild>
                     <NavLink to="/dashboard" end className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4" />

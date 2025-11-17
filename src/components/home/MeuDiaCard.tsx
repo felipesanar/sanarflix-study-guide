@@ -180,7 +180,7 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
       return;
     }
     if (item.source === 'cronograma_enamed') {
-      navigate('/intensivao-enamed');
+      navigate('/home');
       return;
     }
     if (item.aulaNome && item.temaNome) {
@@ -262,8 +262,8 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                           <Badge 
                             variant="outline" 
                             className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400 cursor-pointer hover:bg-purple-500/20 truncate max-w-[240px] sm:max-w-none"
-                            onClick={(e) => { e.stopPropagation(); navigate('/intensivao-enamed'); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate('/intensivao-enamed'); } }}
+                            onClick={(e) => { e.stopPropagation(); navigate('/home'); }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate('/home'); } }}
                             role="button"
                             tabIndex={0}
                             aria-label="Ir para Intensivão ENAMED"

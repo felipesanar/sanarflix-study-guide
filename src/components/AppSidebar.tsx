@@ -147,14 +147,14 @@ export function AppSidebar() {
     }`, []);
 
   const getParentNavCls = React.useCallback((isActive: boolean) =>
-    `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+    `group relative overflow-hidden rounded px-2 py-1 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive
         ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
         : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
     }`, []);
 
   const getChildNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded ml-6 pl-4 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
+    `group relative overflow-hidden rounded !ml-4 !pl-3 !h-7 !text-xs [&_span]:text-xs transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
       isActive
         ? "bg-sidebar-accent/60 text-sidebar-foreground font-semibold shadow-sm"
         : "bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]"
@@ -319,14 +319,13 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu>
-                {/* Home - primeiro item com prioridade */}
                 {menuItems
-                  .filter((item) => item.accessKey === "home" && accessRules[item.accessKey])
-                  .map((item, idx) => (
+                  .filter((item) => item.accessKey === "home" && item.url === "/home" && accessRules[item.accessKey])
+                  .map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
-                          <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
+                          <MenuItem item={item} isActive={currentPath === item.url} />
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -353,7 +352,7 @@ export function AppSidebar() {
                             </TooltipContent>
                           </Tooltip>
                         ) : (
-                          <div className="flex items-center gap-3 p-3 w-full">
+                          <div className="flex items-center gap-2 p-2 w-full">
                             <BookOpen className="h-5 w-5 transition-all duration-300" />
                             <span className="block font-medium text-sm truncate flex-1">Guia de Estudos</span>
                             <div
@@ -371,7 +370,7 @@ export function AppSidebar() {
                       id="submenu-guia-estudos"
                       className="overflow-hidden data-[state=open]:animate-drawer-slide-down data-[state=closed]:animate-drawer-slide-up"
                     >
-                      <SidebarMenu className="mt-2 space-y-1 border-l-2 border-border ml-6">
+                      <SidebarMenu className="mt-1 md:mt-2 space-y-[2px] md:space-y-1 border-l border-border ml-4 md:ml-6">
                         {studyGuideItems
                           .filter((item) => accessRules[item.accessKey])
                           .map((item, idx) => (
@@ -385,7 +384,7 @@ export function AppSidebar() {
                                 <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
                                   <MenuItem
                                     item={item}
-                                    className="py-2"
+                                    className="!p-1.5 gap-2"
                                     isActive={currentPath === item.url}
                                     delay={idx * 0.1}
                                   />
@@ -401,7 +400,8 @@ export function AppSidebar() {
                 {/* Outros itens (exceto Início) */}
                 {menuItems
                   .filter((item) => {
-                    if (item.accessKey === "home") return false;
+                    if (item.accessKey === "home" && item.url === "/home") return false;
+                    if (item.accessKey === "enamed") return false;
                     if (item.accessKey === "analytics") {
                       return isB2BUser(user);
                     }

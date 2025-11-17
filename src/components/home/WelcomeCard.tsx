@@ -6,6 +6,7 @@ import { ChevronRight, BookOpen, Calendar, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilHour } from '@/utils/timezone';
+import { cn } from '@/lib/utils';
 
 interface WelcomeCardProps {
   hasStudyGuide: boolean;
@@ -47,7 +48,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
       <Card className="relative isolate bg-white/10 dark:bg-card/10 backdrop-blur-xl ring-1 ring-white/30 shadow-2xl overflow-hidden h-full">
         <div className="pointer-events-none absolute -top-24 -right-24 w-80 h-80 bg-white/20 blur-3xl rounded-full z-0" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 z-0" />
-        <CardContent className="relative z-10 py-5 sm:py-6 md:py-7 pr-5 sm:pr-6 md:pr-7 pl-3 sm:pl-6 md:pl-7 pb-16">
+        <CardContent className={cn("relative z-10 py-5 sm:py-6 md:py-7 pr-5 sm:pr-6 md:pr-7 pl-3 sm:pl-6 md:pl-7", hasStudyGuide && "pb-16") }>
           <div className="flex flex-col md:flex-row items-start md:items-center justify-start md:justify-between gap-4 ml-4 md:ml-0">
             <div className="flex-1">
               <div className="flex items-center gap-0 mb-2">
@@ -73,47 +74,35 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
           </div>
           
         </CardContent>
-        <div className="absolute bottom-4 right-4 z-20">
-          <Button 
-            variant="secondary"
-            onClick={handleContinueStudy}
-            className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold tracking-wide bg-red-50 text-foreground hover:bg-red-100 border border-red-200 shadow-xl ring-1 ring-red-200 dark:bg-neutral-900 dark:text-white dark:border-white/10 dark:ring-white/10 hover:shadow-2xl transition-all duration-300 group overflow-hidden"
-          >
-            <span className="pointer-events-none absolute inset-0 opacity-90">
-              <span
-                className="absolute inset-0 hidden dark:block"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0.03) 70%, rgba(255,255,255,0.07) 100%)',
-                }}
-              />
-              <span
-                className="absolute inset-0 dark:hidden"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.12) 35%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.16) 70%, rgba(255,255,255,0.3) 100%)',
-                }}
-              />
-            </span>
-            {hasStudyGuide ? (
-              <>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Continuar estudos
-              </>
-            ) : hasCronograma ? (
-              <>
-                <Calendar className="mr-2 h-4 w-4" />
-                Ver cronograma
-              </>
-            ) : (
-              <>
-                <Settings className="mr-2 h-4 w-4" />
-                Configurar estudos
-              </>
-            )}
-            <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </div>
+        {hasStudyGuide && (
+          <div className="absolute bottom-4 right-4 z-20">
+            <Button 
+              variant="secondary"
+              onClick={handleContinueStudy}
+              className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold tracking-wide bg-red-50 text-foreground hover:bg-red-100 border border-red-200 shadow-xl ring-1 ring-red-200 dark:bg-neutral-900 dark:text-white dark:border-white/10 dark:ring-white/10 hover:shadow-2xl transition-all duration-300 group overflow-hidden"
+            >
+              <span className="pointer-events-none absolute inset-0 opacity-90">
+                <span
+                  className="absolute inset-0 hidden dark:block"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0.03) 70%, rgba(255,255,255,0.07) 100%)',
+                  }}
+                />
+                <span
+                  className="absolute inset-0 dark:hidden"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.12) 35%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.16) 70%, rgba(255,255,255,0.3) 100%)',
+                  }}
+                />
+              </span>
+              <BookOpen className="mr-2 h-4 w-4" />
+              Continuar estudos
+              <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
+        )}
       </Card>
     </motion.div>
   );

@@ -7,7 +7,7 @@ const ROUTE_PROBABILITIES: Record<string, Record<string, number>> = {
   '/home': {
     '/guia-estudos': 0.7,
     '/desempenho-simulado': 0.4,
-    '/intensivao-enamed': 0.35,
+    
   },
   '/guia-estudos': {
     '/home': 0.5,
@@ -17,12 +17,8 @@ const ROUTE_PROBABILITIES: Record<string, Record<string, number>> = {
     '/guia-estudos': 0.6,
     '/analytics': 0.3,
   },
-  '/intensivao-enamed': {
-    '/cronograma-enamed': 0.6,
-    '/guia-estudos': 0.4,
-  },
   '/cronograma-enamed': {
-    '/intensivao-enamed': 0.5,
+    
     '/home': 0.3,
   },
 };
@@ -38,13 +34,6 @@ const PREFETCH_FUNCTIONS: Record<string, (queryClient: any) => Promise<void>> = 
   },
   '/desempenho-simulado': async (queryClient) => {
     // Prefetch de dados de desempenho
-    await queryClient.prefetchQuery({
-      queryKey: ['/enamed-proxy'],
-      staleTime: 5 * 60 * 1000,
-    });
-  },
-  '/intensivao-enamed': async (queryClient) => {
-    // Prefetch de dados do intensivão
     await queryClient.prefetchQuery({
       queryKey: ['/enamed-proxy'],
       staleTime: 5 * 60 * 1000,

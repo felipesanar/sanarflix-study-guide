@@ -76,7 +76,7 @@ export const setupLinkPrefetch = (): void => {
   const linkRouteMap: Record<string, string> = {
     '/guia-estudos': 'study-guide',
     '/dashboard': 'dashboard',
-    '/intensivao-enamed': 'intensivao',
+    
     '/desempenho-simulado': 'simulado',
     '/cronograma-enamed': 'cronograma',
     '/analytics': 'analytics',
