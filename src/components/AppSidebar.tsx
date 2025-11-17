@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -125,6 +126,7 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const accessRules = getAccessRules(user);
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
+  const [hasStudyGuideContent, setHasStudyGuideContent] = useState(true);
   const passwordDialog = usePasswordDialog();
 
   const isActive = (path: string) => currentPath === path;
@@ -136,6 +138,25 @@ export function AppSidebar() {
       setStudyGuideOpen(true);
     }
   }, [currentPath]);
+
+  React.useEffect(() => {
+    const checkStudyGuideContent = async () => {
+      if (!user?.id_ies) {
+        setHasStudyGuideContent(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
+        .from('conteudos')
+        .select('id')
+        .eq('id_ies', user.id_ies)
+        .limit(1);
+      
+      setHasStudyGuideContent(!error && data && data.length > 0);
+    };
+    
+    checkStudyGuideContent();
+  }, [user?.id_ies]);
 
   // Removida animação inicial para evitar reflows e melhorar continuidade
 
@@ -332,8 +353,9 @@ export function AppSidebar() {
                   ))}
 
                 {/* Study Guide Area */}
-                <SidebarMenuItem>
-                  <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
+                {hasStudyGuideContent && (
+                  <SidebarMenuItem>
+                    <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
                         className={getParentNavCls(isStudyGuideAreaActive())}
@@ -396,6 +418,7 @@ export function AppSidebar() {
                     </CollapsibleContent>
                   </Collapsible>
                 </SidebarMenuItem>
+                )}
 
                 {/* Outros itens (exceto Início) */}
                 {menuItems
