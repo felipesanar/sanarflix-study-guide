@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
     }, 0)) % 2147483647;
 
     
+    console.log(`Processando simulado UUID: ${simulado_id}`);
 
     // Buscar os gabaritos das questões respondidas
     const questaoIds = respostas
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
       .filter(r => r.resposta !== null)
       .map(r => ({
         email: user_id,
-        simulado: simuladoNumerico,
+        simulado: simulado_id,
         question_id: r.questao_id,
         resposta_usuario: r.resposta,
         answer_id: crypto.randomUUID(),

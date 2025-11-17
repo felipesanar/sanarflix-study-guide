@@ -543,10 +543,10 @@ export const useHomeData = () => {
 
         // Get simulado name
         const { data: simuladoInfo } = await supabase
-          .from('Simulados')
-          .select('Simulado')
+          .from('simulados_admin')
+          .select('nome')
           .eq('id', latestSimulado)
-          .single();
+          .maybeSingle();
 
         // Get ranking
         const { data: rankingData } = await supabase
@@ -566,7 +566,7 @@ export const useHomeData = () => {
           tempoGasto: '45min',
           ranking,
           totalAlunos,
-          simuladoNome: simuladoInfo?.Simulado || 'Simulado',
+          simuladoNome: simuladoInfo?.nome || 'Simulado',
         };
         setSimuladoData(next);
         return next;
