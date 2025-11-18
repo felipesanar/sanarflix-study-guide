@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
-import { Menu, User, Home, BookOpen, Zap, GraduationCap, ClipboardCheck, FileText, TrendingUp, ArrowUp, Bell, AlertTriangle, Info, X, BarChart3 } from 'lucide-react';
+import { Menu, User, Home, BookOpen, Zap, GraduationCap, ClipboardCheck, FileText, TrendingUp, ArrowUp, Bell, AlertTriangle, Info, X, BarChart3, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -25,7 +25,7 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -72,18 +72,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <span className="text-xs font-medium">Conta</span>
                   </motion.button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="mt-2">
-                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <ChangePasswordMenuItem />
-                  <DropdownMenuItem onClick={() => {
-                    const msg = encodeURIComponent('Olá, o meu semestre na plataforma Sanarflix Academy está errado.');
-                    const url = `https://wa.me/5571993120049?text=${msg}`;
-                    window.open(url, '_blank', 'noopener,noreferrer');
-                  }}>
-                    Semestre errado
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+              <DropdownMenuContent align="end" className="mt-2">
+                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <ChangePasswordMenuItem />
+                <DropdownMenuItem onClick={() => {
+                  const msg = encodeURIComponent('Olá, o meu semestre na plataforma Sanarflix Academy está errado.');
+                  const url = `https://wa.me/5571993120049?text=${msg}`;
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                }}>
+                  Semestre errado
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="md:hidden" onClick={() => logout()}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
               </DropdownMenu>
               <ThemeToggle />
             </div>

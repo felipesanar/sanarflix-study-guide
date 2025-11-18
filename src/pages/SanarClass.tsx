@@ -20,6 +20,9 @@ import {
   GraduationCap,
   MessageCircle,
   Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUp,
   Handshake,
   User
 } from "lucide-react";
@@ -164,6 +167,40 @@ export default function SanarClass() {
   }, [loading]);
 
   const visibleLessons = useMemo(() => filteredLessons.slice(0, renderCount), [filteredLessons, renderCount]);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const [itemWidth, setItemWidth] = useState<number>(0);
+  const gapPx = 12;
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const updateSizes = () => {
+      const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+      const containerPadding = 32; // px-4 on both sides
+      const containerWidth = Math.min(vw, 768) - containerPadding;
+      const peekWidth = Math.round(containerWidth * 0.18); // 18% visível do próximo card
+      const width = Math.max(containerWidth - peekWidth, 260);
+      setItemWidth(width);
+    };
+    updateSizes();
+    window.addEventListener('resize', updateSizes);
+    return () => window.removeEventListener('resize', updateSizes);
+  }, []);
+
+  useEffect(() => {
+    if (carouselIndex >= visibleLessons.length) {
+      setCarouselIndex(Math.max(visibleLessons.length - 1, 0));
+    }
+  }, [visibleLessons.length, carouselIndex]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 600);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   if (loading) {
     return (
@@ -220,10 +257,10 @@ export default function SanarClass() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/15 via-white/10 to-accent/10"></div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-black/20 to-accent/12 dark:from-primary/25 dark:via-black/35 dark:to-accent/18"></div>
       <div className="relative z-10">
       {/* Hero Section */}
-      <section className="relative py-16 px-4 overflow-hidden">
+      <section className="relative pt-24 pb-16 px-4 overflow-hidden">
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
@@ -384,75 +421,122 @@ export default function SanarClass() {
             </Card>
           ) : (
             <>
-              <div className="sm:hidden -mx-4 px-4 overflow-x-auto snap-x flex gap-3 pb-2">
-                {visibleLessons.map((lesson) => (
-                  <motion.div key={lesson.id} className="snap-start w-[85vw] flex-shrink-0" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-                    <Card 
-                      className="group transform-gpu bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full"
-                    >
-                      <div className="relative h-44 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border transform-gpu" style={{ contain: 'layout paint size', willChange: 'transform' }}>
-                        <iframe
-                          loading="lazy"
-                          src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                          className="w-full h-full pointer-events-none scale-100 origin-top"
-                          title={`Preview de ${lesson.titulo}`}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                        <div className="absolute top-2 left-2 flex items-center gap-2">
-                          <Badge variant="default" className="bg-background/60 backdrop-blur text-foreground">
-                            {lesson.formato.toUpperCase()}
-                          </Badge>
-                        </div>
+              <div aria-label="Carrossel de aulas" role="region" className="sm:hidden relative -mx-4 px-4">
+                <div className="relative overflow-hidden">
+                  <motion.div
+                    ref={carouselRef}
+                    className="flex items-stretch"
+                    drag="x"
+                    dragMomentum={false}
+                    onDragEnd={(_, info) => {
+                      const delta = info.offset.x;
+                      const w = itemWidth + gapPx;
+                      const moved = Math.round(-delta / w);
+                      const next = Math.min(Math.max(carouselIndex + moved, 0), Math.max(visibleLessons.length - 1, 0));
+                      setCarouselIndex(next);
+                    }}
+                    animate={{ x: -(itemWidth + gapPx) * carouselIndex }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                    style={{ gap: `${gapPx}px` }}
+                  >
+                    {visibleLessons.map((lesson) => (
+                      <div key={lesson.id} style={{ width: `${itemWidth}px` }} className="shrink-0">
+                        <Card className="group transform-gpu bg-white/70 dark:bg-card backdrop-blur border-white/40 dark:border-border hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden w-full">
+                          <div className="relative h-44 bg-white/50 dark:bg-muted overflow-hidden ring-1 ring-white/40 dark:ring-border transform-gpu" style={{ contain: 'layout paint size', willChange: 'transform' }}>
+                            <iframe
+                              loading="lazy"
+                              src={`${lesson.arquivo_url}#page=1&view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                              className="w-full h-full pointer-events-none scale-100 origin-top"
+                              title={`Preview de ${lesson.titulo}`}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                            <div className="absolute top-2 left-2 flex items-center gap-2">
+                              <Badge variant="default" className="bg-background/60 backdrop-blur text-foreground">
+                                {lesson.formato.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          <CardHeader>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <Badge variant="secondary" className="shrink-0">
+                                {lesson.formato.toUpperCase()}
+                              </Badge>
+                              <Badge variant="outline">
+                                {lesson.semestre}º Sem
+                              </Badge>
+                            </div>
+                            <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
+                              {lesson.titulo}
+                            </CardTitle>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <User className="h-3 w-3" />
+                                <span className="text-xs font-medium truncate">{lesson.professor}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="h-3 w-3" />
+                                <span className="text-xs truncate">{lesson.disciplina}</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {format(toBrazilDate(lesson.data_publicacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                              </p>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              className="w-full gap-2"
+                              onClick={() => handleViewLesson(lesson)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Visualizar
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="w-full gap-2"
+                              onClick={() => handleDownload(lesson)}
+                            >
+                              <Download className="h-4 w-4" />
+                              Baixar
+                            </Button>
+                          </CardContent>
+                        </Card>
                       </div>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <Badge variant="secondary" className="shrink-0">
-                            {lesson.formato.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline">
-                            {lesson.semestre}º Sem
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
-                          {lesson.titulo}
-                        </CardTitle>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <User className="h-3 w-3" />
-                            <span className="text-xs font-medium truncate">{lesson.professor}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <BookOpen className="h-3 w-3" />
-                            <span className="text-xs truncate">{lesson.disciplina}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {format(toBrazilDate(lesson.data_publicacao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                          </p>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          className="w-full gap-2"
-                          onClick={() => handleViewLesson(lesson)}
-                        >
-                          <Eye className="h-4 w-4" />
-                          Visualizar
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full gap-2"
-                          onClick={() => handleDownload(lesson)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    ))}
                   </motion.div>
-                ))}
+                </div>
+
+                <div className="absolute inset-y-0 left-1 right-1 flex items-center justify-between pointer-events-none" aria-hidden="true">
+                  <button
+                    className="pointer-events-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-background/70 backdrop-blur ring-1 ring-border hover:bg-background"
+                    onClick={() => setCarouselIndex(Math.max(carouselIndex - 1, 0))}
+                    aria-label="Anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="pointer-events-auto inline-flex items-center justify-center w-8 h-8 rounded-full bg-background/70 backdrop-blur ring-1 ring-border hover:bg-background"
+                    onClick={() => setCarouselIndex(Math.min(carouselIndex + 1, Math.max(visibleLessons.length - 1, 0)))}
+                    aria-label="Próximo"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-3 flex items-center justify-center gap-2" role="tablist" aria-label="Posição do carrossel">
+                  {visibleLessons.map((_, i) => (
+                    <button
+                      key={i}
+                      role="tab"
+                      aria-selected={carouselIndex === i}
+                      aria-label={`Ir para item ${i + 1}`}
+                      className={`h-2 w-2 rounded-full ${carouselIndex === i ? 'bg-primary' : 'bg-muted'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40`}
+                      onClick={() => setCarouselIndex(i)}
+                    />
+                  ))}
+                </div>
               </div>
 
               <motion.div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" viewport={{ once: true, amount: 0.2 }}>
@@ -693,6 +777,21 @@ export default function SanarClass() {
         </DialogContent>
       </Dialog>
       </div>
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.25 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Voltar ao topo"
+            className="fixed bottom-4 right-4 z-40 inline-flex items-center justify-center w-10 h-10 rounded-full bg-background/80 backdrop-blur ring-1 ring-border hover:bg-background"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

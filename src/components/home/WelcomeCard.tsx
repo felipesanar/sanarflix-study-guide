@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ interface WelcomeCardProps {
 export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCronograma }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [sheenHover, setSheenHover] = useState(false);
 
   const getGreeting = () => {
     const hour = getBrazilHour();
@@ -76,31 +77,40 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({ hasStudyGuide, hasCron
         </CardContent>
         {hasStudyGuide && (
           <div className="absolute bottom-4 right-4 z-20">
-            <Button 
-              variant="secondary"
-              onClick={handleContinueStudy}
-              className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold tracking-wide bg-red-50 text-foreground hover:bg-red-100 border border-red-200 shadow-xl ring-1 ring-red-200 dark:bg-neutral-900 dark:text-white dark:border-white/10 dark:ring-white/10 hover:shadow-2xl transition-all duration-300 group overflow-hidden"
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.03, y: -1 }}
+              whileTap={{ scale: 0.985 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="transform-gpu"
             >
-              <span className="pointer-events-none absolute inset-0 opacity-90">
-                <span
-                  className="absolute inset-0 hidden dark:block"
-                  style={{
-                    backgroundImage:
-                      'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0.03) 70%, rgba(255,255,255,0.07) 100%)',
-                  }}
-                />
-                <span
-                  className="absolute inset-0 dark:hidden"
-                  style={{
-                    backgroundImage:
-                      'linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.12) 35%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.16) 70%, rgba(255,255,255,0.3) 100%)',
-                  }}
-                />
-              </span>
-              <BookOpen className="mr-2 h-4 w-4" />
-              Continuar estudos
-              <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
+              <Button 
+                variant="secondary"
+                onClick={handleContinueStudy}
+                className="relative inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-full font-semibold tracking-wide bg-red-50 text-foreground hover:bg-red-100 border border-red-200 shadow-xl ring-1 ring-red-200 dark:bg-neutral-900 dark:text-white dark:border-white/10 dark:ring-white/10 hover:shadow-2xl transition-all duration-300 group overflow-hidden"
+                
+              >
+                <span className="pointer-events-none absolute inset-0 opacity-90">
+                  <span
+                    className="absolute inset-0 hidden dark:block"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0.01) 50%, rgba(255,255,255,0.03) 70%, rgba(255,255,255,0.07) 100%)',
+                    }}
+                  />
+                  <span
+                    className="absolute inset-0 dark:hidden"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 35%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.10) 70%, rgba(255,255,255,0.18) 100%)',
+                    }}
+                  />
+                </span>
+                Continuar estudos
+                <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+              </Button>
+            </motion.div>
           </div>
         )}
       </Card>
