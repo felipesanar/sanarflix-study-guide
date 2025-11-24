@@ -106,6 +106,7 @@ export type Database = {
           correct: boolean
           email: string
           question_id: string
+          "respondida?": boolean | null
           resposta_usuario: string | null
           simulado: string
         }
@@ -114,6 +115,7 @@ export type Database = {
           correct: boolean
           email: string
           question_id: string
+          "respondida?"?: boolean | null
           resposta_usuario?: string | null
           simulado: string
         }
@@ -122,6 +124,7 @@ export type Database = {
           correct?: boolean
           email?: string
           question_id?: string
+          "respondida?"?: boolean | null
           resposta_usuario?: string | null
           simulado?: string
         }
@@ -373,77 +376,6 @@ export type Database = {
           tema_do_dia?: string
         }
         Relationships: []
-      }
-      questions_enamed: {
-        Row: {
-          Especialidade: string | null
-          ID: string
-          "NÍVEL DE DIFICULDADE": string | null
-          "Subespecialidade / Assunto Principal": string | null
-          "Tem Imagem": string | null
-          "Tema (Grande Área)": string | null
-        }
-        Insert: {
-          Especialidade?: string | null
-          ID: string
-          "NÍVEL DE DIFICULDADE"?: string | null
-          "Subespecialidade / Assunto Principal"?: string | null
-          "Tem Imagem"?: string | null
-          "Tema (Grande Área)"?: string | null
-        }
-        Update: {
-          Especialidade?: string | null
-          ID?: string
-          "NÍVEL DE DIFICULDADE"?: string | null
-          "Subespecialidade / Assunto Principal"?: string | null
-          "Tem Imagem"?: string | null
-          "Tema (Grande Área)"?: string | null
-        }
-        Relationships: []
-      }
-      questions_enamed_complement: {
-        Row: {
-          A: string | null
-          B: string | null
-          C: string | null
-          Comentário: string | null
-          D: string | null
-          ENUNCIADO: string
-          gabarito: string | null
-          ID: string
-          IMAGEM: string | null
-        }
-        Insert: {
-          A?: string | null
-          B?: string | null
-          C?: string | null
-          Comentário?: string | null
-          D?: string | null
-          ENUNCIADO: string
-          gabarito?: string | null
-          ID: string
-          IMAGEM?: string | null
-        }
-        Update: {
-          A?: string | null
-          B?: string | null
-          C?: string | null
-          Comentário?: string | null
-          D?: string | null
-          ENUNCIADO?: string
-          gabarito?: string | null
-          ID?: string
-          IMAGEM?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "questions_enamed_complement_ID_fkey"
-            columns: ["ID"]
-            isOneToOne: true
-            referencedRelation: "questions_enamed"
-            referencedColumns: ["ID"]
-          },
-        ]
       }
       questoes_simulado: {
         Row: {
