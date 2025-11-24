@@ -94,9 +94,18 @@ export default function SimuladosTab() {
     descricao: '',
     data_liberacao: '',
     data_encerramento: '',
-    duracao_minutos: 180,
+    duracao_minutos: 120, // Padrão 2 horas
     status: 'rascunho' as 'ativo' | 'rascunho' | 'encerrado'
   });
+
+  // Opções de duração fixas (2h, 3h, 4h, 5h, 6h)
+  const duracaoOpcoes = [
+    { value: 120, label: '2 horas' },
+    { value: 180, label: '3 horas' },
+    { value: 240, label: '4 horas' },
+    { value: 300, label: '5 horas' },
+    { value: 360, label: '6 horas' }
+  ];
 
   useEffect(() => {
     fetchSimulados();
@@ -830,12 +839,25 @@ export default function SimuladosTab() {
             </div>
 
             <div>
-              <Label>Duração (minutos)</Label>
-              <Input
-                type="number"
-                value={configForm.duracao_minutos}
-                onChange={(e) => setConfigForm({ ...configForm, duracao_minutos: parseInt(e.target.value) })}
-              />
+              <Label>Duração da Prova *</Label>
+              <Select 
+                value={configForm.duracao_minutos.toString()} 
+                onValueChange={(value) => setConfigForm({ ...configForm, duracao_minutos: parseInt(value) })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a duração" />
+                </SelectTrigger>
+                <SelectContent>
+                  {duracaoOpcoes.map(opcao => (
+                    <SelectItem key={opcao.value} value={opcao.value.toString()}>
+                      {opcao.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecione entre 2h e 6h (incrementos de 1 hora)
+              </p>
             </div>
             <div>
               <Label>Status</Label>

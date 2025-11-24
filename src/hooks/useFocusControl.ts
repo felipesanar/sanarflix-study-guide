@@ -3,39 +3,41 @@ import { useEffect, useCallback, useState } from 'react';
 interface UseFocusControlProps {
   onSaidaAba: () => void;
   onRetornoAba: () => void;
-  pausarAoSair?: boolean;
 }
 
 export const useFocusControl = ({
   onSaidaAba,
-  onRetornoAba,
-  pausarAoSair = true
+  onRetornoAba
 }: UseFocusControlProps) => {
   const [foraDeAba, setForaDeAba] = useState(false);
   const [foraDeTelaCheia, setForaDeTelaCheia] = useState(false);
+  const [podeInteragir, setPodeInteragir] = useState(true);
 
   const handleVisibilityChange = useCallback(() => {
     if (document.hidden) {
       setForaDeAba(true);
-      if (pausarAoSair) {
-        onSaidaAba();
-      }
+      onSaidaAba(); // Apenas registra log, não pausa cronômetro
+      setPodeInteragir(false); // Bloqueia interação
     } else {
       setForaDeAba(false);
       onRetornoAba();
+      // Só permite interação novamente se estiver em fullscreen
+      setPodeInteragir(!!document.fullscreenElement);
     }
-  }, [onSaidaAba, onRetornoAba, pausarAoSair]);
+  }, [onSaidaAba, onRetornoAba]);
 
   const handleFullscreenChange = useCallback(() => {
     const isFullscreen = !!document.fullscreenElement;
     setForaDeTelaCheia(!isFullscreen);
     
-    if (!isFullscreen && pausarAoSair) {
-      onSaidaAba();
-    } else if (isFullscreen) {
+    if (!isFullscreen) {
+      onSaidaAba(); // Apenas registra log
+      setPodeInteragir(false); // Bloqueia interação ao sair do fullscreen
+    } else {
       onRetornoAba();
+      setPodeInteragir(true); // Permite interação ao entrar em fullscreen
     }
-  }, [onSaidaAba, onRetornoAba, pausarAoSair]);
+  }, [onSaidaAba, onRetornoAba]);
 
   const entrarTelaCheia = useCallback(async () => {
     try {
@@ -69,6 +71,7 @@ export const useFocusControl = ({
   return {
     foraDeAba,
     foraDeTelaCheia,
+    podeInteragir,
     entrarTelaCheia,
     sairTelaCheia
   };

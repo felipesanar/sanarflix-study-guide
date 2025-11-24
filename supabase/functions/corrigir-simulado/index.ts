@@ -10,6 +10,7 @@ interface RespostaSimulado {
   resposta: 'A' | 'B' | 'C' | 'D' | null;
   marcada_revisao: boolean;
   alternativas_eliminadas: ('A' | 'B' | 'C' | 'D')[];
+  respondida?: boolean;
 }
 
 interface CorrecaoRequest {
@@ -39,12 +40,10 @@ Deno.serve(async (req) => {
 
     const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba }: CorrecaoRequest = await req.json();
 
-    console.log(`Processando correção do simulado: ${simulado_id}`);
+    console.log(`Processando correção do simulado: ${simulado_id} para usuário: ${user_id}`);
 
-    // Buscar os gabaritos das questões respondidas
-    const questaoIds = respostas
-      .filter(r => r.resposta !== null)
-      .map(r => r.questao_id);
+    // Buscar os gabaritos de TODAS as questões (respondidas e não respondidas)
+    const questaoIds = respostas.map(r => r.questao_id);
 
     const { data: questoes, error: questoesError } = await supabaseClient
       .from('questoes_simulado')
@@ -59,19 +58,18 @@ Deno.serve(async (req) => {
     // Criar mapa de gabaritos
     const gabaritos = new Map(questoes?.map(q => [q.id, q.correta]) || []);
 
-    // Calcular se cada resposta está correta
-    const respostasParaSalvar = respostas
-      .filter(r => r.resposta !== null)
-      .map(r => ({
-        email: user_id,
-        simulado: simulado_id,
-        question_id: r.questao_id,
-        resposta_usuario: r.resposta,
-        answer_id: crypto.randomUUID(),
-        correct: gabaritos.get(r.questao_id) === r.resposta
-      }));
+    // Processar TODAS as questões (respondidas e não respondidas)
+    const respostasParaSalvar = respostas.map(r => ({
+      user_id: user_id,
+      simulado: simulado_id,
+      question_id: r.questao_id,
+      resposta_usuario: r.resposta,
+      answer_id: crypto.randomUUID(),
+      correct: r.resposta !== null ? gabaritos.get(r.questao_id) === r.resposta : false,
+      'respondida?': r.respondida ?? (r.resposta !== null)
+    }));
 
-    
+    console.log(`Total de questões a serem salvas: ${respostasParaSalvar.length}`);
 
     // Inserir respostas corrigidas
     const { error: insertError } = await supabaseClient
@@ -83,8 +81,9 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    const acertos = respostasParaSalvar.filter(r => r.correct).length;
-    const total = respostasParaSalvar.length;
+    const questoesRespondidas = respostasParaSalvar.filter(r => r['respondida?']);
+    const acertos = questoesRespondidas.filter(r => r.correct).length;
+    const total = questoesRespondidas.length;
 
     
 
