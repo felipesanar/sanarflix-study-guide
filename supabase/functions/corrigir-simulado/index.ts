@@ -39,27 +39,7 @@ Deno.serve(async (req) => {
 
     const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba }: CorrecaoRequest = await req.json();
 
-    
-
-    // Buscar o ID numérico do simulado na tabela simulados_admin
-    const { data: simuladoData, error: simuladoError } = await supabaseClient
-      .from('simulados_admin')
-      .select('id')
-      .eq('id', simulado_id)
-      .single();
-
-    if (simuladoError || !simuladoData) {
-      console.error('Erro ao buscar simulado:', simuladoError);
-      throw new Error('Simulado não encontrado');
-    }
-
-    // Converter UUID para hash numérico estável dentro do range de integer
-    const simuladoNumerico = Math.abs(simulado_id.split('-').reduce((acc: number, part: string) => {
-      return acc + parseInt(part, 16);
-    }, 0)) % 2147483647;
-
-    
-    console.log(`Processando simulado UUID: ${simulado_id}`);
+    console.log(`Processando correção do simulado: ${simulado_id}`);
 
     // Buscar os gabaritos das questões respondidas
     const questaoIds = respostas
