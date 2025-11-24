@@ -257,7 +257,7 @@ export default function SanarClass() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-black/20 to-accent/12 dark:from-primary/25 dark:via-black/35 dark:to-accent/18"></div>
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white via-red-50 to-white dark:from-primary/25 dark:via-black/35 dark:to-accent/18"></div>
       <div className="relative z-10">
       {/* Hero Section */}
       <section className="relative pt-24 pb-16 px-4 overflow-hidden">
