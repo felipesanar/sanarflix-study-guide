@@ -118,6 +118,35 @@ export const useSimuladoStorage = (simuladoId: string) => {
     return novoEstado;
   }, [simuladoId, salvarEstado]);
 
+  const prepararRespostasCompletas = useCallback((totalQuestoes: string[]) => {
+    const estado = carregarEstado();
+    if (!estado) return [];
+
+    return totalQuestoes.map(questaoId => {
+      const respostaExistente = estado.respostas[questaoId];
+      
+      if (respostaExistente && respostaExistente.resposta !== null) {
+        // Questão respondida
+        return {
+          questao_id: questaoId,
+          resposta: respostaExistente.resposta,
+          marcada_revisao: respostaExistente.marcada_revisao,
+          alternativas_eliminadas: respostaExistente.alternativas_eliminadas,
+          respondida: true
+        };
+      } else {
+        // Questão não respondida
+        return {
+          questao_id: questaoId,
+          resposta: null,
+          marcada_revisao: false,
+          alternativas_eliminadas: [],
+          respondida: false
+        };
+      }
+    });
+  }, [carregarEstado]);
+
   return {
     carregarEstado,
     salvarEstado,
@@ -127,6 +156,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     atualizarTempo,
     registrarSaidaAba,
     limparEstado,
-    inicializarEstado
+    inicializarEstado,
+    prepararRespostasCompletas
   };
 };

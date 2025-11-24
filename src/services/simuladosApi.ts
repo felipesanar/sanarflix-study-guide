@@ -93,10 +93,13 @@ export const simuladosApi = {
   },
 
   async enviarResultado(resultado: ResultadoSimulado): Promise<void> {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) throw new Error('Usuário não autenticado');
+
     const { data, error } = await supabase.functions.invoke('corrigir-simulado', {
       body: {
         simulado_id: resultado.simulado_id,
-        user_id: resultado.user_id,
+        user_id: userData.user.id,
         respostas: resultado.respostas,
         tempo_total_segundos: resultado.tempo_total_segundos,
         saidas_de_aba: resultado.saidas_de_aba
@@ -106,17 +109,14 @@ export const simuladosApi = {
     if (error) throw error;
 
     // Registrar finalização
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData?.user) {
-      await supabase
-        .from('simulados_finalizados')
-        .insert({
-          user_id: userData.user.id,
-          simulado_id: resultado.simulado_id,
-          tempo_total_segundos: resultado.tempo_total_segundos,
-          saidas_de_aba: resultado.saidas_de_aba
-        });
-    }
+    await supabase
+      .from('simulados_finalizados')
+      .insert({
+        user_id: userData.user.id,
+        simulado_id: resultado.simulado_id,
+        tempo_total_segundos: resultado.tempo_total_segundos,
+        saidas_de_aba: resultado.saidas_de_aba
+      });
 
     return data;
   },

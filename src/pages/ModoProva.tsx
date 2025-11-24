@@ -43,13 +43,13 @@ export const ModoProva = () => {
   const [duracaoMinutos, setDuracaoMinutos] = useState(120);
 
   // Controles de foco e tela cheia
-  const { foraDeAba, foraDeTelaCheia, entrarTelaCheia } = useFocusControl({
+  const { foraDeAba, foraDeTelaCheia, podeInteragir, entrarTelaCheia } = useFocusControl({
     onSaidaAba: () => {
       storage.registrarSaidaAba();
-      cronometro.pausar();
+      // NÃO pausa mais o cronômetro ao sair da aba
     },
     onRetornoAba: () => {
-      cronometro.retomar();
+      // Não faz nada ao retornar, apenas verifica fullscreen
     }
   });
 
@@ -106,7 +106,7 @@ export const ModoProva = () => {
   const respostaAtual = estado?.respostas[questaoAtualData?.id];
 
   const handleSelecionarAlternativa = (alternativa: 'A' | 'B' | 'C' | 'D') => {
-    if (!questaoAtualData) return;
+    if (!questaoAtualData || !podeInteragir) return; // Bloqueia se não pode interagir
 
     storage.salvarResposta(questaoAtualData.id, {
       questao_id: questaoAtualData.id,
@@ -180,12 +180,14 @@ export const ModoProva = () => {
       const estadoFinal = storage.carregarEstado();
       if (!estadoFinal || !user) return;
 
-      const respostas = Object.values(estadoFinal.respostas);
+      // Preparar TODAS as questões (respondidas e não respondidas)
+      const todasQuestoesIds = questoes.map(q => q.id);
+      const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
 
       await simuladosApi.enviarResultado({
         simulado_id: simuladoId,
-        user_id: user.email,
-        respostas,
+        user_id: user.email, // Será substituído por user.id na API
+        respostas: respostasCompletas,
         tempo_total_segundos: (duracaoMinutos * 60) - cronometro.tempoRestante,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         finalizado_em: new Date().toISOString()
@@ -194,13 +196,13 @@ export const ModoProva = () => {
       storage.limparEstado();
 
       toast.success('Simulado enviado com sucesso!', {
-        description: 'Em breve, o resultado estará disponível na aba Desempenho.',
-        duration: 5000
+        description: 'Redirecionando para a página de simulados...',
+        duration: 3000
       });
 
       setTimeout(() => {
-        navigate('/simulados?aba=desempenho');
-      }, 2000);
+        navigate('/simulados?aba=simulados');
+      }, 1500);
     } catch (error) {
       console.error('Erro ao finalizar simulado:', error);
       toast.error('Erro ao enviar simulado. Tente novamente.');
@@ -221,6 +223,22 @@ export const ModoProva = () => {
   );
 
   const progresso = (questoesRespondidas.size / questoes.length) * 100;
+
+  // Detectar saída da página para finalização automática
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Finalizar automaticamente ao sair da página
+      finalizarSimulado();
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -396,13 +414,20 @@ export const ModoProva = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Finalizar Simulado?</AlertDialogTitle>
             <AlertDialogDescription>
-              Você respondeu {questoesRespondidas.size} de {questoes.length} questões.
-              {questoesRespondidas.size < questoes.length && (
-                <p className="mt-2 text-amber-600 dark:text-amber-400">
-                  ⚠️ Você ainda tem {questoes.length - questoesRespondidas.size} questões não respondidas.
+              <p className="mb-2">
+                Você respondeu <strong>{questoesRespondidas.size}</strong> de <strong>{questoes.length}</strong> questões.
+              </p>
+              {questoesMarcadasRevisao.size > 0 && (
+                <p className="mb-2 text-blue-600 dark:text-blue-400">
+                  📌 Você marcou <strong>{questoesMarcadasRevisao.size}</strong> questões para revisão.
                 </p>
               )}
-              <p className="mt-2">
+              {questoesRespondidas.size < questoes.length && (
+                <p className="mt-2 text-amber-600 dark:text-amber-400">
+                  ⚠️ Você ainda tem <strong>{questoes.length - questoesRespondidas.size}</strong> questões não respondidas.
+                </p>
+              )}
+              <p className="mt-3 font-medium">
                 Ao confirmar, seu simulado será enviado e não poderá ser alterado.
               </p>
             </AlertDialogDescription>

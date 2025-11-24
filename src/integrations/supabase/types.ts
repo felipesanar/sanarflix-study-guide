@@ -109,6 +109,7 @@ export type Database = {
           "respondida?": boolean | null
           resposta_usuario: string | null
           simulado: string
+          user_id: string | null
         }
         Insert: {
           answer_id?: string
@@ -118,6 +119,7 @@ export type Database = {
           "respondida?"?: boolean | null
           resposta_usuario?: string | null
           simulado: string
+          user_id?: string | null
         }
         Update: {
           answer_id?: string
@@ -127,6 +129,7 @@ export type Database = {
           "respondida?"?: boolean | null
           resposta_usuario?: string | null
           simulado?: string
+          user_id?: string | null
         }
         Relationships: [
           {

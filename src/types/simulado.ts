@@ -30,6 +30,7 @@ export interface RespostaSimulado {
   resposta: 'A' | 'B' | 'C' | 'D' | null;
   marcada_revisao: boolean;
   alternativas_eliminadas: ('A' | 'B' | 'C' | 'D')[];
+  respondida?: boolean;
 }
 
 export interface EstadoSimulado {

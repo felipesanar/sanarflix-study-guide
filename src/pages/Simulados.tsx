@@ -8,7 +8,9 @@ import { SimuladoDesempenho } from './SimuladoDesempenho';
 
 export const Simulados = () => {
   const navigate = useNavigate();
-  const [abaAtiva, setAbaAtiva] = useState('disponiveis');
+  const searchParams = new URLSearchParams(window.location.search);
+  const abaParam = searchParams.get('aba');
+  const [abaAtiva, setAbaAtiva] = useState(abaParam === 'desempenho' ? 'desempenho' : 'disponiveis');
 
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4">
