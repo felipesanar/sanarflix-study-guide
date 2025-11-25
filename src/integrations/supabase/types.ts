@@ -843,6 +843,7 @@ export type Database = {
           gabarito: string
           id: string
           imagem: string
+          user_answer: string
         }[]
       }
       get_simulado_performance: {
