@@ -52,12 +52,12 @@ export const MonitoramentoTab = () => {
         // Contar total de alunos que fizeram o simulado
         const { data: respostas, error: respostasError } = await supabase
           .from('answer_progress')
-          .select('email, correct')
+          .select('user_id, correct')
           .eq('simulado', sim.id);
 
         if (respostasError) throw respostasError;
 
-        const alunosUnicos = new Set(respostas?.map(r => r.email) || []).size;
+        const alunosUnicos = new Set(respostas?.map(r => r.user_id) || []).size;
         
         // Calcular tempo médio (mockado por enquanto - futura implementação)
         const tempoMedio = sim.duracao_minutos * 60 * 0.7; // Assumindo 70% do tempo total

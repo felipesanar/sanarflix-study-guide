@@ -524,13 +524,13 @@ export const useHomeData = () => {
   };
 
   const fetchSimuladoData = async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
 
     try {
       const { data: answerData } = await supabase
         .from('answer_progress')
         .select('simulado, correct, question_id')
-        .eq('email', user.email)
+        .eq('user_id', user.id)
         .order('simulado', { ascending: false });
 
       if (answerData && answerData.length > 0) {

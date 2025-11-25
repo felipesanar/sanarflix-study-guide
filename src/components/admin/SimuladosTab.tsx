@@ -86,7 +86,7 @@ export default function SimuladosTab() {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
-  const [selectedIES, setSelectedIES] = useState<string>('');
+  const [selectedIESList, setSelectedIESList] = useState<string[]>([]);
   const [showLiberarModal, setShowLiberarModal] = useState(false);
 
   const [configForm, setConfigForm] = useState({
@@ -304,10 +304,10 @@ export default function SimuladosTab() {
       return;
     }
 
-    if (!selectedIES) {
+    if (!selectedIESList || selectedIESList.length === 0) {
       toast({
         title: 'Erro',
-        description: 'Selecione a IES responsável por este simulado',
+        description: 'Selecione pelo menos uma IES para receber este simulado',
         variant: 'destructive'
       });
       return;
@@ -334,7 +334,7 @@ export default function SimuladosTab() {
           data_encerramento: dataEncerramentoISO,
           duracao_minutos: configForm.duracao_minutos,
           status: configForm.status,
-          ies_id: selectedIES
+          ies_ids: selectedIESList
         })
         .select()
         .single();
@@ -360,7 +360,7 @@ export default function SimuladosTab() {
 
       setShowConfigModal(false);
       setPreviewData(null);
-      setSelectedIES('');
+      setSelectedIESList([]);
       setConfigForm({
         nome: '',
         descricao: '',
@@ -818,22 +818,42 @@ export default function SimuladosTab() {
             </div>
 
             <div>
-              <Label>IES Responsável *</Label>
-              <Select value={selectedIES} onValueChange={setSelectedIES}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a IES" />
-                </SelectTrigger>
-                <SelectContent>
-                  {iesList.map(ies => (
-                    <SelectItem key={ies.id} value={ies.id}>
-                      {ies.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!selectedIES && (
+              <Label>IES Responsáveis * (Múltipla seleção)</Label>
+              <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+                {iesList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Carregando IES...</p>
+                ) : (
+                  iesList.map(ies => (
+                    <div key={ies.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`ies-${ies.id}`}
+                        checked={selectedIESList.includes(ies.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedIESList([...selectedIESList, ies.id]);
+                          } else {
+                            setSelectedIESList(selectedIESList.filter(id => id !== ies.id));
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={`ies-${ies.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {ies.nome}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+              {selectedIESList.length === 0 && (
                 <p className="text-xs text-destructive mt-1">
-                  ⚠️ Selecione a IES responsável por este simulado
+                  ⚠️ Selecione pelo menos uma IES para receber este simulado
+                </p>
+              )}
+              {selectedIESList.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ✓ {selectedIESList.length} IES selecionada(s)
                 </p>
               )}
             </div>
