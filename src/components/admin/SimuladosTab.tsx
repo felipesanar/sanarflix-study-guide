@@ -768,14 +768,14 @@ export default function SimuladosTab() {
 
       {/* Config Modal */}
       <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Configurar Simulado</DialogTitle>
             <DialogDescription>
               Defina as informações do simulado antes de salvar
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 px-1">
             <div>
               <Label>Nome do Simulado *</Label>
               <Input
@@ -792,13 +792,14 @@ export default function SimuladosTab() {
                 placeholder="Descrição opcional do simulado"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Data de Liberação</Label>
                 <Input
                   type="datetime-local"
                   value={configForm.data_liberacao}
                   onChange={(e) => setConfigForm({ ...configForm, data_liberacao: e.target.value })}
+                  className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Horário de Brasília (UTC−3)
@@ -810,6 +811,7 @@ export default function SimuladosTab() {
                   type="datetime-local"
                   value={configForm.data_encerramento}
                   onChange={(e) => setConfigForm({ ...configForm, data_encerramento: e.target.value })}
+                  className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Horário de Brasília (UTC−3)
@@ -818,13 +820,13 @@ export default function SimuladosTab() {
             </div>
 
             <div>
-              <Label>IES Responsáveis * (Múltipla seleção)</Label>
-              <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
+              <Label className="text-sm md:text-base">IES Responsáveis * (Múltipla seleção)</Label>
+              <div className="border rounded-md p-3 md:p-4 max-h-40 md:max-h-48 overflow-y-auto space-y-2 bg-background">
                 {iesList.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Carregando IES...</p>
                 ) : (
                   iesList.map(ies => (
-                    <div key={ies.id} className="flex items-center space-x-2">
+                    <div key={ies.id} className="flex items-center space-x-2 py-1">
                       <Checkbox
                         id={`ies-${ies.id}`}
                         checked={selectedIESList.includes(ies.id)}
@@ -838,7 +840,7 @@ export default function SimuladosTab() {
                       />
                       <label
                         htmlFor={`ies-${ies.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        className="text-xs md:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
                       >
                         {ies.nome}
                       </label>
@@ -864,10 +866,10 @@ export default function SimuladosTab() {
                 value={configForm.duracao_minutos.toString()} 
                 onValueChange={(value) => setConfigForm({ ...configForm, duracao_minutos: parseInt(value) })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione a duração" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-background">
                   {duracaoOpcoes.map(opcao => (
                     <SelectItem key={opcao.value} value={opcao.value.toString()}>
                       {opcao.label}
@@ -885,10 +887,10 @@ export default function SimuladosTab() {
                 value={configForm.status}
                 onValueChange={(value: any) => setConfigForm({ ...configForm, status: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-background">
                   <SelectItem value="rascunho">🟡 Rascunho</SelectItem>
                   <SelectItem value="ativo">🟢 Ativo</SelectItem>
                   <SelectItem value="encerrado">🔴 Encerrado</SelectItem>
@@ -896,11 +898,19 @@ export default function SimuladosTab() {
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfigModal(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowConfigModal(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleSaveSimulado} disabled={uploading}>
+            <Button 
+              onClick={handleSaveSimulado} 
+              disabled={uploading}
+              className="w-full sm:w-auto"
+            >
               {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Salvar Simulado
             </Button>
