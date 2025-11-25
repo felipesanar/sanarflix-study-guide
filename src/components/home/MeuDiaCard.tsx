@@ -175,19 +175,26 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   const navigate = useNavigate();
 
   const handleItemClick = (item: MeuDiaItem) => {
+    // Simulados sempre vão para /simulados
     if (item.icon === 'Trophy' || /simulado/i.test(item.title) || (item.path && item.path.includes('simulado'))) {
       navigate('/simulados');
       return;
     }
+    
+    // Cronograma ENAMED vai para home
     if (item.source === 'cronograma_enamed') {
       navigate('/home');
       return;
     }
-    if (item.aulaNome && item.temaNome) {
+    
+    // Se tem aula sugerida com deep link, navegar direto
+    if (item.aulaNome && item.path.includes('guia-estudos')) {
       navigate(item.path);
-    } else {
-      navigate(item.path);
+      return;
     }
+    
+    // Fallback para path padrão
+    navigate(item.path);
   };
 
   const handleLessonClick = (e: React.MouseEvent, link: string) => {
@@ -242,41 +249,58 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                         <Icon className="w-6 h-6 text-white" />
                       </div>
                       
-                      {/* Conteúdo - Hierarquia invertida: aula em destaque */}
+                      {/* Conteúdo principal */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 gap-y-1 mb-0.5 flex-wrap">
-                          <p className="text-xs text-muted-foreground truncate">
-                            {item.title}
-                          </p>
-                          {/* Badge de origem */}
-                          {item.source === 'calendar' && (
-                          <Badge 
-                            variant="outline" 
-                            className="text-[10px] px-1.5 py-0 h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 truncate max-w-[220px] sm:max-w-none"
-                          >
-                            <CalendarCheck className="w-3 h-3" />
-                            Meu Calendário
-                          </Badge>
-                          )}
-                          {item.source === 'cronograma_enamed' && (
-                          <Badge 
-                            variant="outline" 
-                            className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400 cursor-pointer hover:bg-purple-500/20 truncate max-w-[240px] sm:max-w-none"
-                            onClick={(e) => { e.stopPropagation(); navigate('/home'); }}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate('/home'); } }}
-                            role="button"
-                            tabIndex={0}
-                            aria-label="Ir para Intensivão ENAMED"
-                          >
-                            <FileText className="w-3 h-3" />
-                            Cronograma ENAMED
-                          </Badge>
-                          )}
-                        </div>
-                        {item.subtitle && (
-                          <h4 className="font-semibold text-foreground w-full whitespace-normal break-words sm:truncate">
-                            {cleanSubtitle(item.subtitle)}
-                          </h4>
+                        {/* Se tem aula sugerida, mostrar como principal */}
+                        {item.aulaNome ? (
+                          <>
+                            <div className="flex items-center gap-2 gap-y-1 mb-0.5 flex-wrap">
+                              <p className="text-xs text-muted-foreground truncate">
+                                {item.title}
+                              </p>
+                              {/* Badge de origem */}
+                              {item.source === 'calendar' && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-[10px] px-1.5 py-0 h-5 gap-1 border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 truncate max-w-[220px] sm:max-w-none"
+                                >
+                                  <CalendarCheck className="w-3 h-3" />
+                                  Meu Calendário
+                                </Badge>
+                              )}
+                            </div>
+                            <h4 className="font-semibold text-foreground w-full whitespace-normal break-words sm:truncate">
+                              {item.aulaNome}
+                            </h4>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 gap-y-1 mb-0.5 flex-wrap">
+                              <h4 className="font-semibold text-foreground truncate">
+                                {item.title}
+                              </h4>
+                              {/* Badge de origem */}
+                              {item.source === 'cronograma_enamed' && (
+                                <Badge 
+                                  variant="outline" 
+                                  className="text-[10px] px-1.5 py-0 h-5 gap-1 border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400 cursor-pointer hover:bg-purple-500/20 truncate max-w-[240px] sm:max-w-none"
+                                  onClick={(e) => { e.stopPropagation(); navigate('/home'); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); navigate('/home'); } }}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label="Ir para Cronograma ENAMED"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  Cronograma ENAMED
+                                </Badge>
+                              )}
+                            </div>
+                            {item.subtitle && (
+                              <p className="text-sm text-muted-foreground w-full whitespace-normal break-words sm:truncate">
+                                {cleanSubtitle(item.subtitle)}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                       
