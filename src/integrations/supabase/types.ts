@@ -104,7 +104,6 @@ export type Database = {
         Row: {
           answer_id: string
           correct: boolean
-          email: string
           question_id: string
           "respondida?": boolean | null
           resposta_usuario: string | null
@@ -114,7 +113,6 @@ export type Database = {
         Insert: {
           answer_id?: string
           correct: boolean
-          email: string
           question_id: string
           "respondida?"?: boolean | null
           resposta_usuario?: string | null
@@ -124,7 +122,6 @@ export type Database = {
         Update: {
           answer_id?: string
           correct?: boolean
-          email?: string
           question_id?: string
           "respondida?"?: boolean | null
           resposta_usuario?: string | null
@@ -132,13 +129,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "answer_progress_enamed_email_fkey"
-            columns: ["email"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["email"]
-          },
           {
             foreignKeyName: "answer_progress_question_id_fkey"
             columns: ["question_id"]
