@@ -145,40 +145,37 @@ export function AppSidebar() {
         setHasStudyGuideContent(false);
         return;
       }
-      
+
       const { data, error } = await supabase
         .from('conteudos')
         .select('id')
         .eq('id_ies', user.id_ies)
         .limit(1);
-      
+
       setHasStudyGuideContent(!error && data && data.length > 0);
     };
-    
+
     checkStudyGuideContent();
   }, [user?.id_ies]);
 
   // Removida animação inicial para evitar reflows e melhorar continuidade
 
   const getNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
-      isActive
-        ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
-        : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
+    `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${isActive
+      ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
+      : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
     }`, []);
 
   const getParentNavCls = React.useCallback((isActive: boolean) =>
-    `group relative overflow-hidden rounded px-2 py-1 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
-      isActive
-        ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
-        : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
+    `group relative overflow-hidden rounded px-2 py-1 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${isActive
+      ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
+      : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
     }`, []);
 
   const getChildNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
-    `group relative overflow-hidden rounded !ml-4 !pl-3 !h-7 !text-xs [&_span]:text-xs transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${
-      isActive
-        ? "bg-sidebar-accent/60 text-sidebar-foreground font-semibold shadow-sm"
-        : "bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]"
+    `group relative overflow-hidden rounded !ml-4 !pl-3 !h-7 !text-xs [&_span]:text-xs transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${isActive
+      ? "bg-sidebar-accent/60 text-sidebar-foreground font-semibold shadow-sm"
+      : "bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent/70 hover:shadow-sm hover:translate-x-[2px]"
     }`, []);
 
   const MenuItem = ({
@@ -233,9 +230,8 @@ export function AppSidebar() {
     <div>
       <Sidebar
         data-testid="app-sidebar"
-        className={`hidden md:flex bg-white/10 dark:bg-transparent backdrop-blur-xl dark:backdrop-blur-none text-sidebar-foreground border border-white/20 dark:border-none shadow-lg dark:shadow-none transition-all duration-300 ${
-          collapsed ? "w-0 min-w-0 !-translate-x-full opacity-0 invisible pointer-events-none" : ""
-        }`}
+        className={`hidden md:flex bg-white/10 dark:bg-transparent backdrop-blur-xl dark:backdrop-blur-none text-sidebar-foreground border border-white/20 dark:border-none shadow-lg dark:shadow-none transition-all duration-300 ${collapsed ? "w-0 min-w-0 !-translate-x-full opacity-0 invisible pointer-events-none" : ""
+          }`}
         collapsible="icon"
       >
         {/* Premium Header with Brand Identity */}
@@ -251,8 +247,7 @@ export function AppSidebar() {
             </div>
             {!collapsed && (
               <div className="flex-1 transition-opacity duration-300">
-                <h2 className="font-bold text-base lg:text-lg leading-tight">SanarFlix Academy</h2>
-                <p className="text-xs md:text-sm text-muted-foreground font-medium">Guia de Estudos</p>
+                <h2 className="font-bold text-base lg:text-lg leading-tight">Academy</h2>
               </div>
             )}
           </div>
@@ -356,68 +351,68 @@ export function AppSidebar() {
                 {hasStudyGuideContent && (
                   <SidebarMenuItem>
                     <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        className={getParentNavCls(isStudyGuideAreaActive())}
-                        aria-expanded={studyGuideOpen}
-                        aria-controls="submenu-guia-estudos"
-                      >
-                        {collapsed ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center p-3 w-full">
-                                <BookOpen className="h-5 w-5 transition-all duration-300" />
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          className={getParentNavCls(isStudyGuideAreaActive())}
+                          aria-expanded={studyGuideOpen}
+                          aria-controls="submenu-guia-estudos"
+                        >
+                          {collapsed ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center justify-center p-3 w-full">
+                                  <BookOpen className="h-5 w-5 transition-all duration-300" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="ml-2">
+                                <div className="text-sm font-medium">Guia de Estudos</div>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2 w-full">
+                              <BookOpen className="h-5 w-5 transition-all duration-300" />
+                              <span className="block font-medium text-sm truncate flex-1">Guia de Estudos</span>
+                              <div
+                                className="ml-auto transition-transform duration-300"
+                                aria-hidden="true"
+                                style={{ transform: studyGuideOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
+                              >
+                                <ChevronDown className="h-4 w-4" />
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" className="ml-2">
-                              <div className="text-sm font-medium">Guia de Estudos</div>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <div className="flex items-center gap-2 p-2 w-full">
-                            <BookOpen className="h-5 w-5 transition-all duration-300" />
-                            <span className="block font-medium text-sm truncate flex-1">Guia de Estudos</span>
-                            <div
-                              className="ml-auto transition-transform duration-300"
-                              aria-hidden="true"
-                              style={{ transform: studyGuideOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
-                            >
-                              <ChevronDown className="h-4 w-4" />
                             </div>
-                          </div>
-                        )}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent 
-                      id="submenu-guia-estudos"
-                      className="overflow-hidden data-[state=open]:animate-drawer-slide-down data-[state=closed]:animate-drawer-slide-up"
-                    >
-                      <SidebarMenu className="mt-1 md:mt-2 space-y-[2px] md:space-y-1 border-l border-border ml-4 md:ml-6">
-                        {studyGuideItems
-                          .filter((item) => accessRules[item.accessKey])
-                          .map((item, idx) => (
-                            <SidebarMenuItem 
-                              key={item.title}
-                              style={{
-                                animation: studyGuideOpen ? `fade-in 0.3s ease-out ${idx * 0.05}s both` : 'none'
-                              }}
-                            >
-                              <SidebarMenuButton asChild>
-                                <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
-                                  <MenuItem
-                                    item={item}
-                                    className="!p-1.5 gap-2"
-                                    isActive={currentPath === item.url}
-                                    delay={idx * 0.1}
-                                  />
-                                </NavLink>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                      </SidebarMenu>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </SidebarMenuItem>
+                          )}
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent
+                        id="submenu-guia-estudos"
+                        className="overflow-hidden data-[state=open]:animate-drawer-slide-down data-[state=closed]:animate-drawer-slide-up"
+                      >
+                        <SidebarMenu className="mt-1 md:mt-2 space-y-[2px] md:space-y-1 border-l border-border ml-4 md:ml-6">
+                          {studyGuideItems
+                            .filter((item) => accessRules[item.accessKey])
+                            .map((item, idx) => (
+                              <SidebarMenuItem
+                                key={item.title}
+                                style={{
+                                  animation: studyGuideOpen ? `fade-in 0.3s ease-out ${idx * 0.05}s both` : 'none'
+                                }}
+                              >
+                                <SidebarMenuButton asChild>
+                                  <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
+                                    <MenuItem
+                                      item={item}
+                                      className="!p-1.5 gap-2"
+                                      isActive={currentPath === item.url}
+                                      delay={idx * 0.1}
+                                    />
+                                  </NavLink>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            ))}
+                        </SidebarMenu>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </SidebarMenuItem>
                 )}
 
                 {/* Outros itens (exceto Início) */}

@@ -16,7 +16,7 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const authContext = useAuth();
   const navigate = useNavigate();
-  
+
   // Se o contexto não estiver disponível, mostra loading
   if (!authContext) {
     return (
@@ -25,7 +25,7 @@ export const LoginForm: React.FC = () => {
       </div>
     );
   }
-  
+
   const { login, isLoading } = authContext;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,13 +80,17 @@ export const LoginForm: React.FC = () => {
     }
   };
   return (
-    <div className="min-h-screen flex relative bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 text-foreground">
-      {/* Theme toggle */}
+    <div className="min-h-screen flex relative bg-[linear-gradient(135deg,theme(colors.background)_0%,theme(colors.background)_20%,rgba(220,38,38,0.12)_50%,rgba(220,38,38,0.22)_100%)] dark:bg-[linear-gradient(135deg,theme(colors.background)_0%,rgba(220,38,38,0.14)_35%,rgba(220,38,38,0.28)_100%)] text-foreground">
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
-      {/* Left Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-background/80 dark:bg-background/90 backdrop-blur-sm">
+      <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-[70rem] h-[70rem] bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/40 via-primary/24 to-transparent dark:from-primary/50 dark:via-primary/28 dark:to-transparent blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-[70rem] h-[70rem] bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/40 via-primary/24 to-transparent dark:from-primary/46 dark:via-primary/26 dark:to-transparent blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/24 to-transparent dark:via-primary/28" />
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[100rem] max-w-[85vw] bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-primary/30 via-primary/20 to-transparent dark:from-primary/34 dark:via-primary/22 dark:to-transparent blur-2xl" />
+      </div>
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-transparent backdrop-blur-sm">
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
@@ -118,7 +122,7 @@ export const LoginForm: React.FC = () => {
                     E-mail
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-neutral-400" />
+                    <Mail className="absolute left-3 top-3.5 h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                     <Input
                       id="email"
                       type="email"
@@ -136,7 +140,7 @@ export const LoginForm: React.FC = () => {
                     Senha
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3.5 h-4 w-4 text-neutral-400" />
+                    <Lock className="absolute left-3 top-3.5 h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -154,9 +158,9 @@ export const LoginForm: React.FC = () => {
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-neutral-400" />
+                        <EyeOff className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
                       ) : (
-                        <Eye className="h-4 w-4 text-neutral-400" />
+                        <Eye className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
                       )}
                     </Button>
                   </div>
@@ -188,8 +192,7 @@ export const LoginForm: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Institutional Message with Gradient */}
-      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/90 dark:from-primary/95 dark:via-primary dark:to-primary/80">
+      <div className="hidden md:flex flex-1 relative overflow-hidden bg-transparent">
         <div className="absolute inset-0 flex flex-col items-center justify-center p-12 lg:p-16 text-white">
           <div className="max-w-xl space-y-10 text-center">
             {/* Logo */}
@@ -202,15 +205,15 @@ export const LoginForm: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             {/* Title */}
-            <h2 className="text-3xl lg:text-4xl font-bold leading-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight text-neutral-900 dark:text-white">
               SanarFlix Academy
             </h2>
-            
+
             {/* Description */}
-            <p className="text-base lg:text-lg text-white/95 leading-relaxed font-light">
-              Plataforma exclusiva para <strong className="font-semibold">Universidades Parceiras da Sanar</strong>. 
+            <p className="text-base lg:text-lg text-neutral-700 dark:text-white/95 leading-relaxed font-light">
+              Plataforma exclusiva para <strong className="font-semibold">Universidades Parceiras da Sanar</strong>.
               Guias de estudos personalizados, simulados com análise detalhada e métricas de engajamento.
             </p>
 
@@ -218,45 +221,44 @@ export const LoginForm: React.FC = () => {
             <div className="grid grid-cols-1 gap-3 mt-8">
               <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
                 <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-primary dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-0.5">Dashboard de acompanhamento</h3>
-                  <p className="text-sm text-white/80 leading-snug">Monitore o progresso em tempo real</p>
+                  <h3 className="font-semibold text-base mb-0.5 text-neutral-800 dark:text-white">Dashboard de acompanhamento</h3>
+                  <p className="text-sm text-neutral-600 dark:text-white/80 leading-snug">Monitore o progresso em tempo real</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
                 <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-primary dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-0.5">Conteúdo personalizado</h3>
-                  <p className="text-sm text-white/80 leading-snug">Alinhado à grade curricular</p>
+                  <h3 className="font-semibold text-base mb-0.5 text-neutral-800 dark:text-white">Conteúdo personalizado</h3>
+                  <p className="text-sm text-neutral-600 dark:text-white/80 leading-snug">Alinhado à grade curricular</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
                 <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-primary dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base mb-0.5">Análise detalhada</h3>
-                  <p className="text-sm text-white/80 leading-snug">Insights para tomada de decisão</p>
+                  <h3 className="font-semibold text-base mb-0.5 text-neutral-800 dark:text-white">Análise detalhada</h3>
+                  <p className="text-sm text-neutral-600 dark:text-white/80 leading-snug">Insights para tomada de decisão</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
-        {/* Subtle gradient overlay for depth */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
+
+
       </div>
     </div>
   );
