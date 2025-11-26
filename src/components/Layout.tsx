@@ -58,7 +58,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex md:hidden items-center gap-2">
               <img 
                 src="/lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png" 
-                alt="Sanarflix" 
+                alt="SanarFlix Academy" 
                 className="h-8 w-auto"
               />
             </div>

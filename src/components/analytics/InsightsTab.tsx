@@ -31,7 +31,7 @@ const correlationData = [
 ];
 
 const benchmarkData = [
-  { metric: 'Cliques SanarFlix', current: 10000, previous: 9000, change: 11.1 },
+  { metric: 'Cliques SanarFlix Academy', current: 10000, previous: 9000, change: 11.1 },
   { metric: 'Completude', current: 55, previous: 50, change: 10 },
   { metric: 'Retenção', current: 50, previous: 48, change: 4.2 },
   { metric: 'Engajamento', current: 800, previous: 750, change: 6.7 }
@@ -66,7 +66,7 @@ const sentimentData = [
 ];
 
 const crossPlatformData = [
-  { platform: 'SanarFlix', clicks: 8500, change: 20 },
+  { platform: 'SanarFlix Academy', clicks: 8500, change: 20 },
   { platform: 'Geral', clicks: 10000, change: 10 }
 ];
 
@@ -469,7 +469,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ filters }) => {
             
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
               <div className="font-medium text-green-900 mb-1">
-                SanarFlix Outperforming
+                SanarFlix Academy Outperforming
               </div>
               <p className="text-sm text-green-700">
                 +20% cliques vs plataforma geral. Estratégia de redirecionamento eficaz.
@@ -544,7 +544,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ filters }) => {
                 </div>
                 <div className="flex items-start gap-2">
                   <Zap className="w-4 h-4 text-blue-600 mt-0.5" />
-                  <span><strong>SanarFlix performance:</strong> +20% vs geral - Ampliar estratégia</span>
+                  <span><strong>SanarFlix Academy performance:</strong> +20% vs geral - Ampliar estratégia</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-red-600 mt-0.5" />
