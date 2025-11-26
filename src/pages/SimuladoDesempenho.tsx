@@ -72,13 +72,26 @@ const QuestionModal: React.FC<{
             <DialogTitle>Revisão de Questão</DialogTitle>
             <div className="flex items-center gap-2">
               {question?.dificuldade && <DifficultyBadge difficulty={question.dificuldade} />}
-              {question && typeof question.acertou === 'boolean' && (
-                <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold",
-                  userGotItRight ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500")}>
-                  {userGotItRight ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                  <span>{userGotItRight ? "Você acertou" : "Você errou"}</span>
-                </div>
-              )}
+              {question && (
+                    (() => {
+                      const notAnswered = !question.user_answer;
+                      const statusClass = notAnswered
+                        ? "bg-amber-500/10 text-amber-500"
+                        : (userGotItRight ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500");
+                      const icon = notAnswered
+                        ? <HelpCircle className="h-4 w-4" />
+                        : (userGotItRight ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />);
+                      const label = notAnswered
+                        ? "Questão Não Respondida"
+                        : (userGotItRight ? "Você acertou" : "Você errou");
+                      return (
+                        <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold", statusClass)}>
+                          {icon}
+                          <span>{label}</span>
+                        </div>
+                      );
+                    })()
+                )}
             </div>
           </div>
         </DialogHeader>
