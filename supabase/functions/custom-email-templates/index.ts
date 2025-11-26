@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
           email_action_type,
         })
       )
-      subject = 'Redefina sua senha - Sanarflix'
+      subject = 'Redefina sua senha - SanarFlix Academy'
     } else {
       // Default to magic link for login
       html = await renderAsync(
@@ -74,11 +74,11 @@ Deno.serve(async (req) => {
           email_action_type,
         })
       )
-      subject = 'Acesse sua conta - Sanarflix'
+      subject = 'Acesse sua conta - SanarFlix Academy'
     }
 
     const { error } = await resend.emails.send({
-      from: 'Sanarflix <noreply@sanar.com>',
+      from: 'SanarFlix Academy <noreply@sanar.com>',
       to: [user.email],
       subject,
       html,

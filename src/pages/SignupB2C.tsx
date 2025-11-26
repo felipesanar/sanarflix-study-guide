@@ -130,11 +130,11 @@ export const SignupB2C: React.FC = () => {
           <div className="flex items-center mb-8">
             <img
               src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-              alt="Logo Sanarflix"
+              alt="Logo SanarFlix Academy"
               className="w-12 h-12 rounded-xl mr-3 shadow-lg object-contain"
             />
             <div>
-              <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">Sanarflix</h1>
+              <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">SanarFlix Academy</h1>
               <p className="text-sm text-neutral-600 dark:text-muted-foreground">Cadastro Exclusivo</p>
             </div>
           </div>

@@ -55,7 +55,7 @@ const menuItems = [
     url: "/sanarclass",
     icon: GraduationCap,
     accessKey: "home" as const,
-    description: "Aulas da sua IES com o Sanarflix",
+    description: "Aulas da sua IES com o SanarFlix Academy",
   },
   {
     title: "Simulados",
@@ -244,14 +244,14 @@ export function AppSidebar() {
             <div className="relative">
               <img
                 src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-                alt="Sanarflix"
+                alt="SanarFlix Academy"
                 loading="lazy"
                 className="w-10 h-10 md:w-11 md:h-11 lg:w-12 lg:h-12 rounded-2xl shadow-lg object-contain ring-2 ring-primary/20 transition-transform duration-300 hover:scale-105"
               />
             </div>
             {!collapsed && (
               <div className="flex-1 transition-opacity duration-300">
-                <h2 className="font-bold text-lg lg:text-xl">Sanarflix</h2>
+                <h2 className="font-bold text-base lg:text-lg leading-tight">SanarFlix Academy</h2>
                 <p className="text-xs md:text-sm text-muted-foreground font-medium">Guia de Estudos</p>
               </div>
             )}
