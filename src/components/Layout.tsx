@@ -25,10 +25,17 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const authContext = useAuth();
   const location = useLocation();
   const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  
+  // Se o contexto não estiver disponível, renderiza apenas os children
+  if (!authContext) {
+    return <>{children}</>;
+  }
+  
+  const { user, logout } = authContext;
 
   const initials = (user?.nome || '')
     .split(' ')
@@ -223,9 +230,16 @@ function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
 import { supabase } from '@/integrations/supabase/client';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 function NotificationsCenter() {
-  const { user } = useAuth();
+  const authContext = useAuth();
   const [items, setItems] = React.useState<Array<{ id: string; titulo: string; descricao: string; prioridade: string; created_at?: string; link_botao?: string | null }>>([]);
   const isExpired = (exp?: string) => (exp ? toBrazilDate(exp) < getBrazilDate() : false);
+  
+  // Se o contexto não estiver disponível, não renderiza
+  if (!authContext) {
+    return null;
+  }
+  
+  const { user } = authContext;
   React.useEffect(() => {
     let mounted = true;
     const fetchData = async () => {

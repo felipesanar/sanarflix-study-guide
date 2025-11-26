@@ -11,7 +11,14 @@ interface PasswordChangeModalProps {
 }
 
 export const PasswordChangeModal: React.FC<PasswordChangeModalProps> = ({ isOpen }) => {
-  const { changePassword, isLoading } = useAuth();
+  const authContext = useAuth();
+  
+  // Se o contexto não estiver disponível, não renderiza o modal
+  if (!authContext) {
+    return null;
+  }
+  
+  const { changePassword, isLoading } = authContext;
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

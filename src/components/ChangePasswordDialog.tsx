@@ -12,12 +12,19 @@ interface ChangePasswordDialogProps {
 }
 
 export const ChangePasswordDialog: React.FC<ChangePasswordDialogProps> = ({ open, onOpenChange }) => {
-  const { changePassword, isLoading } = useAuth();
+  const authContext = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  
+  // Se o contexto não estiver disponível, não renderiza
+  if (!authContext) {
+    return null;
+  }
+  
+  const { changePassword, isLoading } = authContext;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

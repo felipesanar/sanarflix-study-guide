@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 const StudyContext = createContext<StudyContextType | null>(null);
 
 export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const authContext = useAuth();
   const [studyContents, setStudyContents] = useState<StudyContent[]>([]);
   const [progress, setProgress] = useState<Progress>({
     userId: '',
@@ -15,6 +15,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     totalItems: 0,
     progressByDiscipline: {}
   });
+  
+  // Se o contexto não estiver disponível, renderiza apenas os children sem provider
+  if (!authContext) {
+    return <>{children}</>;
+  }
+  
+  const { user } = authContext;
 
   useEffect(() => {
     if (user && user.id_ies && user.semestre) {
