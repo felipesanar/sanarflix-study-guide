@@ -80,13 +80,13 @@ export const LoginForm: React.FC = () => {
     }
   };
   return (
-    <div className="min-h-screen flex relative bg-background text-foreground">
+    <div className="min-h-screen flex relative bg-gradient-to-br from-background via-background to-primary/5 dark:to-primary/10 text-foreground">
       {/* Theme toggle */}
       <div className="absolute top-4 right-4 z-10">
         <ThemeToggle />
       </div>
       {/* Left Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-card">
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-background/80 dark:bg-background/90 backdrop-blur-sm">
         <div className="w-full max-w-md animate-slide-in-left">
           <div className="flex items-center mb-8">
             <img
@@ -99,16 +99,16 @@ export const LoginForm: React.FC = () => {
             />
             <div>
               <h1 className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">SanarFlix Academy</h1>
-              <p className="text-sm text-neutral-600 dark:text-muted-foreground">Plataforma Institucional B2B</p>
+              <p className="text-sm text-neutral-600 dark:text-muted-foreground">Para Universidades Parceiras</p>
             </div>
           </div>
 
-          <Card className="border border-border shadow-lg">
+          <Card className="border border-border shadow-2xl bg-card/95 backdrop-blur-sm">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-bold text-neutral-900 dark:text-primary-foreground">
+              <CardTitle className="text-2xl font-bold text-foreground">
                 Faça seu login
               </CardTitle>
-              <CardDescription className="text-neutral-600 dark:text-muted-foreground"></CardDescription>
+              <CardDescription className="text-muted-foreground"></CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -188,68 +188,75 @@ export const LoginForm: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Side - Banner with Institutional Message */}
-      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary/95 to-primary">
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-white">
-          <div className="max-w-2xl space-y-8">
-            <div className="flex items-center justify-center mb-6">
-              <img
-                src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-                alt="SanarFlix Academy"
-                className="w-20 h-20 rounded-2xl shadow-2xl"
-              />
+      {/* Right Side - Institutional Message with Gradient */}
+      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/90 dark:from-primary/95 dark:via-primary dark:to-primary/80">
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-12 lg:p-16 text-white">
+          <div className="max-w-xl space-y-10 text-center">
+            {/* Logo */}
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/95 rounded-2xl shadow-2xl flex items-center justify-center p-3">
+                <img
+                  src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+                  alt="SanarFlix Academy"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
             
-            <h2 className="text-4xl font-bold text-center leading-tight">
+            {/* Title */}
+            <h2 className="text-3xl lg:text-4xl font-bold leading-tight">
               SanarFlix Academy
             </h2>
             
-            <p className="text-lg text-white/90 text-center leading-relaxed">
-              Plataforma B2B exclusiva para <strong>Universidades Parceiras da Sanar</strong>. 
-              Centralize entregas pedagógicas personalizadas com guias de estudos alinhados à ementa 
-              da sua faculdade, simulados com análise de desempenho detalhada e métricas gerais de 
-              engajamento e consumo dos estudantes de medicina.
+            {/* Description */}
+            <p className="text-base lg:text-lg text-white/95 leading-relaxed font-light">
+              Plataforma exclusiva para <strong className="font-semibold">Universidades Parceiras da Sanar</strong>. 
+              Guias de estudos personalizados, simulados com análise detalhada e métricas de engajamento.
             </p>
 
-            <div className="grid grid-cols-1 gap-4 mt-8">
-              <div className="flex items-start gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Dashboard de acompanhamento</h3>
-                  <p className="text-sm text-white/80">Monitore o progresso individual e coletivo em tempo real</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Conteúdo personalizado por semestre</h3>
-                  <p className="text-sm text-white/80">Material didático alinhado à grade curricular da instituição</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Feature Cards */}
+            <div className="grid grid-cols-1 gap-3 mt-8">
+              <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
+                <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">Análise de desempenho detalhada</h3>
-                  <p className="text-sm text-white/80">Métricas de engajamento e insights para tomada de decisão</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base mb-0.5">Dashboard de acompanhamento</h3>
+                  <p className="text-sm text-white/80 leading-snug">Monitore o progresso em tempo real</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
+                <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base mb-0.5">Conteúdo personalizado</h3>
+                  <p className="text-sm text-white/80 leading-snug">Alinhado à grade curricular</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 text-left hover:bg-white/15 transition-colors">
+                <div className="flex-shrink-0 w-11 h-11 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base mb-0.5">Análise detalhada</h3>
+                  <p className="text-sm text-white/80 leading-snug">Insights para tomada de decisão</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        
+        {/* Subtle gradient overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
       </div>
     </div>
   );
