@@ -7,7 +7,14 @@ interface AuthWrapperProps {
 }
 
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const { needsPasswordChange } = useAuth();
+  const authContext = useAuth();
+  
+  // Previne renderização antes do contexto estar pronto
+  if (!authContext) {
+    return <>{children}</>;
+  }
+  
+  const { needsPasswordChange } = authContext;
 
   return (
     <>

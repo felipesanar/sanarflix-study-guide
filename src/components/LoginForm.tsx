@@ -14,8 +14,19 @@ export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuth();
+  const authContext = useAuth();
   const navigate = useNavigate();
+  
+  // Se o contexto não estiver disponível, mostra loading
+  if (!authContext) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
+      </div>
+    );
+  }
+  
+  const { login, isLoading } = authContext;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

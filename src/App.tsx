@@ -55,9 +55,24 @@ const queryClient = new QueryClient({
 });
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
-
+  const authContext = useAuth();
   
+  // Se o contexto não estiver disponível, mostra loading
+  if (!authContext) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 mx-auto" />
+            <Skeleton className="h-3 w-24 mx-auto" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { user, isLoading } = authContext;
 
   if (isLoading) {
     return (
@@ -81,7 +96,18 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppContent = () => {
-  const { user } = useAuth();
+  const authContext = useAuth();
+  
+  // Se o contexto não estiver disponível, retorna loading
+  if (!authContext) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
+      </div>
+    );
+  }
+  
+  const { user } = authContext;
   const accessRules = getAccessRules(user);
   
   // Sistema de prefetch inteligente baseado em probabilidade
