@@ -49,7 +49,7 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
               <p className="text-sm text-muted-foreground mb-4">
                 Você ainda não respondeu nenhum simulado.
               </p>
-              <Button onClick={() => navigate('/desempenho-simulado')}>
+              <Button onClick={() => navigate('/simulados?aba=desempenho')}>
                 Fazer simulado agora
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
@@ -99,7 +99,7 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
 
             {/* CTA */}
             <Button 
-              onClick={() => navigate('/desempenho-simulado')}
+              onClick={() => navigate('/simulados?aba=desempenho')}
               className="w-full"
               variant="outline"
             >

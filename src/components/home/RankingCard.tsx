@@ -37,7 +37,7 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
         {/* Ranking de Simulado */}
         <motion.div
           whileHover={{ scale: 1.02 }}
-          onClick={() => navigate('/desempenho-simulado')}
+          onClick={() => navigate('/simulados?aba=desempenho')}
           className="p-4 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl border border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-all group"
         >
           <div className="flex items-start justify-between mb-3">
