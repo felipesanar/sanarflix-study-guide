@@ -202,13 +202,25 @@ export const ModoProva = () => {
 
       storage.limparEstado();
 
+      try {
+        const perfPrefix = `performanceData_${user.id}`;
+        const evolutionKey = `evolutionData_${user.id}`;
+        Object.keys(sessionStorage).forEach((k) => {
+          if (k.startsWith(perfPrefix) || k === evolutionKey) {
+            sessionStorage.removeItem(k);
+          }
+        });
+      } catch (e) {}
+
+      window.dispatchEvent(new CustomEvent('simulado:finalizado', { detail: { simuladoId } }));
+
       toast.success('Simulado enviado com sucesso!', {
         description: 'Redirecionando para a página de simulados...',
         duration: 3000
       });
 
       setTimeout(() => {
-        navigate('/simulados?aba=simulados');
+        navigate(`/simulados?aba=simulados&just_finished=${simuladoId}`);
       }, 1500);
     } catch (error) {
       console.error('Erro ao finalizar simulado:', error);

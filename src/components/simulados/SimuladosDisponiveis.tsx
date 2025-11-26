@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Simulado } from '@/types/simulado';
 import { SimuladoCard } from './SimuladoCard';
@@ -24,30 +25,45 @@ export const SimuladosDisponiveis = () => {
     carregarSimulados();
   }, [user]);
 
+  useEffect(() => {
+    const onFinalizado = () => carregarSimulados();
+    const onFocus = () => carregarSimulados();
+    window.addEventListener('simulado:finalizado', onFinalizado);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      window.removeEventListener('simulado:finalizado', onFinalizado);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
   const carregarSimulados = async () => {
     setLoading(true);
     try {
       const dados = await simuladosApi.listarSimulados();
-      
-      // Verificar se há progresso salvo para cada simulado
-      const simuladosComStatus = await Promise.all(
-        dados.map(async (sim) => {
-          // Verificar localStorage diretamente sem usar o hook
-          const estadoKey = `simulado_${sim.id}_estado`;
-          const estadoStr = localStorage.getItem(estadoKey);
-          
-          if (estadoStr) {
-            return { ...sim, status: 'em_andamento' as const };
-          }
+      const urlParams = new URLSearchParams(window.location.search);
+      const justFinished = urlParams.get('just_finished');
 
-          const concluido = await simuladosApi.verificarProgressoSimulado(user.id, sim.id);
-          if (concluido) {
-            return { ...sim, status: 'concluido' as const };
-          }
+      const { data: finalizados } = await supabase
+        .from('simulados_finalizados')
+        .select('simulado_id, liberado_novamente')
+        .eq('user_id', user.id);
 
-          return sim;
-        })
-      );
+      const finalizadoSet = new Set((finalizados || [])
+        .filter((f: any) => !f.liberado_novamente)
+        .map((f: any) => String(f.simulado_id)));
+
+      const simuladosComStatus = dados.map((sim) => {
+        const estadoKey = `simulado_${sim.id}_estado`;
+        const estadoStr = localStorage.getItem(estadoKey);
+        if (estadoStr) {
+          return { ...sim, status: 'em_andamento' as const };
+        }
+        const isConcluido = finalizadoSet.has(String(sim.id)) || justFinished === String(sim.id);
+        if (isConcluido) {
+          return { ...sim, status: 'concluido' as const };
+        }
+        return sim;
+      });
 
       setSimulados(simuladosComStatus);
     } catch (error) {
