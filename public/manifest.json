@@ -1,7 +1,7 @@
 {
   "name": "SanarFlix Academy - Guia de Estudos",
   "short_name": "SanarFlix Academy",
-  "description": "Plataforma B2B para Universidades Parceiras da Sanar",
+  "description": "Plataforma exclusiva para Universidades Parceiras da Sanar",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
