@@ -160,6 +160,83 @@ export default function SimuladosTab() {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const XLSXLib = await loadXLSX();
+      
+      // Criar dados de exemplo
+      const templateData = [
+        {
+          'Número da Questão': 1,
+          'Grande Área': 'Clínica Médica',
+          'Especialidade': 'Cardiologia',
+          'Tema': 'Insuficiência Cardíaca',
+          'Grau de dificuldade': 'Média',
+          'Competência': 'Diagnóstico',
+          'Enunciado da questão': 'Paciente de 65 anos apresenta dispneia progressiva há 3 meses. Qual o exame inicial mais indicado?',
+          'Alternativa A': 'Radiografia de tórax',
+          'Alternativa B': 'Ecocardiograma',
+          'Alternativa C': 'Cateterismo cardíaco',
+          'Alternativa D': 'Ressonância magnética cardíaca',
+          'Comentário da questão': 'A radiografia de tórax é o exame inicial de escolha para avaliar dispneia, permitindo identificar cardiomegalia e congestão pulmonar.',
+          'Alternativa Correta': 'A',
+          'Imagem/Gráfico/Tabela': ''
+        },
+        {
+          'Número da Questão': 2,
+          'Grande Área': 'Cirurgia',
+          'Especialidade': 'Cirurgia Geral',
+          'Tema': 'Apendicite Aguda',
+          'Grau de dificuldade': 'Fácil',
+          'Competência': 'Conduta',
+          'Enunciado da questão': 'Qual o tratamento padrão-ouro para apendicite aguda não complicada?',
+          'Alternativa A': 'Antibioticoterapia isolada',
+          'Alternativa B': 'Apendicectomia',
+          'Alternativa C': 'Drenagem percutânea',
+          'Alternativa D': 'Observação clínica',
+          'Comentário da questão': 'A apendicectomia continua sendo o tratamento padrão-ouro para apendicite aguda.',
+          'Alternativa Correta': 'B',
+          'Imagem/Gráfico/Tabela': ''
+        }
+      ];
+
+      const worksheet = XLSXLib.utils.json_to_sheet(templateData);
+      const workbook = XLSXLib.utils.book_new();
+      XLSXLib.utils.book_append_sheet(workbook, worksheet, 'Simulado');
+
+      // Ajustar largura das colunas
+      worksheet['!cols'] = [
+        { wch: 18 }, // Número da Questão
+        { wch: 15 }, // Grande Área
+        { wch: 15 }, // Especialidade
+        { wch: 20 }, // Tema
+        { wch: 18 }, // Grau de dificuldade
+        { wch: 15 }, // Competência
+        { wch: 50 }, // Enunciado
+        { wch: 30 }, // Alt A
+        { wch: 30 }, // Alt B
+        { wch: 30 }, // Alt C
+        { wch: 30 }, // Alt D
+        { wch: 40 }, // Comentário
+        { wch: 18 }, // Correta
+        { wch: 25 }  // Imagem
+      ];
+
+      XLSXLib.writeFile(workbook, 'modelo_simulado.xlsx');
+
+      toast({
+        title: 'Modelo baixado',
+        description: 'Use este arquivo como referência para criar seus simulados.'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao gerar modelo',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -541,13 +618,24 @@ export default function SimuladosTab() {
             <p className="text-sm text-muted-foreground mb-4">
               Arraste um arquivo .xlsx ou clique para selecionar
             </p>
-            <Input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={uploading}
-              className="max-w-xs mx-auto cursor-pointer"
-            />
+            <div className="flex flex-col items-center gap-3">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="max-w-xs cursor-pointer"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadTemplate}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Baixar arquivo modelo
+              </Button>
+            </div>
             {uploading && (
               <div className="mt-4 space-y-2">
                 <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
