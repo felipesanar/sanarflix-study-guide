@@ -96,13 +96,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const { data, error } = await supabase.functions.invoke('auth-login', {
-        body: { email, password }
+        body: { email: normalizedEmail, password }
       });
 
-      // Handle both SDK errors and response errors
-      // When edge function returns 4xx, SDK may put response in error.context or data still contains response body
-      const errorMessage = data?.error || error?.message;
+      // Handle both SDK errors and response errors (4xx/5xx)
+      // Supabase Functions may return the JSON body inside `error.context.body` when status is non-2xx.
+      let contextualMessage: string | undefined;
+      const maybeBody = (error as any)?.context?.body;
+      if (!data?.error && typeof maybeBody === 'string') {
+        try {
+          const parsed = JSON.parse(maybeBody);
+          if (parsed?.error) contextualMessage = String(parsed.error);
+        } catch {
+          // ignore
+        }
+      }
+
+      const errorMessage = data?.error || contextualMessage || error?.message;
       
       if (error && !data) {
         // True communication error (network failure, etc.)
