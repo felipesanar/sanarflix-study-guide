@@ -40,9 +40,10 @@ export interface SimuladoPerformance {
 
 export interface TopAula {
   id: string;
-  nome: string;
-  materia: string;
+  conteudo: string;
+  curso: string;
   link: string;
+  tipo: 'videos' | 'questoes';
 }
 
 export const useHomeData = () => {
@@ -56,7 +57,7 @@ export const useHomeData = () => {
   const [topAulas, setTopAulas] = useState<TopAula[]>([]);
   const [conteudosRelacionados, setConteudosRelacionados] = useState<any[]>([]);
   const [simuladoData, setSimuladoData] = useState<SimuladoPerformance | null>(null);
-  
+
   // Cache leve em sessionStorage para evitar skeleton em revisitas rápidas
   const cacheKey = user ? `home_data_cache_${user.id}` : null;
   const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
@@ -97,7 +98,7 @@ export const useHomeData = () => {
     if (!silent) {
       setLoading(true);
     }
-    
+
     try {
       setError(null);
       const [meuDiaRes, rankingsRes, topAulasRes, simuladoRes] = await Promise.all([
@@ -177,9 +178,9 @@ export const useHomeData = () => {
     try {
       // 🌍 Usar fuso de Brasília (GMT-3) para consistência com sistema de lembretes
       const today = getBrazilDayOfWeek(); // 0 (Dom) - 6 (Sáb)
-      
-      
-      
+
+
+
       // Buscar TODAS as matérias agendadas para hoje
       const { data: todaySubjects, error: subjectsError } = await supabase
         .from('calendar_subjects')
@@ -188,7 +189,7 @@ export const useHomeData = () => {
         .eq('day_of_week', today)
         .order('start_time', { ascending: true });
 
-      
+
       if (subjectsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
 
       let subjectsToProcess: string[] = [];
@@ -199,38 +200,38 @@ export const useHomeData = () => {
         // Fallback: usar calendar_arrangements
         const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         const todayName = dayNames[today];
-        
-        
+
+
         const { data: arrangements, error: arrangementsError } = await supabase
           .from('calendar_arrangements')
           .select('*')
           .eq('user_id', user.id)
           .eq('day', todayName)
           .order('position', { ascending: true });
-        
-        
+
+
         if (arrangementsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_arrangements:', arrangementsError);
-        
+
         if (arrangements && arrangements.length > 0) {
           subjectsToProcess = arrangements.map((a: any) => a.item_key);
         }
       }
 
-      
+
 
       // Se não encontrou no calendário pessoal, buscar no Cronograma ENAMED
       if (subjectsToProcess.length === 0) {
-        
+
         try {
           const allCronogramaItems = await cronogramaEnamedApi.getAllContent();
-          
-          
-          
-          
+
+
+
+
           const brazilDate = getBrazilDate();
           const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          
-          
+
+
           // Filtrar por data_aula que contenha a data de hoje
           // OU por semana atual (como fallback)
           const todayCronogramaItems = allCronogramaItems.filter(item => {
@@ -248,20 +249,20 @@ export const useHomeData = () => {
             }
             return false;
           });
-          
-          
-          
+
+
+
           // Se ainda não tiver nada, pegar os primeiros 3 itens como fallback
-          const itemsToShow = todayCronogramaItems.length > 0 
+          const itemsToShow = todayCronogramaItems.length > 0
             ? todayCronogramaItems.slice(0, 3)
             : allCronogramaItems.slice(0, 3);
-          
-          
-          
+
+
+
           // Buscar aulas específicas do Guia de Estudos para cada matéria do Cronograma
           const cronogramaPromises = itemsToShow.map(async (cronItem) => {
             const materiaName = cronItem.subtema || cronItem.tema || 'Matéria';
-            
+
             try {
               // Buscar aulas da matéria no Guia de Estudos
               const [materiaConteudosRes, completedRes] = await Promise.all([
@@ -358,38 +359,38 @@ export const useHomeData = () => {
             // Buscar informações completas (tema e subtema) da aula sugerida
             let temaNome: string | undefined;
             let subtemaNome: string | undefined;
-            
+
             if (suggestion) {
               const { data: aulaCompleta } = await supabase
                 .from('conteudos')
                 .select('tema, subtema')
                 .eq('id', suggestion.id)
                 .single();
-              
+
               if (aulaCompleta) {
                 temaNome = aulaCompleta.tema;
                 subtemaNome = aulaCompleta.subtema;
               }
             }
 
-              return {
-                id: `materia-${subjectName}`,
-                type: 'materia' as const,
-                title: subjectName,
-                subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
-                path: suggestion && temaNome
-                  ? `/guia-estudos?materia=${encodeURIComponent(subjectName)}&aula=${encodeURIComponent(suggestion.aula)}&tema=${encodeURIComponent(temaNome)}&subtema=${encodeURIComponent(subtemaNome || '')}`
-                  : `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
-                icon: 'BookOpen',
-                color: 'from-emerald-500 to-teal-500',
-                lessonLink: suggestion?.link_aula || undefined,
-                source: 'calendar' as const,
-                // Metadados para deep linking
-                aulaId: suggestion?.id,
-                aulaNome: suggestion?.aula,
-                temaNome,
-                subtemaNome,
-              };
+            return {
+              id: `materia-${subjectName}`,
+              type: 'materia' as const,
+              title: subjectName,
+              subtitle: suggestion ? `Aula sugerida: ${suggestion.aula}` : 'Matéria agendada',
+              path: suggestion && temaNome
+                ? `/guia-estudos?materia=${encodeURIComponent(subjectName)}&aula=${encodeURIComponent(suggestion.aula)}&tema=${encodeURIComponent(temaNome)}&subtema=${encodeURIComponent(subtemaNome || '')}`
+                : `/guia-estudos?materia=${encodeURIComponent(subjectName)}`,
+              icon: 'BookOpen',
+              color: 'from-emerald-500 to-teal-500',
+              lessonLink: suggestion?.link_aula || undefined,
+              source: 'calendar' as const,
+              // Metadados para deep linking
+              aulaId: suggestion?.id,
+              aulaNome: suggestion?.aula,
+              temaNome,
+              subtemaNome,
+            };
           } catch (error) {
             console.warn(`Erro ao processar matéria ${subjectName}:`, error);
             return null;
@@ -404,7 +405,7 @@ export const useHomeData = () => {
       console.error('❌ [Meu Dia] Erro ao montar matérias:', e);
     }
 
-    
+
 
     // Adicionar "Simulado Disponível" somente se houver simulado ativo não respondido pelo usuário
     try {
@@ -463,29 +464,128 @@ export const useHomeData = () => {
   };
 
   const fetchRankings = async () => {
-    if (!user?.email) return;
+    if (!user?.id) return;
 
     try {
-      // Fetch real simulado ranking
-      const { data: rankingData } = await supabase
-        .rpc('get_user_rankings', { p_simulado_id: null });
+      const { data: simData } = await supabase.rpc('get_user_rankings', { p_simulado_id: null });
+      const simuladoRank = (simData as any)?.rankingIES?.rank || 0;
+      const simuladoTotal = (simData as any)?.rankingIES?.total || 0;
 
-      if (rankingData && typeof rankingData === 'object') {
-        const ranking = rankingData as any;
-        // Mock determinístico para ranking de conteúdo (baseado no user.id)
-        const userIdHash = user.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const mockConteudoRank = (userIdHash % 50) + 1;
-        
-        const next: RankingData = {
-          simuladoRank: ranking.rankingIES?.rank,
-          simuladoTotal: ranking.rankingIES?.total,
-          // Mock determinístico - sempre retorna o mesmo valor para o mesmo usuário
-          conteudoRank: mockConteudoRank,
-          conteudoTotal: 150,
-        };
+      let iesId = user.id_ies || null;
+      let semestreVal: number | null = (user.semestre ?? null) as number | null;
+      try {
+        const [{ data: iesRpc }, { data: semRpc }] = await Promise.all([
+          supabase.rpc('get_current_user_ies_id'),
+          supabase.rpc('get_current_user_semester'),
+        ]);
+        if (iesRpc) iesId = iesRpc as string;
+        if (semRpc !== null && semRpc !== undefined) semestreVal = semRpc as number;
+      } catch {}
+
+      if (!iesId || semestreVal === null || semestreVal === undefined) {
+        const next: RankingData = { simuladoRank, simuladoTotal };
         setRankings(next);
         return next;
       }
+
+      const sb: any = supabase;
+
+      try {
+        const { data: ranking } = await sb.rpc('get_cohort_consumo_ranking');
+        if (ranking && ranking.length) {
+          const total = ranking[0]?.total ?? ranking.length;
+          const myRow = ranking.find((r: any) => r.supabase_user_id === user.id);
+          const rv = Number(myRow?.rank_videos ?? total);
+          const rq = Number(myRow?.rank_questoes ?? total);
+          const best = Math.min(rv, rq);
+          const next: RankingData = {
+            simuladoRank,
+            simuladoTotal,
+            conteudoRank: best,
+            conteudoTotal: total,
+          };
+          setRankings(next);
+          return next;
+        }
+      } catch (e) {}
+
+      const { data: usersRes } = await sb
+        .from('users')
+        .select('id')
+        .eq('id_ies', iesId)
+        .eq('semestre', semestreVal);
+
+      const userIds = (usersRes || []).map((u: any) => u.id);
+
+      const { data: mapRes } = await sb
+        .from('supabase_to_metabase')
+        .select('id, user_id_metabase')
+        .in('id', userIds);
+
+      const idToMetabase = new Map<string, string>();
+      (mapRes || []).forEach((m: any) => idToMetabase.set(m.id, m.user_id_metabase));
+      const metabaseIds = Array.from(idToMetabase.values());
+
+      let consumoRes: any[] = [];
+      if (metabaseIds.length > 0) {
+        const { data: consumo } = await sb
+          .from('consumo_metabase')
+          .select('id, videos_assistidos, documentos_lidos, questoes_respondidas')
+          .in('id', metabaseIds);
+        consumoRes = consumo || [];
+      }
+
+      const consumoByMetabaseId = new Map<string, any>();
+      consumoRes.forEach((c: any) => consumoByMetabaseId.set(c.id, c));
+
+      const total = userIds.length;
+      const sortBy = (key: 'videos_assistidos' | 'questoes_respondidas') => {
+        return userIds
+          .map((uid: string) => {
+            const mid = idToMetabase.get(uid);
+            const c = mid ? consumoByMetabaseId.get(mid) : null;
+            const val = Number(c?.[key] ?? 0);
+            return { uid, val };
+          })
+          .sort((a, b) => b.val - a.val);
+      };
+
+      const videosBoard = sortBy('videos_assistidos');
+      const questsBoard = sortBy('questoes_respondidas');
+
+      const myId = user.id;
+      const myVideos = videosBoard.find((s) => s.uid === myId)?.val ?? 0;
+      const myQuests = questsBoard.find((s) => s.uid === myId)?.val ?? 0;
+      const videosIdx = videosBoard.findIndex((s) => s.uid === myId);
+      const questsIdx = questsBoard.findIndex((s) => s.uid === myId);
+
+      const allZeroVideos = videosBoard.every((s) => s.val === 0);
+      const allZeroQuests = questsBoard.every((s) => s.val === 0);
+      const lastZeroVideos = videosBoard.map((s) => s.val).lastIndexOf(0);
+      const lastZeroQuests = questsBoard.map((s) => s.val).lastIndexOf(0);
+
+      const videosPos = videosIdx >= 0
+        ? (myVideos === 0
+            ? (lastZeroVideos >= 0 ? lastZeroVideos + 1 : total)
+            : (allZeroVideos ? total : videosIdx + 1))
+        : total;
+
+      const questsPos = questsIdx >= 0
+        ? (myQuests === 0
+            ? (lastZeroQuests >= 0 ? lastZeroQuests + 1 : total)
+            : (allZeroQuests ? total : questsIdx + 1))
+        : total;
+
+      const bestPos = Math.min(videosPos, questsPos);
+
+      const next: RankingData = {
+        simuladoRank,
+        simuladoTotal,
+        conteudoRank: bestPos,
+        conteudoTotal: total,
+      };
+      setRankings(next);
+      return next;
     } catch (error) {
       console.error('Error fetching rankings:', error);
     }
@@ -494,32 +594,123 @@ export const useHomeData = () => {
   const fetchTopAulas = async () => {
     if (!user?.id_ies || !user?.semestre) return;
 
-    // Query com contagem real de views do usuário
-    const { data } = await supabase
+    const sb: any = supabase;
+    console.log('[MeuSemestre] Iniciando fetchTopAulas', { id_ies: user.id_ies, semestre: user.semestre });
+    const base = () =>
+      sb
+        .from('dados_meu_semestre')
+        .select('id, id_ies, semestre, curso, modulo, conteudo, tipo_conteudo, total_acessos, link_acesso');
+
+    let dataRes = await base()
+      .in('id_ies', [user.id_ies])
+      .in('semestre', [user.semestre])
+      .order('total_acessos', { ascending: false })
+      .limit(12);
+
+    let data = dataRes.data || [];
+    console.log('[MeuSemestre] Primeira consulta', { length: data?.length || 0, error: dataRes.error });
+
+    if (!data || data.length === 0) {
+      const retry = await base()
+        .eq('id_ies', user.id_ies)
+        .eq('semestre', String(user.semestre))
+        .order('total_acessos', { ascending: false })
+        .limit(12);
+      data = retry.data || [];
+      console.log('[MeuSemestre] Fallback 1 (eq string semestre)', { length: data?.length || 0, error: retry.error });
+    }
+
+    if (!data || data.length === 0) {
+      const retry2 = await base()
+        .in('id_ies', [user.id_ies, String(user.id_ies)])
+        .order('total_acessos', { ascending: false })
+        .limit(12);
+      data = retry2.data || [];
+      console.log('[MeuSemestre] Fallback 2 (sem filtrar semestre)', { length: data?.length || 0, error: retry2.error });
+    }
+
+    if (!data || data.length === 0) {
+      const allCheck = await base().limit(1);
+      console.log('[MeuSemestre] Checagem sem filtro', { length: allCheck.data?.length || 0, error: allCheck.error });
+    }
+
+    if (!data || data.length === 0) {
+      try {
+        const { data: iesServer } = await supabase.rpc('get_current_user_ies_id');
+        const { data: semServer } = await supabase.rpc('get_current_user_semester');
+        console.log('[MeuSemestre] RPC valores servidor', { iesServer, semServer });
+        if (iesServer) {
+          let srvQuery = base().in('id_ies', [iesServer, String(iesServer)]);
+          if (semServer !== null && semServer !== undefined) {
+            srvQuery = srvQuery.in('semestre', [semServer, String(semServer)]);
+          }
+          const srvRes = await srvQuery.order('total_acessos', { ascending: false }).limit(12);
+          data = srvRes.data || [];
+          console.log('[MeuSemestre] Consulta usando RPC', { length: data?.length || 0, error: srvRes.error });
+        }
+      } catch (e) {
+        console.log('[MeuSemestre] Erro ao consultar RPC', e);
+      }
+    }
+
+    if (data && data.length > 0) {
+      const aulas = (data || [])
+        .slice(0, 3)
+        .map((item: any) => ({
+          id: item.id,
+          conteudo: ['questões','aula'].includes(String(item.conteudo || '').toLowerCase()) ? (item.modulo || item.curso || 'Conteúdo') : (item.conteudo || 'Sem título'),
+          curso: item.curso || 'Curso',
+          link: item.link_acesso || '#',
+          tipo: String(item.tipo_conteudo || '').toLowerCase().includes('quest') ? 'questoes' : 'videos',
+        }));
+      setTopAulas(aulas);
+      console.log('[MeuSemestre] TopAulas definidas', { count: aulas.length, sample: aulas[0] });
+
+      const relacionados = (data || [])
+        .slice(3, 9)
+        .map((item: any) => ({
+          id: item.id,
+          conteudo: ['questões','aula'].includes(String(item.conteudo || '').toLowerCase()) ? (item.modulo || item.curso || 'Conteúdo') : (item.conteudo || 'Conteúdo'),
+          curso: item.curso || 'Curso',
+          link: item.link_acesso || '#',
+        }));
+      setConteudosRelacionados(relacionados);
+      console.log('[MeuSemestre] Conteúdos relacionados definidos', { count: relacionados.length, sample: relacionados[0] });
+      return { aulas, relacionados };
+    }
+
+    console.log('[MeuSemestre] Nenhum dado retornado de dados_meu_semestre');
+
+    const { data: conteudosData, error: conteudosErr } = await supabase
       .from('conteudos')
-      .select('id, aula, materia, link_aula')
+      .select('id, aula, materia, link_aula, link_quiz')
       .eq('id_ies', user.id_ies)
       .eq('semestre', user.semestre.toString())
       .not('link_aula', 'is', null)
-      .limit(3);
+      .limit(12);
 
-    if (data) {
-      const aulas = data.map((item) => ({
+    console.log('[MeuSemestre] Fallback conteudos', { length: conteudosData?.length || 0, error: conteudosErr });
+
+    if (conteudosData && conteudosData.length > 0) {
+      const aulas = conteudosData.slice(0, 3).map((item: any) => ({
         id: item.id,
-        nome: item.aula || 'Sem título',
-        materia: item.materia || 'Matéria',
-        link: item.link_aula || '#',
+        conteudo: ['questões','aula'].includes(String(item.aula || '').toLowerCase()) ? (item.materia || 'Conteúdo') : (item.aula || 'Sem título'),
+        curso: item.materia || 'Matéria',
+        link: item.link_quiz || item.link_aula || '#',
+        tipo: item.link_quiz ? 'questoes' : 'videos',
       }));
-      setTopAulas(aulas);
-
-      // Mock related content
-      const relacionados = [
-        { id: '1', titulo: 'Revisão de Cardiologia', tipo: 'PDF' },
-        { id: '2', titulo: 'Quiz de Anatomia', tipo: 'Quiz' },
-      ];
+      const relacionados = conteudosData.slice(3, 9).map((item: any) => ({
+        id: item.id,
+        conteudo: ['questões','aula'].includes(String(item.aula || '').toLowerCase()) ? (item.materia || 'Conteúdo') : (item.aula || 'Conteúdo'),
+        curso: item.materia || 'Matéria',
+        link: item.link_quiz || item.link_aula || '#',
+      }));
+      setTopAulas(aulas as TopAula[]);
       setConteudosRelacionados(relacionados);
+      console.log('[MeuSemestre] Dados exibidos via fallback conteudos', { aulasCount: aulas.length, relacionadosCount: relacionados.length });
       return { aulas, relacionados };
     }
+
     return undefined;
   };
 

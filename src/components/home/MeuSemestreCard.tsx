@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BookOpen, PlayCircle, FileText, ChevronRight } from 'lucide-react';
+import { BookOpen, PlayCircle, FileText, ChevronRight, ClipboardCheck } from 'lucide-react';
 import { TopAula } from '@/hooks/useHomeData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,7 +17,7 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
     if (link && link !== '#') {
       // Registrar visualização no Supabase
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (user) {
         const { error } = await supabase
           .from('aula_views')
@@ -45,7 +45,7 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Left: Top 3 Classes */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-muted-foreground">
@@ -65,13 +65,17 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                        <span className="text-sm font-bold text-blue-600">#{index + 1}</span>
+                        {aula.tipo === 'questoes' ? (
+                          <ClipboardCheck className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <PlayCircle className="h-4 w-4 text-blue-600" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold line-clamp-1 mb-0.5">
-                          {aula.nome}
+                          {aula.conteudo}
                         </h4>
-                        <p className="text-xs text-muted-foreground">{aula.materia}</p>
+                        <p className="text-xs text-muted-foreground">{aula.curso}</p>
                       </div>
                     </div>
                     <Button
@@ -80,8 +84,12 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
                       onClick={() => handleWatchClass(aula.id, aula.link)}
                       className="w-full mt-2 text-xs group-hover:bg-blue-500/10"
                     >
-                      <PlayCircle className="h-3 w-3 mr-1" />
-                      Assistir agora
+                      {aula.tipo === 'questoes' ? (
+                        <ClipboardCheck className="h-3 w-3 mr-1" />
+                      ) : (
+                        <PlayCircle className="h-3 w-3 mr-1" />
+                      )}
+                      {aula.tipo === 'questoes' ? 'Resolver agora' : 'Assistir agora'}
                     </Button>
                   </motion.div>
                 ))}
@@ -89,40 +97,6 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
             )}
           </div>
 
-          {/* Right: Related Content */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Conteúdos Relacionados
-            </h3>
-            {conteudosRelacionados.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum conteúdo disponível</p>
-            ) : (
-              <div className="space-y-3">
-                {conteudosRelacionados.map((conteudo, index) => (
-                  <motion.div
-                    key={conteudo.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 + 0.3 }}
-                    className="p-3 bg-gradient-to-r from-purple-500/10 to-transparent rounded-lg border border-purple-500/20 hover:border-purple-500/40 transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-semibold line-clamp-1">
-                          {conteudo.titulo}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">{conteudo.tipo}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Dialog, 
@@ -25,33 +25,146 @@ import {
   Award,
   Gift
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RankingConsumoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-// Mock data - será substituído por dados reais do Supabase
-const mockUserData = {
-  nome: "Diego Dias",
-  semestre: 10,
-  ies_nome: "USCS",
-  aulasAssistidas: {
-    quantidade: 87,
-    posicao: 21,
-    total: 150
-  },
-  questoesRespondidas: {
-    quantidade: 342,
-    posicao: 15,
-    total: 150
-  }
+const initialMetrics = {
+  aulasAssistidas: { quantidade: 0, posicao: 0, total: 0 },
+  questoesRespondidas: { quantidade: 0, posicao: 0, total: 0 },
 };
 
 export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({ 
   open, 
   onOpenChange 
 }) => {
+  const { user } = useAuth() || {};
+  const [metrics, setMetrics] = useState(initialMetrics);
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
+      let iesId = user.id_ies || null;
+      let semestreVal: number | null = (user.semestre ?? null) as number | null;
+      try {
+        const [{ data: iesRpc }, { data: semRpc }] = await Promise.all([
+          supabase.rpc('get_current_user_ies_id'),
+          supabase.rpc('get_current_user_semester'),
+        ]);
+        if (iesRpc) iesId = iesRpc as string;
+        if (semRpc !== null && semRpc !== undefined) semestreVal = semRpc as number;
+      } catch {}
+      if (!iesId || semestreVal === null || semestreVal === undefined) return;
+      const sb: any = supabase;
+
+      try {
+        const { data: ranking } = await sb.rpc('get_cohort_consumo_ranking');
+        if (ranking && ranking.length) {
+          const total = ranking[0]?.total ?? ranking.length;
+          const myRow = ranking.find((r: any) => r.supabase_user_id === user.id);
+          const myVideos = Number(myRow?.videos_assistidos ?? 0);
+          const myQuests = Number(myRow?.questoes_respondidas ?? 0);
+          const videosPos = Number(myRow?.rank_videos ?? total);
+          const questsPos = Number(myRow?.rank_questoes ?? total);
+          console.log('[RankingConsumo] RPC ranking', {
+            total,
+            myRow,
+            sample: ranking.slice(0, 3),
+          });
+          setMetrics({
+            aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },
+            questoesRespondidas: { quantidade: myQuests, posicao: questsPos, total },
+          });
+          return;
+        }
+      } catch {}
+
+      const { data: usersRes } = await sb
+        .from('users')
+        .select('id')
+        .eq('id_ies', iesId)
+        .eq('semestre', semestreVal);
+      const userIds = (usersRes || []).map((u: any) => u.id);
+      const { data: mapRes } = await sb
+        .from('supabase_to_metabase')
+        .select('id, user_id_metabase')
+        .in('id', userIds);
+      const idToMetabase = new Map<string, string>();
+      (mapRes || []).forEach((m: any) => idToMetabase.set(m.id, m.user_id_metabase));
+      const metabaseIds = Array.from(idToMetabase.values());
+      let consumoRes: any[] = [];
+      if (metabaseIds.length > 0) {
+        const { data: consumo } = await sb
+          .from('consumo_metabase')
+          .select('id, videos_assistidos, documentos_lidos, questoes_respondidas')
+          .in('id', metabaseIds);
+        consumoRes = consumo || [];
+      }
+      const consumoByMetabaseId = new Map<string, any>();
+      consumoRes.forEach((c: any) => consumoByMetabaseId.set(c.id, c));
+      const total = userIds.length;
+      const sortBy = (key: 'videos_assistidos' | 'questoes_respondidas') => {
+        return userIds
+          .map((uid: string) => {
+            const mid = idToMetabase.get(uid);
+            const c = mid ? consumoByMetabaseId.get(mid) : null;
+            const val = Number(c?.[key] ?? 0);
+            return { uid, val };
+          })
+          .sort((a, b) => b.val - a.val);
+      };
+      console.log('[RankingConsumo] Cohort', { iesId, semestreVal, userCount: userIds.length, sampleUserIds: userIds.slice(0, 5) });
+      console.log('[RankingConsumo] Mapping', { mapCount: idToMetabase.size, sampleMap: Array.from(idToMetabase.entries()).slice(0, 5) });
+      console.log('[RankingConsumo] Consumo rows', { count: consumoRes.length, sample: consumoRes.slice(0, 3) });
+
+      const videosBoard = sortBy('videos_assistidos');
+      const questsBoard = sortBy('questoes_respondidas');
+      const myId = user.id;
+      const myVideos = videosBoard.find((s) => s.uid === myId)?.val ?? 0;
+      const myQuests = questsBoard.find((s) => s.uid === myId)?.val ?? 0;
+      const videosIdx = videosBoard.findIndex((s) => s.uid === myId);
+      const questsIdx = questsBoard.findIndex((s) => s.uid === myId);
+      const allZeroVideos = videosBoard.every((s) => s.val === 0);
+      const allZeroQuests = questsBoard.every((s) => s.val === 0);
+      const lastZeroVideos = videosBoard.map((s) => s.val).lastIndexOf(0);
+      const lastZeroQuests = questsBoard.map((s) => s.val).lastIndexOf(0);
+      const videosPos = videosIdx >= 0
+        ? (myVideos === 0
+            ? (lastZeroVideos >= 0 ? lastZeroVideos + 1 : total)
+            : (allZeroVideos ? total : videosIdx + 1))
+        : total;
+      const questsPos = questsIdx >= 0
+        ? (myQuests === 0
+            ? (lastZeroQuests >= 0 ? lastZeroQuests + 1 : total)
+            : (allZeroQuests ? total : questsIdx + 1))
+        : total;
+      console.log('[RankingConsumo] Scoreboards', {
+        total,
+        videosTop5: videosBoard.slice(0, 5),
+        questsTop5: questsBoard.slice(0, 5),
+        myId,
+        myVideos,
+        myQuests,
+        videosIdx,
+        questsIdx,
+        videosPos,
+        questsPos,
+        allZeroVideos,
+        allZeroQuests,
+        lastZeroVideos,
+        lastZeroQuests,
+      });
+
+      setMetrics({
+        aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },
+        questoesRespondidas: { quantidade: myQuests, posicao: questsPos, total },
+      });
+    };
+    if (open) load();
+  }, [open, user?.id]);
   const getPercentile = (rank: number, total: number) => {
     if (total === 0) return 0;
     return Math.round(((total - rank + 1) / total) * 100);
@@ -109,7 +222,7 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
                   Minha Posição no Ranking
                 </CardTitle>
                 <CardDescription>
-                  {mockUserData.nome} • {mockUserData.semestre}º Semestre • {mockUserData.ies_nome}
+                  {user?.nome || ''} • {user?.semestre || ''}º Semestre • {user?.ies_nome || ''}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -123,24 +236,24 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold">
-                          {getMedalIcon(mockUserData.aulasAssistidas.posicao)}
+                          {getMedalIcon(metrics.aulasAssistidas.posicao)}
                         </span>
                         <span className="text-2xl font-bold">
-                          #{mockUserData.aulasAssistidas.posicao}
+                          #{metrics.aulasAssistidas.posicao}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          de {mockUserData.aulasAssistidas.total}
+                          de {metrics.aulasAssistidas.total}
                         </span>
                       </div>
                       <Badge variant="secondary" className="text-xs">
                         Top {getPercentile(
-                          mockUserData.aulasAssistidas.posicao,
-                          mockUserData.aulasAssistidas.total
+                          metrics.aulasAssistidas.posicao,
+                          metrics.aulasAssistidas.total
                         )}%
                       </Badge>
                       <p className="text-sm text-muted-foreground mt-3">
                         Você assistiu <span className="font-semibold text-foreground">
-                          {mockUserData.aulasAssistidas.quantidade} aulas
+                          {metrics.aulasAssistidas.quantidade} aulas
                         </span>
                       </p>
                     </div>
@@ -155,24 +268,24 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-baseline gap-2">
                         <span className="text-3xl font-bold">
-                          {getMedalIcon(mockUserData.questoesRespondidas.posicao)}
+                          {getMedalIcon(metrics.questoesRespondidas.posicao)}
                         </span>
                         <span className="text-2xl font-bold">
-                          #{mockUserData.questoesRespondidas.posicao}
+                          #{metrics.questoesRespondidas.posicao}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          de {mockUserData.questoesRespondidas.total}
+                          de {metrics.questoesRespondidas.total}
                         </span>
                       </div>
                       <Badge variant="secondary" className="text-xs">
                         Top {getPercentile(
-                          mockUserData.questoesRespondidas.posicao,
-                          mockUserData.questoesRespondidas.total
+                          metrics.questoesRespondidas.posicao,
+                          metrics.questoesRespondidas.total
                         )}%
                       </Badge>
                       <p className="text-sm text-muted-foreground mt-3">
                         Você respondeu <span className="font-semibold text-foreground">
-                          {mockUserData.questoesRespondidas.quantidade} questões
+                          {metrics.questoesRespondidas.quantidade} questões
                         </span>
                       </p>
                     </div>
@@ -183,8 +296,8 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
           </motion.div>
 
           {/* Estado vazio quando não há dados */}
-          {mockUserData.aulasAssistidas.quantidade === 0 && 
-           mockUserData.questoesRespondidas.quantidade === 0 && (
+          {metrics.aulasAssistidas.quantidade === 0 && 
+           metrics.questoesRespondidas.quantidade === 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
