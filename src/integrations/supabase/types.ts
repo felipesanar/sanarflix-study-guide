@@ -246,6 +246,35 @@ export type Database = {
         }
         Relationships: []
       }
+      consumo_metabase: {
+        Row: {
+          documentos_lidos: number | null
+          id: string
+          questoes_respondidas: number | null
+          videos_assistidos: number
+        }
+        Insert: {
+          documentos_lidos?: number | null
+          id: string
+          questoes_respondidas?: number | null
+          videos_assistidos: number
+        }
+        Update: {
+          documentos_lidos?: number | null
+          id?: string
+          questoes_respondidas?: number | null
+          videos_assistidos?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consumo_metabase_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "supabase_to_metabase"
+            referencedColumns: ["user_id_metabase"]
+          },
+        ]
+      }
       conteudos: {
         Row: {
           aula: string | null
@@ -286,6 +315,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "fk_ies"
+            columns: ["id_ies"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dados_meu_semestre: {
+        Row: {
+          conteudo: string | null
+          curso: string | null
+          id: string
+          id_ies: string
+          link_acesso: string | null
+          modulo: string | null
+          semestre: number
+          tipo_conteudo: string | null
+          total_acessos: number | null
+        }
+        Insert: {
+          conteudo?: string | null
+          curso?: string | null
+          id?: string
+          id_ies: string
+          link_acesso?: string | null
+          modulo?: string | null
+          semestre: number
+          tipo_conteudo?: string | null
+          total_acessos?: number | null
+        }
+        Update: {
+          conteudo?: string | null
+          curso?: string | null
+          id?: string
+          id_ies?: string
+          link_acesso?: string | null
+          modulo?: string | null
+          semestre?: number
+          tipo_conteudo?: string | null
+          total_acessos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dados_meu_semestre_id_ies_fkey"
             columns: ["id_ies"]
             isOneToOne: false
             referencedRelation: "ies"
@@ -688,6 +761,29 @@ export type Database = {
         }
         Relationships: []
       }
+      supabase_to_metabase: {
+        Row: {
+          id: string
+          user_id_metabase: string
+        }
+        Insert: {
+          id: string
+          user_id_metabase: string
+        }
+        Update: {
+          id?: string
+          user_id_metabase?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supabase_to_metabase_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_progress: {
         Row: {
           completed_at: string
@@ -746,6 +842,7 @@ export type Database = {
           id_ies: string | null
           nome: string
           semestre: number | null
+          user_id_metabase: string | null
         }
         Insert: {
           email: string
@@ -753,6 +850,7 @@ export type Database = {
           id_ies?: string | null
           nome: string
           semestre?: number | null
+          user_id_metabase?: string | null
         }
         Update: {
           email?: string
@@ -760,6 +858,7 @@ export type Database = {
           id_ies?: string | null
           nome?: string
           semestre?: number | null
+          user_id_metabase?: string | null
         }
         Relationships: [
           {
