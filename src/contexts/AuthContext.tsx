@@ -100,11 +100,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: { email, password }
       });
 
-      if (error) {
+      // Handle both SDK errors and response errors
+      // When edge function returns 4xx, SDK may put response in error.context or data still contains response body
+      const errorMessage = data?.error || error?.message;
+      
+      if (error && !data) {
+        // True communication error (network failure, etc.)
         Logger.error('Login communication error', error);
         toast({
           title: "Erro no login",
-          description: "Erro de comunicação com o servidor",
+          description: "Erro de comunicação com o servidor. Verifique sua conexão.",
           variant: "destructive",
           duration: 3000,
         });
@@ -112,10 +117,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      if (data?.error) {
+      if (errorMessage) {
+        // Server returned an error message (invalid credentials, etc.)
         toast({
           title: "Erro no login",
-          description: data.error,
+          description: errorMessage,
           variant: "destructive",
           duration: 3000,
         });
