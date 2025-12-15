@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.check-and-send-reminders]
 verify_jwt = false
+
+[functions.sync-user-auth]
+verify_jwt = false
