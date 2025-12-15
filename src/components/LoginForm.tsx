@@ -30,7 +30,7 @@ export const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(email, password);
+    const success = await login(email.trim().toLowerCase(), password);
     if (success) {
       // Determine default route based on access rules (B2C -> cronograma)
       setTimeout(() => {
@@ -50,7 +50,8 @@ export const LoginForm: React.FC = () => {
     }
   };
   const handleResetPassword = async () => {
-    if (!email) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
       toast({
         title: "Informe seu e-mail",
         description: "Digite seu e-mail acima para enviarmos o link de redefinição.",
@@ -61,7 +62,7 @@ export const LoginForm: React.FC = () => {
 
     try {
       const redirectTo = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo,
       });
       if (error) throw error;

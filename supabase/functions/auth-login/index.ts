@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
     );
     // Extrai email e senha do corpo da requisição
     const { email, password, sessionToken } = await req.json();
-    if (!email || (!password && !sessionToken)) {
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!normalizedEmail || (!password && !sessionToken)) {
       return new Response(JSON.stringify({
         error: 'Email e senha ou sessionToken são obrigatórios'
       }), {
@@ -84,7 +85,7 @@ Deno.serve(async (req) => {
     } else {
       // Password authentication
       const authResult = await supabaseAnon.auth.signInWithPassword({
-        email: email,
+        email: normalizedEmail,
         password: password
       });
       sessionData = authResult.data;
