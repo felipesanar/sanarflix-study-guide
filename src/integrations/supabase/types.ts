@@ -842,7 +842,6 @@ export type Database = {
           id_ies: string | null
           nome: string
           semestre: number | null
-          user_id_metabase: string | null
         }
         Insert: {
           email: string
@@ -850,7 +849,6 @@ export type Database = {
           id_ies?: string | null
           nome: string
           semestre?: number | null
-          user_id_metabase?: string | null
         }
         Update: {
           email?: string
@@ -858,7 +856,6 @@ export type Database = {
           id_ies?: string | null
           nome?: string
           semestre?: number | null
-          user_id_metabase?: string | null
         }
         Relationships: [
           {

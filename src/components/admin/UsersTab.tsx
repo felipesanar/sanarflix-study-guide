@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Download, Copy, Users, Shield } from 'lucide-react';
+import { Upload, Download, Copy, Users, Shield, RefreshCw, Search } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 
 interface IES {
@@ -29,6 +29,11 @@ export const UsersTab: React.FC = () => {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [processingResults, setProcessingResults] = useState<UserCreationResult[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  
+  // Sync auth states
+  const [syncEmail, setSyncEmail] = useState('');
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ password?: string; message?: string } | null>(null);
 
   useEffect(() => {
     fetchIesList();
@@ -53,6 +58,60 @@ export const UsersTab: React.FC = () => {
   const addLog = (message: string) => {
     const timestamp = getBrazilDate().toLocaleTimeString('pt-BR');
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+  };
+
+  const syncUserAuth = async () => {
+    if (!syncEmail.trim()) {
+      toast.error('Digite o email do usuário');
+      return;
+    }
+
+    setSyncLoading(true);
+    setSyncResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-user-auth', {
+        body: { email: syncEmail.trim().toLowerCase() }
+      });
+
+      if (error) {
+        const errorMsg = error.message || 'Erro ao sincronizar';
+        toast.error(errorMsg);
+        addLog(`[SYNC] Erro: ${errorMsg}`);
+        return;
+      }
+
+      if (data?.error) {
+        if (data.already_synced) {
+          toast.info(data.error);
+        } else {
+          toast.error(data.error);
+        }
+        addLog(`[SYNC] ${data.error}`);
+        return;
+      }
+
+      if (data?.success) {
+        toast.success(data.message);
+        addLog(`[SYNC] ${data.message}`);
+        
+        if (data.temporary_password) {
+          setSyncResult({ 
+            password: data.temporary_password,
+            message: 'Senha temporária gerada. Envie para o usuário.'
+          });
+        } else if (data.password_reset_needed) {
+          setSyncResult({
+            message: 'IDs sincronizados. Solicite reset de senha pelo Supabase Dashboard.'
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      toast.error('Erro inesperado ao sincronizar');
+    } finally {
+      setSyncLoading(false);
+    }
   };
 
   const createSingleUser = async () => {
@@ -187,6 +246,70 @@ export const UsersTab: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sync User Auth - Fix Login Issues */}
+      <Card className="border-amber-500/30 bg-amber-500/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-amber-600" />
+            Sincronizar Autenticação
+          </CardTitle>
+          <CardDescription>
+            Corrige problemas de login para usuários importados manualmente. 
+            Sincroniza public.users com auth.users.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Email do usuário com problema de login"
+                value={syncEmail}
+                onChange={(e) => setSyncEmail(e.target.value)}
+                className="pl-9"
+                onKeyDown={(e) => e.key === 'Enter' && syncUserAuth()}
+              />
+            </div>
+            <Button 
+              onClick={syncUserAuth} 
+              disabled={syncLoading || !syncEmail.trim()}
+              variant="outline"
+              className="border-amber-500/50 hover:bg-amber-500/10"
+            >
+              {syncLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sincronizar
+                </>
+              )}
+            </Button>
+          </div>
+
+          {syncResult && (
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <p className="text-sm text-muted-foreground">{syncResult.message}</p>
+              {syncResult.password && (
+                <div className="flex gap-2">
+                  <Input value={syncResult.password} readOnly className="font-mono" />
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(syncResult.password!);
+                      toast.success('Senha copiada!');
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Single User Creation */}
       <Card>
