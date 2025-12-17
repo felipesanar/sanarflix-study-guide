@@ -135,8 +135,8 @@ Deno.serve(async (req) => {
 
     const password = generatePassword();
 
-    // Try to create user
-    let userId: string | undefined;
+    // Try to create user via invitation email
+
     // Send invitation email so the user can set their password
     const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
 
