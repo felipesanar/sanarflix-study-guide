@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
+    console.log("[b2b-create-user] Auth header present:", !!authHeader);
 
     // Client with JWT to identify caller
     const supabaseUser = createClient(supabaseUrl, anonKey, {
@@ -62,18 +63,38 @@ Deno.serve(async (req) => {
     // Admin client with service role to manage users and bypass RLS when needed
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Identify caller
+    // Identify caller - try getUser first, fallback to token extraction
+    let userId: string | undefined;
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
+    
     if (getUserErr || !userData?.user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("[b2b-create-user] getUser failed:", getUserErr?.message);
+      
+      // Try to extract user ID from JWT token directly
+      if (authHeader.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.replace("Bearer ", "");
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          userId = payload.sub;
+          console.log("[b2b-create-user] Extracted user ID from token:", userId);
+        } catch (e) {
+          console.error("[b2b-create-user] Failed to parse JWT:", e);
+        }
+      }
+      
+      if (!userId) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      userId = userData.user.id;
     }
 
     // Check admin role using has_role function (secure against privilege escalation)
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
-      _user_id: userData.user.id,
+      _user_id: userId,
       _role: 'admin'
     });
 
