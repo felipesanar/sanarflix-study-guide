@@ -28,6 +28,7 @@ const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
 const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m => ({ default: m.CronogramaEnamed })));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword").then(m => ({ default: m.UpdatePassword })));
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
@@ -122,7 +123,9 @@ const AppContent = () => {
       <Routes>
         <Route path="/login" element={<LoginForm />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/auth/update-password" element={<UpdatePassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/update-password" element={<UpdatePassword />} />
         <Route path="/cadastro-b2c" element={<SignupB2C />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
