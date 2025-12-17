@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
-    console.log("[b2b-create-user] Auth header present:", !!authHeader);
 
     // Client with JWT to identify caller
     const supabaseUser = createClient(supabaseUrl, anonKey, {
@@ -63,38 +62,18 @@ Deno.serve(async (req) => {
     // Admin client with service role to manage users and bypass RLS when needed
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Identify caller - try getUser first, fallback to token extraction
-    let userId: string | undefined;
+    // Identify caller
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
-    
     if (getUserErr || !userData?.user) {
-      console.error("[b2b-create-user] getUser failed:", getUserErr?.message);
-      
-      // Try to extract user ID from JWT token directly
-      if (authHeader.startsWith("Bearer ")) {
-        try {
-          const token = authHeader.replace("Bearer ", "");
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          userId = payload.sub;
-          console.log("[b2b-create-user] Extracted user ID from token:", userId);
-        } catch (e) {
-          console.error("[b2b-create-user] Failed to parse JWT:", e);
-        }
-      }
-      
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else {
-      userId = userData.user.id;
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Check admin role using has_role function (secure against privilege escalation)
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
-      _user_id: userId,
+      _user_id: userData.user.id,
       _role: 'admin'
     });
 
@@ -135,37 +114,41 @@ Deno.serve(async (req) => {
 
     const password = generatePassword();
 
-    // Try to create user via invitation email
+    // Try to create user
+    let userId: string | undefined;
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: nome, id_ies, semestre },
+    });
 
-    // Send invitation email so the user can set their password
-    const { data: invited, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
-
-    if (inviteErr) {
-      // If invite fails, try to find existing user by email
+    if (createErr) {
+      // If user exists, update password and metadata
+      // Try to find by email
       const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       const existingUser = list?.users?.find(u => u.email === email);
       if (listErr || !existingUser) {
         return new Response(
-          JSON.stringify({ error: inviteErr.message || "Falha ao convidar usuário" }),
+          JSON.stringify({ error: createErr.message || "Falha ao criar usuário" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      userId = existingUser.id;
-    } else {
-      userId = invited.user?.id;
-    }
+      userId = list.users[0].id;
 
-    // Attach metadata after invite
-    if (userId) {
-      const { error: metaErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
         user_metadata: { full_name: nome, id_ies, semestre },
       });
-      if (metaErr) {
+      if (updateErr) {
         return new Response(
-          JSON.stringify({ error: metaErr.message || "Falha ao atualizar metadados do usuário" }),
+          JSON.stringify({ error: updateErr.message || "Falha ao atualizar usuário existente" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+    } else {
+      userId = created.user?.id;
     }
 
     if (!userId) {
@@ -188,7 +171,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, email, invite_sent: true }),
+      JSON.stringify({ success: true, email, password }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

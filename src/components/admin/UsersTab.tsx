@@ -7,10 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Download, Copy, Users, Shield, RefreshCw, Search, Mail } from 'lucide-react';
+import { Upload, Download, Copy, Users, Shield, RefreshCw, Search } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
-
-// --- Interfaces ---
 
 interface IES {
   id: string;
@@ -19,23 +17,20 @@ interface IES {
 
 interface UserCreationResult {
   email: string;
+  password: string;
   success: boolean;
-  action?: 'invite' | 'reset'; // Identifica o que ocorreu no backend
   error?: string;
 }
 
-// --- Componente Principal ---
-
 export const UsersTab: React.FC = () => {
-  // Estados de Dados
   const [iesList, setIesList] = useState<IES[]>([]);
   const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
-
-  // Estados de Processamento em Lote
+  const [generatedPassword, setGeneratedPassword] = useState('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [processingResults, setProcessingResults] = useState<UserCreationResult[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-
-  // Estados de Sincronização (Manutenção)
+  
+  // Sync auth states
   const [syncEmail, setSyncEmail] = useState('');
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncResult, setSyncResult] = useState<{ password?: string; message?: string } | null>(null);
@@ -51,30 +46,25 @@ export const UsersTab: React.FC = () => {
     }
   };
 
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
   const addLog = (message: string) => {
     const timestamp = getBrazilDate().toLocaleTimeString('pt-BR');
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
   };
 
-  // --- Helper de Segurança ---
-  const checkSession = async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    if (error || !session) {
-      toast.error("Sessão expirada. Por favor, faça login novamente.");
-      console.error("[Auth] Sem sessão ativa ou erro ao obter sessão");
-      return false;
-    }
-    return true;
-  };
-
-  // --- Função 1: Sincronizar Usuário (Manutenção) ---
   const syncUserAuth = async () => {
     if (!syncEmail.trim()) {
       toast.error('Digite o email do usuário');
       return;
     }
-
-    if (!(await checkSession())) return;
 
     setSyncLoading(true);
     setSyncResult(null);
@@ -84,10 +74,19 @@ export const UsersTab: React.FC = () => {
         body: { email: syncEmail.trim().toLowerCase() }
       });
 
-      if (error) throw new Error(error.message);
+      if (error) {
+        const errorMsg = error.message || 'Erro ao sincronizar';
+        toast.error(errorMsg);
+        addLog(`[SYNC] Erro: ${errorMsg}`);
+        return;
+      }
 
       if (data?.error) {
-        toast.error(data.error);
+        if (data.already_synced) {
+          toast.info(data.error);
+        } else {
+          toast.error(data.error);
+        }
         addLog(`[SYNC] ${data.error}`);
         return;
       }
@@ -95,98 +94,77 @@ export const UsersTab: React.FC = () => {
       if (data?.success) {
         toast.success(data.message);
         addLog(`[SYNC] ${data.message}`);
-
-        // Mantive a lógica de senha AQUI apenas caso a função sync retorne uma temporária
+        
         if (data.temporary_password) {
-          setSyncResult({
+          setSyncResult({ 
             password: data.temporary_password,
-            message: 'Senha temporária gerada (Sync).'
+            message: 'Senha temporária gerada. Envie para o usuário.'
           });
-        } else {
-          setSyncResult({ message: 'Sincronizado. Solicite reset de senha.' });
+        } else if (data.password_reset_needed) {
+          setSyncResult({
+            message: 'IDs sincronizados. Solicite reset de senha pelo Supabase Dashboard.'
+          });
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Sync error:', err);
-      toast.error(err.message || 'Erro ao sincronizar');
+      toast.error('Erro inesperado ao sincronizar');
     } finally {
       setSyncLoading(false);
     }
   };
 
-  // --- Função 2: Criar Usuário Individual (Invite Flow) ---
   const createSingleUser = async () => {
-    // Validação de inputs
     if (!singleUser.nome || !singleUser.email || !singleUser.id_ies) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
-    // Validação de segurança
-    if (!(await checkSession())) return;
+    const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+      body: {
+        nome: singleUser.nome,
+        email: singleUser.email,
+        id_ies: singleUser.id_ies,
+        semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
+      },
+    });
 
-    try {
-      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: {
-          nome: singleUser.nome,
-          email: singleUser.email,
-          id_ies: singleUser.id_ies,
-          semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
-        },
-      });
-
-      if (error) throw new Error(error.message);
-
-      if (data?.error) {
-        const detailMsg = data.details ? `: ${data.details}` : '';
-        throw new Error(data.error + detailMsg);
-      }
-
-      // Sucesso: Diferenciar Invite de Reset
-      const actionType = data.action === 'reset' ? 'Link de redefinição' : 'Convite';
-      const successMsg = `Sucesso! ${actionType} enviado para ${singleUser.email}`;
-
-      toast.success(successMsg);
-      addLog(successMsg);
-
-      // Limpa formulário
-      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
-
-    } catch (err: any) {
-      const msg = err.message || 'Erro desconhecido';
+    if (error || data?.error) {
+      const msg = error?.message || data?.error || 'Erro ao criar usuário';
       toast.error(msg);
-      addLog(`Erro ao convidar ${singleUser.email}: ${msg}`);
+      addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+      return;
     }
+
+    const serverPassword = data?.password || '';
+    setGeneratedPassword(serverPassword);
+    toast.success('Usuário criado com sucesso!');
+    addLog(`Usuário ${singleUser.email} criado com sucesso`);
+    setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
   };
 
-  // --- Função 3: Processamento em Lote (Invite Flow) ---
+  const copyPassword = () => {
+    navigator.clipboard.writeText(generatedPassword);
+    toast.success('Senha copiada!');
+  };
+
   const processCsvFile = async () => {
     if (!csvFile) {
       toast.error('Selecione um arquivo CSV');
       return;
     }
 
-    if (!(await checkSession())) return;
-
     addLog('Iniciando processamento do arquivo CSV...');
     const text = await csvFile.text();
     const lines = text.split('\n').filter(line => line.trim());
-
-    // Normaliza headers
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-
-    if (!headers.includes('nome') || !headers.includes('email') || !headers.includes('id_ies')) {
-      toast.error('CSV inválido. Headers obrigatórios: nome, email, id_ies');
-      return;
-    }
-
+    
     const results: UserCreationResult[] = [];
 
-    // Loop de processamento
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
       const user: any = {};
-
+      
       headers.forEach((header, index) => {
         user[header] = values[index];
       });
@@ -196,61 +174,41 @@ export const UsersTab: React.FC = () => {
         continue;
       }
 
-      try {
-        const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-          body: {
-            nome: user.nome,
-            email: user.email,
-            id_ies: user.id_ies,
-            semestre: user.semestre ? parseInt(user.semestre) : null,
-          },
-        });
-
-        if (error) throw new Error(error.message);
-        if (data?.error) throw new Error(`${data.error} ${data.details || ''}`);
-
-        results.push({
+      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+        body: {
+          nome: user.nome,
           email: user.email,
-          success: true,
-          action: data.action // 'invite' ou 'reset'
-        });
-        addLog(`${user.email}: Email enviado (${data.action === 'reset' ? 'Reset' : 'Novo Convite'})`);
+          id_ies: user.id_ies,
+          semestre: user.semestre ? parseInt(user.semestre) : null,
+        },
+      });
 
-      } catch (err: any) {
-        results.push({
-          email: user.email,
-          success: false,
-          error: err.message
-        });
-        addLog(`${user.email}: ERRO - ${err.message}`);
-      }
+      const serverPassword = data?.password || '';
+      results.push({
+        email: user.email,
+        password: serverPassword,
+        success: !error && !data?.error,
+        error: error?.message || data?.error,
+      });
+
+      addLog(`${user.email}: ${error || data?.error ? 'ERRO - ' + (error?.message || data?.error) : 'Criado com sucesso'}`);
     }
 
-    // Feedback Final e Download de Relatório
-    const successCount = results.filter(r => r.success).length;
+    setProcessingResults(results);
+    toast.success(`Processamento concluído: ${results.filter(r => r.success).length} usuários criados`);
 
-    if (successCount > 0) {
-      toast.success(`Processamento: ${successCount} emails enviados.`);
-
-      // Gera CSV de Status (Sem senhas)
-      const csvContent = 'email,status,detalhe\n' + results
-        .map(r => `${r.email},${r.success ? 'SUCESSO' : 'ERRO'},${r.success ? (r.action === 'reset' ? 'Reset Enviado' : 'Convite Enviado') : r.error}`)
-        .join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio_convites_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-    } else {
-      toast.error("Nenhum convite enviado com sucesso. Verifique os logs.");
-    }
-  };
-
-  const copyPassword = (pwd: string) => {
-    navigator.clipboard.writeText(pwd);
-    toast.success('Senha copiada!');
+    // Auto download CSV with results
+    const csvContent = 'email,senha\n' + results
+      .filter(r => r.success)
+      .map(r => `${r.email},${r.password}`)
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `senhas_geradas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
   };
 
   const downloadExampleCsv = () => {
@@ -265,8 +223,29 @@ export const UsersTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Administradores</CardTitle>
+            <Shield className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+          </CardContent>
+        </Card>
+      </div>
 
-      {/* 1. Sync User Auth (Manutenção) */}
+      {/* Sync User Auth - Fix Login Issues */}
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -274,7 +253,8 @@ export const UsersTab: React.FC = () => {
             Sincronizar Autenticação
           </CardTitle>
           <CardDescription>
-            Use apenas para corrigir usuários com erro de login. Sincroniza tabelas internas.
+            Corrige problemas de login para usuários importados manualmente. 
+            Sincroniza public.users com auth.users.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -282,20 +262,27 @@ export const UsersTab: React.FC = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Email do usuário"
+                placeholder="Email do usuário com problema de login"
                 value={syncEmail}
                 onChange={(e) => setSyncEmail(e.target.value)}
                 className="pl-9"
                 onKeyDown={(e) => e.key === 'Enter' && syncUserAuth()}
               />
             </div>
-            <Button
-              onClick={syncUserAuth}
+            <Button 
+              onClick={syncUserAuth} 
               disabled={syncLoading || !syncEmail.trim()}
               variant="outline"
               className="border-amber-500/50 hover:bg-amber-500/10"
             >
-              {syncLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Sincronizar"}
+              {syncLoading ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sincronizar
+                </>
+              )}
             </Button>
           </div>
 
@@ -305,7 +292,14 @@ export const UsersTab: React.FC = () => {
               {syncResult.password && (
                 <div className="flex gap-2">
                   <Input value={syncResult.password} readOnly className="font-mono" />
-                  <Button variant="outline" size="icon" onClick={() => copyPassword(syncResult.password!)}>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(syncResult.password!);
+                      toast.success('Senha copiada!');
+                    }}
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -315,30 +309,27 @@ export const UsersTab: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 2. Single User Invite (Fluxo Principal) */}
+      {/* Single User Creation */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Convidar Usuário
-          </CardTitle>
-          <CardDescription>
-            O usuário receberá um email com link para definir sua própria senha.
-          </CardDescription>
+          <CardTitle>Criar Usuário Individual</CardTitle>
+          <CardDescription>Adicione um novo usuário manualmente</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Nome Completo</Label>
+              <Label htmlFor="nome">Nome Completo</Label>
               <Input
+                id="nome"
                 value={singleUser.nome}
                 onChange={(e) => setSingleUser({ ...singleUser, nome: e.target.value })}
                 placeholder="João Silva"
               />
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
                 type="email"
                 value={singleUser.email}
                 onChange={(e) => setSingleUser({ ...singleUser, email: e.target.value })}
@@ -346,25 +337,28 @@ export const UsersTab: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Instituição</Label>
+              <Label htmlFor="ies">Instituição</Label>
               <Select value={singleUser.id_ies} onValueChange={(v) => setSingleUser({ ...singleUser, id_ies: v })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a IES" />
                 </SelectTrigger>
                 <SelectContent>
                   {iesList.map((ies) => (
-                    <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>
+                    <SelectItem key={ies.id} value={ies.id}>
+                      {ies.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Semestre (opcional)</Label>
+              <Label htmlFor="semestre">Semestre (opcional)</Label>
               <Input
+                id="semestre"
                 type="number"
                 value={singleUser.semestre}
                 onChange={(e) => setSingleUser({ ...singleUser, semestre: e.target.value })}
-                placeholder="1"
+                placeholder="5"
                 min="1"
                 max="12"
               />
@@ -372,19 +366,28 @@ export const UsersTab: React.FC = () => {
           </div>
 
           <Button onClick={createSingleUser} className="w-full">
-            <Mail className="h-4 w-4 mr-2" />
-            Enviar Convite
+            Criar Usuário
           </Button>
+
+          {generatedPassword && (
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <Label>Senha Gerada</Label>
+              <div className="flex gap-2">
+                <Input value={generatedPassword} readOnly />
+                <Button variant="outline" size="icon" onClick={copyPassword}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* 3. Batch Invite (CSV) */}
+      {/* Batch User Creation */}
       <Card>
         <CardHeader>
-          <CardTitle>Convites em Lote (CSV)</CardTitle>
-          <CardDescription>
-            Importe uma lista. Usuários existentes receberão link de reset; novos receberão convite.
-          </CardDescription>
+          <CardTitle>Criação em Lote via CSV</CardTitle>
+          <CardDescription>Importe múltiplos usuários de uma vez</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -395,13 +398,13 @@ export const UsersTab: React.FC = () => {
             />
             <Button variant="outline" onClick={downloadExampleCsv}>
               <Download className="h-4 w-4 mr-2" />
-              Modelo CSV
+              Exemplo
             </Button>
           </div>
 
           <Button onClick={processCsvFile} disabled={!csvFile} className="w-full">
             <Upload className="h-4 w-4 mr-2" />
-            Processar e Enviar Emails
+            Processar Arquivo
           </Button>
 
           {logs.length > 0 && (

@@ -4,13 +4,9 @@ import { Resend } from 'https://esm.sh/resend@4.0.0'
 import { renderAsync } from 'https://esm.sh/@react-email/components@0.0.22'
 import { MagicLinkEmail } from './_templates/magic-link.tsx'
 import { ResetPasswordEmail } from './_templates/reset-password.tsx'
-import { InviteEmail } from './_templates/invite.tsx'
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') as string
-
-// URL base da aplicação
-const APP_BASE_URL = 'https://guiadeestudos.sanar.com.br'
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -55,8 +51,6 @@ Deno.serve(async (req) => {
     let html: string
     let subject: string
 
-    console.log('Processing email for action type:', email_action_type)
-
     // Determine which template to use based on email_action_type
     if (email_action_type === 'recovery') {
       html = await renderAsync(
@@ -64,44 +58,19 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: `${APP_BASE_URL}/reset-password`,
+          redirect_to: redirect_to || 'https://guiadeestudos.sanar.com.br/reset-password',
           email_action_type,
         })
       )
       subject = 'Redefina sua senha - SanarFlix Academy'
-    } else if (email_action_type === 'invite' || email_action_type === 'signup') {
-      // Invite email for new users
-      html = await renderAsync(
-        React.createElement(InviteEmail, {
-          supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
-          token,
-          token_hash,
-          redirect_to: `${APP_BASE_URL}/auth/update-password`,
-          email_action_type,
-        })
-      )
-      subject = 'Você foi convidado para o SanarFlix Academy'
-    } else if (email_action_type === 'magiclink') {
-      // Magic link for passwordless login
-      html = await renderAsync(
-        React.createElement(MagicLinkEmail, {
-          supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
-          token,
-          token_hash,
-          redirect_to: redirect_to || `${APP_BASE_URL}/`,
-          email_action_type,
-        })
-      )
-      subject = 'Acesse sua conta - SanarFlix Academy'
     } else {
-      // Default fallback
-      console.log('Unknown email_action_type, using magic link template:', email_action_type)
+      // Default to magic link for login
       html = await renderAsync(
         React.createElement(MagicLinkEmail, {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || `${APP_BASE_URL}/`,
+          redirect_to: redirect_to || 'https://guiadeestudos.sanar.com.br/',
           email_action_type,
         })
       )
@@ -120,7 +89,7 @@ Deno.serve(async (req) => {
       throw error
     }
 
-    console.log('Email sent successfully to:', user.email)
+    
 
   } catch (error) {
     console.error('Email function error:', error)

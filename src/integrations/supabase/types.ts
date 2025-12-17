@@ -892,18 +892,6 @@ export type Database = {
           total: number
         }[]
       }
-      get_cohort_consumo_ranking: {
-        Args: never
-        Returns: {
-          questoes_respondidas: number
-          rank_questoes: number
-          rank_videos: number
-          supabase_user_id: string
-          total: number
-          user_id_metabase: string
-          videos_assistidos: number
-        }[]
-      }
       get_current_user_faculty: { Args: never; Returns: string }
       get_current_user_ies_id: { Args: never; Returns: string }
       get_current_user_semester: { Args: never; Returns: number }
