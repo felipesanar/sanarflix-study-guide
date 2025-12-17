@@ -97,9 +97,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const normalizedEmail = email.trim().toLowerCase();
+      const emailMasked = normalizedEmail.replace(/(.{2}).+(@.*)/, '$1***$2');
+      Logger.userAction('login_attempt', { email: emailMasked, domain: normalizedEmail.split('@')[1] || '' });
       const { data, error } = await supabase.functions.invoke('auth-login', {
         body: { email: normalizedEmail, password }
       });
+      Logger.debug('login_edge_function_response', { hasData: !!data, hasError: !!error, status: (error as any)?.context?.status });
 
       // Handle both SDK errors and response errors (4xx/5xx)
       // Supabase Functions may return the JSON body inside `error.context.body` when status is non-2xx.
@@ -119,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error && !data) {
         // True communication error (network failure, etc.)
         Logger.error('Login communication error', error);
+        Logger.debug('login_error_context', { status: (error as any)?.context?.status, body: (error as any)?.context?.body });
         toast({
           title: "Erro no login",
           description: "Erro de comunicação com o servidor. Verifique sua conexão.",
@@ -131,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (errorMessage) {
         // Server returned an error message (invalid credentials, etc.)
+        Logger.warn('Login failed', { message: errorMessage });
         toast({
           title: "Erro no login",
           description: errorMessage,
@@ -142,6 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!data?.user) {
+        Logger.error('Login invalid response', data);
         toast({
           title: "Erro no login",
           description: "Resposta inválida do servidor",
@@ -188,6 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // SECURITY: Store minimal user data in localStorage, roles fetched from server
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+      Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
       
       // Broadcast login para outras abas
       broadcast({ type: 'LOGIN', data: userData });
@@ -199,6 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Métricas de performance do login
       const loginDuration = performance.now() - startTime;
+      Logger.performance('login', loginDuration, { user_id: userData.id });
       if (loginDuration > 2000) {
         console.warn(`Slow login: ${loginDuration.toFixed(2)}ms`);
       }
@@ -220,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       return true;
     } catch (error) {
+      Logger.error('login_unexpected_error', error);
       toast({
         title: "Erro no login",
         description: error instanceof Error ? error.message : "Erro interno do servidor",

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import Logger from '@/utils/logger';
 
 export const AuthCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export const AuthCallback: React.FC = () => {
           navigate('/login');
         }
       } catch (error) {
+        Logger.error('Auth callback unexpected error', error);
         toast({
           title: "Erro inesperado",
           description: "Ocorreu um erro durante a autenticação.",

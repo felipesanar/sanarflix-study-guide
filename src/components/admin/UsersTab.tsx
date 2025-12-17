@@ -120,27 +120,27 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
-    const password = generatePassword();
-    setGeneratedPassword(password);
-
     const { data, error } = await supabase.functions.invoke('b2b-create-user', {
       body: {
         nome: singleUser.nome,
         email: singleUser.email,
         id_ies: singleUser.id_ies,
         semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
-        senha: password,
       },
     });
 
-    if (error) {
-      toast.error('Erro ao criar usuário');
-      addLog(`Erro ao criar ${singleUser.email}: ${error.message}`);
-    } else {
-      toast.success('Usuário criado com sucesso!');
-      addLog(`Usuário ${singleUser.email} criado com sucesso`);
-      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
+    if (error || data?.error) {
+      const msg = error?.message || data?.error || 'Erro ao criar usuário';
+      toast.error(msg);
+      addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+      return;
     }
+
+    const serverPassword = data?.password || '';
+    setGeneratedPassword(serverPassword);
+    toast.success('Usuário criado com sucesso!');
+    addLog(`Usuário ${singleUser.email} criado com sucesso`);
+    setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
   };
 
   const copyPassword = () => {
@@ -174,26 +174,24 @@ export const UsersTab: React.FC = () => {
         continue;
       }
 
-      const password = generatePassword();
-      
-      const { error } = await supabase.functions.invoke('b2b-create-user', {
+      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
         body: {
           nome: user.nome,
           email: user.email,
           id_ies: user.id_ies,
           semestre: user.semestre ? parseInt(user.semestre) : null,
-          senha: password,
         },
       });
 
+      const serverPassword = data?.password || '';
       results.push({
         email: user.email,
-        password: password,
-        success: !error,
-        error: error?.message,
+        password: serverPassword,
+        success: !error && !data?.error,
+        error: error?.message || data?.error,
       });
 
-      addLog(`${user.email}: ${error ? 'ERRO - ' + error.message : 'Criado com sucesso'}`);
+      addLog(`${user.email}: ${error || data?.error ? 'ERRO - ' + (error?.message || data?.error) : 'Criado com sucesso'}`);
     }
 
     setProcessingResults(results);

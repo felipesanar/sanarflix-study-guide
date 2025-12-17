@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { getAccessRules } from "@/utils/accessRules";
+import Logger from "@/utils/logger";
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,7 +31,9 @@ export const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    Logger.userAction('login_submit', { email: email.trim().toLowerCase().replace(/(.{2}).+(@.*)/, '$1***$2') });
     const success = await login(email.trim().toLowerCase(), password);
+    Logger.debug('login_result', { success });
     if (success) {
       // Determine default route based on access rules (B2C -> cronograma)
       setTimeout(() => {
@@ -42,6 +45,7 @@ export const LoginForm: React.FC = () => {
             const rules = getAccessRules(parsed);
             target = rules.cronogramaEnamed ? "/cronograma-enamed" : "/home";
           }
+          Logger.info('post_login_navigation', { target });
           navigate(target, { replace: true });
         } catch (err) {
           navigate("/home", { replace: true });
