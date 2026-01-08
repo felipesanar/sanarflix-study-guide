@@ -24,6 +24,7 @@ const Simulados = lazy(() => import("./pages/Simulados"));
 const ModoProva = lazy(() => import("./pages/ModoProva"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
@@ -56,7 +57,7 @@ const queryClient = new QueryClient({
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const authContext = useAuth();
-  
+
   // Se o contexto não estiver disponível, mostra loading
   if (!authContext) {
     return (
@@ -97,7 +98,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppContent = () => {
   const authContext = useAuth();
-  
+
   // Se o contexto não estiver disponível, retorna loading
   if (!authContext) {
     return (
@@ -106,13 +107,13 @@ const AppContent = () => {
       </div>
     );
   }
-  
+
   const { user } = authContext;
   const accessRules = getAccessRules(user);
-  
+
   // Sistema de prefetch inteligente baseado em probabilidade
   useIntelligentPrefetch();
-  
+
   // Prefetch de dados das rotas adjacentes
   useDataPrefetch();
 
@@ -123,6 +124,7 @@ const AppContent = () => {
         <Route path="/login" element={<LoginForm />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/update-password" element={<UpdatePassword />} />
         <Route path="/cadastro-b2c" element={<SignupB2C />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
@@ -138,199 +140,199 @@ const AppContent = () => {
     <StudyProvider>
       <Layout>
         <Suspense fallback={<HomePageSkeleton />}>
-        <Routes>
-        <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Routes>
+            <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-        {/* Home Page - Always available for authenticated users */}
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <PageWrapper 
-                loadingMessage="Carregando início..." 
-                waitForData={true}
-                skeleton={<HomePageSkeleton />}
-              >
-                <Home />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
+            {/* Home Page - Always available for authenticated users */}
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando início..."
+                    waitForData={true}
+                    skeleton={<HomePageSkeleton />}
+                  >
+                    <Home />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
 
-        {accessRules.studyGuide && (
-          <Route
-            path="/guia-estudos"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando guia de estudos..." 
-                  waitForData={true}
-                  skeleton={<StudyGuideSkeleton />}
-                >
-                  <StudyGuide />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.studyGuide && (
+              <Route
+                path="/guia-estudos"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando guia de estudos..."
+                      waitForData={true}
+                      skeleton={<StudyGuideSkeleton />}
+                    >
+                      <StudyGuide />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {/* Rota de Simulados */}
-        <Route
-          path="/simulados"
-          element={
-            <ProtectedRoute>
-              <PageWrapper 
-                loadingMessage="Carregando simulados..." 
-                waitForData={true}
-              >
-                <Simulados />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
+            {/* Rota de Simulados */}
+            <Route
+              path="/simulados"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando simulados..."
+                    waitForData={true}
+                  >
+                    <Simulados />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
 
-        {/* Modo Prova - Sem Layout */}
-        <Route
-          path="/simulados/:id/prova"
-          element={
-            <ProtectedRoute>
-              <ModoProva />
-            </ProtectedRoute>
-          }
-        />
+            {/* Modo Prova - Sem Layout */}
+            <Route
+              path="/simulados/:id/prova"
+              element={
+                <ProtectedRoute>
+                  <ModoProva />
+                </ProtectedRoute>
+              }
+            />
 
-        {accessRules.SimuladoDesempenho && (
-          <Route
-            path="/desempenho-simulado"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando desempenho..." 
-                  waitForData={true}
-                >
-                  <SimuladoDesempenho />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.SimuladoDesempenho && (
+              <Route
+                path="/desempenho-simulado"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando desempenho..."
+                      waitForData={true}
+                    >
+                      <SimuladoDesempenho />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {accessRules.dashboard && (
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando dashboard..." 
-                  waitForData={true}
-                  skeleton={<DashboardSkeleton />}
-                >
-                  <Dashboard />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.dashboard && (
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando dashboard..."
+                      waitForData={true}
+                      skeleton={<DashboardSkeleton />}
+                    >
+                      <Dashboard />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {accessRules.enamed && false && (
-          <Route
-            path="/intensivao-enamed"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando intensivão..." 
-                  waitForData={true}
-                  skeleton={<IntensivaoSkeleton />}
-                >
-                  <IntensivaoEnamed />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.enamed && false && (
+              <Route
+                path="/intensivao-enamed"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando intensivão..."
+                      waitForData={true}
+                      skeleton={<IntensivaoSkeleton />}
+                    >
+                      <IntensivaoEnamed />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {accessRules.cronogramaEnamed && (
-          <Route
-            path="/cronograma-enamed"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando cronograma..." 
-                  waitForData={true}
-                  skeleton={<IntensivaoSkeleton />}
-                >
-                  <CronogramaEnamed />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.cronogramaEnamed && (
+              <Route
+                path="/cronograma-enamed"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando cronograma..."
+                      waitForData={true}
+                      skeleton={<IntensivaoSkeleton />}
+                    >
+                      <CronogramaEnamed />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {accessRules.userManagement && (
-          <Route
-            path="/gestao-usuarios"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando gestão..." 
-                  waitForData={true}
-                >
-                  <UserManagement />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.userManagement && (
+              <Route
+                path="/gestao-usuarios"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando gestão..."
+                      waitForData={true}
+                    >
+                      <UserManagement />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        {accessRules.intensivoUSCS && (
-          <Route
-            path="/intensivo-uscs"
-            element={
-              <ProtectedRoute>
-                <PageWrapper 
-                  loadingMessage="Carregando intensivo USCS..." 
-                  waitForData={true}
-                >
-                  <IntensivoEnamedUSCS />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
-        )}
+            {accessRules.intensivoUSCS && (
+              <Route
+                path="/intensivo-uscs"
+                element={
+                  <ProtectedRoute>
+                    <PageWrapper
+                      loadingMessage="Carregando intensivo USCS..."
+                      waitForData={true}
+                    >
+                      <IntensivoEnamedUSCS />
+                    </PageWrapper>
+                  </ProtectedRoute>
+                }
+              />
+            )}
 
-        <Route
-          path="/analytics"
-          element={
-            <ProtectedRoute>
-              <PageWrapper 
-                loadingMessage="Carregando analytics..." 
-                waitForData={true}
-              >
-                <Analytics />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando analytics..."
+                    waitForData={true}
+                  >
+                    <Analytics />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
 
-        {/* SanarClass - Available for all authenticated users */}
-        <Route
-          path="/sanarclass"
-          element={
-            <ProtectedRoute>
-              <PageWrapper 
-                loadingMessage="Carregando SanarClass..." 
-                waitForData={true}
-              >
-                <SanarClass />
-              </PageWrapper>
-            </ProtectedRoute>
-          }
-        />
+            {/* SanarClass - Available for all authenticated users */}
+            <Route
+              path="/sanarclass"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando SanarClass..."
+                    waitForData={true}
+                  >
+                    <SanarClass />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
 
-        <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-        <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </Suspense>
       </Layout>
     </StudyProvider>

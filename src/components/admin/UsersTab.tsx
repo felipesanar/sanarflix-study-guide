@@ -17,8 +17,9 @@ interface IES {
 
 interface UserCreationResult {
   email: string;
-  password: string;
   success: boolean;
+  action?: string;
+  password?: string;
   error?: string;
 }
 
@@ -115,7 +116,7 @@ export const UsersTab: React.FC = () => {
   };
 
   const createSingleUser = async () => {
-    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies) {
+    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies || !singleUser.semestre) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -136,10 +137,10 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
-    const serverPassword = data?.password || '';
-    setGeneratedPassword(serverPassword);
-    toast.success('Usuário criado com sucesso!');
-    addLog(`Usuário ${singleUser.email} criado com sucesso`);
+    const successMsg = data?.message || 'Convite enviado com sucesso';
+    toast.success(successMsg);
+    addLog(`Usuário ${singleUser.email}: ${successMsg}`);
+    setGeneratedPassword('');
     setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
   };
 
@@ -169,7 +170,7 @@ export const UsersTab: React.FC = () => {
         user[header] = values[index];
       });
 
-      if (!user.nome || !user.email || !user.id_ies) {
+      if (!user.nome || !user.email || !user.id_ies || !user.semestre) {
         addLog(`Linha ${i + 1}: Dados incompletos, pulando...`);
         continue;
       }
@@ -183,10 +184,9 @@ export const UsersTab: React.FC = () => {
         },
       });
 
-      const serverPassword = data?.password || '';
       results.push({
         email: user.email,
-        password: serverPassword,
+        action: data?.action,
         success: !error && !data?.error,
         error: error?.message || data?.error,
       });
@@ -198,9 +198,9 @@ export const UsersTab: React.FC = () => {
     toast.success(`Processamento concluído: ${results.filter(r => r.success).length} usuários criados`);
 
     // Auto download CSV with results
-    const csvContent = 'email,senha\n' + results
+    const csvContent = 'email,acao\n' + results
       .filter(r => r.success)
-      .map(r => `${r.email},${r.password}`)
+      .map(r => `${r.email},${r.action || ''}`)
       .join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -352,7 +352,7 @@ export const UsersTab: React.FC = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="semestre">Semestre (opcional)</Label>
+              <Label htmlFor="semestre">Semestre</Label>
               <Input
                 id="semestre"
                 type="number"

@@ -25,44 +25,34 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
 });
 
-function generatePassword() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < 4; i++) {
-    const idx = Math.floor(Math.random() * chars.length);
-    result += chars[idx];
-  }
-  return `SenhaSegura@${result}`;
-}
-
 Deno.serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // 1. Setup & Environment Check
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!supabaseUrl || !serviceKey || !anonKey) {
-      return new Response(
-        JSON.stringify({ error: "Missing Supabase env vars" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      throw new Error("Missing Supabase environment variables");
     }
 
+    // 2. Auth Clients
     const authHeader = req.headers.get("Authorization") ?? "";
 
-    // Client with JWT to identify caller
+    // Client for the caller (to verify identity)
     const supabaseUser = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Admin client with service role to manage users and bypass RLS when needed
+    // Admin client (Service Role) for privileged operations
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Identify caller
+    // 3. Verify Caller Identity
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
     if (getUserErr || !userData?.user) {
       return new Response(
@@ -71,114 +61,113 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check admin role using has_role function (secure against privilege escalation)
+    // 4. Verify Admin Role (Secure RPC check)
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
       _user_id: userData.user.id,
-      _role: 'admin'
+      _role: 'admin' // Certifique-se que o nome da role no DB é exatamente 'admin'
     });
 
-    if (roleErr) {
-      // SECURITY: Log detailed error server-side only
-      console.error('[Internal] Error checking admin role:', roleErr);
+    if (roleErr || !hasAdminRole) {
+      console.error('[Security] Admin check failed:', roleErr);
       return new Response(
-        JSON.stringify({ error: "Erro ao verificar permissões" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!hasAdminRole) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: Admin role required" }),
+        JSON.stringify({ error: "Forbidden: Admin privileges required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // 5. Parse & Validate Body
     const body = await req.json();
-    
-    // Validate input with zod schema
-    let validatedData;
-    try {
-      validatedData = createUserSchema.parse(body);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessages = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-        return new Response(
-          JSON.stringify({ error: 'Validation failed', details: errorMessages }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw error;
-    }
+    const validationResult = createUserSchema.safeParse(body);
 
-    const { nome, email, id_ies, semestre } = validatedData;
-
-    const password = generatePassword();
-
-    // Try to create user
-    let userId: string | undefined;
-    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: nome, id_ies, semestre },
-    });
-
-    if (createErr) {
-      // If user exists, update password and metadata
-      // Try to find by email
-      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      const existingUser = list?.users?.find(u => u.email === email);
-      if (listErr || !existingUser) {
-        return new Response(
-          JSON.stringify({ error: createErr.message || "Falha ao criar usuário" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      userId = list.users[0].id;
-
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: nome, id_ies, semestre },
-      });
-      if (updateErr) {
-        return new Response(
-          JSON.stringify({ error: updateErr.message || "Falha ao atualizar usuário existente" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else {
-      userId = created.user?.id;
-    }
-
-    if (!userId) {
+    if (!validationResult.success) {
+      const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
       return new Response(
-        JSON.stringify({ error: "ID do usuário não definido" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Upsert in public.users - specify id as conflict resolution
-    const { error: upsertErr } = await supabaseAdmin
-      .from("users")
-      .upsert({ id: userId, email, nome, id_ies, semestre: Number(semestre) }, { onConflict: 'id' });
-
-    if (upsertErr) {
-      return new Response(
-        JSON.stringify({ error: upsertErr.message || "Falha ao salvar perfil" }),
+        JSON.stringify({ error: 'Validation failed', details: errorMessages }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const { nome, email, id_ies, semestre } = validationResult.data;
+    const userMetadata = { full_name: nome, id_ies, semestre };
+
+    // 6. User Management Logic (The Fix)
+    let userId: string;
+    let actionType = "invited";
+
+    const meuRedirect = "http://localhost:8080/auth/update-password";
+
+
+    // Tenta convidar o usuário. Se ele não existir, cria e manda email. 
+    // Se existir, o inviteUserByEmail geralmente retorna o usuário mas não envia novo convite de senha (dependendo da config).
+    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: userMetadata,
+      redirectTo: meuRedirect // <--- Agora ele vai para a página certa
+    });
+
+    if (inviteErr) {
+      // Se falhar, verificamos se o usuário já existe para atualizar os dados
+      // A API admin do Supabase não tem um "getByEmail" direto simples, então listamos ou buscamos na tabela pública
+      // Uma estratégia segura é tentar buscar na tabela pública para pegar o ID
+      const { data: publicUser } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (publicUser) {
+        userId = publicUser.id;
+        actionType = "updated";
+
+        // Atualiza metadados no Auth
+        await supabaseAdmin.auth.admin.updateUserById(userId, {
+          user_metadata: userMetadata
+        });
+      } else {
+        // Erro real (ex: rate limit, email inválido no provider, etc)
+        throw inviteErr;
+      }
+    } else {
+      userId = inviteData.user.id;
+    }
+
+    // 7. Upsert Public Profile (Sync Auth -> Public Table)
+    // Usamos upsert para garantir que os dados estejam sincronizados
+    const { error: upsertErr } = await supabaseAdmin
+      .from("users")
+      .upsert({
+        id: userId,
+        email,
+        nome,
+        id_ies,
+        semestre: Number(semestre)
+      }, { onConflict: 'id' });
+
+    if (upsertErr) {
+      console.error('[Database] Upsert failed:', upsertErr);
+      return new Response(
+        JSON.stringify({ error: "User created in Auth but failed to sync profile", details: upsertErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 8. Success Response
     return new Response(
-      JSON.stringify({ success: true, email, password }),
+      JSON.stringify({
+        success: true,
+        message: actionType === "invited" ? "Convite enviado com sucesso" : "Usuário atualizado com sucesso",
+        userId,
+        email,
+        action: actionType
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (e) {
-    // SECURITY: Log detailed error server-side only
-    console.error('[Internal] User creation error:', e);
+
+  } catch (error) {
+    console.error('[Internal Error]:', error);
+    const msg = error instanceof Error ? error.message : "Internal Server Error";
+
     return new Response(
-      JSON.stringify({ error: "Erro ao processar requisição" }),
+      JSON.stringify({ error: msg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
