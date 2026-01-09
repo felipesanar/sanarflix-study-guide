@@ -235,22 +235,7 @@ const AppContent = () => {
               />
             )}
 
-            {accessRules.enamed && false && (
-              <Route
-                path="/intensivao-enamed"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando intensivão..."
-                      waitForData={true}
-                      skeleton={<IntensivaoSkeleton />}
-                    >
-                      <IntensivaoEnamed />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
+            {/* Intensivão ENAMED - Temporariamente desabilitado */}
 
             {accessRules.cronogramaEnamed && (
               <Route

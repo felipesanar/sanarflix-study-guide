@@ -280,12 +280,6 @@ export function AppSidebar() {
                       <div className="min-w-0 flex-1 transition-opacity duration-300">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="text-xs md:text-sm font-semibold truncate">{user.nome}</p>
-                          {false && (
-                            <Badge variant="secondary" className="text-xs">
-                              <Crown className="h-3 w-3 mr-1" />
-                              PRO
-                            </Badge>
-                          )}
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {user.ies_nome} • {user.semestre}º período

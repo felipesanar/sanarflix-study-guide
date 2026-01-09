@@ -79,14 +79,10 @@ export const ModoProva = () => {
   const inicializarSimulado = async () => {
     setLoading(true);
     try {
-      console.log('buscarQuestoesSimulado', { simuladoId });
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
-      console.log('questoesData', { length: questoesData.length, sample: questoesData[0] });
       setQuestoes(questoesData);
 
-      console.log('buscarDadosSimulado', { simuladoId });
       const { titulo, duracao } = await simuladosApi.buscarDadosSimulado(simuladoId);
-      console.log('dadosSimulado', { titulo, duracao });
       setSimuladoTitulo(titulo);
       setDuracaoMinutos(duracao);
 
@@ -196,9 +192,7 @@ export const ModoProva = () => {
         saidas_de_aba: estadoFinal.saidas_de_aba,
         finalizado_em: new Date().toISOString()
       };
-      console.log('enviarResultado payload', payload);
       await simuladosApi.enviarResultado(payload);
-      console.log('enviarResultado success');
 
       storage.limparEstado();
 
