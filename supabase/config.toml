@@ -59,3 +59,12 @@ verify_jwt = false
 
 [functions.sync-user-auth]
 verify_jwt = false
+
+[functions.health-check]
+verify_jwt = false
+
+[functions.save-push-subscription]
+verify_jwt = false
+
+[functions.get-vapid-key]
+verify_jwt = false

@@ -2,13 +2,15 @@
  * Utilitário para gerenciar notificações push no navegador
  */
 
+import { supabase } from '@/integrations/supabase/client';
+
 export type NotificationPermission = 'granted' | 'denied' | 'default';
 
 /**
  * Verifica se o navegador suporta notificações
  */
 export const isNotificationSupported = (): boolean => {
-  return 'Notification' in window && 'serviceWorker' in navigator;
+  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 };
 
 /**
@@ -37,6 +39,129 @@ export const getNotificationPermission = (): NotificationPermission => {
     return 'denied';
   }
   return Notification.permission as NotificationPermission;
+};
+
+/**
+ * Obtém a chave pública VAPID do servidor
+ */
+export const getVapidPublicKey = async (): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-vapid-key');
+    if (error) {
+      console.error('Erro ao obter chave VAPID:', error);
+      return null;
+    }
+    return data?.publicKey || null;
+  } catch (error) {
+    console.error('Erro ao obter chave VAPID:', error);
+    return null;
+  }
+};
+
+/**
+ * Converte chave VAPID para Uint8Array
+ */
+const urlBase64ToUint8Array = (base64String: string): ArrayBuffer => {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray.buffer as ArrayBuffer;
+};
+
+/**
+ * Registra subscription de push no servidor
+ */
+export const subscribeToPush = async (): Promise<boolean> => {
+  if (!isNotificationSupported()) {
+    console.warn('Push não é suportado');
+    return false;
+  }
+
+  const permission = getNotificationPermission();
+  if (permission !== 'granted') {
+    console.warn('Permissão de notificação não concedida');
+    return false;
+  }
+
+  try {
+    const vapidKey = await getVapidPublicKey();
+    if (!vapidKey) {
+      console.error('Chave VAPID não disponível');
+      return false;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Verifica se já existe uma subscription
+    let subscription = await registration.pushManager.getSubscription();
+    
+    if (!subscription) {
+      // Cria nova subscription
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      });
+    }
+
+    // Envia subscription para o servidor
+    const { error } = await supabase.functions.invoke('save-push-subscription', {
+      body: {
+        subscription: subscription.toJSON(),
+        action: 'subscribe',
+      },
+    });
+
+    if (error) {
+      console.error('Erro ao salvar subscription:', error);
+      return false;
+    }
+
+    console.log('Push subscription registrada com sucesso');
+    return true;
+  } catch (error) {
+    console.error('Erro ao registrar push subscription:', error);
+    return false;
+  }
+};
+
+/**
+ * Remove subscription de push
+ */
+export const unsubscribeFromPush = async (): Promise<boolean> => {
+  if (!isNotificationSupported()) {
+    return false;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      // Remove do servidor
+      await supabase.functions.invoke('save-push-subscription', {
+        body: {
+          subscription: subscription.toJSON(),
+          action: 'unsubscribe',
+        },
+      });
+
+      // Remove localmente
+      await subscription.unsubscribe();
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao cancelar subscription:', error);
+    return false;
+  }
 };
 
 /**
