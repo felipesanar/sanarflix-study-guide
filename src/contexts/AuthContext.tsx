@@ -43,6 +43,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(parsed);
               // Password change flag will be verified server-side
               setNeedsPasswordChange(false);
+              (async () => {
+                try {
+                  const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: parsed.id });
+                  if (rolesData) {
+                    const updated = { ...parsed, roles: rolesData };
+                    setUser(updated);
+                    localStorage.setItem('sanarflix-user', JSON.stringify(updated));
+                  }
+                } catch (e) {
+                  Logger.warn('Failed to refresh roles on SIGNED_IN', e);
+                }
+              })();
             } else {
               Logger.warn('Invalid cached user data', validation.error);
               localStorage.removeItem('sanarflix-user');
@@ -72,6 +84,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(parsed);
             // Password change requirement is verified during login
             setNeedsPasswordChange(false);
+            (async () => {
+              try {
+                const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: parsed.id });
+                if (rolesData) {
+                  const updated = { ...parsed, roles: rolesData };
+                  setUser(updated);
+                  localStorage.setItem('sanarflix-user', JSON.stringify(updated));
+                }
+              } catch (e) {
+                Logger.warn('Failed to refresh roles on reload', e);
+              }
+            })();
           } catch (error) {
             localStorage.removeItem('sanarflix-user');
           }
