@@ -11,7 +11,9 @@ import {
   isNotificationSupported, 
   requestNotificationPermission, 
   getNotificationPermission,
-  sendTestNotification 
+  sendTestNotification,
+  subscribeToPush,
+  unsubscribeFromPush,
 } from '@/utils/notifications';
 
 interface ReminderConfig {
@@ -130,11 +132,20 @@ export const ReminderSettings: React.FC = () => {
       setNotificationPermission(permission);
       
       if (permission === 'granted') {
-        setConfig({ ...config, notify_push: true });
-        toast.success('Notificações push ativadas!', {
-          icon: '🔔',
-          duration: 3000,
-        });
+        // Registra subscription no servidor
+        const subscribed = await subscribeToPush();
+        
+        if (subscribed) {
+          setConfig({ ...config, notify_push: true });
+          toast.success('Notificações push ativadas!', {
+            icon: '🔔',
+            duration: 3000,
+          });
+        } else {
+          toast.error('Erro ao ativar notificações push', {
+            description: 'Tente novamente mais tarde',
+          });
+        }
       } else {
         toast.error('Permissão de notificação negada', {
           description: 'Habilite as notificações nas configurações do navegador',
@@ -143,6 +154,16 @@ export const ReminderSettings: React.FC = () => {
     } catch (error) {
       console.error('Error enabling push notifications:', error);
       toast.error('Erro ao ativar notificações push');
+    }
+  };
+
+  const handleDisablePushNotifications = async () => {
+    try {
+      await unsubscribeFromPush();
+      setConfig({ ...config, notify_push: false });
+      toast.success('Notificações push desativadas');
+    } catch (error) {
+      console.error('Error disabling push:', error);
     }
   };
 
@@ -307,10 +328,14 @@ export const ReminderSettings: React.FC = () => {
                   id="notify_push"
                   checked={config.notify_push && notificationPermission === 'granted'}
                   onCheckedChange={(checked) => {
-                    if (checked && notificationPermission !== 'granted') {
-                      handleEnablePushNotifications();
+                    if (checked) {
+                      if (notificationPermission !== 'granted') {
+                        handleEnablePushNotifications();
+                      } else {
+                        handleEnablePushNotifications();
+                      }
                     } else {
-                      setConfig({ ...config, notify_push: checked });
+                      handleDisablePushNotifications();
                     }
                   }}
                   disabled={!isNotificationSupported()}
