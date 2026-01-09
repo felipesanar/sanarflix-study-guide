@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { OverviewTab } from '@/components/analytics/OverviewTab';
-import { EngagementTab } from '@/components/analytics/EngagementTab';
-import { ProgressTab } from '@/components/analytics/ProgressTab';
-import { DemographicsTab } from '@/components/analytics/DemographicsTab';
-import { InsightsTab } from '@/components/analytics/InsightsTab';
+import { RealOverviewTab } from '@/components/analytics/RealOverviewTab';
+import { RealEngagementTab } from '@/components/analytics/RealEngagementTab';
+import { RealProgressTab } from '@/components/analytics/RealProgressTab';
+import { RealDemographicsTab } from '@/components/analytics/RealDemographicsTab';
+import { RealSimuladosTab } from '@/components/analytics/RealSimuladosTab';
 import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
 import { ExportModal } from '@/components/analytics/ExportModal';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
 import { isB2BUser } from '@/utils/accessRules';
+import { useAnalyticsData } from '@/hooks/useAnalyticsData';
 import { BarChart3, RefreshCw, Download, Info, Shield } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getBrazilDate } from '@/utils/timezone';
@@ -29,7 +29,6 @@ export interface AnalyticsFilters {
 
 const Analytics = () => {
   const { user } = useAuth();
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [filters, setFilters] = useState<AnalyticsFilters>({
@@ -42,21 +41,30 @@ const Analytics = () => {
     searchTerm: ''
   });
 
-  // Check if user has analytics access (any B2B user)
+  const analyticsFilters = {
+    dateRange: filters.dateRange,
+    iesId: filters.university
+  };
+
+  const { 
+    overview, 
+    engagement, 
+    progress, 
+    demographics, 
+    simulados, 
+    isLoading, 
+    refetch 
+  } = useAnalyticsData(analyticsFilters);
+
   const hasAnalyticsAccess = isB2BUser(user);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsRefreshing(false);
-      toast({
-        title: "Dados atualizados",
-        description: "Analytics atualizado com sucesso",
-        duration: 2000,
-      });
-    }, 2000);
+    await refetch();
+    toast({
+      title: "Dados atualizados",
+      description: "Analytics atualizado com sucesso",
+      duration: 2000,
+    });
   };
 
   const handleFilterChange = (newFilters: Partial<AnalyticsFilters>) => {
@@ -69,16 +77,13 @@ const Analytics = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Main Content */}
       <div className="px-4 md:px-8 lg:px-12 pb-20">
-        {/* Header Section */}
+        {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl md:text-3xl font-bold">
-                Dashboard Analytics
-              </h1>
+              <h1 className="text-2xl md:text-3xl font-bold">Analytics</h1>
             </div>
 
             <div className="flex items-center gap-4">
@@ -86,84 +91,72 @@ const Analytics = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleRefresh}
-                disabled={isRefreshing}
+                disabled={isLoading}
                 className="gap-2"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Atualizar Dados
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Atualizar</span>
               </Button>
 
               <Badge variant="secondary" className="gap-1">
                 <Shield className="w-3 h-3" />
-                <span className="hidden sm:inline">Dados anonimizados conforme LGPD</span>
-                <span className="sm:hidden">LGPD</span>
+                <span className="hidden sm:inline">Dados reais</span>
               </Badge>
             </div>
           </div>
         </div>
 
-        {/* Filters Bar */}
+        {/* Filters */}
         <div className="bg-card border rounded-lg p-4 mb-6">
           <AnalyticsFilters filters={filters} onFilterChange={handleFilterChange} />
         </div>
 
-        {/* Demo Watermark for unauthenticated users */}
-        {!user && (
-          <div className="fixed inset-0 pointer-events-none z-10">
-            <div className="absolute inset-0 flex items-center justify-center transform rotate-45">
-              <div className="text-6xl md:text-8xl font-bold text-muted-foreground/10 select-none">
-                DADOS DE EXEMPLO
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Visão Geral
             </TabsTrigger>
-            <TabsTrigger value="engagement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="engagement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Engajamento
             </TabsTrigger>
-            <TabsTrigger value="progress" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="progress" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Progresso
             </TabsTrigger>
-            <TabsTrigger value="demographics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            <TabsTrigger value="demographics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Demografia
             </TabsTrigger>
-            <TabsTrigger value="insights" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Insights
+            <TabsTrigger value="simulados" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
+              Simulados
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <OverviewTab filters={filters} />
+            <RealOverviewTab overview={overview} engagement={engagement} simulados={simulados} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="engagement" className="space-y-6">
-            <EngagementTab filters={filters} />
+            <RealEngagementTab engagement={engagement} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="progress" className="space-y-6">
-            <ProgressTab filters={filters} />
+            <RealProgressTab progress={progress} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="demographics" className="space-y-6">
-            <DemographicsTab filters={filters} />
+            <RealDemographicsTab demographics={demographics} isLoading={isLoading} />
           </TabsContent>
 
-          <TabsContent value="insights" className="space-y-6">
-            <InsightsTab filters={filters} />
+          <TabsContent value="simulados" className="space-y-6">
+            <RealSimuladosTab simulados={simulados} isLoading={isLoading} />
           </TabsContent>
         </Tabs>
 
-        {/* Footer Section */}
+        {/* Footer */}
         <div className="mt-8 pt-4 border-t bg-muted/50 rounded-lg p-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="w-4 h-4" />
-            <span>Métricas baseadas em cliques e marcações no cronograma</span>
+            <span>Dados reais do Supabase</span>
           </div>
           
           <Button
@@ -173,12 +166,11 @@ const Analytics = () => {
             className="gap-2"
           >
             <Download className="w-4 h-4" />
-            Exportar CSV
+            <span className="hidden sm:inline">Exportar</span>
           </Button>
         </div>
       </div>
 
-      {/* Export Modal */}
       <ExportModal 
         open={showExportModal} 
         onOpenChange={setShowExportModal}
