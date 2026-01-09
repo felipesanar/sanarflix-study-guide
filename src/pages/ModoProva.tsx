@@ -1,16 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
 import { useSimuladoStorage } from '@/hooks/useSimuladoStorage';
 import { useCronometro } from '@/hooks/useCronometro';
 import { useFocusControl } from '@/hooks/useFocusControl';
+import { useKeyboardShortcuts, KEY_TO_ALTERNATIVE } from '@/hooks/useKeyboardShortcuts';
 import { Questao, EstadoSimulado } from '@/types/simulado';
 import { AlternativaProva } from '@/components/simulados/AlternativaProva';
 import { NavegacaoLateral } from '@/components/simulados/NavegacaoLateral';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +67,7 @@ export const ModoProva = () => {
       storage.atualizarTempo(tempo);
     }
   });
+
 
   useEffect(() => {
     inicializarSimulado();
@@ -237,7 +240,23 @@ export const ModoProva = () => {
 
   const progresso = (questoesRespondidas.size / questoes.length) * 100;
 
-  // Finalização automática ao sair da página usando sendBeacon para garantir envio
+  // Atalhos de teclado para navegação e seleção de alternativas
+  const keyboardShortcuts = useMemo(() => ({
+    '1': () => podeInteragir && questaoAtualData && handleSelecionarAlternativa('A'),
+    '2': () => podeInteragir && questaoAtualData && handleSelecionarAlternativa('B'),
+    '3': () => podeInteragir && questaoAtualData && handleSelecionarAlternativa('C'),
+    '4': () => podeInteragir && questaoAtualData && handleSelecionarAlternativa('D'),
+    'ArrowLeft': handleAnterior,
+    'ArrowRight': handleProxima,
+    'f': handleMarcarRevisao,
+    'F': handleMarcarRevisao,
+    'Escape': () => setMostrarDialogFinalizar(true),
+  }), [podeInteragir, questaoAtualData, handleSelecionarAlternativa, handleAnterior, handleProxima, handleMarcarRevisao]);
+
+  useKeyboardShortcuts(keyboardShortcuts, { 
+    enabled: !loading && !mostrarDialogFinalizar && !finalizando 
+  });
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       // Usa sendBeacon para envio assíncrono que sobrevive ao fechamento da página
@@ -323,7 +342,29 @@ export const ModoProva = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          {/* Atalhos de Teclado */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="hidden md:flex">
+                  <Keyboard className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <div className="space-y-2 text-sm">
+                  <p className="font-semibold">Atalhos de Teclado</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                    <span><kbd className="px-1 py-0.5 bg-muted rounded text-xs">1-4</kbd> Alternativas</span>
+                    <span><kbd className="px-1 py-0.5 bg-muted rounded text-xs">←→</kbd> Navegação</span>
+                    <span><kbd className="px-1 py-0.5 bg-muted rounded text-xs">F</kbd> Revisar</span>
+                    <span><kbd className="px-1 py-0.5 bg-muted rounded text-xs">Esc</kbd> Finalizar</span>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <div className="text-center">
             <div className={cn('text-2xl font-bold font-mono', cronometro.getCorTempo())}>
               {cronometro.formatarTempo(cronometro.tempoRestante)}
