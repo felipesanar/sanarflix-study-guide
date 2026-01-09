@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
@@ -6,6 +6,7 @@ import { useSimuladoStorage } from '@/hooks/useSimuladoStorage';
 import { useCronometro } from '@/hooks/useCronometro';
 import { useFocusControl } from '@/hooks/useFocusControl';
 import { useKeyboardShortcuts, KEY_TO_ALTERNATIVE } from '@/hooks/useKeyboardShortcuts';
+import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Questao, EstadoSimulado } from '@/types/simulado';
 import { AlternativaProva } from '@/components/simulados/AlternativaProva';
 import { NavegacaoLateral } from '@/components/simulados/NavegacaoLateral';
@@ -35,6 +36,9 @@ export const ModoProva = () => {
   const simuladoId = id || '';
 
   const storage = useSimuladoStorage(simuladoId);
+  const { trackSimuladoStart, trackSimuladoComplete } = useAnalyticsTracker();
+  const hasTrackedStart = useRef(false);
+  
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [questaoAtual, setQuestaoAtual] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -88,6 +92,12 @@ export const ModoProva = () => {
       const { titulo, duracao } = await simuladosApi.buscarDadosSimulado(simuladoId);
       setSimuladoTitulo(titulo);
       setDuracaoMinutos(duracao);
+
+      // Track simulado start (only once per session)
+      if (!hasTrackedStart.current) {
+        hasTrackedStart.current = true;
+        trackSimuladoStart(simuladoId, titulo);
+      }
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
@@ -187,15 +197,26 @@ export const ModoProva = () => {
       const todasQuestoesIds = questoes.map(q => q.id);
       const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
 
+      const tempoTotalSegundos = (duracaoMinutos * 60) - cronometro.tempoRestante;
+      const totalRespondidas = Object.values(estadoFinal.respostas).filter(r => r.resposta).length;
+
       const payload = {
         simulado_id: simuladoId,
         user_id: user.id,
         respostas: respostasCompletas,
-        tempo_total_segundos: (duracaoMinutos * 60) - cronometro.tempoRestante,
+        tempo_total_segundos: tempoTotalSegundos,
         saidas_de_aba: estadoFinal.saidas_de_aba,
         finalizado_em: new Date().toISOString()
       };
       await simuladosApi.enviarResultado(payload);
+
+      // Track simulado completion
+      trackSimuladoComplete(simuladoId, {
+        tempoTotalSegundos,
+        saidasDeAba: estadoFinal.saidas_de_aba,
+        totalQuestoes: questoes.length,
+        totalRespondidas
+      });
 
       storage.limparEstado();
 

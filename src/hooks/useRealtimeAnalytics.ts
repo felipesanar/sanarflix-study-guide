@@ -9,7 +9,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface AtividadeRecente {
   id: string;
-  tipo: 'resposta' | 'aula' | 'simulado' | 'progresso';
+  tipo: 'resposta' | 'aula' | 'simulado' | 'progresso' | 'sanarclass' | 'session';
   descricao: string;
   timestamp: Date;
   userId?: string;
@@ -25,6 +25,9 @@ export interface RealtimeStats {
   respostasUltimaHora: number;
   aulasAssistidasHoje: number;
   simuladosConcluidosHoje: number;
+  simuladosIniciadosHoje: number;
+  sanarclassViewsHoje: number;
+  sessaoesAtivasHoje: number;
   atividadesRecentes: AtividadeRecente[];
   respostasPorMinuto: { minuto: string; count: number }[];
   isConnected: boolean;
@@ -38,6 +41,9 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
     respostasUltimaHora: 0,
     aulasAssistidasHoje: 0,
     simuladosConcluidosHoje: 0,
+    simuladosIniciadosHoje: 0,
+    sanarclassViewsHoje: 0,
+    sessaoesAtivasHoje: 0,
     atividadesRecentes: [],
     respostasPorMinuto: [],
     isConnected: false,
@@ -112,6 +118,9 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
       let respostasQuery = supabase.from('answer_progress').select('answer_id', { count: 'exact', head: true });
       let aulasQuery = supabase.from('aula_views').select('id', { count: 'exact', head: true }).gte('viewed_at', hojeISO);
       let simuladosQuery = supabase.from('simulados_finalizados').select('id', { count: 'exact', head: true }).gte('finalizado_em', hojeISO);
+      const simuladosIniciadosQuery = supabase.from('simulados_iniciados').select('id', { count: 'exact', head: true }).gte('started_at', hojeISO);
+      const sanarclassQuery = supabase.from('sanarclass_views').select('id', { count: 'exact', head: true }).gte('created_at', hojeISO);
+      const sessoesQuery = supabase.from('user_sessions').select('id', { count: 'exact', head: true }).gte('started_at', hojeISO);
 
       // Apply simulado filter if set
       if (simuladoId) {
@@ -119,10 +128,13 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         simuladosQuery = simuladosQuery.eq('simulado_id', simuladoId);
       }
 
-      const [respostasResult, aulasResult, simuladosResult] = await Promise.all([
+      const [respostasResult, aulasResult, simuladosResult, iniciadosResult, sanarResult, sessoesResult] = await Promise.all([
         respostasQuery,
         aulasQuery,
         simuladosQuery,
+        simuladosIniciadosQuery,
+        sanarclassQuery,
+        sessoesQuery,
       ]);
 
       setStats((prev) => ({
@@ -130,8 +142,11 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         respostasUltimaHora: Math.min(respostasResult.count || 0, 999),
         aulasAssistidasHoje: aulasResult.count || 0,
         simuladosConcluidosHoje: simuladosResult.count || 0,
-        atividadesRecentes: [], // Reset activities on filter change
-        respostasPorMinuto: [], // Reset chart on filter change
+        simuladosIniciadosHoje: iniciadosResult.count || 0,
+        sanarclassViewsHoje: sanarResult.count || 0,
+        sessaoesAtivasHoje: sessoesResult.count || 0,
+        atividadesRecentes: [],
+        respostasPorMinuto: [],
       }));
     } catch (error) {
       console.error('Error loading initial counts:', error);

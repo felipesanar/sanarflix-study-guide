@@ -20,6 +20,7 @@ import { PasswordDialogProvider, usePasswordDialog } from '@/contexts/PasswordDi
 import { NavLink, useLocation } from 'react-router-dom';
 import { isB2BUser } from '@/utils/accessRules';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
+import { useSessionTracker } from '@/hooks/useSessionTracker';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -30,6 +31,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  
+  // Session tracking - automatically tracks page views and session duration
+  useSessionTracker();
   
   // Se o contexto não estiver disponível, renderiza apenas os children
   if (!authContext) {
