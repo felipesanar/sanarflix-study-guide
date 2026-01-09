@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, PlayCircle, CheckCircle, Wifi, WifiOff } from 'lucide-react';
@@ -5,14 +6,20 @@ import { useRealtimeAnalytics } from '@/hooks/useRealtimeAnalytics';
 import { LiveCounter } from './realtime/LiveCounter';
 import { ActivityFeed } from './realtime/ActivityFeed';
 import { LiveChart } from './realtime/LiveChart';
+import { RealtimeFilters, RealtimeFiltersState } from './realtime/RealtimeFilters';
 
 export const RealtimeDashboard = () => {
-  const stats = useRealtimeAnalytics();
+  const [filters, setFilters] = useState<RealtimeFiltersState>({
+    iesId: null,
+    simuladoId: null,
+  });
+
+  const stats = useRealtimeAnalytics(filters);
 
   return (
     <div className="space-y-6">
       {/* Header com status de conexão */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             📡 Analytics em Tempo Real
@@ -38,6 +45,13 @@ export const RealtimeDashboard = () => {
           )}
         </Badge>
       </div>
+
+      {/* Filtros */}
+      <Card>
+        <CardContent className="pt-4">
+          <RealtimeFilters filters={filters} onFiltersChange={setFilters} />
+        </CardContent>
+      </Card>
 
       {/* KPIs ao Vivo */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
