@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import { AppSidebar } from './AppSidebar';
 import { Menu, User, Home, BookOpen, Zap, GraduationCap, ClipboardCheck, FileText, TrendingUp, ArrowUp, Bell, AlertTriangle, Info, X, BarChart3, LogOut } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <PasswordDialogProvider>
+      <OfflineIndicator />
       <SidebarProvider>
         {!isModoProva && <AppSidebar />}
         <SidebarInset className="flex-1 flex flex-col min-h-screen w-full transition-all duration-300">

@@ -419,6 +419,41 @@ export type Database = {
           },
         ]
       }
+      ies_features: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_key: string
+          id: string
+          ies_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          feature_key: string
+          id?: string
+          ies_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          ies_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ies_features_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intensivouscs: {
         Row: {
           dia: string
@@ -907,6 +942,13 @@ export type Database = {
       get_current_user_faculty: { Args: never; Returns: string }
       get_current_user_ies_id: { Args: never; Returns: string }
       get_current_user_semester: { Args: never; Returns: number }
+      get_ies_features: {
+        Args: { p_ies_id: string }
+        Returns: {
+          enabled: boolean
+          feature_key: string
+        }[]
+      }
       get_question_by_subspecialty:
         | {
             Args: { sub_name: string }
@@ -991,6 +1033,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      ies_has_feature: {
+        Args: { p_feature: string; p_ies_id: string }
         Returns: boolean
       }
     }
