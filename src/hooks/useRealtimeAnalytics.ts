@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+export interface RealtimeFilters {
+  iesId: string | null;
+  simuladoId: string | null;
+}
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface AtividadeRecente {
@@ -28,7 +33,7 @@ export interface RealtimeStats {
 const MAX_ATIVIDADES = 50;
 const DEBOUNCE_MS = 1000;
 
-export const useRealtimeAnalytics = () => {
+export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
   const [stats, setStats] = useState<RealtimeStats>({
     respostasUltimaHora: 0,
     aulasAssistidasHoje: 0,
@@ -41,6 +46,10 @@ export const useRealtimeAnalytics = () => {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingUpdatesRef = useRef<Partial<RealtimeStats>>({});
+
+  // Memoize filters to prevent unnecessary re-renders
+  const iesId = filters?.iesId ?? null;
+  const simuladoId = filters?.simuladoId ?? null;
 
   // Debounced state update to prevent excessive re-renders
   const applyPendingUpdates = useCallback(() => {
@@ -92,33 +101,28 @@ export const useRealtimeAnalytics = () => {
     });
   }, []);
 
-  // Load initial counts
+  // Load initial counts with filters
   const loadInitialCounts = useCallback(async () => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const hojeISO = hoje.toISOString();
 
-    const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
     try {
-      // Parallel queries for initial data
+      // Build queries with filters
+      let respostasQuery = supabase.from('answer_progress').select('answer_id', { count: 'exact', head: true });
+      let aulasQuery = supabase.from('aula_views').select('id', { count: 'exact', head: true }).gte('viewed_at', hojeISO);
+      let simuladosQuery = supabase.from('simulados_finalizados').select('id', { count: 'exact', head: true }).gte('finalizado_em', hojeISO);
+
+      // Apply simulado filter if set
+      if (simuladoId) {
+        respostasQuery = respostasQuery.eq('simulado', simuladoId);
+        simuladosQuery = simuladosQuery.eq('simulado_id', simuladoId);
+      }
+
       const [respostasResult, aulasResult, simuladosResult] = await Promise.all([
-        // Respostas na última hora - count estimate
-        supabase
-          .from('answer_progress')
-          .select('answer_id', { count: 'exact', head: true }),
-        
-        // Aulas hoje
-        supabase
-          .from('aula_views')
-          .select('id', { count: 'exact', head: true })
-          .gte('viewed_at', hojeISO),
-        
-        // Simulados concluídos hoje
-        supabase
-          .from('simulados_finalizados')
-          .select('id', { count: 'exact', head: true })
-          .gte('finalizado_em', hojeISO),
+        respostasQuery,
+        aulasQuery,
+        simuladosQuery,
       ]);
 
       setStats((prev) => ({
@@ -126,11 +130,58 @@ export const useRealtimeAnalytics = () => {
         respostasUltimaHora: Math.min(respostasResult.count || 0, 999),
         aulasAssistidasHoje: aulasResult.count || 0,
         simuladosConcluidosHoje: simuladosResult.count || 0,
+        atividadesRecentes: [], // Reset activities on filter change
+        respostasPorMinuto: [], // Reset chart on filter change
       }));
     } catch (error) {
       console.error('Error loading initial counts:', error);
     }
-  }, []);
+  }, [iesId, simuladoId]);
+
+  // Check if event matches current filters
+  const matchesFilters = useCallback(async (payload: any, table: string): Promise<boolean> => {
+    if (!iesId && !simuladoId) return true;
+
+    // For answer_progress and simulados_finalizados, check simulado filter
+    if (table === 'answer_progress' || table === 'simulados_finalizados') {
+      const eventSimuladoId = table === 'answer_progress' ? payload.new.simulado : payload.new.simulado_id;
+      
+      if (simuladoId && eventSimuladoId !== simuladoId) {
+        return false;
+      }
+
+      // If IES filter is set, need to check if simulado belongs to that IES
+      if (iesId && eventSimuladoId) {
+        const { data: simulado } = await supabase
+          .from('simulados_admin')
+          .select('ies_ids')
+          .eq('id', eventSimuladoId)
+          .single();
+        
+        if (!simulado || !simulado.ies_ids?.includes(iesId)) {
+          return false;
+        }
+      }
+    }
+
+    // For aula_views and study_progress, check IES via user
+    if (iesId && (table === 'aula_views' || table === 'study_progress')) {
+      const userId = payload.new.user_id;
+      if (userId) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('id_ies')
+          .eq('id', userId)
+          .single();
+        
+        if (!user || user.id_ies !== iesId) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }, [iesId, simuladoId]);
 
   // Setup realtime subscriptions
   useEffect(() => {
@@ -141,66 +192,74 @@ export const useRealtimeAnalytics = () => {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'answer_progress' },
-        (payload) => {
-          console.log('[Realtime] Nova resposta:', payload);
-          updateRespostasPorMinuto();
-          addAtividade({
-            id: crypto.randomUUID(),
-            tipo: 'resposta',
-            descricao: 'Nova resposta registrada',
-            timestamp: new Date(),
-            userId: payload.new.user_id,
-          });
+        async (payload) => {
+          if (await matchesFilters(payload, 'answer_progress')) {
+            console.log('[Realtime] Nova resposta:', payload);
+            updateRespostasPorMinuto();
+            addAtividade({
+              id: crypto.randomUUID(),
+              tipo: 'resposta',
+              descricao: 'Nova resposta registrada',
+              timestamp: new Date(),
+              userId: payload.new.user_id,
+            });
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'aula_views' },
-        (payload) => {
-          console.log('[Realtime] Nova visualização de aula:', payload);
-          setStats((prev) => ({
-            ...prev,
-            aulasAssistidasHoje: prev.aulasAssistidasHoje + 1,
-          }));
-          addAtividade({
-            id: crypto.randomUUID(),
-            tipo: 'aula',
-            descricao: 'Aula visualizada',
-            timestamp: new Date(),
-            userId: payload.new.user_id,
-          });
+        async (payload) => {
+          if (await matchesFilters(payload, 'aula_views')) {
+            console.log('[Realtime] Nova visualização de aula:', payload);
+            setStats((prev) => ({
+              ...prev,
+              aulasAssistidasHoje: prev.aulasAssistidasHoje + 1,
+            }));
+            addAtividade({
+              id: crypto.randomUUID(),
+              tipo: 'aula',
+              descricao: 'Aula visualizada',
+              timestamp: new Date(),
+              userId: payload.new.user_id,
+            });
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'simulados_finalizados' },
-        (payload) => {
-          console.log('[Realtime] Simulado finalizado:', payload);
-          setStats((prev) => ({
-            ...prev,
-            simuladosConcluidosHoje: prev.simuladosConcluidosHoje + 1,
-          }));
-          addAtividade({
-            id: crypto.randomUUID(),
-            tipo: 'simulado',
-            descricao: 'Simulado concluído',
-            timestamp: new Date(),
-            userId: payload.new.user_id,
-          });
+        async (payload) => {
+          if (await matchesFilters(payload, 'simulados_finalizados')) {
+            console.log('[Realtime] Simulado finalizado:', payload);
+            setStats((prev) => ({
+              ...prev,
+              simuladosConcluidosHoje: prev.simuladosConcluidosHoje + 1,
+            }));
+            addAtividade({
+              id: crypto.randomUUID(),
+              tipo: 'simulado',
+              descricao: 'Simulado concluído',
+              timestamp: new Date(),
+              userId: payload.new.user_id,
+            });
+          }
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'study_progress' },
-        (payload) => {
-          console.log('[Realtime] Progresso de estudo:', payload);
-          addAtividade({
-            id: crypto.randomUUID(),
-            tipo: 'progresso',
-            descricao: 'Conteúdo marcado como concluído',
-            timestamp: new Date(),
-            userId: payload.new.user_id,
-          });
+        async (payload) => {
+          if (await matchesFilters(payload, 'study_progress')) {
+            console.log('[Realtime] Progresso de estudo:', payload);
+            addAtividade({
+              id: crypto.randomUUID(),
+              tipo: 'progresso',
+              descricao: 'Conteúdo marcado como concluído',
+              timestamp: new Date(),
+              userId: payload.new.user_id,
+            });
+          }
         }
       )
       .subscribe((status) => {
@@ -221,7 +280,7 @@ export const useRealtimeAnalytics = () => {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [loadInitialCounts, updateRespostasPorMinuto, addAtividade]);
+  }, [loadInitialCounts, updateRespostasPorMinuto, addAtividade, matchesFilters]);
 
   return stats;
 };

@@ -318,13 +318,15 @@ export const ModoProva = () => {
       {foraDeTelaCheia && (
         <Alert className="rounded-none border-x-0 border-t-0 bg-amber-500/10 border-amber-500/20">
           <AlertCircle className="h-4 w-4 text-amber-500" />
-          <AlertDescription className="text-amber-700 dark:text-amber-300">
-            Para manter a integridade do simulado, ative novamente o modo tela cheia.
+          <AlertDescription className="text-amber-700 dark:text-amber-300 flex items-center flex-wrap gap-2">
+            <span>
+              <strong>Interação bloqueada.</strong> Para manter a integridade do simulado, ative novamente o modo tela cheia.
+            </span>
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className="ml-4"
               onClick={entrarTelaCheia}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               <Maximize className="h-4 w-4 mr-2" />
               Ativar Tela Cheia

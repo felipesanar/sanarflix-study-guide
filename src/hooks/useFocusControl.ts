@@ -16,12 +16,12 @@ export const useFocusControl = ({
   const handleVisibilityChange = useCallback(() => {
     if (document.hidden) {
       setForaDeAba(true);
-      onSaidaAba(); // Apenas registra log, não pausa cronômetro
-      setPodeInteragir(false); // Bloqueia interação
+      onSaidaAba();
+      setPodeInteragir(false); // Bloqueia interação quando sai da aba
     } else {
       setForaDeAba(false);
       onRetornoAba();
-      // Só permite interação novamente se estiver em fullscreen
+      // Ao retornar à aba, permite interação apenas se estiver em fullscreen
       setPodeInteragir(!!document.fullscreenElement);
     }
   }, [onSaidaAba, onRetornoAba]);
@@ -30,14 +30,9 @@ export const useFocusControl = ({
     const isFullscreen = !!document.fullscreenElement;
     setForaDeTelaCheia(!isFullscreen);
     
-    if (!isFullscreen) {
-      onSaidaAba(); // Apenas registra log
-      setPodeInteragir(false); // Bloqueia interação ao sair do fullscreen
-    } else {
-      onRetornoAba();
-      setPodeInteragir(true); // Permite interação ao entrar em fullscreen
-    }
-  }, [onSaidaAba, onRetornoAba]);
+    // Bloqueia interação fora do fullscreen, permite dentro
+    setPodeInteragir(isFullscreen && !document.hidden);
+  }, []);
 
   const entrarTelaCheia = useCallback(async () => {
     try {
