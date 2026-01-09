@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          created_at: string
+          event_category: string
+          event_data: Json | null
+          event_name: string
+          id: string
+          ies_id: string | null
+          page_path: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_category?: string
+          event_data?: Json | null
+          event_name: string
+          id?: string
+          ies_id?: string | null
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_category?: string
+          event_data?: Json | null
+          event_name?: string
+          id?: string
+          ies_id?: string | null
+          page_path?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           ativo: boolean
@@ -478,6 +514,42 @@ export type Database = {
         }
         Relationships: []
       }
+      page_views: {
+        Row: {
+          created_at: string
+          id: string
+          ies_id: string | null
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          session_id: string | null
+          time_on_page_seconds: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ies_id?: string | null
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          time_on_page_seconds?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ies_id?: string | null
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          time_on_page_seconds?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -644,6 +716,38 @@ export type Database = {
           },
         ]
       }
+      sanarclass_views: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          lesson_id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          lesson_id: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          lesson_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sanarclass_views_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "sanarclass_lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Simulados: {
         Row: {
           id: number
@@ -738,6 +842,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "simulados_finalizados_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulados_iniciados: {
+        Row: {
+          id: string
+          simulado_id: string
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          simulado_id: string
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          simulado_id?: string
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulados_iniciados_simulado_id_fkey"
             columns: ["simulado_id"]
             isOneToOne: false
             referencedRelation: "simulados_admin"
@@ -896,6 +1029,45 @@ export type Database = {
           granted_by?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          ies_id: string | null
+          is_mobile: boolean | null
+          pages_visited: number | null
+          session_id: string
+          started_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          ies_id?: string | null
+          is_mobile?: boolean | null
+          pages_visited?: number | null
+          session_id: string
+          started_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          ies_id?: string | null
+          is_mobile?: boolean | null
+          pages_visited?: number | null
+          session_id?: string
+          started_at?: string
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []

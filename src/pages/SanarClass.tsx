@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAnalyticsTracker } from "@/hooks/useAnalyticsTracker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,7 @@ interface SanarClassLesson {
 
 export default function SanarClass() {
   const { user } = useAuth();
+  const { trackSanarClassAction } = useAnalyticsTracker();
   
   // Filtros
   const [searchTerm, setSearchTerm] = useState("");
@@ -143,11 +145,15 @@ export default function SanarClass() {
     setSelectedLesson(lesson);
     setIframeLoading(true);
     setViewModalOpen(true);
+    // Track view action
+    trackSanarClassAction(lesson.id, 'view', lesson.titulo);
   };
 
   const handleDownload = (lesson: SanarClassLesson) => {
     window.open(lesson.arquivo_url, '_blank');
     toast.success('Download iniciado');
+    // Track download action
+    trackSanarClassAction(lesson.id, 'download', lesson.titulo);
   };
 
 
