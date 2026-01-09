@@ -237,11 +237,31 @@ export const ModoProva = () => {
 
   const progresso = (questoesRespondidas.size / questoes.length) * 100;
 
-  // Detectar saída da página para finalização automática
+  // Finalização automática ao sair da página usando sendBeacon para garantir envio
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Finalizar automaticamente ao sair da página
-      finalizarSimulado();
+      // Usa sendBeacon para envio assíncrono que sobrevive ao fechamento da página
+      const estadoFinal = storage.carregarEstado();
+      if (estadoFinal && user) {
+        const todasQuestoesIds = questoes.map(q => q.id);
+        const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
+        
+        const payload = {
+          simulado_id: simuladoId,
+          user_id: user.id,
+          respostas: respostasCompletas,
+          tempo_total_segundos: (duracaoMinutos * 60) - cronometro.tempoRestante,
+          saidas_de_aba: estadoFinal.saidas_de_aba,
+          finalizado_em: new Date().toISOString(),
+          auto_finalizado: true
+        };
+        
+        // sendBeacon garante que a requisição seja enviada mesmo fechando a aba
+        const url = `https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/corrigir-simulado`;
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        navigator.sendBeacon(url, blob);
+      }
+      
       e.preventDefault();
       e.returnValue = '';
     };
@@ -251,7 +271,7 @@ export const ModoProva = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []);
+  }, [user, questoes, simuladoId, duracaoMinutos, cronometro.tempoRestante, storage]);
 
   if (loading) {
     return (

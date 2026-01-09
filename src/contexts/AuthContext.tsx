@@ -352,11 +352,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
-    // Em vez de lançar erro, retorna null para permitir verificação
-    return null;
+    throw new Error('useAuth must be used within an AuthProvider. Make sure the component is wrapped in <AuthProvider>.');
   }
   return context;
 };
