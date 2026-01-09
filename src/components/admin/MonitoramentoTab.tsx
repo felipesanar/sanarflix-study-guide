@@ -3,10 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, AlertTriangle, Clock, TrendingDown, Activity } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Users, AlertTriangle, Clock, TrendingDown, Activity, Radio } from 'lucide-react';
 import { toast } from 'sonner';
-
+import { RealtimeDashboard } from './RealtimeDashboard';
 interface SimuladoStats {
   id: string;
   nome: string;
@@ -29,7 +29,7 @@ export const MonitoramentoTab = () => {
   const [simulados, setSimulados] = useState<SimuladoStats[]>([]);
   const [questoesErro, setQuestoesErro] = useState<QuestaoErro[]>([]);
   const [simuladoSelecionado, setSimuladoSelecionado] = useState<string | null>(null);
-
+  const [modoVisao, setModoVisao] = useState<'estatisticas' | 'realtime'>('estatisticas');
   useEffect(() => {
     carregarEstatisticas();
   }, []);
@@ -152,34 +152,55 @@ export const MonitoramentoTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Activity className="h-8 w-8 text-primary" />
-          Dashboard de Monitoramento
-        </h2>
-        <p className="text-muted-foreground mt-2">
-          Análise detalhada do desempenho dos alunos nos simulados
-        </p>
+      {/* Header com toggle de modo */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Activity className="h-8 w-8 text-primary" />
+            Dashboard de Monitoramento
+          </h2>
+          <p className="text-muted-foreground mt-2">
+            Análise detalhada do desempenho dos alunos nos simulados
+          </p>
+        </div>
+        
+        {/* Toggle entre modos */}
+        <Tabs value={modoVisao} onValueChange={(v) => setModoVisao(v as 'estatisticas' | 'realtime')}>
+          <TabsList>
+            <TabsTrigger value="estatisticas" className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4" />
+              Estatísticas
+            </TabsTrigger>
+            <TabsTrigger value="realtime" className="flex items-center gap-1.5">
+              <Radio className="h-4 w-4" />
+              Tempo Real
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {/* Seletor de Simulado */}
-      <Tabs value={simuladoSelecionado || ''} onValueChange={(val) => {
-        setSimuladoSelecionado(val);
-        carregarQuestoesComErro(val);
-      }}>
-        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-          {simulados.map(sim => (
-            <TabsTrigger key={sim.id} value={sim.id} className="whitespace-nowrap">
-              {sim.nome}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {simuladoAtual && (
+      {/* Conteúdo baseado no modo */}
+      {modoVisao === 'realtime' ? (
+        <RealtimeDashboard />
+      ) : (
         <>
-          {/* Cards de Métricas Principais */}
+          {/* Seletor de Simulado */}
+          <Tabs value={simuladoSelecionado || ''} onValueChange={(val) => {
+            setSimuladoSelecionado(val);
+            carregarQuestoesComErro(val);
+          }}>
+            <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+              {simulados.map(sim => (
+                <TabsTrigger key={sim.id} value={sim.id} className="whitespace-nowrap">
+                  {sim.nome}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
+          {simuladoAtual && (
+            <>
+              {/* Cards de Métricas Principais */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -344,6 +365,8 @@ export const MonitoramentoTab = () => {
               </div>
             </CardContent>
           </Card>
+            </>
+          )}
         </>
       )}
     </div>
