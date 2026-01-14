@@ -22,37 +22,39 @@ export default function ResetPassword() {
   // Check if we have the required tokens from the URL
   useEffect(() => {
     const handleAuthTokens = async () => {
-      // Try to get tokens from different URL formats
-      const accessToken = searchParams.get('access_token');
-      const refreshToken = searchParams.get('refresh_token');
-      const token = searchParams.get('token');
-      const type = searchParams.get('type');
+      const hash = window.location.hash?.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash || '');
+      const getParam = (key: string) => searchParams.get(key) || hashParams.get(key);
+
+      const accessToken = getParam('access_token');
+      const refreshToken = getParam('refresh_token');
+      const token = getParam('token');
+      const type = getParam('type');
+      const errorGeneral = getParam('error');
+      const errorCode = getParam('error_code');
+      const errorDesc = getParam('error_description');
       
       if (accessToken && refreshToken) {
-        // Direct token format
         await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-      } else if (token && type === 'recovery') {
-        // Recovery token format from email
+      } else if (token && type) {
         try {
           const { error } = await supabase.auth.verifyOtp({
             token_hash: token,
-            type: 'recovery'
+            type: type as any
           });
-          
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
         } catch (error) {
-          console.error('Error verifying recovery token:', error);
-          toast.error('Link de redefinição inválido ou expirado.');
+          const msg = (errorDesc || errorCode || errorGeneral) || 'Link de redefinição inválido ou expirado.';
+          toast.error(msg);
           navigate('/login');
           return;
         }
       } else {
-        toast.error('Link de redefinição inválido ou expirado.');
+        const msg = (errorDesc || errorCode || errorGeneral) || 'Link de redefinição inválido ou expirado.';
+        toast.error(msg);
         navigate('/login');
         return;
       }
@@ -65,8 +67,15 @@ export default function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
+    const complexityErrors = [
+      password.length < 8 ? 'A senha deve ter pelo menos 8 caracteres.' : '',
+      !/[A-Z]/.test(password) ? 'A senha deve conter pelo menos uma letra maiúscula.' : '',
+      !/[a-z]/.test(password) ? 'A senha deve conter pelo menos uma letra minúscula.' : '',
+      !/\d/.test(password) ? 'A senha deve conter pelo menos um número.' : '',
+      !/[@$!%*?&]/.test(password) ? 'A senha deve conter pelo menos um caractere especial (@$!%*?&).' : ''
+    ].find(Boolean);
+    if (complexityErrors) {
+      setError(complexityErrors);
       return;
     }
 
@@ -116,7 +125,7 @@ export default function ResetPassword() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Digite sua nova senha"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <Button
                   type="button"
@@ -144,7 +153,7 @@ export default function ResetPassword() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirme sua nova senha"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <Button
                   type="button"

@@ -88,13 +88,13 @@ Deno.serve(async (req) => {
     }
 
     const { nome, email, id_ies, semestre } = validationResult.data;
-    const userMetadata = { full_name: nome, id_ies, semestre };
+    const userMetadata = { full_name: nome, id_ies, semestre, must_change_password: true };
 
     // 6. User Management Logic (The Fix)
     let userId: string;
     let actionType = "invited";
 
-    const meuRedirect = "http://localhost:8080/auth/update-password";
+    const meuRedirect = Deno.env.get("INVITE_REDIRECT_URL") ?? "http://localhost:8080/auth/update-password";
 
 
     // Tenta convidar o usuário. Se ele não existir, cria e manda email. 

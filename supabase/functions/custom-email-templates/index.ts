@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://guiadeestudos.sanar.com.br/reset-password',
+          redirect_to: redirect_to || 'http://localhost:8080/reset-password',
           email_action_type,
         })
       )
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://guiadeestudos.sanar.com.br/',
+          redirect_to: redirect_to || 'http://localhost:8080/',
           email_action_type,
         })
       )

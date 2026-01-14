@@ -128,15 +128,6 @@ export const getAccessRules = (user: User | null): AccessRules => {
   
   const { id_ies, roles } = user;
 
-  // B2C: Usuários cadastrados via página pública
-  if (id_ies === B2C_IES_ID) {
-    return {
-      ...DEFAULT_RULES,
-      cronogramaEnamed: true, // B2C só tem acesso ao cronograma dos últimos 30 dias
-    };
-  }
-
-  // Admin ou B2B Partner: acesso privilegiado
   const isAdmin = roles?.includes('admin') || false;
   const isB2BPartner = roles?.includes('b2b_partner') || false;
   
@@ -147,7 +138,14 @@ export const getAccessRules = (user: User | null): AccessRules => {
       enamed: true,
       dashboard: true,
       SimuladoDesempenho: true,
-      userManagement: isAdmin, // Só admin gerencia usuários
+      userManagement: isAdmin,
+    };
+  }
+
+  if (id_ies === B2C_IES_ID) {
+    return {
+      ...DEFAULT_RULES,
+      cronogramaEnamed: true,
     };
   }
   
