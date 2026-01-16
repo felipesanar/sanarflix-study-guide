@@ -9,14 +9,10 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 54324
+site_url = "https://sanarflix-study-guide.lovable.app"
 
 [db]
 port = 54322
-
-[edge_functions]
-enabled = true
-port = 54323
 
 [functions.auth-login]
 verify_jwt = false

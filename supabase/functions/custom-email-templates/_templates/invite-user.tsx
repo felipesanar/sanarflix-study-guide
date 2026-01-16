@@ -10,7 +10,7 @@ import {
     Img,
     Section,
     Hr,
-} from 'https://esm.sh/@react-email/components@0.0.22'
+} from 'https://esm.sh/@react-email/components@0.0.22?deps=react@18.3.1,react-dom@18.3.1'
 import * as React from 'https://esm.sh/react@18.3.1'
 
 interface InviteUserEmailProps {
@@ -44,10 +44,10 @@ export const InviteUserEmail = ({
                             alt="SanarFlix Academy"
                             style={logo}
                         />
-                        <div>
+                        <Section>
                             <Text style={brandName}>SanarFlix Academy</Text>
                             <Text style={brandTagline}>Sua plataforma de estudos</Text>
-                        </div>
+                        </Section>
                     </Section>
 
                     <Heading style={h1}>Bem-vindo ao SanarFlix Academy!</Heading>
