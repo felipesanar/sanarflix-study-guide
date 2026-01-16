@@ -28,7 +28,7 @@ export const InviteUserEmail = ({
     redirect_to,
     token_hash,
 }: InviteUserEmailProps) => {
-    const confirmationUrl = `${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://sanarflix-study-guide.lovable.app/auth/update-password'}`
+    const confirmationUrl = `${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://preview--sanarflix-study-guide.lovable.app//auth/update-password'}`
 
     return (
         <Html>

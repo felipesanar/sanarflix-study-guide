@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-password',
+          redirect_to: redirect_to || 'https://preview--sanarflix-study-guide.lovable.app/reset-password',
           email_action_type,
         })
       )
@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
         supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
         token,
         token_hash,
-        redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/auth/update-password',
+        redirect_to: redirect_to || 'https://preview--sanarflix-study-guide.lovable.app/auth/update-password',
         email_action_type,
       }))
       subject = 'Bem-vindo ao SanarFlix Academy! 🎓'
