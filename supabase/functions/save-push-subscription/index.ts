@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
 
     // Save/update subscription
     const keys = subscription.keys || {};
-    
+
     const { error: upsertError } = await supabase
       .from('push_subscriptions')
       .upsert({
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in save-push-subscription:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

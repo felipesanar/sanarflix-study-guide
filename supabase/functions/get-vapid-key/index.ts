@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
 
   try {
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
-    
+
     if (!vapidPublicKey) {
       console.error('VAPID_PUBLIC_KEY not configured');
       return new Response(
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in get-vapid-key:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

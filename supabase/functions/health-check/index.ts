@@ -35,12 +35,12 @@ serve(async (req) => {
 
     // Métricas básicas
     const now = new Date().toISOString();
-    const uptime = Deno.uptime?.() || 0;
+    const startTime = Date.now();
 
     const healthReport = {
       status: dbError ? 'degraded' : 'healthy',
       timestamp: now,
-      uptime_seconds: uptime,
+      uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
       services: {
         database: {
           status: dbStatus,
@@ -65,7 +65,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    
+
     return new Response(
       JSON.stringify({
         status: 'unhealthy',

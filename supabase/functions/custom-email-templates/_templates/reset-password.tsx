@@ -30,32 +30,32 @@ export const ResetPasswordEmail = ({
 }: ResetPasswordEmailProps) => (
   <Html>
     <Head />
-    <Preview>Redefina sua senha do Sanarflix</Preview>
+    <Preview>Redefina sua senha do Sanarflix Academy =</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
           <Img
-            src="https://gvqvrmkizemwsasmupmo.supabase.co/storage/v1/object/public/assets/logo-sanarflix.png"
+            src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
             width="48"
             height="48"
             alt="Sanarflix"
             style={logo}
           />
           <div>
-            <Text style={brandName}>Sanarflix</Text>
-            <Text style={brandTagline}>Guia de Estudos</Text>
+            <Text style={brandName}>Sanarflix Academy</Text>
+            <Text style={brandTagline}>Sua Plataforma de Estudos</Text>
           </div>
         </Section>
 
         <Heading style={h1}>Redefinir senha</Heading>
-        
+
         <Text style={text}>
           Você solicitou a redefinição da sua senha. Clique no botão abaixo para criar uma nova senha:
         </Text>
 
         <Section style={buttonContainer}>
           <Link
-            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://guiadeestudos.sanar.com.br/reset-password'}`}
+            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-password'}`}
             style={button}
           >
             Redefinir Senha

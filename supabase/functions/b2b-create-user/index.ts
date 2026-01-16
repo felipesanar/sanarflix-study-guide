@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     let userId: string;
     let actionType = "invited";
 
-    const meuRedirect = Deno.env.get("INVITE_REDIRECT_URL") ?? "http://localhost:8080/auth/update-password";
+    const meuRedirect = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://sanarflix-study-guide.lovable.app/auth/update-password";
 
 
     // Tenta convidar o usuário. Se ele não existir, cria e manda email. 

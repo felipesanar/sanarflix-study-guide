@@ -30,32 +30,32 @@ export const MagicLinkEmail = ({
 }: MagicLinkEmailProps) => (
   <Html>
     <Head />
-    <Preview>Acesse sua conta Sanarflix com um clique</Preview>
+    <Preview>Acesse sua conta Sanarflix Academy com um clique</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={logoSection}>
           <Img
-            src="https://gvqvrmkizemwsasmupmo.supabase.co/storage/v1/object/public/assets/logo-sanarflix.png"
+            src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
             width="48"
             height="48"
             alt="Sanarflix"
             style={logo}
           />
           <div>
-            <Text style={brandName}>Sanarflix</Text>
-            <Text style={brandTagline}>Guia de Estudos</Text>
+            <Text style={brandName}>Sanarflix Academy</Text>
+            <Text style={brandTagline}>Sua Plataforma de Estudos</Text>
           </div>
         </Section>
 
         <Heading style={h1}>Acesse sua conta</Heading>
-        
+
         <Text style={text}>
           Clique no botão abaixo para fazer login automático em sua conta Sanarflix:
         </Text>
 
         <Section style={buttonContainer}>
           <Link
-            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://guiadeestudos.sanar.com.br/'}`}
+            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://sanarflix-study-guide.lovable.app/'}`}
             style={button}
           >
             Acessar Sanarflix
