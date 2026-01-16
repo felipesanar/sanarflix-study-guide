@@ -60,23 +60,24 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-passwordd',
+          redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-password',
           email_action_type,
         })
       )
       subject = 'Redefina sua senha - SanarFlix Academy'
     }
 
-  } else if (email_action_type === 'invite') {
-    // NOVO: Convite de usuário
-    html = await renderAsync(React.createElement(InviteUserEmail, {
-      supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
-      token,
-      token_hash,
-      redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/auth/update-password',
-      email_action_type,
-    }))
-    subject = 'Bem-vindo ao SanarFlix Academy! 🎓'
+    else if (email_action_type === 'invite') {
+      // NOVO: Convite de usuário
+      html = await renderAsync(React.createElement(InviteUserEmail, {
+        supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
+        token,
+        token_hash,
+        redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/auth/update-password',
+        email_action_type,
+      }))
+      subject = 'Bem-vindo ao SanarFlix Academy! 🎓'
+    }
 
     else {
       // Default to magic link for login
