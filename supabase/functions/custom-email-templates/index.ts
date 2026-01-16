@@ -4,6 +4,8 @@ import { Resend } from 'https://esm.sh/resend@4.0.0'
 import { renderAsync } from 'https://esm.sh/@react-email/components@0.0.22'
 import { MagicLinkEmail } from './_templates/magic-link.tsx'
 import { ResetPasswordEmail } from './_templates/reset-password.tsx'
+import { InviteUserEmail } from './_templates/invite-user.tsx'
+
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string)
 const hookSecret = Deno.env.get('SEND_EMAIL_HOOK_SECRET') as string
@@ -29,7 +31,7 @@ Deno.serve(async (req) => {
     const payload = await req.text()
     const headers = Object.fromEntries(req.headers)
     const wh = new Webhook(hookSecret)
-    
+
     const {
       user,
       email_data: { token, token_hash, redirect_to, email_action_type },
@@ -58,19 +60,32 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'http://localhost:8080/reset-password',
+          redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-passwordd',
           email_action_type,
         })
       )
       subject = 'Redefina sua senha - SanarFlix Academy'
-    } else {
+    }
+
+  } else if (email_action_type === 'invite') {
+    // NOVO: Convite de usuário
+    html = await renderAsync(React.createElement(InviteUserEmail, {
+      supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
+      token,
+      token_hash,
+      redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/auth/update-password',
+      email_action_type,
+    }))
+    subject = 'Bem-vindo ao SanarFlix Academy! 🎓'
+
+    else {
       // Default to magic link for login
       html = await renderAsync(
         React.createElement(MagicLinkEmail, {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'http://localhost:8080/',
+          redirect_to: redirect_to || 'https://sanarflix-study-guide.lovable.app/',
           email_action_type,
         })
       )
@@ -89,7 +104,7 @@ Deno.serve(async (req) => {
       throw error
     }
 
-    
+
 
   } catch (error) {
     console.error('Email function error:', error)
@@ -102,7 +117,7 @@ Deno.serve(async (req) => {
       }),
       {
         status: 401,
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
@@ -112,7 +127,7 @@ Deno.serve(async (req) => {
 
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
     },
