@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     const { error } = await resend.emails.send({
-      from: 'SanarFlix Academy <noreply@sanar.com>',
+      from: 'SanarFlix Academy <onboarding@resend.dev>',
       to: [user.email],
       subject,
       html,
