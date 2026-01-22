@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Sparkles, Zap, Bell, ChevronRight } from 'lucide-react';
+import { ArrowRight, Sparkles, Zap, AlertCircle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilHour } from '@/utils/timezone';
@@ -89,7 +89,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
             <div className="relative">
               {/* Badge circle with gradient */}
               <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${mobileAnnouncement.gradient.bg} flex items-center justify-center shadow-lg ring-2 ring-white/20`}>
-                <Bell className="w-5 h-5 text-white" />
+                <AlertCircle className="w-5 h-5 text-white" />
               </div>
               {/* Pulse indicator for high priority */}
               {(mobileAnnouncement.announcement.prioridade === 'Muito Alta' || 
