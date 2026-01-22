@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trophy, TrendingUp, ChevronRight, Award } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Trophy, TrendingUp, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { RankingData } from '@/hooks/useHomeData';
 import { Progress } from '@/components/ui/progress';
 import { RankingConsumoModal } from './RankingConsumoModal';
+import { Badge } from '@/components/ui/badge';
 
 interface RankingCardProps {
   data: RankingData;
@@ -19,103 +20,85 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
     if (total === 0) return 0;
     return Math.round(((total - rank + 1) / total) * 100);
   };
-  const getTopShare = (rank: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round((rank / total) * 100);
-  };
 
   return (
-    <Card className="h-full border-0 shadow-lg hover:shadow-xl transition-all duration-300">
-      <CardHeader className="py-5">
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-amber-500" />
-          Ranking do Aluno
-        </CardTitle>
-        <CardDescription>Sua posição entre os colegas</CardDescription>
+    <Card className="h-full border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
+      <CardHeader className="pb-2 pt-6 px-6">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2.5 text-lg font-semibold">
+            <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            Ranking
+          </CardTitle>
+          <span className="text-xs text-muted-foreground font-medium">Comparativo Semanal</span>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-5">
+      
+      <CardContent className="px-6 pb-6 pt-4 space-y-4">
         {/* Ranking de Simulado */}
         <motion.div
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => navigate('/simulados?aba=desempenho')}
-          className="p-4 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-xl border border-amber-500/20 cursor-pointer hover:border-amber-500/40 transition-all group"
+          className="p-4 rounded-xl bg-card border border-border/50 hover:border-primary/30 cursor-pointer transition-all duration-200 group"
         >
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-xs font-medium text-amber-600 mb-1 flex items-center gap-1">
-                <Award className="h-3 w-3" />
-                Ranking de Simulado
-              </p>
-              {data.simuladoRank && data.simuladoTotal ? (
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold">
-                    #{data.simuladoRank}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">
-                      de {data.simuladoTotal}
-                    </span>
-                  </h3>
-                  {getTopShare(data.simuladoRank, data.simuladoTotal) <= 49 && (
-                    <p className="text-xs text-muted-foreground">
-                      Você está entre os {getTopShare(data.simuladoRank, data.simuladoTotal)}% melhores
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Sem dados</p>
-              )}
-            </div>
-            <ChevronRight className="h-5 w-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between mb-3">
+            <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border-primary/30 bg-primary/5 text-primary">
+              <Trophy className="w-3 h-3 mr-1.5" />
+              SIMULADOS
+            </Badge>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
           </div>
-          {data.simuladoRank && data.simuladoTotal && (
-            <Progress 
-              value={getPercentile(data.simuladoRank, data.simuladoTotal)} 
-              className="h-2 bg-amber-500/20"
-            />
+          
+          {data.simuladoRank && data.simuladoTotal ? (
+            <div className="space-y-3">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-foreground">#{data.simuladoRank}</span>
+                <span className="text-sm text-muted-foreground">de {data.simuladoTotal} alunos</span>
+              </div>
+              <Progress 
+                value={getPercentile(data.simuladoRank, data.simuladoTotal)} 
+                className="h-1.5 bg-primary/10"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem dados de simulados</p>
           )}
         </motion.div>
 
-        {/* Ranking de Consumo (Mock) */}
+        {/* Ranking de Consumo */}
         <motion.div
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
           onClick={() => setShowRankingConsumoModal(true)}
-          className="p-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 rounded-xl border border-blue-500/20 cursor-pointer hover:border-blue-500/40 transition-all group"
+          className="p-4 rounded-xl bg-card border border-border/50 hover:border-blue-500/30 cursor-pointer transition-all duration-200 group"
         >
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-xs font-medium text-blue-600 mb-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                Ranking de Consumo
-              </p>
-              {data.conteudoRank && data.conteudoTotal ? (
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-bold">
-                    #{data.conteudoRank}
-                    <span className="text-sm font-normal text-muted-foreground ml-1">
-                      de {data.conteudoTotal}
-                    </span>
-                  </h3>
-                  {getTopShare(data.conteudoRank, data.conteudoTotal) <= 49 && (
-                    <p className="text-xs text-muted-foreground">
-                      Você está entre os {getTopShare(data.conteudoRank, data.conteudoTotal)}% melhores
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Sem dados</p>
-              )}
-            </div>
-            <ChevronRight className="h-5 w-5 text-blue-600 group-hover:translate-x-1 transition-transform" />
+          <div className="flex items-center justify-between mb-3">
+            <Badge variant="outline" className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide border-blue-500/30 bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+              <TrendingUp className="w-3 h-3 mr-1.5" />
+              CONSUMO
+            </Badge>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
           </div>
-          {data.conteudoRank && data.conteudoTotal && (
-            <Progress 
-              value={getPercentile(data.conteudoRank, data.conteudoTotal)} 
-              className="h-2 bg-blue-500/20"
-            />
+          
+          {data.conteudoRank && data.conteudoTotal ? (
+            <div className="space-y-3">
+              <div className="flex items-baseline gap-1">
+                <span className="text-3xl font-bold text-foreground">#{data.conteudoRank}</span>
+                <span className="text-sm text-muted-foreground">de {data.conteudoTotal} alunos</span>
+              </div>
+              <Progress 
+                value={getPercentile(data.conteudoRank, data.conteudoTotal)} 
+                className="h-1.5 bg-blue-500/10"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem dados de consumo</p>
           )}
         </motion.div>
       </CardContent>
 
-      {/* Modal de Ranking de Consumo */}
       <RankingConsumoModal 
         open={showRankingConsumoModal} 
         onOpenChange={setShowRankingConsumoModal} 

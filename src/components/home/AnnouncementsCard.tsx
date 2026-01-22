@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Bell, ChevronRight, X, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { Sparkles, ChevronRight, Bell, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 
@@ -21,80 +20,11 @@ interface Announcement {
   data_expiracao?: string;
 }
 
-// Ícones por prioridade
 const priorityIcons = {
   'Muito Alta': AlertCircle,
   'Alta': AlertTriangle,
   'Media': Bell,
   'Baixa': Info,
-};
-
-const colorPalettes: Record<string, { gradient: string; badge: string; text: string }> = {
-  flame: {
-    gradient: 'from-red-600 via-red-500 to-orange-500 dark:from-red-700 dark:via-red-600 dark:to-orange-600',
-    badge: 'bg-white/10 text-white border-white/20',
-    text: 'text-white'
-  },
-  emerald: {
-    gradient: 'from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-700 dark:via-emerald-600 dark:to-teal-600',
-    badge: 'bg-white/10 text-white border-white/20',
-    text: 'text-white'
-  },
-  royal: {
-    gradient: 'from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-700 dark:via-indigo-700 dark:to-purple-700',
-    badge: 'bg-white/10 text-white border-white/20',
-    text: 'text-white'
-  },
-  sunset: {
-    gradient: 'from-orange-500 via-pink-500 to-rose-500 dark:from-orange-600 dark:via-pink-600 dark:to-rose-600',
-    badge: 'bg-white/10 text-white border-white/20',
-    text: 'text-white'
-  },
-  amethyst: {
-    gradient: 'from-violet-600 via-purple-600 to-fuchsia-600 dark:from-violet-700 dark:via-purple-700 dark:to-fuchsia-700',
-    badge: 'bg-white/10 text-white border-white/20',
-    text: 'text-white'
-  },
-  flameSoft: {
-    gradient: 'from-red-500/60 via-red-400/50 to-orange-400/40 dark:from-red-600/60 dark:via-red-500/50 dark:to-orange-500/40',
-    badge: 'bg-white/20 text-white border-white/30',
-    text: 'text-white'
-  },
-  emeraldSoft: {
-    gradient: 'from-emerald-500/60 via-emerald-400/50 to-teal-400/40 dark:from-emerald-600/60 dark:via-emerald-500/50 dark:to-teal-500/40',
-    badge: 'bg-white/20 text-white border-white/30',
-    text: 'text-white'
-  },
-  royalSoft: {
-    gradient: 'from-blue-500/60 via-indigo-500/50 to-purple-500/40 dark:from-blue-600/60 dark:via-indigo-600/50 dark:to-purple-600/40',
-    badge: 'bg-white/20 text-white border-white/30',
-    text: 'text-white'
-  },
-  sunsetSoft: {
-    gradient: 'from-orange-400/60 via-pink-400/50 to-rose-400/40 dark:from-orange-500/60 dark:via-pink-500/50 dark:to-rose-500/40',
-    badge: 'bg-white/20 text-white border-white/30',
-    text: 'text-white'
-  },
-  amethystSoft: {
-    gradient: 'from-violet-500/60 via-purple-500/50 to-fuchsia-500/40 dark:from-violet-600/60 dark:via-purple-600/50 dark:to-fuchsia-600/40',
-    badge: 'bg-white/20 text-white border-white/30',
-    text: 'text-white'
-  },
-};
-
-const normalizePriority = (p: string): 'low' | 'medium' | 'high' | 'critical' => {
-  const x = (p || '').toLowerCase();
-  if (x.includes('muito') || x.includes('crític') || x.includes('crit')) return 'critical';
-  if (x.includes('alta')) return 'high';
-  if (x.includes('med')) return 'medium';
-  return 'low';
-};
-
-const priorityStyles = {
-  low: { icon: 'text-white', container: '' },
-  medium: { icon: 'text-white fill-white/20', container: '' },
-  high: { icon: 'text-white fill-white/50 drop-shadow', container: 'ring-2 ring-white/30 dark:ring-black/30' },
-  critical: { icon: 'text-white fill-white animate-pulse', container: 'ring-2 ring-white/40 dark:ring-black/40 shadow-[0_0_30px_rgba(255,255,255,0.15)] dark:shadow-[0_0_30px_rgba(0,0,0,0.25)]' },
 };
 
 export const AnnouncementsCard: React.FC = () => {
@@ -152,7 +82,6 @@ export const AnnouncementsCard: React.FC = () => {
   const checkAndShowPopup = async (announcement: Announcement) => {
     if (!user) return;
 
-    // Verifica se o usuário já visualizou este aviso
     const { data: viewed } = await supabase
       .from('announcements_viewed')
       .select('id')
@@ -160,7 +89,6 @@ export const AnnouncementsCard: React.FC = () => {
       .eq('user_id', user.id)
       .single();
 
-    // Se não visualizou, mostra o popup
     if (!viewed) {
       setPopupAnnouncement(announcement);
       setShowPopup(true);
@@ -170,7 +98,6 @@ export const AnnouncementsCard: React.FC = () => {
   const handleClosePopup = async () => {
     if (!popupAnnouncement || !user) return;
 
-    // Marca como visualizado
     await supabase
       .from('announcements_viewed')
       .insert({
@@ -181,16 +108,6 @@ export const AnnouncementsCard: React.FC = () => {
     setShowPopup(false);
     setPopupAnnouncement(null);
   };
-
-  // Verifica se o aviso é "novo" (criado há menos de 24h)
-  const isNewAnnouncement = (announcement: Announcement): boolean => {
-    if (!announcement.created_at) return false;
-    const createdAt = new Date(announcement.created_at);
-    const now = new Date();
-    const diffInHours = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-    return diffInHours < 24;
-  };
-
 
   const handleAnnouncementClick = (announcement: Announcement) => {
     if (announcement.link_botao) {
@@ -203,89 +120,97 @@ export const AnnouncementsCard: React.FC = () => {
   };
 
   const mainAnnouncement = announcements[0];
-  if (!mainAnnouncement) return null;
+  
+  if (!mainAnnouncement) {
+    // Fallback card when no announcements
+    return (
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-900 dark:to-slate-950 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
+        <CardContent className="p-6 h-full flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white/80 text-sm font-medium">Pesquisa de Satisfação</span>
+            </div>
+            <p className="text-white/60 text-sm leading-relaxed">
+              Sua opinião molda o futuro da plataforma. Ajude-nos a melhorar sua experiência.
+            </p>
+          </div>
+          <Button 
+            variant="secondary"
+            className="w-full mt-4 bg-white/10 hover:bg-white/20 text-white border-0"
+          >
+            Responder agora
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const palette = colorPalettes[mainAnnouncement.paleta_cores] || colorPalettes.flame;
   const IconComponent = priorityIcons[mainAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
-  const pr = normalizePriority(mainAnnouncement.prioridade);
-  const isNew = isNewAnnouncement(mainAnnouncement);
+
+  // Determine gradient based on palette
+  const getGradient = (palette: string) => {
+    const gradients: Record<string, string> = {
+      flame: 'from-red-600 to-orange-500 dark:from-red-700 dark:to-orange-600',
+      emerald: 'from-emerald-600 to-teal-500 dark:from-emerald-700 dark:to-teal-600',
+      royal: 'from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700',
+      sunset: 'from-orange-500 to-rose-500 dark:from-orange-600 dark:to-rose-600',
+      amethyst: 'from-violet-600 to-fuchsia-600 dark:from-violet-700 dark:to-fuchsia-700',
+    };
+    return gradients[palette] || gradients.royal;
+  };
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: 'easeOut', delay: 0.1 }}
-        className="h-full"
-        whileHover={{ y: -2 }}
-      >
-        <Card className={`relative h-full border-0 bg-gradient-to-br ${palette.gradient} shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group`}>
-          <div className="pointer-events-none absolute -bottom-20 -right-20 w-72 h-72 bg-white/10 dark:bg-black/20 blur-3xl rounded-full" />
-          {isNew && (
-            <div className="absolute top-4 right-4 z-10">
-              <Badge variant="default" className={palette.badge}>
-                <Bell className="h-3 w-3 mr-1" />
-                Novo
-              </Badge>
-            </div>
-          )}
-
-          <CardHeader className="pb-4 space-y-2">
-            <div className="flex items-center gap-3">
-              <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${palette.gradient} rounded-xl flex items-center justify-center ${priorityStyles[pr].container}`}>
-                <IconComponent className={`h-6 w-6 ${priorityStyles[pr].icon}`} />
+      <Card className={`relative overflow-hidden border-0 bg-gradient-to-br ${getGradient(mainAnnouncement.paleta_cores)} shadow-sm hover:shadow-md transition-shadow duration-300 h-full`}>
+        <CardContent className="p-6 h-full flex flex-col justify-between relative z-10">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                <IconComponent className="w-4 h-4 text-white" />
               </div>
-              <div className="flex-1 min-w-0">
-                <CardTitle className={`text-xl font-semibold leading-tight ${palette.text}`}>
-                  {mainAnnouncement.titulo}
-                </CardTitle>
-              </div>
+              <span className="text-white font-semibold text-base">
+                {mainAnnouncement.titulo}
+              </span>
             </div>
-            <div className="h-px bg-gradient-to-r from-border via-border/50 to-transparent" />
-          </CardHeader>
-
-          <CardContent className="space-y-5">
-            <p className={`text-sm leading-relaxed ${palette.text}`}>
+            <p className="text-white/80 text-sm leading-relaxed line-clamp-3">
               {mainAnnouncement.descricao}
             </p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ scale: 1.03, y: -1 }}
-              whileTap={{ scale: 0.985 }}
-              style={{ willChange: 'transform', transformOrigin: 'center' }}
-              className="transform-gpu"
+          </div>
+          
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              onClick={() => handleAnnouncementClick(mainAnnouncement)}
+              variant="secondary"
+              className="w-full mt-4 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm font-medium"
             >
-              <Button 
-                className={`relative w-full group/btn text-white bg-black/30 hover:bg-black/40 dark:bg-black/40 dark:hover:bg-black/50 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden`}
-                onClick={() => handleAnnouncementClick(mainAnnouncement)}
-                variant="outline"
-              >
-                <span className="pointer-events-none absolute inset-0 opacity-0 group-hover/btn:opacity-100 transition-opacity">
-                  <span className="absolute -left-10 top-0 h-full w-16 rotate-12 bg-white/15 dark:bg-white/10 blur-sm" />
-                </span>
-                <span className="flex-1">{mainAnnouncement.texto_botao}</span>
-                <ChevronRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform duration-300" />
-              </Button>
-            </motion.div>
-          </CardContent>
-        </Card>
-      </motion.div>
+              {mainAnnouncement.texto_botao}
+              <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </motion.div>
+        </CardContent>
+        
+        {/* Decorative blur */}
+        <div className="pointer-events-none absolute -bottom-20 -right-20 w-48 h-48 bg-white/10 blur-3xl rounded-full" />
+      </Card>
 
-      {/* Pop-up Modal para avisos de prioridade "Muito Alta" */}
+      {/* Pop-up Modal */}
       <AnimatePresence>
         {showPopup && popupAnnouncement && (
           <Dialog open={showPopup} onOpenChange={handleClosePopup}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`flex-shrink-0 w-14 h-14 bg-gradient-to-br ${colorPalettes[popupAnnouncement.paleta_cores]?.gradient || colorPalettes.primary.gradient} rounded-xl flex items-center justify-center ring-1 ring-border`}>
+                  <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${getGradient(popupAnnouncement.paleta_cores)} rounded-xl flex items-center justify-center`}>
                     {(() => {
                       const PopupIcon = priorityIcons[popupAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
-                      const popupPalette = colorPalettes[popupAnnouncement.paleta_cores] || colorPalettes.primary;
-                      return <PopupIcon className={`h-7 w-7 ${popupPalette.text}`} />;
+                      return <PopupIcon className="h-6 w-6 text-white" />;
                     })()}
                   </div>
                   <DialogTitle className="text-lg font-semibold flex-1">
@@ -300,7 +225,7 @@ export const AnnouncementsCard: React.FC = () => {
                 </p>
 
                 <Button 
-                  className="w-full"
+                  className="w-full rounded-xl"
                   onClick={handleClosePopup}
                 >
                   Estou ciente
