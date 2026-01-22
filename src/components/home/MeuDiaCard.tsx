@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { 
   BookOpen, Zap, BarChart3, Calendar, ArrowRight, RefreshCw, AlertCircle, 
   CalendarCheck, FileText, GraduationCap, Trophy, Home as HomeIcon, 
-  ClipboardCheck, TrendingUp, UserCog, Clock
+  ClipboardCheck, TrendingUp, UserCog, Clock, Sparkles
 } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,8 +49,11 @@ const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
   return (
     <div className="flex flex-col items-center justify-center py-10 px-4">
       <div className="mb-6 relative">
-        <div className="w-20 h-20 rounded-2xl bg-muted/50 flex items-center justify-center">
-          <Calendar className="w-10 h-10 text-muted-foreground/40" />
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 flex items-center justify-center">
+          <Calendar className="w-10 h-10 text-muted-foreground/30" />
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-primary" />
         </div>
       </div>
 
@@ -66,23 +68,25 @@ const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
         }
       </p>
 
-      <Button
-        onClick={() => navigate(hasStudyGuide ? '/cronograma-enamed' : '/guia-estudos')}
-        variant="outline"
-        className="gap-2 rounded-xl"
-      >
-        {hasStudyGuide ? (
-          <>
-            <Calendar className="w-4 h-4" />
-            Configurar Calendário
-          </>
-        ) : (
-          <>
-            <BookOpen className="w-4 h-4" />
-            Configurar Guia de Estudos
-          </>
-        )}
-      </Button>
+      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          onClick={() => navigate(hasStudyGuide ? '/cronograma-enamed' : '/guia-estudos')}
+          variant="outline"
+          className="gap-2 rounded-xl"
+        >
+          {hasStudyGuide ? (
+            <>
+              <Calendar className="w-4 h-4" />
+              Configurar Calendário
+            </>
+          ) : (
+            <>
+              <BookOpen className="w-4 h-4" />
+              Configurar Guia de Estudos
+            </>
+          )}
+        </Button>
+      </motion.div>
     </div>
   );
 };
@@ -92,7 +96,7 @@ const LoadingSkeleton = () => {
   return (
     <div className="space-y-3">
       {[1, 2, 3].map((i) => (
-        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
+        <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/20">
           <Skeleton className="w-10 h-10 rounded-xl" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-28" />
@@ -109,8 +113,8 @@ const LoadingSkeleton = () => {
 const ErrorState = ({ onRetry }: { onRetry?: () => void }) => {
   return (
     <div className="flex flex-col items-center justify-center py-10 px-4">
-      <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-        <AlertCircle className="w-7 h-7 text-destructive" />
+      <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
+        <AlertCircle className="w-8 h-8 text-destructive" />
       </div>
       
       <h3 className="text-base font-semibold text-foreground mb-2">
@@ -122,10 +126,12 @@ const ErrorState = ({ onRetry }: { onRetry?: () => void }) => {
       </p>
 
       {onRetry && (
-        <Button onClick={onRetry} variant="outline" className="gap-2 rounded-xl">
-          <RefreshCw className="w-4 h-4" />
-          Tentar novamente
-        </Button>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button onClick={onRetry} variant="outline" className="gap-2 rounded-xl">
+            <RefreshCw className="w-4 h-4" />
+            Tentar novamente
+          </Button>
+        </motion.div>
       )}
     </div>
   );
@@ -168,24 +174,31 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
     item.icon === 'Trophy' || /simulado/i.test(item.title);
 
   return (
-    <Card className="overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow duration-300 h-full">
-      <CardHeader className="pb-2 pt-6 px-6">
+    <div className="relative overflow-hidden rounded-2xl card-premium h-full">
+      {/* Decorative gradient */}
+      <div className="absolute -top-16 -left-16 w-32 h-32 rounded-full bg-primary/5 dark:bg-primary/10 blur-3xl" />
+      
+      {/* Header */}
+      <div className="relative px-5 pt-5 pb-3 md:px-6 md:pt-6">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2.5 text-lg font-semibold">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Calendar className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Calendar className="w-5 h-5 text-primary-foreground" />
             </div>
-            Meu Dia
-          </CardTitle>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Meu Dia</h3>
+              <p className="text-xs text-muted-foreground">Atividades sugeridas</p>
+            </div>
+          </div>
           {!loading && !error && items.length > 0 && (
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-medium bg-muted/60">
-              {items.length} Sugestões
+            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold bg-primary/10 text-primary border-0">
+              {items.length} {items.length === 1 ? 'Sugestão' : 'Sugestões'}
             </Badge>
           )}
         </div>
-      </CardHeader>
+      </div>
       
-      <CardContent className="px-6 pb-6 pt-4">
+      <div className="relative px-5 pb-5 md:px-6 md:pb-6">
         {loading && <LoadingSkeleton />}
         
         {!loading && error && <ErrorState onRetry={onRetry} />}
@@ -205,24 +218,31 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                   key={`${item.id}-${index}`}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05, duration: 0.3 }}
+                  transition={{ delay: index * 0.04, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                   onClick={() => handleItemClick(item)}
+                  whileHover={{ scale: 1.01, y: -2 }}
+                  whileTap={{ scale: 0.99 }}
                   className="group cursor-pointer"
                 >
                   <div className={`
-                    relative p-4 rounded-xl border transition-all duration-200
+                    relative p-4 rounded-xl transition-all duration-200
                     ${simulado 
-                      ? 'bg-primary/5 border-primary/20 hover:border-primary/40 hover:bg-primary/10' 
-                      : 'bg-card border-border/50 hover:border-border hover:bg-muted/30'
+                      ? 'glass bg-gradient-to-r from-primary/8 to-primary/4 border-primary/20 hover:border-primary/40' 
+                      : 'glass hover:bg-muted/30'
                     }
                   `}>
-                    <div className="flex items-center gap-4">
+                    {/* Simulado glow */}
+                    {simulado && (
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
+                    
+                    <div className="relative flex items-center gap-4">
                       {/* Icon */}
                       <div className={`
-                        flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
+                        flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200
                         ${simulado 
-                          ? 'bg-primary/20 text-primary' 
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/20' 
+                          : 'bg-muted/50 text-muted-foreground group-hover:bg-muted'
                         }
                       `}>
                         <Icon className="w-5 h-5" />
@@ -236,11 +256,11 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                           </h4>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                           {item.source === 'cronograma_enamed' && (
                             <Badge 
                               variant="outline" 
-                              className="text-[10px] px-2 py-0 h-5 font-medium border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                              className="text-[10px] px-2 py-0 h-5 font-medium bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
                             >
                               CRONOGRAMA ENAMED
                             </Badge>
@@ -248,16 +268,13 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                           {item.source === 'calendar' && (
                             <Badge 
                               variant="outline" 
-                              className="text-[10px] px-2 py-0 h-5 font-medium border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                              className="text-[10px] px-2 py-0 h-5 font-medium bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
                             >
                               <CalendarCheck className="w-2.5 h-2.5 mr-1" />
                               MEU CALENDÁRIO
                             </Badge>
                           )}
-                          {item.subtitle && !item.source && (
-                            <span className="truncate">{item.subtitle}</span>
-                          )}
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-muted-foreground/70">
                             <Clock className="w-3 h-3" />
                             45 min
                           </span>
@@ -269,14 +286,14 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="flex-shrink-0 gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                          className="flex-shrink-0 gap-1.5 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 rounded-lg"
                           onClick={(e) => handleLessonClick(e, item.lessonLink!)}
                         >
-                          Assistir aula
+                          Assistir
                           <ArrowRight className="w-3.5 h-3.5" />
                         </Button>
                       ) : (
-                        <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                        <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                       )}
                     </div>
                   </div>
@@ -285,7 +302,7 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

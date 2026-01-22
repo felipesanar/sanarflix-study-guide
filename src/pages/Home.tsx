@@ -11,7 +11,7 @@ import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { HomePageSkeleton } from '@/components/skeletons/HomePageSkeleton';
 
 export const Home: React.FC = () => {
-  console.log('[HomeDashboard]', 'render');
+  console.log('[HomePremiumPlus]', 'render');
   
   const {
     loading,
@@ -35,45 +35,98 @@ export const Home: React.FC = () => {
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
+        staggerChildren: 0.06,
+        delayChildren: 0.08,
       },
     },
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 16 },
+    hidden: { opacity: 0, y: 12 },
     show: { 
       opacity: 1, 
       y: 0,
       transition: { 
-        duration: 0.4, 
+        duration: 0.35, 
         ease: 'easeOut' as const
       },
     },
   };
   
   return (
-    <div className="min-h-screen bg-background">
-      {/* Container principal com max-width e padding consistente */}
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Premium background mesh gradient */}
+      <div className="fixed inset-0 gradient-mesh pointer-events-none" />
+      
+      {/* Subtle pattern overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.015] dark:opacity-[0.03]">
+        <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] [background-size:32px_32px]" />
+      </div>
+      
+      {/* Main content */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6 lg:space-y-8"
+        className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10"
       >
-        {/* Row 1: Welcome (2fr) + Announcements (1fr) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4 lg:gap-6">
+        {/* === DESKTOP LAYOUT (lg+) === */}
+        <div className="hidden lg:block space-y-6">
+          {/* Row 1: Hero Welcome (2fr) + Announcements (1fr) */}
+          <div className="grid grid-cols-[2fr_1fr] gap-6">
+            <motion.div variants={itemVariants}>
+              <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <AnnouncementsCard />
+            </motion.div>
+          </div>
+
+          {/* Row 2: Meu Dia (3fr) + Ranking (2fr) */}
+          <div className="grid grid-cols-[3fr_2fr] gap-6">
+            <motion.div variants={itemVariants}>
+              <MeuDiaCard 
+                items={meuDiaItems} 
+                hasStudyGuide={hasStudyGuide}
+                loading={loading}
+                error={error}
+                onRetry={refetch}
+              />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <RankingCard data={rankings} />
+            </motion.div>
+          </div>
+
+          {/* Row 3: Desempenho (1fr) + Meu Semestre (1fr) */}
+          <div className="grid grid-cols-2 gap-6">
+            <motion.div variants={itemVariants}>
+              <SimuladoPerformanceCard data={simuladoData} />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <MeuSemestreCard topAulas={topAulas} conteudosRelacionados={conteudosRelacionados} />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* === TABLET LAYOUT (md to lg) === */}
+        <div className="hidden md:block lg:hidden space-y-5">
+          {/* Hero section full width */}
           <motion.div variants={itemVariants}>
             <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <AnnouncementsCard />
-          </motion.div>
-        </div>
+          
+          {/* Two column grid for announcements and ranking */}
+          <div className="grid grid-cols-2 gap-5">
+            <motion.div variants={itemVariants}>
+              <AnnouncementsCard />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <RankingCard data={rankings} />
+            </motion.div>
+          </div>
 
-        {/* Row 2: Meu Dia (3fr) + Ranking (2fr) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 lg:gap-6">
+          {/* Full width Meu Dia */}
           <motion.div variants={itemVariants}>
             <MeuDiaCard 
               items={meuDiaItems} 
@@ -83,23 +136,59 @@ export const Home: React.FC = () => {
               onRetry={refetch}
             />
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <RankingCard data={rankings} />
-          </motion.div>
+
+          {/* Two column grid for performance and semester */}
+          <div className="grid grid-cols-2 gap-5">
+            <motion.div variants={itemVariants}>
+              <SimuladoPerformanceCard data={simuladoData} />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <MeuSemestreCard topAulas={topAulas} conteudosRelacionados={conteudosRelacionados} />
+            </motion.div>
+          </div>
         </div>
 
-        {/* Row 3: Desempenho (1fr) + Meu Semestre (1fr) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* === MOBILE LAYOUT (< md) === */}
+        <div className="md:hidden space-y-4">
+          {/* Compact hero */}
+          <motion.div variants={itemVariants}>
+            <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+          </motion.div>
+
+          {/* Important announcement */}
+          <motion.div variants={itemVariants}>
+            <AnnouncementsCard />
+          </motion.div>
+
+          {/* What to study today - priority on mobile */}
+          <motion.div variants={itemVariants}>
+            <MeuDiaCard 
+              items={meuDiaItems} 
+              hasStudyGuide={hasStudyGuide}
+              loading={loading}
+              error={error}
+              onRetry={refetch}
+            />
+          </motion.div>
+
+          {/* Performance summary */}
           <motion.div variants={itemVariants}>
             <SimuladoPerformanceCard data={simuladoData} />
           </motion.div>
+
+          {/* Ranking - more compact on mobile */}
+          <motion.div variants={itemVariants}>
+            <RankingCard data={rankings} />
+          </motion.div>
+
+          {/* Semester content */}
           <motion.div variants={itemVariants}>
             <MeuSemestreCard topAulas={topAulas} conteudosRelacionados={conteudosRelacionados} />
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Dock de ações rápidas */}
+      {/* Quick actions dock */}
       <QuickActionsDock hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
     </div>
   );
