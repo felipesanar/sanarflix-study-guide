@@ -36,7 +36,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
           icon: TrendingUp,
           action: onVerDesempenho,
-          buttonText: 'Ver Desempenho',
+          buttonText: 'Aguarde Correção',
           buttonVariant: 'secondary' as const
         };
     }

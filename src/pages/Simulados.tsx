@@ -4,19 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { FileText, Trophy } from 'lucide-react';
 import { SimuladosDisponiveis } from '@/components/simulados/SimuladosDisponiveis';
-import { SimuladoDesempenho } from './SimuladoDesempenho';
+
 
 export const Simulados = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
-  const abaParam = searchParams.get('aba');
-  const [abaAtiva, setAbaAtiva] = useState(abaParam === 'desempenho' ? 'desempenho' : 'disponiveis');
+  const [abaAtiva, setAbaAtiva] = useState('disponiveis');
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const next = params.get('aba') === 'desempenho' ? 'desempenho' : 'disponiveis';
-    setAbaAtiva(next);
+    setAbaAtiva('disponiveis');
   }, [location.search]);
 
   const handleTabChange = (val: string) => {
@@ -36,14 +32,10 @@ export const Simulados = () => {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+        <TabsList className="grid w-full max-w-md grid-cols-1 mb-8">
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
             Simulados
-          </TabsTrigger>
-          <TabsTrigger value="desempenho" className="gap-2 px-5 sm:px-6 text-xs sm:text-sm">
-            <Trophy className="h-4 w-4" />
-            Desempenho
           </TabsTrigger>
         </TabsList>
 
@@ -51,9 +43,7 @@ export const Simulados = () => {
           <SimuladosDisponiveis />
         </TabsContent>
 
-        <TabsContent value="desempenho" className="mt-0">
-          <SimuladoDesempenho />
-        </TabsContent>
+
       </Tabs>
     </div>
   );
