@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StudyContextType, StudyContent, Progress } from '@/types';
-import { useAuth } from './AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,11 +15,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     totalItems: 0,
     progressByDiscipline: {}
   });
-  
-  // Se o contexto não estiver disponível, renderiza apenas os children sem provider
-  if (!authContext) {
-    return <>{children}</>;
-  }
   
   const { user } = authContext;
 
