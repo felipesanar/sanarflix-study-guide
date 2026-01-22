@@ -6,15 +6,9 @@ interface AuthWrapperProps {
   children: React.ReactNode;
 }
 
+// This component must be rendered inside AuthProvider
 export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
-  const authContext = useAuth();
-  
-  // Previne renderização antes do contexto estar pronto
-  if (!authContext) {
-    return <>{children}</>;
-  }
-  
-  const { needsPasswordChange } = authContext;
+  const { needsPasswordChange } = useAuth();
 
   return (
     <>
