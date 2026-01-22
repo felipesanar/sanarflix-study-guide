@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useHomeData } from '@/hooks/useHomeData';
+import { useAnnouncements } from '@/hooks/home/useAnnouncements';
 import { WelcomeCard } from '@/components/home/WelcomeCard';
 import { AnnouncementsCard } from '@/components/home/AnnouncementsCard';
 import { MeuDiaCard } from '@/components/home/MeuDiaCard';
@@ -25,6 +26,14 @@ export const Home: React.FC = () => {
     simuladoData,
     refetch,
   } = useHomeData();
+
+  // Announcement data for mobile badge integration
+  const {
+    mainAnnouncement,
+    IconComponent,
+    gradient,
+    handleAnnouncementClick,
+  } = useAnnouncements();
 
   if (loading) {
     return <HomePageSkeleton />;
@@ -150,15 +159,21 @@ export const Home: React.FC = () => {
 
         {/* === MOBILE LAYOUT (< md) === */}
         <div className="md:hidden space-y-4">
-          {/* Compact hero */}
+          {/* Compact hero with integrated announcement badge */}
           <motion.div variants={itemVariants}>
-            <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+            <WelcomeCard 
+              hasStudyGuide={hasStudyGuide} 
+              hasCronograma={hasCronograma}
+              mobileAnnouncement={mainAnnouncement ? {
+                announcement: mainAnnouncement,
+                gradient,
+                IconComponent,
+                onAnnouncementClick: handleAnnouncementClick,
+              } : undefined}
+            />
           </motion.div>
 
-          {/* Important announcement */}
-          <motion.div variants={itemVariants}>
-            <AnnouncementsCard />
-          </motion.div>
+          {/* Announcement card removed on mobile - now integrated as badge in WelcomeCard */}
 
           {/* What to study today - priority on mobile */}
           <motion.div variants={itemVariants}>
