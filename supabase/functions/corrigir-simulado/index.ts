@@ -42,6 +42,29 @@ Deno.serve(async (req) => {
 
     console.log(`Processando correção do simulado: ${simulado_id} para usuário: ${user_id}`);
 
+    // IDEMPOTÊNCIA: Verificar se já existem respostas para este simulado/usuário
+    const { data: existingAnswers, error: checkError } = await supabaseClient
+      .from('answer_progress')
+      .select('answer_id')
+      .eq('user_id', user_id)
+      .eq('simulado', simulado_id)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Erro ao verificar respostas existentes:', checkError);
+    }
+
+    if (existingAnswers && existingAnswers.length > 0) {
+      console.log(`Simulado ${simulado_id} já processado para usuário ${user_id}. Ignorando requisição duplicada.`);
+      return new Response(
+        JSON.stringify({ 
+          message: 'Simulado já foi processado anteriormente', 
+          already_processed: true 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
     // Buscar os gabaritos de TODAS as questões (respondidas e não respondidas)
     const questaoIds = respostas.map(r => r.questao_id);
 

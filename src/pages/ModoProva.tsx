@@ -38,6 +38,7 @@ export const ModoProva = () => {
   const storage = useSimuladoStorage(simuladoId);
   const { trackSimuladoStart, trackSimuladoComplete } = useAnalyticsTracker();
   const hasTrackedStart = useRef(false);
+  const jaFinalizouRef = useRef(false); // Flag para evitar envio duplicado
   
   const [questoes, setQuestoes] = useState<Questao[]>([]);
   const [questaoAtual, setQuestaoAtual] = useState(0);
@@ -197,6 +198,7 @@ export const ModoProva = () => {
   };
 
   const finalizarSimulado = async () => {
+    jaFinalizouRef.current = true; // Marcar ANTES de qualquer envio
     setFinalizando(true);
     try {
       const estadoFinal = storage.carregarEstado();
@@ -291,6 +293,11 @@ export const ModoProva = () => {
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // NÃO enviar se já finalizou via botão (evita duplicação)
+      if (jaFinalizouRef.current || finalizando) {
+        return;
+      }
+      
       // Usa sendBeacon para envio assíncrono que sobrevive ao fechamento da página
       const estadoFinal = storage.carregarEstado();
       if (estadoFinal && user) {
