@@ -1,12 +1,19 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
+import { getBrazilDate } from '@/utils/timezone';
 
 export const simuladosApi = {
   async listarSimulados(): Promise<Simulado[]> {
+    // Obter data/hora atual em Brasília
+    const agora = getBrazilDate();
+    const agoraISO = agora.toISOString();
+
     const { data, error } = await supabase
       .from('simulados_admin')
       .select('*')
       .eq('status', 'ativo')
+      .lte('data_liberacao', agoraISO) // Já foi liberado
+      .or(`data_encerramento.is.null,data_encerramento.gte.${agoraISO}`) // Ainda não encerrou
       .order('data_liberacao', { ascending: false });
 
     if (error) throw error;
@@ -37,6 +44,7 @@ export const simuladosApi = {
       numero_questoes: countsBySimulado[String(s.id)] ?? 0,
       status: 'disponivel' as const,
       data_liberacao: s.data_liberacao,
+      data_encerramento: s.data_encerramento,
       tema: 'Geral',
       professor: 'Equipe Sanarflix'
     }));
