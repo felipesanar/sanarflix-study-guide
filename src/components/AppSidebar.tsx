@@ -44,13 +44,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const menuItems = [
   {
-    title: "Início",
-    url: "/home",
-    icon: HomeIcon,
-    accessKey: "home" as const,
-    description: "Página inicial do seu hub de estudos",
-  },
-  {
     title: "SanarClass",
     url: "/sanarclass",
     icon: GraduationCap,

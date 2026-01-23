@@ -114,21 +114,8 @@ const AppContent = () => {
             <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-            {/* Home Page - Always available for authenticated users */}
-            <Route
-              path="/home"
-              element={
-                <ProtectedRoute>
-                  <PageWrapper
-                    loadingMessage="Carregando início..."
-                    waitForData={true}
-                    skeleton={<HomePageSkeleton />}
-                  >
-                    <Home />
-                  </PageWrapper>
-                </ProtectedRoute>
-              }
-            />
+            {/* Home Page - Redirect to Simulados */}
+            <Route path="/home" element={<Navigate to="/simulados" replace />} />
 
             {accessRules.studyGuide && (
               <Route
