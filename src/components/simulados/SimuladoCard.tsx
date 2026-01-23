@@ -21,7 +21,8 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           icon: Play,
           action: onIniciar,
           buttonText: 'Iniciar Simulado',
-          buttonVariant: 'default' as const
+          buttonVariant: 'default' as const,
+          disabled: false
         };
       case 'em_andamento':
         return {
@@ -29,7 +30,8 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           icon: RotateCcw,
           action: onContinuar,
           buttonText: 'Continuar',
-          buttonVariant: 'outline' as const
+          buttonVariant: 'outline' as const,
+          disabled: false
         };
       case 'concluido':
         return {
@@ -37,7 +39,17 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           icon: TrendingUp,
           action: onVerDesempenho,
           buttonText: 'Aguarde Correção',
-          buttonVariant: 'secondary' as const
+          buttonVariant: 'secondary' as const,
+          disabled: false
+        };
+      case 'encerrado':
+        return {
+          color: 'bg-red-500/10 text-red-500 border-red-500/20',
+          icon: Clock,
+          action: () => {},
+          buttonText: 'Encerrado',
+          buttonVariant: 'secondary' as const,
+          disabled: true
         };
     }
   };
@@ -56,7 +68,8 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           <Badge variant="outline" className={cn('border', config.color)}>
             <Icon className="h-3 w-3 mr-1" />
             {simulado.status === 'disponivel' ? 'Disponível' : 
-             simulado.status === 'em_andamento' ? 'Em andamento' : 'Concluído'}
+             simulado.status === 'em_andamento' ? 'Em andamento' : 
+             simulado.status === 'encerrado' ? 'Encerrado' : 'Concluído'}
           </Badge>
         </div>
       </CardHeader>
@@ -92,6 +105,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           className="w-full group-hover:shadow-md transition-shadow"
           variant={config.buttonVariant}
           onClick={() => config.action(simulado.id)}
+          disabled={config.disabled}
         >
           <Icon className="h-4 w-4 mr-2" />
           {config.buttonText}

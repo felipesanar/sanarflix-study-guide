@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X, Unlock } from 'lucide-react';
+import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X, Unlock, Ban } from 'lucide-react';
 import { LiberarSimuladoModal } from './LiberarSimuladoModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -524,6 +524,30 @@ export default function SimuladosTab() {
     }
   };
 
+  const handleTornarIndisponivel = async (simulado: Simulado) => {
+    try {
+      const { error } = await supabase
+        .from('simulados_admin')
+        .update({ status: 'encerrado' })
+        .eq('id', simulado.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Simulado encerrado',
+        description: 'O simulado foi marcado como indisponível. Os dados foram mantidos.'
+      });
+
+      fetchSimulados();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao encerrar simulado',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleExportSimulado = async (simulado: Simulado) => {
     try {
       const { data: questoes, error } = await supabase
@@ -726,6 +750,16 @@ export default function SimuladosTab() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
+                          {simulado.status !== 'encerrado' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTornarIndisponivel(simulado)}
+                              title="Tornar indisponível"
+                            >
+                              <Ban className="h-4 w-4 text-amber-500" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
