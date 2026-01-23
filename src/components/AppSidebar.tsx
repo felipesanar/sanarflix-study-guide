@@ -329,20 +329,6 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu>
-                {menuItems
-                  .filter((item) => item.accessKey === "home" && item.url === "/home" && accessRules[item.accessKey])
-                  .map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end className={getNavCls} aria-label="Ir para Início">
-                          <MenuItem item={item} isActive={currentPath === item.url} />
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-
-
-
                 {/* Outros itens (exceto Início) */}
                 {menuItems
                   .filter((item) => {

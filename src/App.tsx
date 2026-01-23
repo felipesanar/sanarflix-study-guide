@@ -101,9 +101,9 @@ const AppContent = () => {
     );
   }
 
-  // Redirect authenticated users to home
+  // Redirect authenticated users to Simulados
   const getDefaultRoute = () => {
-    return "/home";
+    return "/simulados";
   };
 
   return (
