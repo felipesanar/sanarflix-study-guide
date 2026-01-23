@@ -341,78 +341,13 @@ export function AppSidebar() {
                     </SidebarMenuItem>
                   ))}
 
-                {/* Study Guide Area */}
-                {hasStudyGuideContent && (
-                  <SidebarMenuItem>
-                    <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton
-                          className={getParentNavCls(isStudyGuideAreaActive())}
-                          aria-expanded={studyGuideOpen}
-                          aria-controls="submenu-guia-estudos"
-                        >
-                          {collapsed ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center justify-center p-3 w-full">
-                                  <BookOpen className="h-5 w-5 transition-all duration-300" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="right" className="ml-2">
-                                <div className="text-sm font-medium">Guia de Estudos</div>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2 w-full">
-                              <BookOpen className="h-5 w-5 transition-all duration-300" />
-                              <span className="block font-medium text-sm truncate flex-1">Guia de Estudos</span>
-                              <div
-                                className="ml-auto transition-transform duration-300"
-                                aria-hidden="true"
-                                style={{ transform: studyGuideOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
-                              >
-                                <ChevronDown className="h-4 w-4" />
-                              </div>
-                            </div>
-                          )}
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent
-                        id="submenu-guia-estudos"
-                        className="overflow-hidden data-[state=open]:animate-drawer-slide-down data-[state=closed]:animate-drawer-slide-up"
-                      >
-                        <SidebarMenu className="mt-1 md:mt-2 space-y-[2px] md:space-y-1 border-l border-border ml-4 md:ml-6">
-                          {studyGuideItems
-                            .filter((item) => accessRules[item.accessKey])
-                            .map((item, idx) => (
-                              <SidebarMenuItem
-                                key={item.title}
-                                style={{
-                                  animation: studyGuideOpen ? `fade-in 0.3s ease-out ${idx * 0.05}s both` : 'none'
-                                }}
-                              >
-                                <SidebarMenuButton asChild>
-                                  <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
-                                    <MenuItem
-                                      item={item}
-                                      className="!p-1.5 gap-2"
-                                      isActive={currentPath === item.url}
-                                      delay={idx * 0.1}
-                                    />
-                                  </NavLink>
-                                </SidebarMenuButton>
-                              </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </SidebarMenuItem>
-                )}
+
 
                 {/* Outros itens (exceto Início) */}
                 {menuItems
                   .filter((item) => {
                     if (item.accessKey === "home" && item.url === "/home") return false;
+                    if (item.url === "/sanarclass") return false;
                     if (item.accessKey === "enamed") return false;
                     if (item.accessKey === "analytics") {
                       return isB2BUser(user);

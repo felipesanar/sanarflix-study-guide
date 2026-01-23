@@ -119,62 +119,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             aria-label="Barra de navegação móvel"
             className="fixed bottom-0 inset-x-0 z-40 md:hidden bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-lg"
           >
-            <div className="grid grid-cols-5 gap-1">
+            <div className="grid grid-cols-2 gap-1">
               <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
                 <NavLink to="/home" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
                   <Home className="h-5 w-5" aria-hidden="true" />
                   <span className="text-[10px] font-medium">Início</span>
                 </NavLink>
               </motion.div>
-              <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
-                <NavLink to="/guia-estudos" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
-                  <BookOpen className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-[10px] font-medium">Guia</span>
-                </NavLink>
-              </motion.div>
+
               <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
                 <NavLink to="/simulados" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
                   <ClipboardCheck className="h-5 w-5" aria-hidden="true" />
                   <span className="text-[10px] font-medium">Simulados</span>
                 </NavLink>
               </motion.div>
-              <motion.div whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }}>
-                <NavLink to="/sanarclass" end className={({ isActive }) => `flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out ${isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40'}` }>
-                  <GraduationCap className="h-5 w-5" aria-hidden="true" />
-                  <span className="text-[10px] font-medium">Class</span>
-                </NavLink>
-              </motion.div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <motion.button whileHover={{ y: -2 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-300 ease-in-out text-muted-foreground hover:bg-accent/60 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label="Mais">
-                    <Menu className="h-5 w-5" aria-hidden="true" />
-                    <span className="text-[10px] font-medium">Mais</span>
-                  </motion.button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="mb-2 min-w-[220px]">
-                  
-                  <DropdownMenuItem asChild>
-                    <NavLink to="/dashboard" end className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Progresso
-                    </NavLink>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <NavLink to="/cronograma-enamed" end className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Cronograma ENAMED
-                    </NavLink>
-                  </DropdownMenuItem>
-                  {isB2BUser(user) && (
-                    <DropdownMenuItem asChild>
-                      <NavLink to="/analytics" end className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4" />
-                        Analytics
-                      </NavLink>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+
+
             </div>
           </nav>
           )}
