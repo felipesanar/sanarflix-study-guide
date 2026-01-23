@@ -101,7 +101,8 @@ export const ModoProva = () => {
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
-        estadoAtual = storage.inicializarEstado(questoesData.length, duracao * 60);
+        // Passa duração em minutos (não em segundos) - o hook faz a conversão
+        estadoAtual = storage.inicializarEstado(questoesData.length, duracao);
       }
 
       setEstado(estadoAtual);
