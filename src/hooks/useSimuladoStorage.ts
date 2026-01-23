@@ -104,11 +104,11 @@ export const useSimuladoStorage = (simuladoId: string) => {
     localStorage.removeItem(getEstadoKey());
   }, [simuladoId]);
 
-  const inicializarEstado = useCallback((numeroQuestoes: number, duracaoMinutos: number): EstadoSimulado => {
+  const inicializarEstado = useCallback((numeroQuestoes: number, dataEncerramento: string | null): EstadoSimulado => {
     const novoEstado: EstadoSimulado = {
       simulado_id: simuladoId,
       questao_atual: 0,
-      tempo_restante_segundos: duracaoMinutos * 60,
+      tempo_restante_segundos: 0, // Será calculado dinamicamente com base no deadline
       respostas: {},
       saidas_de_aba: 0,
       iniciado_em: new Date().toISOString(),
