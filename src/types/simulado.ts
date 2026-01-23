@@ -6,6 +6,7 @@ export interface Simulado {
   numero_questoes: number;
   status: 'disponivel' | 'em_andamento' | 'concluido';
   data_liberacao: string;
+  data_encerramento?: string | null;
   tema?: string;
   professor?: string;
 }
