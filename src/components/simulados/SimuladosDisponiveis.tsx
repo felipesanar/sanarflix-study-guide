@@ -52,7 +52,17 @@ export const SimuladosDisponiveis = () => {
         .filter((f: any) => !f.liberado_novamente)
         .map((f: any) => String(f.simulado_id)));
 
+      const agora = new Date();
+      
       const simuladosComStatus = dados.map((sim) => {
+        // Verificar se o simulado está encerrado por tempo
+        if (sim.data_encerramento) {
+          const dataEncerramento = new Date(sim.data_encerramento);
+          if (agora > dataEncerramento) {
+            return { ...sim, status: 'encerrado' as const };
+          }
+        }
+        
         const estadoKey = `simulado_${sim.id}_estado`;
         const estadoStr = localStorage.getItem(estadoKey);
         if (estadoStr) {

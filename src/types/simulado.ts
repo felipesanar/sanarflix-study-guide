@@ -4,7 +4,7 @@ export interface Simulado {
   descricao: string;
   duracao_minutos: number;
   numero_questoes: number;
-  status: 'disponivel' | 'em_andamento' | 'concluido';
+  status: 'disponivel' | 'em_andamento' | 'concluido' | 'encerrado';
   data_liberacao: string;
   data_encerramento?: string | null;
   tema?: string;
