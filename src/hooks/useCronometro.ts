@@ -1,23 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { getBrazilDate } from '@/utils/timezone';
 
 interface UseCronometroProps {
-  duracaoMinutos: number;
-  tempoJaDecorridoSegundos?: number;
+  dataEncerramento: string | null;
   onTempoEsgotado: () => void;
   onAtualizarTempo: (tempo: number) => void;
 }
 
 export const useCronometro = ({
-  duracaoMinutos,
-  tempoJaDecorridoSegundos = 0,
+  dataEncerramento,
   onTempoEsgotado,
   onAtualizarTempo
 }: UseCronometroProps) => {
-  const tempoTotalSegundos = duracaoMinutos * 60;
-  const tempoInicialRestante = tempoTotalSegundos - tempoJaDecorridoSegundos;
-  const [tempoRestante, setTempoRestante] = useState(tempoInicialRestante);
+  const calcularTempoRestante = useCallback((): number => {
+    if (!dataEncerramento) return 0;
+    
+    const agora = getBrazilDate();
+    const deadline = new Date(dataEncerramento);
+    const diffMs = deadline.getTime() - agora.getTime();
+    
+    return Math.max(0, Math.floor(diffMs / 1000));
+  }, [dataEncerramento]);
+
+  const [tempoRestante, setTempoRestante] = useState(() => calcularTempoRestante());
   const [pausado, setPausado] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tempoEsgotadoRef = useRef(false);
 
   const pausar = useCallback(() => {
     setPausado(true);
@@ -32,27 +40,32 @@ export const useCronometro = ({
   }, []);
 
   useEffect(() => {
-    if (pausado || tempoRestante <= 0) return;
+    if (pausado || !dataEncerramento) return;
 
-    intervalRef.current = setInterval(() => {
-      setTempoRestante(prev => {
-        const novoTempo = Math.max(0, prev - 1);
-        onAtualizarTempo(novoTempo);
-        
-        if (novoTempo === 0) {
-          onTempoEsgotado();
-        }
-        
-        return novoTempo;
-      });
-    }, 1000);
+    // Recalcula o tempo restante baseado no deadline real
+    const atualizarTempo = () => {
+      const novoTempo = calcularTempoRestante();
+      setTempoRestante(novoTempo);
+      onAtualizarTempo(novoTempo);
+      
+      if (novoTempo === 0 && !tempoEsgotadoRef.current) {
+        tempoEsgotadoRef.current = true;
+        onTempoEsgotado();
+      }
+    };
+
+    // Atualiza imediatamente
+    atualizarTempo();
+
+    // Atualiza a cada segundo
+    intervalRef.current = setInterval(atualizarTempo, 1000);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [pausado, tempoRestante, onAtualizarTempo, onTempoEsgotado]);
+  }, [pausado, dataEncerramento, calcularTempoRestante, onAtualizarTempo, onTempoEsgotado]);
 
   const formatarTempo = (segundos: number): string => {
     const horas = Math.floor(segundos / 3600);

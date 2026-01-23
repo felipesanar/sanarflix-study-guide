@@ -46,7 +46,7 @@ export const ModoProva = () => {
   const [mostrarDialogFinalizar, setMostrarDialogFinalizar] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [simuladoTitulo, setSimuladoTitulo] = useState('');
-  const [duracaoMinutos, setDuracaoMinutos] = useState(120);
+  const [dataEncerramento, setDataEncerramento] = useState<string | null>(null);
 
   // Controles de foco e tela cheia
   const { foraDeAba, foraDeTelaCheia, podeInteragir, entrarTelaCheia } = useFocusControl({
@@ -59,10 +59,9 @@ export const ModoProva = () => {
     }
   });
 
-  // Cronômetro
+  // Cronômetro baseado no deadline (data_encerramento)
   const cronometro = useCronometro({
-    duracaoMinutos,
-    tempoJaDecorridoSegundos: estado ? (duracaoMinutos * 60 - estado.tempo_restante_segundos) : 0,
+    dataEncerramento,
     onTempoEsgotado: () => {
       toast.error('Tempo esgotado! Seu simulado será finalizado automaticamente.');
       setTimeout(() => finalizarSimulado(), 3000);
@@ -89,9 +88,16 @@ export const ModoProva = () => {
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
 
-      const { titulo, duracao } = await simuladosApi.buscarDadosSimulado(simuladoId);
+      const { titulo, dataEncerramento: deadline } = await simuladosApi.buscarDadosSimulado(simuladoId);
       setSimuladoTitulo(titulo);
-      setDuracaoMinutos(duracao);
+      setDataEncerramento(deadline);
+
+      // Verifica se o simulado tem data de encerramento definida
+      if (!deadline) {
+        toast.error('Este simulado não possui data de encerramento definida.');
+        navigate('/simulados');
+        return;
+      }
 
       // Track simulado start (only once per session)
       if (!hasTrackedStart.current) {
@@ -101,9 +107,11 @@ export const ModoProva = () => {
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
-        // Passa duração em minutos (não em segundos) - o hook faz a conversão
-        estadoAtual = storage.inicializarEstado(questoesData.length, duracao);
+        estadoAtual = storage.inicializarEstado(questoesData.length, deadline);
       }
+
+      setEstado(estadoAtual);
+      setQuestaoAtual(estadoAtual.questao_atual);
 
       setEstado(estadoAtual);
       setQuestaoAtual(estadoAtual.questao_atual);
@@ -198,7 +206,9 @@ export const ModoProva = () => {
       const todasQuestoesIds = questoes.map(q => q.id);
       const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
 
-      const tempoTotalSegundos = (duracaoMinutos * 60) - cronometro.tempoRestante;
+      // Calcula tempo gasto desde o início do simulado
+      const iniciadoEm = new Date(estadoFinal.iniciado_em);
+      const tempoTotalSegundos = Math.floor((Date.now() - iniciadoEm.getTime()) / 1000);
       const totalRespondidas = Object.values(estadoFinal.respostas).filter(r => r.resposta).length;
 
       const payload = {
@@ -287,11 +297,15 @@ export const ModoProva = () => {
         const todasQuestoesIds = questoes.map(q => q.id);
         const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
         
+        // Calcula tempo gasto desde o início
+        const iniciadoEm = new Date(estadoFinal.iniciado_em);
+        const tempoTotalSegundos = Math.floor((Date.now() - iniciadoEm.getTime()) / 1000);
+
         const payload = {
           simulado_id: simuladoId,
           user_id: user.id,
           respostas: respostasCompletas,
-          tempo_total_segundos: (duracaoMinutos * 60) - cronometro.tempoRestante,
+          tempo_total_segundos: tempoTotalSegundos,
           saidas_de_aba: estadoFinal.saidas_de_aba,
           finalizado_em: new Date().toISOString(),
           auto_finalizado: true
@@ -312,7 +326,7 @@ export const ModoProva = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [user, questoes, simuladoId, duracaoMinutos, cronometro.tempoRestante, storage]);
+  }, [user, questoes, simuladoId, cronometro.tempoRestante, storage]);
 
   if (loading) {
     return (
