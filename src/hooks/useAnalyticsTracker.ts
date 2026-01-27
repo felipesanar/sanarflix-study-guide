@@ -90,6 +90,7 @@ export const useAnalyticsTracker = () => {
   const trackSimuladoComplete = useCallback((simuladoId: string, data: {
     tempoTotalSegundos: number;
     saidasDeAba: number;
+    saidasDeFullscreen?: number;
     totalQuestoes: number;
     totalRespondidas: number;
   }) => {

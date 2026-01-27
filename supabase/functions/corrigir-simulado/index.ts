@@ -19,6 +19,7 @@ interface CorrecaoRequest {
   respostas: RespostaSimulado[];
   tempo_total_segundos: number;
   saidas_de_aba: number;
+  saidas_de_fullscreen?: number;
 }
 
 Deno.serve(async (req) => {
@@ -38,7 +39,7 @@ Deno.serve(async (req) => {
       }
     );
 
-    const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba }: CorrecaoRequest = await req.json();
+    const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba, saidas_de_fullscreen }: CorrecaoRequest = await req.json();
 
     console.log(`Processando correção do simulado: ${simulado_id} para usuário: ${user_id}`);
 
@@ -117,7 +118,8 @@ Deno.serve(async (req) => {
         user_id: user_id,
         simulado_id: simulado_id,
         tempo_total_segundos,
-        saidas_de_aba
+        saidas_de_aba,
+        saidas_de_fullscreen: saidas_de_fullscreen ?? 0
       });
 
     if (finalizadoError) {
