@@ -813,6 +813,7 @@ export type Database = {
           liberado_novamente: boolean
           liberado_por: string | null
           saidas_de_aba: number
+          saidas_de_fullscreen: number
           simulado_id: string
           tempo_total_segundos: number
           user_id: string
@@ -824,6 +825,7 @@ export type Database = {
           liberado_novamente?: boolean
           liberado_por?: string | null
           saidas_de_aba?: number
+          saidas_de_fullscreen?: number
           simulado_id: string
           tempo_total_segundos: number
           user_id: string
@@ -835,6 +837,7 @@ export type Database = {
           liberado_novamente?: boolean
           liberado_por?: string | null
           saidas_de_aba?: number
+          saidas_de_fullscreen?: number
           simulado_id?: string
           tempo_total_segundos?: number
           user_id?: string

@@ -40,6 +40,7 @@ export interface EstadoSimulado {
   tempo_restante_segundos: number;
   respostas: Record<string, RespostaSimulado>;
   saidas_de_aba: number;
+  saidas_de_fullscreen: number;
   iniciado_em: string;
   ultima_atualizacao: string;
 }

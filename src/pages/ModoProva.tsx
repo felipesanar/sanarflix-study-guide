@@ -57,6 +57,9 @@ export const ModoProva = () => {
     },
     onRetornoAba: () => {
       // Não faz nada ao retornar, apenas verifica fullscreen
+    },
+    onSaidaFullscreen: () => {
+      storage.registrarSaidaFullscreen();
     }
   });
 
@@ -219,6 +222,7 @@ export const ModoProva = () => {
         respostas: respostasCompletas,
         tempo_total_segundos: tempoTotalSegundos,
         saidas_de_aba: estadoFinal.saidas_de_aba,
+        saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
         finalizado_em: new Date().toISOString()
       };
       await simuladosApi.enviarResultado(payload);
@@ -227,6 +231,7 @@ export const ModoProva = () => {
       trackSimuladoComplete(simuladoId, {
         tempoTotalSegundos,
         saidasDeAba: estadoFinal.saidas_de_aba,
+        saidasDeFullscreen: estadoFinal.saidas_de_fullscreen || 0,
         totalQuestoes: questoes.length,
         totalRespondidas
       });
@@ -314,6 +319,7 @@ export const ModoProva = () => {
           respostas: respostasCompletas,
           tempo_total_segundos: tempoTotalSegundos,
           saidas_de_aba: estadoFinal.saidas_de_aba,
+          saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
           finalizado_em: new Date().toISOString(),
           auto_finalizado: true
         };

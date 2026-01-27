@@ -3,11 +3,13 @@ import { useEffect, useCallback, useState } from 'react';
 interface UseFocusControlProps {
   onSaidaAba: () => void;
   onRetornoAba: () => void;
+  onSaidaFullscreen?: () => void;
 }
 
 export const useFocusControl = ({
   onSaidaAba,
-  onRetornoAba
+  onRetornoAba,
+  onSaidaFullscreen
 }: UseFocusControlProps) => {
   const [foraDeAba, setForaDeAba] = useState(false);
   const [foraDeTelaCheia, setForaDeTelaCheia] = useState(false);
@@ -28,11 +30,18 @@ export const useFocusControl = ({
 
   const handleFullscreenChange = useCallback(() => {
     const isFullscreen = !!document.fullscreenElement;
+    const wasInFullscreen = !foraDeTelaCheia;
+    
     setForaDeTelaCheia(!isFullscreen);
+    
+    // Registra saída do fullscreen (apenas quando sai, não quando entra)
+    if (wasInFullscreen && !isFullscreen && onSaidaFullscreen) {
+      onSaidaFullscreen();
+    }
     
     // Bloqueia interação fora do fullscreen, permite dentro
     setPodeInteragir(isFullscreen && !document.hidden);
-  }, []);
+  }, [foraDeTelaCheia, onSaidaFullscreen]);
 
   const entrarTelaCheia = useCallback(async () => {
     try {

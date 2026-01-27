@@ -100,6 +100,16 @@ export const useSimuladoStorage = (simuladoId: string) => {
     });
   }, [carregarEstado, salvarEstado]);
 
+  const registrarSaidaFullscreen = useCallback(() => {
+    const estado = carregarEstado();
+    if (!estado) return;
+
+    salvarEstado({
+      ...estado,
+      saidas_de_fullscreen: (estado.saidas_de_fullscreen || 0) + 1
+    });
+  }, [carregarEstado, salvarEstado]);
+
   const limparEstado = useCallback(() => {
     localStorage.removeItem(getEstadoKey());
   }, [simuladoId]);
@@ -111,6 +121,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
       tempo_restante_segundos: 0, // Será calculado dinamicamente com base no deadline
       respostas: {},
       saidas_de_aba: 0,
+      saidas_de_fullscreen: 0,
       iniciado_em: new Date().toISOString(),
       ultima_atualizacao: new Date().toISOString()
     };
@@ -155,6 +166,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     eliminarAlternativa,
     atualizarTempo,
     registrarSaidaAba,
+    registrarSaidaFullscreen,
     limparEstado,
     inicializarEstado,
     prepararRespostasCompletas
