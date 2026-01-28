@@ -50,6 +50,7 @@ interface Questao {
   feedback_corretas: string | null;
   imagem: string | null;
   observacao: string | null;
+  anulada?: boolean;
 }
 
 interface IES {
@@ -88,6 +89,9 @@ export default function SimuladosTab() {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [selectedIESList, setSelectedIESList] = useState<string[]>([]);
   const [showLiberarModal, setShowLiberarModal] = useState(false);
+  const [showAnularConfirm, setShowAnularConfirm] = useState(false);
+  const [questaoToAnular, setQuestaoToAnular] = useState<Questao | null>(null);
+  const [anulando, setAnulando] = useState(false);
 
   const [configForm, setConfigForm] = useState({
     nome: '',
@@ -481,7 +485,8 @@ export default function SimuladosTab() {
         comentario: q.comentario,
         feedback_corretas: q.feedback_corretas,
         imagem: q.imagem,
-        observacao: q.observacao
+        observacao: q.observacao,
+        anulada: q.anulada ?? false
       }));
 
       setQuestoesVisualizacao(questoesFormatadas);
@@ -545,6 +550,54 @@ export default function SimuladosTab() {
         description: error.message,
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleAnularQuestao = async () => {
+    if (!questaoToAnular?.id) return;
+
+    try {
+      setAnulando(true);
+
+      // 1. Marcar a questão como anulada
+      const { error: updateQuestaoError } = await supabase
+        .from('questoes_simulado')
+        .update({ anulada: true })
+        .eq('id', questaoToAnular.id);
+
+      if (updateQuestaoError) throw updateQuestaoError;
+
+      // 2. Atualizar todas as respostas existentes para correct = true
+      const { error: updateRespostasError } = await supabase
+        .from('answer_progress')
+        .update({ correct: true })
+        .eq('question_id', questaoToAnular.id);
+
+      if (updateRespostasError) {
+        console.error('Erro ao atualizar respostas:', updateRespostasError);
+        // Não bloquear - pode não haver respostas ainda
+      }
+
+      // 3. Atualizar estado local
+      setQuestoesVisualizacao(prev => 
+        prev.map(q => q.id === questaoToAnular.id ? { ...q, anulada: true } : q)
+      );
+
+      toast({
+        title: 'Questão anulada com sucesso',
+        description: 'Todos os alunos receberão pontuação para esta questão.'
+      });
+
+      setShowAnularConfirm(false);
+      setQuestaoToAnular(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao anular questão',
+        description: error.message,
+        variant: 'destructive'
+      });
+    } finally {
+      setAnulando(false);
     }
   };
 
@@ -1051,17 +1104,41 @@ export default function SimuladosTab() {
           </DialogHeader>
           <div className="space-y-4">
             {questoesVisualizacao.map((questao, index) => (
-              <Card key={questao.id || index}>
+              <Card key={questao.id || index} className={questao.anulada ? 'border-purple-500/50 bg-purple-500/5' : ''}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">Questão {questao.ordem}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingQuestao(questao)}
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-sm">Questão {questao.ordem}</CardTitle>
+                      {questao.anulada && (
+                        <Badge variant="secondary" className="bg-purple-500/10 text-purple-500 border-purple-500/30">
+                          <Ban className="h-3 w-3 mr-1" />
+                          ANULADA
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingQuestao(questao)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      {!questao.anulada && questao.id && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setQuestaoToAnular(questao);
+                            setShowAnularConfirm(true);
+                          }}
+                        >
+                          <Ban className="h-4 w-4 mr-1" />
+                          Anular
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
@@ -1080,7 +1157,9 @@ export default function SimuladosTab() {
                     <p>D) {questao.alternativa_d}</p>
                     {questao.alternativa_e && <p>E) {questao.alternativa_e}</p>}
                   </div>
-                  <p className="text-green-600 font-medium">Correta: {questao.correta}</p>
+                  <p className={questao.anulada ? "text-purple-500 font-medium" : "text-green-600 font-medium"}>
+                    {questao.anulada ? 'Questão anulada - todos os alunos recebem pontuação' : `Correta: ${questao.correta}`}
+                  </p>
                   {questao.feedback_corretas && (
                     <p className="text-blue-600 text-xs italic">Feedback: {questao.feedback_corretas}</p>
                   )}
@@ -1126,6 +1205,55 @@ export default function SimuladosTab() {
         open={showLiberarModal}
         onClose={() => setShowLiberarModal(false)}
       />
+
+      {/* Modal de Confirmação de Anulação */}
+      <Dialog open={showAnularConfirm} onOpenChange={setShowAnularConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ban className="h-5 w-5 text-purple-500" />
+              Anular Questão
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>
+                Tem certeza que deseja anular a <strong>Questão {questaoToAnular?.ordem}</strong>?
+              </p>
+              <p className="text-sm">
+                Esta ação irá:
+              </p>
+              <ul className="list-disc list-inside text-sm text-muted-foreground">
+                <li>Marcar a questão como anulada</li>
+                <li>Contabilizar como correta para TODOS os alunos que já responderam</li>
+                <li>Contabilizar como correta para alunos que responderem no futuro</li>
+              </ul>
+              <p className="text-sm text-destructive font-medium">
+                ⚠️ Esta ação não pode ser desfeita.
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowAnularConfirm(false);
+                setQuestaoToAnular(null);
+              }}
+              disabled={anulando}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleAnularQuestao}
+              disabled={anulando}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {anulando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Ban className="h-4 w-4 mr-2" />}
+              Confirmar Anulação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

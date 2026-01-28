@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle } from 'lucide-react';
+import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban } from 'lucide-react';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,6 +29,7 @@ interface ReviewedQuestion {
   dificuldade: 'Fácil' | 'Médio' | 'Difícil' | string;
   acertou: boolean;
   user_answer?: string | null;
+  anulada?: boolean;
 }
 
 // --- Componentes Auxiliares ---
@@ -71,19 +72,31 @@ const QuestionModal: React.FC<{
           <div className="flex justify-between items-center gap-2">
             <DialogTitle>Revisão de Questão</DialogTitle>
             <div className="flex items-center gap-2">
-              {question?.dificuldade && <DifficultyBadge difficulty={question.dificuldade} />}
+              {/* Badge de ANULADA substitui dificuldade quando aplicável */}
+              {question?.anulada ? (
+                <span className="px-2 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-500 flex items-center gap-1">
+                  <Ban className="h-3 w-3" />
+                  ANULADA
+                </span>
+              ) : (
+                question?.dificuldade && <DifficultyBadge difficulty={question.dificuldade} />
+              )}
               {question && (
                     (() => {
                       const notAnswered = !question.user_answer;
-                      const statusClass = notAnswered
+                      // Se anulada, sempre mostra como acerto
+                      const isCorrect = question.anulada ? true : userGotItRight;
+                      const statusClass = notAnswered && !question.anulada
                         ? "bg-amber-500/10 text-amber-500"
-                        : (userGotItRight ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500");
-                      const icon = notAnswered
+                        : (isCorrect ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500");
+                      const icon = notAnswered && !question.anulada
                         ? <HelpCircle className="h-4 w-4" />
-                        : (userGotItRight ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />);
-                      const label = notAnswered
-                        ? "Questão Não Respondida"
-                        : (userGotItRight ? "Você acertou" : "Você errou");
+                        : (isCorrect ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />);
+                      const label = question.anulada
+                        ? "Pontuação garantida"
+                        : (notAnswered
+                          ? "Questão Não Respondida"
+                          : (userGotItRight ? "Você acertou" : "Você errou"));
                       return (
                         <div className={cn("flex items-center gap-2 px-2 py-1 rounded-md text-xs font-semibold", statusClass)}>
                           {icon}

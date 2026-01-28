@@ -66,12 +66,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Buscar os gabaritos de TODAS as questões (respondidas e não respondidas)
+    // Buscar os gabaritos E status de anulação de TODAS as questões
     const questaoIds = respostas.map(r => r.questao_id);
 
     const { data: questoes, error: questoesError } = await supabaseClient
       .from('questoes_simulado')
-      .select('id, correta')
+      .select('id, correta, anulada')
       .in('id', questaoIds);
 
     if (questoesError) {
@@ -79,19 +79,27 @@ Deno.serve(async (req) => {
       throw questoesError;
     }
 
-    // Criar mapa de gabaritos
-    const gabaritos = new Map(questoes?.map(q => [q.id, q.correta]) || []);
+    // Criar mapa de gabaritos e status de anulação
+    const gabaritos = new Map(questoes?.map(q => [q.id, { correta: q.correta, anulada: q.anulada }]) || []);
 
     // Processar TODAS as questões (respondidas e não respondidas)
-    const respostasParaSalvar = respostas.map(r => ({
-      user_id: user_id,
-      simulado: simulado_id,
-      question_id: r.questao_id,
-      resposta_usuario: r.resposta,
-      answer_id: crypto.randomUUID(),
-      correct: r.resposta !== null ? gabaritos.get(r.questao_id) === r.resposta : false,
-      'respondida?': r.respondida ?? (r.resposta !== null)
-    }));
+    // Questões anuladas são sempre contabilizadas como corretas
+    const respostasParaSalvar = respostas.map(r => {
+      const questaoInfo = gabaritos.get(r.questao_id);
+      const isAnulada = questaoInfo?.anulada === true;
+      const gabarito = questaoInfo?.correta;
+      
+      return {
+        user_id: user_id,
+        simulado: simulado_id,
+        question_id: r.questao_id,
+        resposta_usuario: r.resposta,
+        answer_id: crypto.randomUUID(),
+        // Se a questão está anulada, sempre é correta; caso contrário, verifica gabarito
+        correct: isAnulada ? true : (r.resposta !== null ? gabarito === r.resposta : false),
+        'respondida?': r.respondida ?? (r.resposta !== null)
+      };
+    });
 
     console.log(`Total de questões a serem salvas: ${respostasParaSalvar.length}`);
 
