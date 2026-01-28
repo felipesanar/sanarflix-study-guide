@@ -1,100 +1,196 @@
 
-# Plano: Corrigir Exibição de Questões Não Respondidas na Aba de Desempenho
+# Plano: Sistema de Anulação de Questões de Simulado
 
-## Problema Identificado
+## Visão Geral
 
-A função de banco de dados `get_questions_by_subspecialty` está usando **LEFT JOIN** com a tabela `answer_progress`, o que faz com que questões de simulados que o aluno não realizou apareçam no modal de revisão.
+Implementar funcionalidade para que administradores possam anular questões de simulados, fazendo com que a questão seja automaticamente contabilizada como correta para todos os alunos que já responderam ou que vierem a responder.
 
-**Comportamento atual:**
-- O LEFT JOIN retorna TODAS as questões que correspondem aos filtros (tema, área, especialidade)
-- Questões não respondidas aparecem com `acertou = false` e `user_answer = NULL`
-- Isso inclui questões de simulados que o aluno nunca fez
+## Estrutura de Dados
 
-**Comportamento esperado:**
-- Apenas questões que o aluno efetivamente respondeu devem aparecer
-- Cada aluno só pode ver questões dos simulados que ele realizou
-
-## Solução Técnica
-
-### 1. Alterar a função `get_questions_by_subspecialty`
-
-Mudar de `LEFT JOIN` para `INNER JOIN` na tabela `answer_progress`:
+### 1. Adicionar coluna `anulada` na tabela `questoes_simulado`
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_questions_by_subspecialty(
-  sub_name text, 
-  p_simulado_id uuid DEFAULT NULL::uuid, 
-  area_name text DEFAULT NULL::text, 
-  specialty_name text DEFAULT NULL::text
-)
-RETURNS TABLE(
-  id text, 
-  gabarito text, 
-  enunciado text, 
-  a text, b text, c text, d text, 
-  comentario text, 
-  imagem text, 
-  dificuldade text, 
-  acertou boolean, 
-  user_answer text
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-begin
-  return query
-  select
-    q.id::text,
-    q.correta,
-    q.enunciado,
-    q.alternativa_a,
-    q.alternativa_b,
-    q.alternativa_c,
-    q.alternativa_d,
-    q.comentario,
-    q.imagem,
-    coalesce(q.grau_dificuldade, 'Médio'),
-    ap.correct,                    -- Não precisa mais de COALESCE
-    upper(ap.resposta_usuario)
-  from public.questoes_simulado q
-  INNER JOIN public.answer_progress ap  -- Mudança: LEFT JOIN → INNER JOIN
-    on q.id = ap.question_id
-   and ap.user_id = auth.uid()
-   and (p_simulado_id is null or ap.simulado = p_simulado_id)
-  where q.tema = sub_name
-    and (area_name is null or q.grande_area = area_name)
-    and (specialty_name is null or q.especialidade = specialty_name)
-    and (p_simulado_id is null or q.simulado_id = p_simulado_id)
-  limit 10;
-end;
-$$;
+ALTER TABLE questoes_simulado 
+ADD COLUMN anulada boolean NOT NULL DEFAULT false;
 ```
 
-**Mudanças principais:**
-1. `LEFT JOIN` → `INNER JOIN`: Garante que só retorne questões que existem em `answer_progress` para o usuário atual
-2. Remoção do `COALESCE(ap.correct, false)`: Com INNER JOIN, `ap.correct` sempre terá valor
+### 2. Atualizar a função RPC `get_questions_by_subspecialty`
 
-## Impacto
+Modificar para retornar o status de anulação da questão:
 
-| Aspecto | Antes | Depois |
-|---------|-------|--------|
-| Questões mostradas | Todas do tema/área | Apenas as respondidas pelo aluno |
-| Questões de outros simulados | Aparecem como "não respondidas" | Não aparecem |
-| Segurança de dados | Vazamento de questões entre simulados | Isolamento por usuário |
+```sql
+-- Adicionar campo 'anulada' ao retorno
+RETURNS TABLE(
+  ...campos existentes...,
+  anulada boolean
+)
+-- E no SELECT:
+q.anulada
+```
 
-## Verificação
+### 3. Atualizar Edge Function `corrigir-simulado`
 
-Após a implementação:
-1. O aluno só verá questões dos simulados que ele efetivamente realizou
-2. O modal de revisão não exibirá mais questões com status "Não Respondida" de simulados não realizados
-3. A contagem de questões por tema/especialidade será consistente com as respostas do aluno
+Modificar a lógica de correção para considerar questões anuladas como corretas:
+
+```typescript
+// Buscar gabaritos E status de anulação
+const { data: questoes } = await supabase
+  .from('questoes_simulado')
+  .select('id, correta, anulada')  // incluir 'anulada'
+  .in('id', questaoIds);
+
+// Na correção:
+correct: questao.anulada ? true : (r.resposta === gabarito)
+```
+
+## Correção Retroativa
+
+### Edge Function para corrigir respostas já registradas
+
+Quando uma questão for anulada, precisamos atualizar todos os registros existentes em `answer_progress`:
+
+```typescript
+// Atualizar todas as respostas dessa questão para correct = true
+await supabase
+  .from('answer_progress')
+  .update({ correct: true })
+  .eq('question_id', questaoId);
+```
+
+## Interface Administrativa
+
+### 1. Adicionar botão "Anular Questão" no modal de visualização de questões
+
+No componente `SimuladosTab.tsx`, adicionar um botão que:
+- Exibe confirmação antes de anular
+- Chama a API para atualizar a questão
+- Atualiza retroativamente todas as respostas existentes
+
+### 2. Exibir badge "ANULADA" na visualização de questões
+
+Questões anuladas exibem badge vermelho com ícone de alerta
+
+## Exibição para o Aluno
+
+### 1. Modal de Revisão (`SimuladoDesempenho.tsx`)
+
+Substituir o badge de dificuldade por badge "ANULADA" quando aplicável:
+
+```tsx
+{question.anulada ? (
+  <span className="px-2 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-500">
+    🚫 ANULADA
+  </span>
+) : (
+  <DifficultyBadge difficulty={question.dificuldade} />
+)}
+```
+
+### 2. Contagem de acertos
+
+No cálculo de desempenho, questões anuladas já serão contadas como corretas devido à correção retroativa
 
 ## Arquivos Afetados
 
-- **Migração SQL**: Nova migração para atualizar a função `get_questions_by_subspecialty`
+| Arquivo | Modificação |
+|---------|-------------|
+| **Migração SQL** | Adicionar coluna `anulada` + atualizar função RPC |
+| `supabase/functions/corrigir-simulado/index.ts` | Considerar `anulada` na correção |
+| `src/components/admin/SimuladosTab.tsx` | Botão de anular + badge na visualização |
+| `src/pages/SimuladoDesempenho.tsx` | Badge "ANULADA" no modal de revisão |
 
-## Observações
+## Fluxo Completo
 
-- As demais funções RPC (`get_user_performance_aggregates`, `get_user_simulados`, `get_all_user_performance_by_area`) já usam `WHERE ap.user_id = auth.uid()` corretamente e filtram apenas dados do usuário autenticado
-- A mudança é isolada apenas na função de busca de questões para o modal de revisão
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                     ADMINISTRADOR                               │
+├─────────────────────────────────────────────────────────────────┤
+│  1. Acessa Portal Admin > Simulados                             │
+│  2. Clica "Visualizar Questões" em um simulado                  │
+│  3. Localiza a questão problemática                             │
+│  4. Clica no botão "Anular Questão"                             │
+│  5. Confirma no diálogo de confirmação                          │
+│                                                                 │
+│            ↓ Sistema executa automaticamente ↓                  │
+│                                                                 │
+│  a) Atualiza questoes_simulado SET anulada = true               │
+│  b) Atualiza answer_progress SET correct = true                 │
+│     para TODAS as respostas dessa questão                       │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                        ALUNO                                    │
+├─────────────────────────────────────────────────────────────────┤
+│  • Na aba Desempenho, questão aparece como "ACERTOU"            │
+│  • No modal de revisão, badge "ANULADA" substitui dificuldade   │
+│  • Estatísticas refletem a questão como correta                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Procedimento Manual (Alternativa Imediata)
+
+Se precisar anular uma questão AGORA, antes da implementação, execute:
+
+```sql
+-- 1. Marcar questão como anulada (substitua QUESTAO_ID pelo UUID da questão)
+UPDATE questoes_simulado 
+SET anulada = true 
+WHERE id = 'QUESTAO_ID';
+
+-- 2. Corrigir todas as respostas retroativamente
+UPDATE answer_progress 
+SET correct = true 
+WHERE question_id = 'QUESTAO_ID';
+```
+
+**Nota:** A coluna `anulada` precisa ser criada primeiro via migração.
+
+## Detalhes Técnicos
+
+### Interface do Admin - Botão de Anular
+
+```tsx
+<Button
+  variant="destructive"
+  size="sm"
+  onClick={() => handleAnularQuestao(questao.id)}
+  disabled={questao.anulada}
+>
+  <Ban className="h-4 w-4 mr-2" />
+  {questao.anulada ? 'Já Anulada' : 'Anular Questão'}
+</Button>
+```
+
+### Badge na Revisão do Aluno
+
+```tsx
+const AnuladaBadge = () => (
+  <span className="px-2 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-500 flex items-center gap-1">
+    <Ban className="h-3 w-3" />
+    ANULADA
+  </span>
+);
+
+// No header do modal:
+{question.anulada ? <AnuladaBadge /> : <DifficultyBadge difficulty={question.dificuldade} />}
+```
+
+### Função de Anulação no Admin
+
+```typescript
+const handleAnularQuestao = async (questaoId: string) => {
+  // 1. Atualizar a questão
+  await supabase
+    .from('questoes_simulado')
+    .update({ anulada: true })
+    .eq('id', questaoId);
+
+  // 2. Atualizar todas as respostas para correto
+  await supabase
+    .from('answer_progress')
+    .update({ correct: true })
+    .eq('question_id', questaoId);
+
+  toast.success('Questão anulada. Todos os alunos receberão pontuação.');
+};
+```
