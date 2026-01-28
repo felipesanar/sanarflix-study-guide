@@ -18,6 +18,9 @@ export interface AccessRules {
   SimuladoDesempenho: boolean;
   userManagement: boolean;
   intensivoUSCS: boolean;
+  sanarclass: boolean;
+  simulados: boolean;
+  analytics: boolean;
 }
 
 export interface StudyContent {

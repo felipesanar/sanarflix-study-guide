@@ -44,17 +44,24 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const menuItems = [
   {
+    title: "Início",
+    url: "/home",
+    icon: HomeIcon,
+    accessKey: "home" as const,
+    description: "Sua página inicial personalizada",
+  },
+  {
     title: "SanarClass",
     url: "/sanarclass",
     icon: GraduationCap,
-    accessKey: "home" as const,
+    accessKey: "sanarclass" as const,
     description: "Aulas da sua IES com o SanarFlix Academy",
   },
   {
     title: "Simulados",
     url: "/simulados",
     icon: ClipboardCheck,
-    accessKey: "home" as const,
+    accessKey: "simulados" as const,
     description: "Simulados completos e desempenho",
   },
   {
@@ -322,12 +329,20 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu>
-                {/* Outros itens (exceto Início) */}
+                {/* Menu items filtered by access rules */}
                 {menuItems
                   .filter((item) => {
-                    if (item.accessKey === "home" && item.url === "/home") return false;
-                    if (item.url === "/sanarclass") return false;
+                    // Home: only for B2B users and FAME semester 0
+                    if (item.accessKey === "home") {
+                      return accessRules.home;
+                    }
+                    // SanarClass: hidden for now
+                    if (item.accessKey === "sanarclass") return false;
+                    // ENAMED: hidden for now
                     if (item.accessKey === "enamed") return false;
+                    // Simulados: always available for authenticated users
+                    if (item.accessKey === "simulados") return true;
+                    // Analytics: only for B2B users
                     if (item.accessKey === "analytics") {
                       return isB2BUser(user);
                     }
@@ -342,6 +357,55 @@ export function AppSidebar() {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+
+                {/* Guia de Estudos - Collapsible group for B2B and FAME semester 0 */}
+                {accessRules.studyGuide && hasStudyGuideContent && (
+                  <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton className={getParentNavCls(isStudyGuideAreaActive())}>
+                          <div className={`flex items-center justify-between w-full p-3 ${collapsed ? "justify-center" : ""}`}>
+                            <div className="flex items-center gap-3">
+                              <BookOpen className={`h-5 w-5 transition-transform duration-300 ${isStudyGuideAreaActive() ? "scale-[1.05] text-primary" : ""}`} />
+                              {!collapsed && <span className="font-medium text-sm">Guia de Estudos</span>}
+                            </div>
+                            {!collapsed && (
+                              <motion.div
+                                animate={{ rotate: studyGuideOpen ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </motion.div>
+                            )}
+                          </div>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <AnimatePresence>
+                        {studyGuideItems
+                          .filter((item) => accessRules[item.accessKey])
+                          .map((item, idx) => (
+                            <motion.div
+                              key={item.title}
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2, delay: idx * 0.05 }}
+                            >
+                              <SidebarMenuItem>
+                                <SidebarMenuButton asChild>
+                                  <NavLink to={item.url} end className={getChildNavCls} aria-label={`Ir para ${item.title}`}>
+                                    <MenuItem item={item} isActive={currentPath === item.url} />
+                                  </NavLink>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            </motion.div>
+                          ))}
+                      </AnimatePresence>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

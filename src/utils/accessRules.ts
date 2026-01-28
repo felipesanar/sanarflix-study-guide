@@ -18,6 +18,9 @@ import { AccessRules, User } from '@/types';
 // B2C: Usuários cadastrados via página de cadastro público
 const B2C_IES_ID = 'abec7c7d-ef07-4871-9e19-090f4d951e5e';
 
+// FAME: IES com acesso especial para semestre 0
+const FAME_IES_ID = '954aad2f-4030-4d5d-b27a-19eb8fac05cf';
+
 // Mapeamento de IES para suas features
 // Formato: { [ies_id]: { nome, features } }
 const IES_CONFIG: Record<string, { nome: string; features: Partial<AccessRules> }> = {
@@ -92,7 +95,7 @@ const IES_CONFIG: Record<string, { nome: string; features: Partial<AccessRules> 
  * Regras de acesso padrão (base para todos os usuários)
  */
 const DEFAULT_RULES: AccessRules = {
-  home: true,
+  home: false,
   studyGuide: false,
   enamed: false,
   cronogramaEnamed: false,
@@ -100,6 +103,9 @@ const DEFAULT_RULES: AccessRules = {
   SimuladoDesempenho: false,
   userManagement: false,
   intensivoUSCS: false,
+  sanarclass: false,
+  simulados: true,
+  analytics: false,
 };
 
 /**
@@ -134,11 +140,24 @@ export const getAccessRules = (user: User | null): AccessRules => {
   if (isAdmin || isB2BPartner) {
     return {
       ...DEFAULT_RULES,
+      home: true,
       studyGuide: true,
       enamed: true,
       dashboard: true,
       SimuladoDesempenho: true,
       userManagement: isAdmin,
+    };
+  }
+
+  // FAME com semestre = 0: acesso a Home e Guia de Estudos
+  if (id_ies === FAME_IES_ID && user.semestre === 0) {
+    return {
+      ...DEFAULT_RULES,
+      home: true,
+      studyGuide: true,
+      dashboard: true,
+      enamed: true,
+      SimuladoDesempenho: true,
     };
   }
 
