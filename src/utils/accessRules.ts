@@ -35,11 +35,10 @@ const IES_CONFIG: Record<string, { nome: string; features: Partial<AccessRules> 
     }
   },
   
-  // UNICEUB
+  // FAME (UNICEUB) - studyGuide apenas para semestre 0 (regra especial acima)
   '954aad2f-4030-4d5d-b27a-19eb8fac05cf': {
-    nome: 'UNICEUB',
+    nome: 'FAME',
     features: {
-      studyGuide: true,
       enamed: true,
       dashboard: true,
     }
