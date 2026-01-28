@@ -19,13 +19,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { user } = authContext;
 
   useEffect(() => {
-    if (user && user.id_ies && user.semestre) {
+    if (user && user.id_ies && typeof user.semestre === 'number') {
       loadStudyContents();
     }
   }, [user]);
 
   const loadStudyContents = async () => {
-    if (!user || !user.id_ies || !user.semestre) return;
+    if (!user || !user.id_ies || typeof user.semestre !== 'number') return;
 
     try {
       // Use edge function to fetch conteudos (bypasses RLS issues)

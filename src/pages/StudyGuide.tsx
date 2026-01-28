@@ -366,7 +366,7 @@ export const StudyGuide: React.FC = () => {
           setConteudos(cached);
           hasLoadedData.current = true;
           // Auto-selecionar semestre baseado no cache
-          if (user.semestre) {
+          if (typeof user.semestre === 'number') {
             const userSemestre = user.semestre.toString();
             const hasUserSemestre = cached.some(c => 
               c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
