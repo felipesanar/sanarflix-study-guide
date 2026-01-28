@@ -329,36 +329,21 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu>
-                {/* Menu items filtered by access rules */}
-                {menuItems
-                  .filter((item) => {
-                    // Home: only for B2B users and FAME semester 0
-                    if (item.accessKey === "home") {
-                      return accessRules.home;
-                    }
-                    // SanarClass: hidden for now
-                    if (item.accessKey === "sanarclass") return false;
-                    // ENAMED: hidden for now
-                    if (item.accessKey === "enamed") return false;
-                    // Simulados: always available for authenticated users
-                    if (item.accessKey === "simulados") return true;
-                    // Analytics: only for B2B users
-                    if (item.accessKey === "analytics") {
-                      return isB2BUser(user);
-                    }
-                    return accessRules[item.accessKey];
-                  })
-                  .map((item, idx) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} end className={getNavCls} aria-label={`Ir para ${item.title}`}>
-                          <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                {/* Home - only for B2B users and FAME semester 0 */}
+                {accessRules.home && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild>
+                      <NavLink to="/home" end className={getNavCls} aria-label="Ir para Início">
+                        <MenuItem 
+                          item={{ title: "Início", icon: HomeIcon, description: "Sua página inicial personalizada" }} 
+                          isActive={currentPath === "/home"} 
+                        />
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
 
-                {/* Guia de Estudos - Collapsible group for B2B and FAME semester 0 */}
+                {/* Guia de Estudos - Collapsible group right after Home */}
                 {accessRules.studyGuide && hasStudyGuideContent && (
                   <Collapsible open={studyGuideOpen} onOpenChange={setStudyGuideOpen}>
                     <CollapsibleTrigger asChild>
@@ -384,7 +369,13 @@ export function AppSidebar() {
                     <CollapsibleContent>
                       <AnimatePresence>
                         {studyGuideItems
-                          .filter((item) => accessRules[item.accessKey])
+                          .filter((item) => {
+                            // "Seu Progresso" (dashboard) only visible for B2B users
+                            if (item.accessKey === "dashboard") {
+                              return isB2BUser(user);
+                            }
+                            return accessRules[item.accessKey];
+                          })
                           .map((item, idx) => (
                             <motion.div
                               key={item.title}
@@ -406,6 +397,33 @@ export function AppSidebar() {
                     </CollapsibleContent>
                   </Collapsible>
                 )}
+
+                {/* Remaining menu items (excluding Home which is rendered above) */}
+                {menuItems
+                  .filter((item) => {
+                    // Home already rendered above
+                    if (item.accessKey === "home") return false;
+                    // SanarClass: hidden for now
+                    if (item.accessKey === "sanarclass") return false;
+                    // ENAMED: hidden for now
+                    if (item.accessKey === "enamed") return false;
+                    // Simulados: always available for authenticated users
+                    if (item.accessKey === "simulados") return true;
+                    // Analytics: only for B2B users
+                    if (item.accessKey === "analytics") {
+                      return isB2BUser(user);
+                    }
+                    return accessRules[item.accessKey];
+                  })
+                  .map((item, idx) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} end className={getNavCls} aria-label={`Ir para ${item.title}`}>
+                          <MenuItem item={item} isActive={currentPath === item.url} delay={idx * 0.1} />
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
