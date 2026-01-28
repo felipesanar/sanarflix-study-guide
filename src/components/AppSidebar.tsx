@@ -403,8 +403,8 @@ export function AppSidebar() {
                   .filter((item) => {
                     // Home already rendered above
                     if (item.accessKey === "home") return false;
-                    // SanarClass: hidden for now
-                    if (item.accessKey === "sanarclass") return false;
+                    // SanarClass: controlled by access rules
+                    if (item.accessKey === "sanarclass") return accessRules.sanarclass;
                     // ENAMED: hidden for now
                     if (item.accessKey === "enamed") return false;
                     // Simulados: always available for authenticated users
