@@ -28,6 +28,13 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || typeof user.semestre !== 'number') return;
 
     try {
+      // Verificar se há sessão ativa antes de chamar a edge function
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        console.warn('No active session, skipping study contents load');
+        return;
+      }
+
       // Use edge function to fetch conteudos (bypasses RLS issues)
       const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
