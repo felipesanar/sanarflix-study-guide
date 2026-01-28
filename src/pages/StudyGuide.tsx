@@ -304,7 +304,9 @@ export const StudyGuide: React.FC = () => {
   // Fetch conteudos com SWR cache - apenas na montagem ou quando mudar IES/semestre
   useEffect(() => {
     const fetchConteudos = async () => {
-      if (!user?.id_ies || !user?.semestre) {
+      // Permitir carregamento mesmo se semestre for 0 ou undefined
+      // O Guia de Estudos mostra TODOS os semestres da IES, não apenas o do usuário
+      if (!user?.id_ies) {
         setIsLoading(false);
         return;
       }
@@ -346,14 +348,22 @@ export const StudyGuide: React.FC = () => {
               setConteudos(fresh);
               hasLoadedData.current = true;
               // Auto-select semestre após revalidação
-              if (user.semestre && fresh.length > 0) {
-                const userSemestre = user.semestre.toString();
-                const hasUserSemestre = fresh.some(c => 
-                  c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
-                );
-                if (hasUserSemestre) {
-                  setSelectedSemestre(userSemestre);
+              if (fresh.length > 0) {
+                // Tentar selecionar o semestre do usuário se existir nos dados
+                if (typeof user.semestre === 'number') {
+                  const userSemestre = user.semestre.toString();
+                  const hasUserSemestre = fresh.some(c => 
+                    c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+                  );
+                  if (hasUserSemestre) {
+                    setSelectedSemestre(userSemestre);
+                  } else {
+                    // Se não encontrar, selecionar o primeiro semestre disponível
+                    const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
+                    setSelectedSemestre(firstSemestre);
+                  }
                 } else {
+                  // Se usuário não tem semestre definido, selecionar o primeiro
                   const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
                   setSelectedSemestre(firstSemestre);
                 }
@@ -374,9 +384,14 @@ export const StudyGuide: React.FC = () => {
             if (hasUserSemestre) {
               setSelectedSemestre(userSemestre);
             } else {
+              // Semestre do usuário não existe nos dados, usar primeiro disponível
               const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
               setSelectedSemestre(firstSemestre);
             }
+          } else {
+            // Usuário sem semestre definido, usar primeiro disponível
+            const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
+            setSelectedSemestre(firstSemestre);
           }
           setIsLoading(false);
           return;
@@ -401,14 +416,21 @@ export const StudyGuide: React.FC = () => {
         setConteudos(transformedData);
         hasLoadedData.current = true;
         const loadTime = performance.now() - startTime;
-        if (user.semestre && transformedData.length > 0) {
-          const userSemestre = user.semestre.toString();
-          const hasUserSemestre = transformedData.some(c => 
-            c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
-          );
-          if (hasUserSemestre) {
-            setSelectedSemestre(userSemestre);
+        if (transformedData.length > 0) {
+          if (typeof user.semestre === 'number') {
+            const userSemestre = user.semestre.toString();
+            const hasUserSemestre = transformedData.some(c => 
+              c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+            );
+            if (hasUserSemestre) {
+              setSelectedSemestre(userSemestre);
+            } else {
+              // Semestre do usuário não existe nos dados, usar primeiro disponível
+              const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
+              setSelectedSemestre(firstSemestre);
+            }
           } else {
+            // Usuário sem semestre definido, usar primeiro disponível
             const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
             setSelectedSemestre(firstSemestre);
           }
@@ -426,7 +448,7 @@ export const StudyGuide: React.FC = () => {
     };
 
     fetchConteudos();
-  }, [user?.id_ies, user?.semestre]);
+  }, [user?.id_ies]); // Carrega todos os conteúdos da IES, independente do semestre do usuário
 
   // Scroll to top button
   useEffect(() => {
