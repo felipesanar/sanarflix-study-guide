@@ -587,6 +587,7 @@ export type Database = {
           alternativa_c: string
           alternativa_d: string
           alternativa_e: string | null
+          anulada: boolean
           comentario: string | null
           competencia: string | null
           correta: string
@@ -611,6 +612,7 @@ export type Database = {
           alternativa_c: string
           alternativa_d: string
           alternativa_e?: string | null
+          anulada?: boolean
           comentario?: string | null
           competencia?: string | null
           correta: string
@@ -635,6 +637,7 @@ export type Database = {
           alternativa_c?: string
           alternativa_d?: string
           alternativa_e?: string | null
+          anulada?: boolean
           comentario?: string | null
           competencia?: string | null
           correta?: string
@@ -1189,6 +1192,7 @@ export type Database = {
         Returns: {
           a: string
           acertou: boolean
+          anulada: boolean
           b: string
           c: string
           comentario: string
