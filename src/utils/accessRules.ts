@@ -146,10 +146,11 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: true,
       SimuladoDesempenho: true,
       userManagement: isAdmin,
+      sanarclass: true,
     };
   }
 
-  // FAME com semestre = 0: acesso a Home e Guia de Estudos
+  // FAME com semestre = 0: acesso a Home, Guia de Estudos e SanarClass
   if (id_ies === FAME_IES_ID && user.semestre === 0) {
     return {
       ...DEFAULT_RULES,
@@ -158,6 +159,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: true,
       enamed: true,
       SimuladoDesempenho: true,
+      sanarclass: true,
     };
   }
 
