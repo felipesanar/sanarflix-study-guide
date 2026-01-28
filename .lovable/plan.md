@@ -1,60 +1,94 @@
 
-# Plano: Corrigir Carregamento para Usuários com Semestre 0
+# Plano: Corrigir Erro de Autenticação no Guia de Estudos
 
-## Problema Identificado
-O valor `0` em JavaScript é considerado **falsy**. Quando `user.semestre === 0`, as condições como `if (user.semestre)` avaliam como `false`, impedindo o carregamento dos dados.
+## Problemas Identificados
 
-### Locais Afetados
-1. **`src/contexts/StudyContext.tsx`** (crítico)
-   - Linha 22: `if (user && user.id_ies && user.semestre)`
-   - Linha 28: `if (!user || !user.id_ies || !user.semestre) return;`
+### 1. Autenticação na Edge Function (Crítico)
+A Edge Function `get-study-contents` está retornando "Auth session missing!" porque os headers CORS estão incompletos. Isso impede que o header `Authorization` seja enviado corretamente pelo cliente.
 
-2. **`src/pages/StudyGuide.tsx`** (menor impacto)
-   - Linha 369: `if (user.semestre)`
+**Headers atuais (incompletos)**:
+```javascript
+'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
+```
+
+**Headers necessários**:
+```javascript
+'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version'
+```
+
+### 2. Ausência de Dados para Semestre 0
+A tabela `conteudos` da FAME possui apenas semestres 1-8 e INTERNATO. Não há registros para semestre "0".
 
 ---
 
 ## Solução Técnica
 
-### 1. Corrigir StudyContext.tsx
-Alterar as verificações para usar `!== null && !== undefined` ou `typeof === 'number'`:
+### Correção 1: Atualizar CORS Headers na Edge Function
+
+**Arquivo**: `supabase/functions/get-study-contents/index.ts`
 
 ```typescript
-// Linha 22 - ANTES
-if (user && user.id_ies && user.semestre) {
+// ANTES (linha 3-6)
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 // DEPOIS
-if (user && user.id_ies && typeof user.semestre === 'number') {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
 ```
 
+### Correção 2: Melhorar Tratamento de Erros no StudyContext
+
+**Arquivo**: `src/contexts/StudyContext.tsx`
+
+Adicionar logging mais detalhado para facilitar debug:
+
 ```typescript
-// Linha 28 - ANTES
-if (!user || !user.id_ies || !user.semestre) return;
+const loadStudyContents = async () => {
+  if (!user || !user.id_ies || typeof user.semestre !== 'number') return;
 
-// DEPOIS
-if (!user || !user.id_ies || typeof user.semestre !== 'number') return;
-```
-
-### 2. Corrigir StudyGuide.tsx
-```typescript
-// Linha 369 - ANTES
-if (user.semestre) {
-
-// DEPOIS
-if (typeof user.semestre === 'number') {
+  try {
+    // Verificar se há sessão ativa antes de chamar a edge function
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      console.warn('No active session, skipping study contents load');
+      return;
+    }
+    
+    const { data: response, error } = await supabase.functions.invoke('get-study-contents');
+    // ... resto do código
+  }
+}
 ```
 
 ---
 
 ## Arquivos a Modificar
-| Arquivo | Linhas | Descrição |
-|---------|--------|-----------|
-| `src/contexts/StudyContext.tsx` | 22, 28 | Verificação de semestre no carregamento |
-| `src/pages/StudyGuide.tsx` | 369 | Auto-seleção de semestre |
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/get-study-contents/index.ts` | Atualizar CORS headers |
+| `src/contexts/StudyContext.tsx` | Adicionar verificação de sessão |
+
+---
+
+## Sobre os Dados do Semestre 0
+
+Os dados de conteúdo para semestre 0 precisam ser inseridos na tabela `conteudos`. Existem duas opções:
+
+1. **Inserir novos dados**: Adicionar registros com `semestre = '0'` para a FAME
+2. **Mapear para outro semestre**: Se o semestre 0 representa "pré-medicina" ou similar, pode-se mapear para os conteúdos do 1º semestre
+
+**Pergunta para você**: O semestre 0 deve ter conteúdos específicos ou podemos usar os conteúdos do 1º semestre?
 
 ---
 
 ## Resultado Esperado
-- Usuários da FAME com `semestre = 0` conseguirão carregar o Guia de Estudos
-- SanarClass já funciona (só valida `id_ies`)
-- Não haverá regressão para usuários com semestres > 0
+
+- Edge Function aceitará requisições autenticadas corretamente
+- Erros de CORS serão eliminados
+- Usuários FAME com semestre 0 poderão acessar o Guia de Estudos (se houver dados)
