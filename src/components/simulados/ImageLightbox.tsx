@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ZoomIn, ZoomOut, X, RotateCcw } from 'lucide-react';
+import { ZoomIn, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 
 interface ImageLightboxProps {
   src: string;
@@ -13,7 +12,7 @@ interface ImageLightboxProps {
 /**
  * Componente de lightbox para ampliar imagens no Modo Prova.
  * Exibe thumbnail clicável com indicador de zoom no hover.
- * Ao clicar, abre dialog fullscreen com imagem ampliada e controles de zoom.
+ * Ao clicar, abre dialog fullscreen com imagem ampliada e zoom interativo.
  */
 export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   const [open, setOpen] = useState(false);
@@ -78,18 +77,29 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
     setIsDragging(false);
   }, []);
 
-  const handleDoubleClick = useCallback(() => {
-    if (scale === 1) {
-      setScale(2);
-    } else {
-      handleReset();
+  // Clicar na imagem aplica zoom ou reseta
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    // Se estiver arrastando, não faz nada
+    if (isDragging) return;
+    
+    // Se não moveu significativamente (clique simples)
+    const movedX = Math.abs(e.clientX - dragStart.current.x);
+    const movedY = Math.abs(e.clientY - dragStart.current.y);
+    
+    if (movedX < 5 && movedY < 5) {
+      if (scale === 1) {
+        setScale(2);
+      } else if (scale < MAX_SCALE) {
+        setScale((prev) => Math.min(prev + 1, MAX_SCALE));
+      } else {
+        handleReset();
+      }
     }
-  }, [scale, handleReset]);
+  }, [scale, isDragging, handleReset]);
 
   const handleOpenChange = useCallback((newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
-      // Reset zoom when closing
       setScale(1);
       setPosition({ x: 0, y: 0 });
     }
@@ -114,56 +124,14 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
       {/* Dialog fullscreen */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent 
-          className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-0 bg-black/95 flex items-center justify-center overflow-hidden"
+          className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-0 bg-black/95 flex items-center justify-center overflow-hidden group/lightbox"
           aria-describedby={undefined}
         >
-          {/* Controles de zoom */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/60 rounded-full px-3 py-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomOut}
-              disabled={scale <= MIN_SCALE}
-              className="h-8 w-8 text-white hover:bg-white/20 disabled:opacity-30"
-              aria-label="Diminuir zoom"
-            >
-              <ZoomOut className="h-5 w-5" />
-            </Button>
-            
-            <span className="text-white text-sm font-medium min-w-[3rem] text-center">
-              {Math.round(scale * 100)}%
-            </span>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomIn}
-              disabled={scale >= MAX_SCALE}
-              className="h-8 w-8 text-white hover:bg-white/20 disabled:opacity-30"
-              aria-label="Aumentar zoom"
-            >
-              <ZoomIn className="h-5 w-5" />
-            </Button>
-            
-            <div className="w-px h-5 bg-white/30 mx-1" />
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleReset}
-              disabled={scale === 1}
-              className="h-8 w-8 text-white hover:bg-white/20 disabled:opacity-30"
-              aria-label="Resetar zoom"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Botão de fechar customizado */}
+          {/* Botão de fechar - visível apenas no hover */}
           <button
             type="button"
             onClick={() => handleOpenChange(false)}
-            className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+            className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-all opacity-0 group-hover/lightbox:opacity-100"
             aria-label="Fechar"
           >
             <X className="h-6 w-6 text-white" />
@@ -178,10 +146,12 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
             )}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
+            onMouseUp={(e) => {
+              handleClick(e);
+              handleMouseUp();
+            }}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
-            onDoubleClick={handleDoubleClick}
           >
             <img
               src={src}
@@ -192,11 +162,6 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
               }}
               draggable={false}
             />
-          </div>
-          
-          {/* Dica de uso */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-white/60 text-xs bg-black/40 px-3 py-1.5 rounded-full">
-            Scroll para zoom • Duplo-clique para alternar • Arraste para mover
           </div>
         </DialogContent>
       </Dialog>
