@@ -1,358 +1,362 @@
 
-# Geracao de Gabarito em PDF na Pagina de Desempenho
+# Refatoracao do Sistema de Status de Simulados e Remocao de Valores Fixos
 
 ## Objetivo
 
-Adicionar funcionalidade para gerar e baixar um PDF contendo o gabarito completo do simulado selecionado, incluindo:
-- Informacoes do simulado (nome, data)
-- Lista de questoes com: numero, resposta do aluno, gabarito correto, resultado (acertou/errou)
-- Resumo estatistico (total de questoes, acertos, percentual)
+1. Remover o campo de selecao manual de status do formulario de configuracao
+2. Calcular o status automaticamente com base nas datas (Aguardando, Ativo, Encerrado)
+3. Adicionar opcao "Liberar Imediatamente" no campo de data de liberacao
+4. Substituir botao "Tornar Indisponivel" por "Encerrar Simulado" (somente para ativos)
+5. Remover valores hardcoded de duracao (120, 180 minutos como padrao)
+6. Garantir que a duracao configurada seja utilizada corretamente
 
 ---
 
 ## Analise do Estado Atual
 
-**Pagina de Desempenho (`SimuladoDesempenho.tsx`):**
-- Exibe performance do aluno por simulado selecionado
-- Utiliza RPC `get_user_performance_aggregates` para estatisticas
-- Tem seletor de simulado (`selectedSimulado`)
-- Dados disponiveis: `stats`, `ranking`, `simulados`
+### Problemas Identificados
 
-**Dados no Banco:**
-- `questoes_simulado`: enunciado, alternativas, correta, tema, especialidade
-- `answer_progress`: user_id, simulado, question_id, resposta_usuario, correct
-- `simulados_admin`: id, nome
+| Problema | Localizacao | Impacto |
+|----------|-------------|---------|
+| Status setado manualmente | SimuladosTab.tsx linha 1198-1213 | Usuario pode setar status incorreto |
+| Status "rascunho" no banco | simulados_admin.status default | Nao deveria existir |
+| Duracao hardcoded 120 | SimuladosTab.tsx linha 103 | Valor padrao inicial |
+| Duracao hardcoded 180 | SimuladosTab.tsx linhas 341, 528, 1228 | Reset de formulario |
+| Campo duracao_minutos nao usado | ModoProva.tsx | Usa apenas data_encerramento |
+| Botao "Tornar Indisponivel" sempre visivel | SimuladosTab.tsx linha 938-946 | Aparece para todos status |
 
-**Dependencias Atuais:**
-- Nao ha biblioteca de PDF instalada (jsPDF ou similar)
-
----
-
-## Solucao Proposta
-
-### Abordagem
-
-1. Adicionar dependencia `jspdf` para geracao de PDF no cliente
-2. Criar funcao utilitaria para gerar PDF de gabarito
-3. Adicionar botao "Baixar Gabarito PDF" na pagina de desempenho
-4. Consultar dados das questoes e respostas do aluno para o simulado selecionado
-5. Gerar PDF formatado com tabela de gabarito
-
-### Estrutura do PDF
+### Nova Logica de Status (Computada)
 
 ```text
-+--------------------------------------------------+
-|           GABARITO - [Nome do Simulado]          |
-|              Data: DD/MM/AAAA                    |
-+--------------------------------------------------+
-|  Aluno: [Nome]        Acertos: XX/XX (XX%)       |
-+--------------------------------------------------+
-| # | Sua Resposta | Gabarito | Resultado | Tema   |
-|---|--------------|----------|-----------|--------|
-| 1 |      A       |    B     |   ERROU   | Cardio |
-| 2 |      C       |    C     |  ACERTOU  | Neuro  |
-| 3 |      -       |    D     |   N/R     | Trauma |
-+--------------------------------------------------+
+                              +------------------------+
+                              |  Simulado Configurado  |
+                              +------------------------+
+                                         |
+                      +------------------+------------------+
+                      |                                     |
+              data_liberacao              imediatamente=true (sem data_liberacao)
+              no futuro                               |
+                      |                               v
+                      v                       +-------------+
+              +---------------+               |    ATIVO    |
+              |  AGUARDANDO   |               +-------------+
+              +---------------+                      |
+                      |                              |
+              data_liberacao                  data_encerramento atingida
+              atingida                        OU encerramento manual
+                      |                              |
+                      v                              v
+              +---------------+               +--------------+
+              |     ATIVO     |-------------->|  ENCERRADO   |
+              +---------------+               +--------------+
 ```
 
 ---
 
 ## Implementacao
 
-### 1. Instalar Dependencia
+### 1. Modificar Interface e Estado do Formulario
 
-Adicionar `jspdf` ao projeto:
-```bash
-npm install jspdf
+**Arquivo:** `src/components/admin/SimuladosTab.tsx`
+
+**Alteracoes:**
+
+1. Remover campo `status` do `configForm` e do tipo `PreviewData`
+2. Adicionar campo `liberarImediatamente: boolean` ao formulario
+3. Remover opcoes de duracao hardcoded e usar primeiro valor como inicial
+
+**Antes:**
+```typescript
+const [configForm, setConfigForm] = useState({
+  nome: '',
+  descricao: '',
+  data_liberacao: '',
+  data_encerramento: '',
+  duracao_minutos: 120, // Padrao 2 horas
+  status: 'rascunho' as 'ativo' | 'rascunho' | 'encerrado'
+});
 ```
 
-### 2. Criar Utilitario de Geracao de PDF
-
-**Arquivo:** `src/utils/pdfGabarito.ts`
-
-**Funcoes:**
-| Funcao | Descricao |
-|--------|-----------|
-| `generateGabaritoPDF` | Gera e baixa o PDF com os dados do gabarito |
-
-**Parametros da funcao:**
-| Parametro | Tipo | Descricao |
-|-----------|------|-----------|
-| `simuladoNome` | `string` | Nome do simulado |
-| `alunoNome` | `string` | Nome do aluno |
-| `questoes` | `GabaritoQuestao[]` | Array com dados das questoes |
-| `stats` | `{ acertos, total, percentual }` | Estatisticas gerais |
-
-**Interface GabaritoQuestao:**
+**Depois:**
 ```typescript
-interface GabaritoQuestao {
-  numero: number;
-  respostaAluno: string | null;
-  gabarito: string;
-  acertou: boolean | null; // null = nao respondida
-  tema: string;
-}
+const [configForm, setConfigForm] = useState({
+  nome: '',
+  descricao: '',
+  data_liberacao: '',
+  data_encerramento: '',
+  duracao_minutos: duracaoOpcoes[0].value, // Primeiro valor das opcoes
+  liberarImediatamente: false
+});
 ```
 
-### 3. Buscar Dados para o PDF
+### 2. Adicionar Funcao de Calculo de Status
 
-Criar funcao para buscar questoes e respostas do simulado selecionado:
+**Adicionar funcao utilitaria:**
 
 ```typescript
-const fetchGabaritoData = async (simuladoId: string, userId: string) => {
-  const { data, error } = await supabase
-    .from('answer_progress')
-    .select(`
-      question_id,
-      resposta_usuario,
-      correct,
-      questoes_simulado (
-        correta,
-        tema,
-        enunciado
-      )
-    `)
-    .eq('simulado', simuladoId)
-    .eq('user_id', userId)
-    .order('question_id');
-    
-  return data;
+const calcularStatusSimulado = (
+  dataLiberacao: string | null, 
+  dataEncerramento: string | null,
+  statusBanco: string
+): 'aguardando' | 'ativo' | 'encerrado' => {
+  const agora = new Date();
+  
+  // Se foi manualmente encerrado
+  if (statusBanco === 'encerrado') return 'encerrado';
+  
+  // Se tem data de encerramento e ja passou
+  if (dataEncerramento && new Date(dataEncerramento) < agora) {
+    return 'encerrado';
+  }
+  
+  // Se tem data de liberacao e ainda nao chegou
+  if (dataLiberacao && new Date(dataLiberacao) > agora) {
+    return 'aguardando';
+  }
+  
+  // Caso contrario, esta ativo
+  return 'ativo';
 };
 ```
 
-### 4. Integrar na Pagina de Desempenho
+### 3. Modificar UI do Modal de Configuracao
 
-**Alteracoes em `SimuladoDesempenho.tsx`:**
+**Remover campo de Status manual e adicionar checkbox "Liberar Imediatamente":**
 
-1. Importar utilitario e icone
-2. Adicionar estado para loading do download
-3. Criar handler para gerar PDF
-4. Adicionar botao na UI (ao lado de "Atualizar Dados")
-
-**Posicao do botao:**
+**Antes (linhas 1198-1213):**
 ```tsx
-<div className="flex items-center gap-4">
+<div>
+  <Label>Status</Label>
   <Select ...>
-  
-  <Button 
-    onClick={handleDownloadGabarito}
-    disabled={!selectedSimulado || isDownloadingPDF}
-    variant="outline"
-    className="gap-2"
-  >
-    <FileDown className="h-4 w-4" />
-    Baixar Gabarito
-  </Button>
-  
-  <button onClick={handleRefresh}>Atualizar Dados</button>
+    <SelectItem value="rascunho">Rascunho</SelectItem>
+    <SelectItem value="ativo">Ativo</SelectItem>
+    <SelectItem value="encerrado">Encerrado</SelectItem>
+  </Select>
 </div>
 ```
 
-**Comportamento:**
-- Botao desabilitado quando "Visao Geral" esta selecionada (precisa de simulado especifico)
-- Loading state enquanto gera PDF
-- Toast de sucesso/erro apos download
+**Depois:**
+```tsx
+{/* Campo Data de Liberacao */}
+<div>
+  <Label>Data de Liberacao</Label>
+  <Input
+    type="datetime-local"
+    value={configForm.data_liberacao}
+    onChange={(e) => setConfigForm({ 
+      ...configForm, 
+      data_liberacao: e.target.value,
+      liberarImediatamente: false 
+    })}
+    disabled={configForm.liberarImediatamente}
+  />
+  <div className="flex items-center gap-2 mt-2">
+    <Checkbox
+      id="liberar-imediatamente"
+      checked={configForm.liberarImediatamente}
+      onCheckedChange={(checked) => setConfigForm({
+        ...configForm,
+        liberarImediatamente: !!checked,
+        data_liberacao: '' // Limpa data ao marcar
+      })}
+    />
+    <label htmlFor="liberar-imediatamente" className="text-sm">
+      Liberar imediatamente ao salvar
+    </label>
+  </div>
+</div>
+```
+
+### 4. Modificar Logica de Salvamento
+
+**Arquivo:** `src/components/admin/SimuladosTab.tsx`
+
+**Alteracoes em `handleSaveSimulado`:**
+
+```typescript
+// Calcular status baseado nas condicoes
+let statusCalculado: 'aguardando' | 'ativo' | 'encerrado';
+const agora = new Date();
+
+if (configForm.liberarImediatamente) {
+  // Liberacao imediata = ativo agora, sem data de liberacao
+  statusCalculado = 'ativo';
+  dataLiberacaoISO = agora.toISOString(); // Marca como "agora"
+} else if (dataLiberacaoISO && new Date(dataLiberacaoISO) > agora) {
+  statusCalculado = 'aguardando';
+} else {
+  statusCalculado = 'ativo';
+}
+
+// Insert/Update com status calculado
+await supabase.from('simulados_admin')
+  .insert/update({
+    ...outros_campos,
+    data_liberacao: dataLiberacaoISO,
+    data_encerramento: dataEncerramentoISO || null,
+    status: statusCalculado
+  });
+```
+
+### 5. Modificar Exibicao de Status na Tabela
+
+**Alterar `getStatusBadge` para usar status calculado:**
+
+```typescript
+const getStatusBadge = (simulado: Simulado) => {
+  const statusAtual = calcularStatusSimulado(
+    simulado.data_liberacao,
+    simulado.data_encerramento,
+    simulado.status
+  );
+  
+  const variants = {
+    aguardando: { variant: 'secondary', label: 'Aguardando', icon: '🟡' },
+    ativo: { variant: 'default', label: 'Ativo', icon: '🟢' },
+    encerrado: { variant: 'destructive', label: 'Encerrado', icon: '🔴' }
+  };
+  
+  const config = variants[statusAtual];
+  return <Badge variant={config.variant}>{config.icon} {config.label}</Badge>;
+};
+```
+
+### 6. Modificar Botao de Encerramento
+
+**Substituir "Tornar Indisponivel" por "Encerrar Simulado":**
+
+```tsx
+{calcularStatusSimulado(simulado.data_liberacao, simulado.data_encerramento, simulado.status) === 'ativo' && (
+  <Button
+    variant="ghost"
+    size="sm"
+    onClick={() => handleEncerrarSimulado(simulado)}
+    title="Encerrar simulado"
+  >
+    <StopCircle className="h-4 w-4 text-red-500" />
+  </Button>
+)}
+```
+
+**Renomear handler:**
+
+```typescript
+const handleEncerrarSimulado = async (simulado: Simulado) => {
+  try {
+    const { error } = await supabase
+      .from('simulados_admin')
+      .update({ status: 'encerrado' })
+      .eq('id', simulado.id);
+
+    if (error) throw error;
+
+    toast({
+      title: 'Simulado encerrado',
+      description: 'O simulado foi encerrado e nao esta mais disponivel.'
+    });
+
+    fetchSimulados();
+  } catch (error: any) {
+    toast({
+      title: 'Erro ao encerrar simulado',
+      description: error.message,
+      variant: 'destructive'
+    });
+  }
+};
+```
+
+### 7. Atualizar Filtro de Status
+
+**Modificar opcoes do filtro:**
+
+```tsx
+<Select value={statusFilter} onValueChange={setStatusFilter}>
+  <SelectTrigger className="w-[180px]">
+    <Filter className="h-4 w-4 mr-2" />
+    <SelectValue placeholder="Filtrar por status" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="todos">Todos</SelectItem>
+    <SelectItem value="aguardando">Aguardando</SelectItem>
+    <SelectItem value="ativo">Ativos</SelectItem>
+    <SelectItem value="encerrado">Encerrados</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+**Modificar logica de filtragem:**
+
+```typescript
+const filteredSimulados = simulados.filter(s => {
+  const matchesSearch = s.nome.toLowerCase().includes(searchTerm.toLowerCase());
+  const statusCalculado = calcularStatusSimulado(s.data_liberacao, s.data_encerramento, s.status);
+  const matchesStatus = statusFilter === 'todos' || statusCalculado === statusFilter;
+  return matchesSearch && matchesStatus;
+});
+```
+
+### 8. Atualizar Default do Banco de Dados
+
+**Migracao SQL necessaria:**
+
+```sql
+ALTER TABLE simulados_admin 
+ALTER COLUMN status SET DEFAULT 'aguardando';
+```
 
 ---
 
 ## Secao Tecnica
 
-### Arquivos Criados
-
-| Arquivo | Descricao |
-|---------|-----------|
-| `src/utils/pdfGabarito.ts` | Utilitario para geracao de PDF de gabarito |
-
 ### Arquivos Modificados
 
 | Arquivo | Alteracoes |
 |---------|------------|
-| `src/pages/SimuladoDesempenho.tsx` | Import, estado, handler, botao UI |
-| `package.json` | Adicionar dependencia jspdf |
+| `src/components/admin/SimuladosTab.tsx` | Remover campo status manual, adicionar checkbox imediatamente, calcular status, trocar botao |
+| `simulados_admin` (banco) | Alterar default de 'rascunho' para 'aguardando' |
 
-### Estrutura do Utilitario
-
-```typescript
-// pdfGabarito.ts
-import jsPDF from 'jspdf';
-import { format } from 'date-fns';
-
-export interface GabaritoQuestao {
-  numero: number;
-  respostaAluno: string | null;
-  gabarito: string;
-  acertou: boolean | null;
-  tema: string;
-}
-
-export interface GabaritoStats {
-  acertos: number;
-  total: number;
-  percentual: number;
-}
-
-export const generateGabaritoPDF = (
-  simuladoNome: string,
-  alunoNome: string,
-  questoes: GabaritoQuestao[],
-  stats: GabaritoStats
-): void => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  
-  // Cabecalho
-  doc.setFontSize(18);
-  doc.text('GABARITO', pageWidth / 2, 20, { align: 'center' });
-  doc.setFontSize(14);
-  doc.text(simuladoNome, pageWidth / 2, 30, { align: 'center' });
-  
-  // Informacoes do aluno
-  doc.setFontSize(10);
-  doc.text(`Aluno: ${alunoNome}`, 14, 45);
-  doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 52);
-  doc.text(`Resultado: ${stats.acertos}/${stats.total} (${stats.percentual}%)`, pageWidth - 14, 45, { align: 'right' });
-  
-  // Tabela de questoes (manual, sem autotable para manter bundle leve)
-  let yPos = 65;
-  const lineHeight = 8;
-  const colWidths = [15, 30, 25, 30, 80];
-  const headers = ['#', 'Resposta', 'Gabarito', 'Resultado', 'Tema'];
-  
-  // Header da tabela
-  doc.setFillColor(79, 70, 229); // primary color
-  doc.rect(14, yPos, pageWidth - 28, lineHeight, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
-  
-  let xPos = 14;
-  headers.forEach((header, i) => {
-    doc.text(header, xPos + 2, yPos + 5.5);
-    xPos += colWidths[i];
-  });
-  
-  yPos += lineHeight;
-  doc.setTextColor(0, 0, 0);
-  
-  // Linhas de dados
-  questoes.forEach((q, index) => {
-    // Nova pagina se necessario
-    if (yPos > 270) {
-      doc.addPage();
-      yPos = 20;
-    }
-    
-    // Cor de fundo alternada
-    if (index % 2 === 0) {
-      doc.setFillColor(249, 250, 251);
-      doc.rect(14, yPos, pageWidth - 28, lineHeight, 'F');
-    }
-    
-    xPos = 14;
-    const resultado = q.acertou === null ? 'N/R' : (q.acertou ? 'ACERTOU' : 'ERROU');
-    const resposta = q.respostaAluno || '-';
-    const row = [String(q.numero), resposta, q.gabarito, resultado, q.tema];
-    
-    // Cor do resultado
-    if (q.acertou === true) doc.setTextColor(34, 197, 94);
-    else if (q.acertou === false) doc.setTextColor(239, 68, 68);
-    else doc.setTextColor(156, 163, 175);
-    
-    row.forEach((cell, i) => {
-      if (i === 3) { /* resultado ja tem cor */ }
-      else doc.setTextColor(0, 0, 0);
-      
-      doc.text(cell.substring(0, 25), xPos + 2, yPos + 5.5);
-      xPos += colWidths[i];
-    });
-    
-    doc.setTextColor(0, 0, 0);
-    yPos += lineHeight;
-  });
-  
-  // Salvar
-  doc.save(`gabarito_${simuladoNome.replace(/\s+/g, '_')}.pdf`);
-};
-```
-
-### Handler na Pagina
+### Tipos Atualizados
 
 ```typescript
-const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
-
-const handleDownloadGabarito = async () => {
-  if (!selectedSimulado || !user) return;
-  
-  setIsDownloadingPDF(true);
-  try {
-    // Buscar dados das questoes e respostas
-    const { data: answers, error } = await supabase
-      .from('answer_progress')
-      .select(`
-        question_id,
-        resposta_usuario,
-        correct,
-        questoes_simulado!inner (
-          correta,
-          tema
-        )
-      `)
-      .eq('simulado', selectedSimulado)
-      .eq('user_id', user.id);
-    
-    if (error) throw error;
-    
-    // Mapear para formato do PDF
-    const questoes: GabaritoQuestao[] = (answers || []).map((a, index) => ({
-      numero: index + 1,
-      respostaAluno: a.resposta_usuario?.toUpperCase() || null,
-      gabarito: (a.questoes_simulado as any)?.correta || '-',
-      acertou: a.resposta_usuario ? a.correct : null,
-      tema: (a.questoes_simulado as any)?.tema || '-',
-    }));
-    
-    // Nome do simulado
-    const simuladoInfo = simulados.find(s => s.id === selectedSimulado);
-    const simuladoNome = simuladoInfo?.nome || 'Simulado';
-    
-    // Gerar PDF
-    generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, {
-      acertos: stats?.acertos || 0,
-      total: stats?.total || 0,
-      percentual: stats?.percentual || 0,
-    });
-    
-    toast({ title: 'Gabarito gerado!', description: 'O PDF foi baixado com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao gerar PDF:', error);
-    toast({ title: 'Erro', description: 'Nao foi possivel gerar o gabarito.', variant: 'destructive' });
-  } finally {
-    setIsDownloadingPDF(false);
-  }
-};
+// Interface Simulado atualizada
+interface Simulado {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  data_liberacao: string | null;
+  data_encerramento: string | null;
+  duracao_minutos: number;
+  status: 'aguardando' | 'ativo' | 'encerrado'; // Removido 'rascunho'
+  created_at: string;
+  questoes_count?: number;
+}
 ```
 
-### Consideracoes de UX
+### Fluxo de Status
 
-1. **Botao contextual**: So aparece habilitado quando um simulado especifico esta selecionado
-2. **Loading state**: Icone de spinner durante geracao
-3. **Feedback**: Toast confirmando download ou erro
-4. **Nome do arquivo**: `gabarito_[nome_simulado].pdf` para facil identificacao
+| Acao do Usuario | Status Resultante |
+|-----------------|-------------------|
+| Salvar com data futura | aguardando |
+| Salvar com "Imediatamente" | ativo |
+| Data de liberacao atingida (automatico) | ativo |
+| Clicar "Encerrar Simulado" | encerrado |
+| Data de encerramento atingida (automatico) | encerrado |
 
-### Consideracoes de Performance
+### Impacto em Outros Componentes
 
-- PDF gerado no cliente (sem backend)
-- Biblioteca jspdf e leve (~200KB gzipped)
-- Dados buscados sob demanda (apenas ao clicar)
-- Paginacao automatica para simulados longos
+- `simuladosApi.listarSimulados()`: Continua funcionando (ja filtra por `status = 'ativo'`)
+- `SimuladosDisponiveis.tsx`: Nao precisa alteracao (calcula status localmente)
+- `SimuladoCard.tsx`: Nao precisa alteracao (recebe status calculado)
 
 ---
 
 ## Validacao
 
-1. Selecionar um simulado especifico e clicar em "Baixar Gabarito"
-2. Verificar que PDF contem cabecalho com nome do simulado
-3. Confirmar que tabela mostra numero, resposta, gabarito, resultado e tema
-4. Testar com simulado de muitas questoes (>30) para verificar paginacao
-5. Verificar cores: verde para acertos, vermelho para erros, cinza para N/R
-6. Confirmar que botao fica desabilitado na "Visao Geral"
-7. Testar em dispositivos moveis (download funciona)
+1. Criar simulado com data de liberacao futura - deve aparecer como "Aguardando"
+2. Criar simulado com "Liberar Imediatamente" marcado - deve aparecer como "Ativo"
+3. Verificar que botao "Encerrar" so aparece para simulados ativos
+4. Clicar em "Encerrar" e confirmar que status muda para "Encerrado"
+5. Verificar que filtros funcionam corretamente com novos status
+6. Confirmar que nao ha mais campo de status manual no modal de configuracao
+7. Testar edicao de simulado existente - checkbox deve refletir estado atual
