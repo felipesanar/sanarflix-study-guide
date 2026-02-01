@@ -59,7 +59,6 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
               <p className="text-xs text-muted-foreground">Top 3 mais acessadas</p>
             </div>
           </div>
-          <Flame className="w-5 h-5 text-orange-400" />
         </div>
       </div>
       

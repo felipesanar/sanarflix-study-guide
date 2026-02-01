@@ -57,7 +57,7 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
           className="p-4 rounded-xl glass cursor-pointer transition-all duration-300 group hover:glow-primary"
         >
           <div className="flex items-center justify-between mb-3">
-            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide bg-transparent text-red-500 dark:text-white border-red-500">
               <Trophy className="w-3 h-3 mr-1.5" />
               SIMULADOS
             </Badge>
@@ -96,7 +96,7 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
           className="p-4 rounded-xl glass cursor-pointer transition-all duration-300 group hover:glow-blue"
         >
           <div className="flex items-center justify-between mb-3">
-            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide bg-gradient-to-r from-blue-500/20 to-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20">
+            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold tracking-wide bg-transparent text-blue-600 dark:text-blue-400 border-blue-500 hover:bg-transparent">
               <TrendingUp className="w-3 h-3 mr-1.5" />
               CONSUMO
             </Badge>

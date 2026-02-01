@@ -163,13 +163,13 @@ export function AppSidebar() {
   const getNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>
     `group relative overflow-hidden rounded transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${isActive
       ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
-      : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
+      : "bg-transparent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
     }`, []);
 
   const getParentNavCls = React.useCallback((isActive: boolean) =>
     `group relative overflow-hidden rounded px-2 py-1 transition-[background-color,box-shadow,transform] duration-300 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar ${isActive
       ? "bg-sidebar-accent text-sidebar-foreground font-semibold shadow-sm"
-      : "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
+      : "bg-transparent text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-sm hover:translate-x-[4px]"
     }`, []);
 
   const getChildNavCls = React.useCallback(({ isActive }: { isActive: boolean }) =>

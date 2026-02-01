@@ -191,7 +191,7 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
             </div>
           </div>
           {!loading && !error && items.length > 0 && (
-            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold bg-primary/10 text-primary border-0">
+            <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold bg-primary/15 text-primary border border-primary/20 dark:bg-primary/30 dark:text-white dark:border-primary/30 hover:bg-primary/25 dark:hover:bg-primary/40">
               {items.length} {items.length === 1 ? 'Sugestão' : 'Sugestões'}
             </Badge>
           )}

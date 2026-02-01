@@ -113,10 +113,10 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1, duration: 0.4 }}
-                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-primary/8 dark:bg-primary/15"
+                className="inline-flex items-center gap-2"
               >
                 <span className="text-lg">{greeting.emoji}</span>
-                <span className="text-sm font-medium text-primary tracking-wide">
+                <span className="text-sm font-medium text-muted-foreground tracking-wide">
                   {greeting.text}
                 </span>
               </motion.div>
@@ -157,12 +157,12 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 className="relative"
               >
                 {/* Glow effect */}
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-primary/80 blur-xl opacity-30 dark:opacity-40 group-hover:opacity-50 transition-opacity" />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-primary/80 blur-xl opacity-20 dark:opacity-30 group-hover:opacity-40 transition-opacity" />
                 
                 <Button 
                   onClick={handleContinueStudy}
                   size="lg"
-                  className="relative group h-14 px-8 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/95 hover:to-primary/85 text-primary-foreground font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-base"
+                  className="relative group h-12 px-6 rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-sm md:text-base"
                 >
                   <span>Continuar estudos</span>
                   <ArrowRight className="ml-2.5 h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />

@@ -158,7 +158,7 @@ export const AnnouncementsCard: React.FC = () => {
         <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
         <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
         
-        <div className="relative p-6 h-full flex flex-col justify-between">
+        <div className="relative p-4 md:p-5 lg:p-6 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
@@ -207,17 +207,17 @@ export const AnnouncementsCard: React.FC = () => {
         <div className="pointer-events-none absolute -bottom-16 -right-16 w-40 h-40 bg-white/10 blur-3xl rounded-full" />
         <div className="pointer-events-none absolute -top-16 -left-16 w-32 h-32 bg-black/10 blur-3xl rounded-full" />
         
-        <div className="relative p-6 h-full flex flex-col justify-between">
+        <div className="relative p-4 md:p-5 lg:p-6 h-full flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
                 <IconComponent className="w-5 h-5 text-white" />
               </div>
-              <span className="text-white font-semibold text-base line-clamp-1 flex-1">
+              <span className="text-white font-semibold text-base flex-1">
                 {mainAnnouncement.titulo}
               </span>
             </div>
-            <p className="text-white/80 text-sm leading-relaxed line-clamp-3">
+            <p className="text-white/80 text-sm leading-relaxed">
               {mainAnnouncement.descricao}
             </p>
           </div>

@@ -13,7 +13,7 @@ import { LoginForm } from '@/components/LoginForm';
 import { AuthCallback } from '@/components/AuthCallback';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
-import { AuthWrapper } from '@/components/AuthWrapper';
+import { PasswordChangeModal } from '@/components/PasswordChangeModal';
 import { getAccessRules } from '@/utils/accessRules';
 import { useDataPrefetch } from '@/hooks/useDataPrefetch';
 const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default: m.StudyGuide })));
@@ -80,7 +80,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppContent = () => {
-  const { user } = useAuth();
+  const { user, needsPasswordChange } = useAuth();
   const accessRules = getAccessRules(user);
 
   // Sistema de prefetch inteligente baseado em probabilidade
@@ -109,6 +109,7 @@ const AppContent = () => {
   return (
     <StudyProvider>
       <Layout>
+        <PasswordChangeModal isOpen={needsPasswordChange} />
         <Suspense fallback={<HomePageSkeleton />}>
           <Routes>
             <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
@@ -341,9 +342,7 @@ const App = () => {
             <ScrollManager />
             <AuthProvider>
               <ErrorBoundary>
-                <AuthWrapper>
-                  <AppContent />
-                </AuthWrapper>
+                <AppContent />
               </ErrorBoundary>
             </AuthProvider>
           </BrowserRouter>

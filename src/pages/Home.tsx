@@ -120,33 +120,33 @@ export const Home: React.FC = () => {
 
         {/* === TABLET LAYOUT (md to lg) === */}
         <div className="hidden md:block lg:hidden space-y-5">
-          {/* Hero section full width */}
-          <motion.div variants={itemVariants}>
-            <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
-          </motion.div>
-          
-          {/* Two column grid for announcements and ranking */}
-          <div className="grid grid-cols-2 gap-5">
+          {/* Row 1: Hero + Announcements (side by side like desktop) */}
+          <div className="grid grid-cols-[1.6fr_1fr] gap-5">
+            <motion.div variants={itemVariants}>
+              <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+            </motion.div>
             <motion.div variants={itemVariants}>
               <AnnouncementsCard />
+            </motion.div>
+          </div>
+          
+          {/* Row 2: Meu Dia + Ranking */}
+          <div className="grid grid-cols-[1.4fr_1fr] gap-5">
+            <motion.div variants={itemVariants}>
+              <MeuDiaCard 
+                items={meuDiaItems} 
+                hasStudyGuide={hasStudyGuide}
+                loading={loading}
+                error={error}
+                onRetry={refetch}
+              />
             </motion.div>
             <motion.div variants={itemVariants}>
               <RankingCard data={rankings} />
             </motion.div>
           </div>
 
-          {/* Full width Meu Dia */}
-          <motion.div variants={itemVariants}>
-            <MeuDiaCard 
-              items={meuDiaItems} 
-              hasStudyGuide={hasStudyGuide}
-              loading={loading}
-              error={error}
-              onRetry={refetch}
-            />
-          </motion.div>
-
-          {/* Two column grid for performance and semester */}
+          {/* Row 3: Performance + Semester */}
           <div className="grid grid-cols-2 gap-5">
             <motion.div variants={itemVariants}>
               <SimuladoPerformanceCard data={simuladoData} />
