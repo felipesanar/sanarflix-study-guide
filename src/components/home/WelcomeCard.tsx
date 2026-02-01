@@ -142,23 +142,19 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               </motion.p>
               
               {/* Feature indicators */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25, duration: 0.4 }}
-                className="flex items-center gap-3 pt-2"
-              >
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 dark:bg-muted/30">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span className="text-xs font-medium text-muted-foreground">Plano personalizado</span>
-                </div>
-                {hasStudyGuide && (
+              {hasStudyGuide && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25, duration: 0.4 }}
+                  className="flex items-center gap-3 pt-2"
+                >
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15">
                     <Zap className="h-4 w-4 text-emerald-500" />
                     <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Guia ativo</span>
                   </div>
-                )}
-              </motion.div>
+                </motion.div>
+              )}
             </div>
             
             {/* Right - CTA Button */}
