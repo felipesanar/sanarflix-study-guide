@@ -60,6 +60,18 @@ Deno.serve(async (req) => {
     console.log(`[corrigir-simulado] Auto-finalizado: ${auto_finalizado ? 'SIM (sendBeacon)' : 'NÃO (botão)'}`);
     console.log(`[corrigir-simulado] Tempo total: ${tempo_total_segundos}s, Saídas aba: ${saidas_de_aba}, Saídas fullscreen: ${saidas_de_fullscreen ?? 0}`);
 
+    // Verificar se existe registro de finalização E se foi liberado novamente
+    const { data: finalizacaoExistente, error: finalizacaoError } = await supabaseAdmin
+      .from('simulados_finalizados')
+      .select('id, liberado_novamente')
+      .eq('user_id', user_id)
+      .eq('simulado_id', simulado_id)
+      .maybeSingle();
+
+    if (finalizacaoError) {
+      console.error('[corrigir-simulado] Erro ao verificar finalização existente:', finalizacaoError);
+    }
+
     // IDEMPOTÊNCIA: Verificar se já existem respostas para este simulado/usuário
     const { data: existingAnswers, error: checkError } = await supabaseAdmin
       .from('answer_progress')
@@ -72,15 +84,49 @@ Deno.serve(async (req) => {
       console.error('[corrigir-simulado] Erro ao verificar respostas existentes:', checkError);
     }
 
+    // Se existem respostas E NÃO foi liberado novamente, é duplicação
     if (existingAnswers && existingAnswers.length > 0) {
-      console.log(`[corrigir-simulado] Simulado ${simulado_id} já processado para usuário ${user_id}. Ignorando requisição duplicada.`);
-      return new Response(
-        JSON.stringify({ 
-          message: 'Simulado já foi processado anteriormente', 
-          already_processed: true 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+      if (finalizacaoExistente && !finalizacaoExistente.liberado_novamente) {
+        console.log(`[corrigir-simulado] Simulado ${simulado_id} já processado para usuário ${user_id}. Ignorando requisição duplicada.`);
+        return new Response(
+          JSON.stringify({ 
+            message: 'Simulado já foi processado anteriormente', 
+            already_processed: true 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+      
+      // Se foi liberado novamente, deletar respostas antigas antes de inserir novas
+      if (finalizacaoExistente && finalizacaoExistente.liberado_novamente) {
+        console.log(`[corrigir-simulado] Simulado ${simulado_id} foi liberado novamente. Deletando respostas antigas...`);
+        
+        const { error: deleteAnswersError } = await supabaseAdmin
+          .from('answer_progress')
+          .delete()
+          .eq('user_id', user_id)
+          .eq('simulado', simulado_id);
+
+        if (deleteAnswersError) {
+          console.error('[corrigir-simulado] Erro ao deletar respostas antigas:', deleteAnswersError);
+          throw new Error('Falha ao limpar respostas anteriores');
+        }
+        
+        console.log(`[corrigir-simulado] Respostas antigas deletadas com sucesso.`);
+
+        // Deletar registro de finalização antigo para criar um novo
+        const { error: deleteFinalizacaoError } = await supabaseAdmin
+          .from('simulados_finalizados')
+          .delete()
+          .eq('id', finalizacaoExistente.id);
+
+        if (deleteFinalizacaoError) {
+          console.error('[corrigir-simulado] Erro ao deletar finalização antiga:', deleteFinalizacaoError);
+          throw new Error('Falha ao limpar registro de finalização anterior');
+        }
+        
+        console.log(`[corrigir-simulado] Registro de finalização antigo deletado com sucesso.`);
+      }
     }
 
     // Buscar os gabaritos E status de anulação de TODAS as questões
