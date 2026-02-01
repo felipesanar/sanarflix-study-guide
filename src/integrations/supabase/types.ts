@@ -181,6 +181,70 @@ export type Database = {
           },
         ]
       }
+      answer_progress_historico: {
+        Row: {
+          answer_id: string
+          correct: boolean
+          created_at: string
+          finalizacao_original_id: string
+          id: string
+          question_id: string
+          "respondida?": boolean | null
+          resposta_usuario: string | null
+          simulado: string
+          substituida_em: string
+          user_id: string
+        }
+        Insert: {
+          answer_id: string
+          correct: boolean
+          created_at?: string
+          finalizacao_original_id: string
+          id?: string
+          question_id: string
+          "respondida?"?: boolean | null
+          resposta_usuario?: string | null
+          simulado: string
+          substituida_em?: string
+          user_id: string
+        }
+        Update: {
+          answer_id?: string
+          correct?: boolean
+          created_at?: string
+          finalizacao_original_id?: string
+          id?: string
+          question_id?: string
+          "respondida?"?: boolean | null
+          resposta_usuario?: string | null
+          simulado?: string
+          substituida_em?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answer_progress_historico_finalizacao_original_id_fkey"
+            columns: ["finalizacao_original_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_finalizados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "answer_progress_historico_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questoes_simulado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "answer_progress_historico_simulado_fkey"
+            columns: ["simulado"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aula_views: {
         Row: {
           conteudo_id: string
@@ -869,6 +933,7 @@ export type Database = {
           saidas_de_fullscreen: number
           simulado_id: string
           tempo_total_segundos: number
+          tentativa_numero: number
           user_id: string
         }
         Insert: {
@@ -881,6 +946,7 @@ export type Database = {
           saidas_de_fullscreen?: number
           simulado_id: string
           tempo_total_segundos: number
+          tentativa_numero?: number
           user_id: string
         }
         Update: {
@@ -893,6 +959,7 @@ export type Database = {
           saidas_de_fullscreen?: number
           simulado_id?: string
           tempo_total_segundos?: number
+          tentativa_numero?: number
           user_id?: string
         }
         Relationships: [

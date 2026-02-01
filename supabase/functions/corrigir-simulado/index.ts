@@ -63,47 +63,88 @@ Deno.serve(async (req) => {
     // PASSO 1: Verificar se existe registro de finalização (e seu status de liberação)
     const { data: finalizacaoExistente, error: finalizacaoError } = await supabaseAdmin
       .from('simulados_finalizados')
-      .select('id, liberado_novamente')
+      .select('id, liberado_novamente, tentativa_numero')
       .eq('user_id', user_id)
       .eq('simulado_id', simulado_id)
+      .order('tentativa_numero', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (finalizacaoError) {
       console.error('[corrigir-simulado] Erro ao verificar finalização existente:', finalizacaoError);
     }
 
-    console.log(`[corrigir-simulado] Finalização existente: ${finalizacaoExistente ? `ID=${finalizacaoExistente.id}, liberado_novamente=${finalizacaoExistente.liberado_novamente}` : 'Nenhuma'}`);
+    console.log(`[corrigir-simulado] Finalização existente: ${finalizacaoExistente ? `ID=${finalizacaoExistente.id}, liberado_novamente=${finalizacaoExistente.liberado_novamente}, tentativa=${finalizacaoExistente.tentativa_numero}` : 'Nenhuma'}`);
 
-    // PASSO 2: Se existe finalização E foi liberado novamente, fazer limpeza ANTES de verificar respostas
+    let proximaTentativa = 1;
+
+    // PASSO 2: Se existe finalização E foi liberado novamente, mover respostas antigas para histórico
     if (finalizacaoExistente && finalizacaoExistente.liberado_novamente === true) {
-      console.log(`[corrigir-simulado] Simulado foi liberado novamente. Limpando dados anteriores...`);
+      console.log(`[corrigir-simulado] Simulado foi liberado novamente. Movendo respostas antigas para histórico...`);
       
-      // Deletar respostas antigas
-      const { error: deleteAnswersError, count: deletedAnswersCount } = await supabaseAdmin
+      proximaTentativa = (finalizacaoExistente.tentativa_numero || 1) + 1;
+      
+      // Buscar respostas antigas para mover para histórico
+      const { data: respostasAntigas, error: fetchAnswersError } = await supabaseAdmin
         .from('answer_progress')
-        .delete()
+        .select('answer_id, user_id, simulado, question_id, resposta_usuario, correct, "respondida?"')
         .eq('user_id', user_id)
         .eq('simulado', simulado_id);
 
-      if (deleteAnswersError) {
-        console.error('[corrigir-simulado] Erro ao deletar respostas antigas:', deleteAnswersError);
-        throw new Error('Falha ao limpar respostas anteriores');
+      if (fetchAnswersError) {
+        console.error('[corrigir-simulado] Erro ao buscar respostas antigas:', fetchAnswersError);
+        throw new Error('Falha ao buscar respostas anteriores');
       }
-      console.log(`[corrigir-simulado] Respostas antigas deletadas.`);
 
-      // Deletar registro de finalização antigo
-      const { error: deleteFinalizacaoError } = await supabaseAdmin
+      if (respostasAntigas && respostasAntigas.length > 0) {
+        // Inserir respostas antigas no histórico com referência à finalização original
+        const respostasHistorico = respostasAntigas.map(r => ({
+          answer_id: r.answer_id,
+          user_id: r.user_id,
+          simulado: r.simulado,
+          question_id: r.question_id,
+          resposta_usuario: r.resposta_usuario,
+          correct: r.correct,
+          'respondida?': r['respondida?'],
+          finalizacao_original_id: finalizacaoExistente.id,
+          substituida_em: new Date().toISOString()
+        }));
+
+        const { error: insertHistoricoError } = await supabaseAdmin
+          .from('answer_progress_historico')
+          .insert(respostasHistorico);
+
+        if (insertHistoricoError) {
+          console.error('[corrigir-simulado] Erro ao mover respostas para histórico:', insertHistoricoError);
+          throw new Error('Falha ao arquivar respostas anteriores');
+        }
+        console.log(`[corrigir-simulado] ${respostasAntigas.length} respostas movidas para histórico.`);
+
+        // Agora deletar as respostas antigas da tabela principal
+        const { error: deleteAnswersError } = await supabaseAdmin
+          .from('answer_progress')
+          .delete()
+          .eq('user_id', user_id)
+          .eq('simulado', simulado_id);
+
+        if (deleteAnswersError) {
+          console.error('[corrigir-simulado] Erro ao limpar respostas antigas:', deleteAnswersError);
+          throw new Error('Falha ao limpar respostas anteriores da tabela principal');
+        }
+        console.log(`[corrigir-simulado] Respostas antigas removidas da tabela principal.`);
+      }
+
+      // Atualizar o registro de finalização antigo para marcar como substituído (liberado_novamente = false)
+      // Isso permite controle de histórico no admin
+      const { error: updateFinalizacaoError } = await supabaseAdmin
         .from('simulados_finalizados')
-        .delete()
+        .update({ liberado_novamente: false })
         .eq('id', finalizacaoExistente.id);
 
-      if (deleteFinalizacaoError) {
-        console.error('[corrigir-simulado] Erro ao deletar finalização antiga:', deleteFinalizacaoError);
-        throw new Error('Falha ao limpar registro de finalização anterior');
+      if (updateFinalizacaoError) {
+        console.error('[corrigir-simulado] Erro ao atualizar finalização antiga:', updateFinalizacaoError);
       }
-      console.log(`[corrigir-simulado] Registro de finalização antigo deletado. Prosseguindo com nova tentativa...`);
-      
-      // Continuar para processar a nova tentativa (não retornar)
+      console.log(`[corrigir-simulado] Registro de finalização antigo atualizado (liberado_novamente=false). Prosseguindo com tentativa ${proximaTentativa}...`);
     }
     // PASSO 3: Se existe finalização e NÃO foi liberado novamente, verificar idempotência
     else if (finalizacaoExistente && finalizacaoExistente.liberado_novamente === false) {
@@ -132,6 +173,7 @@ Deno.serve(async (req) => {
       
       // Existe finalização mas não existem respostas - situação anômala, prosseguir mesmo assim
       console.log(`[corrigir-simulado] Finalização existe mas sem respostas. Situação anômala, prosseguindo...`);
+      proximaTentativa = (finalizacaoExistente.tentativa_numero || 1) + 1;
     }
 
     // PASSO 4: Buscar os gabaritos E status de anulação de TODAS as questões
@@ -190,7 +232,7 @@ Deno.serve(async (req) => {
     // PASSO 7: Registrar simulado como finalizado usando cliente ADMIN (bypassa RLS)
     const finalizadoEmTimestamp = finalizado_em || new Date().toISOString();
     
-    console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados...`);
+    console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados (tentativa ${proximaTentativa})...`);
     console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}`);
 
     const { error: finalizadoError } = await supabaseAdmin
@@ -205,19 +247,15 @@ Deno.serve(async (req) => {
         // Explicitamente setar como false para nova tentativa
         liberado_novamente: false,
         liberado_em: null,
-        liberado_por: null
+        liberado_por: null,
+        tentativa_numero: proximaTentativa
       });
 
     if (finalizadoError) {
-      // Verificar se é erro de duplicação (já existe registro) - não deveria acontecer após a limpeza
-      if (finalizadoError.code === '23505') {
-        console.error(`[corrigir-simulado] ERRO: Duplicação inesperada de registro de finalização. Isso não deveria acontecer.`, finalizadoError);
-      } else {
-        console.error('[corrigir-simulado] ERRO CRÍTICO ao registrar finalização:', finalizadoError);
-        throw new Error(`Falha ao registrar finalização: ${finalizadoError.message}`);
-      }
+      console.error('[corrigir-simulado] ERRO CRÍTICO ao registrar finalização:', finalizadoError);
+      throw new Error(`Falha ao registrar finalização: ${finalizadoError.message}`);
     } else {
-      console.log(`[corrigir-simulado] Finalização registrada com sucesso! liberado_novamente=false`);
+      console.log(`[corrigir-simulado] Finalização registrada com sucesso! tentativa_numero=${proximaTentativa}, liberado_novamente=false`);
     }
 
     return new Response(
@@ -228,7 +266,8 @@ Deno.serve(async (req) => {
         tempo_total_segundos,
         saidas_de_aba,
         saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
-        finalizado_em: finalizadoEmTimestamp
+        finalizado_em: finalizadoEmTimestamp,
+        tentativa_numero: proximaTentativa
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
