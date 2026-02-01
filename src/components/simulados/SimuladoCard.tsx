@@ -12,6 +12,23 @@ interface SimuladoCardProps {
   onVerDesempenho: (id: string) => void;
 }
 
+// Formata a data de liberação para exibição
+const formatarDataLiberacao = (dataISO: string | null | undefined): string => {
+  if (!dataISO) return '';
+  try {
+    const data = new Date(dataISO);
+    return data.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return '';
+  }
+};
+
 export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho }: SimuladoCardProps) => {
   const getStatusConfig = () => {
     switch (simulado.status) {
@@ -34,15 +51,48 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           disabled: false
         };
       case 'concluido':
-        return {
-          color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-          icon: TrendingUp,
-          action: onVerDesempenho,
-          buttonText: 'Aguarde Correção',
-          buttonVariant: 'secondary' as const,
-          disabled: false
-        };
+        // Verifica se o desempenho está liberado
+        if (simulado.desempenho_liberado) {
+          return {
+            color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+            icon: TrendingUp,
+            action: onVerDesempenho,
+            buttonText: 'Ver Desempenho',
+            buttonVariant: 'default' as const,
+            disabled: false
+          };
+        } else {
+          // Desempenho não liberado ainda
+          const liberacaoDesempenho = simulado.liberacao_desempenho || 'imediato';
+          let helpText = 'Aguarde liberação';
+          
+          if (liberacaoDesempenho === 'agendado' && simulado.data_liberacao_desempenho) {
+            helpText = `Liberação em ${formatarDataLiberacao(simulado.data_liberacao_desempenho)}`;
+          } else if (liberacaoDesempenho === 'ao_encerrar') {
+            helpText = 'Liberação ao encerrar simulado';
+          }
+          
+          return {
+            color: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+            icon: Clock,
+            action: () => {},
+            buttonText: helpText,
+            buttonVariant: 'secondary' as const,
+            disabled: true
+          };
+        }
       case 'encerrado':
+        // Mesmo encerrado, verifica se pode ver desempenho
+        if (simulado.desempenho_liberado) {
+          return {
+            color: 'bg-red-500/10 text-red-500 border-red-500/20',
+            icon: TrendingUp,
+            action: onVerDesempenho,
+            buttonText: 'Ver Desempenho',
+            buttonVariant: 'outline' as const,
+            disabled: false
+          };
+        }
         return {
           color: 'bg-red-500/10 text-red-500 border-red-500/20',
           icon: Clock,

@@ -46,7 +46,9 @@ export const simuladosApi = {
       data_liberacao: s.data_liberacao,
       data_encerramento: s.data_encerramento,
       tema: 'Geral',
-      professor: 'Equipe Sanarflix'
+      professor: 'Equipe Sanarflix',
+      liberacao_desempenho: (s as any).liberacao_desempenho || 'imediato',
+      data_liberacao_desempenho: (s as any).data_liberacao_desempenho || null
     }));
   },
 
