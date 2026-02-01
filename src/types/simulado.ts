@@ -51,5 +51,7 @@ export interface ResultadoSimulado {
   respostas: RespostaSimulado[];
   tempo_total_segundos: number;
   saidas_de_aba: number;
+  saidas_de_fullscreen: number;
   finalizado_em: string;
+  auto_finalizado?: boolean;
 }
