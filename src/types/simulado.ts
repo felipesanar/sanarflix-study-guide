@@ -42,6 +42,7 @@ export interface EstadoSimulado {
   saidas_de_aba: number;
   saidas_de_fullscreen: number;
   iniciado_em: string;
+  deadline_efetivo: string;
   ultima_atualizacao: string;
 }
 

@@ -64,17 +64,19 @@ export const simuladosApi = {
   async buscarDadosSimulado(simuladoId: string): Promise<{ 
     titulo: string; 
     dataEncerramento: string | null;
+    duracaoMinutos: number;
   }> {
     const { data, error } = await supabase
       .from('simulados_admin')
-      .select('nome, data_encerramento')
+      .select('nome, data_encerramento, duracao_minutos')
       .eq('id', simuladoId)
       .single();
 
     if (error) throw error;
     return {
       titulo: data?.nome || '',
-      dataEncerramento: data?.data_encerramento || null
+      dataEncerramento: data?.data_encerramento || null,
+      duracaoMinutos: data?.duracao_minutos || 180
     };
   },
 

@@ -93,16 +93,8 @@ export const ModoProva = () => {
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
 
-      const { titulo, dataEncerramento: deadline } = await simuladosApi.buscarDadosSimulado(simuladoId);
+      const { titulo, dataEncerramento: deadline, duracaoMinutos } = await simuladosApi.buscarDadosSimulado(simuladoId);
       setSimuladoTitulo(titulo);
-      setDataEncerramento(deadline);
-
-      // Verifica se o simulado tem data de encerramento definida
-      if (!deadline) {
-        toast.error('Este simulado não possui data de encerramento definida.');
-        navigate('/simulados');
-        return;
-      }
 
       // Track simulado start (only once per session)
       if (!hasTrackedStart.current) {
@@ -112,12 +104,12 @@ export const ModoProva = () => {
 
       let estadoAtual = storage.carregarEstado();
       if (!estadoAtual) {
-        estadoAtual = storage.inicializarEstado(questoesData.length, deadline);
+        // Inicializa com deadline calculado baseado na duração configurada
+        estadoAtual = storage.inicializarEstado(questoesData.length, deadline, duracaoMinutos);
       }
 
-      setEstado(estadoAtual);
-      setQuestaoAtual(estadoAtual.questao_atual);
-
+      // Usa o deadline efetivo armazenado no estado (não o global)
+      setDataEncerramento(estadoAtual.deadline_efetivo);
       setEstado(estadoAtual);
       setQuestaoAtual(estadoAtual.questao_atual);
     } catch (error) {
