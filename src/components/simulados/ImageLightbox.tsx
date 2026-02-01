@@ -13,6 +13,7 @@ interface ImageLightboxProps {
  * Componente de lightbox para ampliar imagens no Modo Prova.
  * Exibe thumbnail clicável com indicador de zoom no hover.
  * Ao clicar, abre dialog fullscreen com imagem ampliada e zoom interativo.
+ * Suporta pinch-to-zoom em dispositivos touch.
  */
 export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   const [open, setOpen] = useState(false);
@@ -21,6 +22,11 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const positionStart = useRef({ x: 0, y: 0 });
+  
+  // Touch/pinch state
+  const lastTouchDistance = useRef<number | null>(null);
+  const lastTouchCenter = useRef({ x: 0, y: 0 });
+  const initialPinchScale = useRef(1);
 
   const MIN_SCALE = 1;
   const MAX_SCALE = 4;
@@ -54,6 +60,7 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
     }
   }, [handleZoomIn, handleZoomOut]);
 
+  // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (scale > 1) {
       setIsDragging(true);
@@ -79,10 +86,8 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
 
   // Clicar na imagem aplica zoom ou reseta
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Se estiver arrastando, não faz nada
     if (isDragging) return;
     
-    // Se não moveu significativamente (clique simples)
     const movedX = Math.abs(e.clientX - dragStart.current.x);
     const movedY = Math.abs(e.clientY - dragStart.current.y);
     
@@ -97,11 +102,97 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
     }
   }, [scale, isDragging, handleReset]);
 
+  // Touch handlers para pinch-to-zoom
+  const getTouchDistance = (touches: React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const getTouchCenter = (touches: React.TouchList) => {
+    if (touches.length < 2) {
+      return { x: touches[0].clientX, y: touches[0].clientY };
+    }
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2,
+    };
+  };
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // Pinch start
+      e.preventDefault();
+      lastTouchDistance.current = getTouchDistance(e.touches);
+      lastTouchCenter.current = getTouchCenter(e.touches);
+      initialPinchScale.current = scale;
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Single touch drag
+      setIsDragging(true);
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      positionStart.current = { ...position };
+    }
+  }, [scale, position]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+      // Pinch zoom
+      e.preventDefault();
+      const currentDistance = getTouchDistance(e.touches);
+      const scaleChange = currentDistance / lastTouchDistance.current;
+      const newScale = Math.min(Math.max(initialPinchScale.current * scaleChange, MIN_SCALE), MAX_SCALE);
+      
+      setScale(newScale);
+      
+      // Reset position if returning to 1x
+      if (newScale <= MIN_SCALE) {
+        setPosition({ x: 0, y: 0 });
+      }
+    } else if (e.touches.length === 1 && isDragging && scale > 1) {
+      // Single touch drag
+      const dx = e.touches[0].clientX - dragStart.current.x;
+      const dy = e.touches[0].clientY - dragStart.current.y;
+      setPosition({
+        x: positionStart.current.x + dx,
+        y: positionStart.current.y + dy,
+      });
+    }
+  }, [isDragging, scale]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) {
+      lastTouchDistance.current = null;
+    }
+    if (e.touches.length === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  // Double tap to zoom
+  const lastTapTime = useRef(0);
+  const handleTap = useCallback((e: React.TouchEvent) => {
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapTime.current;
+    
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      // Double tap detected
+      e.preventDefault();
+      if (scale === 1) {
+        setScale(2);
+      } else {
+        handleReset();
+      }
+    }
+    lastTapTime.current = now;
+  }, [scale, handleReset]);
+
   const handleOpenChange = useCallback((newOpen: boolean) => {
     setOpen(newOpen);
     if (!newOpen) {
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      lastTouchDistance.current = null;
     }
   }, []);
 
@@ -127,11 +218,11 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
           className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-0 bg-black/95 flex items-center justify-center overflow-hidden group/lightbox"
           aria-describedby={undefined}
         >
-          {/* Botão de fechar - visível apenas no hover */}
+          {/* Botão de fechar - sempre visível em touch, hover em desktop */}
           <button
             type="button"
             onClick={() => handleOpenChange(false)}
-            className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-all opacity-0 group-hover/lightbox:opacity-100"
+            className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-all sm:opacity-0 sm:group-hover/lightbox:opacity-100"
             aria-label="Fechar"
           >
             <X className="h-6 w-6 text-white" />
@@ -140,10 +231,11 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
           {/* Container da imagem com zoom e pan */}
           <div
             className={cn(
-              "max-w-[90vw] max-h-[90vh] overflow-hidden",
+              "max-w-[90vw] max-h-[90vh] overflow-hidden touch-none",
               scale > 1 ? "cursor-grab" : "cursor-zoom-in",
               isDragging && "cursor-grabbing"
             )}
+            // Mouse events
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={(e) => {
@@ -152,6 +244,13 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
             }}
             onMouseLeave={handleMouseUp}
             onWheel={handleWheel}
+            // Touch events
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={(e) => {
+              handleTap(e);
+              handleTouchEnd(e);
+            }}
           >
             <img
               src={src}
