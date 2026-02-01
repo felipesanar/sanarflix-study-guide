@@ -1,35 +1,30 @@
 
-# Ampliacao de Imagens no Modo Prova
+# Geracao de Gabarito em PDF na Pagina de Desempenho
 
 ## Objetivo
 
-Implementar funcionalidade de lightbox/zoom para as imagens das questoes no Modo Prova, permitindo que o aluno clique na imagem para visualiza-la em tamanho maior em um overlay fullscreen.
+Adicionar funcionalidade para gerar e baixar um PDF contendo o gabarito completo do simulado selecionado, incluindo:
+- Informacoes do simulado (nome, data)
+- Lista de questoes com: numero, resposta do aluno, gabarito correto, resultado (acertou/errou)
+- Resumo estatistico (total de questoes, acertos, percentual)
 
 ---
 
 ## Analise do Estado Atual
 
-**Onde as imagens aparecem:**
-- `src/pages/ModoProva.tsx` (linhas 468-476): imagem do enunciado da questao
-- Campo `imagem?: string` no tipo `Questao` (src/types/simulado.ts)
+**Pagina de Desempenho (`SimuladoDesempenho.tsx`):**
+- Exibe performance do aluno por simulado selecionado
+- Utiliza RPC `get_user_performance_aggregates` para estatisticas
+- Tem seletor de simulado (`selectedSimulado`)
+- Dados disponiveis: `stats`, `ranking`, `simulados`
 
-**Componente atual:**
-```tsx
-{questaoAtualData?.imagem && (
-  <div className="mt-6">
-    <img
-      src={questaoAtualData.imagem}
-      alt="Imagem da questão"
-      className="max-w-full rounded-lg border"
-    />
-  </div>
-)}
-```
+**Dados no Banco:**
+- `questoes_simulado`: enunciado, alternativas, correta, tema, especialidade
+- `answer_progress`: user_id, simulado, question_id, resposta_usuario, correct
+- `simulados_admin`: id, nome
 
-**Recursos disponiveis:**
-- Componente `Dialog` do Radix UI ja existe em `src/components/ui/dialog.tsx`
-- Icone `ZoomIn` disponivel no lucide-react
-- Animacoes de fade/zoom ja configuradas no Dialog
+**Dependencias Atuais:**
+- Nao ha biblioteca de PDF instalada (jsPDF ou similar)
 
 ---
 
@@ -37,76 +32,126 @@ Implementar funcionalidade de lightbox/zoom para as imagens das questoes no Modo
 
 ### Abordagem
 
-Criar um componente reutilizavel `ImageLightbox` que:
-1. Exibe a imagem normalmente com indicador de clique (cursor pointer + icone de zoom)
-2. Ao clicar, abre um Dialog fullscreen com a imagem ampliada
-3. Permite fechar clicando fora, no X, ou pressionando Escape
-4. Suporta gestos de pinch-to-zoom em mobile (via CSS touch-action)
+1. Adicionar dependencia `jspdf` para geracao de PDF no cliente
+2. Criar funcao utilitaria para gerar PDF de gabarito
+3. Adicionar botao "Baixar Gabarito PDF" na pagina de desempenho
+4. Consultar dados das questoes e respostas do aluno para o simulado selecionado
+5. Gerar PDF formatado com tabela de gabarito
 
-### Integracao com Modo Prova
+### Estrutura do PDF
 
-- Substituir a `<img>` atual pelo componente `ImageLightbox`
-- Manter comportamento nativo quando nao houver imagem
-- Garantir que o lightbox funcione mesmo fora do modo tela cheia
+```text
++--------------------------------------------------+
+|           GABARITO - [Nome do Simulado]          |
+|              Data: DD/MM/AAAA                    |
++--------------------------------------------------+
+|  Aluno: [Nome]        Acertos: XX/XX (XX%)       |
++--------------------------------------------------+
+| # | Sua Resposta | Gabarito | Resultado | Tema   |
+|---|--------------|----------|-----------|--------|
+| 1 |      A       |    B     |   ERROU   | Cardio |
+| 2 |      C       |    C     |  ACERTOU  | Neuro  |
+| 3 |      -       |    D     |   N/R     | Trauma |
++--------------------------------------------------+
+```
 
 ---
 
 ## Implementacao
 
-### 1. Criar Componente ImageLightbox
+### 1. Instalar Dependencia
 
-**Arquivo:** `src/components/simulados/ImageLightbox.tsx`
+Adicionar `jspdf` ao projeto:
+```bash
+npm install jspdf
+```
 
-**Props:**
-| Prop | Tipo | Descricao |
-|------|------|-----------|
-| `src` | `string` | URL da imagem |
-| `alt` | `string` | Texto alternativo |
-| `className` | `string?` | Classes CSS extras para a thumbnail |
+### 2. Criar Utilitario de Geracao de PDF
+
+**Arquivo:** `src/utils/pdfGabarito.ts`
+
+**Funcoes:**
+| Funcao | Descricao |
+|--------|-----------|
+| `generateGabaritoPDF` | Gera e baixa o PDF com os dados do gabarito |
+
+**Parametros da funcao:**
+| Parametro | Tipo | Descricao |
+|-----------|------|-----------|
+| `simuladoNome` | `string` | Nome do simulado |
+| `alunoNome` | `string` | Nome do aluno |
+| `questoes` | `GabaritoQuestao[]` | Array com dados das questoes |
+| `stats` | `{ acertos, total, percentual }` | Estatisticas gerais |
+
+**Interface GabaritoQuestao:**
+```typescript
+interface GabaritoQuestao {
+  numero: number;
+  respostaAluno: string | null;
+  gabarito: string;
+  acertou: boolean | null; // null = nao respondida
+  tema: string;
+}
+```
+
+### 3. Buscar Dados para o PDF
+
+Criar funcao para buscar questoes e respostas do simulado selecionado:
+
+```typescript
+const fetchGabaritoData = async (simuladoId: string, userId: string) => {
+  const { data, error } = await supabase
+    .from('answer_progress')
+    .select(`
+      question_id,
+      resposta_usuario,
+      correct,
+      questoes_simulado (
+        correta,
+        tema,
+        enunciado
+      )
+    `)
+    .eq('simulado', simuladoId)
+    .eq('user_id', userId)
+    .order('question_id');
+    
+  return data;
+};
+```
+
+### 4. Integrar na Pagina de Desempenho
+
+**Alteracoes em `SimuladoDesempenho.tsx`:**
+
+1. Importar utilitario e icone
+2. Adicionar estado para loading do download
+3. Criar handler para gerar PDF
+4. Adicionar botao na UI (ao lado de "Atualizar Dados")
+
+**Posicao do botao:**
+```tsx
+<div className="flex items-center gap-4">
+  <Select ...>
+  
+  <Button 
+    onClick={handleDownloadGabarito}
+    disabled={!selectedSimulado || isDownloadingPDF}
+    variant="outline"
+    className="gap-2"
+  >
+    <FileDown className="h-4 w-4" />
+    Baixar Gabarito
+  </Button>
+  
+  <button onClick={handleRefresh}>Atualizar Dados</button>
+</div>
+```
 
 **Comportamento:**
-- Thumbnail exibe imagem com hover state (cursor-pointer, overlay sutil com icone ZoomIn)
-- Click abre Dialog fullscreen com fundo escuro (bg-black/95)
-- Imagem ampliada ocupa ate 90vw x 90vh, mantendo proporcao
-- Botao X para fechar no canto superior direito
-- Fecha ao pressionar Escape (comportamento nativo do Dialog)
-- Touch-friendly: permite scroll/zoom em dispositivos touch
-
-**Componentes utilizados:**
-- `Dialog`, `DialogContent`, `DialogClose` do Radix
-- Icone `ZoomIn` do lucide-react
-
-### 2. Integrar no ModoProva.tsx
-
-**Alteracoes:**
-1. Adicionar import do `ImageLightbox`
-2. Substituir o bloco de imagem existente pelo novo componente
-
-**Antes (linhas 468-476):**
-```tsx
-{questaoAtualData?.imagem && (
-  <div className="mt-6">
-    <img
-      src={questaoAtualData.imagem}
-      alt="Imagem da questão"
-      className="max-w-full rounded-lg border"
-    />
-  </div>
-)}
-```
-
-**Depois:**
-```tsx
-{questaoAtualData?.imagem && (
-  <div className="mt-6">
-    <ImageLightbox
-      src={questaoAtualData.imagem}
-      alt={`Imagem da questão ${questaoAtual + 1}`}
-      className="max-w-full rounded-lg border"
-    />
-  </div>
-)}
-```
+- Botao desabilitado quando "Visao Geral" esta selecionada (precisa de simulado especifico)
+- Loading state enquanto gera PDF
+- Toast de sucesso/erro apos download
 
 ---
 
@@ -116,88 +161,198 @@ Criar um componente reutilizavel `ImageLightbox` que:
 
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/components/simulados/ImageLightbox.tsx` | Componente de lightbox reutilizavel |
+| `src/utils/pdfGabarito.ts` | Utilitario para geracao de PDF de gabarito |
 
 ### Arquivos Modificados
 
 | Arquivo | Alteracoes |
 |---------|------------|
-| `src/pages/ModoProva.tsx` | Import e uso do ImageLightbox |
+| `src/pages/SimuladoDesempenho.tsx` | Import, estado, handler, botao UI |
+| `package.json` | Adicionar dependencia jspdf |
 
-### Estrutura do Componente
+### Estrutura do Utilitario
 
-```tsx
-// ImageLightbox.tsx (estrutura simplificada)
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
-import { ZoomIn, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+```typescript
+// pdfGabarito.ts
+import jsPDF from 'jspdf';
+import { format } from 'date-fns';
 
-interface ImageLightboxProps {
-  src: string;
-  alt: string;
-  className?: string;
+export interface GabaritoQuestao {
+  numero: number;
+  respostaAluno: string | null;
+  gabarito: string;
+  acertou: boolean | null;
+  tema: string;
 }
 
-export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
-  const [open, setOpen] = useState(false);
+export interface GabaritoStats {
+  acertos: number;
+  total: number;
+  percentual: number;
+}
 
-  return (
-    <>
-      {/* Thumbnail clicavel */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="relative group cursor-zoom-in"
-        aria-label="Ampliar imagem"
-      >
-        <img src={src} alt={alt} className={className} />
-        {/* Overlay com icone de zoom */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-          <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" />
-        </div>
-      </button>
+export const generateGabaritoPDF = (
+  simuladoNome: string,
+  alunoNome: string,
+  questoes: GabaritoQuestao[],
+  stats: GabaritoStats
+): void => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Cabecalho
+  doc.setFontSize(18);
+  doc.text('GABARITO', pageWidth / 2, 20, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text(simuladoNome, pageWidth / 2, 30, { align: 'center' });
+  
+  // Informacoes do aluno
+  doc.setFontSize(10);
+  doc.text(`Aluno: ${alunoNome}`, 14, 45);
+  doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 52);
+  doc.text(`Resultado: ${stats.acertos}/${stats.total} (${stats.percentual}%)`, pageWidth - 14, 45, { align: 'right' });
+  
+  // Tabela de questoes (manual, sem autotable para manter bundle leve)
+  let yPos = 65;
+  const lineHeight = 8;
+  const colWidths = [15, 30, 25, 30, 80];
+  const headers = ['#', 'Resposta', 'Gabarito', 'Resultado', 'Tema'];
+  
+  // Header da tabela
+  doc.setFillColor(79, 70, 229); // primary color
+  doc.rect(14, yPos, pageWidth - 28, lineHeight, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(9);
+  
+  let xPos = 14;
+  headers.forEach((header, i) => {
+    doc.text(header, xPos + 2, yPos + 5.5);
+    xPos += colWidths[i];
+  });
+  
+  yPos += lineHeight;
+  doc.setTextColor(0, 0, 0);
+  
+  // Linhas de dados
+  questoes.forEach((q, index) => {
+    // Nova pagina se necessario
+    if (yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    // Cor de fundo alternada
+    if (index % 2 === 0) {
+      doc.setFillColor(249, 250, 251);
+      doc.rect(14, yPos, pageWidth - 28, lineHeight, 'F');
+    }
+    
+    xPos = 14;
+    const resultado = q.acertou === null ? 'N/R' : (q.acertou ? 'ACERTOU' : 'ERROU');
+    const resposta = q.respostaAluno || '-';
+    const row = [String(q.numero), resposta, q.gabarito, resultado, q.tema];
+    
+    // Cor do resultado
+    if (q.acertou === true) doc.setTextColor(34, 197, 94);
+    else if (q.acertou === false) doc.setTextColor(239, 68, 68);
+    else doc.setTextColor(156, 163, 175);
+    
+    row.forEach((cell, i) => {
+      if (i === 3) { /* resultado ja tem cor */ }
+      else doc.setTextColor(0, 0, 0);
+      
+      doc.text(cell.substring(0, 25), xPos + 2, yPos + 5.5);
+      xPos += colWidths[i];
+    });
+    
+    doc.setTextColor(0, 0, 0);
+    yPos += lineHeight;
+  });
+  
+  // Salvar
+  doc.save(`gabarito_${simuladoNome.replace(/\s+/g, '_')}.pdf`);
+};
+```
 
-      {/* Dialog fullscreen */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0 bg-transparent">
-          <DialogClose className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2">
-            <X className="h-6 w-6 text-white" />
-          </DialogClose>
-          <img
-            src={src}
-            alt={alt}
-            className="max-w-full max-h-[90vh] object-contain mx-auto"
-          />
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+### Handler na Pagina
+
+```typescript
+const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+
+const handleDownloadGabarito = async () => {
+  if (!selectedSimulado || !user) return;
+  
+  setIsDownloadingPDF(true);
+  try {
+    // Buscar dados das questoes e respostas
+    const { data: answers, error } = await supabase
+      .from('answer_progress')
+      .select(`
+        question_id,
+        resposta_usuario,
+        correct,
+        questoes_simulado!inner (
+          correta,
+          tema
+        )
+      `)
+      .eq('simulado', selectedSimulado)
+      .eq('user_id', user.id);
+    
+    if (error) throw error;
+    
+    // Mapear para formato do PDF
+    const questoes: GabaritoQuestao[] = (answers || []).map((a, index) => ({
+      numero: index + 1,
+      respostaAluno: a.resposta_usuario?.toUpperCase() || null,
+      gabarito: (a.questoes_simulado as any)?.correta || '-',
+      acertou: a.resposta_usuario ? a.correct : null,
+      tema: (a.questoes_simulado as any)?.tema || '-',
+    }));
+    
+    // Nome do simulado
+    const simuladoInfo = simulados.find(s => s.id === selectedSimulado);
+    const simuladoNome = simuladoInfo?.nome || 'Simulado';
+    
+    // Gerar PDF
+    generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, {
+      acertos: stats?.acertos || 0,
+      total: stats?.total || 0,
+      percentual: stats?.percentual || 0,
+    });
+    
+    toast({ title: 'Gabarito gerado!', description: 'O PDF foi baixado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao gerar PDF:', error);
+    toast({ title: 'Erro', description: 'Nao foi possivel gerar o gabarito.', variant: 'destructive' });
+  } finally {
+    setIsDownloadingPDF(false);
+  }
 };
 ```
 
 ### Consideracoes de UX
 
-1. **Indicador visual**: Overlay com icone ZoomIn aparece no hover
-2. **Cursor**: `cursor-zoom-in` indica que a imagem e clicavel
-3. **Acessibilidade**: `aria-label` no botao, alt text preservado
-4. **Mobile**: Touch-friendly, sem conflito com scroll da pagina
-5. **Escape**: Fecha automaticamente (comportamento nativo do Dialog)
+1. **Botao contextual**: So aparece habilitado quando um simulado especifico esta selecionado
+2. **Loading state**: Icone de spinner durante geracao
+3. **Feedback**: Toast confirmando download ou erro
+4. **Nome do arquivo**: `gabarito_[nome_simulado].pdf` para facil identificacao
 
 ### Consideracoes de Performance
 
-- Imagem carrega apenas uma vez (mesmo src para thumbnail e ampliada)
-- Dialog e lazy-rendered (so monta no DOM quando aberto)
-- Animacoes leves via CSS (fade-in/zoom-in existentes)
+- PDF gerado no cliente (sem backend)
+- Biblioteca jspdf e leve (~200KB gzipped)
+- Dados buscados sob demanda (apenas ao clicar)
+- Paginacao automatica para simulados longos
 
 ---
 
 ## Validacao
 
-1. Verificar que imagens da questao exibem indicador de zoom no hover
-2. Clicar na imagem abre o lightbox fullscreen
-3. Fechar via X, clique fora, ou Escape funciona
-4. Imagem ampliada mantem proporcao e nao extrapola a tela
-5. Funciona corretamente em dispositivos touch
-6. Nao interfere com atalhos de teclado do Modo Prova (1-4, setas, F, Esc)
-7. Funciona mesmo quando fora do modo tela cheia
+1. Selecionar um simulado especifico e clicar em "Baixar Gabarito"
+2. Verificar que PDF contem cabecalho com nome do simulado
+3. Confirmar que tabela mostra numero, resposta, gabarito, resultado e tema
+4. Testar com simulado de muitas questoes (>30) para verificar paginacao
+5. Verificar cores: verde para acertos, vermelho para erros, cinza para N/R
+6. Confirmar que botao fica desabilitado na "Visao Geral"
+7. Testar em dispositivos moveis (download funciona)
