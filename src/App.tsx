@@ -18,7 +18,6 @@ import { getAccessRules } from '@/utils/accessRules';
 import { useDataPrefetch } from '@/hooks/useDataPrefetch';
 const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default: m.StudyGuide })));
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
-const IntensivaoEnamed = lazy(() => import("./pages/IntensivaoEnamed").then(m => ({ default: m.IntensivaoEnamed })));
 const SimuladoDesempenho = lazy(() => import("./pages/SimuladoDesempenho").then(m => ({ default: m.SimuladoDesempenho })));
 const Simulados = lazy(() => import("./pages/Simulados"));
 const ModoProva = lazy(() => import("./pages/ModoProva"));
@@ -28,7 +27,6 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
-const CronogramaEnamed = lazy(() => import("./pages/CronogramaEnamed").then(m => ({ default: m.CronogramaEnamed })));
 import { ThemeProvider } from "next-themes";
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
@@ -37,7 +35,6 @@ import { PageTransition } from '@/components/PageTransition';
 import { PageWrapper } from '@/components/PageWrapper';
 import { PageLoader } from '@/components/PageLoader';
 import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton, IntensivaoSkeleton } from '@/components/skeletons';
-const IntensivoEnamedUSCS = lazy(() => import("./pages/IntensivoEnamedUSCS"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const SanarClass = lazy(() => import("./pages/SanarClass"));
 const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
@@ -210,25 +207,6 @@ const AppContent = () => {
               />
             )}
 
-            {/* Intensivão ENAMED - Temporariamente desabilitado */}
-
-            {accessRules.cronogramaEnamed && (
-              <Route
-                path="/cronograma-enamed"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando cronograma..."
-                      waitForData={true}
-                      skeleton={<IntensivaoSkeleton />}
-                    >
-                      <CronogramaEnamed />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
             {accessRules.userManagement && (
               <Route
                 path="/gestao-usuarios"
@@ -239,22 +217,6 @@ const AppContent = () => {
                       waitForData={true}
                     >
                       <UserManagement />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
-            {accessRules.intensivoUSCS && (
-              <Route
-                path="/intensivo-uscs"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando intensivo USCS..."
-                      waitForData={true}
-                    >
-                      <IntensivoEnamedUSCS />
                     </PageWrapper>
                   </ProtectedRoute>
                 }

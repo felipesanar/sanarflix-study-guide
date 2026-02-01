@@ -10,14 +10,12 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
   '/home': {
     '/guia-estudos': 0.7,
     '/desempenho-simulado': 0.4,
-    
     '/dashboard': 0.3,
-    '/cronograma-enamed': 0.25,
+    '/simulados': 0.5,
   },
   '/guia-estudos': {
     '/home': 0.5,
     '/desempenho-simulado': 0.3,
-    
   },
   '/desempenho-simulado': {
     '/guia-estudos': 0.6,
@@ -29,14 +27,13 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
     '/analytics': 0.4,
     '/home': 0.3,
   },
-  '/cronograma-enamed': {
-    
-    '/guia-estudos': 0.4,
-    '/home': 0.3,
-  },
   '/analytics': {
     '/dashboard': 0.6,
     '/home': 0.4,
+  },
+  '/simulados': {
+    '/home': 0.4,
+    '/desempenho-simulado': 0.5,
   },
 };
 
@@ -46,11 +43,10 @@ const ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/guia-estudos': () => import('../pages/StudyGuide'),
   '/desempenho-simulado': () => import('../pages/SimuladoDesempenho'),
   '/dashboard': () => import('../pages/Dashboard'),
-  
-  '/cronograma-enamed': () => import('../pages/CronogramaEnamed'),
   '/analytics': () => import('../pages/Analytics'),
   '/gestao-usuarios': () => import('../pages/UserManagement'),
-  '/intensivo-uscs': () => import('../pages/IntensivoEnamedUSCS'),
+  '/simulados': () => import('../pages/Simulados'),
+  '/sanarclass': () => import('../pages/SanarClass'),
 };
 
 interface NavigationHistory {
