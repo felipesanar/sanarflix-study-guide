@@ -1,135 +1,170 @@
 
+# Plano: Botao "Como usar o Modo Simulado" + Modal Tutorial Interativo
 
-# Plan: Fix Simulado Re-Release Flow - Complete Solution
+## Objetivo
+Criar um botao destacado na pagina de Simulados que abre um modal bonito, interativo e educativo explicando todas as funcionalidades do Modo Prova para que o usuario possa fazer a melhor prova possivel.
 
-## Problem Summary
+---
 
-After an admin releases a simulado for a student to retake (sets `liberado_novamente = true`), and the student completes the new attempt:
+## Componentes a Serem Criados
 
-1. **Bug 1**: The simulado still shows as "available" instead of "concluido" (blocked)
-2. **Bug 2**: The old finalization record still has `liberado_novamente = true` instead of being replaced with a new clean record
-3. **Bug 3**: Only one record appears in the "Liberacoes" tab, and it's the old one with `liberado_novamente = true`
-4. **Bug 4**: Performance data still shows the old attempt's results (previously addressed but incomplete)
+### 1. Novo Componente: `HowToUseSimuladoModal.tsx`
+**Localizacao:** `src/components/simulados/HowToUseSimuladoModal.tsx`
 
-## Root Cause Analysis
+Modal interativo com design premium contendo:
 
-The edge function `corrigir-simulado` has a flawed logic flow:
+**Estrutura Visual:**
+- Header com gradiente e icone chamativo
+- Navegacao em steps/tabs para organizar o conteudo
+- Animacoes suaves com Framer Motion
+- Cards com icones ilustrativos para cada funcionalidade
 
-1. **Condition Flaw**: The cleanup code (delete old answers + finalization) only runs when `existingAnswers.length > 0` (lines 88-130). If answers were deleted but finalization record wasn't, the cleanup block is skipped.
+**Secoes do Tutorial (Steps):**
 
-2. **Insert Failure**: After cleanup, a new insert attempts to create a finalization record. But if the old record wasn't deleted (due to the condition flaw), the insert fails with `23505` (unique constraint violation) and is silently ignored.
+1. **Bem-vindo ao Modo Prova**
+   - Introducao ao ambiente de prova
+   - Dicas de preparacao (ambiente silencioso, tela cheia, etc.)
+   
+2. **Navegacao e Interface**
+   - Barra de progresso no topo
+   - Cronometro regressivo
+   - Navegacao lateral com codigo de cores (verde=respondida, azul=revisao, cinza=nao respondida)
+   - Botoes Anterior/Proxima
 
-3. **Status Check**: The frontend checks `simulados_finalizados` for `liberado_novamente = false` to determine if blocked. Since the old record still has `liberado_novamente = true`, the simulado appears available.
+3. **Respondendo Questoes**
+   - Como selecionar alternativas (clique ou teclas 1-4)
+   - Como eliminar alternativas (icone de lixeira)
+   - Como restaurar alternativas eliminadas
+   
+4. **Marcacao para Revisao**
+   - Botao "Revisar" para marcar questoes
+   - Identificacao na navegacao lateral (cor azul)
+   - Tecla F como atalho
 
-## Solution
+5. **Atalhos de Teclado**
+   - Grid visual com todos os atalhos:
+     - 1/2/3/4: Alternativas A/B/C/D
+     - Setas: Navegacao
+     - F: Marcar para revisao
+     - Esc: Finalizar
 
-### Part 1: Fix Edge Function `corrigir-simulado/index.ts`
+6. **Finalizacao**
+   - Resumo de questoes respondidas
+   - Questoes marcadas para revisao
+   - Confirmacao de envio
+   - O que acontece apos finalizar
 
-Restructure the logic to:
-1. Always check for existing finalization record first
-2. Handle the re-release cleanup **independently** of whether answers exist
-3. Ensure the new finalization record is created correctly
+**Elementos de UI:**
+- Indicador de progresso no modal (dots ou steps)
+- Botoes "Anterior" e "Proximo" para navegar
+- Botao "Entendi, vamos comecar!" no final
+- Icones do Lucide para cada funcionalidade
+- Badges e cards com bordas suaves
 
-**Key Changes:**
-- Move finalization record check before answer check
-- Add explicit cleanup for finalization record when `liberado_novamente = true`
-- Ensure new record is created with `liberado_novamente = false` explicitly
+---
 
+### 2. Atualizacao: Pagina `Simulados.tsx`
+**Localizacao:** `src/pages/Simulados.tsx`
+
+**Alteracoes:**
+- Adicionar botao "Como usar o Modo Simulado" no header
+- Posicionamento responsivo:
+  - **Desktop:** Lado direito do titulo
+  - **Mobile:** Abaixo do subtitulo, largura total
+- Estado para controlar abertura do modal
+- Import do novo componente
+
+**Estilo do Botao:**
+- Gradiente de fundo (primary para accent)
+- Icone HelpCircle ou Lightbulb
+- Hover com elevacao e glow sutil
+- Bordas arredondadas
+- Texto: "Como usar o Modo Simulado"
+
+---
+
+## Detalhes Tecnicos
+
+### Dependencias Utilizadas
+- `framer-motion`: Animacoes de entrada/transicao entre steps
+- `lucide-react`: Icones (HelpCircle, Keyboard, Flag, ArrowLeft, ArrowRight, Trash2, Check, Timer, etc.)
+- `@radix-ui/react-dialog`: Base do modal (via componente Dialog existente)
+- Componentes UI existentes: Button, Badge, Card, Dialog
+
+### Responsividade
+- Modal com `max-w-2xl` em desktop
+- Steps empilhados verticalmente em mobile
+- Botao do header adaptativo (flex row em desktop, column em mobile)
+- Scroll interno no modal se necessario
+
+### Animacoes
+```text
+Entrada do modal: fade-in + scale-in
+Transicao entre steps: slide horizontal com fade
+Cards: hover com elevacao sutil
+Icones: pulse sutil em destaque
 ```
-// New logic flow:
-1. Check for existing finalization record (with liberado_novamente status)
-2. Check for existing answers
 
-3. If finalization exists and liberado_novamente = true:
-   - Delete old finalization record
-   - Delete old answers (if any exist)
-   - Continue to process new attempt
+### Acessibilidade
+- Focus trap no modal
+- Navegacao por teclado entre steps
+- Aria labels descritivos
+- Contraste adequado
 
-4. Else if finalization exists and liberado_novamente = false:
-   - If answers exist: return idempotency response
-   - If no answers: something is wrong, but proceed anyway
+---
 
-5. Process new answers and create new finalization record
-```
+## Estrutura de Arquivos
 
-### Part 2: Fix Frontend Status Check in `SimuladosDisponiveis.tsx`
-
-The current logic correctly checks `liberado_novamente` status, but there's no issue here once the backend is fixed. The frontend will work correctly once the edge function creates proper records.
-
-### Part 3: Fix Liberacoes Tab Display
-
-Currently, the tab shows the old record with `liberado_novamente = true`. After the fix, when the student completes the second attempt:
-- Old record is deleted
-- New record is created with `liberado_novamente = false`
-- The new attempt appears as a fresh finalization
-
-### Technical Implementation Details
-
-**Edge Function Changes (`supabase/functions/corrigir-simulado/index.ts`):**
-
-```typescript
-// Step 1: Check for existing finalization
-const { data: finalizacaoExistente } = await supabaseAdmin
-  .from('simulados_finalizados')
-  .select('id, liberado_novamente')
-  .eq('user_id', user_id)
-  .eq('simulado_id', simulado_id)
-  .maybeSingle();
-
-// Step 2: Handle re-release scenario FIRST (before checking answers)
-if (finalizacaoExistente && finalizacaoExistente.liberado_novamente) {
-  // User was re-released, clean up everything
-  await supabaseAdmin.from('answer_progress')
-    .delete()
-    .eq('user_id', user_id)
-    .eq('simulado', simulado_id);
-
-  await supabaseAdmin.from('simulados_finalizados')
-    .delete()
-    .eq('id', finalizacaoExistente.id);
+```text
+src/components/simulados/
+  HowToUseSimuladoModal.tsx  (NOVO)
   
-  // Proceed to process new attempt
-}
-
-// Step 3: Handle duplicate submission (not re-released)
-else if (finalizacaoExistente && !finalizacaoExistente.liberado_novamente) {
-  return Response with "already processed"
-}
-
-// Step 4: Process answers and create new finalization record
-// (existing code, but ensure liberado_novamente is explicitly false)
+src/pages/
+  Simulados.tsx              (ATUALIZADO)
 ```
 
-**New Finalization Insert (explicit fields):**
-```typescript
-const { error: finalizadoError } = await supabaseAdmin
-  .from('simulados_finalizados')
-  .insert({
-    user_id: user_id,
-    simulado_id: simulado_id,
-    tempo_total_segundos: tempo_total_segundos,
-    saidas_de_aba: saidas_de_aba,
-    saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
-    finalizado_em: finalizadoEmTimestamp,
-    liberado_novamente: false,  // Explicitly set
-    liberado_em: null,
-    liberado_por: null
-  });
+---
+
+## Fluxo de Usuario
+
+1. Usuario acessa `/simulados`
+2. Ve o botao destacado "Como usar o Modo Simulado"
+3. Clica no botao
+4. Modal abre com animacao suave
+5. Navega pelos steps do tutorial
+6. Finaliza clicando em "Entendi!" ou fechando o modal
+7. Continua para escolher e iniciar um simulado
+
+---
+
+## Exemplo Visual do Modal
+
+```text
++--------------------------------------------------+
+|  [X]                                             |
+|                                                  |
+|  [icone] Como usar o Modo Simulado               |
+|                                                  |
+|  [1] [2] [3] [4] [5] [6]  <- indicador de steps  |
+|                                                  |
+|  +--------------------------------------------+  |
+|  |  [icone grande]                            |  |
+|  |                                            |  |
+|  |  Titulo do Step                            |  |
+|  |                                            |  |
+|  |  Descricao detalhada com cards             |  |
+|  |  ilustrativos e exemplos visuais           |  |
+|  |                                            |  |
+|  +--------------------------------------------+  |
+|                                                  |
+|  [<- Anterior]            [Proximo ->]          |
++--------------------------------------------------+
 ```
 
-## Files to Modify
+---
 
-1. `supabase/functions/corrigir-simulado/index.ts` - Restructure cleanup and insert logic
+## Estimativa
 
-## Testing Checklist
-
-After implementation:
-1. Admin releases simulado for a user
-2. User completes the new attempt
-3. Verify:
-   - Simulado shows as "concluido" (not "disponivel")
-   - New finalization record exists with `liberado_novamente = false`
-   - Liberacoes tab shows the new attempt (not the old one)
-   - Performance page shows data from the new attempt only
-   - User cannot access the simulado again
-
+- Criacao do componente modal: principal entrega
+- Atualizacao da pagina Simulados: ajuste simples
+- Testes visuais em desktop e mobile: validacao final
