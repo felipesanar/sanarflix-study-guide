@@ -53,6 +53,8 @@ interface Simulado {
   status: 'aguardando' | 'ativo' | 'encerrado';
   created_at: string;
   questoes_count?: number;
+  liberacao_desempenho?: 'imediato' | 'agendado' | 'ao_encerrar';
+  data_liberacao_desempenho?: string | null;
 }
 
 interface Questao {
@@ -179,7 +181,9 @@ export default function SimuladosTab() {
         duracao_minutos: s.duracao_minutos,
         status: calcularStatusSimulado(s.data_liberacao, s.data_encerramento, s.status) as 'aguardando' | 'ativo' | 'encerrado',
         created_at: s.created_at,
-        questoes_count: s.questoes_simulado?.[0]?.count || 0
+        questoes_count: s.questoes_simulado?.[0]?.count || 0,
+        liberacao_desempenho: (s.liberacao_desempenho || 'imediato') as 'imediato' | 'agendado' | 'ao_encerrar',
+        data_liberacao_desempenho: s.data_liberacao_desempenho
       }));
 
       setSimulados(simuladosComContagem);
@@ -842,6 +846,34 @@ export default function SimuladosTab() {
     );
   };
 
+  const getLiberacaoDesempenhoBadge = (simulado: Simulado) => {
+    const liberacao = simulado.liberacao_desempenho || 'imediato';
+    
+    const liberacaoConfig: Record<string, { label: string; className: string; sublabel?: string }> = {
+      imediato: { label: 'Imediato', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      agendado: { 
+        label: 'Agendado', 
+        className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+        sublabel: simulado.data_liberacao_desempenho 
+          ? format(toBrazilDate(simulado.data_liberacao_desempenho), 'dd/MM HH:mm')
+          : undefined
+      },
+      ao_encerrar: { label: 'Ao Encerrar', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' }
+    };
+
+    const config = liberacaoConfig[liberacao] || liberacaoConfig.imediato;
+    return (
+      <div className="flex flex-col gap-0.5">
+        <Badge variant="outline" className={config.className}>
+          {config.label}
+        </Badge>
+        {config.sublabel && (
+          <span className="text-xs text-muted-foreground">{config.sublabel}</span>
+        )}
+      </div>
+    );
+  };
+
   const filteredSimulados = simulados.filter(s => {
     const matchesSearch = s.nome.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'todos' || s.status === statusFilter;
@@ -958,6 +990,7 @@ export default function SimuladosTab() {
                     <TableHead>Nome</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Questões</TableHead>
+                    <TableHead>Lib. Desempenho</TableHead>
                     <TableHead>Data de Criação</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -968,6 +1001,9 @@ export default function SimuladosTab() {
                       <TableCell className="font-medium">{simulado.nome}</TableCell>
                       <TableCell>{getStatusBadge(simulado)}</TableCell>
                       <TableCell>{simulado.questoes_count || 0}</TableCell>
+                      <TableCell>
+                        {getLiberacaoDesempenhoBadge(simulado)}
+                      </TableCell>
                       <TableCell>
                         {format(toBrazilDate(simulado.created_at), 'dd/MM/yyyy')}
                       </TableCell>
