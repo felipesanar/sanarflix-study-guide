@@ -22,7 +22,7 @@ export const AlternativaProva = ({
   return (
     <button
       className={cn(
-        'group relative p-4 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary w-full text-left',
+        'group relative p-4 border-2 rounded-xl transition-all duration-200 focus:outline-none w-full text-left',
         selecionada && 'border-green-500 bg-green-500/10 shadow-md',
         !selecionada && !eliminada && 'border-border hover:border-primary/50 hover:bg-muted/30',
         eliminada && 'opacity-40 bg-muted/20 cursor-not-allowed'
