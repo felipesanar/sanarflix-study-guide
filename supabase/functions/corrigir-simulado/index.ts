@@ -235,26 +235,48 @@ Deno.serve(async (req) => {
     console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados (tentativa ${proximaTentativa})...`);
     console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}`);
 
-    const { error: finalizadoError } = await supabaseAdmin
-      .from('simulados_finalizados')
-      .insert({
-        user_id: user_id,
-        simulado_id: simulado_id,
-        tempo_total_segundos: tempo_total_segundos,
-        saidas_de_aba: saidas_de_aba,
-        saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
-        finalizado_em: finalizadoEmTimestamp,
-        // Explicitamente setar como false para nova tentativa
-        liberado_novamente: false,
-        liberado_em: null,
-        liberado_por: null,
-        tentativa_numero: proximaTentativa
-      });
+    // Se existe finalização anterior (re-tentativa), atualizar ao invés de inserir
+    if (finalizacaoExistente) {
+      const { error: updateError } = await supabaseAdmin
+        .from('simulados_finalizados')
+        .update({
+          tempo_total_segundos: tempo_total_segundos,
+          saidas_de_aba: saidas_de_aba,
+          saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
+          finalizado_em: finalizadoEmTimestamp,
+          liberado_novamente: false,
+          liberado_em: null,
+          liberado_por: null,
+          tentativa_numero: proximaTentativa
+        })
+        .eq('id', finalizacaoExistente.id);
 
-    if (finalizadoError) {
-      console.error('[corrigir-simulado] ERRO CRÍTICO ao registrar finalização:', finalizadoError);
-      throw new Error(`Falha ao registrar finalização: ${finalizadoError.message}`);
+      if (updateError) {
+        console.error('[corrigir-simulado] ERRO CRÍTICO ao atualizar finalização:', updateError);
+        throw new Error(`Falha ao atualizar finalização: ${updateError.message}`);
+      }
+      console.log(`[corrigir-simulado] Finalização atualizada com sucesso! tentativa_numero=${proximaTentativa}, liberado_novamente=false`);
     } else {
+      // Primeira tentativa - inserir novo registro
+      const { error: finalizadoError } = await supabaseAdmin
+        .from('simulados_finalizados')
+        .insert({
+          user_id: user_id,
+          simulado_id: simulado_id,
+          tempo_total_segundos: tempo_total_segundos,
+          saidas_de_aba: saidas_de_aba,
+          saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
+          finalizado_em: finalizadoEmTimestamp,
+          liberado_novamente: false,
+          liberado_em: null,
+          liberado_por: null,
+          tentativa_numero: proximaTentativa
+        });
+
+      if (finalizadoError) {
+        console.error('[corrigir-simulado] ERRO CRÍTICO ao registrar finalização:', finalizadoError);
+        throw new Error(`Falha ao registrar finalização: ${finalizadoError.message}`);
+      }
       console.log(`[corrigir-simulado] Finalização registrada com sucesso! tentativa_numero=${proximaTentativa}, liberado_novamente=false`);
     }
 
