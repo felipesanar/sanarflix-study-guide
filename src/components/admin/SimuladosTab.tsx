@@ -607,6 +607,50 @@ export default function SimuladosTab() {
     }
   };
 
+  const handleSaveQuestao = async () => {
+    if (!editingQuestao || !editingQuestao.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('questoes_simulado')
+        .update({
+          enunciado: editingQuestao.enunciado,
+          alternativa_a: editingQuestao.alternativa_a,
+          alternativa_b: editingQuestao.alternativa_b,
+          alternativa_c: editingQuestao.alternativa_c,
+          alternativa_d: editingQuestao.alternativa_d,
+          alternativa_e: editingQuestao.alternativa_e,
+          correta: editingQuestao.correta,
+          comentario: editingQuestao.comentario,
+          grande_area: editingQuestao.grande_area,
+          especialidade: editingQuestao.especialidade,
+          tema: editingQuestao.tema,
+          grau_dificuldade: editingQuestao.grau_dificuldade,
+          imagem: editingQuestao.imagem
+        })
+        .eq('id', editingQuestao.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Questão atualizada!',
+        description: 'As alterações foram salvas com sucesso.'
+      });
+
+      // Atualizar a lista de questões na visualização
+      setQuestoesVisualizacao(prev => 
+        prev.map(q => q.id === editingQuestao.id ? editingQuestao : q)
+      );
+      setEditingQuestao(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar questão',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleTornarIndisponivel = async (simulado: Simulado) => {
     try {
       const { error } = await supabase
@@ -1358,6 +1402,175 @@ export default function SimuladosTab() {
             >
               {anulando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Ban className="h-4 w-4 mr-2" />}
               Confirmar Anulação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição de Questão */}
+      <Dialog open={!!editingQuestao} onOpenChange={(open) => !open && setEditingQuestao(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5" />
+              Editar Questão {editingQuestao?.ordem}
+            </DialogTitle>
+            <DialogDescription>
+              Edite os dados da questão abaixo
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingQuestao && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-grande-area">Grande Área</Label>
+                  <Input
+                    id="edit-grande-area"
+                    value={editingQuestao.grande_area || ''}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, grande_area: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-especialidade">Especialidade</Label>
+                  <Input
+                    id="edit-especialidade"
+                    value={editingQuestao.especialidade || ''}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, especialidade: e.target.value })}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-tema">Tema</Label>
+                  <Input
+                    id="edit-tema"
+                    value={editingQuestao.tema || ''}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, tema: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-dificuldade">Dificuldade</Label>
+                  <Select
+                    value={editingQuestao.grau_dificuldade || ''}
+                    onValueChange={(value) => setEditingQuestao({ ...editingQuestao, grau_dificuldade: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Fácil">Fácil</SelectItem>
+                      <SelectItem value="Média">Média</SelectItem>
+                      <SelectItem value="Difícil">Difícil</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-enunciado">Enunciado</Label>
+                <Textarea
+                  id="edit-enunciado"
+                  value={editingQuestao.enunciado}
+                  onChange={(e) => setEditingQuestao({ ...editingQuestao, enunciado: e.target.value })}
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-imagem">URL da Imagem (opcional)</Label>
+                <Input
+                  id="edit-imagem"
+                  value={editingQuestao.imagem || ''}
+                  onChange={(e) => setEditingQuestao({ ...editingQuestao, imagem: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <Label htmlFor="edit-alt-a">Alternativa A</Label>
+                  <Input
+                    id="edit-alt-a"
+                    value={editingQuestao.alternativa_a}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, alternativa_a: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-alt-b">Alternativa B</Label>
+                  <Input
+                    id="edit-alt-b"
+                    value={editingQuestao.alternativa_b}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, alternativa_b: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-alt-c">Alternativa C</Label>
+                  <Input
+                    id="edit-alt-c"
+                    value={editingQuestao.alternativa_c}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, alternativa_c: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-alt-d">Alternativa D</Label>
+                  <Input
+                    id="edit-alt-d"
+                    value={editingQuestao.alternativa_d}
+                    onChange={(e) => setEditingQuestao({ ...editingQuestao, alternativa_d: e.target.value })}
+                  />
+                </div>
+                {editingQuestao.alternativa_e !== null && (
+                  <div>
+                    <Label htmlFor="edit-alt-e">Alternativa E</Label>
+                    <Input
+                      id="edit-alt-e"
+                      value={editingQuestao.alternativa_e || ''}
+                      onChange={(e) => setEditingQuestao({ ...editingQuestao, alternativa_e: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-correta">Alternativa Correta</Label>
+                <Select
+                  value={editingQuestao.correta}
+                  onValueChange={(value) => setEditingQuestao({ ...editingQuestao, correta: value as 'A' | 'B' | 'C' | 'D' | 'E' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A">A</SelectItem>
+                    <SelectItem value="B">B</SelectItem>
+                    <SelectItem value="C">C</SelectItem>
+                    <SelectItem value="D">D</SelectItem>
+                    {editingQuestao.alternativa_e !== null && <SelectItem value="E">E</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-comentario">Comentário</Label>
+                <Textarea
+                  id="edit-comentario"
+                  value={editingQuestao.comentario || ''}
+                  onChange={(e) => setEditingQuestao({ ...editingQuestao, comentario: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingQuestao(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveQuestao}>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Salvar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>
