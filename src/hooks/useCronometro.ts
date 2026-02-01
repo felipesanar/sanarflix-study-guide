@@ -4,13 +4,11 @@ import { getBrazilDate } from '@/utils/timezone';
 interface UseCronometroProps {
   dataEncerramento: string | null;
   onTempoEsgotado: () => void;
-  onAtualizarTempo: (tempo: number) => void;
 }
 
 export const useCronometro = ({
   dataEncerramento,
-  onTempoEsgotado,
-  onAtualizarTempo
+  onTempoEsgotado
 }: UseCronometroProps) => {
   const calcularTempoRestante = useCallback((): number => {
     if (!dataEncerramento) return 0;
@@ -26,6 +24,12 @@ export const useCronometro = ({
   const [pausado, setPausado] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const tempoEsgotadoRef = useRef(false);
+  
+  // Ref para callback - evita re-criação do intervalo
+  const onTempoEsgotadoRef = useRef(onTempoEsgotado);
+  useEffect(() => {
+    onTempoEsgotadoRef.current = onTempoEsgotado;
+  }, [onTempoEsgotado]);
 
   const pausar = useCallback(() => {
     setPausado(true);
@@ -42,22 +46,17 @@ export const useCronometro = ({
   useEffect(() => {
     if (pausado || !dataEncerramento) return;
 
-    // Recalcula o tempo restante baseado no deadline real
     const atualizarTempo = () => {
       const novoTempo = calcularTempoRestante();
       setTempoRestante(novoTempo);
-      onAtualizarTempo(novoTempo);
       
       if (novoTempo === 0 && !tempoEsgotadoRef.current) {
         tempoEsgotadoRef.current = true;
-        onTempoEsgotado();
+        onTempoEsgotadoRef.current();
       }
     };
 
-    // Atualiza imediatamente
     atualizarTempo();
-
-    // Atualiza a cada segundo
     intervalRef.current = setInterval(atualizarTempo, 1000);
 
     return () => {
@@ -65,7 +64,7 @@ export const useCronometro = ({
         clearInterval(intervalRef.current);
       }
     };
-  }, [pausado, dataEncerramento, calcularTempoRestante, onAtualizarTempo, onTempoEsgotado]);
+  }, [pausado, dataEncerramento, calcularTempoRestante]);
 
   const formatarTempo = (segundos: number): string => {
     const horas = Math.floor(segundos / 3600);

@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { EstadoSimulado, RespostaSimulado } from '@/types/simulado';
 
 const STORAGE_PREFIX = 'simulado_';
 
 export const useSimuladoStorage = (simuladoId: string) => {
   const getEstadoKey = () => `${STORAGE_PREFIX}${simuladoId}_estado`;
+  
+  // Refs para debounce
+  const debouncedSaveRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingStateRef = useRef<EstadoSimulado | null>(null);
   
   const carregarEstado = useCallback((): EstadoSimulado | null => {
     try {
@@ -17,6 +21,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     }
   }, [simuladoId]);
 
+  // Salvar síncrono - usado apenas quando necessário imediatamente
   const salvarEstado = useCallback((estado: EstadoSimulado) => {
     try {
       localStorage.setItem(getEstadoKey(), JSON.stringify({
@@ -25,6 +30,42 @@ export const useSimuladoStorage = (simuladoId: string) => {
       }));
     } catch (error) {
       console.error('Erro ao salvar estado do simulado:', error);
+    }
+  }, [simuladoId]);
+
+  // Salvar com debounce - não bloqueia a UI
+  const salvarEstadoDebounced = useCallback((estado: EstadoSimulado) => {
+    pendingStateRef.current = {
+      ...estado,
+      ultima_atualizacao: new Date().toISOString()
+    };
+    
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
+    
+    debouncedSaveRef.current = setTimeout(() => {
+      if (pendingStateRef.current) {
+        try {
+          localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
+        } catch (error) {
+          console.error('Erro ao salvar estado:', error);
+        }
+      }
+    }, 100);
+  }, [simuladoId]);
+
+  // Força a persistência imediata (usado antes de fechar/finalizar)
+  const flushPendingState = useCallback(() => {
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
+    if (pendingStateRef.current) {
+      try {
+        localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
+      } catch (error) {
+        console.error('Erro ao forçar salvamento:', error);
+      }
     }
   }, [simuladoId]);
 
@@ -39,8 +80,8 @@ export const useSimuladoStorage = (simuladoId: string) => {
         [questaoId]: resposta
       }
     };
-    salvarEstado(novoEstado);
-  }, [carregarEstado, salvarEstado]);
+    salvarEstadoDebounced(novoEstado);
+  }, [carregarEstado, salvarEstadoDebounced]);
 
   const marcarRevisao = useCallback((questaoId: string, marcar: boolean) => {
     const estado = carregarEstado();
@@ -53,11 +94,18 @@ export const useSimuladoStorage = (simuladoId: string) => {
       alternativas_eliminadas: []
     };
 
-    salvarResposta(questaoId, {
-      ...respostaAtual,
-      marcada_revisao: marcar
-    });
-  }, [carregarEstado, salvarResposta]);
+    const novoEstado: EstadoSimulado = {
+      ...estado,
+      respostas: {
+        ...estado.respostas,
+        [questaoId]: {
+          ...respostaAtual,
+          marcada_revisao: marcar
+        }
+      }
+    };
+    salvarEstadoDebounced(novoEstado);
+  }, [carregarEstado, salvarEstadoDebounced]);
 
   const eliminarAlternativa = useCallback((questaoId: string, alternativa: 'A' | 'B' | 'C' | 'D', eliminar: boolean) => {
     const estado = carregarEstado();
@@ -74,21 +122,18 @@ export const useSimuladoStorage = (simuladoId: string) => {
       ? [...respostaAtual.alternativas_eliminadas, alternativa]
       : respostaAtual.alternativas_eliminadas.filter(a => a !== alternativa);
 
-    salvarResposta(questaoId, {
-      ...respostaAtual,
-      alternativas_eliminadas: eliminadas
-    });
-  }, [carregarEstado, salvarResposta]);
-
-  const atualizarTempo = useCallback((tempoRestante: number) => {
-    const estado = carregarEstado();
-    if (!estado) return;
-
-    salvarEstado({
+    const novoEstado: EstadoSimulado = {
       ...estado,
-      tempo_restante_segundos: tempoRestante
-    });
-  }, [carregarEstado, salvarEstado]);
+      respostas: {
+        ...estado.respostas,
+        [questaoId]: {
+          ...respostaAtual,
+          alternativas_eliminadas: eliminadas
+        }
+      }
+    };
+    salvarEstadoDebounced(novoEstado);
+  }, [carregarEstado, salvarEstadoDebounced]);
 
   const registrarSaidaAba = useCallback(() => {
     const estado = carregarEstado();
@@ -111,6 +156,9 @@ export const useSimuladoStorage = (simuladoId: string) => {
   }, [carregarEstado, salvarEstado]);
 
   const limparEstado = useCallback(() => {
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
     localStorage.removeItem(getEstadoKey());
   }, [simuladoId]);
 
@@ -151,6 +199,9 @@ export const useSimuladoStorage = (simuladoId: string) => {
   }, [simuladoId, salvarEstado]);
 
   const prepararRespostasCompletas = useCallback((totalQuestoes: string[]) => {
+    // Força salvar qualquer estado pendente antes de preparar
+    flushPendingState();
+    
     const estado = carregarEstado();
     if (!estado) return [];
 
@@ -158,7 +209,6 @@ export const useSimuladoStorage = (simuladoId: string) => {
       const respostaExistente = estado.respostas[questaoId];
       
       if (respostaExistente && respostaExistente.resposta !== null) {
-        // Questão respondida
         return {
           questao_id: questaoId,
           resposta: respostaExistente.resposta,
@@ -167,7 +217,6 @@ export const useSimuladoStorage = (simuladoId: string) => {
           respondida: true
         };
       } else {
-        // Questão não respondida
         return {
           questao_id: questaoId,
           resposta: null,
@@ -177,15 +226,16 @@ export const useSimuladoStorage = (simuladoId: string) => {
         };
       }
     });
-  }, [carregarEstado]);
+  }, [carregarEstado, flushPendingState]);
 
   return {
     carregarEstado,
     salvarEstado,
+    salvarEstadoDebounced,
+    flushPendingState,
     salvarResposta,
     marcarRevisao,
     eliminarAlternativa,
-    atualizarTempo,
     registrarSaidaAba,
     registrarSaidaFullscreen,
     limparEstado,

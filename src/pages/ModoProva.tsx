@@ -70,9 +70,6 @@ export const ModoProva = () => {
     onTempoEsgotado: () => {
       toast.error('Tempo esgotado! Seu simulado será finalizado automaticamente.');
       setTimeout(() => finalizarSimulado(), 3000);
-    },
-    onAtualizarTempo: (tempo) => {
-      storage.atualizarTempo(tempo);
     }
   });
 
@@ -124,74 +121,123 @@ export const ModoProva = () => {
   const questaoAtualData = questoes[questaoAtual];
   const respostaAtual = estado?.respostas[questaoAtualData?.id];
 
-  const handleSelecionarAlternativa = (alternativa: 'A' | 'B' | 'C' | 'D') => {
-    if (!questaoAtualData || !podeInteragir) return; // Bloqueia se não pode interagir
+  const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+    if (!questaoAtualData || !podeInteragir) return;
 
-    storage.salvarResposta(questaoAtualData.id, {
-      questao_id: questaoAtualData.id,
-      resposta: alternativa,
-      marcada_revisao: respostaAtual?.marcada_revisao || false,
-      alternativas_eliminadas: respostaAtual?.alternativas_eliminadas || []
+    setEstado(prevEstado => {
+      if (!prevEstado) return prevEstado;
+      
+      const novoEstado = {
+        ...prevEstado,
+        respostas: {
+          ...prevEstado.respostas,
+          [questaoAtualData.id]: {
+            questao_id: questaoAtualData.id,
+            resposta: alternativa,
+            marcada_revisao: prevEstado.respostas[questaoAtualData.id]?.marcada_revisao || false,
+            alternativas_eliminadas: prevEstado.respostas[questaoAtualData.id]?.alternativas_eliminadas || []
+          }
+        }
+      };
+      
+      storage.salvarEstadoDebounced(novoEstado);
+      return novoEstado;
     });
+  }, [questaoAtualData, podeInteragir, storage]);
 
-    const novoEstado = storage.carregarEstado();
-    if (novoEstado) setEstado(novoEstado);
-  };
-
-  const handleEliminarAlternativa = (alternativa: 'A' | 'B' | 'C' | 'D') => {
+  const handleEliminarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
     if (!questaoAtualData) return;
 
-    const jaEliminada = respostaAtual?.alternativas_eliminadas.includes(alternativa);
-    storage.eliminarAlternativa(questaoAtualData.id, alternativa, !jaEliminada);
+    setEstado(prevEstado => {
+      if (!prevEstado) return prevEstado;
+      
+      const respostaAtual = prevEstado.respostas[questaoAtualData.id];
+      const jaEliminada = respostaAtual?.alternativas_eliminadas?.includes(alternativa);
+      const eliminadas = jaEliminada
+        ? (respostaAtual?.alternativas_eliminadas || []).filter(a => a !== alternativa)
+        : [...(respostaAtual?.alternativas_eliminadas || []), alternativa];
 
-    const novoEstado = storage.carregarEstado();
-    if (novoEstado) setEstado(novoEstado);
-  };
+      const novoEstado = {
+        ...prevEstado,
+        respostas: {
+          ...prevEstado.respostas,
+          [questaoAtualData.id]: {
+            questao_id: questaoAtualData.id,
+            resposta: respostaAtual?.resposta || null,
+            marcada_revisao: respostaAtual?.marcada_revisao || false,
+            alternativas_eliminadas: eliminadas
+          }
+        }
+      };
+      
+      storage.salvarEstadoDebounced(novoEstado);
+      return novoEstado;
+    });
+  }, [questaoAtualData, storage]);
 
-  const handleMarcarRevisao = () => {
+  const handleMarcarRevisao = useCallback(() => {
     if (!questaoAtualData) return;
 
-    const marcar = !respostaAtual?.marcada_revisao;
-    storage.marcarRevisao(questaoAtualData.id, marcar);
+    setEstado(prevEstado => {
+      if (!prevEstado) return prevEstado;
+      
+      const respostaAtual = prevEstado.respostas[questaoAtualData.id];
+      const marcar = !respostaAtual?.marcada_revisao;
 
-    const novoEstado = storage.carregarEstado();
-    if (novoEstado) setEstado(novoEstado);
+      const novoEstado = {
+        ...prevEstado,
+        respostas: {
+          ...prevEstado.respostas,
+          [questaoAtualData.id]: {
+            questao_id: questaoAtualData.id,
+            resposta: respostaAtual?.resposta || null,
+            marcada_revisao: marcar,
+            alternativas_eliminadas: respostaAtual?.alternativas_eliminadas || []
+          }
+        }
+      };
+      
+      storage.salvarEstadoDebounced(novoEstado);
+      toast.success(marcar ? 'Questão marcada para revisão' : 'Marcação removida');
+      return novoEstado;
+    });
+  }, [questaoAtualData, storage]);
 
-    toast.success(marcar ? 'Questão marcada para revisão' : 'Marcação removida');
-  };
-
-  const handleAnterior = () => {
+  const handleAnterior = useCallback(() => {
     if (questaoAtual > 0) {
       const novoIndice = questaoAtual - 1;
       setQuestaoAtual(novoIndice);
-
-      const estadoAtual = storage.carregarEstado();
-      if (estadoAtual) {
-        storage.salvarEstado({ ...estadoAtual, questao_atual: novoIndice });
-      }
+      setEstado(prev => {
+        if (!prev) return prev;
+        const novoEstado = { ...prev, questao_atual: novoIndice };
+        storage.salvarEstadoDebounced(novoEstado);
+        return novoEstado;
+      });
     }
-  };
+  }, [questaoAtual, storage]);
 
-  const handleProxima = () => {
+  const handleProxima = useCallback(() => {
     if (questaoAtual < questoes.length - 1) {
       const novoIndice = questaoAtual + 1;
       setQuestaoAtual(novoIndice);
-
-      const estadoAtual = storage.carregarEstado();
-      if (estadoAtual) {
-        storage.salvarEstado({ ...estadoAtual, questao_atual: novoIndice });
-      }
+      setEstado(prev => {
+        if (!prev) return prev;
+        const novoEstado = { ...prev, questao_atual: novoIndice };
+        storage.salvarEstadoDebounced(novoEstado);
+        return novoEstado;
+      });
     }
-  };
+  }, [questaoAtual, questoes.length, storage]);
 
-  const handleIrParaQuestao = (index: number) => {
+  const handleIrParaQuestao = useCallback((index: number) => {
     setQuestaoAtual(index);
-
-    const estadoAtual = storage.carregarEstado();
-    if (estadoAtual) {
-      storage.salvarEstado({ ...estadoAtual, questao_atual: index });
-    }
-  };
+    setEstado(prev => {
+      if (!prev) return prev;
+      const novoEstado = { ...prev, questao_atual: index };
+      storage.salvarEstadoDebounced(novoEstado);
+      return novoEstado;
+    });
+  }, [storage]);
 
   const finalizarSimulado = async () => {
     jaFinalizouRef.current = true; // Marcar ANTES de qualquer envio
