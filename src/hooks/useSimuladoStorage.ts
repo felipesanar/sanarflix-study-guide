@@ -114,16 +114,37 @@ export const useSimuladoStorage = (simuladoId: string) => {
     localStorage.removeItem(getEstadoKey());
   }, [simuladoId]);
 
-  const inicializarEstado = useCallback((numeroQuestoes: number, dataEncerramento: string | null): EstadoSimulado => {
+  const inicializarEstado = useCallback((
+    numeroQuestoes: number, 
+    dataEncerramento: string | null,
+    duracaoMinutos: number
+  ): EstadoSimulado => {
+    const agora = new Date();
+    
+    // Calcula o deadline individual baseado na duração configurada
+    const deadlineIndividual = new Date(agora.getTime() + duracaoMinutos * 60 * 1000);
+    
+    // Determina o deadline efetivo (menor entre individual e global)
+    let deadlineEfetivo: Date;
+    if (dataEncerramento) {
+      const deadlineGlobal = new Date(dataEncerramento);
+      deadlineEfetivo = deadlineIndividual < deadlineGlobal 
+        ? deadlineIndividual 
+        : deadlineGlobal;
+    } else {
+      deadlineEfetivo = deadlineIndividual;
+    }
+
     const novoEstado: EstadoSimulado = {
       simulado_id: simuladoId,
       questao_atual: 0,
-      tempo_restante_segundos: 0, // Será calculado dinamicamente com base no deadline
+      tempo_restante_segundos: 0,
       respostas: {},
       saidas_de_aba: 0,
       saidas_de_fullscreen: 0,
-      iniciado_em: new Date().toISOString(),
-      ultima_atualizacao: new Date().toISOString()
+      iniciado_em: agora.toISOString(),
+      deadline_efetivo: deadlineEfetivo.toISOString(),
+      ultima_atualizacao: agora.toISOString()
     };
     salvarEstado(novoEstado);
     return novoEstado;
