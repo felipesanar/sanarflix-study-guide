@@ -1,146 +1,112 @@
 
-# Plano de Correção: Sistema de Acesso e Descontinuação de Funcionalidades
+# Ampliacao de Imagens no Modo Prova
 
-## Visao Geral
+## Objetivo
 
-Este plano aborda três grandes áreas de correção:
-1. Reestruturação completa do sistema de tipos de usuários e permissões
-2. Descontinuação de páginas ENAMED/Intensivos (com arquivamento)
-3. Correção de inconsistências identificadas entre código e banco de dados
+Implementar funcionalidade de lightbox/zoom para as imagens das questoes no Modo Prova, permitindo que o aluno clique na imagem para visualiza-la em tamanho maior em um overlay fullscreen.
 
 ---
 
-## Parte 1: Reestruturação do Sistema de Usuários
+## Analise do Estado Atual
 
-### Tipos de Usuários Finais
+**Onde as imagens aparecem:**
+- `src/pages/ModoProva.tsx` (linhas 468-476): imagem do enunciado da questao
+- Campo `imagem?: string` no tipo `Questao` (src/types/simulado.ts)
 
-| Tipo | Identificacao | Acesso |
-|------|---------------|--------|
-| **Administrador** | Role `admin` em `user_roles` | Acesso total a tudo (super usuario) |
-| **Professor** | Role `professor` em `user_roles` (nova) | A definir futuramente |
-| **Aluno B2B** | Vinculado a IES configurada (nao B2C) | Features da sua IES via `ies_features` |
-| **Aluno B2C** | Vinculado a IES "B2C" | Removido do fluxo atual |
-
-### Mudancas no accessRules.ts
-
-1. **Remover** constante `B2C_IES_ID` e toda logica B2C
-2. **Remover** role `b2b_partner` (nao utilizada no banco)
-3. **Remover** logica de "IES nao configurada" - se nao esta configurada, nao tem acesso
-4. **Remover** referencias ao ENAMED, Cronograma ENAMED e Intensivos
-5. **Simplificar** `isB2BUser` para verificar apenas role `admin`
-6. **Admin** passa a ter acesso total sem excecoes
-
-### Mudancas no types/index.ts (AccessRules)
-
-Remover as seguintes chaves do tipo `AccessRules`:
-- `enamed`
-- `cronogramaEnamed`
-- `intensivoUSCS`
-
----
-
-## Parte 2: Descontinuacao de Paginas
-
-### Criar Estrutura de Arquivo Historico
-
-```text
-src/
-  _deprecated/
-    pages/
-      IntensivaoEnamed.tsx
-      IntensivoEnamedUSCS.tsx
-      CronogramaEnamed.tsx
-    services/
-      enamedApi.ts
-      cronogramaEnamedApi.ts
-      intensivoUSCSApi.ts
-    README.md (documentacao do que foi arquivado e por que)
+**Componente atual:**
+```tsx
+{questaoAtualData?.imagem && (
+  <div className="mt-6">
+    <img
+      src={questaoAtualData.imagem}
+      alt="Imagem da questão"
+      className="max-w-full rounded-lg border"
+    />
+  </div>
+)}
 ```
 
-### Arquivos a Mover para _deprecated
-
-**Paginas:**
-- `src/pages/IntensivaoEnamed.tsx`
-- `src/pages/IntensivoEnamedUSCS.tsx`
-- `src/pages/CronogramaEnamed.tsx`
-
-**Servicos:**
-- `src/services/enamedApi.ts`
-- `src/services/cronogramaEnamedApi.ts`
-- `src/services/intensivoUSCSApi.ts`
-
-**Edge Functions (manter no Supabase mas nao mais utilizadas):**
-- `supabase/functions/enamed-proxy/`
-- `supabase/functions/cronograma-enamed-proxy/`
-
-### Arquivos a Modificar
-
-**App.tsx:**
-- Remover imports lazy de: `IntensivaoEnamed`, `IntensivoEnamedUSCS`, `CronogramaEnamed`
-- Remover rotas: `/intensivao-enamed`, `/intensivo-uscs`, `/cronograma-enamed`
-
-**AppSidebar.tsx:**
-- Remover itens do menu: "Intensivao ENAMED", "Intensivo ENAMED - USCS", "Cronograma ENAMED"
-- Limpar filtros relacionados no render
-
-**config/env.ts:**
-- Remover `ENAMED_API_BASE_URL` e `CRONOGRAMA_API_URL`
-
-**hooks/useIntelligentPrefetch.ts:**
-- Remover referencias a rotas descontinuadas no `NAVIGATION_PROBABILITIES`
-- Remover imports dinamicos dessas rotas
-
-**Componentes compartilhados (avaliar necessidade):**
-- `CalendarView.tsx` - usado apenas nas paginas descontinuadas, mover para _deprecated
-- `ProgressAreaCard.tsx` - verificar se usado em outros lugares (Dashboard usa)
+**Recursos disponiveis:**
+- Componente `Dialog` do Radix UI ja existe em `src/components/ui/dialog.tsx`
+- Icone `ZoomIn` disponivel no lucide-react
+- Animacoes de fade/zoom ja configuradas no Dialog
 
 ---
 
-## Parte 3: Correcao de Inconsistencias
+## Solucao Proposta
 
-### 1. Sincronizar accessRules.ts com ies_features
+### Abordagem
 
-**Situacao Atual:**
-- `accessRules.ts` tem configuracoes hardcoded para cada IES
-- Tabela `ies_features` tem configuracoes dinamicas
-- Ha duplicacao e potencial conflito
+Criar um componente reutilizavel `ImageLightbox` que:
+1. Exibe a imagem normalmente com indicador de clique (cursor pointer + icone de zoom)
+2. Ao clicar, abre um Dialog fullscreen com a imagem ampliada
+3. Permite fechar clicando fora, no X, ou pressionando Escape
+4. Suporta gestos de pinch-to-zoom em mobile (via CSS touch-action)
 
-**Solucao:**
-- Remover `IES_CONFIG` hardcoded do `accessRules.ts`
-- Manter apenas logica de hierarquia (admin > aluno IES)
-- Hook `useIesFeatures.ts` ja existe e carrega do banco
-- Garantir que todas as IES ativas tenham configuracoes em `ies_features`
+### Integracao com Modo Prova
 
-### 2. Remover role b2b_partner
+- Substituir a `<img>` atual pelo componente `ImageLightbox`
+- Manter comportamento nativo quando nao houver imagem
+- Garantir que o lightbox funcione mesmo fora do modo tela cheia
 
-**Motivo:** Nao existe nenhum usuario com essa role no banco
+---
 
-**Acoes:**
-- Remover do enum `app_role` no banco (migracao)
-- Remover referencias no codigo TypeScript
-- Atualizar `types.ts` gerado pelo Supabase
+## Implementacao
 
-### 3. IES sem Configuracao
+### 1. Criar Componente ImageLightbox
 
-**IES sem entradas em ies_features:**
-- Barao de Maua (d4cce20f-84fa-41f2-935f-d2d7c2284632)
-- Claretiano (6029b69d-a2ef-4de5-b907-91f88122bb4e)
-- Integrado (72b19e77-c569-4bf7-a433-44563df1015f)
+**Arquivo:** `src/components/simulados/ImageLightbox.tsx`
 
-**Solucao:**
-- Verificar se essas IES estao ativas
-- Se ativas, configurar features basicas
-- Se inativas, usuarios dessas IES nao terao acesso a nada alem de simulados
+**Props:**
+| Prop | Tipo | Descricao |
+|------|------|-----------|
+| `src` | `string` | URL da imagem |
+| `alt` | `string` | Texto alternativo |
+| `className` | `string?` | Classes CSS extras para a thumbnail |
 
-### 4. Usuarios sem IES
+**Comportamento:**
+- Thumbnail exibe imagem com hover state (cursor-pointer, overlay sutil com icone ZoomIn)
+- Click abre Dialog fullscreen com fundo escuro (bg-black/95)
+- Imagem ampliada ocupa ate 90vw x 90vh, mantendo proporcao
+- Botao X para fechar no canto superior direito
+- Fecha ao pressionar Escape (comportamento nativo do Dialog)
+- Touch-friendly: permite scroll/zoom em dispositivos touch
 
-**Usuarios identificados:**
-- ana@funepe.com (provavelmente deveria ser da Funepe)
-- camidoc97@gmail.com (origem desconhecida)
+**Componentes utilizados:**
+- `Dialog`, `DialogContent`, `DialogClose` do Radix
+- Icone `ZoomIn` do lucide-react
 
-**Solucao:**
-- Executar query para corrigir manualmente ou via admin
-- Adicionar validacao no login para bloquear usuarios sem IES
+### 2. Integrar no ModoProva.tsx
+
+**Alteracoes:**
+1. Adicionar import do `ImageLightbox`
+2. Substituir o bloco de imagem existente pelo novo componente
+
+**Antes (linhas 468-476):**
+```tsx
+{questaoAtualData?.imagem && (
+  <div className="mt-6">
+    <img
+      src={questaoAtualData.imagem}
+      alt="Imagem da questão"
+      className="max-w-full rounded-lg border"
+    />
+  </div>
+)}
+```
+
+**Depois:**
+```tsx
+{questaoAtualData?.imagem && (
+  <div className="mt-6">
+    <ImageLightbox
+      src={questaoAtualData.imagem}
+      alt={`Imagem da questão ${questaoAtual + 1}`}
+      className="max-w-full rounded-lg border"
+    />
+  </div>
+)}
+```
 
 ---
 
@@ -148,71 +114,90 @@ src/
 
 ### Arquivos Criados
 
-```text
-src/_deprecated/README.md
-src/_deprecated/pages/IntensivaoEnamed.tsx
-src/_deprecated/pages/IntensivoEnamedUSCS.tsx
-src/_deprecated/pages/CronogramaEnamed.tsx
-src/_deprecated/services/enamedApi.ts
-src/_deprecated/services/cronogramaEnamedApi.ts
-src/_deprecated/services/intensivoUSCSApi.ts
-src/_deprecated/components/CalendarView.tsx (se nao usado em outro lugar)
-```
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/components/simulados/ImageLightbox.tsx` | Componente de lightbox reutilizavel |
 
 ### Arquivos Modificados
 
-| Arquivo | Mudancas |
-|---------|----------|
-| `src/utils/accessRules.ts` | Remover B2C, b2b_partner, IES_CONFIG, referencias ENAMED |
-| `src/types/index.ts` | Remover keys descontinuadas de AccessRules |
-| `src/App.tsx` | Remover rotas e imports descontinuados |
-| `src/components/AppSidebar.tsx` | Remover itens de menu ENAMED/Intensivos |
-| `src/config/env.ts` | Remover URLs ENAMED |
-| `src/hooks/useIntelligentPrefetch.ts` | Limpar referencias |
-| `src/integrations/supabase/types.ts` | Atualizar enum app_role |
+| Arquivo | Alteracoes |
+|---------|------------|
+| `src/pages/ModoProva.tsx` | Import e uso do ImageLightbox |
 
-### Arquivos Deletados (do codigo ativo)
+### Estrutura do Componente
 
-- `src/pages/IntensivaoEnamed.tsx`
-- `src/pages/IntensivoEnamedUSCS.tsx`
-- `src/pages/CronogramaEnamed.tsx`
-- `src/services/enamedApi.ts`
-- `src/services/cronogramaEnamedApi.ts`
-- `src/services/intensivoUSCSApi.ts`
+```tsx
+// ImageLightbox.tsx (estrutura simplificada)
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { ZoomIn, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-### Migracao de Banco de Dados
+interface ImageLightboxProps {
+  src: string;
+  alt: string;
+  className?: string;
+}
 
-```sql
--- Remover features descontinuadas da tabela ies_features
-DELETE FROM ies_features 
-WHERE feature_key IN ('enamed', 'cronogramaEnamed', 'intensivoUSCS');
+export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
+  const [open, setOpen] = useState(false);
 
--- Opcional: Remover role b2b_partner do enum
--- (requer recriacao do enum, avaliar necessidade)
+  return (
+    <>
+      {/* Thumbnail clicavel */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="relative group cursor-zoom-in"
+        aria-label="Ampliar imagem"
+      >
+        <img src={src} alt={alt} className={className} />
+        {/* Overlay com icone de zoom */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+          <ZoomIn className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" />
+        </div>
+      </button>
+
+      {/* Dialog fullscreen */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 border-0 bg-transparent">
+          <DialogClose className="absolute top-4 right-4 z-10 bg-black/50 hover:bg-black/70 rounded-full p-2">
+            <X className="h-6 w-6 text-white" />
+          </DialogClose>
+          <img
+            src={src}
+            alt={alt}
+            className="max-w-full max-h-[90vh] object-contain mx-auto"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
 ```
 
-### Validacao Pos-Implementacao
+### Consideracoes de UX
 
-1. Verificar se todas as rotas funcionam corretamente
-2. Testar login com diferentes tipos de usuarios:
-   - Admin: deve ter acesso total
-   - Aluno FAME semestre 0: Home, Guia de Estudos, SanarClass, Dashboard, Simulados
-   - Aluno FAME semestre 1+: apenas features configuradas para FAME
-   - Aluno de outra IES: features da sua IES
-3. Confirmar que paginas descontinuadas nao aparecem em nenhum lugar
-4. Confirmar que nao ha erros no console relacionados aos arquivos removidos
+1. **Indicador visual**: Overlay com icone ZoomIn aparece no hover
+2. **Cursor**: `cursor-zoom-in` indica que a imagem e clicavel
+3. **Acessibilidade**: `aria-label` no botao, alt text preservado
+4. **Mobile**: Touch-friendly, sem conflito com scroll da pagina
+5. **Escape**: Fecha automaticamente (comportamento nativo do Dialog)
+
+### Consideracoes de Performance
+
+- Imagem carrega apenas uma vez (mesmo src para thumbnail e ampliada)
+- Dialog e lazy-rendered (so monta no DOM quando aberto)
+- Animacoes leves via CSS (fade-in/zoom-in existentes)
 
 ---
 
-## Ordem de Execucao Recomendada
+## Validacao
 
-1. Criar pasta `_deprecated` e arquivo README
-2. Mover arquivos de paginas e servicos para `_deprecated`
-3. Atualizar `accessRules.ts` com nova logica simplificada
-4. Atualizar `types/index.ts`
-5. Limpar `App.tsx` (remover rotas e imports)
-6. Limpar `AppSidebar.tsx` (remover itens de menu)
-7. Limpar `config/env.ts`
-8. Limpar `useIntelligentPrefetch.ts`
-9. Avaliar e mover `CalendarView.tsx` se necessario
-10. Testar fluxo completo
+1. Verificar que imagens da questao exibem indicador de zoom no hover
+2. Clicar na imagem abre o lightbox fullscreen
+3. Fechar via X, clique fora, ou Escape funciona
+4. Imagem ampliada mantem proporcao e nao extrapola a tela
+5. Funciona corretamente em dispositivos touch
+6. Nao interfere com atalhos de teclado do Modo Prova (1-4, setas, F, Esc)
+7. Funciona mesmo quando fora do modo tela cheia
