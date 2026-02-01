@@ -10,13 +10,38 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X, Unlock, Ban } from 'lucide-react';
+import { Upload, FileSpreadsheet, Eye, Edit2, Trash2, Download, Plus, CheckCircle, AlertCircle, Loader2, Search, Filter, X, Unlock, StopCircle, Ban } from 'lucide-react';
 import { LiberarSimuladoModal } from './LiberarSimuladoModal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
 import { toBrazilDate } from '@/utils/timezone';
 import { Checkbox } from '@/components/ui/checkbox';
+
+// Função para calcular status baseado em datas
+const calcularStatusSimulado = (
+  dataLiberacao: string | null, 
+  dataEncerramento: string | null,
+  statusBanco: string
+): 'aguardando' | 'ativo' | 'encerrado' => {
+  const agora = new Date();
+  
+  // Se foi manualmente encerrado
+  if (statusBanco === 'encerrado') return 'encerrado';
+  
+  // Se tem data de encerramento e já passou
+  if (dataEncerramento && new Date(dataEncerramento) < agora) {
+    return 'encerrado';
+  }
+  
+  // Se tem data de liberação e ainda não chegou
+  if (dataLiberacao && new Date(dataLiberacao) > agora) {
+    return 'aguardando';
+  }
+  
+  // Caso contrário, está ativo
+  return 'ativo';
+};
 
 interface Simulado {
   id: string;
@@ -25,7 +50,7 @@ interface Simulado {
   data_liberacao: string | null;
   data_encerramento: string | null;
   duracao_minutos: number;
-  status: 'ativo' | 'rascunho' | 'encerrado';
+  status: 'aguardando' | 'ativo' | 'encerrado';
   created_at: string;
   questoes_count?: number;
 }
@@ -66,7 +91,6 @@ interface PreviewData {
     data_liberacao: string;
     data_encerramento: string;
     duracao_minutos: number;
-    status: 'ativo' | 'rascunho' | 'encerrado';
   };
 }
 
@@ -95,15 +119,6 @@ export default function SimuladosTab() {
   const [editingSimulado, setEditingSimulado] = useState<Simulado | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const [configForm, setConfigForm] = useState({
-    nome: '',
-    descricao: '',
-    data_liberacao: '',
-    data_encerramento: '',
-    duracao_minutos: 120, // Padrão 2 horas
-    status: 'rascunho' as 'ativo' | 'rascunho' | 'encerrado'
-  });
-
   // Opções de duração fixas (2h, 3h, 4h, 5h, 6h)
   const duracaoOpcoes = [
     { value: 120, label: '2 horas' },
@@ -112,6 +127,15 @@ export default function SimuladosTab() {
     { value: 300, label: '5 horas' },
     { value: 360, label: '6 horas' }
   ];
+
+  const [configForm, setConfigForm] = useState({
+    nome: '',
+    descricao: '',
+    data_liberacao: '',
+    data_encerramento: '',
+    duracao_minutos: duracaoOpcoes[0].value,
+    liberarImediatamente: false
+  });
 
   useEffect(() => {
     fetchSimulados();
@@ -149,7 +173,7 @@ export default function SimuladosTab() {
         data_liberacao: s.data_liberacao,
         data_encerramento: s.data_encerramento,
         duracao_minutos: s.duracao_minutos,
-        status: s.status as 'ativo' | 'rascunho' | 'encerrado',
+        status: calcularStatusSimulado(s.data_liberacao, s.data_encerramento, s.status) as 'aguardando' | 'ativo' | 'encerrado',
         created_at: s.created_at,
         questoes_count: s.questoes_simulado?.[0]?.count || 0
       }));
@@ -338,8 +362,7 @@ export default function SimuladosTab() {
               descricao: '',
               data_liberacao: '',
               data_encerramento: '',
-              duracao_minutos: 180,
-              status: 'rascunho'
+              duracao_minutos: duracaoOpcoes[0].value
             }
           });
 
@@ -371,7 +394,10 @@ export default function SimuladosTab() {
 
   const handleConfirmPreview = () => {
     if (previewData) {
-      setConfigForm(previewData.config);
+      setConfigForm({
+        ...previewData.config,
+        liberarImediatamente: false
+      });
       setIsEditMode(false);
       setEditingSimulado(null);
       setShowPreviewModal(false);
@@ -391,13 +417,18 @@ export default function SimuladosTab() {
       if (error) throw error;
 
       // Configurar formulário com dados existentes
+      // Se a data de liberação é igual ou anterior a agora, considera como "liberar imediatamente"
+      const agora = new Date();
+      const dataLib = data.data_liberacao ? new Date(data.data_liberacao) : null;
+      const liberarImediatamente = dataLib ? dataLib <= agora : false;
+      
       setConfigForm({
         nome: data.nome,
         descricao: data.descricao || '',
         data_liberacao: data.data_liberacao ? brazilISOToDatetimeLocal(data.data_liberacao) : '',
         data_encerramento: data.data_encerramento ? brazilISOToDatetimeLocal(data.data_encerramento) : '',
         duracao_minutos: data.duracao_minutos,
-        status: data.status as 'ativo' | 'rascunho' | 'encerrado'
+        liberarImediatamente
       });
 
       // Configurar IES selecionadas
@@ -449,9 +480,28 @@ export default function SimuladosTab() {
       setUploading(true);
 
       // Converter datas para timezone de Brasília
-      const dataLiberacaoISO = configForm.data_liberacao 
-        ? datetimeLocalToBrazilISO(configForm.data_liberacao)
-        : null;
+      const agora = new Date();
+      let dataLiberacaoISO: string | null;
+      let statusCalculado: 'aguardando' | 'ativo' | 'encerrado';
+      
+      // Calcular status baseado nas condições
+      if (configForm.liberarImediatamente) {
+        // Liberação imediata = ativo agora
+        dataLiberacaoISO = agora.toISOString();
+        statusCalculado = 'ativo';
+      } else if (configForm.data_liberacao) {
+        dataLiberacaoISO = datetimeLocalToBrazilISO(configForm.data_liberacao);
+        // Se data de liberação é no futuro, aguardando
+        if (new Date(dataLiberacaoISO) > agora) {
+          statusCalculado = 'aguardando';
+        } else {
+          statusCalculado = 'ativo';
+        }
+      } else {
+        dataLiberacaoISO = null;
+        statusCalculado = 'ativo';
+      }
+      
       const dataEncerramentoISO = configForm.data_encerramento
         ? datetimeLocalToBrazilISO(configForm.data_encerramento)
         : null;
@@ -466,7 +516,7 @@ export default function SimuladosTab() {
             data_liberacao: dataLiberacaoISO,
             data_encerramento: dataEncerramentoISO,
             duracao_minutos: configForm.duracao_minutos,
-            status: configForm.status,
+            status: statusCalculado,
             ies_ids: selectedIESList
           })
           .eq('id', editingSimulado.id);
@@ -487,7 +537,7 @@ export default function SimuladosTab() {
             data_liberacao: dataLiberacaoISO,
             data_encerramento: dataEncerramentoISO,
             duracao_minutos: configForm.duracao_minutos,
-            status: configForm.status,
+            status: statusCalculado,
             ies_ids: selectedIESList
           })
           .select()
@@ -525,8 +575,8 @@ export default function SimuladosTab() {
         descricao: '',
         data_liberacao: '',
         data_encerramento: '',
-        duracao_minutos: 180,
-        status: 'rascunho'
+        duracao_minutos: duracaoOpcoes[0].value,
+        liberarImediatamente: false
       });
       fetchSimulados();
     } catch (error: any) {
@@ -651,7 +701,7 @@ export default function SimuladosTab() {
     }
   };
 
-  const handleTornarIndisponivel = async (simulado: Simulado) => {
+  const handleEncerrarSimulado = async (simulado: Simulado) => {
     try {
       const { error } = await supabase
         .from('simulados_admin')
@@ -662,7 +712,7 @@ export default function SimuladosTab() {
 
       toast({
         title: 'Simulado encerrado',
-        description: 'O simulado foi marcado como indisponível. Os dados foram mantidos.'
+        description: 'O simulado foi encerrado e não está mais disponível para os alunos.'
       });
 
       fetchSimulados();
@@ -765,14 +815,16 @@ export default function SimuladosTab() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (simulado: Simulado) => {
+    const statusAtual = simulado.status;
+    
     const variants: Record<string, { variant: any; label: string; icon: string }> = {
       ativo: { variant: 'default', label: 'Ativo', icon: '🟢' },
-      rascunho: { variant: 'secondary', label: 'Rascunho', icon: '🟡' },
+      aguardando: { variant: 'secondary', label: 'Aguardando', icon: '🟡' },
       encerrado: { variant: 'destructive', label: 'Encerrado', icon: '🔴' }
     };
 
-    const config = variants[status] || variants.rascunho;
+    const config = variants[statusAtual] || variants.aguardando;
     return (
       <Badge variant={config.variant}>
         {config.icon} {config.label}
@@ -871,8 +923,8 @@ export default function SimuladosTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="aguardando">Aguardando</SelectItem>
                 <SelectItem value="ativo">Ativos</SelectItem>
-                <SelectItem value="rascunho">Rascunhos</SelectItem>
                 <SelectItem value="encerrado">Encerrados</SelectItem>
               </SelectContent>
             </Select>
@@ -904,7 +956,7 @@ export default function SimuladosTab() {
                   {filteredSimulados.map((simulado) => (
                     <TableRow key={simulado.id}>
                       <TableCell className="font-medium">{simulado.nome}</TableCell>
-                      <TableCell>{getStatusBadge(simulado.status)}</TableCell>
+                      <TableCell>{getStatusBadge(simulado)}</TableCell>
                       <TableCell>{simulado.questoes_count || 0}</TableCell>
                       <TableCell>
                         {format(toBrazilDate(simulado.created_at), 'dd/MM/yyyy')}
@@ -935,14 +987,14 @@ export default function SimuladosTab() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          {simulado.status !== 'encerrado' && (
+                          {simulado.status === 'ativo' && (
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleTornarIndisponivel(simulado)}
-                              title="Tornar indisponível"
+                              onClick={() => handleEncerrarSimulado(simulado)}
+                              title="Encerrar simulado"
                             >
-                              <Ban className="h-4 w-4 text-amber-500" />
+                              <StopCircle className="h-4 w-4 text-red-500" />
                             </Button>
                           )}
                           <Button
@@ -1112,15 +1164,31 @@ export default function SimuladosTab() {
                 <Input
                   type="datetime-local"
                   value={configForm.data_liberacao}
-                  onChange={(e) => setConfigForm({ ...configForm, data_liberacao: e.target.value })}
+                  onChange={(e) => setConfigForm({ 
+                    ...configForm, 
+                    data_liberacao: e.target.value,
+                    liberarImediatamente: false 
+                  })}
                   className="w-full"
+                  disabled={configForm.liberarImediatamente}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Horário de Brasília (UTC−3)
-                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Checkbox
+                    id="liberar-imediatamente"
+                    checked={configForm.liberarImediatamente}
+                    onCheckedChange={(checked) => setConfigForm({
+                      ...configForm,
+                      liberarImediatamente: !!checked,
+                      data_liberacao: ''
+                    })}
+                  />
+                  <label htmlFor="liberar-imediatamente" className="text-xs text-muted-foreground cursor-pointer">
+                    Liberar imediatamente ao salvar
+                  </label>
+                </div>
               </div>
               <div>
-                <Label>Data de Encerramento</Label>
+                <Label>Data de Encerramento (opcional)</Label>
                 <Input
                   type="datetime-local"
                   value={configForm.data_encerramento}
@@ -1195,22 +1263,6 @@ export default function SimuladosTab() {
                 Selecione entre 2h e 6h (incrementos de 1 hora)
               </p>
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={configForm.status}
-                onValueChange={(value: any) => setConfigForm({ ...configForm, status: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-background">
-                  <SelectItem value="rascunho">🟡 Rascunho</SelectItem>
-                  <SelectItem value="ativo">🟢 Ativo</SelectItem>
-                  <SelectItem value="encerrado">🔴 Encerrado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button 
@@ -1225,8 +1277,8 @@ export default function SimuladosTab() {
                   descricao: '',
                   data_liberacao: '',
                   data_encerramento: '',
-                  duracao_minutos: 180,
-                  status: 'rascunho'
+                  duracao_minutos: duracaoOpcoes[0].value,
+                  liberarImediatamente: false
                 });
               }}
               className="w-full sm:w-auto"
