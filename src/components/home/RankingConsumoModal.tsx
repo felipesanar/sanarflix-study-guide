@@ -69,11 +69,6 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
           const myQuests = Number(myRow?.questoes_respondidas ?? 0);
           const videosPos = Number(myRow?.rank_videos ?? total);
           const questsPos = Number(myRow?.rank_questoes ?? total);
-          console.log('[RankingConsumo] RPC ranking', {
-            total,
-            myRow,
-            sample: ranking.slice(0, 3),
-          });
           setMetrics({
             aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },
             questoesRespondidas: { quantidade: myQuests, posicao: questsPos, total },
@@ -116,9 +111,6 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
           })
           .sort((a, b) => b.val - a.val);
       };
-      console.log('[RankingConsumo] Cohort', { iesId, semestreVal, userCount: userIds.length, sampleUserIds: userIds.slice(0, 5) });
-      console.log('[RankingConsumo] Mapping', { mapCount: idToMetabase.size, sampleMap: Array.from(idToMetabase.entries()).slice(0, 5) });
-      console.log('[RankingConsumo] Consumo rows', { count: consumoRes.length, sample: consumoRes.slice(0, 3) });
 
       const videosBoard = sortBy('videos_assistidos');
       const questsBoard = sortBy('questoes_respondidas');
@@ -141,22 +133,6 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
             ? (lastZeroQuests >= 0 ? lastZeroQuests + 1 : total)
             : (allZeroQuests ? total : questsIdx + 1))
         : total;
-      console.log('[RankingConsumo] Scoreboards', {
-        total,
-        videosTop5: videosBoard.slice(0, 5),
-        questsTop5: questsBoard.slice(0, 5),
-        myId,
-        myVideos,
-        myQuests,
-        videosIdx,
-        questsIdx,
-        videosPos,
-        questsPos,
-        allZeroVideos,
-        allZeroQuests,
-        lastZeroVideos,
-        lastZeroQuests,
-      });
 
       setMetrics({
         aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },

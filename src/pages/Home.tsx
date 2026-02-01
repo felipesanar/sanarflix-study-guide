@@ -12,8 +12,6 @@ import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { HomePageSkeleton } from '@/components/skeletons/HomePageSkeleton';
 
 export const Home: React.FC = () => {
-  console.log('[HomePremiumPlus]', 'render');
-  
   const {
     loading,
     error,

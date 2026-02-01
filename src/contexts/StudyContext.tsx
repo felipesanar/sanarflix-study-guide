@@ -31,7 +31,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Verificar se há sessão ativa antes de chamar a edge function
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session) {
-        console.warn('No active session, skipping study contents load');
         return;
       }
 
@@ -159,37 +158,6 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       completed: false,
       type: (item.link_aula ? 'video' : (item.link_pdf ? 'reading' : 'exercise')) as 'video' | 'reading' | 'exercise'
     }));
-  };
-
-  const processConteudosJsonb = (conteudosJsonb: any): StudyContent[] => {
-    if (!conteudosJsonb || typeof conteudosJsonb !== 'object') {
-      return [];
-    }
-
-    const contents: StudyContent[] = [];
-    
-    // Process the JSONB structure
-    // Assuming structure like: { "week_1": [{ "name": "...", "discipline": "...", ... }], ... }
-    Object.keys(conteudosJsonb).forEach(weekKey => {
-      const weekNumber = parseInt(weekKey.replace('week_', '') || '1');
-      const weekContents = conteudosJsonb[weekKey];
-      
-      if (Array.isArray(weekContents)) {
-        weekContents.forEach((item, index) => {
-          contents.push({
-            id: `${weekKey}_${index}`,
-            name: item.name || item.titulo || 'Conteúdo sem título',
-            discipline: item.discipline || item.disciplina || 'Geral',
-            week: weekNumber,
-            sanarflixUrl: item.url || item.sanarflixUrl || '#',
-            completed: false,
-            type: item.type || item.tipo || 'video'
-          });
-        });
-      }
-    });
-
-    return contents;
   };
 
   const initializeProgress = (contents: StudyContent[], userId: string) => {

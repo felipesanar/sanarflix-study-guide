@@ -139,7 +139,7 @@ export const useHomeData = () => {
     const items: MeuDiaItem[] = [];
 
     // 🚀 Paralelizar queries principais para melhor performance
-    const [studyGuideRes, cronogramaRes, intensivoRes, simuladoRes] = await Promise.all([
+    const [studyGuideRes, cronogramaRes, simuladoRes] = await Promise.all([
       supabase
         .from('conteudos')
         .select('*')
@@ -150,10 +150,6 @@ export const useHomeData = () => {
         .from('calendar_subjects')
         .select('*')
         .eq('user_id', user.id)
-        .limit(1),
-      supabase
-        .from('intensivouscs')
-        .select('*')
         .limit(1),
       supabase
         .from('simulados_admin')
@@ -332,22 +328,7 @@ export const useHomeData = () => {
       console.warn('⚠️ [Meu Dia] Erro ao avaliar simulados disponíveis:', e);
     }
 
-    // Adicionar Intensivo apenas se não houver matérias
-    if (items.length === 0) {
-      const intensivoData = intensivoRes.data;
-      if (intensivoData && intensivoData.length > 0) {
-        items.push({
-          id: 'intensivo',
-          type: 'intensivo',
-          title: 'Intensivo ENAMED',
-          subtitle: 'Conteúdo focado disponível',
-          path: '/intensivao-enamed',
-          icon: 'Zap',
-          color: 'from-purple-500 to-pink-500',
-          source: 'fallback' as const,
-        });
-      }
-    }
+    // Intensivo ENAMED foi descontinuado - não adicionar mais
 
     setMeuDiaItems(items);
     return {
@@ -489,7 +470,6 @@ export const useHomeData = () => {
     if (!user?.id_ies || !user?.semestre) return;
 
     const sb: any = supabase;
-    console.log('[MeuSemestre] Iniciando fetchTopAulas', { id_ies: user.id_ies, semestre: user.semestre });
     const base = () =>
       sb
         .from('dados_meu_semestre')
@@ -502,7 +482,6 @@ export const useHomeData = () => {
       .limit(12);
 
     let data = dataRes.data || [];
-    console.log('[MeuSemestre] Primeira consulta', { length: data?.length || 0, error: dataRes.error });
 
     if (!data || data.length === 0) {
       const retry = await base()
@@ -511,7 +490,6 @@ export const useHomeData = () => {
         .order('total_acessos', { ascending: false })
         .limit(12);
       data = retry.data || [];
-      console.log('[MeuSemestre] Fallback 1 (eq string semestre)', { length: data?.length || 0, error: retry.error });
     }
 
     if (!data || data.length === 0) {
@@ -520,19 +498,12 @@ export const useHomeData = () => {
         .order('total_acessos', { ascending: false })
         .limit(12);
       data = retry2.data || [];
-      console.log('[MeuSemestre] Fallback 2 (sem filtrar semestre)', { length: data?.length || 0, error: retry2.error });
-    }
-
-    if (!data || data.length === 0) {
-      const allCheck = await base().limit(1);
-      console.log('[MeuSemestre] Checagem sem filtro', { length: allCheck.data?.length || 0, error: allCheck.error });
     }
 
     if (!data || data.length === 0) {
       try {
         const { data: iesServer } = await supabase.rpc('get_current_user_ies_id');
         const { data: semServer } = await supabase.rpc('get_current_user_semester');
-        console.log('[MeuSemestre] RPC valores servidor', { iesServer, semServer });
         if (iesServer) {
           let srvQuery = base().in('id_ies', [iesServer, String(iesServer)]);
           if (semServer !== null && semServer !== undefined) {
@@ -540,10 +511,9 @@ export const useHomeData = () => {
           }
           const srvRes = await srvQuery.order('total_acessos', { ascending: false }).limit(12);
           data = srvRes.data || [];
-          console.log('[MeuSemestre] Consulta usando RPC', { length: data?.length || 0, error: srvRes.error });
         }
-      } catch (e) {
-        console.log('[MeuSemestre] Erro ao consultar RPC', e);
+      } catch {
+        // Silently fail, will use fallback
       }
     }
 
@@ -558,7 +528,6 @@ export const useHomeData = () => {
           tipo: String(item.tipo_conteudo || '').toLowerCase().includes('quest') ? 'questoes' : 'videos',
         }));
       setTopAulas(aulas);
-      console.log('[MeuSemestre] TopAulas definidas', { count: aulas.length, sample: aulas[0] });
 
       const relacionados = (data || [])
         .slice(3, 9)
@@ -569,21 +538,17 @@ export const useHomeData = () => {
           link: item.link_acesso || '#',
         }));
       setConteudosRelacionados(relacionados);
-      console.log('[MeuSemestre] Conteúdos relacionados definidos', { count: relacionados.length, sample: relacionados[0] });
       return { aulas, relacionados };
     }
 
-    console.log('[MeuSemestre] Nenhum dado retornado de dados_meu_semestre');
-
-    const { data: conteudosData, error: conteudosErr } = await supabase
+    // Fallback: conteudos table
+    const { data: conteudosData } = await supabase
       .from('conteudos')
       .select('id, aula, materia, link_aula, link_quiz')
       .eq('id_ies', user.id_ies)
       .eq('semestre', user.semestre.toString())
       .not('link_aula', 'is', null)
       .limit(12);
-
-    console.log('[MeuSemestre] Fallback conteudos', { length: conteudosData?.length || 0, error: conteudosErr });
 
     if (conteudosData && conteudosData.length > 0) {
       const aulas = conteudosData.slice(0, 3).map((item: any) => ({
@@ -601,7 +566,6 @@ export const useHomeData = () => {
       }));
       setTopAulas(aulas as TopAula[]);
       setConteudosRelacionados(relacionados);
-      console.log('[MeuSemestre] Dados exibidos via fallback conteudos', { aulasCount: aulas.length, relacionadosCount: relacionados.length });
       return { aulas, relacionados };
     }
 
