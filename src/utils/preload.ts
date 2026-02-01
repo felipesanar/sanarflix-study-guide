@@ -24,11 +24,11 @@ export const preloadRoute = (routeName: string): void => {
   const routeMap: Record<string, () => Promise<any>> = {
     'study-guide': () => import('../pages/StudyGuide'),
     'dashboard': () => import('../pages/Dashboard'),
-    'intensivao': () => import('../pages/IntensivaoEnamed'),
     'simulado': () => import('../pages/SimuladoDesempenho'),
-    'cronograma': () => import('../pages/CronogramaEnamed'),
     'analytics': () => import('../pages/Analytics'),
     'home': () => import('../pages/Home'),
+    'simulados': () => import('../pages/Simulados'),
+    'sanarclass': () => import('../pages/SanarClass'),
   };
 
   const preloadFn = routeMap[routeName];
@@ -76,11 +76,11 @@ export const setupLinkPrefetch = (): void => {
   const linkRouteMap: Record<string, string> = {
     '/guia-estudos': 'study-guide',
     '/dashboard': 'dashboard',
-    
     '/desempenho-simulado': 'simulado',
-    '/cronograma-enamed': 'cronograma',
     '/analytics': 'analytics',
     '/home': 'home',
+    '/simulados': 'simulados',
+    '/sanarclass': 'sanarclass',
   };
 
   document.addEventListener('mouseover', (e) => {

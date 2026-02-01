@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBrazilDayOfWeek, getBrazilDate } from '@/utils/timezone';
-import { cronogramaEnamedApi } from '@/services/cronogramaEnamedApi';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 export interface MeuDiaItem {
   id: string;
@@ -218,113 +217,8 @@ export const useHomeData = () => {
       }
 
 
-
-      // Se não encontrou no calendário pessoal, buscar no Cronograma ENAMED
-      if (subjectsToProcess.length === 0) {
-
-        try {
-          const allCronogramaItems = await cronogramaEnamedApi.getAllContent();
-
-
-
-
-          const brazilDate = getBrazilDate();
-          const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
-
-          // Filtrar por data_aula que contenha a data de hoje
-          // OU por semana atual (como fallback)
-          const todayCronogramaItems = allCronogramaItems.filter(item => {
-            if (item.data_aula && item.data_aula.includes(todayStr)) {
-              return true;
-            }
-            // Fallback: pegar itens da semana atual se não houver por data específica
-            if (item.semana) {
-              const weekMatch = item.semana.match(/semana[_\s]*(\d+)/i);
-              if (weekMatch) {
-                const weekNum = parseInt(weekMatch[1]);
-                const currentWeek = Math.ceil(brazilDate.getDate() / 7);
-                return weekNum === currentWeek;
-              }
-            }
-            return false;
-          });
-
-
-
-          // Se ainda não tiver nada, pegar os primeiros 3 itens como fallback
-          const itemsToShow = todayCronogramaItems.length > 0
-            ? todayCronogramaItems.slice(0, 3)
-            : allCronogramaItems.slice(0, 3);
-
-
-
-          // Buscar aulas específicas do Guia de Estudos para cada matéria do Cronograma
-          const cronogramaPromises = itemsToShow.map(async (cronItem) => {
-            const materiaName = cronItem.subtema || cronItem.tema || 'Matéria';
-
-            try {
-              // Buscar aulas da matéria no Guia de Estudos
-              const [materiaConteudosRes, completedRes] = await Promise.all([
-                supabase
-                  .from('conteudos')
-                  .select('id, aula, materia, link_aula')
-                  .eq('id_ies', user.id_ies)
-                  .eq('semestre', user.semestre.toString())
-                  .ilike('materia', `%${materiaName}%`)
-                  .not('link_aula', 'is', null)
-                  .limit(20),
-                supabase
-                  .from('study_progress')
-                  .select('content_id')
-                  .eq('user_id', user.id)
-                  .ilike('materia_id', `%${materiaName}%`)
-                  .eq('semestre', user.semestre)
-                  .eq('ies_nome', user.ies_nome || '')
-                  .eq('content_type', 'aula')
-                  .eq('completed', true)
-              ]);
-
-              const materiaConteudos = materiaConteudosRes.data;
-              const completed = completedRes.data;
-
-              const completedSet = new Set((completed || []).map((c: any) => String(c.content_id)));
-              const suggestion = (materiaConteudos || []).find((c: any) => !completedSet.has(String(c.id)));
-
-              return {
-                id: `cronograma-${cronItem.id}`,
-                type: 'materia' as const,
-                title: materiaName,
-                subtitle: suggestion ? suggestion.aula : cronItem.titulo || 'Ver conteúdo',
-                path: `/guia-estudos?materia=${encodeURIComponent(materiaName)}`,
-                icon: 'BookOpen',
-                color: 'from-purple-500 to-indigo-500',
-                lessonLink: suggestion?.link_aula || cronItem.link_aula || cronItem.link_gratuito || undefined,
-                source: 'cronograma_enamed' as const,
-              };
-            } catch (error) {
-              console.warn(`Erro ao processar matéria ${materiaName}:`, error);
-              return {
-                id: `cronograma-${cronItem.id}`,
-                type: 'materia' as const,
-                title: materiaName,
-                subtitle: cronItem.titulo || 'Cronograma ENAMED',
-                path: '/cronograma-enamed',
-                icon: 'BookOpen',
-                color: 'from-purple-500 to-indigo-500',
-                lessonLink: cronItem.link_aula || cronItem.link_gratuito || undefined,
-                source: 'cronograma_enamed' as const,
-              };
-            }
-          });
-
-          const processedCronogramaItems = (await Promise.all(cronogramaPromises)).filter((item) => item !== null) as MeuDiaItem[];
-          // Limitar a 2 itens do cronograma ENAMED
-          items.push(...processedCronogramaItems.slice(0, 2));
-        } catch (error) {
-          console.warn('⚠️ [Meu Dia] Erro ao buscar Cronograma ENAMED:', error);
-        }
-      } else {
+      // Processar matérias do calendário pessoal se encontradas
+      if (subjectsToProcess.length > 0) {
         // Processar matérias do calendário pessoal
         const subjectPromises = subjectsToProcess.map(async (subjectName) => {
           if (!subjectName) return null;

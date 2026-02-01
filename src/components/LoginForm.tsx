@@ -35,21 +35,11 @@ export const LoginForm: React.FC = () => {
     const success = await login(email.trim().toLowerCase(), password);
     Logger.debug('login_result', { success });
     if (success) {
-      // Determine default route based on access rules (B2C -> cronograma)
+      // Navigate to simulados after login (default route for all users)
       setTimeout(() => {
-        try {
-          const stored = localStorage.getItem("sanarflix-user");
-          let target = "/home";
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            const rules = getAccessRules(parsed);
-            target = rules.cronogramaEnamed ? "/cronograma-enamed" : "/home";
-          }
-          Logger.info('post_login_navigation', { target });
-          navigate(target, { replace: true });
-        } catch (err) {
-          navigate("/home", { replace: true });
-        }
+        const target = "/simulados";
+        Logger.info('post_login_navigation', { target });
+        navigate(target, { replace: true });
       }, 50);
     }
   };

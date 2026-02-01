@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getBrazilDayOfWeek, getBrazilDate } from '@/utils/timezone';
-import { cronogramaEnamedApi } from '@/services/cronogramaEnamedApi';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 
 interface User {
@@ -13,7 +12,7 @@ interface User {
 
 /**
  * Hook extraído de useHomeData para buscar itens do "Meu Dia"
- * Responsável por: calendário pessoal, cronograma ENAMED, simulados disponíveis
+ * Responsável por: calendário pessoal, simulados disponíveis
  */
 export const useMeuDia = () => {
   const [items, setItems] = useState<MeuDiaItem[]>([]);
@@ -26,21 +25,12 @@ export const useMeuDia = () => {
     const meuDiaItems: MeuDiaItem[] = [];
 
     // Paralelizar queries principais
-    const [studyGuideRes, cronogramaRes, intensivoRes, simuladoRes] = await Promise.all([
+    const [studyGuideRes, simuladoRes] = await Promise.all([
       supabase
         .from('conteudos')
         .select('*')
         .eq('id_ies', user.id_ies)
         .eq('semestre', user.semestre.toString())
-        .limit(1),
-      supabase
-        .from('calendar_subjects')
-        .select('*')
-        .eq('user_id', user.id)
-        .limit(1),
-      supabase
-        .from('intensivouscs')
-        .select('*')
         .limit(1),
       supabase
         .from('simulados_admin')
@@ -51,10 +41,7 @@ export const useMeuDia = () => {
     const studyGuideData = studyGuideRes.data;
     const hasGuide = !!(studyGuideData && studyGuideData.length > 0);
     setHasStudyGuide(hasGuide);
-
-    const cronogramaData = cronogramaRes.data;
-    const hasCron = !!(cronogramaData && cronogramaData.length > 0);
-    setHasCronograma(hasCron);
+    setHasCronograma(false);
 
     // Matérias do dia
     try {
@@ -84,10 +71,7 @@ export const useMeuDia = () => {
         }
       }
 
-      if (subjectsToProcess.length === 0) {
-        // Fallback: Cronograma ENAMED
-        await processCronogramaEnamed(user, meuDiaItems);
-      } else {
+      if (subjectsToProcess.length > 0) {
         // Processar calendário pessoal
         await processCalendarSubjects(user, subjectsToProcess, meuDiaItems);
       }
@@ -98,94 +82,8 @@ export const useMeuDia = () => {
     // Simulado disponível
     await addAvailableSimulado(user, simuladoRes.data || [], meuDiaItems);
 
-    // Intensivo como fallback
-    if (meuDiaItems.length === 0 && intensivoRes.data && intensivoRes.data.length > 0) {
-      meuDiaItems.push({
-        id: 'intensivo',
-        type: 'intensivo',
-        title: 'Intensivo ENAMED',
-        subtitle: 'Conteúdo focado disponível',
-        path: '/intensivao-enamed',
-        icon: 'Zap',
-        color: 'from-purple-500 to-pink-500',
-        source: 'fallback',
-      });
-    }
-
     setItems(meuDiaItems);
-    return { items: meuDiaItems, hasStudyGuide: hasGuide, hasCronograma: hasCron };
-  };
-
-  const processCronogramaEnamed = async (user: User, items: MeuDiaItem[]) => {
-    try {
-      const allCronogramaItems = await cronogramaEnamedApi.getAllContent();
-      const brazilDate = getBrazilDate();
-      const todayStr = `${brazilDate.getDate().toString().padStart(2, '0')}/${(brazilDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
-      const todayCronogramaItems = allCronogramaItems.filter(item => {
-        if (item.data_aula?.includes(todayStr)) return true;
-        if (item.semana) {
-          const weekMatch = item.semana.match(/semana[_\s]*(\d+)/i);
-          if (weekMatch) {
-            const weekNum = parseInt(weekMatch[1]);
-            const currentWeek = Math.ceil(brazilDate.getDate() / 7);
-            return weekNum === currentWeek;
-          }
-        }
-        return false;
-      });
-
-      const itemsToShow = todayCronogramaItems.length > 0
-        ? todayCronogramaItems.slice(0, 3)
-        : allCronogramaItems.slice(0, 3);
-
-      const processedItems = await Promise.all(
-        itemsToShow.map(async (cronItem) => {
-          const materiaName = cronItem.subtema || cronItem.tema || 'Matéria';
-          
-          try {
-            const { data: materiaConteudos } = await supabase
-              .from('conteudos')
-              .select('id, aula, materia, link_aula')
-              .eq('id_ies', user.id_ies!)
-              .eq('semestre', user.semestre!.toString())
-              .ilike('materia', `%${materiaName}%`)
-              .not('link_aula', 'is', null)
-              .limit(5);
-
-            const suggestion = materiaConteudos?.[0];
-
-            return {
-              id: `cronograma-${cronItem.id}`,
-              type: 'materia' as const,
-              title: materiaName,
-              subtitle: suggestion?.aula || cronItem.titulo || 'Ver conteúdo',
-              path: `/guia-estudos?materia=${encodeURIComponent(materiaName)}`,
-              icon: 'BookOpen',
-              color: 'from-purple-500 to-indigo-500',
-              lessonLink: suggestion?.link_aula || cronItem.link_aula || cronItem.link_gratuito,
-              source: 'cronograma_enamed' as const,
-            };
-          } catch {
-            return {
-              id: `cronograma-${cronItem.id}`,
-              type: 'materia' as const,
-              title: materiaName,
-              subtitle: cronItem.titulo || 'Cronograma ENAMED',
-              path: '/cronograma-enamed',
-              icon: 'BookOpen',
-              color: 'from-purple-500 to-indigo-500',
-              lessonLink: cronItem.link_aula || cronItem.link_gratuito,
-              source: 'cronograma_enamed' as const,
-            };
-          }
-        })
-      );
-
-      items.push(...processedItems.slice(0, 2));
-    } catch (error) {
-      console.warn('[Meu Dia] Erro ao buscar Cronograma ENAMED:', error);
-    }
+    return { items: meuDiaItems, hasStudyGuide: hasGuide, hasCronograma: false };
   };
 
   const processCalendarSubjects = async (user: User, subjects: string[], items: MeuDiaItem[]) => {
