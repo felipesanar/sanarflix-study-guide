@@ -92,6 +92,8 @@ export default function SimuladosTab() {
   const [showAnularConfirm, setShowAnularConfirm] = useState(false);
   const [questaoToAnular, setQuestaoToAnular] = useState<Questao | null>(null);
   const [anulando, setAnulando] = useState(false);
+  const [editingSimulado, setEditingSimulado] = useState<Simulado | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const [configForm, setConfigForm] = useState({
     nome: '',
@@ -370,13 +372,62 @@ export default function SimuladosTab() {
   const handleConfirmPreview = () => {
     if (previewData) {
       setConfigForm(previewData.config);
+      setIsEditMode(false);
+      setEditingSimulado(null);
       setShowPreviewModal(false);
       setShowConfigModal(true);
     }
   };
 
+  const handleEditSimulado = async (simulado: Simulado) => {
+    try {
+      // Buscar dados completos do simulado incluindo ies_ids
+      const { data, error } = await supabase
+        .from('simulados_admin')
+        .select('*')
+        .eq('id', simulado.id)
+        .single();
+
+      if (error) throw error;
+
+      // Configurar formulário com dados existentes
+      setConfigForm({
+        nome: data.nome,
+        descricao: data.descricao || '',
+        data_liberacao: data.data_liberacao ? brazilISOToDatetimeLocal(data.data_liberacao) : '',
+        data_encerramento: data.data_encerramento ? brazilISOToDatetimeLocal(data.data_encerramento) : '',
+        duracao_minutos: data.duracao_minutos,
+        status: data.status as 'ativo' | 'rascunho' | 'encerrado'
+      });
+
+      // Configurar IES selecionadas
+      setSelectedIESList(data.ies_ids || []);
+
+      // Configurar modo de edição
+      setEditingSimulado(simulado);
+      setIsEditMode(true);
+      setShowConfigModal(true);
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao carregar simulado',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleSaveSimulado = async () => {
-    if (!previewData || !configForm.nome) {
+    // Para edição, não precisa de previewData
+    if (!isEditMode && !previewData) {
+      toast({
+        title: 'Erro',
+        description: 'Dados do simulado não encontrados',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!configForm.nome) {
       toast({
         title: 'Erro',
         description: 'Nome do simulado é obrigatório',
@@ -405,43 +456,70 @@ export default function SimuladosTab() {
         ? datetimeLocalToBrazilISO(configForm.data_encerramento)
         : null;
 
-      // Criar simulado
-      const { data: simulado, error: simuladoError } = await supabase
-        .from('simulados_admin')
-        .insert({
-          nome: configForm.nome,
-          descricao: configForm.descricao || null,
-          data_liberacao: dataLiberacaoISO,
-          data_encerramento: dataEncerramentoISO,
-          duracao_minutos: configForm.duracao_minutos,
-          status: configForm.status,
-          ies_ids: selectedIESList
-        })
-        .select()
-        .single();
+      if (isEditMode && editingSimulado) {
+        // Atualizar simulado existente
+        const { error: updateError } = await supabase
+          .from('simulados_admin')
+          .update({
+            nome: configForm.nome,
+            descricao: configForm.descricao || null,
+            data_liberacao: dataLiberacaoISO,
+            data_encerramento: dataEncerramentoISO,
+            duracao_minutos: configForm.duracao_minutos,
+            status: configForm.status,
+            ies_ids: selectedIESList
+          })
+          .eq('id', editingSimulado.id);
 
-      if (simuladoError) throw simuladoError;
+        if (updateError) throw updateError;
 
-      // Inserir questões
-      const questoesComSimuladoId = previewData.questoes.map(q => ({
-        ...q,
-        simulado_id: simulado.id
-      }));
+        toast({
+          title: 'Simulado atualizado!',
+          description: 'As configurações foram salvas com sucesso.'
+        });
+      } else {
+        // Criar simulado novo
+        const { data: simulado, error: simuladoError } = await supabase
+          .from('simulados_admin')
+          .insert({
+            nome: configForm.nome,
+            descricao: configForm.descricao || null,
+            data_liberacao: dataLiberacaoISO,
+            data_encerramento: dataEncerramentoISO,
+            duracao_minutos: configForm.duracao_minutos,
+            status: configForm.status,
+            ies_ids: selectedIESList
+          })
+          .select()
+          .single();
 
-      const { error: questoesError } = await supabase
-        .from('questoes_simulado')
-        .insert(questoesComSimuladoId);
+        if (simuladoError) throw simuladoError;
 
-      if (questoesError) throw questoesError;
+        // Inserir questões
+        if (previewData) {
+          const questoesComSimuladoId = previewData.questoes.map(q => ({
+            ...q,
+            simulado_id: simulado.id
+          }));
 
-      toast({
-        title: 'Simulado criado com sucesso!',
-        description: `${previewData.questoes.length} questões foram adicionadas.`
-      });
+          const { error: questoesError } = await supabase
+            .from('questoes_simulado')
+            .insert(questoesComSimuladoId);
+
+          if (questoesError) throw questoesError;
+        }
+
+        toast({
+          title: 'Simulado criado com sucesso!',
+          description: previewData ? `${previewData.questoes.length} questões foram adicionadas.` : 'Simulado criado.'
+        });
+      }
 
       setShowConfigModal(false);
       setPreviewData(null);
       setSelectedIESList([]);
+      setEditingSimulado(null);
+      setIsEditMode(false);
       setConfigForm({
         nome: '',
         descricao: '',
@@ -787,19 +865,29 @@ export default function SimuladosTab() {
                       <TableCell>
                         {format(toBrazilDate(simulado.created_at), 'dd/MM/yyyy')}
                       </TableCell>
-                      <TableCell className="text-right">
+                        <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleVisualizarQuestoes(simulado)}
+                            title="Visualizar questões"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleEditSimulado(simulado)}
+                            title="Editar configurações"
+                          >
+                            <Edit2 className="h-4 w-4 text-primary" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleExportSimulado(simulado)}
+                            title="Exportar questões"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -820,6 +908,7 @@ export default function SimuladosTab() {
                               setSelectedSimulado(simulado);
                               setShowDeleteModal(true);
                             }}
+                            title="Excluir simulado"
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
@@ -945,9 +1034,15 @@ export default function SimuladosTab() {
       <Dialog open={showConfigModal} onOpenChange={setShowConfigModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Configurar Simulado</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5 text-primary" />
+              {isEditMode ? 'Editar Simulado' : 'Configurar Simulado'}
+            </DialogTitle>
             <DialogDescription>
-              Defina as informações do simulado antes de salvar
+              {isEditMode 
+                ? `Atualize as configurações do simulado "${editingSimulado?.nome}"`
+                : 'Defina as informações do simulado antes de salvar'
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 px-1">
@@ -1076,7 +1171,20 @@ export default function SimuladosTab() {
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button 
               variant="outline" 
-              onClick={() => setShowConfigModal(false)}
+              onClick={() => {
+                setShowConfigModal(false);
+                setIsEditMode(false);
+                setEditingSimulado(null);
+                setSelectedIESList([]);
+                setConfigForm({
+                  nome: '',
+                  descricao: '',
+                  data_liberacao: '',
+                  data_encerramento: '',
+                  duracao_minutos: 180,
+                  status: 'rascunho'
+                });
+              }}
               className="w-full sm:w-auto"
             >
               Cancelar
@@ -1087,7 +1195,7 @@ export default function SimuladosTab() {
               className="w-full sm:w-auto"
             >
               {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Salvar Simulado
+              {isEditMode ? 'Atualizar Simulado' : 'Salvar Simulado'}
             </Button>
           </DialogFooter>
         </DialogContent>
