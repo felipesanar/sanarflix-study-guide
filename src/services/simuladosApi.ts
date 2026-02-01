@@ -113,22 +113,15 @@ export const simuladosApi = {
         user_id: userData.user.id,
         respostas: resultado.respostas,
         tempo_total_segundos: resultado.tempo_total_segundos,
-        saidas_de_aba: resultado.saidas_de_aba
+        saidas_de_aba: resultado.saidas_de_aba,
+        saidas_de_fullscreen: resultado.saidas_de_fullscreen,
+        finalizado_em: resultado.finalizado_em
       }
     });
 
     if (error) throw error;
 
-    // Registrar finalização
-    await supabase
-      .from('simulados_finalizados')
-      .insert({
-        user_id: userData.user.id,
-        simulado_id: resultado.simulado_id,
-        tempo_total_segundos: resultado.tempo_total_segundos,
-        saidas_de_aba: resultado.saidas_de_aba
-      });
-
+    // Registro de finalização centralizado na Edge Function
     return data;
   },
 

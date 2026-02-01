@@ -20,6 +20,8 @@ interface CorrecaoRequest {
   tempo_total_segundos: number;
   saidas_de_aba: number;
   saidas_de_fullscreen?: number;
+  finalizado_em?: string;
+  auto_finalizado?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -29,22 +31,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    
+    // Cliente com token do usuário para operações com RLS
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization') || '' },
+      },
+    });
 
-    const { simulado_id, user_id, respostas, tempo_total_segundos, saidas_de_aba, saidas_de_fullscreen }: CorrecaoRequest = await req.json();
+    // Cliente admin para operações que precisam bypassar RLS
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`Processando correção do simulado: ${simulado_id} para usuário: ${user_id}`);
+    const { 
+      simulado_id, 
+      user_id, 
+      respostas, 
+      tempo_total_segundos, 
+      saidas_de_aba, 
+      saidas_de_fullscreen,
+      finalizado_em,
+      auto_finalizado 
+    }: CorrecaoRequest = await req.json();
+
+    console.log(`[corrigir-simulado] Processando simulado: ${simulado_id} para usuário: ${user_id}`);
+    console.log(`[corrigir-simulado] Auto-finalizado: ${auto_finalizado ? 'SIM (sendBeacon)' : 'NÃO (botão)'}`);
+    console.log(`[corrigir-simulado] Tempo total: ${tempo_total_segundos}s, Saídas aba: ${saidas_de_aba}, Saídas fullscreen: ${saidas_de_fullscreen ?? 0}`);
 
     // IDEMPOTÊNCIA: Verificar se já existem respostas para este simulado/usuário
-    const { data: existingAnswers, error: checkError } = await supabaseClient
+    const { data: existingAnswers, error: checkError } = await supabaseAdmin
       .from('answer_progress')
       .select('answer_id')
       .eq('user_id', user_id)
@@ -52,11 +69,11 @@ Deno.serve(async (req) => {
       .limit(1);
 
     if (checkError) {
-      console.error('Erro ao verificar respostas existentes:', checkError);
+      console.error('[corrigir-simulado] Erro ao verificar respostas existentes:', checkError);
     }
 
     if (existingAnswers && existingAnswers.length > 0) {
-      console.log(`Simulado ${simulado_id} já processado para usuário ${user_id}. Ignorando requisição duplicada.`);
+      console.log(`[corrigir-simulado] Simulado ${simulado_id} já processado para usuário ${user_id}. Ignorando requisição duplicada.`);
       return new Response(
         JSON.stringify({ 
           message: 'Simulado já foi processado anteriormente', 
@@ -69,13 +86,13 @@ Deno.serve(async (req) => {
     // Buscar os gabaritos E status de anulação de TODAS as questões
     const questaoIds = respostas.map(r => r.questao_id);
 
-    const { data: questoes, error: questoesError } = await supabaseClient
+    const { data: questoes, error: questoesError } = await supabaseAdmin
       .from('questoes_simulado')
       .select('id, correta, anulada')
       .in('id', questaoIds);
 
     if (questoesError) {
-      console.error('Erro ao buscar gabaritos:', questoesError);
+      console.error('[corrigir-simulado] Erro ao buscar gabaritos:', questoesError);
       throw questoesError;
     }
 
@@ -101,15 +118,15 @@ Deno.serve(async (req) => {
       };
     });
 
-    console.log(`Total de questões a serem salvas: ${respostasParaSalvar.length}`);
+    console.log(`[corrigir-simulado] Total de questões a serem salvas: ${respostasParaSalvar.length}`);
 
-    // Inserir respostas corrigidas
-    const { error: insertError } = await supabaseClient
+    // Inserir respostas corrigidas usando cliente admin
+    const { error: insertError } = await supabaseAdmin
       .from('answer_progress')
       .insert(respostasParaSalvar);
 
     if (insertError) {
-      console.error('Erro ao inserir respostas:', insertError);
+      console.error('[corrigir-simulado] Erro ao inserir respostas:', insertError);
       throw insertError;
     }
 
@@ -117,30 +134,47 @@ Deno.serve(async (req) => {
     const acertos = questoesRespondidas.filter(r => r.correct).length;
     const total = questoesRespondidas.length;
 
-    
+    console.log(`[corrigir-simulado] Acertos: ${acertos}/${total}`);
 
-    // Registrar simulado como finalizado
-    const { error: finalizadoError } = await supabaseClient
+    // Registrar simulado como finalizado usando cliente ADMIN (bypassa RLS)
+    const finalizadoEmTimestamp = finalizado_em || new Date().toISOString();
+    
+    console.log(`[corrigir-simulado] Registrando finalização em simulados_finalizados...`);
+    console.log(`[corrigir-simulado] Dados: user_id=${user_id}, simulado_id=${simulado_id}, tempo=${tempo_total_segundos}s, saidas_aba=${saidas_de_aba}, saidas_fullscreen=${saidas_de_fullscreen ?? 0}`);
+
+    const { error: finalizadoError } = await supabaseAdmin
       .from('simulados_finalizados')
       .insert({
         user_id: user_id,
         simulado_id: simulado_id,
-        tempo_total_segundos,
-        saidas_de_aba,
-        saidas_de_fullscreen: saidas_de_fullscreen ?? 0
+        tempo_total_segundos: tempo_total_segundos,
+        saidas_de_aba: saidas_de_aba,
+        saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
+        finalizado_em: finalizadoEmTimestamp
       });
 
     if (finalizadoError) {
-      console.error('Erro ao registrar finalização:', finalizadoError);
-      // Não bloquear o fluxo se falhar o registro
+      // Verificar se é erro de duplicação (já existe registro)
+      if (finalizadoError.code === '23505') {
+        console.log(`[corrigir-simulado] Registro de finalização já existe (duplicado). Ignorando.`);
+      } else {
+        console.error('[corrigir-simulado] ERRO CRÍTICO ao registrar finalização:', finalizadoError);
+        // Lançar erro para que o frontend saiba que houve problema
+        throw new Error(`Falha ao registrar finalização: ${finalizadoError.message}`);
+      }
+    } else {
+      console.log(`[corrigir-simulado] Finalização registrada com sucesso!`);
     }
 
     return new Response(
       JSON.stringify({
         message: 'Respostas enviadas com sucesso',
         total_questoes: total,
+        acertos: acertos,
         tempo_total_segundos,
-        saidas_de_aba
+        saidas_de_aba,
+        saidas_de_fullscreen: saidas_de_fullscreen ?? 0,
+        finalizado_em: finalizadoEmTimestamp
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -148,7 +182,7 @@ Deno.serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Erro na correção do simulado:', error);
+    console.error('[corrigir-simulado] Erro na correção do simulado:', error);
     return new Response(
       JSON.stringify({
         error: error.message || 'Erro ao processar correção do simulado'
