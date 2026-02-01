@@ -113,7 +113,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1, duration: 0.4 }}
-                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-primary/8 dark:bg-primary/15 border border-primary/10 dark:border-primary/20"
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-primary/8 dark:bg-primary/15"
               >
                 <span className="text-lg">{greeting.emoji}</span>
                 <span className="text-sm font-medium text-primary tracking-wide">
