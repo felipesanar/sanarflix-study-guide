@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ZoomIn, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,17 +20,45 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const dragStart = useRef({ x: 0, y: 0 });
   const positionStart = useRef({ x: 0, y: 0 });
   
   // Touch/pinch state
   const lastTouchDistance = useRef<number | null>(null);
-  const lastTouchCenter = useRef({ x: 0, y: 0 });
   const initialPinchScale = useRef(1);
 
   const MIN_SCALE = 1;
-  const MAX_SCALE = 4;
+  const MAX_SCALE = 5;
   const SCALE_STEP = 0.5;
+
+  // Prevenir zoom da página quando o modal está aberto
+  useEffect(() => {
+    if (!open) return;
+
+    const preventZoom = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    };
+
+    const preventGestureZoom = (e: Event) => {
+      e.preventDefault();
+    };
+
+    // Prevenir zoom por pinch em toda a página quando o lightbox está aberto
+    document.addEventListener('touchmove', preventZoom, { passive: false });
+    document.addEventListener('gesturestart', preventGestureZoom);
+    document.addEventListener('gesturechange', preventGestureZoom);
+    document.addEventListener('gestureend', preventGestureZoom);
+
+    return () => {
+      document.removeEventListener('touchmove', preventZoom);
+      document.removeEventListener('gesturestart', preventGestureZoom);
+      document.removeEventListener('gesturechange', preventGestureZoom);
+      document.removeEventListener('gestureend', preventGestureZoom);
+    };
+  }, [open]);
 
   const handleZoomIn = useCallback(() => {
     setScale((prev) => Math.min(prev + SCALE_STEP, MAX_SCALE));
@@ -110,22 +138,13 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
     return Math.hypot(dx, dy);
   };
 
-  const getTouchCenter = (touches: React.TouchList) => {
-    if (touches.length < 2) {
-      return { x: touches[0].clientX, y: touches[0].clientY };
-    }
-    return {
-      x: (touches[0].clientX + touches[1].clientX) / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2,
-    };
-  };
-
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (e.touches.length === 2) {
       // Pinch start
-      e.preventDefault();
       lastTouchDistance.current = getTouchDistance(e.touches);
-      lastTouchCenter.current = getTouchCenter(e.touches);
       initialPinchScale.current = scale;
     } else if (e.touches.length === 1 && scale > 1) {
       // Single touch drag
@@ -136,9 +155,11 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   }, [scale, position]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (e.touches.length === 2 && lastTouchDistance.current !== null) {
       // Pinch zoom
-      e.preventDefault();
       const currentDistance = getTouchDistance(e.touches);
       const scaleChange = currentDistance / lastTouchDistance.current;
       const newScale = Math.min(Math.max(initialPinchScale.current * scaleChange, MIN_SCALE), MAX_SCALE);
@@ -161,6 +182,8 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
   }, [isDragging, scale]);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    
     if (e.touches.length < 2) {
       lastTouchDistance.current = null;
     }
@@ -179,7 +202,7 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
       // Double tap detected
       e.preventDefault();
       if (scale === 1) {
-        setScale(2);
+        setScale(2.5);
       } else {
         handleReset();
       }
@@ -215,7 +238,8 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
       {/* Dialog fullscreen */}
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent 
-          className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 border-0 bg-black/95 flex items-center justify-center overflow-hidden group/lightbox"
+          className="max-w-[100vw] max-h-[100vh] w-screen h-screen p-0 border-0 bg-black flex items-center justify-center overflow-hidden group/lightbox"
+          style={{ touchAction: 'none' }}
           aria-describedby={undefined}
         >
           {/* Botão de fechar - sempre visível em touch, hover em desktop */}
@@ -230,11 +254,13 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
           
           {/* Container da imagem com zoom e pan */}
           <div
+            ref={containerRef}
             className={cn(
-              "max-w-[90vw] max-h-[90vh] overflow-hidden touch-none",
+              "w-full h-full flex items-center justify-center overflow-hidden",
               scale > 1 ? "cursor-grab" : "cursor-zoom-in",
               isDragging && "cursor-grabbing"
             )}
+            style={{ touchAction: 'none' }}
             // Mouse events
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -255,9 +281,13 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
             <img
               src={src}
               alt={alt}
-              className="max-w-[90vw] max-h-[90vh] object-contain select-none transition-transform duration-100"
+              className="max-w-none select-none will-change-transform"
               style={{
                 transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                maxWidth: scale === 1 ? '95vw' : 'none',
+                maxHeight: scale === 1 ? '95vh' : 'none',
+                objectFit: 'contain',
+                imageRendering: scale > 1 ? 'auto' : 'auto',
               }}
               draggable={false}
             />
