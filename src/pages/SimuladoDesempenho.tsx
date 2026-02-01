@@ -213,12 +213,10 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
     });
     const data = Array.from(areasMap.values());
     const simulados = Object.entries(simuladoNames).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-    console.log('[Evol] mapped', { dataLen: data.length, simuladosLen: simulados.length, first: data[0], simulados });
     return { data, simulados };
   }, [allPerformanceData]);
   const dynamicColors = generateRedShades(evolutionData.simulados.length);
   if (evolutionData.data.length === 0 || evolutionData.simulados.length < 2) {
-    console.log('[Evol] fallback reason', { dataLen: evolutionData.data.length, simuladosLen: evolutionData.simulados.length });
     return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-64"><p className="text-muted-foreground">Realize pelo menos dois simulados para ver sua evolução.</p></CardContent></Card>);
   }
   return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados por Grandes Áreas</CardTitle></CardHeader><CardContent className="h-[400px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 20, left: 0, bottom: 5 }}><XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickFormatter={(value) => `${value}%`} /><Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '0.5rem' }} /><Legend wrapperStyle={{ fontSize: '14px' }} />{evolutionData.simulados.map((simulado, index) => (<Bar key={simulado.id} dataKey={`simulado_${simulado.id}`} name={simulado.name} fill={dynamicColors[index]} radius={[4, 4, 0, 0]} label={<RenderCustomEvolutionBarLabel />} />))}</RechartsBarChart></ResponsiveContainer></CardContent></Card>);
@@ -260,7 +258,6 @@ export const SimuladoDesempenho: React.FC = () => {
         simuladoId ? supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single() : supabase.rpc('get_user_rankings').single(),
         supabase.from('users').select('semestre').eq('id', user.id).single()
       ]);
-      console.log('[Desempenho] RPC results', { simuladosResult, performanceResult, rankingResult, userDataResult, selectedSimulado: simuladoId });
       if (simuladosResult.error) throw simuladosResult.error; if (performanceResult.error) throw performanceResult.error; if (rankingResult.error) throw rankingResult.error; if (userDataResult.error) throw userDataResult.error;
       const simuladosData = simuladosResult.data || [];
       setSimulados(simuladosData.map((s: any) => ({ ...s, id: s.id })));
@@ -285,17 +282,13 @@ export const SimuladoDesempenho: React.FC = () => {
     const cachedEvolutionData = sessionStorage.getItem(EVOLUTION_CACHE_KEY);
     if (cachedEvolutionData) {
       const parsed = JSON.parse(cachedEvolutionData);
-      console.log('[Evol] using cached evolution', { count: parsed.length, sample: parsed[0] });
       setAllPerformanceData(parsed);
     } else {
-      console.log('[Evol] fetching evolution data...');
       supabase.rpc('get_all_user_performance_by_area').then(({ data, error }) => {
         if (error) { console.error('[Evol] fetch error', error); return; }
         const freshData = data || [];
-        console.log('[Evol] fetched', { count: freshData.length, sample: freshData[0] });
         setAllPerformanceData(freshData);
         sessionStorage.setItem(EVOLUTION_CACHE_KEY, JSON.stringify(freshData));
-        console.log('[Evol] cached under', EVOLUTION_CACHE_KEY);
       });
     }
   }, [user]);

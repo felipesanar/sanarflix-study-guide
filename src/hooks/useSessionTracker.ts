@@ -78,7 +78,6 @@ export const useSessionTracker = () => {
 
       sessionRef.current = session;
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-      console.log('[AnalyticsCapture] Session started:', sessionId);
     }
   }, [user?.id, user?.id_ies]);
 
@@ -115,8 +114,6 @@ export const useSessionTracker = () => {
           ies_id: user.id_ies
         }]);
 
-      console.log('[AnalyticsCapture] Page view:', path, timeOnPreviousPage ? `(${timeOnPreviousPage}s on previous)` : '');
-
       // Atualizar contador na sessão do banco
       if (session.dbSessionId) {
         await supabase
@@ -145,8 +142,6 @@ export const useSessionTracker = () => {
           pages_visited: session.pagesVisited
         })
         .eq('id', session.dbSessionId);
-
-      console.log('[AnalyticsCapture] Session ended:', session.sessionId, `(${duration}s, ${session.pagesVisited} pages)`);
     } catch (err) {
       console.error('[SessionTracker] Error ending session:', err);
     }

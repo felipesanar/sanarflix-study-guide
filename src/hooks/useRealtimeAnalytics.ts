@@ -209,7 +209,6 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         { event: 'INSERT', schema: 'public', table: 'answer_progress' },
         async (payload) => {
           if (await matchesFilters(payload, 'answer_progress')) {
-            console.log('[Realtime] Nova resposta:', payload);
             updateRespostasPorMinuto();
             addAtividade({
               id: crypto.randomUUID(),
@@ -226,7 +225,6 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         { event: 'INSERT', schema: 'public', table: 'aula_views' },
         async (payload) => {
           if (await matchesFilters(payload, 'aula_views')) {
-            console.log('[Realtime] Nova visualização de aula:', payload);
             setStats((prev) => ({
               ...prev,
               aulasAssistidasHoje: prev.aulasAssistidasHoje + 1,
@@ -246,7 +244,6 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         { event: 'INSERT', schema: 'public', table: 'simulados_finalizados' },
         async (payload) => {
           if (await matchesFilters(payload, 'simulados_finalizados')) {
-            console.log('[Realtime] Simulado finalizado:', payload);
             setStats((prev) => ({
               ...prev,
               simuladosConcluidosHoje: prev.simuladosConcluidosHoje + 1,
@@ -266,7 +263,6 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         { event: 'INSERT', schema: 'public', table: 'study_progress' },
         async (payload) => {
           if (await matchesFilters(payload, 'study_progress')) {
-            console.log('[Realtime] Progresso de estudo:', payload);
             addAtividade({
               id: crypto.randomUUID(),
               tipo: 'progresso',
@@ -278,7 +274,6 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         }
       )
       .subscribe((status) => {
-        console.log('[Realtime] Status da conexão:', status);
         setStats((prev) => ({
           ...prev,
           isConnected: status === 'SUBSCRIBED',

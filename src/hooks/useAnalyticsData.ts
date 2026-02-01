@@ -477,7 +477,6 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   }, []);
 
   const fetchAllData = useCallback(async () => {
-    console.log('[AnalyticsCapture] Iniciando busca de dados de analytics...');
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -488,11 +487,6 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         fetchDemographicsMetrics(),
         fetchSimuladoMetrics(),
       ]);
-
-      console.log('[AnalyticsCapture] Dados carregados com sucesso:', {
-        totalUsuarios: overview.totalUsuarios,
-        sessoesHoje: overview.sessoesHoje,
-      });
 
       setData({
         overview,

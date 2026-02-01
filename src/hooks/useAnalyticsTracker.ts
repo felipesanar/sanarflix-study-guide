@@ -38,8 +38,6 @@ export const useAnalyticsTracker = () => {
         ies_id: user?.id_ies || null
       };
 
-      console.log('[AnalyticsCapture]', eventName, eventData);
-
       const { error } = await supabase
         .from('analytics_events')
         .insert([eventData]);
@@ -74,8 +72,6 @@ export const useAnalyticsTracker = () => {
           user_id: user.id,
           simulado_id: simuladoId
         }, { onConflict: 'user_id,simulado_id' });
-
-      console.log('[AnalyticsCapture] Simulado started:', simuladoId);
     } catch (err) {
       console.error('[AnalyticsCapture] Error tracking simulado start:', err);
     }
@@ -125,8 +121,6 @@ export const useAnalyticsTracker = () => {
           lesson_id: lessonId,
           action_type: actionType
         });
-
-      console.log('[AnalyticsCapture] SanarClass action:', actionType, lessonId);
     } catch (err) {
       console.error('[AnalyticsCapture] Error tracking sanarclass:', err);
     }

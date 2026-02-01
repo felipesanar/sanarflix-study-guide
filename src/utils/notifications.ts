@@ -124,7 +124,6 @@ export const subscribeToPush = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log('Push subscription registrada com sucesso');
     return true;
   } catch (error) {
     console.error('Erro ao registrar push subscription:', error);
