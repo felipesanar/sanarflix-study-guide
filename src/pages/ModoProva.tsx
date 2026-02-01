@@ -9,6 +9,7 @@ import { useKeyboardShortcuts, KEY_TO_ALTERNATIVE } from '@/hooks/useKeyboardSho
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Questao, EstadoSimulado } from '@/types/simulado';
 import { AlternativaProva } from '@/components/simulados/AlternativaProva';
+import { ImageLightbox } from '@/components/simulados/ImageLightbox';
 import { NavegacaoLateral } from '@/components/simulados/NavegacaoLateral';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -467,9 +468,9 @@ export const ModoProva = () => {
 
               {questaoAtualData?.imagem && (
                 <div className="mt-6">
-                  <img
+                  <ImageLightbox
                     src={questaoAtualData.imagem}
-                    alt="Imagem da questão"
+                    alt={`Imagem da questão ${questaoAtual + 1}`}
                     className="max-w-full rounded-lg border"
                   />
                 </div>
