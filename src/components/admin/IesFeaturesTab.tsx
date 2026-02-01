@@ -113,13 +113,13 @@ const IesFeaturesTab: React.FC = () => {
     setSaving(iesId);
     try {
       for (const [featureKey, enabled] of Object.entries(changes)) {
-        // Tentar atualizar primeiro
+        // Verificar se registro já existe
         const { data: existing } = await supabase
           .from('ies_features')
           .select('id')
           .eq('ies_id', iesId)
           .eq('feature_key', featureKey)
-          .single();
+          .maybeSingle();
 
         if (existing) {
           // Atualizar
