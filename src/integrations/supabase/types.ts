@@ -565,6 +565,35 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_notifications_sent: {
+        Row: {
+          id: string
+          sent_at: string
+          simulado_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          sent_at?: string
+          simulado_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          sent_at?: string
+          simulado_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_notifications_sent_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
