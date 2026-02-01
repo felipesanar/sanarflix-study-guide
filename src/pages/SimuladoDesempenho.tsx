@@ -4,7 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban } from 'lucide-react';
+import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban, FileDown } from 'lucide-react';
+import { generateGabaritoPDF, GabaritoQuestao } from '@/utils/pdfGabarito';
+import { toast } from '@/hooks/use-toast';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -239,6 +241,7 @@ export const SimuladoDesempenho: React.FC = () => {
   const [simulados, setSimulados] = useState<Simulado[]>([]);
   const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
   const [allPerformanceData, setAllPerformanceData] = useState<any[]>([]);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const CACHE_KEY_PREFIX = `performanceData_${user?.id}`;
 
   const fetchDataForView = async (simuladoId: string | null, forceRefresh = false) => {
@@ -323,6 +326,61 @@ export const SimuladoDesempenho: React.FC = () => {
     setSelectedSimulado(simuladoId);
   };
 
+  const handleDownloadGabarito = async () => {
+    if (!selectedSimulado || !user) return;
+    
+    setIsDownloadingPDF(true);
+    try {
+      const { data: answers, error } = await supabase
+        .from('answer_progress')
+        .select(`
+          question_id,
+          resposta_usuario,
+          correct,
+          questoes_simulado!inner (
+            correta,
+            tema,
+            ordem
+          )
+        `)
+        .eq('simulado', selectedSimulado)
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      // Sort by ordem field from questoes_simulado
+      const sortedAnswers = (answers || []).sort((a, b) => {
+        const ordemA = (a.questoes_simulado as any)?.ordem ?? 0;
+        const ordemB = (b.questoes_simulado as any)?.ordem ?? 0;
+        return ordemA - ordemB;
+      });
+      
+      const questoes: GabaritoQuestao[] = sortedAnswers.map((a, index) => ({
+        numero: index + 1,
+        respostaAluno: a.resposta_usuario?.toUpperCase() || null,
+        gabarito: (a.questoes_simulado as any)?.correta?.toUpperCase() || '-',
+        acertou: a.resposta_usuario ? a.correct : null,
+        tema: (a.questoes_simulado as any)?.tema || '-',
+      }));
+      
+      const simuladoInfo = simulados.find(s => s.id === selectedSimulado);
+      const simuladoNome = simuladoInfo?.nome || 'Simulado';
+      
+      generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, {
+        acertos: stats?.acertos || 0,
+        total: stats?.total || 0,
+        percentual: stats?.percentual || 0,
+      });
+      
+      toast({ title: 'Gabarito gerado!', description: 'O PDF foi baixado com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({ title: 'Erro', description: 'Não foi possível gerar o gabarito.', variant: 'destructive' });
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
+
   // ATUALIZAÇÃO: A função agora aceita os 3 argumentos
   const handleSubspecialtyClick = async (subspecialtyName: string, areaName: string | null, specialtyName: string | null) => {
     setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestions([]);
@@ -375,6 +433,15 @@ export const SimuladoDesempenho: React.FC = () => {
             disabled={loading}>
             {loading ? "Atualizando..." : "Atualizar Dados"}
           </button>
+          <Button
+            onClick={handleDownloadGabarito}
+            disabled={!selectedSimulado || isDownloadingPDF}
+            variant="outline"
+            className="gap-2 flex-shrink-0"
+          >
+            {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Baixar Gabarito
+          </Button>
         </div>
       </div>
       {stats && performancePorArea.length > 0 && (<PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} byDifficulty={byDifficulty} />)}
