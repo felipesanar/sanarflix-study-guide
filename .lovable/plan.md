@@ -1,250 +1,211 @@
 
-# Correcao do Cronometro para Usar Duracao Configurada
 
-## Resumo do Problema
+# Plano: Correcao do Gargalo no Cronometro do Modo Prova
 
-O cronometro do Modo Prova esta usando a **data de encerramento do simulado** em vez da **duracao configurada**. Isso faz com que um simulado configurado com 3 horas de duracao mostre 4h25 de tempo restante (tempo ate a data de encerramento).
+## Problema Identificado
 
-## Analise do Codigo
+Cada interacao no Modo Prova (selecionar alternativa, mudar de questao, marcar revisao) causa um pequeno travamento no cronometro. Isso acontece porque:
 
-| Arquivo | Problema |
-|---------|----------|
-| `simuladosApi.buscarDadosSimulado()` | Nao retorna `duracao_minutos` |
-| `ModoProva.tsx` | Passa apenas `dataEncerramento` para o cronometro |
-| `useCronometro.ts` | Calcula tempo baseado apenas no deadline |
-| `useSimuladoStorage.ts` | Nao armazena o deadline individual do aluno |
+1. Operacoes sincronas de localStorage bloqueiam a thread principal
+2. O callback `onAtualizarTempo` causa re-criacao do intervalo do cronometro
+3. Cada interacao le e escreve o estado inteiro no localStorage
+4. Re-renders desnecessarios afetam a fluidez
 
-## Logica Correta
+## Analise Tecnica Detalhada
 
-O tempo disponivel para o aluno deve ser calculado assim:
+| Problema | Causa | Impacto |
+|----------|-------|---------|
+| localStorage sincrono | `JSON.parse/stringify` em cada operacao | Bloqueia main thread ~10-50ms |
+| Intervalo reinicializado | `onAtualizarTempo` nas dependencias do useEffect | Timer "pula" ao re-renderizar |
+| Multiplas leituras por interacao | Padrao carregar-modificar-salvar | Operacoes duplicadas |
+| Estado completo atualizado | `setEstado(novoEstado)` apos cada interacao | Re-render do componente inteiro |
 
-```text
-horaInicio = momento que o aluno inicia o simulado
-deadlineIndividual = horaInicio + duracao_minutos
-deadlineGlobal = data_encerramento do simulado
+## Solucao Proposta
 
-tempoDisponivel = MIN(deadlineIndividual, deadlineGlobal)
-```
+### 1. Remover `onAtualizarTempo` do Cronometro
 
-Exemplo:
-- Simulado com duracao de 3h e encerramento as 18:00
-- Aluno inicia as 15:30
-- Deadline individual: 15:30 + 3h = 18:30
-- Deadline global: 18:00
-- Tempo disponivel: 18:00 (o menor dos dois)
-
-Outro exemplo:
-- Simulado com duracao de 3h e encerramento as 20:00  
-- Aluno inicia as 14:00
-- Deadline individual: 14:00 + 3h = 17:00
-- Deadline global: 20:00
-- Tempo disponivel: 17:00 (o menor dos dois)
-
----
-
-## Implementacao
-
-### 1. Modificar `simuladosApi.buscarDadosSimulado()`
-
-**Arquivo:** `src/services/simuladosApi.ts`
-
-Adicionar `duracao_minutos` ao retorno:
-
-```typescript
-async buscarDadosSimulado(simuladoId: string): Promise<{ 
-  titulo: string; 
-  dataEncerramento: string | null;
-  duracaoMinutos: number;
-}> {
-  const { data, error } = await supabase
-    .from('simulados_admin')
-    .select('nome, data_encerramento, duracao_minutos')
-    .eq('id', simuladoId)
-    .single();
-
-  if (error) throw error;
-  return {
-    titulo: data?.nome || '',
-    dataEncerramento: data?.data_encerramento || null,
-    duracaoMinutos: data?.duracao_minutos || 180 // Fallback de 3h
-  };
-}
-```
-
-### 2. Modificar `useSimuladoStorage.ts`
-
-**Arquivo:** `src/hooks/useSimuladoStorage.ts`
-
-Atualizar `inicializarEstado` para armazenar o deadline calculado:
-
-```typescript
-const inicializarEstado = useCallback((
-  numeroQuestoes: number, 
-  dataEncerramento: string | null,
-  duracaoMinutos: number
-): EstadoSimulado => {
-  const agora = new Date();
-  
-  // Calcula o deadline individual baseado na duracao
-  const deadlineIndividual = new Date(agora.getTime() + duracaoMinutos * 60 * 1000);
-  
-  // Determina o deadline efetivo (menor entre individual e global)
-  let deadlineEfetivo: Date;
-  if (dataEncerramento) {
-    const deadlineGlobal = new Date(dataEncerramento);
-    deadlineEfetivo = deadlineIndividual < deadlineGlobal 
-      ? deadlineIndividual 
-      : deadlineGlobal;
-  } else {
-    deadlineEfetivo = deadlineIndividual;
-  }
-
-  const novoEstado: EstadoSimulado = {
-    simulado_id: simuladoId,
-    questao_atual: 0,
-    tempo_restante_segundos: 0,
-    respostas: {},
-    saidas_de_aba: 0,
-    saidas_de_fullscreen: 0,
-    iniciado_em: agora.toISOString(),
-    deadline_efetivo: deadlineEfetivo.toISOString(), // NOVO CAMPO
-    ultima_atualizacao: agora.toISOString()
-  };
-  salvarEstado(novoEstado);
-  return novoEstado;
-}, [simuladoId, salvarEstado]);
-```
-
-### 3. Atualizar tipo `EstadoSimulado`
-
-**Arquivo:** `src/types/simulado.ts`
-
-Adicionar campo para o deadline calculado:
-
-```typescript
-export interface EstadoSimulado {
-  simulado_id: string;
-  questao_atual: number;
-  tempo_restante_segundos: number;
-  respostas: Record<string, RespostaSimulado>;
-  saidas_de_aba: number;
-  saidas_de_fullscreen: number;
-  iniciado_em: string;
-  deadline_efetivo: string; // NOVO - deadline calculado no inicio
-  ultima_atualizacao: string;
-}
-```
-
-### 4. Modificar `ModoProva.tsx`
+O tempo nao precisa ser salvo no localStorage a cada segundo. O deadline ja esta armazenado e o tempo restante pode ser recalculado a qualquer momento.
 
 **Arquivo:** `src/pages/ModoProva.tsx`
 
-Usar o deadline efetivo armazenado no estado:
+Remover a prop `onAtualizarTempo` do hook useCronometro:
 
 ```typescript
-const inicializarSimulado = async () => {
-  setLoading(true);
-  try {
-    const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
-    setQuestoes(questoesData);
-
-    const { titulo, dataEncerramento: deadline, duracaoMinutos } = 
-      await simuladosApi.buscarDadosSimulado(simuladoId);
-    setSimuladoTitulo(titulo);
-
-    // Track simulado start (only once per session)
-    if (!hasTrackedStart.current) {
-      hasTrackedStart.current = true;
-      trackSimuladoStart(simuladoId, titulo);
-    }
-
-    let estadoAtual = storage.carregarEstado();
-    if (!estadoAtual) {
-      // Inicializa com deadline calculado baseado na duracao
-      estadoAtual = storage.inicializarEstado(
-        questoesData.length, 
-        deadline, 
-        duracaoMinutos
-      );
-    }
-
-    // Usa o deadline efetivo armazenado no estado
-    setDataEncerramento(estadoAtual.deadline_efetivo);
-    setEstado(estadoAtual);
-    setQuestaoAtual(estadoAtual.questao_atual);
-  } catch (error) {
-    console.error('Erro ao inicializar simulado:', error);
-    toast.error('Erro ao carregar o simulado');
-    navigate('/simulados');
-  } finally {
-    setLoading(false);
+// ANTES - causa re-render e re-criacao do intervalo a cada segundo
+const cronometro = useCronometro({
+  dataEncerramento,
+  onTempoEsgotado: () => { ... },
+  onAtualizarTempo: (tempo) => {
+    storage.atualizarTempo(tempo); // REMOVE ISSO
   }
-};
+});
+
+// DEPOIS - cronometro puro sem side-effects
+const cronometro = useCronometro({
+  dataEncerramento,
+  onTempoEsgotado: () => { ... }
+});
 ```
 
-### 5. Modificar `useCronometro.ts`
+### 2. Tornar o Hook useCronometro Mais Estavel
 
 **Arquivo:** `src/hooks/useCronometro.ts`
 
-Renomear o parametro para refletir que e o deadline efetivo (opcional, para clareza):
+Modificar para nao aceitar `onAtualizarTempo` ou usa-lo com `useRef` para evitar re-criacao do intervalo:
 
-O hook ja esta correto - ele recebe uma data e calcula o tempo restante. A mudanca e que agora recebera o `deadline_efetivo` em vez do `data_encerramento` global.
+```typescript
+interface UseCronometroProps {
+  dataEncerramento: string | null;
+  onTempoEsgotado: () => void;
+  // REMOVER: onAtualizarTempo - desnecessario
+}
+
+export const useCronometro = ({
+  dataEncerramento,
+  onTempoEsgotado
+}: UseCronometroProps) => {
+  // Usar ref para callback de tempo esgotado para evitar re-criacao do intervalo
+  const onTempoEsgotadoRef = useRef(onTempoEsgotado);
+  
+  useEffect(() => {
+    onTempoEsgotadoRef.current = onTempoEsgotado;
+  }, [onTempoEsgotado]);
+
+  useEffect(() => {
+    if (!dataEncerramento) return;
+
+    const atualizarTempo = () => {
+      const novoTempo = calcularTempoRestante();
+      setTempoRestante(novoTempo);
+      
+      if (novoTempo === 0 && !tempoEsgotadoRef.current) {
+        tempoEsgotadoRef.current = true;
+        onTempoEsgotadoRef.current(); // Usar ref em vez da dependencia direta
+      }
+    };
+
+    atualizarTempo();
+    intervalRef.current = setInterval(atualizarTempo, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [dataEncerramento, calcularTempoRestante]); // REMOVIDO: callbacks das dependencias
+};
+```
+
+### 3. Otimizar Handlers com Debounce para localStorage
+
+**Arquivo:** `src/hooks/useSimuladoStorage.ts`
+
+Usar debounce para escritas no localStorage:
+
+```typescript
+const debouncedSave = useRef<NodeJS.Timeout | null>(null);
+const pendingState = useRef<EstadoSimulado | null>(null);
+
+const salvarEstadoOtimizado = useCallback((estado: EstadoSimulado) => {
+  // Armazenar estado pendente
+  pendingState.current = {
+    ...estado,
+    ultima_atualizacao: new Date().toISOString()
+  };
+  
+  // Debounce de 100ms para agrupar escritas
+  if (debouncedSave.current) clearTimeout(debouncedSave.current);
+  debouncedSave.current = setTimeout(() => {
+    if (pendingState.current) {
+      try {
+        localStorage.setItem(getEstadoKey(), JSON.stringify(pendingState.current));
+      } catch (error) {
+        console.error('Erro ao salvar estado:', error);
+      }
+    }
+  }, 100);
+}, [simuladoId]);
+```
+
+### 4. Usar Estado Local para Respostas (Evitar Re-leitura)
+
+**Arquivo:** `src/pages/ModoProva.tsx`
+
+Manter o estado de respostas em memoria e sincronizar com localStorage de forma assincrona:
+
+```typescript
+// Atualizar estado local imediatamente, salvar no localStorage depois
+const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
+  if (!questaoAtualData || !podeInteragir) return;
+
+  setEstado(prevEstado => {
+    if (!prevEstado) return prevEstado;
+    
+    const novoEstado = {
+      ...prevEstado,
+      respostas: {
+        ...prevEstado.respostas,
+        [questaoAtualData.id]: {
+          questao_id: questaoAtualData.id,
+          resposta: alternativa,
+          marcada_revisao: prevEstado.respostas[questaoAtualData.id]?.marcada_revisao || false,
+          alternativas_eliminadas: prevEstado.respostas[questaoAtualData.id]?.alternativas_eliminadas || []
+        }
+      }
+    };
+    
+    // Salvar de forma assincrona (nao bloqueia render)
+    storage.salvarEstadoDebounced(novoEstado);
+    
+    return novoEstado;
+  });
+}, [questaoAtualData, podeInteragir, storage]);
+```
+
+### 5. Remover Funcao atualizarTempo do Storage
+
+**Arquivo:** `src/hooks/useSimuladoStorage.ts`
+
+Remover a funcao `atualizarTempo` que salva o tempo restante a cada segundo - isso e desnecessario pois o tempo e calculado dinamicamente a partir do deadline.
 
 ---
 
-## Secao Tecnica
-
-### Fluxo de Calculo do Tempo
+## Fluxo Otimizado
 
 ```text
-Aluno clica "Iniciar Prova"
-          |
-          v
-buscarDadosSimulado() retorna:
-  - titulo
-  - dataEncerramento (global)
-  - duracaoMinutos
-          |
-          v
-storage.inicializarEstado() calcula:
-  deadlineIndividual = agora + duracaoMinutos
-  deadlineEfetivo = MIN(deadlineIndividual, dataEncerramento)
-          |
-          v
-Armazena deadline_efetivo no localStorage
-          |
-          v
-useCronometro recebe deadline_efetivo
-          |
-          v
-Cronometro exibe tempo ate deadline_efetivo
+ANTES (problematico):
+[Clique] -> salvarResposta() -> [localStorage READ + WRITE síncrono]
+         -> carregarEstado() -> [localStorage READ síncrono]
+         -> setEstado() -> [Re-render]
+         -> useCronometro recria intervalo -> [Timer trava]
+
+DEPOIS (otimizado):
+[Clique] -> setEstado() -> [Re-render imediato com novo estado]
+         -> salvarEstadoDebounced() -> [100ms depois: localStorage WRITE]
+         -> useCronometro continua inalterado -> [Timer fluido]
 ```
 
-### Casos de Borda
+---
 
-| Cenario | Comportamento |
-|---------|---------------|
-| Aluno inicia com tempo suficiente | Deadline = inicio + duracao |
-| Aluno inicia proximo ao encerramento | Deadline = data_encerramento |
-| Estado ja existe (retomada) | Usa deadline_efetivo salvo |
-| Simulado sem data_encerramento | Deadline = inicio + duracao |
-
-### Arquivos Modificados
+## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/services/simuladosApi.ts` | Adicionar `duracaoMinutos` ao retorno |
-| `src/types/simulado.ts` | Adicionar `deadline_efetivo` ao `EstadoSimulado` |
-| `src/hooks/useSimuladoStorage.ts` | Calcular deadline efetivo na inicializacao |
-| `src/pages/ModoProva.tsx` | Usar `deadline_efetivo` do estado armazenado |
+| `src/hooks/useCronometro.ts` | Remover dependencia de callback, usar refs |
+| `src/hooks/useSimuladoStorage.ts` | Adicionar debounce, remover atualizarTempo |
+| `src/pages/ModoProva.tsx` | Otimizar handlers, remover onAtualizarTempo |
 
 ---
 
+## Beneficios
+
+- Cronometro nao sera mais afetado por interacoes
+- UI mais responsiva e fluida
+- Menos operacoes de localStorage
+- Mesma garantia de persistencia (dados salvos a cada 100ms de inatividade)
+
 ## Validacao
 
-1. Criar simulado com duracao de 30 minutos e encerramento em 2 horas
-2. Iniciar o simulado - deve mostrar 30 minutos
-3. Criar simulado com duracao de 3 horas e encerramento em 1 hora
-4. Iniciar o simulado - deve mostrar 1 hora
-5. Recarregar a pagina durante o simulado - tempo deve continuar do ponto correto
-6. Verificar que simulados ja iniciados mantem seu deadline original
+1. Iniciar simulado e observar se o cronometro flui sem travamentos
+2. Selecionar alternativas rapidamente e verificar fluidez
+3. Navegar entre questoes e confirmar que o timer nao trava
+4. Fechar e reabrir a aba para confirmar que o estado foi persistido
+
