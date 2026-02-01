@@ -5,10 +5,9 @@ import { UsersTab } from '@/components/admin/UsersTab';
 import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
 import SanarClassTab from '@/components/admin/SanarClassTab';
 import SimuladosTab from '@/components/admin/SimuladosTab';
-import MonitoramentoTab from '@/components/admin/MonitoramentoTab';
 import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
-import { Shield, Users, Bell, FileText, ClipboardList, BarChart3, Unlock, Building2 } from 'lucide-react';
+import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2 } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -91,10 +90,6 @@ const UserManagement: React.FC = () => {
                   <ClipboardList className="h-4 w-4" />
                   Simulados
                 </TabsTrigger>
-                <TabsTrigger value="monitoramento" className="flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Monitoramento
-                </TabsTrigger>
                 <TabsTrigger value="liberacoes" className="flex items-center gap-2">
                   <Unlock className="h-4 w-4" />
                   Liberações
@@ -103,9 +98,6 @@ const UserManagement: React.FC = () => {
 
               <TabsContent value="simulados" className="mt-6">
                 <SimuladosTab />
-              </TabsContent>
-              <TabsContent value="monitoramento" className="mt-6">
-                <MonitoramentoTab />
               </TabsContent>
               <TabsContent value="liberacoes" className="mt-6">
                 <LiberacoesTab />
