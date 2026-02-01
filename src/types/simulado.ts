@@ -9,6 +9,9 @@ export interface Simulado {
   data_encerramento?: string | null;
   tema?: string;
   professor?: string;
+  liberacao_desempenho?: 'imediato' | 'agendado' | 'ao_encerrar';
+  data_liberacao_desempenho?: string | null;
+  desempenho_liberado?: boolean;
 }
 
 export interface Questao {

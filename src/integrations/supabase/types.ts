@@ -787,10 +787,12 @@ export type Database = {
           created_by: string | null
           data_encerramento: string | null
           data_liberacao: string | null
+          data_liberacao_desempenho: string | null
           descricao: string | null
           duracao_minutos: number
           id: string
           ies_ids: string[]
+          liberacao_desempenho: string
           nome: string
           status: string
           updated_at: string | null
@@ -800,10 +802,12 @@ export type Database = {
           created_by?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
+          data_liberacao_desempenho?: string | null
           descricao?: string | null
           duracao_minutos: number
           id?: string
           ies_ids?: string[]
+          liberacao_desempenho?: string
           nome: string
           status?: string
           updated_at?: string | null
@@ -813,10 +817,12 @@ export type Database = {
           created_by?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
+          data_liberacao_desempenho?: string | null
           descricao?: string | null
           duracao_minutos?: number
           id?: string
           ies_ids?: string[]
+          liberacao_desempenho?: string
           nome?: string
           status?: string
           updated_at?: string | null

@@ -36,6 +36,27 @@ export const SimuladosDisponiveis = () => {
     };
   }, []);
 
+  // Verifica se o desempenho do simulado está liberado
+  const verificarDesempenhoLiberado = (sim: any): boolean => {
+    const liberacaoDesempenho = sim.liberacao_desempenho || 'imediato';
+    const agora = new Date();
+
+    if (liberacaoDesempenho === 'imediato') return true;
+    
+    if (liberacaoDesempenho === 'agendado' && sim.data_liberacao_desempenho) {
+      return agora >= new Date(sim.data_liberacao_desempenho);
+    }
+    
+    if (liberacaoDesempenho === 'ao_encerrar') {
+      // Verifica se o simulado está encerrado (por status ou por data)
+      if (sim.status === 'encerrado') return true;
+      if (sim.data_encerramento && agora >= new Date(sim.data_encerramento)) return true;
+      return false;
+    }
+    
+    return true; // Fallback para simulados antigos sem a coluna
+  };
+
   const carregarSimulados = async () => {
     setLoading(true);
     try {
@@ -56,23 +77,39 @@ export const SimuladosDisponiveis = () => {
       
       const simuladosComStatus = dados.map((sim) => {
         // Verificar se o simulado está encerrado por tempo
-        if (sim.data_encerramento) {
-          const dataEncerramento = new Date(sim.data_encerramento);
-          if (agora > dataEncerramento) {
-            return { ...sim, status: 'encerrado' as const };
-          }
+        const isEncerrado = sim.data_encerramento && agora > new Date(sim.data_encerramento);
+        
+        if (isEncerrado) {
+          return { 
+            ...sim, 
+            status: 'encerrado' as const,
+            desempenho_liberado: verificarDesempenhoLiberado({ ...sim, status: 'encerrado' })
+          };
         }
         
         const estadoKey = `simulado_${sim.id}_estado`;
         const estadoStr = localStorage.getItem(estadoKey);
         if (estadoStr) {
-          return { ...sim, status: 'em_andamento' as const };
+          return { 
+            ...sim, 
+            status: 'em_andamento' as const,
+            desempenho_liberado: false
+          };
         }
+        
         const isConcluido = finalizadoSet.has(String(sim.id)) || justFinished === String(sim.id);
         if (isConcluido) {
-          return { ...sim, status: 'concluido' as const };
+          return { 
+            ...sim, 
+            status: 'concluido' as const,
+            desempenho_liberado: verificarDesempenhoLiberado(sim)
+          };
         }
-        return sim;
+        
+        return { 
+          ...sim,
+          desempenho_liberado: verificarDesempenhoLiberado(sim)
+        };
       });
 
       setSimulados(simuladosComStatus);

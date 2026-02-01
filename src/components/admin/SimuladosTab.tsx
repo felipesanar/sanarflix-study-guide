@@ -128,14 +128,18 @@ export default function SimuladosTab() {
     { value: 360, label: '6 horas' }
   ];
 
-  const [configForm, setConfigForm] = useState({
+  const configFormInitial = {
     nome: '',
     descricao: '',
     data_liberacao: '',
     data_encerramento: '',
     duracao_minutos: duracaoOpcoes[0].value,
-    liberarImediatamente: false
-  });
+    liberarImediatamente: false,
+    liberacao_desempenho: 'imediato' as 'imediato' | 'agendado' | 'ao_encerrar',
+    data_liberacao_desempenho: ''
+  };
+
+  const [configForm, setConfigForm] = useState(configFormInitial);
 
   useEffect(() => {
     fetchSimulados();
@@ -395,8 +399,8 @@ export default function SimuladosTab() {
   const handleConfirmPreview = () => {
     if (previewData) {
       setConfigForm({
-        ...previewData.config,
-        liberarImediatamente: false
+        ...configFormInitial,
+        ...previewData.config
       });
       setIsEditMode(false);
       setEditingSimulado(null);
@@ -428,7 +432,11 @@ export default function SimuladosTab() {
         data_liberacao: data.data_liberacao ? brazilISOToDatetimeLocal(data.data_liberacao) : '',
         data_encerramento: data.data_encerramento ? brazilISOToDatetimeLocal(data.data_encerramento) : '',
         duracao_minutos: data.duracao_minutos,
-        liberarImediatamente
+        liberarImediatamente,
+        liberacao_desempenho: (data as any).liberacao_desempenho || 'imediato',
+        data_liberacao_desempenho: (data as any).data_liberacao_desempenho 
+          ? brazilISOToDatetimeLocal((data as any).data_liberacao_desempenho) 
+          : ''
       });
 
       // Configurar IES selecionadas
@@ -506,6 +514,11 @@ export default function SimuladosTab() {
         ? datetimeLocalToBrazilISO(configForm.data_encerramento)
         : null;
 
+      // Preparar data de liberação de desempenho
+      const dataLiberacaoDesempenhoISO = configForm.liberacao_desempenho === 'agendado' && configForm.data_liberacao_desempenho
+        ? datetimeLocalToBrazilISO(configForm.data_liberacao_desempenho)
+        : null;
+
       if (isEditMode && editingSimulado) {
         // Atualizar simulado existente
         const { error: updateError } = await supabase
@@ -517,7 +530,9 @@ export default function SimuladosTab() {
             data_encerramento: dataEncerramentoISO,
             duracao_minutos: configForm.duracao_minutos,
             status: statusCalculado,
-            ies_ids: selectedIESList
+            ies_ids: selectedIESList,
+            liberacao_desempenho: configForm.liberacao_desempenho,
+            data_liberacao_desempenho: dataLiberacaoDesempenhoISO
           })
           .eq('id', editingSimulado.id);
 
@@ -538,7 +553,9 @@ export default function SimuladosTab() {
             data_encerramento: dataEncerramentoISO,
             duracao_minutos: configForm.duracao_minutos,
             status: statusCalculado,
-            ies_ids: selectedIESList
+            ies_ids: selectedIESList,
+            liberacao_desempenho: configForm.liberacao_desempenho,
+            data_liberacao_desempenho: dataLiberacaoDesempenhoISO
           })
           .select()
           .single();
@@ -570,14 +587,7 @@ export default function SimuladosTab() {
       setSelectedIESList([]);
       setEditingSimulado(null);
       setIsEditMode(false);
-      setConfigForm({
-        nome: '',
-        descricao: '',
-        data_liberacao: '',
-        data_encerramento: '',
-        duracao_minutos: duracaoOpcoes[0].value,
-        liberarImediatamente: false
-      });
+      setConfigForm(configFormInitial);
       fetchSimulados();
     } catch (error: any) {
       toast({
@@ -1263,6 +1273,91 @@ export default function SimuladosTab() {
                 Selecione entre 2h e 6h (incrementos de 1 hora)
               </p>
             </div>
+
+            {/* Seção de Liberação de Desempenho */}
+            <div className="border-t pt-4">
+              <Label className="text-sm font-semibold mb-3 block">Liberação do Desempenho</Label>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    id="desempenho-imediato"
+                    name="liberacao_desempenho"
+                    value="imediato"
+                    checked={configForm.liberacao_desempenho === 'imediato'}
+                    onChange={(e) => setConfigForm({ 
+                      ...configForm, 
+                      liberacao_desempenho: e.target.value as 'imediato' | 'agendado' | 'ao_encerrar',
+                      data_liberacao_desempenho: ''
+                    })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <label htmlFor="desempenho-imediato" className="text-sm font-medium cursor-pointer">
+                      Liberar imediatamente
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      O aluno pode ver o desempenho assim que finalizar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    id="desempenho-agendado"
+                    name="liberacao_desempenho"
+                    value="agendado"
+                    checked={configForm.liberacao_desempenho === 'agendado'}
+                    onChange={(e) => setConfigForm({ 
+                      ...configForm, 
+                      liberacao_desempenho: e.target.value as 'imediato' | 'agendado' | 'ao_encerrar'
+                    })}
+                    className="mt-1"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="desempenho-agendado" className="text-sm font-medium cursor-pointer">
+                      Liberar em data específica
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      O desempenho será liberado na data/hora definida.
+                    </p>
+                    {configForm.liberacao_desempenho === 'agendado' && (
+                      <Input
+                        type="datetime-local"
+                        value={configForm.data_liberacao_desempenho}
+                        onChange={(e) => setConfigForm({ ...configForm, data_liberacao_desempenho: e.target.value })}
+                        className="max-w-xs"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input
+                    type="radio"
+                    id="desempenho-encerrar"
+                    name="liberacao_desempenho"
+                    value="ao_encerrar"
+                    checked={configForm.liberacao_desempenho === 'ao_encerrar'}
+                    onChange={(e) => setConfigForm({ 
+                      ...configForm, 
+                      liberacao_desempenho: e.target.value as 'imediato' | 'agendado' | 'ao_encerrar',
+                      data_liberacao_desempenho: ''
+                    })}
+                    className="mt-1"
+                  />
+                  <div>
+                    <label htmlFor="desempenho-encerrar" className="text-sm font-medium cursor-pointer">
+                      Liberar quando encerrar
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      O desempenho será liberado automaticamente quando o simulado mudar para status "encerrado".
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <Button 
@@ -1272,14 +1367,7 @@ export default function SimuladosTab() {
                 setIsEditMode(false);
                 setEditingSimulado(null);
                 setSelectedIESList([]);
-                setConfigForm({
-                  nome: '',
-                  descricao: '',
-                  data_liberacao: '',
-                  data_encerramento: '',
-                  duracao_minutos: duracaoOpcoes[0].value,
-                  liberarImediatamente: false
-                });
+                setConfigForm(configFormInitial);
               }}
               className="w-full sm:w-auto"
             >
