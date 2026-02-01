@@ -1,186 +1,181 @@
 
 
-# Plano: Correcao do Gargalo no Cronometro do Modo Prova
+# Controle de Liberacao de Desempenho de Simulados
 
-## Problema Identificado
+## Resumo
 
-Cada interacao no Modo Prova (selecionar alternativa, mudar de questao, marcar revisao) causa um pequeno travamento no cronometro. Isso acontece porque:
+Implementar um sistema de controle para quando o desempenho dos simulados sera liberado para os alunos visualizarem. O administrador podera escolher entre:
+1. Liberar imediatamente (assim que o aluno finalizar)
+2. Liberar em data/hora especifica
+3. Liberar automaticamente quando o simulado encerrar
 
-1. Operacoes sincronas de localStorage bloqueiam a thread principal
-2. O callback `onAtualizarTempo` causa re-criacao do intervalo do cronometro
-3. Cada interacao le e escreve o estado inteiro no localStorage
-4. Re-renders desnecessarios afetam a fluidez
+## Alteracoes no Banco de Dados
 
-## Analise Tecnica Detalhada
+### Nova Coluna na Tabela `simulados_admin`
 
-| Problema | Causa | Impacto |
-|----------|-------|---------|
-| localStorage sincrono | `JSON.parse/stringify` em cada operacao | Bloqueia main thread ~10-50ms |
-| Intervalo reinicializado | `onAtualizarTempo` nas dependencias do useEffect | Timer "pula" ao re-renderizar |
-| Multiplas leituras por interacao | Padrao carregar-modificar-salvar | Operacoes duplicadas |
-| Estado completo atualizado | `setEstado(novoEstado)` apos cada interacao | Re-render do componente inteiro |
+| Campo | Tipo | Default | Descricao |
+|-------|------|---------|-----------|
+| `liberacao_desempenho` | text | 'imediato' | Tipo de liberacao: 'imediato', 'agendado', 'ao_encerrar' |
+| `data_liberacao_desempenho` | timestamp with time zone | null | Data/hora de liberacao (usado quando tipo = 'agendado') |
 
-## Solucao Proposta
+### Migracao SQL
 
-### 1. Remover `onAtualizarTempo` do Cronometro
-
-O tempo nao precisa ser salvo no localStorage a cada segundo. O deadline ja esta armazenado e o tempo restante pode ser recalculado a qualquer momento.
-
-**Arquivo:** `src/pages/ModoProva.tsx`
-
-Remover a prop `onAtualizarTempo` do hook useCronometro:
-
-```typescript
-// ANTES - causa re-render e re-criacao do intervalo a cada segundo
-const cronometro = useCronometro({
-  dataEncerramento,
-  onTempoEsgotado: () => { ... },
-  onAtualizarTempo: (tempo) => {
-    storage.atualizarTempo(tempo); // REMOVE ISSO
-  }
-});
-
-// DEPOIS - cronometro puro sem side-effects
-const cronometro = useCronometro({
-  dataEncerramento,
-  onTempoEsgotado: () => { ... }
-});
+```sql
+ALTER TABLE simulados_admin 
+ADD COLUMN liberacao_desempenho text NOT NULL DEFAULT 'imediato',
+ADD COLUMN data_liberacao_desempenho timestamp with time zone DEFAULT null;
 ```
-
-### 2. Tornar o Hook useCronometro Mais Estavel
-
-**Arquivo:** `src/hooks/useCronometro.ts`
-
-Modificar para nao aceitar `onAtualizarTempo` ou usa-lo com `useRef` para evitar re-criacao do intervalo:
-
-```typescript
-interface UseCronometroProps {
-  dataEncerramento: string | null;
-  onTempoEsgotado: () => void;
-  // REMOVER: onAtualizarTempo - desnecessario
-}
-
-export const useCronometro = ({
-  dataEncerramento,
-  onTempoEsgotado
-}: UseCronometroProps) => {
-  // Usar ref para callback de tempo esgotado para evitar re-criacao do intervalo
-  const onTempoEsgotadoRef = useRef(onTempoEsgotado);
-  
-  useEffect(() => {
-    onTempoEsgotadoRef.current = onTempoEsgotado;
-  }, [onTempoEsgotado]);
-
-  useEffect(() => {
-    if (!dataEncerramento) return;
-
-    const atualizarTempo = () => {
-      const novoTempo = calcularTempoRestante();
-      setTempoRestante(novoTempo);
-      
-      if (novoTempo === 0 && !tempoEsgotadoRef.current) {
-        tempoEsgotadoRef.current = true;
-        onTempoEsgotadoRef.current(); // Usar ref em vez da dependencia direta
-      }
-    };
-
-    atualizarTempo();
-    intervalRef.current = setInterval(atualizarTempo, 1000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [dataEncerramento, calcularTempoRestante]); // REMOVIDO: callbacks das dependencias
-};
-```
-
-### 3. Otimizar Handlers com Debounce para localStorage
-
-**Arquivo:** `src/hooks/useSimuladoStorage.ts`
-
-Usar debounce para escritas no localStorage:
-
-```typescript
-const debouncedSave = useRef<NodeJS.Timeout | null>(null);
-const pendingState = useRef<EstadoSimulado | null>(null);
-
-const salvarEstadoOtimizado = useCallback((estado: EstadoSimulado) => {
-  // Armazenar estado pendente
-  pendingState.current = {
-    ...estado,
-    ultima_atualizacao: new Date().toISOString()
-  };
-  
-  // Debounce de 100ms para agrupar escritas
-  if (debouncedSave.current) clearTimeout(debouncedSave.current);
-  debouncedSave.current = setTimeout(() => {
-    if (pendingState.current) {
-      try {
-        localStorage.setItem(getEstadoKey(), JSON.stringify(pendingState.current));
-      } catch (error) {
-        console.error('Erro ao salvar estado:', error);
-      }
-    }
-  }, 100);
-}, [simuladoId]);
-```
-
-### 4. Usar Estado Local para Respostas (Evitar Re-leitura)
-
-**Arquivo:** `src/pages/ModoProva.tsx`
-
-Manter o estado de respostas em memoria e sincronizar com localStorage de forma assincrona:
-
-```typescript
-// Atualizar estado local imediatamente, salvar no localStorage depois
-const handleSelecionarAlternativa = useCallback((alternativa: 'A' | 'B' | 'C' | 'D') => {
-  if (!questaoAtualData || !podeInteragir) return;
-
-  setEstado(prevEstado => {
-    if (!prevEstado) return prevEstado;
-    
-    const novoEstado = {
-      ...prevEstado,
-      respostas: {
-        ...prevEstado.respostas,
-        [questaoAtualData.id]: {
-          questao_id: questaoAtualData.id,
-          resposta: alternativa,
-          marcada_revisao: prevEstado.respostas[questaoAtualData.id]?.marcada_revisao || false,
-          alternativas_eliminadas: prevEstado.respostas[questaoAtualData.id]?.alternativas_eliminadas || []
-        }
-      }
-    };
-    
-    // Salvar de forma assincrona (nao bloqueia render)
-    storage.salvarEstadoDebounced(novoEstado);
-    
-    return novoEstado;
-  });
-}, [questaoAtualData, podeInteragir, storage]);
-```
-
-### 5. Remover Funcao atualizarTempo do Storage
-
-**Arquivo:** `src/hooks/useSimuladoStorage.ts`
-
-Remover a funcao `atualizarTempo` que salva o tempo restante a cada segundo - isso e desnecessario pois o tempo e calculado dinamicamente a partir do deadline.
 
 ---
 
-## Fluxo Otimizado
+## Logica de Liberacao
+
+| Tipo | Condicao para Liberar | Comportamento |
+|------|----------------------|---------------|
+| `imediato` | Sempre | Desempenho disponivel assim que finalizar |
+| `agendado` | `NOW() >= data_liberacao_desempenho` | Desempenho liberado na data/hora especificada |
+| `ao_encerrar` | `status = 'encerrado'` OU `NOW() >= data_encerramento` | Desempenho liberado quando simulado encerra |
+
+---
+
+## Alteracoes na Interface Admin
+
+### Arquivo: `src/components/admin/SimuladosTab.tsx`
+
+**1. Atualizar Estado do Formulario**
+
+Adicionar novos campos ao `configForm`:
+
+```typescript
+const [configForm, setConfigForm] = useState({
+  // ... campos existentes ...
+  liberacao_desempenho: 'imediato' as 'imediato' | 'agendado' | 'ao_encerrar',
+  data_liberacao_desempenho: ''
+});
+```
+
+**2. Adicionar Secao no Modal de Configuracao**
+
+Apos o campo "Duracao da Prova", adicionar nova secao:
 
 ```text
-ANTES (problematico):
-[Clique] -> salvarResposta() -> [localStorage READ + WRITE síncrono]
-         -> carregarEstado() -> [localStorage READ síncrono]
-         -> setEstado() -> [Re-render]
-         -> useCronometro recria intervalo -> [Timer trava]
++--------------------------------------------------+
+| Liberacao do Desempenho                          |
++--------------------------------------------------+
+| [Selector: Liberar desempenho]                   |
+|   - Imediatamente (ao finalizar)                 |
+|   - Em data especifica                           |
+|   - Quando encerrar o simulado                   |
+|                                                  |
+| (Se "Em data especifica" selecionado:)           |
+| [Input datetime-local: Data de liberacao]        |
+|                                                  |
+| (Se "Quando encerrar" selecionado:)              |
+| [Checkbox] Liberar quando o simulado encerrar    |
+|   O desempenho sera liberado automaticamente     |
+|   quando o status mudar para "encerrado"         |
++--------------------------------------------------+
+```
 
-DEPOIS (otimizado):
-[Clique] -> setEstado() -> [Re-render imediato com novo estado]
-         -> salvarEstadoDebounced() -> [100ms depois: localStorage WRITE]
-         -> useCronometro continua inalterado -> [Timer fluido]
+**3. Atualizar Funcao `handleSaveSimulado`**
+
+Incluir os novos campos no INSERT/UPDATE:
+
+```typescript
+{
+  // ... campos existentes ...
+  liberacao_desempenho: configForm.liberacao_desempenho,
+  data_liberacao_desempenho: configForm.liberacao_desempenho === 'agendado' 
+    ? datetimeLocalToBrazilISO(configForm.data_liberacao_desempenho)
+    : null
+}
+```
+
+**4. Atualizar Funcao `handleEditSimulado`**
+
+Carregar os novos campos ao editar simulado existente.
+
+---
+
+## Alteracoes na API e RPC
+
+### Arquivo: `get_user_simulados` (Funcao RPC)
+
+Modificar para retornar apenas simulados com desempenho liberado:
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_simulados()
+RETURNS TABLE(id uuid, nome text)
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT 
+    ap.simulado as id,
+    sa.nome
+  FROM answer_progress ap
+  JOIN simulados_admin sa ON ap.simulado = sa.id
+  WHERE ap.user_id = auth.uid()
+    AND (
+      -- Liberacao imediata
+      sa.liberacao_desempenho = 'imediato'
+      -- Ou liberacao agendada e ja passou a data
+      OR (sa.liberacao_desempenho = 'agendado' 
+          AND sa.data_liberacao_desempenho IS NOT NULL 
+          AND sa.data_liberacao_desempenho <= NOW())
+      -- Ou liberacao ao encerrar e simulado ja encerrou
+      OR (sa.liberacao_desempenho = 'ao_encerrar' 
+          AND (sa.status = 'encerrado' 
+               OR (sa.data_encerramento IS NOT NULL 
+                   AND sa.data_encerramento <= NOW())))
+    )
+  ORDER BY sa.nome;
+END;
+$$;
+```
+
+---
+
+## Alteracoes no Frontend do Aluno
+
+### Arquivo: `src/components/simulados/SimuladoCard.tsx`
+
+Modificar o estado `concluido` para verificar se o desempenho esta liberado:
+
+| Status | Texto do Botao | Comportamento |
+|--------|----------------|---------------|
+| Concluido + Liberado | "Ver Desempenho" | Leva para aba de desempenho |
+| Concluido + Nao Liberado | "Aguarde Liberacao" | Desabilitado, mostra quando sera liberado |
+
+### Arquivo: `src/types/simulado.ts`
+
+Adicionar novos campos ao tipo `Simulado`:
+
+```typescript
+export interface Simulado {
+  // ... campos existentes ...
+  liberacao_desempenho?: 'imediato' | 'agendado' | 'ao_encerrar';
+  data_liberacao_desempenho?: string | null;
+  desempenho_liberado?: boolean; // Calculado no frontend
+}
+```
+
+### Arquivo: `src/components/simulados/SimuladosDisponiveis.tsx`
+
+Atualizar `carregarSimulados` para buscar os novos campos e calcular se o desempenho esta liberado:
+
+```typescript
+const verificarDesempenhoLiberado = (sim: any): boolean => {
+  if (sim.liberacao_desempenho === 'imediato') return true;
+  if (sim.liberacao_desempenho === 'agendado' && sim.data_liberacao_desempenho) {
+    return new Date() >= new Date(sim.data_liberacao_desempenho);
+  }
+  if (sim.liberacao_desempenho === 'ao_encerrar') {
+    return sim.status === 'encerrado' || 
+           (sim.data_encerramento && new Date() >= new Date(sim.data_encerramento));
+  }
+  return true; // Fallback para simulados antigos
+};
 ```
 
 ---
@@ -189,23 +184,61 @@ DEPOIS (otimizado):
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/hooks/useCronometro.ts` | Remover dependencia de callback, usar refs |
-| `src/hooks/useSimuladoStorage.ts` | Adicionar debounce, remover atualizarTempo |
-| `src/pages/ModoProva.tsx` | Otimizar handlers, remover onAtualizarTempo |
+| `supabase/migrations/...` | Adicionar colunas ao banco |
+| `src/integrations/supabase/types.ts` | Atualizar tipos gerados |
+| `src/components/admin/SimuladosTab.tsx` | Adicionar campos de configuracao |
+| `src/types/simulado.ts` | Adicionar novos campos |
+| `src/components/simulados/SimuladosDisponiveis.tsx` | Verificar se desempenho esta liberado |
+| `src/components/simulados/SimuladoCard.tsx` | Exibir estado correto do botao |
+| `src/services/simuladosApi.ts` | Buscar novos campos |
 
 ---
 
-## Beneficios
+## Fluxo do Aluno
 
-- Cronometro nao sera mais afetado por interacoes
-- UI mais responsiva e fluida
-- Menos operacoes de localStorage
-- Mesma garantia de persistencia (dados salvos a cada 100ms de inatividade)
+```text
+Aluno finaliza simulado
+        |
+        v
+Sistema verifica tipo de liberacao
+        |
+        +-- imediato --> Desempenho disponivel agora
+        |
+        +-- agendado --> Verifica se NOW() >= data_liberacao_desempenho
+        |                 |
+        |                 +-- Sim --> Desempenho disponivel
+        |                 +-- Nao --> "Aguarde liberacao em DD/MM/AAAA HH:MM"
+        |
+        +-- ao_encerrar --> Verifica se simulado encerrou
+                            |
+                            +-- Sim --> Desempenho disponivel
+                            +-- Nao --> "Aguarde o encerramento do simulado"
+```
 
-## Validacao
+---
 
-1. Iniciar simulado e observar se o cronometro flui sem travamentos
-2. Selecionar alternativas rapidamente e verificar fluidez
-3. Navegar entre questoes e confirmar que o timer nao trava
-4. Fechar e reabrir a aba para confirmar que o estado foi persistido
+## Interface Visual do Admin
+
+```text
+Liberacao do Desempenho
+-----------------------
+( ) Liberar imediatamente
+    O aluno pode ver o desempenho assim que finalizar.
+
+( ) Liberar em data especifica
+    [___________] Data e hora
+    O desempenho sera liberado na data/hora definida.
+
+( ) Liberar quando encerrar
+    O desempenho sera liberado automaticamente quando
+    o simulado mudar para status "encerrado".
+```
+
+---
+
+## Compatibilidade com Simulados Existentes
+
+- Simulados sem os novos campos terao comportamento `imediato` por default
+- A migracao define `liberacao_desempenho = 'imediato'` como padrao
+- Nenhum simulado existente tera seu comportamento alterado
 
