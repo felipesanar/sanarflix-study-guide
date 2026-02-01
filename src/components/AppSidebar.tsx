@@ -21,13 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePasswordDialog } from '@/contexts/PasswordDialogContext';
-import { getAccessRules, isB2BUser } from "@/utils/accessRules";
+import { getAccessRules, isAdmin } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,
   LogOut,
   User,
-  Zap,
   ClipboardCheck,
   UserCog,
   ChevronDown,
@@ -63,27 +62,6 @@ const menuItems = [
     icon: ClipboardCheck,
     accessKey: "simulados" as const,
     description: "Simulados completos e desempenho",
-  },
-  {
-    title: "Intensivão ENAMED",
-    url: "/intensivao-enamed",
-    icon: Zap,
-    accessKey: "enamed" as const,
-    description: "Preparação intensiva para o ENAMED",
-  },
-  {
-    title: "Intensivo ENAMED - USCS",
-    url: "/intensivo-uscs",
-    icon: BookOpen,
-    accessKey: "intensivoUSCS" as const,
-    description: "Conteúdo exclusivo USCS",
-  },
-  {
-    title: "Cronograma ENAMED",
-    url: "/cronograma-enamed",
-    icon: FileText,
-    accessKey: "cronogramaEnamed" as const,
-    description: "Seu cronograma personalizado",
   },
   {
     title: "Portal do Admin",
@@ -370,9 +348,9 @@ export function AppSidebar() {
                       <AnimatePresence>
                         {studyGuideItems
                           .filter((item) => {
-                            // "Seu Progresso" (dashboard) only visible for B2B users
+                            // "Seu Progresso" (dashboard) only visible for admin users
                             if (item.accessKey === "dashboard") {
-                              return isB2BUser(user);
+                              return isAdmin(user);
                             }
                             return accessRules[item.accessKey];
                           })
@@ -405,13 +383,11 @@ export function AppSidebar() {
                     if (item.accessKey === "home") return false;
                     // SanarClass: controlled by access rules
                     if (item.accessKey === "sanarclass") return accessRules.sanarclass;
-                    // ENAMED: hidden for now
-                    if (item.accessKey === "enamed") return false;
                     // Simulados: always available for authenticated users
                     if (item.accessKey === "simulados") return true;
-                    // Analytics: only for B2B users
+                    // Analytics: only for admin users
                     if (item.accessKey === "analytics") {
-                      return isB2BUser(user);
+                      return isAdmin(user);
                     }
                     return accessRules[item.accessKey];
                   })
