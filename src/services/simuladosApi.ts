@@ -130,16 +130,19 @@ export const simuladosApi = {
   },
 
   async verificarProgressoSimulado(userId: string, simuladoId: string): Promise<boolean> {
+    // Buscar o registro mais recente (maior tentativa_numero)
     const { data, error } = await supabase
       .from('simulados_finalizados')
-      .select('id, liberado_novamente')
+      .select('id, liberado_novamente, tentativa_numero')
       .eq('user_id', userId)
       .eq('simulado_id', simuladoId)
+      .order('tentativa_numero', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) throw error;
     
-    // Retorna true se o simulado foi finalizado E não foi liberado novamente
+    // Retorna true se existe registro E não foi liberado novamente (simulado bloqueado)
     return data !== null && !data.liberado_novamente;
   }
 };

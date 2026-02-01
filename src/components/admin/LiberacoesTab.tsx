@@ -21,6 +21,7 @@ interface SimuladoFinalizado {
   liberado_novamente: boolean;
   liberado_em: string | null;
   liberado_por: string | null;
+  tentativa_numero: number;
   user_email?: string;
   user_nome?: string;
   simulado_nome?: string;
@@ -178,6 +179,7 @@ export default function LiberacoesTab() {
                   <TableRow>
                     <TableHead>Aluno</TableHead>
                     <TableHead>Simulado</TableHead>
+                    <TableHead>Tentativa</TableHead>
                     <TableHead>Finalizado em</TableHead>
                     <TableHead>Tempo</TableHead>
                     <TableHead>Saídas</TableHead>
@@ -196,6 +198,11 @@ export default function LiberacoesTab() {
                       </TableCell>
                       <TableCell className="font-medium">
                         {f.simulado_nome || 'Simulado não encontrado'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono">
+                          #{f.tentativa_numero || 1}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {format(toBrazilDate(f.finalizado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
