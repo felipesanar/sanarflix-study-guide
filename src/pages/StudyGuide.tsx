@@ -82,12 +82,36 @@ interface ConteudoData {
   link_quiz?: string | null;
 }
 
+// Função para ler cache sincronamente
+const readStudyGuideCache = (iesId: string, semestre: number | undefined): ConteudoData[] | null => {
+  try {
+    const cacheKey = `perf_study_contents_${iesId}_${semestre}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.data && parsed?.timestamp && (Date.now() - parsed.timestamp) < 2 * 60 * 60 * 1000) {
+        return parsed.data;
+      }
+    }
+  } catch (e) {
+    console.warn('Falha ao ler cache do StudyGuide:', e);
+  }
+  return null;
+};
+
 export const StudyGuide: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
-  const [conteudos, setConteudos] = useState<ConteudoData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Ler cache SINCRONAMENTE para evitar skeleton em revisitas
+  const cachedContents = useMemo(() => {
+    if (!user?.id_ies) return null;
+    return readStudyGuideCache(user.id_ies, user.semestre);
+  }, [user?.id_ies, user?.semestre]);
+  
+  const [conteudos, setConteudos] = useState<ConteudoData[]>(cachedContents || []);
+  const [isLoading, setIsLoading] = useState(!cachedContents);
   const [selectedSemestre, setSelectedSemestre] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);

@@ -45,49 +45,50 @@ export interface TopAula {
   tipo: 'videos' | 'questoes';
 }
 
+// Função para ler cache sincronamente (antes do estado inicial)
+const readCacheSync = (userId: string): any | null => {
+  const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
+  try {
+    const raw = sessionStorage.getItem(`home_data_cache_${userId}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp) < CACHE_TTL_MS) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Falha ao ler cache da Home:', e);
+  }
+  return null;
+};
+
 export const useHomeData = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  
+  // Ler cache SINCRONAMENTE para definir estados iniciais corretamente
+  const cachedData = user ? readCacheSync(user.id) : null;
+  
+  // Estados inicializados com cache (evita skeleton em revisitas)
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState<string | null>(null);
-  const [meuDiaItems, setMeuDiaItems] = useState<MeuDiaItem[]>([]);
-  const [hasStudyGuide, setHasStudyGuide] = useState(false);
-  const [hasCronograma, setHasCronograma] = useState(false);
-  const [rankings, setRankings] = useState<RankingData>({});
-  const [topAulas, setTopAulas] = useState<TopAula[]>([]);
-  const [conteudosRelacionados, setConteudosRelacionados] = useState<any[]>([]);
-  const [simuladoData, setSimuladoData] = useState<SimuladoPerformance | null>(null);
+  const [meuDiaItems, setMeuDiaItems] = useState<MeuDiaItem[]>(cachedData?.meuDiaItems || []);
+  const [hasStudyGuide, setHasStudyGuide] = useState(!!cachedData?.hasStudyGuide);
+  const [hasCronograma, setHasCronograma] = useState(!!cachedData?.hasCronograma);
+  const [rankings, setRankings] = useState<RankingData>(cachedData?.rankings || {});
+  const [topAulas, setTopAulas] = useState<TopAula[]>(cachedData?.topAulas || []);
+  const [conteudosRelacionados, setConteudosRelacionados] = useState<any[]>(cachedData?.conteudosRelacionados || []);
+  const [simuladoData, setSimuladoData] = useState<SimuladoPerformance | null>(cachedData?.simuladoData || null);
 
-  // Cache leve em sessionStorage para evitar skeleton em revisitas rápidas
   const cacheKey = user ? `home_data_cache_${user.id}` : null;
   const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
     if (user) {
-      // Tenta restaurar dados do cache para evitar mostrar skeleton
-      if (cacheKey) {
-        try {
-          const raw = sessionStorage.getItem(cacheKey);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed && parsed.timestamp && (Date.now() - parsed.timestamp) < CACHE_TTL_MS) {
-              setMeuDiaItems(parsed.meuDiaItems || []);
-              setHasStudyGuide(!!parsed.hasStudyGuide);
-              setHasCronograma(!!parsed.hasCronograma);
-              setRankings(parsed.rankings || {});
-              setTopAulas(parsed.topAulas || []);
-              setConteudosRelacionados(parsed.conteudosRelacionados || []);
-              setSimuladoData(parsed.simuladoData || null);
-              // Evita skeleton imediato; atualiza silenciosamente em background
-              setLoading(false);
-              fetchAllData(true);
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('Falha ao ler cache da Home:', e);
-        }
+      // Se já carregou do cache sincronamente, só atualiza em background
+      if (cachedData) {
+        fetchAllData(true); // silent update
+        return;
       }
-
       // Sem cache válido: carrega normalmente
       fetchAllData();
     }

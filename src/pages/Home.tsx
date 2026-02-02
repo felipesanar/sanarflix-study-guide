@@ -33,7 +33,9 @@ export const Home: React.FC = () => {
     handleAnnouncementClick,
   } = useAnnouncements();
 
-  if (loading) {
+  // Mostrar skeleton apenas se loading E não há dados em cache
+  const hasData = meuDiaItems.length > 0 || simuladoData || Object.keys(rankings).length > 0;
+  if (loading && !hasData) {
     return <HomePageSkeleton />;
   }
 
