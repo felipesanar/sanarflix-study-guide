@@ -63,7 +63,7 @@ export const Home: React.FC = () => {
   };
   
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
       {/* Premium background mesh gradient */}
       <div className="fixed inset-0 gradient-mesh pointer-events-none" />
       
@@ -72,28 +72,28 @@ export const Home: React.FC = () => {
         <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] [background-size:32px_32px]" />
       </div>
       
-      {/* Main content - Fluid responsive container */}
+      {/* Main content - Fluid responsive container with overflow protection */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="relative max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10"
+        className="relative w-full max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10 overflow-hidden"
       >
         {/* === DESKTOP LAYOUT (lg+) === */}
         <div className="hidden lg:block space-y-5 lg:space-y-6">
-          {/* Row 1: Hero Welcome (2fr) + Announcements (1fr) */}
-          <div className="grid grid-cols-[1.8fr_1fr] gap-5 lg:gap-6">
-            <motion.div variants={itemVariants}>
+          {/* Row 1: Hero Welcome + Announcements - Using percentages for better overflow control */}
+          <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 lg:gap-6">
+            <motion.div variants={itemVariants} className="min-w-0">
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <AnnouncementsCard />
             </motion.div>
           </div>
 
-          {/* Row 2: Meu Dia (3fr) + Ranking (2fr) */}
-          <div className="grid grid-cols-[3fr_2fr] gap-5 lg:gap-6">
-            <motion.div variants={itemVariants}>
+          {/* Row 2: Meu Dia + Ranking */}
+          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 lg:gap-6">
+            <motion.div variants={itemVariants} className="min-w-0">
               <MeuDiaCard 
                 items={meuDiaItems} 
                 hasStudyGuide={hasStudyGuide}
@@ -102,17 +102,17 @@ export const Home: React.FC = () => {
                 onRetry={refetch}
               />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <RankingCard data={rankings} />
             </motion.div>
           </div>
 
-          {/* Row 3: Desempenho (1fr) + Meu Semestre (1fr) */}
+          {/* Row 3: Desempenho + Meu Semestre */}
           <div className="grid grid-cols-2 gap-5 lg:gap-6">
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <SimuladoPerformanceCard data={simuladoData} />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <MeuSemestreCard topAulas={topAulas} conteudosRelacionados={conteudosRelacionados} />
             </motion.div>
           </div>
@@ -120,19 +120,19 @@ export const Home: React.FC = () => {
 
         {/* === TABLET LAYOUT (md to lg) === */}
         <div className="hidden md:block lg:hidden space-y-4 md:space-y-5">
-          {/* Row 1: Hero + Announcements (side by side like desktop) */}
-          <div className="grid grid-cols-[1.5fr_1fr] gap-4 md:gap-5">
-            <motion.div variants={itemVariants}>
+          {/* Row 1: Hero + Announcements */}
+          <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4 md:gap-5">
+            <motion.div variants={itemVariants} className="min-w-0">
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <AnnouncementsCard />
             </motion.div>
           </div>
           
           {/* Row 2: Meu Dia + Ranking */}
-          <div className="grid grid-cols-[1.4fr_1fr] gap-4 md:gap-5">
-            <motion.div variants={itemVariants}>
+          <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 md:gap-5">
+            <motion.div variants={itemVariants} className="min-w-0">
               <MeuDiaCard 
                 items={meuDiaItems} 
                 hasStudyGuide={hasStudyGuide}
@@ -141,17 +141,17 @@ export const Home: React.FC = () => {
                 onRetry={refetch}
               />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <RankingCard data={rankings} />
             </motion.div>
           </div>
 
           {/* Row 3: Performance + Semester */}
           <div className="grid grid-cols-2 gap-4 md:gap-5">
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <SimuladoPerformanceCard data={simuladoData} />
             </motion.div>
-            <motion.div variants={itemVariants}>
+            <motion.div variants={itemVariants} className="min-w-0">
               <MeuSemestreCard topAulas={topAulas} conteudosRelacionados={conteudosRelacionados} />
             </motion.div>
           </div>
