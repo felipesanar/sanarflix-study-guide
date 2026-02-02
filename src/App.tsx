@@ -1,5 +1,4 @@
 import * as React from "react";
-import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,37 +6,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWebVitals } from "@/hooks/usePerformance";
-import { AppSidebar } from '@/components/AppSidebar';
 import { Layout } from '@/components/Layout';
 import { LoginForm } from '@/components/LoginForm';
-import { AuthCallback } from '@/components/AuthCallback';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
-import { PasswordChangeModal } from '@/components/PasswordChangeModal';
-import { getAccessRules } from '@/utils/accessRules';
 import { useDataPrefetch } from '@/hooks/useDataPrefetch';
-const StudyGuide = lazy(() => import("./pages/StudyGuide").then(m => ({ default: m.StudyGuide })));
-const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
-const SimuladoDesempenho = lazy(() => import("./pages/SimuladoDesempenho").then(m => ({ default: m.SimuladoDesempenho })));
-const Simulados = lazy(() => import("./pages/Simulados"));
-const ModoProva = lazy(() => import("./pages/ModoProva"));
-const UserManagement = lazy(() => import("./pages/UserManagement"));
-const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
-const AuthCallbackPage = lazy(() => import("./pages/AuthCallback"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
+import { lazy, Suspense } from "react";
 import { ThemeProvider } from "next-themes";
-import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollManager } from '@/components/ScrollManager';
 import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
-import { PageTransition } from '@/components/PageTransition';
-import { PageWrapper } from '@/components/PageWrapper';
-import { PageLoader } from '@/components/PageLoader';
-import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton, IntensivaoSkeleton } from '@/components/skeletons';
-const Analytics = lazy(() => import("./pages/Analytics"));
-const SanarClass = lazy(() => import("./pages/SanarClass"));
-const Home = lazy(() => import("./pages/Home").then(m => ({ default: m.Home })));
+import { DynamicRoutes } from '@/components/DynamicRoutes';
+
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
+const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,210 +34,36 @@ const queryClient = new QueryClient({
   },
 });
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto"></div>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-32 mx-auto" />
-            <Skeleton className="h-3 w-24 mx-auto" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
-
 const AppContent = () => {
-  const { user, needsPasswordChange } = useAuth();
-  const accessRules = getAccessRules(user);
+  const { user } = useAuth();
 
   // Sistema de prefetch inteligente baseado em probabilidade
   useIntelligentPrefetch();
 
   // Prefetch de dados das rotas adjacentes
   useDataPrefetch();
+
+  // Rotas públicas (usuário não autenticado)
   if (!user) {
     return (
-      <Routes>
-        <Route path="/login" element={<LoginForm />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/auth/update-password" element={<UpdatePassword />} />
-        <Route path="/cadastro-b2c" element={<SignupB2C />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <Routes>
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/auth/update-password" element={<UpdatePassword />} />
+          <Route path="/cadastro-b2c" element={<SignupB2C />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Suspense>
     );
   }
 
-  // Redirect authenticated users to Home (with fallback to Simulados if no access)
-  const getDefaultRoute = () => {
-    return accessRules.home ? "/home" : "/simulados";
-  };
-
+  // Rotas protegidas (usuário autenticado)
+  // DynamicRoutes usa useAccessRules para controle dinâmico baseado em ies_features
   return (
     <StudyProvider>
       <Layout>
-        <PasswordChangeModal isOpen={needsPasswordChange} />
-        <Suspense fallback={<HomePageSkeleton />}>
-          <Routes>
-            <Route path="/login" element={<Navigate to={getDefaultRoute()} replace />} />
-            <Route path="/auth/callback" element={<AuthCallbackPage />} />
-
-            {/* Home Page - Available for B2B users and FAME semester 0 */}
-            {accessRules.home ? (
-              <Route
-                path="/home"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando início..."
-                      waitForData={true}
-                      skeleton={<HomePageSkeleton />}
-                    >
-                      <Home />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            ) : (
-              <Route path="/home" element={<Navigate to="/simulados" replace />} />
-            )}
-
-            {accessRules.studyGuide && (
-              <Route
-                path="/guia-estudos"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando guia de estudos..."
-                      waitForData={true}
-                      skeleton={<StudyGuideSkeleton />}
-                    >
-                      <StudyGuide />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
-            {/* Rota de Simulados */}
-            <Route
-              path="/simulados"
-              element={
-                <ProtectedRoute>
-                  <PageWrapper
-                    loadingMessage="Carregando simulados..."
-                    waitForData={true}
-                  >
-                    <Simulados />
-                  </PageWrapper>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Modo Prova - Sem Layout */}
-            <Route
-              path="/simulados/:id/prova"
-              element={
-                <ProtectedRoute>
-                  <ModoProva />
-                </ProtectedRoute>
-              }
-            />
-
-            {accessRules.SimuladoDesempenho && (
-              <Route
-                path="/desempenho-simulado"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando desempenho..."
-                      waitForData={true}
-                    >
-                      <SimuladoDesempenho />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
-            {accessRules.dashboard && (
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando dashboard..."
-                      waitForData={true}
-                      skeleton={<DashboardSkeleton />}
-                    >
-                      <Dashboard />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
-            {accessRules.userManagement && (
-              <Route
-                path="/gestao-usuarios"
-                element={
-                  <ProtectedRoute>
-                    <PageWrapper
-                      loadingMessage="Carregando gestão..."
-                      waitForData={true}
-                    >
-                      <UserManagement />
-                    </PageWrapper>
-                  </ProtectedRoute>
-                }
-              />
-            )}
-
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <PageWrapper
-                    loadingMessage="Carregando analytics..."
-                    waitForData={true}
-                  >
-                    <Analytics />
-                  </PageWrapper>
-                </ProtectedRoute>
-              }
-            />
-
-            {/* SanarClass - Available for all authenticated users */}
-            <Route
-              path="/sanarclass"
-              element={
-                <ProtectedRoute>
-                  <PageWrapper
-                    loadingMessage="Carregando SanarClass..."
-                    waitForData={true}
-                  >
-                    <SanarClass />
-                  </PageWrapper>
-                </ProtectedRoute>
-              }
-            />
-
-            <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <DynamicRoutes />
       </Layout>
     </StudyProvider>
   );
