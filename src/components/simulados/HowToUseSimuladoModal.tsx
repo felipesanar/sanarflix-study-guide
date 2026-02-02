@@ -92,7 +92,7 @@ const steps = [
       {
         icon: MousePointerClick,
         title: 'Clique para Selecionar',
-        description: 'Clique em uma alternativa ou use as teclas 1, 2, 3, 4',
+        description: 'Clique em uma alternativa para selecioná-la',
       },
       {
         icon: Trash2,
@@ -122,27 +122,10 @@ const steps = [
         title: 'Identificação Visual',
         description: 'Questões marcadas ficam azuis na navegação lateral',
       },
-      {
-        icon: Keyboard,
-        title: 'Atalho Rápido',
-        description: 'Pressione a tecla F para marcar/desmarcar rapidamente',
-      },
     ],
   },
   {
     id: 5,
-    icon: Keyboard,
-    title: 'Atalhos de Teclado',
-    subtitle: 'Ganhe agilidade na prova',
-    shortcuts: [
-      { keys: ['1', '2', '3', '4'], action: 'Selecionar alternativas A, B, C, D' },
-      { keys: ['←', '→'], action: 'Navegar entre questões' },
-      { keys: ['F'], action: 'Marcar/desmarcar para revisão' },
-      { keys: ['Esc'], action: 'Abrir menu de finalização' },
-    ],
-  },
-  {
-    id: 6,
     icon: CheckCircle2,
     title: 'Finalização',
     subtitle: 'Como encerrar sua prova',
@@ -285,37 +268,6 @@ export const HowToUseSimuladoModal = ({ open, onOpenChange }: HowToUseSimuladoMo
                 </div>
               )}
 
-              {/* Keyboard shortcuts grid */}
-              {step.shortcuts && (
-                <div className="grid gap-3">
-                  {step.shortcuts.map((shortcut, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-4 rounded-xl bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        {shortcut.keys.map((key, keyIndex) => (
-                          <span key={keyIndex}>
-                            <Badge
-                              variant="outline"
-                              className="px-3 py-1.5 text-sm font-mono bg-background border-border"
-                            >
-                              {key}
-                            </Badge>
-                            {keyIndex < shortcut.keys.length - 1 && (
-                              <span className="mx-1 text-muted-foreground">/</span>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-sm text-muted-foreground">{shortcut.action}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
 
               {/* Tip box */}
               {step.tip && (
