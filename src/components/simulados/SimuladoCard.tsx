@@ -39,6 +39,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           action: onIniciar,
           buttonText: 'Iniciar Simulado',
           buttonVariant: 'default' as const,
+          buttonClassName: '',
           disabled: false
         };
       case 'em_andamento':
@@ -48,6 +49,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           action: onContinuar,
           buttonText: 'Continuar',
           buttonVariant: 'outline' as const,
+          buttonClassName: '',
           disabled: false
         };
       case 'concluido':
@@ -58,7 +60,8 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
             icon: TrendingUp,
             action: onVerDesempenho,
             buttonText: 'Ver Desempenho',
-            buttonVariant: 'default' as const,
+            buttonVariant: 'ghost' as const,
+            buttonClassName: 'text-blue-500 hover:text-blue-600 hover:bg-blue-500/10',
             disabled: false
           };
         } else {
@@ -78,6 +81,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
             action: () => {},
             buttonText: helpText,
             buttonVariant: 'secondary' as const,
+            buttonClassName: '',
             disabled: true
           };
         }
@@ -89,7 +93,8 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
             icon: TrendingUp,
             action: onVerDesempenho,
             buttonText: 'Ver Desempenho',
-            buttonVariant: 'outline' as const,
+            buttonVariant: 'ghost' as const,
+            buttonClassName: 'text-blue-500 hover:text-blue-600 hover:bg-blue-500/10',
             disabled: false
           };
         }
@@ -99,6 +104,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
           action: () => {},
           buttonText: 'Encerrado',
           buttonVariant: 'secondary' as const,
+          buttonClassName: '',
           disabled: true
         };
     }
@@ -152,7 +158,7 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
 
       <CardFooter>
         <Button
-          className="w-full group-hover:shadow-md transition-shadow"
+          className={cn("w-full group-hover:shadow-md transition-shadow", config.buttonClassName)}
           variant={config.buttonVariant}
           onClick={() => config.action(simulado.id)}
           disabled={config.disabled}
