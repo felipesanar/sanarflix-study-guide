@@ -225,28 +225,57 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
 };
 
 // --- Componente Principal ---
+
+// Função para ler cache sincronamente (antes do estado inicial)
+const readPerformanceCache = (userId: string, simuladoId: string | null): any | null => {
+  try {
+    const cacheKey = `performanceData_${userId}_${simuladoId || 'all'}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('Falha ao ler cache de performance:', e);
+  }
+  return null;
+};
+
 export const SimuladoDesempenho: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<OverallStats | null>(null);
-  const [performancePorArea, setPerformancePorArea] = useState<PerformanceData[]>([]);
-  const [bySpecialty, setBySpecialty] = useState<SpecialtyPerformanceData[]>([]);
-  const [bySubspecialty, setBySubspecialty] = useState<SubspecialtyPerformanceData[]>([]);
-  const [byDifficulty, setByDifficulty] = useState<PerformanceData[]>([]);
-  const [ranking, setRanking] = useState<{ ies: RankingData, semester: RankingData } | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
+  
+  // Ler cache SINCRONAMENTE para evitar skeleton em revisitas
+  const cachedData = useMemo(() => {
+    if (!user?.id) return null;
+    return readPerformanceCache(user.id, selectedSimulado);
+  }, [user?.id, selectedSimulado]);
+  
+  // Estados inicializados com cache (evita skeleton em revisitas)
+  const [stats, setStats] = useState<OverallStats | null>(cachedData?.stats || null);
+  const [performancePorArea, setPerformancePorArea] = useState<PerformanceData[]>(cachedData?.performancePorArea || []);
+  const [bySpecialty, setBySpecialty] = useState<SpecialtyPerformanceData[]>(cachedData?.bySpecialty || []);
+  const [bySubspecialty, setBySubspecialty] = useState<SubspecialtyPerformanceData[]>(cachedData?.bySubspecialty || []);
+  const [byDifficulty, setByDifficulty] = useState<PerformanceData[]>(cachedData?.byDifficulty || []);
+  const [ranking, setRanking] = useState<{ ies: RankingData, semester: RankingData } | null>(cachedData?.ranking || null);
+  const [userData, setUserData] = useState<UserData | null>(cachedData?.userData || null);
+  const [loading, setLoading] = useState(!cachedData);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<ReviewedQuestion[]>([]);
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
-  const [simulados, setSimulados] = useState<Simulado[]>([]);
-  const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
+  const [simulados, setSimulados] = useState<Simulado[]>(cachedData?.simulados || []);
   const [allPerformanceData, setAllPerformanceData] = useState<any[]>([]);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const CACHE_KEY_PREFIX = `performanceData_${user?.id}`;
 
   const fetchDataForView = async (simuladoId: string | null, forceRefresh = false) => {
     if (!user) return;
-    setLoading(true);
+    
+    // Se já tem dados do cache síncrono, só atualiza silenciosamente
+    const hasInitialData = stats !== null || performancePorArea.length > 0;
+    if (!hasInitialData) {
+      setLoading(true);
+    }
+    
     const PERFORMANCE_CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId || 'all'}`;
     if (!forceRefresh && sessionStorage.getItem(PERFORMANCE_CACHE_KEY)) {
       const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
