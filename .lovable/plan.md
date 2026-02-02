@@ -251,4 +251,3 @@ Para incluir a logo no PDF, sera necessario converter a imagem para base64. O ar
 3. **Consistencia**: Mesmas cores e elementos visuais do app
 4. **Legibilidade**: Hierarquia visual clara, cores de status intuitivas
 5. **Institucional**: Logo e branding reforçam a marca
-
