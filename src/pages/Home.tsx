@@ -72,17 +72,17 @@ export const Home: React.FC = () => {
         <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] [background-size:32px_32px]" />
       </div>
       
-      {/* Main content */}
+      {/* Main content - Fluid responsive container */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 lg:py-10"
+        className="relative max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10"
       >
         {/* === DESKTOP LAYOUT (lg+) === */}
-        <div className="hidden lg:block space-y-6">
+        <div className="hidden lg:block space-y-5 lg:space-y-6">
           {/* Row 1: Hero Welcome (2fr) + Announcements (1fr) */}
-          <div className="grid grid-cols-[2fr_1fr] gap-6">
+          <div className="grid grid-cols-[1.8fr_1fr] gap-5 lg:gap-6">
             <motion.div variants={itemVariants}>
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
             </motion.div>
@@ -92,7 +92,7 @@ export const Home: React.FC = () => {
           </div>
 
           {/* Row 2: Meu Dia (3fr) + Ranking (2fr) */}
-          <div className="grid grid-cols-[3fr_2fr] gap-6">
+          <div className="grid grid-cols-[3fr_2fr] gap-5 lg:gap-6">
             <motion.div variants={itemVariants}>
               <MeuDiaCard 
                 items={meuDiaItems} 
@@ -108,7 +108,7 @@ export const Home: React.FC = () => {
           </div>
 
           {/* Row 3: Desempenho (1fr) + Meu Semestre (1fr) */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-5 lg:gap-6">
             <motion.div variants={itemVariants}>
               <SimuladoPerformanceCard data={simuladoData} />
             </motion.div>
@@ -119,9 +119,9 @@ export const Home: React.FC = () => {
         </div>
 
         {/* === TABLET LAYOUT (md to lg) === */}
-        <div className="hidden md:block lg:hidden space-y-5">
+        <div className="hidden md:block lg:hidden space-y-4 md:space-y-5">
           {/* Row 1: Hero + Announcements (side by side like desktop) */}
-          <div className="grid grid-cols-[1.6fr_1fr] gap-5">
+          <div className="grid grid-cols-[1.5fr_1fr] gap-4 md:gap-5">
             <motion.div variants={itemVariants}>
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
             </motion.div>
@@ -131,7 +131,7 @@ export const Home: React.FC = () => {
           </div>
           
           {/* Row 2: Meu Dia + Ranking */}
-          <div className="grid grid-cols-[1.4fr_1fr] gap-5">
+          <div className="grid grid-cols-[1.4fr_1fr] gap-4 md:gap-5">
             <motion.div variants={itemVariants}>
               <MeuDiaCard 
                 items={meuDiaItems} 
@@ -147,7 +147,7 @@ export const Home: React.FC = () => {
           </div>
 
           {/* Row 3: Performance + Semester */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-4 md:gap-5">
             <motion.div variants={itemVariants}>
               <SimuladoPerformanceCard data={simuladoData} />
             </motion.div>
@@ -158,7 +158,7 @@ export const Home: React.FC = () => {
         </div>
 
         {/* === MOBILE LAYOUT (< md) === */}
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden space-y-3 sm:space-y-4 pb-[env(safe-area-inset-bottom)]">
           {/* Compact hero with integrated announcement badge */}
           <motion.div variants={itemVariants}>
             <WelcomeCard 

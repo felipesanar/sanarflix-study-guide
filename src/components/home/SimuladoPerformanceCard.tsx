@@ -38,67 +38,67 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl card-premium h-full">
+    <div className="relative overflow-hidden rounded-xl sm:rounded-2xl card-premium h-full">
       {/* Decorative gradient */}
       {data && (
-        <div className={`absolute -top-20 -right-20 w-40 h-40 rounded-full bg-gradient-to-br ${getPerformanceConfig(data.nota).bg} opacity-10 blur-3xl`} />
+        <div className={`absolute -top-16 -right-16 sm:-top-20 sm:-right-20 w-32 sm:w-40 h-32 sm:h-40 rounded-full bg-gradient-to-br ${getPerformanceConfig(data.nota).bg} opacity-10 blur-3xl`} />
       )}
       
       {/* Header */}
-      <div className="relative px-5 pt-5 pb-3 md:px-6 md:pt-6">
+      <div className="relative px-4 pt-4 pb-2.5 sm:px-5 sm:pt-5 sm:pb-3 md:px-6 md:pt-6">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-foreground">Desempenho</h3>
-              <p className="text-xs text-muted-foreground">Último simulado</p>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">Desempenho</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Último simulado</p>
             </div>
           </div>
           {data && (
-            <Badge className={`rounded-full px-3 py-1 text-[11px] font-semibold ${getPerformanceConfig(data.nota).labelBg}`}>
+            <Badge className={`rounded-full px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-semibold ${getPerformanceConfig(data.nota).labelBg}`}>
               {getPerformanceConfig(data.nota).label}
             </Badge>
           )}
         </div>
       </div>
       
-      <div className="relative px-5 pb-5 md:px-6 md:pb-6">
+      <div className="relative px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6">
         {!data ? (
-          <div className="text-center py-8 space-y-4">
-            <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 flex items-center justify-center">
-              <FileQuestion className="h-10 w-10 text-muted-foreground/40" />
+          <div className="text-center py-6 sm:py-8 space-y-3 sm:space-y-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-xl sm:rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 flex items-center justify-center">
+              <FileQuestion className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/40" />
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">
+            <div className="space-y-1.5 sm:space-y-2">
+              <p className="text-xs sm:text-sm font-medium text-foreground">
                 Nenhum simulado realizado
               </p>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              <p className="text-[10px] sm:text-sm text-muted-foreground max-w-xs mx-auto">
                 Faça seu primeiro simulado e acompanhe seu progresso aqui.
               </p>
             </div>
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button 
                 onClick={() => navigate('/simulados')} 
-                className="gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/95 hover:to-primary/85 shadow-lg shadow-primary/20"
+                className="gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/95 hover:to-primary/85 shadow-lg shadow-primary/20 text-xs sm:text-sm h-9 sm:h-10"
               >
-                <Zap className="h-4 w-4" />
+                <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Fazer simulado agora
               </Button>
             </motion.div>
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4 sm:space-y-5">
             {/* Circular Progress with glassmorphism */}
             <div className="flex justify-center">
               <div className="relative">
                 {/* Glow effect */}
                 <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${getPerformanceConfig(data.nota).bg} opacity-20 blur-xl`} />
                 
-                {/* Progress ring */}
-                <div className="relative glass-subtle rounded-full p-2">
-                  <svg className="w-32 h-32 md:w-36 md:h-36 -rotate-90" viewBox="0 0 144 144">
+                {/* Progress ring - Responsive sizes */}
+                <div className="relative glass-subtle rounded-full p-1.5 sm:p-2">
+                  <svg className="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 -rotate-90" viewBox="0 0 144 144">
                     {/* Background ring */}
                     <circle
                       cx="72"
@@ -131,11 +131,11 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
                       initial={{ scale: 0.5, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                      className={`text-4xl md:text-5xl font-bold ${getPerformanceConfig(data.nota).color}`}
+                      className={`text-3xl sm:text-4xl md:text-5xl font-bold ${getPerformanceConfig(data.nota).color}`}
                     >
                       {data.nota}%
                     </motion.span>
-                    <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider mt-1">
+                    <span className="text-[9px] sm:text-[10px] md:text-[11px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5 sm:mt-1">
                       Acertos
                     </span>
                   </div>
@@ -143,38 +143,38 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
               </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl glass">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tempo</span>
+            {/* Stats Grid - Responsive */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl glass">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                  <span className="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Tempo</span>
                 </div>
-                <p className="text-xl md:text-2xl font-bold text-foreground">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
                   {data.tempoGasto}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">min</span>
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-0.5 sm:ml-1">min</span>
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl glass">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Trophy className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Posição</span>
+              <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl glass">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-1.5">
+                  <Trophy className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                  <span className="text-[9px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Posição</span>
                 </div>
-                <p className="text-xl md:text-2xl font-bold text-foreground">
+                <p className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
                   #{data.ranking}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">/{data.totalAlunos}</span>
+                  <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-0.5 sm:ml-1">/{data.totalAlunos}</span>
                 </p>
               </div>
             </div>
 
             {/* Last Simulado */}
-            <div className="p-3 rounded-xl bg-gradient-to-r from-primary/8 to-primary/4 dark:from-primary/15 dark:to-primary/8 border border-primary/10">
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-primary" />
-                <span className="text-[11px] font-semibold text-primary uppercase tracking-wide">Último Simulado</span>
+            <div className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/8 to-primary/4 dark:from-primary/15 dark:to-primary/8 border border-primary/10">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Target className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                <span className="text-[9px] sm:text-[11px] font-semibold text-primary uppercase tracking-wide">Último Simulado</span>
               </div>
-              <p className="text-sm font-medium text-foreground mt-1.5 line-clamp-1">{data.simuladoNome}</p>
+              <p className="text-xs sm:text-sm font-medium text-foreground mt-1 sm:mt-1.5 line-clamp-1">{data.simuladoNome}</p>
             </div>
 
             {/* CTA */}
@@ -182,10 +182,10 @@ export const SimuladoPerformanceCard: React.FC<SimuladoPerformanceCardProps> = (
               <Button 
                 onClick={() => navigate('/simulados?aba=desempenho')}
                 variant="outline"
-                className="w-full gap-2 rounded-xl border-border/50 hover:border-primary/30 hover:bg-primary/5"
+                className="w-full gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border-border/50 hover:border-primary/30 hover:bg-primary/5 text-xs sm:text-sm h-9 sm:h-10"
               >
                 Ver detalhes completos
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </Button>
             </motion.div>
           </div>

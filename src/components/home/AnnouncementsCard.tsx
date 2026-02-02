@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Sparkles, ChevronRight, Bell, AlertCircle, AlertTriangle, Info, Megaphone } from 'lucide-react';
+import { Sparkles, ChevronRight, Bell, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 
@@ -148,25 +148,25 @@ export const AnnouncementsCard: React.FC = () => {
   const mainAnnouncement = announcements[0];
   
   if (!mainAnnouncement) {
-    // Fallback card - Premium style
+    // Fallback card - Premium style with min-height
     return (
-      <div className="relative overflow-hidden rounded-2xl h-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 dark:from-slate-900 dark:via-slate-950 dark:to-black">
+      <div className="relative overflow-hidden rounded-xl sm:rounded-2xl h-full min-h-[180px] sm:min-h-[200px] lg:min-h-[220px] bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 dark:from-slate-900 dark:via-slate-950 dark:to-black">
         {/* Glassmorphism overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
         
         {/* Decorative elements */}
-        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
-        <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -top-10 -right-10 w-24 sm:w-32 h-24 sm:h-32 rounded-full bg-white/5 blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 w-32 sm:w-40 h-32 sm:h-40 rounded-full bg-primary/10 blur-3xl" />
         
-        <div className="relative p-4 md:p-5 lg:p-6 h-full flex flex-col justify-between">
+        <div className="relative p-4 sm:p-5 lg:p-6 h-full flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <span className="text-white/90 text-base font-semibold">Pesquisa de Satisfação</span>
+              <span className="text-white/90 text-sm sm:text-base font-semibold line-clamp-1">Pesquisa de Satisfação</span>
             </div>
-            <p className="text-white/60 text-sm leading-relaxed">
+            <p className="text-white/60 text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3">
               Sua opinião molda o futuro da plataforma. Ajude-nos a melhorar sua experiência.
             </p>
           </div>
@@ -174,10 +174,10 @@ export const AnnouncementsCard: React.FC = () => {
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button 
               variant="secondary"
-              className="w-full mt-4 bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm rounded-xl h-11"
+              className="w-full mt-3 sm:mt-4 bg-white/10 hover:bg-white/20 text-white border-0 backdrop-blur-sm rounded-lg sm:rounded-xl h-10 sm:h-11 text-xs sm:text-sm"
             >
               Responder agora
-              <ChevronRight className="ml-2 h-4 w-4" />
+              <ChevronRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           </motion.div>
         </div>
@@ -192,7 +192,7 @@ export const AnnouncementsCard: React.FC = () => {
     <>
       <motion.div 
         whileHover={{ scale: 1.01, y: -2 }}
-        className={`relative overflow-hidden rounded-2xl h-full bg-gradient-to-br ${gradient.bg} hover:${gradient.hover} transition-all duration-300 cursor-pointer group`}
+        className={`relative overflow-hidden rounded-xl sm:rounded-2xl h-full min-h-[180px] sm:min-h-[200px] lg:min-h-[220px] bg-gradient-to-br ${gradient.bg} hover:${gradient.hover} transition-all duration-300 cursor-pointer group`}
         onClick={() => handleAnnouncementClick(mainAnnouncement)}
       >
         {/* Glassmorphism overlay */}
@@ -204,20 +204,20 @@ export const AnnouncementsCard: React.FC = () => {
         </div>
         
         {/* Decorative blur circles */}
-        <div className="pointer-events-none absolute -bottom-16 -right-16 w-40 h-40 bg-white/10 blur-3xl rounded-full" />
-        <div className="pointer-events-none absolute -top-16 -left-16 w-32 h-32 bg-black/10 blur-3xl rounded-full" />
+        <div className="pointer-events-none absolute -bottom-12 -right-12 sm:-bottom-16 sm:-right-16 w-32 sm:w-40 h-32 sm:h-40 bg-white/10 blur-3xl rounded-full" />
+        <div className="pointer-events-none absolute -top-12 -left-12 sm:-top-16 sm:-left-16 w-24 sm:w-32 h-24 sm:h-32 bg-black/10 blur-3xl rounded-full" />
         
-        <div className="relative p-4 md:p-5 lg:p-6 h-full flex flex-col justify-between">
+        <div className="relative p-4 sm:p-5 lg:p-6 h-full flex flex-col justify-between">
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                <IconComponent className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <span className="text-white font-semibold text-base flex-1">
+              <span className="text-white font-semibold text-sm sm:text-base flex-1 line-clamp-2">
                 {mainAnnouncement.titulo}
               </span>
             </div>
-            <p className="text-white/80 text-sm leading-relaxed">
+            <p className="text-white/80 text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3">
               {mainAnnouncement.descricao}
             </p>
           </div>
@@ -225,14 +225,14 @@ export const AnnouncementsCard: React.FC = () => {
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="mt-4"
+            className="mt-3 sm:mt-4"
           >
             <Button 
               variant="secondary"
-              className="w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm font-medium rounded-xl h-11 group-hover:bg-white/25 transition-colors"
+              className="w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm font-medium rounded-lg sm:rounded-xl h-10 sm:h-11 text-xs sm:text-sm group-hover:bg-white/25 transition-colors"
             >
               {mainAnnouncement.texto_botao}
-              <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              <ChevronRight className="ml-2 h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:translate-x-0.5 transition-transform" />
             </Button>
           </motion.div>
         </div>
@@ -242,28 +242,28 @@ export const AnnouncementsCard: React.FC = () => {
       <AnimatePresence>
         {showPopup && popupAnnouncement && (
           <Dialog open={showPopup} onOpenChange={handleClosePopup}>
-            <DialogContent className="sm:max-w-md rounded-2xl border-0 glass-strong">
+            <DialogContent className="sm:max-w-md rounded-xl sm:rounded-2xl border-0 glass-strong">
               <DialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`flex-shrink-0 w-12 h-12 bg-gradient-to-br ${getGradient(popupAnnouncement.paleta_cores).bg} rounded-xl flex items-center justify-center shadow-lg`}>
+                <div className="flex items-center gap-2.5 sm:gap-3 mb-2">
+                  <div className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${getGradient(popupAnnouncement.paleta_cores).bg} rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg`}>
                     {(() => {
                       const PopupIcon = priorityIcons[popupAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
-                      return <PopupIcon className="h-6 w-6 text-white" />;
+                      return <PopupIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />;
                     })()}
                   </div>
-                  <DialogTitle className="text-lg font-semibold flex-1">
+                  <DialogTitle className="text-base sm:text-lg font-semibold flex-1">
                     {popupAnnouncement.titulo}
                   </DialogTitle>
                 </div>
               </DialogHeader>
 
-              <div className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground leading-relaxed">
+              <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   {popupAnnouncement.descricao}
                 </p>
 
                 <Button 
-                  className={`w-full rounded-xl h-11 bg-gradient-to-r ${getGradient(popupAnnouncement.paleta_cores).bg} hover:opacity-90`}
+                  className={`w-full rounded-lg sm:rounded-xl h-10 sm:h-11 text-sm bg-gradient-to-r ${getGradient(popupAnnouncement.paleta_cores).bg} hover:opacity-90`}
                   onClick={handleClosePopup}
                 >
                   Estou ciente
