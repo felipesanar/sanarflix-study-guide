@@ -4,10 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban, FileDown } from 'lucide-react';
 import { generateGabaritoPDF, GabaritoQuestao } from '@/utils/pdfGabarito';
 import { toast } from '@/hooks/use-toast';
-import { ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -221,7 +222,7 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
   if (evolutionData.data.length === 0 || evolutionData.simulados.length < 2) {
     return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-64"><p className="text-muted-foreground">Realize pelo menos dois simulados para ver sua evolução.</p></CardContent></Card>);
   }
-  return (<Card><CardHeader><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados por Grandes Áreas</CardTitle></CardHeader><CardContent className="h-[300px] sm:h-[400px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 10, left: -10, bottom: 5 }}><XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} interval={0} angle={-45} textAnchor="end" height={60} /><YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickFormatter={(value) => `${value}%`} width={40} /><Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '0.5rem' }} /><Legend wrapperStyle={{ fontSize: '12px' }} />{evolutionData.simulados.map((simulado, index) => (<Bar key={simulado.id} dataKey={`simulado_${simulado.id}`} name={simulado.name} fill={dynamicColors[index]} radius={[4, 4, 0, 0]} label={<RenderCustomEvolutionBarLabel />} />))}</RechartsBarChart></ResponsiveContainer></CardContent></Card>);
+  return (<Card><CardHeader><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados por Grandes Áreas</CardTitle></CardHeader><CardContent className="h-[300px] sm:h-[400px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 10, left: -10, bottom: 5 }}><XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} interval={0} angle={-45} textAnchor="end" height={60} /><YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickFormatter={(value) => `${value}%`} width={40} /><RechartsTooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '0.5rem' }} /><Legend wrapperStyle={{ fontSize: '12px' }} />{evolutionData.simulados.map((simulado, index) => (<Bar key={simulado.id} dataKey={`simulado_${simulado.id}`} name={simulado.name} fill={dynamicColors[index]} radius={[4, 4, 0, 0]} label={<RenderCustomEvolutionBarLabel />} />))}</RechartsBarChart></ResponsiveContainer></CardContent></Card>);
 };
 
 // --- Componente Principal ---
@@ -466,15 +467,26 @@ export const SimuladoDesempenho: React.FC = () => {
               disabled={loading}>
               {loading ? "Atualizando..." : "Atualizar Dados"}
             </button>
-            <Button
-              onClick={handleDownloadGabarito}
-              disabled={!selectedSimulado || isDownloadingPDF}
-              variant="outline"
-              className="gap-2 w-full xs:w-auto"
-            >
-              {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-              Baixar Gabarito
-            </Button>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <span className="w-full xs:w-auto">
+                  <Button
+                    onClick={handleDownloadGabarito}
+                    disabled={!selectedSimulado || isDownloadingPDF}
+                    variant="outline"
+                    className="gap-2 w-full"
+                  >
+                    {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                    Baixar Gabarito
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!selectedSimulado && (
+                <TooltipContent>
+                  <p>Selecione um simulado específico para baixar o gabarito</p>
+                </TooltipContent>
+              )}
+            </UITooltip>
           </div>
         </div>
       </div>
@@ -497,7 +509,7 @@ export const SimuladoDesempenho: React.FC = () => {
               <RechartsBarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <XAxis type="number" domain={[0, 100]} hide />
                 <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} width={80} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                <RechartsTooltip content={<CustomBarTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
                 <Bar dataKey="value" name="Percentual de Acertos" radius={[0, 4, 4, 0]} label={<CustomBarLabel />}>
                   {barData.map((entry) => (<rect key={`cell-${entry.name}`} fill={entry.fill} />))}
                 </Bar>
