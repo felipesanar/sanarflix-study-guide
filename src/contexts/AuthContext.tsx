@@ -104,6 +104,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .catch((error) => {
         console.error('Erro ao obter sessão:', error);
+        
+        // Handle invalid refresh token error
+        const isRefreshTokenError = 
+          error?.message?.includes('Invalid Refresh Token') || 
+          error?.message?.includes('Refresh Token Not Found') ||
+          (error?.name === 'AuthApiError' && error?.status === 400);
+
+        if (isRefreshTokenError) {
+          Logger.warn('Refresh token inválido detectado. Limpando sessão.');
+          localStorage.removeItem('sanarflix-user');
+          localStorage.removeItem('study-progress');
+          // Forçamos signOut mas ignoramos erros pois o token já é inválido
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+        }
+        
         setIsLoading(false);
       });
 
@@ -342,12 +358,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Broadcast logout para outras abas
     broadcast({ type: 'LOGOUT' });
     
-    try {
-      // Encerra sessão do Supabase (dispara SIGNED_OUT)
-      supabase.auth.signOut();
-    } catch (e) {
-      // Error on signOut
-    }
+    // Encerra sessão do Supabase (dispara SIGNED_OUT)
+    // Usamos catch para evitar erros de Promise não tratados (ex: ERR_ABORTED se a página recarregar)
+    supabase.auth.signOut().catch((err) => {
+      // Ignorar erros de rede durante logout, pois estamos limpando localmente de qualquer forma
+      if (import.meta.env.DEV) {
+        console.debug('Supabase signOut failed (safe to ignore):', err);
+      }
+    });
 
     // SECURITY: Clear all auth-related data
     setUser(null);
