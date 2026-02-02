@@ -396,7 +396,7 @@ export const SimuladoDesempenho: React.FC = () => {
       const simuladoInfo = simulados.find(s => s.id === selectedSimulado);
       const simuladoNome = simuladoInfo?.nome || 'Simulado';
       
-      generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, {
+      await generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, {
         acertos: stats?.acertos || 0,
         total: stats?.total || 0,
         percentual: stats?.percentual || 0,

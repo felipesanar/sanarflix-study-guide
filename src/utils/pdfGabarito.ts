@@ -61,11 +61,50 @@ const COLORS = {
 };
 
 // ============================================================================
-// LOGO - SanarFlix Academy (Base64 embedded)
+// LOGO - SanarFlix Academy (loaded dynamically)
 // ============================================================================
 
-// Logo "S" do SanarFlix Academy em base64 (PNG transparente)
-const SANARFLIX_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF8WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNy4xLWMwMDAgNzkuZGFiYWNiYiwgMjAyMS8wNC8xNC0wMDozOTo0NCAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnBob3Rvc2hvcD0iaHR0cDovL25zLmFkb2JlLmNvbS9waG90b3Nob3AvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0RXZ0PSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VFdmVudCMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDIyLjUgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyNC0wMS0xNVQxMDowMDowMC0wMzowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjQtMDEtMTVUMTA6MDA6MDAtMDM6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjQtMDEtMTVUMTA6MDA6MDAtMDM6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiBwaG90b3Nob3A6Q29sb3JNb2RlPSIzIiBwaG90b3Nob3A6SUNDUHJvZmlsZT0ic1JHQiBJRUM2MTk2Ni0yLjEiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6YTEyYjNjNGQtZTVmNi00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';
+// Path to the SanarFlix logo in public folder
+const LOGO_PATH = '/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png';
+
+// Cache for the logo base64
+let cachedLogoBase64: string | null = null;
+
+/**
+ * Load the SanarFlix logo and convert to base64
+ */
+const loadLogoAsBase64 = async (): Promise<string | null> => {
+  if (cachedLogoBase64) return cachedLogoBase64;
+  
+  try {
+    const response = await fetch(LOGO_PATH);
+    if (!response.ok) throw new Error('Failed to fetch logo');
+    
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        cachedLogoBase64 = reader.result as string;
+        resolve(cachedLogoBase64);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error loading logo:', error);
+    return null;
+  }
+};
+
+/**
+ * Draw fallback logo (simple "S" text) when image loading fails
+ */
+const drawFallbackLogo = (doc: jsPDF): void => {
+  doc.setTextColor(...COLORS.wine.primary);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('S', 17, 21);
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -210,7 +249,7 @@ const truncateText = (doc: jsPDF, text: string, maxWidth: number, fontSize: numb
 /**
  * Draw the premium header with logo and branding
  */
-const drawPremiumHeader = (doc: jsPDF, simuladoNome: string): number => {
+const drawPremiumHeader = (doc: jsPDF, simuladoNome: string, logoBase64: string | null): number => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const headerHeight = 55;
   
@@ -222,14 +261,15 @@ const drawPremiumHeader = (doc: jsPDF, simuladoNome: string): number => {
   doc.circle(21, 17, 10, 'F');
   
   // Add logo
-  try {
-    doc.addImage(SANARFLIX_LOGO_BASE64, 'PNG', 11, 7, 20, 20);
-  } catch {
-    // Fallback: draw a simple "S" shape
-    doc.setTextColor(...COLORS.wine.primary);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('S', 17, 21);
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', 11, 7, 20, 20);
+    } catch {
+      // Fallback: draw a simple "S" shape
+      drawFallbackLogo(doc);
+    }
+  } else {
+    drawFallbackLogo(doc);
   }
   
   // Brand name - SanarFlix Academy (no subtitle)
@@ -661,16 +701,19 @@ const addFooterToAllPages = (doc: jsPDF): void => {
 // MAIN EXPORT FUNCTION
 // ============================================================================
 
-export const generateGabaritoPDF = (
+export const generateGabaritoPDF = async (
   simuladoNome: string,
   alunoNome: string,
   questoes: GabaritoQuestao[],
   stats: GabaritoStats
-): void => {
+): Promise<void> => {
   const doc = new jsPDF();
   
+  // Load logo asynchronously
+  const logoBase64 = await loadLogoAsBase64();
+  
   // 1. Draw premium header with logo
-  let yPos = drawPremiumHeader(doc, simuladoNome);
+  let yPos = drawPremiumHeader(doc, simuladoNome, logoBase64);
   
   // 2. Draw identification card
   yPos = drawIdentificationCard(doc, alunoNome, stats, yPos);
