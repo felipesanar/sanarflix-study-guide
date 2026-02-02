@@ -1,173 +1,105 @@
 
-# Plano: Melhorar Responsividade da Aba Desempenho
+# Plano: Alterar Destino Padrao de Login para Home
 
-## Problemas Identificados
-
-### 1. Header com Botoes (linhas 418-445)
-- Os botoes de acao (Select, Atualizar, Baixar Gabarito) nao empilham corretamente em mobile
-- Causa overflow horizontal em telas pequenas
-- O `flex items-center gap-4` mantem tudo na mesma linha
-
-### 2. Componente Column (linha 166)
-- `min-w-[250px]` forca largura minima que causa scroll horizontal em mobile
-- Nao ajusta para telas menores que 768px
-
-### 3. DecompositionTree (linha 192)
-- Layout de 3 colunas com `min-w-[250px]` cada = 750px minimo
-- Em mobile, as colunas ficam apertadas ou causam scroll
-
-### 4. QuestionModal (linha 72)
-- `max-w-2xl` (672px) pode ser muito grande em mobile
-- Padding interno pode ser excessivo
-
-### 5. Botoes de Navegacao do Modal (linhas 141-145)
-- Em telas muito pequenas, os botoes "Anterior" e "Proxima" podem ficar apertados
+## Objetivo
+Alterar o redirecionamento pos-login de `/simulados` para `/home`, respeitando as regras de acesso do usuario.
 
 ---
 
-## Solucao Proposta
+## Alteracoes Necessarias
 
-### 1. Header Responsivo
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linhas 418-445)
+### 1. LoginForm.tsx (src/components/LoginForm.tsx)
 
-**Antes:**
+**Problema atual:**
+- Linha 40: `const target = "/simulados";` esta hardcoded
+
+**Solucao:**
+Usar `getAccessRules` para determinar o destino correto:
+
 ```tsx
-<div className="flex flex-wrap justify-between items-center gap-4">
-  <div>...</div>
-  <div className="flex items-center gap-4">
-    {/* 3 botoes em linha */}
-  </div>
-</div>
+// Linhas 37-44
+if (success) {
+  setTimeout(() => {
+    // Determinar destino baseado nas permissoes do usuario
+    const rules = getAccessRules(/* user from context */);
+    const target = rules.home ? "/home" : "/simulados";
+    Logger.info('post_login_navigation', { target });
+    navigate(target, { replace: true });
+  }, 50);
+}
 ```
 
-**Depois:**
+**Nota:** O usuario ja esta disponivel no contexto apos login bem-sucedido, porem o state pode nao ter atualizado ainda. A solucao mais simples e navegar para `/home` e deixar a rota tratar o fallback (ja implementado em App.tsx linha 132).
+
+**Implementacao simplificada:**
 ```tsx
-<div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4">
-  <div>
-    <h1 className="text-2xl sm:text-3xl font-bold">...</h1>
-    ...
-  </div>
-  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-    {/* Select ocupa largura total em mobile */}
-    <div className="w-full sm:min-w-[200px] sm:w-auto">...</div>
-    {/* Botoes empilham verticalmente em mobile */}
-    <div className="flex flex-col xs:flex-row gap-2">
-      {/* Atualizar e Baixar lado a lado em telas maiores */}
-    </div>
-  </div>
-</div>
+// Linhas 39-42
+setTimeout(() => {
+  const target = "/home";
+  Logger.info('post_login_navigation', { target });
+  navigate(target, { replace: true });
+}, 50);
 ```
 
-### 2. Column Component Responsivo
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linha 166)
+### 2. App.tsx (src/App.tsx)
 
-**Antes:**
-```tsx
-<div className="flex-1 min-w-[250px]">
-```
+**Problema atual:**
+- Linhas 102-104: `getDefaultRoute()` sempre retorna `/simulados`
 
-**Depois:**
-```tsx
-<div className="flex-1 min-w-0 md:min-w-[200px] lg:min-w-[250px]">
-```
-
-### 3. DecompositionTree Layout
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linha 192)
-
-**Melhorias:**
-- Em mobile: layout vertical com colunas empilhadas
-- Em tablet: 2 colunas com terceira abaixo se necessario
-- Em desktop: 3 colunas lado a lado
+**Solucao:**
+Usar `accessRules` ja disponivel no escopo para determinar a rota correta:
 
 ```tsx
-<div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-  <Column title="Tema">...</Column>
-  <Column title="Especialidade">...</Column>
-  <Column title="Subespecialidade" className="sm:col-span-2 lg:col-span-1">...</Column>
-</div>
-```
-
-### 4. QuestionModal Responsivo
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linhas 70-149)
-
-**Melhorias:**
-```tsx
-<DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col p-4 sm:p-6">
-```
-
-- Padding reduzido em mobile
-- Largura responsiva com margem lateral
-
-**Botoes de navegacao:**
-```tsx
-<div className="flex-shrink-0 pt-4 border-t flex flex-col xs:flex-row justify-between items-center gap-3">
-  <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0} className="w-full xs:w-auto">
-    <ChevronLeft className="h-4 w-4 mr-2" /> Anterior
-  </Button>
-  <span className="text-sm text-muted-foreground order-first xs:order-none">
-    Questao {currentIndex + 1} de {questions.length}
-  </span>
-  <Button variant="outline" onClick={handleNext} disabled={currentIndex === questions.length - 1} className="w-full xs:w-auto">
-    Proxima <ChevronRight className="h-4 w-4 ml-2" />
-  </Button>
-</div>
-```
-
-### 5. PerformanceSummary Texto Responsivo
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linha 161)
-
-**Melhorias:**
-- Adicionar `text-sm sm:text-base` para textos longos
-- Melhorar espacamento vertical em mobile
-
-### 6. Graficos com Altura Responsiva
-**Arquivo:** `src/pages/SimuladoDesempenho.tsx` (linhas 461, 223)
-
-**Antes:**
-```tsx
-<CardContent className="h-[270px]">
-```
-
-**Depois:**
-```tsx
-<CardContent className="h-[220px] sm:h-[270px]">
+// Linhas 101-105
+const getDefaultRoute = () => {
+  // Priorizar Home se usuario tiver acesso
+  return accessRules.home ? "/home" : "/simulados";
+};
 ```
 
 ---
 
-## Resumo das Alteracoes
+## Fluxo Apos Alteracoes
 
-| Componente | Problema | Solucao |
-|------------|----------|---------|
-| Header | Botoes nao empilham | Flex-col em mobile, flex-row em sm+ |
-| Column | min-w[250px] causa overflow | min-w-0 em mobile, progressivo em md/lg |
-| DecompositionTree | 3 colunas fixas | Grid responsivo 1/2/3 colunas |
-| QuestionModal | Muito largo em mobile | w-[95vw] max-w-2xl |
-| Botoes do Modal | Apertados | Empilhar verticalmente em mobile |
-| Graficos | Altura fixa | Altura responsiva h-[220px] sm:h-[270px] |
-| Textos | Tamanho unico | text-sm sm:text-base |
+```
+Usuario faz login
+       |
+       v
+Navigate para /home
+       |
+       v
++-- Tem accessRules.home? --+
+|                           |
+Sim                        Nao
+|                           |
+v                           v
+Renderiza Home        Redireciona para /simulados
+                      (linha 132 do App.tsx)
+```
+
+---
+
+## Arquivos Modificados
+
+| Arquivo | Linhas | Alteracao |
+|---------|--------|-----------|
+| `src/components/LoginForm.tsx` | 40 | Mudar target de `/simulados` para `/home` |
+| `src/App.tsx` | 103 | Retornar `/home` se `accessRules.home`, senao `/simulados` |
 
 ---
 
 ## Secao Tecnica
 
-### Breakpoints Utilizados
-- **Mobile:** `<640px` (default)
-- **sm:** `>=640px`
-- **md:** `>=768px`
-- **lg:** `>=1024px`
+### Por que navegar direto para /home mesmo sem verificar permissoes no LoginForm?
+O App.tsx ja possui logica de fallback (linha 132): se o usuario nao tem acesso a Home, ele e automaticamente redirecionado para /simulados. Isso evita duplicar a logica de verificacao de permissoes.
 
-### Arquivos Modificados
-- `src/pages/SimuladoDesempenho.tsx` (arquivo unico)
-
-### Principios Aplicados
-1. Mobile-first: estilos base para mobile, progressivamente maiores
-2. Flexbox para alinhamento dinamico
-3. Grid para layouts de colunas multiplas
-4. Container queries para fontes dinamicas (ja existente)
-5. Safe-area para dispositivos com notch
+### Comportamento esperado por tipo de usuario:
+- **Admin:** Acesso total → vai para `/home`
+- **Professor:** `accessRules.home = true` → vai para `/home`
+- **Aluno B2B:** Depende de `ies_features` → `/home` ou `/simulados`
+- **Aluno sem IES configurada:** `accessRules.home = false` → vai para `/simulados`
 
 ### Compatibilidade
-- Todas as alteracoes usam classes Tailwind padrao
-- Nenhuma dependencia adicional necessaria
-- Mantém comportamento visual existente em desktop
+- Nenhuma dependencia adicional
+- Usa estrutura de permissoes existente
+- Fallback automatico ja implementado
