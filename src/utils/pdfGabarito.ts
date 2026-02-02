@@ -217,48 +217,44 @@ const drawPremiumHeader = (doc: jsPDF, simuladoNome: string): number => {
   // Draw gradient background
   drawGradientHeader(doc, headerHeight);
   
+  // Draw circular white background for logo
+  doc.setFillColor(...COLORS.neutral.white);
+  doc.circle(21, 17, 10, 'F');
+  
   // Add logo
   try {
-    doc.addImage(SANARFLIX_LOGO_BASE64, 'PNG', 12, 8, 18, 18);
+    doc.addImage(SANARFLIX_LOGO_BASE64, 'PNG', 11, 7, 20, 20);
   } catch {
     // Fallback: draw a simple "S" shape
-    doc.setFillColor(...COLORS.neutral.white);
-    doc.circle(21, 17, 9, 'F');
     doc.setTextColor(...COLORS.wine.primary);
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('S', 17.5, 21);
+    doc.text('S', 17, 21);
   }
   
-  // Brand name
+  // Brand name - SanarFlix Academy (no subtitle)
   doc.setTextColor(...COLORS.neutral.white);
-  doc.setFontSize(16);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('SanarFlix Academy', 34, 15);
-  
-  // Subtitle
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(255, 255, 255, 0.8);
-  doc.text('Para Universidades Parceiras', 34, 22);
+  doc.text('SanarFlix Academy', 36, 19);
   
   // Date on the right
   doc.setTextColor(...COLORS.neutral.white);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const dateText = format(new Date(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-  doc.text(dateText, pageWidth - 14, 15, { align: 'right' });
+  doc.text(dateText, pageWidth - 14, 17, { align: 'right' });
   
   // Main title
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('GABARITO COMPLETO', pageWidth / 2, 38, { align: 'center' });
+  doc.text('GABARITO COMPLETO', pageWidth / 2, 40, { align: 'center' });
   
   // Simulado name
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const truncatedSimulado = truncateText(doc, simuladoNome, pageWidth - 40, 11);
-  doc.text(truncatedSimulado, pageWidth / 2, 48, { align: 'center' });
+  doc.text(truncatedSimulado, pageWidth / 2, 50, { align: 'center' });
   
   return headerHeight + 8;
 };
