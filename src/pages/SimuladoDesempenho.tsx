@@ -69,7 +69,7 @@ const QuestionModal: React.FC<{
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col p-4 sm:p-6">
         <DialogHeader>
           <div className="flex justify-between items-center gap-2">
             <DialogTitle>Revisão de Questão</DialogTitle>
@@ -138,10 +138,10 @@ const QuestionModal: React.FC<{
           ) : (<div className="flex justify-center items-center h-full"> <p>Nenhuma questão de exemplo foi encontrada para esta subespecialidade.</p> </div>)}
         </div>
         {questions.length > 1 && (
-          <div className="flex-shrink-0 pt-4 border-t flex justify-between items-center">
-            <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0}> <ChevronLeft className="h-4 w-4 mr-2" /> Anterior </Button>
-            <span className="text-sm text-muted-foreground font-medium"> Questão {currentIndex + 1} de {questions.length} </span>
-            <Button variant="outline" onClick={handleNext} disabled={currentIndex === questions.length - 1}> Próxima <ChevronRight className="h-4 w-4 ml-2" /> </Button>
+          <div className="flex-shrink-0 pt-4 border-t flex flex-col sm:flex-row justify-between items-center gap-3">
+            <Button variant="outline" onClick={handlePrev} disabled={currentIndex === 0} className="w-full sm:w-auto order-2 sm:order-1"> <ChevronLeft className="h-4 w-4 mr-2" /> Anterior </Button>
+            <span className="text-sm text-muted-foreground font-medium order-1 sm:order-2"> Questão {currentIndex + 1} de {questions.length} </span>
+            <Button variant="outline" onClick={handleNext} disabled={currentIndex === questions.length - 1} className="w-full sm:w-auto order-3"> Próxima <ChevronRight className="h-4 w-4 ml-2" /> </Button>
           </div>
         )}
       </DialogContent>
@@ -158,12 +158,12 @@ const PerformanceSummary: React.FC<{ stats: OverallStats; performancePorArea: Pe
   const bestSpecialtyInBestArea = bySpecialty.filter(s => s.area_name === bestArea.name).sort((a, b) => b.percentual - a.percentual)[0];
   const specialtiesToImprove = bySpecialty.filter(s => s.area_name === worstArea.name).sort((a, b) => a.percentual - b.percentual).slice(0, 2);
   const worstDifficulty = [...byDifficulty].sort((a, b) => a.percentual - b.percentual)[0];
-  return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />Relatório de Desempenho</CardTitle></CardHeader><CardContent className="space-y-6 text-sm"><p>Seu aproveitamento geral foi de <strong>{stats.percentual}%</strong> ({stats.acertos}/{stats.total} questões). Veja abaixo os principais destaques para guiar seus estudos.</p><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div className="space-y-3"><h3 className="font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-green-500" /> Pontos Fortes</h3><p>Sua principal fortaleza foi em <strong>{bestArea.name}</strong>, com <strong>{bestArea.percentual}%</strong> de acertos.</p>{bestSpecialtyInBestArea && (<p>Dentro desta área, você se destacou em <strong>{bestSpecialtyInBestArea.name}</strong> ({bestSpecialtyInBestArea.percentual}%).</p>)}</div><div className="space-y-3"><h3 className="font-semibold flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-500" /> Oportunidades de Melhoria</h3><p>A área com maior oportunidade de crescimento é <strong>{worstArea.name}</strong>, com <strong>{worstArea.percentual}%</strong> de acertos.</p>{specialtiesToImprove.length > 0 && (<div><p className="mb-1">Foque nos temas:</p><ul className="list-disc list-inside text-muted-foreground">{specialtiesToImprove.map(s => <li key={s.name}>{s.name} ({s.percentual}%)</li>)}</ul></div>)}</div></div>{worstDifficulty && (<div className="pt-4 border-t"><h3 className="font-semibold flex items-center gap-2"><HelpCircle className="h-4 w-4 text-amber-500" /> Análise por Dificuldade</h3><p>Seu maior desafio foi em questões de nível <strong>{worstDifficulty.name}</strong>, com <strong>{worstDifficulty.percentual}%</strong> de acertos. Revisar casos clínicos e conceitos mais complexos pode ajudar.</p></div>)}</CardContent></Card>);
+  return (<Card><CardHeader><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><FileText className="h-5 w-5 text-primary" />Relatório de Desempenho</CardTitle></CardHeader><CardContent className="space-y-4 sm:space-y-6 text-sm sm:text-base"><p>Seu aproveitamento geral foi de <strong>{stats.percentual}%</strong> ({stats.acertos}/{stats.total} questões). Veja abaixo os principais destaques para guiar seus estudos.</p><div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"><div className="space-y-3"><h3 className="font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-green-500" /> Pontos Fortes</h3><p>Sua principal fortaleza foi em <strong>{bestArea.name}</strong>, com <strong>{bestArea.percentual}%</strong> de acertos.</p>{bestSpecialtyInBestArea && (<p>Dentro desta área, você se destacou em <strong>{bestSpecialtyInBestArea.name}</strong> ({bestSpecialtyInBestArea.percentual}%).</p>)}</div><div className="space-y-3"><h3 className="font-semibold flex items-center gap-2"><TrendingDown className="h-4 w-4 text-red-500" /> Oportunidades de Melhoria</h3><p>A área com maior oportunidade de crescimento é <strong>{worstArea.name}</strong>, com <strong>{worstArea.percentual}%</strong> de acertos.</p>{specialtiesToImprove.length > 0 && (<div><p className="mb-1">Foque nos temas:</p><ul className="list-disc list-inside text-muted-foreground">{specialtiesToImprove.map(s => <li key={s.name}>{s.name} ({s.percentual}%)</li>)}</ul></div>)}</div></div>{worstDifficulty && (<div className="pt-4 border-t"><h3 className="font-semibold flex items-center gap-2"><HelpCircle className="h-4 w-4 text-amber-500" /> Análise por Dificuldade</h3><p>Seu maior desafio foi em questões de nível <strong>{worstDifficulty.name}</strong>, com <strong>{worstDifficulty.percentual}%</strong> de acertos. Revisar casos clínicos e conceitos mais complexos pode ajudar.</p></div>)}</CardContent></Card>);
 };
 
 // --- Componentes da Árvore de Decomposição ---
 const Node: React.FC<{ name: string; percentage: number; isSelected: boolean; onClick: () => void; }> = ({ name, percentage, isSelected, onClick }) => (<button onClick={onClick} className={cn("card-container w-full text-left p-3 border rounded-md transition-all duration-200 hover:bg-muted/80", isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 border-border")} > <div className="flex justify-between items-center gap-2"> <span className="font-medium font-dynamic pr-2">{name}</span> <span className={cn("font-bold text-sm", isSelected ? "text-primary-foreground" : "text-primary")}> {percentage}% </span> </div> </button>);
-const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boolean; emptyText?: string }> = ({ title, children, isEmpty = false, emptyText = "Selecione um item na coluna anterior." }) => (<div className="flex-1 min-w-[250px]"> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">{title}</h3> <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2"> {isEmpty ? (<div className="flex items-center justify-center h-40 text-center text-muted-foreground text-sm p-4 border border-dashed rounded-md"> {emptyText} </div>) : children} </div> </div>);
+const Column: React.FC<{ title: string; children: React.ReactNode; isEmpty?: boolean; emptyText?: string; className?: string }> = ({ title, children, isEmpty = false, emptyText = "Selecione um item na coluna anterior.", className }) => (<div className={cn("flex-1 min-w-0 md:min-w-[200px] lg:min-w-[250px]", className)}> <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">{title}</h3> <div className="space-y-2 max-h-[300px] sm:max-h-[400px] overflow-y-auto pr-2"> {isEmpty ? (<div className="flex items-center justify-center h-32 sm:h-40 text-center text-muted-foreground text-xs sm:text-sm p-3 sm:p-4 border border-dashed rounded-md"> {emptyText} </div>) : children} </div> </div>);
 const listContainerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.05, }, }, };
 const listItemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { duration: 0.4 } }, exit: { opacity: 0, y: -20, transition: { duration: 0.2 } }, };
 
@@ -189,7 +189,7 @@ const DecompositionTree: React.FC<{
   const filteredSubspecialties = selectedArea && selectedSpecialty ? subspecialties.filter(s => s.specialty_name?.toLowerCase() === selectedSpecialty.toLowerCase() && s.area_name?.toLowerCase() === selectedArea.toLowerCase()) : [];
   const uniqueFilteredSubspecialties = filteredSubspecialties.filter((sub, index, self) => index === self.findIndex((s) => s.name.toLowerCase() === sub.name.toLowerCase())).sort((a, b) => b.percentual - a.percentual);
 
-  return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5 text-primary" />Análise de Desempenho Hierárquica</CardTitle></CardHeader><CardContent><div className="flex flex-col lg:flex-row gap-6"><div className="lg:border-r lg:pr-6 space-y-4"><div><h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Percentual de Acertos</h3><div className="flex items-center justify-center bg-primary text-primary-foreground p-4 rounded-md min-w-[200px]"><div className="text-center"><p className="text-3xl font-bold">{overallStats.percentual}%</p><p className="text-xs opacity-80">{overallStats.acertos} / {overallStats.total} questões</p></div></div></div></div><div className="flex-1 flex flex-col md:flex-row gap-4 overflow-x-auto"><Column title="Tema (Grande Área)"><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2">{areas.map(area => (<motion.div key={area.name} variants={listItemVariants}><Node name={area.name} percentage={area.percentual} isSelected={selectedArea === area.name} onClick={() => handleAreaClick(area.name)} /></motion.div>))}</motion.div></Column><Column title="Especialidade" isEmpty={!selectedArea || uniqueFilteredSpecialties.length === 0} emptyText={!selectedArea ? "Selecione uma Grande Área." : "Nenhuma especialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSpecialties.map(specialty => (<motion.div key={specialty.name} variants={listItemVariants} exit="exit" ><Node name={specialty.name} percentage={specialty.percentual} isSelected={selectedSpecialty === specialty.name} onClick={() => handleSpecialtyClick(specialty.name)} /></motion.div>))}</AnimatePresence></motion.div></Column><Column title="Subespecialidade / Assunto" isEmpty={!selectedSpecialty || uniqueFilteredSubspecialties.length === 0} emptyText={!selectedSpecialty ? "Selecione uma Especialidade." : "Nenhuma subespecialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSubspecialties.map(sub => (<motion.div key={sub.name} variants={listItemVariants} exit="exit" >
+  return (<Card><CardHeader><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><BarChart className="h-5 w-5 text-primary" />Análise de Desempenho Hierárquica</CardTitle></CardHeader><CardContent className="p-3 sm:p-6"><div className="flex flex-col lg:flex-row gap-4 sm:gap-6"><div className="lg:border-r lg:pr-6 space-y-4"><div><h3 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Percentual de Acertos</h3><div className="flex items-center justify-center bg-primary text-primary-foreground p-3 sm:p-4 rounded-md min-w-0 sm:min-w-[200px]"><div className="text-center"><p className="text-2xl sm:text-3xl font-bold">{overallStats.percentual}%</p><p className="text-xs opacity-80">{overallStats.acertos} / {overallStats.total} questões</p></div></div></div></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"><Column title="Tema (Grande Área)"><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2">{areas.map(area => (<motion.div key={area.name} variants={listItemVariants}><Node name={area.name} percentage={area.percentual} isSelected={selectedArea === area.name} onClick={() => handleAreaClick(area.name)} /></motion.div>))}</motion.div></Column><Column title="Especialidade" isEmpty={!selectedArea || uniqueFilteredSpecialties.length === 0} emptyText={!selectedArea ? "Selecione uma Grande Área." : "Nenhuma especialidade encontrada."} ><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSpecialties.map(specialty => (<motion.div key={specialty.name} variants={listItemVariants} exit="exit" ><Node name={specialty.name} percentage={specialty.percentual} isSelected={selectedSpecialty === specialty.name} onClick={() => handleSpecialtyClick(specialty.name)} /></motion.div>))}</AnimatePresence></motion.div></Column><Column title="Subespecialidade / Assunto" isEmpty={!selectedSpecialty || uniqueFilteredSubspecialties.length === 0} emptyText={!selectedSpecialty ? "Selecione uma Especialidade." : "Nenhuma subespecialidade encontrada."} className="sm:col-span-2 lg:col-span-1"><motion.div variants={listContainerVariants} initial="hidden" animate="visible" className="space-y-2"><AnimatePresence>{uniqueFilteredSubspecialties.map(sub => (<motion.div key={sub.name} variants={listItemVariants} exit="exit" >
     {/* ATUALIZAÇÃO: O onClick agora envia todos os dados necessários */}
     <button onClick={() => onSubspecialtyClick(sub.name, selectedArea, selectedSpecialty)} className="w-full">
       <div className="card-container w-full text-left p-3 border rounded-md bg-muted/40 hover:bg-muted/80 transition-colors"><div className="flex justify-between items-center gap-2"><span className="font-medium font-dynamic pr-2">{sub.name}</span><span className="font-bold text-sm text-primary">{sub.percentual}%</span></div></div>
@@ -221,7 +221,7 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
   if (evolutionData.data.length === 0 || evolutionData.simulados.length < 2) {
     return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados</CardTitle></CardHeader><CardContent className="flex items-center justify-center h-64"><p className="text-muted-foreground">Realize pelo menos dois simulados para ver sua evolução.</p></CardContent></Card>);
   }
-  return (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados por Grandes Áreas</CardTitle></CardHeader><CardContent className="h-[400px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 20, left: 0, bottom: 5 }}><XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} /><YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickFormatter={(value) => `${value}%`} /><Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '0.5rem' }} /><Legend wrapperStyle={{ fontSize: '14px' }} />{evolutionData.simulados.map((simulado, index) => (<Bar key={simulado.id} dataKey={`simulado_${simulado.id}`} name={simulado.name} fill={dynamicColors[index]} radius={[4, 4, 0, 0]} label={<RenderCustomEvolutionBarLabel />} />))}</RechartsBarChart></ResponsiveContainer></CardContent></Card>);
+  return (<Card><CardHeader><CardTitle className="flex items-center gap-2 text-base sm:text-lg"><ChevronsUpDown className="h-5 w-5 text-primary" />Evolução entre Simulados por Grandes Áreas</CardTitle></CardHeader><CardContent className="h-[300px] sm:h-[400px]"><ResponsiveContainer width="100%" height="100%"><RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 10, left: -10, bottom: 5 }}><XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} interval={0} angle={-45} textAnchor="end" height={60} /><YAxis domain={[0, 100]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} axisLine={{ stroke: 'hsl(var(--border))' }} tickFormatter={(value) => `${value}%`} width={40} /><Tooltip cursor={{ fill: 'hsl(var(--accent))' }} contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '0.5rem' }} /><Legend wrapperStyle={{ fontSize: '12px' }} />{evolutionData.simulados.map((simulado, index) => (<Bar key={simulado.id} dataKey={`simulado_${simulado.id}`} name={simulado.name} fill={dynamicColors[index]} radius={[4, 4, 0, 0]} label={<RenderCustomEvolutionBarLabel />} />))}</RechartsBarChart></ResponsiveContainer></CardContent></Card>);
 };
 
 // --- Componente Principal ---
@@ -415,10 +415,13 @@ export const SimuladoDesempenho: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <style>{` .card-container { container-type: inline-size; container-name: node-card; } .font-dynamic { font-size: clamp(0.7rem, 5cqw, 0.875rem); line-height: 1.2; } `}</style>
-      <div className="flex flex-wrap justify-between items-center gap-4">
-        <div><h1 className="text-3xl font-bold">Dashboard de Desempenho</h1><p className="text-muted-foreground">Sua performance detalhada nos simulados.</p></div>
-        <div className="flex items-center gap-4">
-          <div className="min-w-[200px]">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard de Desempenho</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Sua performance detalhada nos simulados.</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+          <div className="w-full sm:min-w-[200px] sm:w-auto">
             <Select onValueChange={handleSimuladoChange} value={selectedSimulado?.toString() ?? 'all'}>
               <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
@@ -427,21 +430,23 @@ export const SimuladoDesempenho: React.FC = () => {
               </SelectContent>
             </Select>
           </div>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:text-foreground dark:border-foreground dark:hover:bg-foreground/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-            disabled={loading}>
-            {loading ? "Atualizando..." : "Atualizar Dados"}
-          </button>
-          <Button
-            onClick={handleDownloadGabarito}
-            disabled={!selectedSimulado || isDownloadingPDF}
-            variant="outline"
-            className="gap-2 flex-shrink-0"
-          >
-            {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Baixar Gabarito
-          </Button>
+          <div className="flex flex-col xs:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:text-foreground dark:border-foreground dark:hover:bg-foreground/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full xs:w-auto"
+              disabled={loading}>
+              {loading ? "Atualizando..." : "Atualizar Dados"}
+            </button>
+            <Button
+              onClick={handleDownloadGabarito}
+              disabled={!selectedSimulado || isDownloadingPDF}
+              variant="outline"
+              className="gap-2 w-full xs:w-auto"
+            >
+              {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              Baixar Gabarito
+            </Button>
+          </div>
         </div>
       </div>
       {stats && performancePorArea.length > 0 && (<PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} byDifficulty={byDifficulty} />)}
@@ -458,7 +463,7 @@ export const SimuladoDesempenho: React.FC = () => {
         </Card>
         <Card>
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Acertos por Dificuldade</CardTitle></CardHeader>
-          <CardContent className="h-[270px]">
+          <CardContent className="h-[220px] sm:h-[270px]">
             <ResponsiveContainer width="100%" height="100%">
               <RechartsBarChart data={barData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <XAxis type="number" domain={[0, 100]} hide />
