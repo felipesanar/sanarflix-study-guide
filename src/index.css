@@ -563,6 +563,73 @@
     opacity: 1;
     background: linear-gradient(135deg, hsl(0 65% 35% / 0.1), hsl(214 76% 38% / 0.1));
   }
+
+  /* ============================================
+     RESPONSIVE UTILITIES - Safe Areas & Fluid
+     ============================================ */
+
+  /* Safe area utilities for iOS/Android notch and home indicator */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left, 0);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right, 0);
+  }
+
+  /* Fluid spacing system */
+  .spacing-fluid {
+    --space-xs: clamp(0.25rem, 0.5vw, 0.5rem);
+    --space-sm: clamp(0.5rem, 1vw, 1rem);
+    --space-md: clamp(1rem, 2vw, 1.5rem);
+    --space-lg: clamp(1.5rem, 3vw, 2.5rem);
+    --space-xl: clamp(2rem, 4vw, 3rem);
+  }
+
+  /* Fluid home container */
+  .home-container {
+    padding-inline: clamp(1rem, 4vw, 2rem);
+    padding-block: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  /* Fluid home grid */
+  .home-grid {
+    display: grid;
+    gap: clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  /* Fluid typography utilities */
+  .text-fluid-hero {
+    font-size: clamp(1.75rem, 4vw + 0.5rem, 3rem);
+    line-height: 1.2;
+  }
+
+  .text-fluid-title {
+    font-size: clamp(1rem, 2vw + 0.25rem, 1.25rem);
+    line-height: 1.4;
+  }
+
+  .text-fluid-body {
+    font-size: clamp(0.875rem, 1.5vw + 0.25rem, 1rem);
+    line-height: 1.6;
+  }
+
+  /* Responsive minimum heights */
+  .min-h-card-sm {
+    min-height: clamp(10rem, 20vw, 14rem);
+  }
+
+  .min-h-card-md {
+    min-height: clamp(12rem, 25vw, 18rem);
+  }
 }
 
 
