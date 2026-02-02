@@ -21,7 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePasswordDialog } from '@/contexts/PasswordDialogContext';
-import { getAccessRules, isAdmin } from "@/utils/accessRules";
+import { useAccessRules } from "@/hooks/useAccessRules";
+import { isAdmin } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,
@@ -102,7 +103,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
-  const accessRules = getAccessRules(user);
+  const { accessRules } = useAccessRules();
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
   const [hasStudyGuideContent, setHasStudyGuideContent] = useState(true);
   const passwordDialog = usePasswordDialog();
