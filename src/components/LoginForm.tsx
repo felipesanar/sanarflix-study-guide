@@ -35,9 +35,9 @@ export const LoginForm: React.FC = () => {
     const success = await login(email.trim().toLowerCase(), password);
     Logger.debug('login_result', { success });
     if (success) {
-      // Navigate to simulados after login (default route for all users)
+      // Navigate to home after login - App.tsx handles fallback to /simulados if user lacks access
       setTimeout(() => {
-        const target = "/simulados";
+        const target = "/home";
         Logger.info('post_login_navigation', { target });
         navigate(target, { replace: true });
       }, 50);
