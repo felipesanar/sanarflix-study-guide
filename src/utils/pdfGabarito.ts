@@ -310,11 +310,15 @@ const drawIdentificationCard = (
   doc.setFontSize(10);
   doc.text(`${stats.percentual}%`, rightX + 35, yStart + 20);
   
-  // Progress bar
-  const barWidth = 60;
+  // Progress bar - calculate width to stay within card bounds
+  const cardRightEdge = cardX + cardWidth - 8; // 8px padding from right edge
   const barX = rightX + 55;
+  const barWidth = Math.min(40, cardRightEdge - barX); // Limit bar width to fit within card
   const barY = yStart + 15;
-  drawProgressBar(doc, barX, barY, barWidth, 6, stats.percentual, percentColor);
+  
+  if (barWidth > 10) { // Only draw if there's reasonable space
+    drawProgressBar(doc, barX, barY, barWidth, 6, stats.percentual, percentColor);
+  }
   
   return yStart + cardHeight + 10;
 };
