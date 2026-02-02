@@ -98,9 +98,9 @@ const AppContent = () => {
     );
   }
 
-  // Redirect authenticated users to Simulados
+  // Redirect authenticated users to Home (with fallback to Simulados if no access)
   const getDefaultRoute = () => {
-    return "/simulados";
+    return accessRules.home ? "/home" : "/simulados";
   };
 
   return (
