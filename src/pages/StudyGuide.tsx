@@ -1535,10 +1535,6 @@ export const StudyGuide: React.FC = () => {
                                           <span className="truncate">{event.title}</span>
                                         </div>
                                       </div>
-                                      <div className="text-xs flex items-center gap-1 mt-1 text-muted-foreground overflow-hidden">
-                                        <Clock3 className="h-3 w-3 flex-shrink-0" />
-                                        <span className="truncate">{event.startTime} - {event.endTime}</span>
-                                      </div>
                                     </motion.div>
                                   ))}
                               </div>
@@ -1689,10 +1685,6 @@ export const StudyGuide: React.FC = () => {
                                             >
                                               <Trash2 className="h-3 w-3" />
                                             </Button>
-                                          </div>
-                                          <div className="text-xs flex items-center gap-1 mt-2 text-muted-foreground">
-                                            <Clock3 className="h-3 w-3 flex-shrink-0" />
-                                            <span className="font-medium">{event.startTime} - {event.endTime}</span>
                                           </div>
                                         </motion.div>
                                       ))}
