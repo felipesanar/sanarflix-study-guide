@@ -15,10 +15,10 @@ Armazena as matérias configuradas pelo usuário no calendário semanal.
 - `name` (text): Nome da matéria
 - `color` (text): Cor da matéria (hex)
 - `day_of_week` (integer): Dia da semana (0-6, onde 0 = Domingo)
-- `start_time` (text): Horário de início (formato HH:MM)
-- `end_time` (text): Horário de término (formato HH:MM)
 - `created_at` (timestamp): Data de criação
 - `updated_at` (timestamp): Data de atualização
+
+**Constraint UNIQUE:** `(user_id, name, day_of_week)` - garante que não há duplicatas
 
 **Usado em:** 
 - Card "O Que Estudar Hoje" na Home
@@ -45,32 +45,65 @@ Armazena os rearranjos personalizados do cronograma ENAMED (quando o usuário mo
 
 **Hook Responsável:** `src/hooks/useCalendarSync.ts`
 
-**Fluxo:**
-1. **Adição de Matéria:**
-   ```typescript
-   addSubject(subject: CalendarSubject)
-   ```
-   - Salva instantaneamente no localStorage
-   - Atualiza o estado React
-   - Sincroniza com o banco de dados em background
+**Arquitetura: SERVER-FIRST**
+O sistema prioriza dados do servidor como fonte de verdade, com localStorage apenas como cache.
 
-2. **Salvamento no Banco:**
-   ```typescript
-   saveToDatabase(subjects: CalendarSubject[])
-   ```
-   - Deleta todos os registros anteriores do usuário
-   - Insere novos registros em batch
-   - Garante consistência dos dados
+**Fluxo de Inicialização:**
+1. Se usuário autenticado: buscar dados do servidor (Supabase)
+2. Atualizar estado React e localStorage
+3. Se não autenticado: usar localStorage como fallback
 
-3. **Sincronização:**
-   - Ao carregar: prioriza dados locais (mais recentes)
-   - Se servidor vazio: envia dados locais
-   - Se local vazio: carrega do servidor
-   - Mantém localStorage sempre atualizado
+**Fluxo de Salvamento (UPSERT Atômico):**
+```typescript
+// 1. Update otimista (UI + localStorage)
+setSubjects(newSubjects);
+saveToLocalStorage(newSubjects);
+
+// 2. UPSERT no banco (atômico, evita race conditions)
+await supabase.from('calendar_subjects')
+  .upsert(subjects, { 
+    onConflict: 'user_id,name,day_of_week',
+    ignoreDuplicates: false 
+  });
+
+// 3. DELETE de itens removidos
+await supabase.from('calendar_subjects')
+  .delete()
+  .in('id', idsToDelete);
+```
+
+**Deduplicação no Cliente:**
+```typescript
+const addSubject = async (subject) => {
+  const exists = subjects.some(
+    s => s.name === subject.name && s.dayOfWeek === subject.dayOfWeek
+  );
+  if (exists) {
+    toast.info('Esta matéria já está agendada para este dia');
+    return;
+  }
+  // ... continua salvamento
+};
+```
+
+**Sincronização Multi-Aba (Realtime):**
+```typescript
+supabase
+  .channel('calendar-changes')
+  .on('postgres_changes', {
+    event: '*',
+    schema: 'public',
+    table: 'calendar_subjects',
+    filter: `user_id=eq.${user.id}`
+  }, () => {
+    // Recarregar dados do servidor
+    refetch();
+  })
+  .subscribe();
+```
 
 **Onde é usado:**
 - **Guia de Estudos** (`/guia-estudos`) - modo calendário (arrastar matérias para dias)
-- Página "O Que Estudar Hoje" (componente QuickActionsDock)
 - Card "Meu Dia" na Home (busca matérias do dia)
 
 ### 2. Calendar Arrangements (Rearranjos do Cronograma)
@@ -145,7 +178,7 @@ Cada item no "Meu Dia" mostra sua origem através de badges:
 ```sql
 SELECT * FROM calendar_subjects 
 WHERE user_id = '[USER_ID]' 
-ORDER BY day_of_week, start_time;
+ORDER BY day_of_week, name;
 ```
 
 ### Verificar Calendar Arrangements
@@ -189,9 +222,40 @@ localStorage.getItem('user_calendar_subjects')
 3. **Verificar console:**
    - Erros de rede ou banco de dados aparecerão no console
 
+### Duplicatas aparecem no calendário
+
+1. **Verificar constraint UNIQUE:**
+   ```sql
+   SELECT constraint_name FROM information_schema.table_constraints 
+   WHERE table_name = 'calendar_subjects' AND constraint_type = 'UNIQUE';
+   ```
+   - Deve retornar `unique_user_subject_day`
+
+2. **Limpar duplicatas manualmente:**
+   ```sql
+   DELETE FROM calendar_subjects cs1
+   WHERE EXISTS (
+     SELECT 1 FROM calendar_subjects cs2
+     WHERE cs2.user_id = cs1.user_id
+       AND cs2.name = cs1.name
+       AND cs2.day_of_week = cs1.day_of_week
+       AND cs2.created_at < cs1.created_at
+   );
+   ```
+
+### Calendário diferente em abas diferentes
+
+1. **Verificar Realtime subscription:**
+   - Console deve mostrar conexão ao canal `calendar-changes-[user_id]`
+
+2. **Forçar refresh:**
+   - Usar `refresh()` do hook para recarregar do servidor
+
 ## 📝 Notas Técnicas
 
 - **Timezone:** Todo o sistema usa fuso de Brasília (America/Sao_Paulo)
-- **Cache:** localStorage serve como cache instantâneo
-- **Sincronização:** Sempre que possível, dados são sincronizados com o servidor
+- **Cache:** localStorage serve como cache local (sincronizado com servidor)
+- **Fonte de Verdade:** Supabase é a fonte de verdade (SERVER-FIRST)
+- **Sincronização:** Realtime subscription mantém abas sincronizadas
 - **Otimização:** Updates são otimistas (UI atualiza antes de confirmar no servidor)
+- **Rollback:** Em caso de erro, dados são revertidos para estado do servidor
