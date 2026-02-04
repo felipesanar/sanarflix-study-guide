@@ -48,9 +48,11 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1 min-w-0">
             <h5 className={cn(
-              "font-bold text-[13px] leading-tight truncate tracking-tight",
+              "font-bold leading-tight tracking-tight break-words hyphens-auto",
               variant === 'dark' ? "text-zinc-100" : "text-zinc-700"
-            )}>
+            )}
+            style={{ fontSize: 'clamp(0.7rem, 1.2vw, 0.8125rem)' }}
+            >
               {event.title}
             </h5>
             <div className="flex items-center gap-2 mt-1">
