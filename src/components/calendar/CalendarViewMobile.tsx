@@ -241,7 +241,7 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
                         
                         {/* Title */}
                         <h4 className={cn(
-                          "text-sm font-semibold mt-1 line-clamp-2",
+                          "text-sm font-semibold mt-1",
                           isDark ? "text-white" : "text-foreground"
                         )}>
                           {event.title}
