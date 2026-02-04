@@ -1,4 +1,4 @@
-// Study Calendar Components - Premium Editor
+// Study Calendar Components - Premium Editor & View
 // Export all calendar components
 
 export * from './types';
@@ -10,3 +10,5 @@ export { DaySelectorMobile } from './DaySelectorMobile';
 export { SubjectDrawerMobile } from './SubjectDrawerMobile';
 export { CalendarEditorDesktop } from './CalendarEditorDesktop';
 export { CalendarEditorMobile } from './CalendarEditorMobile';
+export { CalendarViewDesktop } from './CalendarViewDesktop';
+export { CalendarViewMobile } from './CalendarViewMobile';
