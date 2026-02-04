@@ -1,253 +1,156 @@
 
+# Plano de Correção: Inconsistências e Duplicações no Calendário de Estudos
 
-# Plano: Gabarito PDF Premium com Identidade Visual SanarFlix Academy
+## Diagnóstico Executivo
 
-## Visao Geral
+Após auditoria completa do sistema, identifiquei **3 problemas críticos** que causam a inconsistência entre previews e a duplicação de matérias:
 
-Redesign completo do PDF de gabarito, elevando a qualidade visual para nivel premium com a identidade visual do SanarFlix Academy. O documento tera aparencia profissional e institucional, utilizando as cores oficiais, logo e elementos visuais sofisticados.
+### Problemas Encontrados
 
----
+1. **Race Condition no Salvamento**
+   - O `saveToDatabase` faz DELETE + INSERT não-atômico
+   - Se duas requisições simultâneas ocorrem (ex: arrasto rápido), ambas podem inserir dados antes que o DELETE da outra execute
+   - **Evidência:** No banco há 4 cópias de cada matéria para o mesmo usuário (`c62a7e9a-0da5-4b5b-bf45-44f559ae5d46`)
 
-## Estado Atual vs. Proposta
+2. **Dessincronização localStorage vs Banco**
+   - O hook carrega localStorage primeiro e sincroniza com banco em background (após 500ms)
+   - Se dois dispositivos/abas abrem o app, cada um pode ter localStorage diferente
+   - A lógica de merge prioriza dados locais, sobrescrevendo dados do servidor
+   - **Evidência:** Preview Lovable e aba separada mostram dados diferentes
 
-| Elemento | Atual | Proposto |
-|----------|-------|----------|
-| **Header** | Retangulo azul simples, texto "GABARITO" | Header com gradiente wine, logo SanarFlix Academy, nome da marca e linha decorativa |
-| **Cores** | Azul indigo generico (#4F46E5) | Wine institucional (#8B1538) + Blue accent (#1976D2) |
-| **Tipografia** | Tamanhos fixos, sem hierarquia | Hierarquia clara, tamanhos proporcionais, tracking ajustado |
-| **Tabela** | Linhas alternadas simples | Bordas arredondadas visuais, icones de status (checkmark/X), badges coloridos |
-| **Resumo** | Lista simples | Cards visuais com icones, barras de progresso |
-| **Rodape** | Inexistente | Rodape com data, URL do Academy e marca d'agua |
-
----
-
-## Paleta de Cores do PDF
-
-```text
-Cores Primarias:
-- Wine Primary:     #8B1538 (RGB: 139, 21, 56)
-- Wine Dark:        #6B1028 (RGB: 107, 16, 40)
-- Wine Light:       #A91D46 (RGB: 169, 29, 70)
-
-Cores Secundarias:
-- Blue Accent:      #1976D2 (RGB: 25, 118, 210)
-- Blue Light:       #42A5F5 (RGB: 66, 165, 245)
-
-Status:
-- Success Green:    #059669 (RGB: 5, 150, 105)
-- Success Light:    #D1FAE5 (RGB: 209, 250, 229)
-- Error Red:        #DC2626 (RGB: 220, 38, 38)
-- Error Light:      #FEE2E2 (RGB: 254, 226, 226)
-- Neutral Gray:     #6B7280 (RGB: 107, 114, 128)
-- Neutral Light:    #F3F4F6 (RGB: 243, 244, 246)
-
-Textos:
-- Text Dark:        #1F2937 (RGB: 31, 41, 55)
-- Text Muted:       #6B7280 (RGB: 107, 114, 128)
-```
+3. **Falta de Deduplicação ao Adicionar**
+   - O `addSubject` sempre adiciona ao array sem verificar se já existe matéria no mesmo dia
+   - Permite arrastar a mesma matéria múltiplas vezes para o mesmo dia
 
 ---
 
-## Estrutura do Novo PDF
+## Solução Proposta
 
-### 1. HEADER PREMIUM
+### Fase 1: Correção Imediata de Dados
 
-```text
-+--------------------------------------------------------------------------+
-|  [LOGO]  SanarFlix Academy                          Data: 02 de Fevereiro|
-|          Para Universidades Parceiras                              2026  |
-+--------------------------------------------------------------------------+
-|                                                                          |
-|                            GABARITO COMPLETO                             |
-|                         Nome do Simulado Aqui                            |
-|                                                                          |
-+--------------------------------------------------------------------------+
+Executar SQL de limpeza para remover duplicatas existentes no banco:
+```sql
+DELETE FROM calendar_subjects 
+WHERE id NOT IN (
+  SELECT MIN(id) 
+  FROM calendar_subjects 
+  GROUP BY user_id, name, day_of_week
+);
 ```
 
-**Implementacao:**
-- Fundo com gradiente wine (#8B1538 para #6B1028)
-- Logo SanarFlix Academy embarcada como base64 (imagem PNG convertida)
-- Tipografia "SanarFlix Academy" em branco, bold
-- Subtitulo "Para Universidades Parceiras" em branco/80% opacidade
-- Titulo "GABARITO COMPLETO" centralizado, maior destaque
-- Nome do simulado abaixo
+### Fase 2: Refatorar `useCalendarSync.ts`
 
-### 2. CARD DE IDENTIFICACAO
-
-```text
-+--------------------------------------------------------------------------+
-|  ALUNO                                    RESULTADO                      |
-|  Nome do Estudante                        42/60 questoes                 |
-|  email@universidade.edu                   70% de aproveitamento          |
-|                                           [###########------] Progresso  |
-+--------------------------------------------------------------------------+
+#### 2.1 Adicionar Constraint UNIQUE no Banco
+Criar constraint para evitar duplicatas a nível de banco:
+```sql
+ALTER TABLE calendar_subjects 
+ADD CONSTRAINT unique_user_subject_day 
+UNIQUE (user_id, name, day_of_week);
 ```
 
-**Implementacao:**
-- Fundo cinza claro (#F9FAFB) com borda sutil
-- Duas colunas: dados do aluno (esquerda) e resultado (direita)
-- Barra de progresso visual (retangulos preenchidos)
-- Cores de acordo com percentual (verde > 70%, amarelo 50-70%, vermelho < 50%)
+#### 2.2 Usar UPSERT em vez de DELETE/INSERT
+Substituir a lógica de salvamento:
 
-### 3. TABELA DE QUESTOES PREMIUM
-
-```text
-+------+----------+----------+------------+--------------------------------+
-| #    | SUA RESP | GABARITO | RESULTADO  | TEMA                           |
-+------+----------+----------+------------+--------------------------------+
-|  1   |    A     |    A     | ✓ ACERTOU  | Cardiologia - Arritmias        |
-+------+----------+----------+------------+--------------------------------+
-|  2   |    C     |    B     | ✗ ERROU    | Neurologia - AVC               |
-+------+----------+----------+------------+--------------------------------+
-|  3   |    -     |    D     | ⊘ N/RESP   | Pneumologia - DPOC             |
-+------+----------+----------+------------+--------------------------------+
-```
-
-**Implementacao:**
-- Header da tabela com gradiente wine
-- Alternancia de cores de fundo (branco / cinza muito claro)
-- Coluna "Resultado":
-  - ACERTOU: Texto verde com fundo verde claro (#D1FAE5)
-  - ERROU: Texto vermelho com fundo vermelho claro (#FEE2E2)
-  - N/RESP: Texto cinza com fundo cinza claro
-- Bordas arredondadas simuladas com desenho customizado
-- Icones desenhados com primitivas do jsPDF (circulos, linhas)
-
-### 4. RESUMO VISUAL
-
-```text
-+--------------------------------------------------------------------------+
-|                           RESUMO DO DESEMPENHO                           |
-+--------------------------------------------------------------------------+
-|                                                                          |
-|  +------------------+  +------------------+  +------------------+        |
-|  |   ✓ 42           |  |   ✗ 15           |  |   ⊘ 3            |        |
-|  |   ACERTOS        |  |   ERROS          |  |   NAO RESPONDIDAS|        |
-|  +------------------+  +------------------+  +------------------+        |
-|                                                                          |
-|  +--------------------------------------------------------------------+ |
-|  |  DESEMPENHO POR AREA                                               | |
-|  |                                                                    | |
-|  |  Cardiologia     ████████████████░░░░  80%                        | |
-|  |  Neurologia      ███████████░░░░░░░░░  55%                        | |
-|  |  Pneumologia     ██████████████████░░  90%                        | |
-|  +--------------------------------------------------------------------+ |
-|                                                                          |
-+--------------------------------------------------------------------------+
-```
-
-**Implementacao:**
-- Tres cards com numeros grandes e labels
-- Cada card com cor de fundo correspondente (verde/vermelho/cinza)
-- Barras de progresso por area/tema (se dados disponiveis)
-
-### 5. RODAPE INSTITUCIONAL
-
-```text
-+--------------------------------------------------------------------------+
-|  Gerado por SanarFlix Academy | sanarflix-study-guide.lovable.app       |
-|  Este documento e confidencial e de uso exclusivo do aluno.              |
-+--------------------------------------------------------------------------+
-```
-
-**Implementacao:**
-- Linha divisoria fina acima
-- Logo pequena ou icone
-- URL do Academy
-- Aviso de confidencialidade
-- Presente em todas as paginas
-
----
-
-## Implementacao Tecnica
-
-### Arquivo: `src/utils/pdfGabarito.ts`
-
-**Novas funcoes auxiliares:**
+**Atual (problemático):**
 ```typescript
-// Converter imagem para base64 (feito em build time ou hardcoded)
-const SANARFLIX_LOGO_BASE64 = 'data:image/png;base64,...';
-
-// Desenhar retangulo arredondado (jsPDF nao tem nativo)
-const roundedRect = (doc: jsPDF, x: number, y: number, w: number, h: number, r: number, style: 'F' | 'S' | 'FD') => { ... }
-
-// Desenhar barra de progresso
-const drawProgressBar = (doc: jsPDF, x: number, y: number, width: number, percentage: number, color: [number, number, number]) => { ... }
-
-// Desenhar icone de check/x
-const drawStatusIcon = (doc: jsPDF, x: number, y: number, status: 'correct' | 'wrong' | 'unanswered') => { ... }
-
-// Gradiente simulado (multiplos retangulos)
-const drawGradientHeader = (doc: jsPDF, height: number) => { ... }
+// DELETE todos + INSERT todos (não atômico)
+await supabase.from('calendar_subjects').delete().eq('user_id', user.id);
+await supabase.from('calendar_subjects').insert([...]);
 ```
 
-**Paleta de cores como constantes:**
+**Novo (seguro):**
 ```typescript
-const COLORS = {
-  wine: { primary: [139, 21, 56], dark: [107, 16, 40], light: [169, 29, 70] },
-  blue: { primary: [25, 118, 210], light: [66, 165, 245] },
-  success: { main: [5, 150, 105], bg: [209, 250, 229] },
-  error: { main: [220, 38, 38], bg: [254, 226, 226] },
-  neutral: { main: [107, 114, 128], bg: [243, 244, 246], white: [255, 255, 255] },
-  text: { dark: [31, 41, 55], muted: [107, 114, 128] }
-};
+// UPSERT atômico com chave única
+await supabase.from('calendar_subjects')
+  .upsert(subjects.map(...), { 
+    onConflict: 'user_id,name,day_of_week',
+    ignoreDuplicates: false
+  });
+
+// DELETE apenas itens removidos (comparando lista)
+await supabase.from('calendar_subjects')
+  .delete()
+  .eq('user_id', user.id)
+  .not('id', 'in', (retainedIds));
 ```
 
-### Funcao Principal Refatorada
-
+#### 2.3 Deduplicação no Cliente
+Ao adicionar matéria, verificar se já existe:
 ```typescript
-export const generateGabaritoPDF = (
-  simuladoNome: string,
-  alunoNome: string,
-  questoes: GabaritoQuestao[],
-  stats: GabaritoStats
-): void => {
-  const doc = new jsPDF();
-  
-  // 1. Desenhar header premium com logo
-  drawPremiumHeader(doc, simuladoNome);
-  
-  // 2. Card de identificacao
-  drawIdentificationCard(doc, alunoNome, stats);
-  
-  // 3. Tabela de questoes
-  drawQuestionsTable(doc, questoes);
-  
-  // 4. Resumo visual
-  drawSummarySection(doc, questoes, stats);
-  
-  // 5. Rodape em todas as paginas
-  addFooterToAllPages(doc);
-  
-  doc.save(`gabarito_${safeFileName}.pdf`);
-};
+const addSubject = useCallback(async (subject) => {
+  // Verificar se já existe no dia
+  const exists = subjects.some(
+    s => s.name === subject.name && s.dayOfWeek === subject.dayOfWeek
+  );
+  if (exists) {
+    toast.info('Esta matéria já está agendada para este dia');
+    return;
+  }
+  // ... continua salvamento
+}, [subjects]);
 ```
 
+#### 2.4 Priorizar Dados do Servidor
+Inverter a lógica de sincronização para evitar dessincronização:
+```typescript
+// Se ambos têm dados: MESCLAR (não sobrescrever)
+// Usar timestamp de atualização mais recente
+// Ou: sempre buscar do servidor ao abrir (server-first)
+```
+
+### Fase 3: Invalidação de Cache React Query
+
+Implementar invalidação automática ao modificar dados:
+```typescript
+const queryClient = useQueryClient();
+
+// Após qualquer mutação
+queryClient.invalidateQueries({ queryKey: ['calendar-subjects'] });
+```
+
+### Fase 4: Realtime Subscription para Sincronização Multi-Aba
+
+Adicionar listener Supabase Realtime para atualizar quando dados mudam:
+```typescript
+useEffect(() => {
+  const channel = supabase
+    .channel('calendar-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'calendar_subjects',
+      filter: `user_id=eq.${user.id}`
+    }, (payload) => {
+      // Atualizar estado local
+      refetch();
+    })
+    .subscribe();
+
+  return () => { supabase.removeChannel(channel); };
+}, [user.id]);
+```
+
+### Fase 5: Atualizar Documentação
+
+Atualizar `docs/calendar-data-flow.md` removendo referências a `start_time`/`end_time` e documentando nova lógica de sincronização.
+
 ---
 
-## Logo Embarcada
+## Resumo Técnico de Alterações
 
-Para incluir a logo no PDF, sera necessario converter a imagem para base64. O arquivo `public/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png` sera embarcado como string constante no codigo.
-
-**Processo:**
-1. A logo ja existe em PNG
-2. Converter para base64 e armazenar como constante no arquivo
-3. Usar `doc.addImage()` com a string base64
-
----
-
-## Resumo de Alteracoes
-
-| Arquivo | Tipo | Descricao |
-|---------|------|-----------|
-| `src/utils/pdfGabarito.ts` | Reescrita completa | Novo design premium com logo, gradientes, cores institucionais e layout profissional |
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/hooks/useCalendarSync.ts` | Refatorar para UPSERT, adicionar deduplicação, implementar realtime |
+| `supabase/migrations/` | Criar migration com UNIQUE constraint + limpeza de duplicatas |
+| `src/pages/StudyGuide.tsx` | Nenhuma alteração (usa hook corretamente) |
+| `docs/calendar-data-flow.md` | Atualizar documentação |
 
 ---
 
-## Beneficios
+## Critérios de Sucesso
 
-1. **Identidade Visual**: PDF com cara de documento oficial SanarFlix Academy
-2. **Profissionalismo**: Alunos podem compartilhar ou imprimir com orgulho
-3. **Consistencia**: Mesmas cores e elementos visuais do app
-4. **Legibilidade**: Hierarquia visual clara, cores de status intuitivas
-5. **Institucional**: Logo e branding reforçam a marca
+- Não há mais duplicatas no banco de dados
+- Arrastar mesma matéria para mesmo dia mostra toast informativo (não duplica)
+- Abrir app em duas abas mostra mesmo calendário
+- Preview Lovable e aba externa mostram dados idênticos
+- Nenhum erro no console
