@@ -217,7 +217,7 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
                             
                             {/* Subject name */}
                             <h4 className={cn(
-                              "text-sm font-semibold leading-tight line-clamp-2",
+                              "text-sm font-semibold leading-tight",
                               isDark ? "text-white" : "text-foreground"
                             )}>
                               {event.title}
