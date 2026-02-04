@@ -86,24 +86,13 @@ export const useCalendarSync = () => {
     try {
       // 1. UPSERT: inserir/atualizar matérias
       if (newSubjects.length > 0) {
-        const recordsToUpsert = newSubjects.map(subject => {
-          // Só inclui ID se existir, senão deixa o banco gerar
-          if (subject.id) {
-            return {
-              id: subject.id,
-              user_id: user.id,
-              name: subject.name,
-              color: subject.color,
-              day_of_week: subject.dayOfWeek
-            };
-          }
-          return {
-            user_id: user.id,
-            name: subject.name,
-            color: subject.color,
-            day_of_week: subject.dayOfWeek
-          };
-        });
+        const recordsToUpsert = newSubjects.map(subject => ({
+          id: subject.id || crypto.randomUUID(),
+          user_id: user.id,
+          name: subject.name,
+          color: subject.color,
+          day_of_week: subject.dayOfWeek
+        }));
 
         const { error: upsertError } = await supabase
           .from('calendar_subjects')
