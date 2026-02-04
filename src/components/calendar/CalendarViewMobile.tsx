@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Edit2, Clock, BookOpen } from 'lucide-react';
+import { Calendar, Edit2, BookOpen } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -247,16 +247,6 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
                           {event.title}
                         </h4>
                         
-                        {/* Time */}
-                        {event.startTime && event.endTime && (
-                          <div className={cn(
-                            "flex items-center gap-1 mt-1.5 text-xs",
-                            isDark ? "text-zinc-400" : "text-muted-foreground"
-                          )}>
-                            <Clock className="h-3 w-3" />
-                            <span>{event.startTime} - {event.endTime}</span>
-                          </div>
-                        )}
                       </div>
                       
                       {/* Color dot indicator */}

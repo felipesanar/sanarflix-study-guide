@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Edit2, Clock } from 'lucide-react';
+import { Calendar, Edit2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -223,16 +223,6 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
                               {event.title}
                             </h4>
                             
-                            {/* Time - show if exists */}
-                            {event.startTime && event.endTime && (
-                              <div className={cn(
-                                "flex items-center gap-1 mt-1.5 text-xs",
-                                isDark ? "text-zinc-400" : "text-muted-foreground"
-                              )}>
-                                <Clock className="h-3 w-3" />
-                                <span>{event.startTime} - {event.endTime}</span>
-                              </div>
-                            )}
                           </div>
                         </motion.div>
                       ))}
