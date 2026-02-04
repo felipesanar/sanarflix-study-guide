@@ -17,7 +17,6 @@ import {
   GuideHeader,
   GuideToolbar,
   SubjectChips,
-  NextLessonCard,
   TodayStudyCard,
   SubjectCard,
   GuideSearchBar,
@@ -617,29 +616,14 @@ export const StudyGuide: React.FC = () => {
 
         {selectedSemestre && (
           <>
-            {/* Hero Section - Next Lesson + Today's Study */}
-            <div className="grid gap-4 lg:gap-6 grid-cols-1 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <NextLessonCard
-                  lessonTitle="Introdução a prática médica"
-                  isEmpty={!filteredMaterias.length}
-                  onContinue={() => {
-                    if (filteredMaterias.length > 0) {
-                      const first = filteredMaterias[0];
-                      setSelectedMateria(first.materia);
-                    }
-                  }}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <TodayStudyCard
-                  subjects={todaySubjects}
-                  onSubjectClick={openMateriaSheet}
-                  onRemoveSubject={(id) => removeEventFromCalendar(id)}
-                  onGoToCalendar={() => setViewMode('calendar')}
-                />
-              </div>
-            </div>
+            {/* Hero Section - Today's Study */}
+            <TodayStudyCard
+              subjects={todaySubjects}
+              onSubjectClick={openMateriaSheet}
+              onRemoveSubject={(id) => removeEventFromCalendar(id)}
+              onGoToCalendar={() => setViewMode('calendar')}
+              isHero
+            />
 
             {/* Toolbar */}
             <GuideToolbar

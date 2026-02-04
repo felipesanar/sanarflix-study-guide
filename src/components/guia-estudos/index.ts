@@ -4,7 +4,6 @@
 export { GuideHeader } from './GuideHeader';
 export { GuideToolbar } from './GuideToolbar';
 export { SubjectChips } from './SubjectChips';
-export { NextLessonCard } from './NextLessonCard';
 export { TodayStudyCard } from './TodayStudyCard';
 export { SubjectCard } from './SubjectCard';
 export { LessonRow } from './LessonRow';
