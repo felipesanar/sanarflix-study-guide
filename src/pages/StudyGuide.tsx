@@ -4,49 +4,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { swrFetch } from '@/utils/performanceCache';
 import { toast } from '@/hooks/use-toast';
-import { useUniversity } from '@/contexts/UniversityContext';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { 
-  BookOpen, 
-  Search,
-  Clock, 
-  CheckCircle2,
-  AlertCircle,
-  ChevronRight,
-  Play,
-  FileText,
-  Brain,
-  Target,
-  Sparkles,
-  ArrowUp,
-  Calendar,
-  BookMarked,
-  GraduationCap,
-  LayoutGrid,
-  List,
-  Bookmark,
-  Plus,
-  X,
-  Clock3,
-  Edit2,
-  Check,
-  Trash2,
-  BarChart3
-} from 'lucide-react';
-import { motion, AnimatePresence, useDragControls, Reorder } from 'framer-motion';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useTheme } from 'next-themes';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { getBrazilDayOfWeek } from '@/utils/timezone';
+
+// Premium Components
+import {
+  GuideHeader,
+  GuideToolbar,
+  SubjectChips,
+  NextLessonCard,
+  TodayStudyCard,
+  SubjectCard,
+  GuideSearchBar,
+  GuideSkeletons,
+  GuideEmptyStates,
+} from '@/components/guia-estudos';
+
+// Calendar Components
 import { 
   CalendarEditorDesktop, 
   CalendarEditorMobile,
@@ -54,11 +33,15 @@ import {
   CalendarViewMobile,
   CalendarEvent as CalendarEventType,
   SyncStatus,
-  getMateriaColor as getCalendarMateriaColor,
-  getMateriaIcon as getCalendarMateriaIcon
 } from '@/components/calendar';
-import { useTheme } from 'next-themes';
 
+// UI Components
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, Brain, CheckCircle2, Play, FileText } from 'lucide-react';
+
+// Types
 interface Aula {
   aula: string;
   link_aula?: string | null;
@@ -94,7 +77,7 @@ interface ConteudoData {
   link_quiz?: string | null;
 }
 
-// Função para ler cache sincronamente
+// Cache reader
 const readStudyGuideCache = (iesId: string, semestre: number | undefined): ConteudoData[] | null => {
   try {
     const cacheKey = `perf_study_contents_${iesId}_${semestre}`;
@@ -111,108 +94,85 @@ const readStudyGuideCache = (iesId: string, semestre: number | undefined): Conte
   return null;
 };
 
+// Subject icon helper
+const getMateriaIcon = (materia: string) => {
+  const lower = materia.toLowerCase();
+  if (lower.includes('anatomia')) return '🧠';
+  if (lower.includes('fisiologia')) return '❤️';
+  if (lower.includes('bioquímica')) return '🧪';
+  if (lower.includes('farmacologia')) return '💊';
+  if (lower.includes('patologia')) return '🔬';
+  if (lower.includes('clínica')) return '🩺';
+  if (lower.includes('cirurgia')) return '⚕️';
+  if (lower.includes('pediatria')) return '👶';
+  if (lower.includes('ginecologia')) return '🤰';
+  if (lower.includes('microbiologia')) return '🦠';
+  if (lower.includes('imunologia')) return '🛡️';
+  if (lower.includes('parasitologia')) return '🦟';
+  if (lower.includes('histologia')) return '🔬';
+  if (lower.includes('embriologia')) return '👶';
+  if (lower.includes('saúde') || lower.includes('social')) return '🏥';
+  if (lower.includes('política') || lower.includes('pública')) return '📋';
+  return '📚';
+};
+
+// Color generator
+const getMateriaColor = (materia: string) => {
+  let hash = 0;
+  for (let i = 0; i < materia.length; i++) {
+    hash = materia.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    '#4361ee', '#3a0ca3', '#7209b7', '#f72585', 
+    '#4cc9f0', '#4895ef', '#560bad', '#f3722c',
+    '#06d6a0', '#118ab2', '#073b4c', '#ff006e'
+  ];
+  return colors[Math.abs(hash) % colors.length];
+};
+
 export const StudyGuide: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
-  
-  // Ler cache SINCRONAMENTE para evitar skeleton em revisitas
+  const isMobile = useIsMobile();
+  const { theme } = useTheme();
+  const location = useLocation();
+
+  // Cache-first loading
   const cachedContents = useMemo(() => {
     if (!user?.id_ies) return null;
     return readStudyGuideCache(user.id_ies, user.semestre);
   }, [user?.id_ies, user?.semestre]);
-  
+
+  // State
   const [conteudos, setConteudos] = useState<ConteudoData[]>(cachedContents || []);
   const [isLoading, setIsLoading] = useState(!cachedContents);
   const [selectedSemestre, setSelectedSemestre] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [lastSearchTerm, setLastSearchTerm] = useState<string>('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [deepLinkAula, setDeepLinkAula] = useState<string | null>(null);
   const [deepLinkTema, setDeepLinkTema] = useState<string | null>(null);
   const [deepLinkSubtema, setDeepLinkSubtema] = useState<string | null>(null);
-  const aulaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const location = useLocation();
-  
-  // Pré-seleciona matéria via query string e processa deep link
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const m = params.get('materia');
-    const aula = params.get('aula');
-    const tema = params.get('tema');
-    const subtema = params.get('subtema');
-    
-    if (m) {
-      setSelectedMateria(m);
-    }
-    if (aula) setDeepLinkAula(aula);
-    if (tema) setDeepLinkTema(tema);
-    if (subtema) setDeepLinkSubtema(subtema);
-  }, [location.search]);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [isEditMode, setIsEditMode] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedEventMateria, setSelectedEventMateria] = useState<string | null>(null);
-  
-  // New premium calendar states
-  const isMobile = useIsMobile();
-  const { theme } = useTheme();
   const [calendarSyncStatus, setCalendarSyncStatus] = useState<SyncStatus>('idle');
   const [undoStack, setUndoStack] = useState<CalendarEventType[][]>([]);
-  const calendarVariant = theme === 'dark' ? 'dark' : 'light'; // Use theme context
-  
-  // Refs para os cards de matérias
+
+  // Refs
+  const aulaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const materiaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  
-  // Carregar último termo pesquisado e compor sugestões
-  useEffect(() => {
-    const saved = localStorage.getItem('studyguide:lastSearch');
-    if (saved) setLastSearchTerm(saved);
-  }, []);
+  const hasLoadedData = useRef(false);
+
+  const calendarVariant = theme === 'dark' ? 'dark' : 'light';
+
+  // Calendar events from Supabase sync
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEventType[]>([]);
 
   useEffect(() => {
-    const normalizeSem = (s: string) => s.replace('º Semestre', '').trim();
-    const targetSem = selectedSemestre ? normalizeSem(selectedSemestre) : '';
-    const visible = conteudos.filter(c => {
-      const matchesSem = targetSem ? normalizeSem(c.semestre) === targetSem : true;
-      const matchesMateria = selectedMateria ? c.materia === selectedMateria : true;
-      return matchesSem && matchesMateria;
-    });
-    const aulaSet = new Set<string>();
-    visible.forEach(c => { if (c.aula) aulaSet.add(c.aula); });
-    const aulas = Array.from(aulaSet).map(a => a.trim()).filter(Boolean);
-    let base = aulas;
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      // priorizar begins-with, depois contains
-      const starts = base.filter(s => s.toLowerCase().startsWith(q));
-      const contains = base.filter(s => !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
-      base = [...starts, ...contains];
-    }
-    const list: string[] = [];
-    if (lastSearchTerm) {
-      const match = aulas.find(a => a.toLowerCase() === lastSearchTerm.trim().toLowerCase());
-      if (match) list.push(match);
-    }
-    for (const s of base) {
-      if (s !== lastSearchTerm) list.push(s);
-      if (list.length >= 4) break;
-    }
-    setSuggestions(list);
-  }, [conteudos, lastSearchTerm, searchQuery, selectedSemestre, selectedMateria]);
-  
-  // Interface para eventos do calendário (use imported type)
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEventType[]>([]);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const dragControls = useDragControls();
-  
-  // Sync calendar events with Supabase (via useCalendarSync)
-  useEffect(() => {
-    // Convert subjects from Supabase to CalendarEventType format
     const events: CalendarEventType[] = subjects.map(s => ({
       id: s.id || `temp-${s.dayOfWeek}-${s.name}`,
       title: s.name,
@@ -222,162 +182,68 @@ export const StudyGuide: React.FC = () => {
     }));
     setCalendarEvents(events);
   }, [subjects]);
-  
-  // Função para gerar uma cor consistente baseada no nome da matéria
-  const getMateriaColor = (materia: string) => {
-    let hash = 0;
-    for (let i = 0; i < materia.length; i++) {
-      hash = materia.charCodeAt(i) + ((hash << 5) - hash);
-    }
+
+  // Deep link handling
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const m = params.get('materia');
+    const aula = params.get('aula');
+    const tema = params.get('tema');
+    const subtema = params.get('subtema');
     
-    const colors = [
-      '#4361ee', '#3a0ca3', '#7209b7', '#f72585', 
-      '#4cc9f0', '#4895ef', '#560bad', '#f3722c',
-      '#06d6a0', '#118ab2', '#073b4c', '#ff006e'
-    ];
-    
-    return colors[Math.abs(hash) % colors.length];
-  };
-  
-  // Função para adicionar evento ao calendário (salva no Supabase)
-  const addEventToCalendar = async (materia: string, day: number) => {
-    await addSubject({
-      name: materia,
-      dayOfWeek: day,
-      color: getMateriaColor(materia)
-    });
-  };
-  
-  // Função para remover evento do calendário (remove do Supabase)
-  const removeEventFromCalendar = async (id: string) => {
-    const event = calendarEvents.find(e => e.id === id);
-    if (!event) return;
-    
-    await removeSubject(event.day, event.materia);
-    
-    toast({
-      title: "Matéria removida",
-      description: "Matéria removida do calendário",
-      variant: "default",
-    });
-  };
-  
-  // Função para abrir sheet com conteúdos da matéria
-  const openMateriaSheet = (materia: string) => {
-    setSelectedEventMateria(materia);
-    setSheetOpen(true);
-  };
-  
-  // Função para fazer scroll até o card da matéria
-  const scrollToMateria = (materia: string) => {
-    const materiaCard = materiaRefs.current.get(materia);
-    if (materiaCard) {
-      materiaCard.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start'
-      });
-    }
-  };
-  
-  // Confirmar edições do calendário
-  const confirmEditMode = useCallback(() => {
-    console.log('[StudyCalendarEditor] Save confirmed');
-    setCalendarSyncStatus('syncing');
-    setTimeout(() => {
-      setCalendarSyncStatus('saved');
-      setTimeout(() => setCalendarSyncStatus('idle'), 2000);
-    }, 500);
-    setIsEditMode(false);
-    toast({
-      title: "Alterações salvas",
-      description: "Seu calendário foi atualizado com sucesso",
-      variant: "default",
-    });
+    if (m) setSelectedMateria(m);
+    if (aula) setDeepLinkAula(aula);
+    if (tema) setDeepLinkTema(tema);
+    if (subtema) setDeepLinkSubtema(subtema);
+  }, [location.search]);
+
+  // Load last search
+  useEffect(() => {
+    const saved = localStorage.getItem('studyguide:lastSearch');
+    if (saved) setLastSearchTerm(saved);
   }, []);
 
-  // Undo handler for calendar
-  const handleCalendarUndo = useCallback(() => {
-    if (undoStack.length > 0) {
-      const previousState = undoStack[undoStack.length - 1];
-      setUndoStack(prev => prev.slice(0, -1));
-      // Note: This would need to sync back, but we keep existing behavior
-      console.log('[StudyCalendarEditor] Undo triggered');
-      toast({
-        title: "Desfeito",
-        description: "Última alteração desfeita",
-        variant: "default",
-      });
-    }
-  }, [undoStack]);
-
-  // Reset week handler
-  const handleCalendarReset = useCallback(() => {
-    console.log('[StudyCalendarEditor] Reset week triggered');
-    // Clear all events for the week - this would need confirmation
-    toast({
-      title: "Semana resetada",
-      description: "Todas as matérias foram removidas",
-      variant: "default",
-    });
-  }, []);
-
-  // Note: availableSubjectNames is defined after filteredMaterias below
-
-  // Load completed items from localStorage
+  // Load completed items
   useEffect(() => {
     const stored = localStorage.getItem('study-progress');
     if (stored) {
       try {
         const data = JSON.parse(stored);
-        // Ensure data is an array before creating Set
         if (Array.isArray(data)) {
           setCompletedItems(new Set(data));
-        } else {
-          setCompletedItems(new Set());
         }
       } catch (e) {
         console.error('Error loading progress:', e);
-        setCompletedItems(new Set());
       }
     }
   }, []);
 
-  // Save completed items to localStorage
+  // Save progress
   const saveProgress = (items: Set<string>) => {
     localStorage.setItem('study-progress', JSON.stringify([...items]));
   };
 
-  // Ref to track if data has been loaded
-  const hasLoadedData = useRef(false);
-
-  // Fetch conteudos com SWR cache - apenas na montagem ou quando mudar IES/semestre
+  // Fetch contents
   useEffect(() => {
     const fetchConteudos = async () => {
-      // Permitir carregamento mesmo se semestre for 0 ou undefined
-      // O Guia de Estudos mostra TODOS os semestres da IES, não apenas o do usuário
       if (!user?.id_ies) {
         setIsLoading(false);
         return;
       }
 
-      // Prevent refetch if already loaded
-      if (hasLoadedData.current && conteudos.length > 0) {
-        return;
-      }
+      if (hasLoadedData.current && conteudos.length > 0) return;
 
       try {
         setIsLoading(true);
-        const startTime = performance.now();
         const cacheKey = `study_contents_${user.id_ies}_${user.semestre}`;
 
-        // SWR: tentar entregar cache instantâneo e revalidar em background
         const cached = await swrFetch<ConteudoData[]>(
           cacheKey,
           async () => {
             const { data: response, error } = await supabase.functions.invoke('get-study-contents');
             if (error) throw error;
-            if (!response?.data) throw new Error('Invalid response from server');
-            const transformed: ConteudoData[] = (response.data || []).map((item: any) => ({
+            if (!response?.data) throw new Error('Invalid response');
+            return (response.data || []).map((item: any) => ({
               id: item.id,
               id_ies: item.id_ies,
               semestre: item.semestre?.toString() || '',
@@ -389,31 +255,21 @@ export const StudyGuide: React.FC = () => {
               link_pdf: item.link_pdf,
               link_quiz: item.link_quiz,
             }));
-            return transformed;
           },
           {
             ttl: 2 * 60 * 60 * 1000,
             onUpdate: (fresh) => {
               setConteudos(fresh);
               hasLoadedData.current = true;
-              // Auto-select semestre após revalidação
               if (fresh.length > 0) {
-                // Tentar selecionar o semestre do usuário se existir nos dados
+                const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
                 if (typeof user.semestre === 'number') {
-                  const userSemestre = user.semestre.toString();
-                  const hasUserSemestre = fresh.some(c => 
-                    c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+                  const userSem = user.semestre.toString();
+                  const hasIt = fresh.some(c => 
+                    c.semestre === userSem || c.semestre === `${userSem}º Semestre`
                   );
-                  if (hasUserSemestre) {
-                    setSelectedSemestre(userSemestre);
-                  } else {
-                    // Se não encontrar, selecionar o primeiro semestre disponível
-                    const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
-                    setSelectedSemestre(firstSemestre);
-                  }
+                  setSelectedSemestre(hasIt ? userSem : firstSemestre);
                 } else {
-                  // Se usuário não tem semestre definido, selecionar o primeiro
-                  const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
                   setSelectedSemestre(firstSemestre);
                 }
               }
@@ -424,68 +280,19 @@ export const StudyGuide: React.FC = () => {
         if (cached && cached.length > 0) {
           setConteudos(cached);
           hasLoadedData.current = true;
-          // Auto-selecionar semestre baseado no cache
+          const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
           if (typeof user.semestre === 'number') {
-            const userSemestre = user.semestre.toString();
-            const hasUserSemestre = cached.some(c => 
-              c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
+            const userSem = user.semestre.toString();
+            const hasIt = cached.some(c => 
+              c.semestre === userSem || c.semestre === `${userSem}º Semestre`
             );
-            if (hasUserSemestre) {
-              setSelectedSemestre(userSemestre);
-            } else {
-              // Semestre do usuário não existe nos dados, usar primeiro disponível
-              const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
-              setSelectedSemestre(firstSemestre);
-            }
+            setSelectedSemestre(hasIt ? userSem : firstSemestre);
           } else {
-            // Usuário sem semestre definido, usar primeiro disponível
-            const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
-            setSelectedSemestre(firstSemestre);
-          }
-          setIsLoading(false);
-          return;
-        }
-
-        // Se não há cache, aguardar primeiro fetch
-        const { data: response, error } = await supabase.functions.invoke('get-study-contents');
-        if (error) throw error;
-        if (!response?.data) throw new Error('Invalid response from server');
-        const transformedData: ConteudoData[] = (response.data || []).map((item: any) => ({
-          id: item.id,
-          id_ies: item.id_ies,
-          semestre: item.semestre?.toString() || '',
-          materia: item.materia || '',
-          tema: item.tema || '',
-          subtema: item.subtema || '',
-          aula: item.aula || '',
-          link_aula: item.link_aula,
-          link_pdf: item.link_pdf,
-          link_quiz: item.link_quiz,
-        }));
-        setConteudos(transformedData);
-        hasLoadedData.current = true;
-        const loadTime = performance.now() - startTime;
-        if (transformedData.length > 0) {
-          if (typeof user.semestre === 'number') {
-            const userSemestre = user.semestre.toString();
-            const hasUserSemestre = transformedData.some(c => 
-              c.semestre === userSemestre || c.semestre === `${userSemestre}º Semestre`
-            );
-            if (hasUserSemestre) {
-              setSelectedSemestre(userSemestre);
-            } else {
-              // Semestre do usuário não existe nos dados, usar primeiro disponível
-              const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
-              setSelectedSemestre(firstSemestre);
-            }
-          } else {
-            // Usuário sem semestre definido, usar primeiro disponível
-            const firstSemestre = transformedData[0].semestre.replace('º Semestre', '').trim();
             setSelectedSemestre(firstSemestre);
           }
         }
       } catch (error) {
-        console.error('Error fetching conteudos:', error);
+        console.error('Error fetching contents:', error);
         toast({
           title: 'Erro',
           description: 'Não foi possível carregar os conteúdos',
@@ -497,132 +304,62 @@ export const StudyGuide: React.FC = () => {
     };
 
     fetchConteudos();
-  }, [user?.id_ies]); // Carrega todos os conteúdos da IES, independente do semestre do usuário
+  }, [user?.id_ies]);
 
-  // Scroll to top button
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 400);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Deep link: auto-expande tema e faz scroll para aula
+  // Deep link scroll
   useEffect(() => {
     if (!isLoading && deepLinkAula && deepLinkTema && selectedMateria) {
-      // Aguardar renderização completa
       const timer = setTimeout(() => {
-        // 1. Expandir accordion do tema
         const temaElements = document.querySelectorAll(`[data-tema]`);
-        let temaElement: Element | null = null;
-        
         temaElements.forEach((el) => {
           if (el.getAttribute('data-tema') === deepLinkTema) {
-            temaElement = el;
+            (el as HTMLElement).click();
+            setTimeout(() => {
+              const aulaElement = aulaRefs.current.get(deepLinkAula);
+              if (aulaElement) {
+                aulaElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                aulaElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+                setTimeout(() => {
+                  aulaElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+                }, 2000);
+              }
+              setDeepLinkAula(null);
+              setDeepLinkTema(null);
+              setDeepLinkSubtema(null);
+            }, 200);
           }
         });
-        
-        if (temaElement) {
-          // Forçar click para expandir o accordion
-          (temaElement as HTMLElement).click();
-          
-          // 2. Aguardar expansão e fazer scroll para aula
-          setTimeout(() => {
-            const aulaElement = aulaRefs.current.get(deepLinkAula);
-            if (aulaElement) {
-              aulaElement.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
-              });
-              
-              // Highlight temporário
-              aulaElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-              setTimeout(() => {
-                aulaElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
-              }, 2000);
-            } else {
-              toast({
-                title: 'Aula não encontrada',
-                description: 'A aula sugerida não está disponível no momento.',
-                variant: 'default',
-              });
-            }
-            
-            // Limpar deep link params
-            setDeepLinkAula(null);
-            setDeepLinkTema(null);
-            setDeepLinkSubtema(null);
-          }, 200);
-        } else {
-          toast({
-            title: 'Tema não encontrado',
-            description: 'O tema da aula não foi localizado.',
-            variant: 'default',
-          });
-          setDeepLinkAula(null);
-          setDeepLinkTema(null);
-          setDeepLinkSubtema(null);
-        }
       }, 300);
-      
       return () => clearTimeout(timer);
     }
   }, [isLoading, deepLinkAula, deepLinkTema, selectedMateria]);
 
-  // Helper functions (must be defined before useMemo)
-  const getAulaId = (item: ConteudoData) => {
-    return `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
-  };
+  // Helpers
+  const getAulaId = (item: ConteudoData) => 
+    `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
 
-  const isCompleted = (item: ConteudoData) => {
-    return completedItems.has(getAulaId(item));
-  };
+  const isCompleted = (item: ConteudoData) => completedItems.has(getAulaId(item));
 
   const toggleCompletion = (item: ConteudoData) => {
     const id = getAulaId(item);
     const newSet = new Set(completedItems);
-    
     if (newSet.has(id)) {
       newSet.delete(id);
     } else {
       newSet.add(id);
     }
-    
     setCompletedItems(newSet);
     saveProgress(newSet);
   };
 
-  const getMateriaIcon = (materia: string) => {
-    const lower = materia.toLowerCase();
-    if (lower.includes('anatomia')) return '🧠';
-    if (lower.includes('fisiologia')) return '❤️';
-    if (lower.includes('bioquímica')) return '🧪';
-    if (lower.includes('farmacologia')) return '💊';
-    if (lower.includes('patologia')) return '🔬';
-    if (lower.includes('clínica')) return '🩺';
-    if (lower.includes('cirurgia')) return '⚕️';
-    if (lower.includes('pediatria')) return '👶';
-    if (lower.includes('ginecologia')) return '🤰';
-    if (lower.includes('microbiologia')) return '🦠';
-    if (lower.includes('imunologia')) return '🛡️';
-    if (lower.includes('parasitologia')) return '🦟';
-    if (lower.includes('histologia')) return '🔬';
-    if (lower.includes('embriologia')) return '👶';
-    return '📚';
-  };
-
-  // Group conteudos by structure
+  // Grouped data
   const groupedData = useMemo(() => {
-    if (!selectedSemestre || !conteudos || conteudos.length === 0) return [];
+    if (!selectedSemestre || !conteudos?.length) return [];
 
-    // Filter by selected semester - handle both numeric and text formats
-    const filtered = conteudos.filter((conteudoItem) => {
-      if (!conteudoItem.semestre) return false;
-      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
+    const filtered = conteudos.filter((c) => {
+      if (!c.semestre) return false;
+      const semestreStr = c.semestre.toString().toLowerCase();
       const selectedStr = selectedSemestre.toLowerCase();
-      
-      // Match exact number or text like "internato"
       return semestreStr === selectedStr || 
              semestreStr === `${selectedStr}º semestre` ||
              semestreStr.includes(selectedStr);
@@ -664,85 +401,81 @@ export const StudyGuide: React.FC = () => {
     return Array.from(materiaMap.values());
   }, [conteudos, selectedSemestre]);
 
-  // Filter by search
+  // Filtered by search
   const filteredMaterias = useMemo(() => {
     if (!searchQuery.trim()) return groupedData;
-
     const query = searchQuery.toLowerCase();
     
     return groupedData
-      .map((materiaItem) => {
-        const filteredTemas = materiaItem.temas
-          .map((temaItem) => {
-            const filteredSubtemas = temaItem.subtemas
-              .map((subtemaItem) => {
-                const filteredAulas = subtemaItem.aulas.filter(
-                  (aulaItem) =>
-                    materiaItem.materia.toLowerCase().includes(query) ||
-                    temaItem.tema.toLowerCase().includes(query) ||
-                    subtemaItem.subtema.toLowerCase().includes(query) ||
-                    aulaItem.aula.toLowerCase().includes(query)
-                );
-                
-                return {
-                  ...subtemaItem,
-                  aulas: filteredAulas
-                };
-              })
+      .map((m) => {
+        const filteredTemas = m.temas
+          .map((t) => {
+            const filteredSubtemas = t.subtemas
+              .map((st) => ({
+                ...st,
+                aulas: st.aulas.filter((a) =>
+                  m.materia.toLowerCase().includes(query) ||
+                  t.tema.toLowerCase().includes(query) ||
+                  st.subtema.toLowerCase().includes(query) ||
+                  a.aula.toLowerCase().includes(query)
+                )
+              }))
               .filter((st) => st.aulas.length > 0);
-            
-            return {
-              ...temaItem,
-              subtemas: filteredSubtemas
-            };
+            return { ...t, subtemas: filteredSubtemas };
           })
           .filter((t) => t.subtemas.length > 0);
-        
-        return {
-          ...materiaItem,
-          temas: filteredTemas
-        };
+        return { ...m, temas: filteredTemas };
       })
       .filter((m) => m.temas.length > 0);
   }, [groupedData, searchQuery]);
 
-  // Get available subjects for the calendar editor
-  const availableSubjectNames = useMemo(() => {
-    return filteredMaterias.map(m => m.materia);
-  }, [filteredMaterias]);
+  const availableSubjectNames = useMemo(() => 
+    filteredMaterias.map(m => m.materia), [filteredMaterias]);
 
-  const stats = useMemo(() => {
-    if (!selectedSemestre || !conteudos || conteudos.length === 0) {
-      return { totalAulas: 0, completed: 0, percentage: 0, pendingAulas: [] };
-    }
-
-    const semestreAulas = conteudos.filter((conteudoItem) => {
-      if (!conteudoItem.semestre) return false;
-      const semestreStr = conteudoItem.semestre.toString().toLowerCase();
-      const selectedStr = selectedSemestre.toLowerCase();
-      return semestreStr === selectedStr || 
-             semestreStr === `${selectedStr}º semestre` ||
-             semestreStr.includes(selectedStr);
+  const semestres = useMemo(() => {
+    if (!conteudos?.length) return [];
+    const semestreSet = new Set<string>();
+    conteudos.forEach((c) => {
+      if (c.semestre) {
+        let val = c.semestre.toString().trim().replace(/º\s*Semestre/i, '').trim();
+        if (val.match(/^internato$/i)) val = 'INTERNATO';
+        semestreSet.add(val);
+      }
     });
-    
-    const totalAulas = semestreAulas.length;
-    const completedArray = Array.from(completedItems);
-    const completed = completedArray.filter((itemId) =>
-      itemId.startsWith(`${selectedSemestre}-`)
-    ).length;
-    const percentage = totalAulas > 0 ? Math.round((completed / totalAulas) * 100) : 0;
+    return Array.from(semestreSet).sort((a, b) => {
+      const aNum = parseInt(a), bNum = parseInt(b);
+      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+      if (!isNaN(aNum)) return -1;
+      if (!isNaN(bNum)) return 1;
+      return a.localeCompare(b);
+    });
+  }, [conteudos]);
 
-    const pendingAulas = semestreAulas
-      .filter((aulaItem) => !completedItems.has(getAulaId(aulaItem)))
-      .slice(0, 3);
+  // Subject helpers
+  const getMateriaProgress = (materia: Materia) => {
+    const allAulas: ConteudoData[] = [];
+    materia.temas.forEach(tema => {
+      tema.subtemas.forEach(subtema => {
+        subtema.aulas.forEach(aula => {
+          allAulas.push({
+            semestre: selectedSemestre,
+            materia: materia.materia,
+            tema: tema.tema,
+            subtema: subtema.subtema,
+            aula: aula.aula,
+          });
+        });
+      });
+    });
+    if (!allAulas.length) return 0;
+    const completedCount = allAulas.filter(a => isCompleted(a)).length;
+    return Math.round((completedCount / allAulas.length) * 100);
+  };
 
-    return { totalAulas, completed, percentage, pendingAulas };
-  }, [conteudos, selectedSemestre, completedItems]);
+  const isMateriaCompleted = (materia: Materia) => getMateriaProgress(materia) === 100;
 
-  // Check if a tema is completely finished
   const isTemaCompleted = (materia: Materia, tema: Tema) => {
     const allAulas: ConteudoData[] = [];
-    
     tema.subtemas.forEach(subtema => {
       subtema.aulas.forEach(aula => {
         allAulas.push({
@@ -751,751 +484,252 @@ export const StudyGuide: React.FC = () => {
           tema: tema.tema,
           subtema: subtema.subtema,
           aula: aula.aula,
-          link_aula: aula.link_aula,
-          link_pdf: aula.link_pdf,
-          link_quiz: aula.link_quiz,
         });
       });
     });
-    
-    if (allAulas.length === 0) return false;
-    
-    return allAulas.every(aula => isCompleted(aula));
+    if (!allAulas.length) return false;
+    return allAulas.every(a => isCompleted(a));
   };
 
-  const isMateriaCompleted = (materia: Materia) => {
-    const allAulas: ConteudoData[] = [];
-    
-    materia.temas.forEach(tema => {
-      tema.subtemas.forEach(subtema => {
-        subtema.aulas.forEach(aula => {
-          allAulas.push({
-            semestre: selectedSemestre,
-            materia: materia.materia,
-            tema: tema.tema,
-            subtema: subtema.subtema,
-            aula: aula.aula,
-            link_aula: aula.link_aula,
-            link_pdf: aula.link_pdf,
-            link_quiz: aula.link_quiz,
-          });
-        });
-      });
+  // Calendar handlers
+  const addEventToCalendar = async (materia: string, day: number) => {
+    await addSubject({
+      name: materia,
+      dayOfWeek: day,
+      color: getMateriaColor(materia)
     });
-    
-    if (allAulas.length === 0) return false;
-    
-    return allAulas.every(aula => isCompleted(aula));
   };
 
-  // Calculate materia progress percentage
-  const getMateriaProgress = (materia: Materia) => {
-    const allAulas: ConteudoData[] = [];
-    
-    materia.temas.forEach(tema => {
-      tema.subtemas.forEach(subtema => {
-        subtema.aulas.forEach(aula => {
-          allAulas.push({
-            semestre: selectedSemestre,
-            materia: materia.materia,
-            tema: tema.tema,
-            subtema: subtema.subtema,
-            aula: aula.aula,
-            link_aula: aula.link_aula,
-            link_pdf: aula.link_pdf,
-            link_quiz: aula.link_quiz,
-          });
-        });
-      });
-    });
-    
-    if (allAulas.length === 0) return 0;
-    
-    const completedCount = allAulas.filter(aula => isCompleted(aula)).length;
-    return Math.round((completedCount / allAulas.length) * 100);
+  const removeEventFromCalendar = async (id: string) => {
+    const event = calendarEvents.find(e => e.id === id);
+    if (!event) return;
+    await removeSubject(event.day, event.materia);
+    toast({ title: "Matéria removida", description: "Matéria removida do calendário" });
   };
 
-  // Get materia contents for sheet
+  const openMateriaSheet = (materia: string) => {
+    setSelectedEventMateria(materia);
+    setSheetOpen(true);
+  };
+
+  const confirmEditMode = useCallback(() => {
+    setCalendarSyncStatus('syncing');
+    setTimeout(() => {
+      setCalendarSyncStatus('saved');
+      setTimeout(() => setCalendarSyncStatus('idle'), 2000);
+    }, 500);
+    setIsEditMode(false);
+    toast({ title: "Alterações salvas", description: "Seu calendário foi atualizado" });
+  }, []);
+
+  const handleCalendarUndo = useCallback(() => {
+    if (undoStack.length > 0) {
+      setUndoStack(prev => prev.slice(0, -1));
+      toast({ title: "Desfeito", description: "Última alteração desfeita" });
+    }
+  }, [undoStack]);
+
+  const handleCalendarReset = useCallback(() => {
+    toast({ title: "Semana resetada", description: "Todas as matérias foram removidas" });
+  }, []);
+
+  // Today's subjects
+  const todaySubjects = useMemo(() => {
+    const today = getBrazilDayOfWeek();
+    return calendarEvents
+      .filter(e => e.day === today)
+      .map(e => ({
+        id: e.id,
+        title: e.title,
+        materia: e.materia,
+        color: e.color,
+        icon: getMateriaIcon(e.materia)
+      }));
+  }, [calendarEvents]);
+
+  // Selected materia contents for sheet
   const selectedMateriaContents = useMemo(() => {
     if (!selectedEventMateria) return null;
     return groupedData.find(m => m.materia === selectedEventMateria);
   }, [selectedEventMateria, groupedData]);
 
-  // Get unique semestres
-  const semestres = useMemo(() => {
-    if (!conteudos || conteudos.length === 0) return [];
-    
-    const semestreSet = new Set<string>();
-    conteudos.forEach((conteudoItem) => {
-      if (conteudoItem.semestre) {
-        // Keep original format - clean up common variations
-        let semestreValue = conteudoItem.semestre.toString().trim();
-        
-        // Remove "º Semestre" suffix if present
-        semestreValue = semestreValue.replace(/º\s*Semestre/i, '').trim();
-        
-        // Normalize common variations
-        if (semestreValue.match(/^internato$/i)) {
-          semestreValue = 'INTERNATO';
-        }
-        
-        semestreSet.add(semestreValue);
-      }
-    });
-    
-    // Sort: numbers first (1-12), then text (INTERNATO, etc.)
-    return Array.from(semestreSet).sort((a, b) => {
-      const aNum = parseInt(a);
-      const bNum = parseInt(b);
-      
-      // Both are numbers - sort numerically
-      if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-      
-      // Numbers come before text
-      if (!isNaN(aNum)) return -1;
-      if (!isNaN(bNum)) return 1;
-      
-      // Both are text - sort alphabetically
-      return a.localeCompare(b);
-    });
-  }, [conteudos]);
+  // Subject chips data
+  const subjectChipsData = useMemo(() => {
+    return filteredMaterias.map(m => ({
+      name: m.materia,
+      icon: getMateriaIcon(m.materia),
+      color: getMateriaColor(m.materia)
+    }));
+  }, [filteredMaterias]);
 
+  // Suggestions for search
+  const suggestions = useMemo(() => {
+    const allAulas = conteudos.map(c => c.aula).filter(Boolean);
+    const unique = Array.from(new Set(allAulas));
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return unique.slice(0, 4).map(text => ({ text, type: 'aula' as const }));
+    const starts = unique.filter(s => s.toLowerCase().startsWith(q));
+    const contains = unique.filter(s => !s.toLowerCase().startsWith(q) && s.toLowerCase().includes(q));
+    return [...starts, ...contains].slice(0, 6).map(text => ({ text, type: 'aula' as const }));
+  }, [conteudos, searchQuery]);
 
+  // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-muted-foreground">Carregando seu guia de estudos...</p>
+      <div className="min-h-screen bg-background">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <GuideSkeletons.Page />
         </div>
       </div>
     );
   }
 
+  // No IES access
   if (!user?.id_ies) {
-    return (
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-12">
-        <Card className="max-w-2xl mx-auto">
-          <CardContent className="pt-6 p-4 sm:p-6">
-            <div className="text-center space-y-4">
-              <AlertCircle className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mx-auto" />
-              <h2 className="text-xl sm:text-2xl font-bold">Acesso Restrito</h2>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Você precisa estar vinculado a uma instituição para acessar o guia de estudos.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <GuideEmptyStates.NoAccess />;
   }
 
   return (
-    <div className="min-h-screen bg-background container-compact">
-      {/* Header - Modo Normal e Modo Edição */}
-      {viewMode === 'calendar' && isEditMode ? (
-        // Header Modo Premium - Edição do Calendário
-        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shadow-md">
-          <div className="w-full max-w-7xl mx-auto py-4 px-4 md:px-6 lg:px-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setIsEditMode(false)}
-                  className="gap-2"
-                >
-                  <ChevronRight className="h-4 w-4 rotate-180" />
-                  Voltar
-                </Button>
-                <div className="flex items-center gap-3">
-                  <Edit2 className="h-5 w-5 text-primary" />
-                  <div>
-                    <h1 className="text-lg font-bold">Editando Calendário</h1>
-                  </div>
-                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    Modo Premium
-                  </Badge>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setIsEditMode(false)}
-                  className="gap-2"
-                >
-                  <X className="h-4 w-4" />
-                  Cancelar
-                </Button>
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={confirmEditMode}
-                  className="gap-2 bg-green-600 hover:bg-green-700"
-                >
-                  <Check className="h-4 w-4" />
-                  Salvar Alterações
-                </Button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-background">
+      {/* Main Container */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        
+        {/* Header with Search */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <GuideHeader />
+          <div className="w-full lg:w-96 xl:w-[28rem]">
+            <GuideSearchBar
+              value={searchQuery}
+              onChange={(val) => {
+                setSearchQuery(val);
+                if (val.trim()) {
+                  localStorage.setItem('studyguide:lastSearch', val);
+                  setLastSearchTerm(val);
+                }
+              }}
+              suggestions={suggestions}
+              lastSearch={lastSearchTerm}
+              placeholder="O que você quer aprender hoje?"
+              onSuggestionClick={(text) => setSearchQuery(text)}
+            />
           </div>
         </div>
-      ) : (
-        // Header Normal
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b -mx-4 px-4 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
-          <div className="w-full max-w-7xl mx-auto py-3 sm:py-4">
-            <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg sm:rounded-xl">
-                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Guia de Estudos</h1>
-                  <p className="text-sm text-muted-foreground">Seu Plano Definitivo para Medicina</p>
-                </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1 sm:w-80 md:w-[28rem] lg:w-[36rem] group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-600 opacity-100 drop-shadow-sm z-20 pointer-events-none" />
-                  <div className="relative z-0 rounded-2xl p-[2px] bg-gradient-to-r from-primary/30 via-primary/15 to-accent/30 group-focus-within:from-primary/50 group-focus-within:to-accent/50 transition-all">
-                    <Input
-                      placeholder="Buscar por matéria, tema ou aula..."
-                      value={searchQuery}
-                      onFocus={() => setShowSuggestions(true)}
-                      onBlur={() => {
-                        setTimeout(() => setShowSuggestions(false), 120);
-                        const v = searchQuery.trim();
-                        if (v) {
-                          localStorage.setItem('studyguide:lastSearch', v);
-                          setLastSearchTerm(v);
-                        }
-                      }}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const v = searchQuery.trim();
-                          if (v) {
-                            localStorage.setItem('studyguide:lastSearch', v);
-                            setLastSearchTerm(v);
-                            setShowSuggestions(false);
-                          }
-                        }
-                      }}
-                      className="pl-10 h-11 sm:h-12 rounded-xl bg-white/80 dark:bg-card backdrop-blur-md border border-white/40 dark:border-border shadow-md focus:shadow-lg focus:ring-2 focus:ring-red-500 focus:border-red-300 transition-all placeholder:text-muted-foreground/80"
-                    />
-                  </div>
-                  <AnimatePresence>
-                    {showSuggestions && suggestions.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute left-0 right-0 top-full mt-2 z-30"
-                      >
-                        <div className="rounded-2xl border border-red-300 ring-1 ring-red-200 bg-white dark:bg-background shadow-lg overflow-hidden">
-                          <ul className="py-2">
-                            {suggestions.slice(0,4).map((sug, idx) => (
-                              <li key={`${sug}-${idx}`}>
-                                <button
-                                  type="button"
-                                  className="w-full text-left px-4 py-2 hover:bg-red-50/70 dark:hover:bg-accent/20 transition-colors"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => { setSearchQuery(sug); setShowSuggestions(false); }}
-                                >
-                                  <span className="flex items-center gap-2">
-                                    {lastSearchTerm && sug.toLowerCase() === lastSearchTerm.trim().toLowerCase() && (
-                                      <Clock3 className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                    <span>{sug}</span>
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 space-y-3 sm:space-y-4 md:space-y-6">
         {selectedSemestre && (
           <>
-            {/* Dashboard Section */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {/* Progress Card */}
-
-              {/* Today's Study */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="md:col-span-2"
-              >
-                <Card className="premium-card hover-lift shadow-lg border-primary/10">
-                  <CardHeader className="pb-3 bg-gradient-to-r from-primary/10 to-transparent">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        <Target className="h-4 w-4 text-primary" />
-                        O Que Estudar Hoje
-                      </CardTitle>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="gap-1 text-xs md:hidden"
-                        onClick={() => navigate('/dashboard')}
-                      >
-                        <BarChart3 className="h-4 w-4" />
-                        Progresso
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {calendarEvents.filter(event => {
-                      const today = getBrazilDayOfWeek();
-                      return event.day === today;
-                    }).length > 0 ? (
-                      <div className="space-y-3">
-                        {calendarEvents
-                          .filter(event => {
-                            const today = getBrazilDayOfWeek();
-                            return event.day === today;
-                          })
-                          .map((event, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-accent/30 border border-accent hover:shadow-md transition-all cursor-pointer"
-                              onClick={() => {
-                                openMateriaSheet(event.materia);
-                              }}
-                            >
-                              <div 
-                                className="h-8 w-8 rounded-full flex items-center justify-center text-white"
-                                style={{ backgroundColor: event.color }}
-                              >
-                                {getMateriaIcon(event.materia)}
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-medium">{event.title}</div>
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-8 w-8 p-0 rounded-full"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeEventFromCalendar(event.id);
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Dica: Estude em blocos de 25min para máxima retenção
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3 py-4">
-                        <Calendar className="h-12 w-12 text-muted-foreground opacity-50" />
-                        <div className="text-center">
-                          <p className="text-sm font-medium">Nenhuma matéria agendada para hoje</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Arraste matérias para o calendário para planejar seus estudos
-                          </p>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-2"
-                          onClick={() => setViewMode('calendar')}
-                        >
-                          Ir para o calendário
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-
-            {/* View Mode Selector */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold">Seu Plano de Estudos</h2>
+            {/* Hero Section - Next Lesson + Today's Study */}
+            <div className="grid gap-4 lg:gap-6 grid-cols-1 lg:grid-cols-3">
+              <div className="lg:col-span-2">
+                <NextLessonCard
+                  lessonTitle="Introdução a prática médica"
+                  isEmpty={!filteredMaterias.length}
+                  onContinue={() => {
+                    if (filteredMaterias.length > 0) {
+                      const first = filteredMaterias[0];
+                      setSelectedMateria(first.materia);
+                    }
+                  }}
+                />
               </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button 
-                  variant={viewMode === 'list' ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setViewMode('list')}
-                  className="gap-1"
-                >
-                  <List className="h-4 w-4" />
-                  Lista
-                </Button>
-                <Button 
-                  variant={viewMode === 'calendar' ? 'default' : 'outline'} 
-                  size="sm" 
-                  onClick={() => setViewMode('calendar')}
-                  className="gap-1"
-                >
-                  <Calendar className="h-4 w-4" />
-                  Calendário
-                </Button>
+              <div className="lg:col-span-1">
+                <TodayStudyCard
+                  subjects={todaySubjects}
+                  onSubjectClick={openMateriaSheet}
+                  onRemoveSubject={(id) => removeEventFromCalendar(id)}
+                  onGoToCalendar={() => setViewMode('calendar')}
+                />
               </div>
             </div>
-            
 
-            {/* Filtro de semestre entre o seletor de modo e os filtros de matérias */}
-            <div className="mt-3 sm:mt-4">
-              <Select value={selectedSemestre} onValueChange={setSelectedSemestre}>
-                <SelectTrigger className="w-full sm:w-56 h-10 px-3 bg-white/60 dark:bg-card backdrop-blur-md border border-white/30 dark:border-border shadow-sm transition-all focus:ring-2 focus:ring-primary/40">
-                  <SelectValue placeholder="Selecione o semestre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {semestres.map((sem) => {
-                    const isNumeric = !isNaN(parseInt(sem));
-                    const displayName = isNumeric ? `${sem}º Semestre` : sem;
-                    return (
-                      <SelectItem key={sem} value={sem}>
-                        {displayName}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Toolbar */}
+            <GuideToolbar
+              selectedSemestre={selectedSemestre}
+              semestres={semestres}
+              viewMode={viewMode}
+              onSemestreChange={setSelectedSemestre}
+              onViewModeChange={setViewMode}
+            />
 
-            {/* Matéria Selector - Hidden in calendar mode */}
+            {/* Subject Chips - Only in list mode */}
             {viewMode === 'list' && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card className="border-primary/10 shadow-md">
-                  <CardContent className="pt-6 pb-4">
-                    <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2 flex-nowrap sm:flex-wrap snap-x">
-                      <Button 
-                        variant={selectedMateria === '' ? 'default' : 'outline'}
-                        onClick={() => setSelectedMateria('')}
-                        className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
-                      >
-                        <BookOpen className="h-4 w-4" />
-                        Todas as Matérias
-                      </Button>
-                      {filteredMaterias.map((materia, idx) => (
-                        <Button 
-                          key={idx}
-                          variant={selectedMateria === materia.materia ? 'default' : 'outline'}
-                          onClick={() => setSelectedMateria(materia.materia)}
-                          className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
-                        >
-                          <span className="text-base sm:text-lg">{getMateriaIcon(materia.materia)}</span>
-                          {materia.materia}
-                        </Button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <SubjectChips
+                subjects={subjectChipsData}
+                selectedSubject={selectedMateria}
+                onSelectSubject={setSelectedMateria}
+              />
             )}
 
-            {/* Content */}
+            {/* Content Area */}
             <AnimatePresence mode="wait">
               {viewMode === 'list' ? (
-                <motion.div 
+                <motion.div
                   key="list-view"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
+                  className="space-y-6"
                 >
                   {filteredMaterias.length === 0 ? (
-                    <Card className="p-12">
-                      <div className="text-center space-y-3">
-                        <BookOpen className="h-12 w-12 text-muted-foreground mx-auto" />
-                    <h3 className="text-base font-semibold">Nenhum conteúdo encontrado</h3>
-                        <p className="text-muted-foreground">
-                          {searchQuery
-                            ? 'Tente uma busca diferente ou limpe os filtros.'
-                            : 'Não há conteúdos disponíveis para este semestre.'}
-                        </p>
-                      </div>
-                    </Card>
+                    searchQuery ? (
+                      <GuideEmptyStates.NoSearch onAction={() => setSearchQuery('')} />
+                    ) : (
+                      <GuideEmptyStates.NoContent />
+                    )
                   ) : (
-                    <div className="space-y-6">
-                      {filteredMaterias
-                        .filter(materia => selectedMateria === '' || materia.materia === selectedMateria)
-                        .map((materia, mIdx) => (
-                          <motion.div
+                    filteredMaterias
+                      .filter(m => selectedMateria === '' || m.materia === selectedMateria)
+                      .map((materia, mIdx) => {
+                        const progress = getMateriaProgress(materia);
+                        const totalAulas = materia.temas.reduce(
+                          (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                          0
+                        );
+                        const completed = isMateriaCompleted(materia);
+
+                        return (
+                          <SubjectCard
                             key={mIdx}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, delay: mIdx * 0.1 }}
-                            ref={(el) => {
-                              if (el) {
-                                materiaRefs.current.set(materia.materia, el);
+                            materia={materia.materia}
+                            icon={getMateriaIcon(materia.materia)}
+                            temas={materia.temas.map(t => ({
+                              tema: t.tema,
+                              subtemas: t.subtemas,
+                              isCompleted: isTemaCompleted(materia, t),
+                              aulasCount: t.subtemas.reduce((s, st) => s + st.aulas.length, 0)
+                            }))}
+                            progress={progress}
+                            totalAulas={totalAulas}
+                            isCompleted={completed}
+                            selectedSemestre={selectedSemestre}
+                            highlightedAula={deepLinkAula}
+                            highlightedTema={deepLinkTema}
+                            isAulaCompleted={(aulaId) => completedItems.has(aulaId)}
+                            onAulaToggle={(aulaId) => {
+                              const newSet = new Set(completedItems);
+                              if (newSet.has(aulaId)) {
+                                newSet.delete(aulaId);
+                              } else {
+                                newSet.add(aulaId);
                               }
+                              setCompletedItems(newSet);
+                              saveProgress(newSet);
                             }}
-                          >
-                            {(() => {
-                              const materiaCompleted = isMateriaCompleted(materia);
-                              const progress = getMateriaProgress(materia);
-                              const totalAulas = materia.temas.reduce(
-                                (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
-                                0
-                              );
-                              
-                              return (
-                                <Card className={cn(
-                                  "premium-card overflow-hidden shadow-lg transition-all duration-300",
-                                  materiaCompleted 
-                                    ? "border-green-500/50 bg-gradient-to-br from-green-50/50 via-background to-background dark:from-green-950/20 dark:via-background dark:to-background" 
-                                    : "border-primary/10"
-                                )}>
-                                  <CardHeader className={cn(
-                                    "relative",
-                                    materiaCompleted 
-                                      ? "bg-gradient-to-r from-green-500/10 to-transparent" 
-                                      : "bg-gradient-to-r from-primary/10 to-transparent"
-                                  )}>
-                                    {materiaCompleted && (
-                                      <div className="absolute top-4 right-4">
-                                        <Badge className="bg-green-500 hover:bg-green-600 text-white border-green-500 gap-1.5 px-3 py-1">
-                                          <Check className="h-3 w-3" />
-                                          Concluída
-                                        </Badge>
-                                      </div>
-                                    )}
-                                    <CardTitle className="flex items-center gap-3 pr-6 sm:pr-24">
-                                      <span className="text-xl sm:text-2xl">{getMateriaIcon(materia.materia)}</span>
-                                      <div className="flex-1 min-w-0">
-                                        <h2 className={cn(
-                                          "text-lg sm:text-xl font-bold leading-snug break-words",
-                                          materiaCompleted && "text-green-700 dark:text-green-400"
-                                        )}>
-                                          {materia.materia}
-                                          {materiaCompleted && <span className="ml-2">🏆</span>}
-                                        </h2>
-                                        <p className="text-xs sm:text-sm text-muted-foreground font-normal">
-                                          {totalAulas} aulas disponíveis
-                                        </p>
-                                      </div>
-                                    </CardTitle>
-                                    
-                                    {/* Progress Bar */}
-                                    <div className="mt-3 space-y-1">
-                                      <div className="flex items-center justify-between text-xs">
-                                        <span className="text-muted-foreground">
-                                          Progresso: {progress}%
-                                        </span>
-                                        {materiaCompleted && (
-                                          <span className="text-green-600 dark:text-green-400 font-medium">
-                                            ✓ Completa
-                                          </span>
-                                        )}
-                                      </div>
-                                      <Progress 
-                                        value={progress} 
-                                        className={cn(
-                                          "h-2",
-                                          materiaCompleted && "bg-green-200 dark:bg-green-900/30"
-                                        )}
-                                        style={materiaCompleted ? {
-                                          '--progress-indicator': '142 71% 45%'
-                                        } as React.CSSProperties : undefined}
-                                      />
-                                    </div>
-                                  </CardHeader>
-
-                              <CardContent className="pt-6">
-                                <Accordion type="multiple" className="space-y-4">
-                                  {materia.temas.map((tema, tIdx) => {
-                                    const temaCompleted = isTemaCompleted(materia, tema);
-                                    const temaAulasCount = tema.subtemas.reduce((s, st) => s + st.aulas.length, 0);
-                                    
-                                    return (
-                                      <AccordionItem
-                                        key={tIdx}
-                                        value={`tema-${mIdx}-${tIdx}`}
-                                        className={cn(
-                                          "border rounded-lg px-4 shadow-sm transition-all",
-                                          temaCompleted 
-                                            ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20" 
-                                            : ""
-                                        )}
-                                      >
-                                        <AccordionTrigger 
-                                          className="hover:no-underline"
-                                          data-tema={tema.tema}
-                                        >
-                                          <div className="flex items-center gap-3 flex-1 text-left">
-                                            <div className={cn(
-                                              "hidden",
-                                              temaCompleted 
-                                                ? "bg-green-500 border-green-500 text-white" 
-                                                : "border-muted-foreground/30"
-                                            )}>
-                                              {temaCompleted && <Check className="h-3 w-3" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <h3 className={cn(
-                                                "font-semibold",
-                                                temaCompleted && "text-green-700 dark:text-green-400"
-                                              )}>
-                                                {tema.tema}
-                                                {temaCompleted && <span className="ml-2">✓</span>}
-                                              </h3>
-                                              <p className={cn(
-                                                "text-xs",
-                                                temaCompleted 
-                                                  ? "text-green-600 dark:text-green-400" 
-                                                  : "text-muted-foreground"
-                                              )}>
-                                                {temaAulasCount} aulas
-                                                {temaCompleted && <span className="ml-2 font-medium">• Concluído</span>}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        </AccordionTrigger>
-
-                                      <AccordionContent className="space-y-3 pt-4">
-                                        {tema.subtemas.map((subtema, stIdx) => (
-                                          <div key={stIdx} className="space-y-2">
-                                            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                              <ChevronRight className="h-4 w-4" />
-                                              {subtema.subtema}
-                                            </h4>
-
-                                            <div className="space-y-2 ml-6">
-                                              {subtema.aulas.map((aula, aIdx) => {
-                                                const aulaData: ConteudoData = {
-                                                  semestre: selectedSemestre,
-                                                  materia: materia.materia,
-                                                  tema: tema.tema,
-                                                  subtema: subtema.subtema,
-                                                  aula: aula.aula,
-                                                  link_aula: aula.link_aula,
-                                                  link_pdf: aula.link_pdf,
-                                                  link_quiz: aula.link_quiz,
-                                                };
-                                                const completed = isCompleted(aulaData);
-
-                                                return (
-                                                  <motion.div
-                                                    key={aIdx}
-                                                    ref={(el) => {
-                                                      if (el) aulaRefs.current.set(aula.aula, el);
-                                                    }}
-                                                    data-aula={aula.aula}
-                                                    whileHover={{ scale: 1.01 }}
-                                                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                                                    className={cn(
-                                                      'p-4 rounded-lg border transition-all shadow-sm',
-                                                      completed
-                                                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                                                        : 'bg-card hover:bg-accent'
-                                                    )}
-                                                  >
-                                                    <div className="flex items-start gap-3">
-                                                      <button
-                                                        onClick={() => toggleCompletion(aulaData)}
-                                                        className="shrink-0 mt-1"
-                                                      >
-                                                        {completed ? (
-                                                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                                        ) : (
-                                                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
-                                                        )}
-                                                      </button>
-
-                                                      <div className="flex-1 space-y-2">
-                                                        <h5
-                                                          className={cn(
-                                                            'font-medium',
-                                                            completed && 'line-through text-muted-foreground'
-                                                          )}
-                                                        >
-                                                          {aula.aula}
-                                                        </h5>
-
-                                                        <div className="flex flex-wrap gap-2">
-                                                          {aula.link_aula && (
-                                                            <Button
-                                                              size="sm"
-                                                              variant="outline"
-                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                                              onClick={() => window.open(aula.link_aula!, '_blank')}
-                                                            >
-                                                              <Play className="h-3 w-3" />
-                                                              Assistir Aula
-                                                            </Button>
-                                                          )}
-                                                          {aula.link_pdf && (
-                                                            <Button
-                                                              size="sm"
-                                                              variant="outline"
-                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                                              onClick={() => window.open(aula.link_pdf!, '_blank')}
-                                                            >
-                                                              <FileText className="h-3 w-3" />
-                                                              Material PDF
-                                                            </Button>
-                                                          )}
-                                                          {aula.link_quiz && (
-                                                            <Button
-                                                              size="sm"
-                                                              variant="outline"
-                                                              className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                                              onClick={() => window.open(aula.link_quiz!, '_blank')}
-                                                            >
-                                                              <Brain className="h-3 w-3" />
-                                                              Fazer Quiz
-                                                            </Button>
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                    </div>
-                                                  </motion.div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </AccordionContent>
-                                    </AccordionItem>
-                                    );
-                                  })}
-                                </Accordion>
-                              </CardContent>
-                            </Card>
-                              );
-                            })()}
-                          </motion.div>
-                        ))}
-                    </div>
+                            aulaRefs={aulaRefs}
+                          />
+                        );
+                      })
                   )}
                 </motion.div>
               ) : (
-                <motion.div 
+                <motion.div
                   key="calendar-view"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {/* Mobile Calendar View - Premium */}
+                  {/* Mobile Calendar */}
                   <div className="md:hidden">
                     <CalendarViewMobile
                       events={calendarEvents}
@@ -1505,7 +739,7 @@ export const StudyGuide: React.FC = () => {
                     />
                   </div>
                   
-                  {/* Desktop Calendar View - Premium */}
+                  {/* Desktop Calendar */}
                   <div className="hidden md:block">
                     <CalendarViewDesktop
                       events={calendarEvents}
@@ -1515,7 +749,7 @@ export const StudyGuide: React.FC = () => {
                     />
                   </div>
 
-                  {/* Premium Calendar Editor Modal */}
+                  {/* Calendar Editor Modal */}
                   <AnimatePresence>
                     {isEditMode && (
                       isMobile ? (
@@ -1557,163 +791,148 @@ export const StudyGuide: React.FC = () => {
             </AnimatePresence>
           </>
         )}
+      </div>
 
-        {/* Sheet lateral com conteúdos da matéria */}
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                <span className="text-xl">{selectedMateriaContents && getMateriaIcon(selectedMateriaContents.materia)}</span>
-                {selectedMateriaContents?.materia}
-              </SheetTitle>
-              <SheetDescription>
-                {selectedMateriaContents && 
-                  `${selectedMateriaContents.temas.reduce(
-                    (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
-                    0
-                  )} aulas disponíveis`
-                }
-              </SheetDescription>
-            </SheetHeader>
+      {/* Sheet for materia details */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <span className="text-xl">{selectedMateriaContents && getMateriaIcon(selectedMateriaContents.materia)}</span>
+              {selectedMateriaContents?.materia}
+            </SheetTitle>
+            <SheetDescription>
+              {selectedMateriaContents && 
+                `${selectedMateriaContents.temas.reduce(
+                  (sum, t) => sum + t.subtemas.reduce((s, st) => s + st.aulas.length, 0),
+                  0
+                )} aulas disponíveis`
+              }
+            </SheetDescription>
+          </SheetHeader>
 
-            <div className="mt-6 space-y-4">
-              {selectedMateriaContents?.temas.map((tema, tIdx) => (
-                <Accordion key={tIdx} type="multiple" className="space-y-2">
-                  <AccordionItem
-                    value={`tema-${tIdx}`}
-                    className="border rounded-lg px-4 shadow-sm"
-                  >
-                    <AccordionTrigger className="hover:no-underline">
-                      <div className="flex items-center gap-3 flex-1 text-left">
-                        <Brain className="h-5 w-5 text-primary shrink-0" />
-                        <div className="flex-1">
-                          <h3 className="font-semibold">{tema.tema}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
-                          </p>
-                        </div>
+          <div className="mt-6 space-y-4">
+            {selectedMateriaContents?.temas.map((tema, tIdx) => (
+              <Accordion key={tIdx} type="multiple" className="space-y-2">
+                <AccordionItem
+                  value={`tema-${tIdx}`}
+                  className="border rounded-xl px-4 shadow-sm border-border/40 dark:border-white/5"
+                >
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center gap-3 flex-1 text-left">
+                      <Brain className="h-5 w-5 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm">{tema.tema}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {tema.subtemas.reduce((s, st) => s + st.aulas.length, 0)} aulas
+                        </p>
                       </div>
-                    </AccordionTrigger>
+                    </div>
+                  </AccordionTrigger>
 
-                    <AccordionContent className="space-y-3 pt-4">
-                      {tema.subtemas.map((subtema, stIdx) => (
-                        <div key={stIdx} className="space-y-2">
-                          <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4" />
-                            {subtema.subtema}
-                          </h4>
+                  <AccordionContent className="pt-2 pb-4 space-y-3">
+                    {tema.subtemas.map((subtema, stIdx) => (
+                      <div key={stIdx} className="space-y-2">
+                        <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-2 px-1">
+                          <ChevronRight className="h-3.5 w-3.5" />
+                          {subtema.subtema}
+                        </h4>
 
-                          <div className="space-y-2 ml-6">
-                            {subtema.aulas.map((aula, aIdx) => {
-                              const aulaData: ConteudoData = {
-                                semestre: selectedSemestre,
-                                materia: selectedMateriaContents.materia,
-                                tema: tema.tema,
-                                subtema: subtema.subtema,
-                                aula: aula.aula,
-                                link_aula: aula.link_aula,
-                                link_pdf: aula.link_pdf,
-                                link_quiz: aula.link_quiz,
-                              };
-                              const completed = isCompleted(aulaData);
+                        <div className="space-y-2 pl-4 border-l-2 border-border/30">
+                          {subtema.aulas.map((aula, aIdx) => {
+                            const aulaData: ConteudoData = {
+                              semestre: selectedSemestre,
+                              materia: selectedMateriaContents.materia,
+                              tema: tema.tema,
+                              subtema: subtema.subtema,
+                              aula: aula.aula,
+                              link_aula: aula.link_aula,
+                              link_pdf: aula.link_pdf,
+                              link_quiz: aula.link_quiz,
+                            };
+                            const completed = isCompleted(aulaData);
 
-                              return (
-                                <div
-                                  key={aIdx}
-                                  className={cn(
-                                    'p-3 rounded-lg border transition-all shadow-sm',
-                                    completed
-                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900'
-                                      : 'bg-card hover:bg-accent'
-                                  )}
-                                >
-                                  <div className="flex items-start gap-3">
-                                    <button
-                                      onClick={() => toggleCompletion(aulaData)}
-                                      className="shrink-0 mt-1"
-                                    >
-                                      {completed ? (
-                                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                      ) : (
-                                        <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 hover:border-primary transition-colors" />
+                            return (
+                              <div
+                                key={aIdx}
+                                className={cn(
+                                  'p-3 rounded-xl border transition-all shadow-sm',
+                                  completed
+                                    ? 'bg-green-50/50 dark:bg-green-950/10 border-green-200/50 dark:border-green-900/30'
+                                    : 'bg-card border-border/40 hover:border-primary/20'
+                                )}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <button
+                                    onClick={() => toggleCompletion(aulaData)}
+                                    className="shrink-0 mt-0.5"
+                                  >
+                                    {completed ? (
+                                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                    ) : (
+                                      <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/40 hover:border-primary" />
+                                    )}
+                                  </button>
+
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <h5 className={cn(
+                                      'font-medium text-sm',
+                                      completed && 'line-through text-muted-foreground'
+                                    )}>
+                                      {aula.aula}
+                                    </h5>
+                                    <div className="flex flex-wrap gap-2">
+                                      {aula.link_aula && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
+                                          onClick={() => window.open(aula.link_aula!, '_blank')}
+                                        >
+                                          <Play className="h-3 w-3" />
+                                          Assistir
+                                        </Button>
                                       )}
-                                    </button>
-
-                                    <div className="flex-1 space-y-2">
-                                      <h5
-                                        className={cn(
-                                          'font-medium text-sm',
-                                          completed && 'line-through text-muted-foreground'
-                                        )}
-                                      >
-                                        {aula.aula}
-                                      </h5>
-
-                                      <div className="flex flex-wrap gap-2">
-                                        {aula.link_aula && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                            onClick={() => window.open(aula.link_aula!, '_blank')}
-                                          >
-                                            <Play className="h-3 w-3" />
-                                            Aula
-                                          </Button>
-                                        )}
-                                        {aula.link_pdf && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                            onClick={() => window.open(aula.link_pdf!, '_blank')}
-                                          >
-                                            <FileText className="h-3 w-3" />
-                                            PDF
-                                          </Button>
-                                        )}
-                                        {aula.link_quiz && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-2 hover:bg-primary hover:text-white transition-colors"
-                                            onClick={() => window.open(aula.link_quiz!, '_blank')}
-                                          >
-                                            <Brain className="h-3 w-3" />
-                                            Quiz
-                                          </Button>
-                                        )}
-                                      </div>
+                                      {aula.link_pdf && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
+                                          onClick={() => window.open(aula.link_pdf!, '_blank')}
+                                        >
+                                          <FileText className="h-3 w-3" />
+                                          PDF
+                                        </Button>
+                                      )}
+                                      {aula.link_quiz && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
+                                          onClick={() => window.open(aula.link_quiz!, '_blank')}
+                                        >
+                                          <Brain className="h-3 w-3" />
+                                          Quiz
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              ))}
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {!selectedSemestre && (
-          <Card className="p-12">
-            <div className="text-center space-y-3">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto" />
-              <h3 className="text-base font-semibold">Selecione um Semestre</h3>
-              <p className="text-muted-foreground">
-                Escolha um semestre acima para começar seus estudos.
-              </p>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      
+                      </div>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
+
+export default StudyGuide;

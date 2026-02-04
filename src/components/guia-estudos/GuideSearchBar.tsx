@@ -1,0 +1,233 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Clock, X, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface SearchSuggestion {
+  text: string;
+  type: 'recent' | 'materia' | 'tema' | 'aula';
+}
+
+interface GuideSearchBarProps {
+  value: string;
+  onChange: (value: string) => void;
+  suggestions?: SearchSuggestion[];
+  lastSearch?: string;
+  placeholder?: string;
+  className?: string;
+  onSuggestionClick?: (text: string) => void;
+}
+
+export const GuideSearchBar: React.FC<GuideSearchBarProps> = ({
+  value,
+  onChange,
+  suggestions = [],
+  lastSearch,
+  placeholder = "O que você quer aprender hoje?",
+  className,
+  onSuggestionClick
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Show dropdown when focused and has suggestions
+  useEffect(() => {
+    if (isFocused && (suggestions.length > 0 || lastSearch)) {
+      setShowDropdown(true);
+    }
+  }, [isFocused, suggestions, lastSearch]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowDropdown(false);
+      inputRef.current?.blur();
+    }
+    if (e.key === 'Enter' && value.trim()) {
+      setShowDropdown(false);
+    }
+  };
+
+  const handleSuggestionClick = (text: string) => {
+    onChange(text);
+    onSuggestionClick?.(text);
+    setShowDropdown(false);
+  };
+
+  const clearSearch = () => {
+    onChange('');
+    inputRef.current?.focus();
+  };
+
+  const getTypeLabel = (type: SearchSuggestion['type']) => {
+    switch (type) {
+      case 'materia': return 'Matéria';
+      case 'tema': return 'Tema';
+      case 'aula': return 'Aula';
+      default: return null;
+    }
+  };
+
+  return (
+    <div ref={containerRef} className={cn("relative", className)}>
+      {/* Input Container */}
+      <div className={cn(
+        "relative rounded-xl transition-all duration-300",
+        isFocused 
+          ? "ring-2 ring-primary/40 shadow-lg shadow-primary/10" 
+          : "shadow-sm hover:shadow-md"
+      )}>
+        <div className={cn(
+          "absolute inset-0 rounded-xl transition-opacity duration-300",
+          isFocused ? "opacity-100" : "opacity-0",
+          "bg-gradient-to-r from-primary/5 via-transparent to-primary/5"
+        )} />
+        
+        <Search className={cn(
+          "absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 z-10 transition-colors duration-200",
+          isFocused ? "text-primary" : "text-muted-foreground"
+        )} />
+        
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className={cn(
+            "h-12 pl-11 pr-10 rounded-xl border-border/50 bg-card/80 backdrop-blur-sm",
+            "text-sm placeholder:text-muted-foreground/70",
+            "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary/30",
+            "transition-all duration-200"
+          )}
+          aria-label="Buscar por matéria, tema ou aula"
+        />
+        
+        {value && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full hover:bg-muted/80"
+            onClick={clearSearch}
+            aria-label="Limpar busca"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      <AnimatePresence>
+        {showDropdown && (suggestions.length > 0 || lastSearch) && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "absolute top-full left-0 right-0 mt-2 z-50",
+              "bg-card/95 backdrop-blur-xl rounded-xl border border-border/50",
+              "shadow-xl shadow-black/10 dark:shadow-black/30",
+              "overflow-hidden"
+            )}
+          >
+            {/* Recent search */}
+            {lastSearch && !value && (
+              <div className="px-3 py-2 border-b border-border/30">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                  Pesquisa recente
+                </span>
+              </div>
+            )}
+
+            <ul className="py-1 max-h-64 overflow-y-auto" role="listbox">
+              {/* Last search item */}
+              {lastSearch && !value && (
+                <li>
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-colors flex items-center gap-3 group"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSuggestionClick(lastSearch)}
+                  >
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1 text-sm truncate">{lastSearch}</span>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </li>
+              )}
+              
+              {/* Suggestions */}
+              {suggestions.slice(0, 6).map((suggestion, idx) => (
+                <li key={`${suggestion.text}-${idx}`}>
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-colors flex items-center gap-3 group"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSuggestionClick(suggestion.text)}
+                  >
+                    {suggestion.type === 'recent' ? (
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="flex-1 text-sm truncate">
+                      {/* Highlight matching text */}
+                      {value && suggestion.text.toLowerCase().includes(value.toLowerCase()) ? (
+                        <>
+                          {suggestion.text.substring(0, suggestion.text.toLowerCase().indexOf(value.toLowerCase()))}
+                          <span className="font-semibold text-primary">
+                            {suggestion.text.substring(
+                              suggestion.text.toLowerCase().indexOf(value.toLowerCase()),
+                              suggestion.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
+                            )}
+                          </span>
+                          {suggestion.text.substring(
+                            suggestion.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
+                          )}
+                        </>
+                      ) : (
+                        suggestion.text
+                      )}
+                    </span>
+                    {getTypeLabel(suggestion.type) && (
+                      <span className="text-[10px] font-medium text-muted-foreground/70 uppercase">
+                        {getTypeLabel(suggestion.type)}
+                      </span>
+                    )}
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* Empty state */}
+            {value && suggestions.length === 0 && (
+              <div className="px-4 py-6 text-center">
+                <Search className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Nenhum resultado encontrado</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Tente uma busca diferente</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
