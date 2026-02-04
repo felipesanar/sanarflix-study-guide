@@ -1,45 +1,63 @@
 
-# Plano de Correção: Tag Duplicada e Toast ao Arrastar
+# Plano: Unificar Cards do Calendário (Priorizar Estilo Dark Mode)
 
-## Problemas Identificados
+## Problema Identificado
 
-### 1. Tag de Categoria Duplicada
-No arquivo `src/components/calendar/DayColumnCard.tsx`, o Badge de categoria está sendo renderizado **duas vezes** no modo "full card" (quando `isCompact = false`):
-- Primeira renderização: linhas 114-122 (fora do flex container)
-- Segunda renderização: linhas 126-134 (dentro do flex container)
+Os cards no editor de calendário têm layouts completamente diferentes dependendo do tema:
 
-Isso causa a visualização duplicada como "GERAL / GERAL" que aparece na imagem.
+| Aspecto | Modo Escuro (isCompact) | Modo Claro (!isCompact) |
+|---------|-------------------------|--------------------------|
+| Título | Fonte responsiva, break-words | Fonte fixa, sem responsividade |
+| Categoria | Texto colorido pequeno | Badge pill separada |
+| Texto extra | Não tem | "Estudo programado para esta matéria." |
+| Padding | p-2.5 (compacto) | p-4 (maior) |
+| Animação | x: -10 (lateral) | y: 10 (vertical) |
 
-### 2. Toast Excessivo ao Arrastar
-Há dois toasts sendo disparados:
-- `useCalendarSync.ts` linha 236: `toast.success('Matérias salvas com sucesso!')`
-- `StudyGuide.tsx` linhas 250-254: `toast({ title: "Matéria adicionada"... })`
+A lógica atual em `CalendarEditorDesktop.tsx` (linha 335):
+```typescript
+isCompact={variant === 'dark'}
+```
 
-Isso resulta em duas notificações a cada vez que o usuário arrasta uma matéria.
-
-### 3. Comportamento de Auto-Save
-Atualmente, as matérias **são salvas automaticamente** ao arrastar e soltar porque:
-- `onAddEvent` -> `addEventToCalendar` -> `addSubject` -> `saveSubjects` -> Upsert no banco
+Isso força cards expandidos no modo claro, causando a inconsistência visual.
 
 ---
 
 ## Solução Proposta
 
-### Correção 1: Remover Badge Duplicado
+### Abordagem: Usar cards compactos em AMBOS os modos
 
-Modificar `src/components/calendar/DayColumnCard.tsx`:
-- Remover o primeiro Badge (linhas 113-122) que está fora do flex container
-- Manter apenas o Badge dentro do flex container
+O estilo compacto (dark mode) é superior porque:
+- Layout mais limpo e moderno
+- Tipografia responsiva com `clamp()`
+- Categoria exibida de forma elegante (texto colorido ao invés de badge)
+- Ocupa menos espaço vertical
+- Não tem texto genérico desnecessário
 
-### Correção 2: Remover Toast do Hook
+### Mudança 1: `CalendarEditorDesktop.tsx`
 
-Modificar `src/hooks/useCalendarSync.ts`:
-- Remover o `toast.success('Matérias salvas com sucesso!')` da linha 236
-- Remover também o `toast.success('Matérias salvas localmente')` da linha 238
-- Manter apenas o toast de erro em caso de falha
-- O feedback ao usuário será dado pelo toast individual de cada ação (se desejado) ou pela UI
+Alterar linha 335 para sempre usar `isCompact={true}`:
 
-O salvamento automático está correto para garantir sincronização multi-aba e persistência. A remoção do toast elimina a notificação repetitiva.
+```typescript
+// Antes
+isCompact={variant === 'dark'}
+
+// Depois
+isCompact={true}
+```
+
+### Mudança 2 (Opcional): Limpeza de código legado
+
+Remover o bloco de código "full card" em `DayColumnCard.tsx` (linhas 84-130) que não será mais usado, mantendo apenas o layout compacto.
+
+---
+
+## Resultado Esperado
+
+- Cards idênticos em ambos os modos (dark e light)
+- Visual limpo e moderno em todas as variantes
+- Títulos responsivos com break-words e tipografia fluida
+- Categoria exibida como texto colorido (não badge)
+- Sem texto "Estudo programado para esta matéria."
 
 ---
 
@@ -47,15 +65,5 @@ O salvamento automático está correto para garantir sincronização multi-aba e
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/components/calendar/DayColumnCard.tsx` | Remover Badge duplicado (linhas 113-122) |
-| `src/hooks/useCalendarSync.ts` | Remover toasts de sucesso do salvamento |
-| `src/pages/StudyGuide.tsx` | Opcionalmente, remover toast de "Matéria adicionada" para experiência mais limpa |
-
----
-
-## Resultado Esperado
-
-- Cada card terá apenas UMA tag de categoria
-- Nenhum toast "Matérias salvas com sucesso" ao arrastar
-- Mantém toast de erro caso falhe sincronização
-- Salvamento automático permanece funcionando (para sync multi-aba)
+| `src/components/calendar/CalendarEditorDesktop.tsx` | Mudar `isCompact={variant === 'dark'}` para `isCompact={true}` |
+| `src/components/calendar/DayColumnCard.tsx` | (Opcional) Remover bloco de código não utilizado |
