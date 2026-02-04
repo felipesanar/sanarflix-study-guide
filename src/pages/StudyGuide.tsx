@@ -1507,13 +1507,95 @@ export const StudyGuide: React.FC = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  {/* Aviso mobile: calendário apenas no desktop */}
+                  {/* Mobile Calendar View */}
                   <Card className="md:hidden shadow-lg border-primary/10">
-                    <CardContent className="p-6 text-center space-y-3">
-                      <Calendar className="h-6 w-6 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        O calendário está disponível apenas no desktop. No mobile, utilize o modo Lista.
-                      </p>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            Calendário de Estudos
+                          </CardTitle>
+                          <CardDescription className="text-xs">
+                            Toque em Editar para organizar sua semana
+                          </CardDescription>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setIsEditMode(true)}
+                          className="gap-1.5 h-8 text-xs"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {/* Mobile week view - horizontal scroll */}
+                      <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 snap-x snap-mandatory">
+                        {Array.from({ length: 7 }).map((_, dayIdx) => {
+                          const dayEvents = calendarEvents.filter(e => e.day === dayIdx);
+                          const today = new Date().getDay();
+                          const isToday = dayIdx === today;
+                          
+                          return (
+                            <div 
+                              key={dayIdx} 
+                              className={cn(
+                                "flex-shrink-0 w-[140px] snap-start rounded-xl border transition-all",
+                                isToday 
+                                  ? "bg-primary/5 border-primary/30" 
+                                  : "bg-card border-border/50"
+                              )}
+                            >
+                              <div className={cn(
+                                "text-center py-2 text-xs font-semibold uppercase rounded-t-xl",
+                                isToday 
+                                  ? "bg-primary text-primary-foreground" 
+                                  : "bg-muted/50 text-muted-foreground"
+                              )}>
+                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayIdx]}
+                                {isToday && <span className="ml-1">•</span>}
+                              </div>
+                              <div className="p-2 space-y-1.5 min-h-[80px]">
+                                {dayEvents.length === 0 ? (
+                                  <p className="text-[10px] text-muted-foreground text-center py-4">
+                                    Sem matérias
+                                  </p>
+                                ) : (
+                                  dayEvents.slice(0, 3).map((event) => (
+                                    <motion.div
+                                      key={event.id}
+                                      initial={{ opacity: 0, scale: 0.95 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      className="p-1.5 rounded-md text-[10px] border cursor-pointer active:scale-95 transition-transform"
+                                      style={{ 
+                                        backgroundColor: `${event.color}15`,
+                                        borderColor: `${event.color}30`
+                                      }}
+                                      onClick={() => openMateriaSheet(event.materia)}
+                                    >
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <span 
+                                          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                          style={{ backgroundColor: event.color }}
+                                        />
+                                        <span className="truncate font-medium">{event.title}</span>
+                                      </div>
+                                    </motion.div>
+                                  ))
+                                )}
+                                {dayEvents.length > 3 && (
+                                  <p className="text-[10px] text-muted-foreground text-center">
+                                    +{dayEvents.length - 3} mais
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </CardContent>
                   </Card>
                   <Card className="hidden md:block shadow-lg border-primary/10 hover:shadow-xl transition-all duration-300">
