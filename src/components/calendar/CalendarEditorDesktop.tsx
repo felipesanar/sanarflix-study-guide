@@ -182,17 +182,6 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                 )}>
                   Calendário de Estudos
                 </h1>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] font-semibold px-2 py-0.5 border",
-                    variant === 'dark'
-                      ? "border-primary/50 text-primary bg-primary/10"
-                      : "border-primary text-primary bg-primary/5"
-                  )}
-                >
-                  {variant === 'light' ? 'DAY-ONLY PREMIUM' : 'Modo Premium'}
-                </Badge>
               </div>
             </div>
 
