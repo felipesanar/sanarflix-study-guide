@@ -214,12 +214,10 @@ export const StudyGuide: React.FC = () => {
   useEffect(() => {
     // Convert subjects from Supabase to CalendarEventType format
     const events: CalendarEventType[] = subjects.map(s => ({
-      id: s.id || `temp-${s.dayOfWeek}-${s.startTime}`,
+      id: s.id || `temp-${s.dayOfWeek}-${s.name}`,
       title: s.name,
       materia: s.name,
       day: s.dayOfWeek,
-      startTime: s.startTime,
-      endTime: s.endTime,
       color: s.color
     }));
     setCalendarEvents(events);
@@ -243,19 +241,9 @@ export const StudyGuide: React.FC = () => {
   
   // Função para adicionar evento ao calendário (salva no Supabase)
   const addEventToCalendar = async (materia: string, day: number) => {
-    // Gerar horários aleatórios para demonstração
-    const startHour = Math.floor(Math.random() * 12) + 8; // Entre 8h e 19h
-    const duration = Math.floor(Math.random() * 2) + 1; // 1 ou 2 horas
-    const endHour = startHour + duration;
-    
-    const startTime = `${startHour.toString().padStart(2, '0')}:00`;
-    const endTime = `${endHour.toString().padStart(2, '0')}:00`;
-    
     await addSubject({
       name: materia,
       dayOfWeek: day,
-      startTime,
-      endTime,
       color: getMateriaColor(materia)
     });
     
@@ -271,7 +259,7 @@ export const StudyGuide: React.FC = () => {
     const event = calendarEvents.find(e => e.id === id);
     if (!event) return;
     
-    await removeSubject(event.day, event.startTime);
+    await removeSubject(event.day, event.materia);
     
     toast({
       title: "Matéria removida",

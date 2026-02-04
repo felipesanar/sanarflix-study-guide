@@ -8,8 +8,6 @@ export interface CalendarSubject {
   name: string;
   color: string;
   dayOfWeek: number;
-  startTime: string;
-  endTime: string;
 }
 
 interface StoredData {
@@ -75,9 +73,7 @@ export const useCalendarSync = () => {
               user_id: user.id,
               name: subject.name,
               color: subject.color,
-              day_of_week: subject.dayOfWeek,
-              start_time: subject.startTime,
-              end_time: subject.endTime
+              day_of_week: subject.dayOfWeek
             }))
           );
 
@@ -108,9 +104,7 @@ export const useCalendarSync = () => {
         id: row.id,
         name: row.name,
         color: row.color,
-        dayOfWeek: row.day_of_week,
-        startTime: row.start_time,
-        endTime: row.end_time
+        dayOfWeek: row.day_of_week
       })) || [];
     } catch (error) {
       console.error('Erro ao carregar do banco:', error);
@@ -201,9 +195,9 @@ export const useCalendarSync = () => {
   }, [subjects, saveSubjects]);
 
   // Remover matéria
-  const removeSubject = useCallback(async (dayOfWeek: number, startTime: string) => {
+  const removeSubject = useCallback(async (dayOfWeek: number, subjectName: string) => {
     const newSubjects = subjects.filter(
-      s => !(s.dayOfWeek === dayOfWeek && s.startTime === startTime)
+      s => !(s.dayOfWeek === dayOfWeek && s.name === subjectName)
     );
     await saveSubjects(newSubjects);
   }, [subjects, saveSubjects]);

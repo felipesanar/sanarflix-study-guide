@@ -8,8 +8,6 @@ export interface CalendarEvent {
   title: string;
   materia: string;
   day: number; // 0-6 (domingo-sábado)
-  startTime: string;
-  endTime: string;
   color: string;
 }
 

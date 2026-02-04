@@ -333,7 +333,6 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                             onClick={() => onEventClick?.(event)}
                             variant={variant}
                             isCompact={variant === 'dark'}
-                            showTime={variant === 'light'}
                           />
                         ))}
                       </AnimatePresence>

@@ -183,7 +183,7 @@ export const useHomeData = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('day_of_week', today)
-        .order('start_time', { ascending: true });
+        .order('name', { ascending: true });
 
 
       if (subjectsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
