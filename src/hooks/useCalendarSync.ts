@@ -233,9 +233,6 @@ export const useCalendarSync = () => {
         await saveToDatabase(newSubjects, currentServerIds);
         
         setSyncing(false);
-        toast.success('Matérias salvas com sucesso!');
-      } else {
-        toast.success('Matérias salvas localmente');
       }
     } catch (error) {
       console.error('Erro ao salvar matérias:', error);
