@@ -246,12 +246,6 @@ export const StudyGuide: React.FC = () => {
       dayOfWeek: day,
       color: getMateriaColor(materia)
     });
-    
-    toast({
-      title: "Matéria adicionada",
-      description: `${materia} adicionado ao seu calendário pessoal para ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][day]}`,
-      variant: "default",
-    });
   };
   
   // Função para remover evento do calendário (remove do Supabase)

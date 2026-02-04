@@ -110,17 +110,6 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
       style={{ borderLeftColor: event.color }}
       onClick={onClick}
     >
-      {/* Category badge only - no time */}
-      <Badge 
-        variant="secondary" 
-        className={cn(
-          "mb-2 text-[10px] px-1.5 py-0 h-5",
-          catColor.bg, catColor.text
-        )}
-      >
-        {category}
-      </Badge>
-      
       <div className="flex justify-between items-start gap-2">
         <div className="flex-1 min-w-0">
           <Badge 
