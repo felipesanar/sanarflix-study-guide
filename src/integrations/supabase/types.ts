@@ -315,10 +315,8 @@ export type Database = {
           color: string
           created_at: string
           day_of_week: number
-          end_time: string
           id: string
           name: string
-          start_time: string
           updated_at: string
           user_id: string
         }
@@ -326,10 +324,8 @@ export type Database = {
           color: string
           created_at?: string
           day_of_week: number
-          end_time: string
           id?: string
           name: string
-          start_time: string
           updated_at?: string
           user_id: string
         }
@@ -337,10 +333,8 @@ export type Database = {
           color?: string
           created_at?: string
           day_of_week?: number
-          end_time?: string
           id?: string
           name?: string
-          start_time?: string
           updated_at?: string
           user_id?: string
         }

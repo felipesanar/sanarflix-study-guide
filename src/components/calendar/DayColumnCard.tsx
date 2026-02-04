@@ -12,7 +12,6 @@ interface DayColumnCardProps {
   onClick?: () => void;
   variant?: 'dark' | 'light';
   isCompact?: boolean;
-  showTime?: boolean;
 }
 
 export const DayColumnCard: React.FC<DayColumnCardProps> = ({
@@ -20,8 +19,7 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
   onRemove,
   onClick,
   variant = 'dark',
-  isCompact = false,
-  showTime = false
+  isCompact = false
 }) => {
   const category = getMateriaCategory(event.materia);
   const icon = getMateriaIcon(event.materia);
@@ -112,17 +110,16 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
       style={{ borderLeftColor: event.color }}
       onClick={onClick}
     >
-      {showTime && (
-        <Badge 
-          variant="outline" 
-          className={cn(
-            "mb-2 text-[10px] font-semibold",
-            variant === 'dark' ? "border-primary/50 text-primary" : "border-primary text-primary"
-          )}
-        >
-          {event.startTime} - {event.endTime}
-        </Badge>
-      )}
+      {/* Category badge only - no time */}
+      <Badge 
+        variant="secondary" 
+        className={cn(
+          "mb-2 text-[10px] px-1.5 py-0 h-5",
+          catColor.bg, catColor.text
+        )}
+      >
+        {category}
+      </Badge>
       
       <div className="flex justify-between items-start gap-2">
         <div className="flex-1 min-w-0">
@@ -158,12 +155,9 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
         </Button>
       </div>
 
-      {!showTime && (
-        <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-          <span>{icon}</span>
-          <span>60m</span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+        <span>{icon}</span>
+      </div>
     </motion.div>
   );
 };
