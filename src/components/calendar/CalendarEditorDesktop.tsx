@@ -332,7 +332,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                             onRemove={onRemoveEvent}
                             onClick={() => onEventClick?.(event)}
                             variant={variant}
-                            isCompact={variant === 'dark'}
+                            isCompact={true}
                           />
                         ))}
                       </AnimatePresence>

@@ -1,10 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trash2, GripVertical } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CalendarEvent, getMateriaIcon, getMateriaCategory } from './types';
+import { CalendarEvent, getMateriaCategory } from './types';
 
 interface DayColumnCardProps {
   event: CalendarEvent;
@@ -81,51 +80,6 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
     );
   }
 
-  // Full card (light theme or mobile - Legacy/Expanded view)
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      className={cn(
-        "group p-4 rounded-xl border-l-4 transition-all duration-200",
-        variant === 'dark'
-          ? "bg-card/90 border-t border-r border-b border-border/40"
-          : "bg-white border-t border-r border-b border-border/30 shadow-sm hover:shadow-md"
-      )}
-      style={{ borderLeftColor: event.color }}
-      onClick={onClick}
-    >
-      <div className="flex justify-between items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <Badge
-            variant="secondary"
-            className="mb-2 text-[10px] px-1.5 py-0 h-5 bg-muted"
-          >
-            {category}
-          </Badge>
-          <h5 className={cn(
-            "font-semibold leading-tight",
-            variant === 'dark' ? "text-foreground" : "text-foreground"
-          )}>
-            {event.title}
-          </h5>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-            Estudo programado para esta matéria.
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 opacity-60 hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(event.id);
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
-    </motion.div>
-  );
+  // Fallback - should not reach here since isCompact is always true
+  return null;
 };
