@@ -215,11 +215,17 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
                               {getMateriaIcon(event.materia)}
                             </div>
                             
-                            {/* Subject name */}
-                            <h4 className={cn(
-                              "text-sm font-semibold leading-tight",
-                              isDark ? "text-white" : "text-foreground"
-                            )}>
+                            {/* Subject name - responsive font size */}
+                            <h4 
+                              className={cn(
+                                "font-semibold leading-tight break-words hyphens-auto",
+                                isDark ? "text-white" : "text-foreground"
+                              )}
+                              style={{ 
+                                fontSize: 'clamp(0.65rem, 1vw, 0.875rem)',
+                                wordBreak: 'break-word'
+                              }}
+                            >
                               {event.title}
                             </h4>
                             
