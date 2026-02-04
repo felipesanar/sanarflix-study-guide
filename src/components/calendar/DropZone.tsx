@@ -60,31 +60,45 @@ export const DropZone: React.FC<DropZoneProps> = ({
       {isActive && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            boxShadow: variant === 'dark'
+              ? "0 0 20px rgba(var(--primary), 0.2)"
+              : "0 0 15px rgba(var(--primary), 0.15)"
+          }}
           exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.15 }}
+          transition={{ duration: 0.2 }}
           className={cn(
-            "absolute inset-0 z-10 rounded-lg border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all",
+            "absolute inset-0 z-10 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all backdrop-blur-[2px]",
             sizeClasses[size],
             variant === 'dark'
-              ? "border-primary/60 bg-gradient-to-b from-primary/20 via-primary/10 to-transparent"
-              : "border-primary/50 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent"
+              ? "border-primary/60 bg-primary/10"
+              : "border-primary/50 bg-primary/5"
           )}
         >
           <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
+            animate={{
+              y: [0, -6, 0],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{
+              repeat: Infinity,
+              duration: 2,
+              ease: "easeInOut"
+            }}
+            className={cn(
+              "p-3 rounded-full",
+              variant === 'dark' ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary"
+            )}
           >
-            <Download className={cn(
-              "h-6 w-6",
-              variant === 'dark' ? "text-primary" : "text-primary"
-            )} />
+            <Download className="h-6 w-6" />
           </motion.div>
           <span className={cn(
-            "text-xs font-semibold uppercase tracking-wider",
+            "text-xs font-bold uppercase tracking-wider",
             variant === 'dark' ? "text-primary" : "text-primary"
           )}>
-            Solte Aqui
+            Soltar Matéria
           </span>
         </motion.div>
       )}
@@ -115,24 +129,24 @@ export const EmptyDayState: React.FC<EmptyDayStateProps> = ({
     )}>
       <div className={cn(
         "w-12 h-12 rounded-xl flex items-center justify-center mb-3",
-        variant === 'dark' 
-          ? "bg-muted/30" 
+        variant === 'dark'
+          ? "bg-muted/30"
           : "bg-muted/50"
       )}>
-        <svg 
+        <svg
           className={cn(
             "w-6 h-6",
             variant === 'dark' ? "text-muted-foreground/50" : "text-muted-foreground/60"
           )}
-          fill="none" 
-          viewBox="0 0 24 24" 
+          fill="none"
+          viewBox="0 0 24 24"
           stroke="currentColor"
         >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={1.5} 
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" 
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
         </svg>
       </div>

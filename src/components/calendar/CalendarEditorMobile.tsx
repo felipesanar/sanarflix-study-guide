@@ -74,7 +74,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   // Loading skeleton
   if (isLoading) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className={cn(
@@ -104,7 +104,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -115,29 +115,43 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
     >
       {/* Header */}
       <header className={cn(
-        "flex items-center justify-between px-4 py-3 border-b",
-        variant === 'dark' 
-          ? "bg-background border-border/50"
-          : "bg-white border-border/30"
+        "flex items-center justify-between px-4 py-4 border-b relative z-20",
+        variant === 'dark'
+          ? "bg-[#09090b] border-white/10"
+          : "bg-white border-black/5 shadow-sm"
       )}>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           size="icon"
           onClick={onClose}
-          className="h-10 w-10"
+          className={cn(
+            "h-10 w-10 text-zinc-500 rounded-full",
+            variant === 'dark' ? "hover:bg-white/10 hover:text-white" : "hover:bg-black/5 hover:text-black"
+          )}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className={cn(
-          "text-base font-bold",
-          variant === 'dark' ? "text-foreground" : "text-foreground"
-        )}>
-          Editar Agenda
-        </h1>
-        <Button 
-          variant="ghost" 
+        <div className="flex flex-col items-center">
+          <h1 className={cn(
+            "text-base font-bold",
+            variant === 'dark' ? "text-white" : "text-foreground"
+          )}>
+            Editar Agenda
+          </h1>
+          <span className={cn(
+            "text-[10px] font-medium opacity-60",
+            variant === 'dark' ? "text-zinc-400" : "text-zinc-500"
+          )}>
+            Modo Premium
+          </span>
+        </div>
+        <Button
+          variant="ghost"
           size="icon"
-          className="h-10 w-10"
+          className={cn(
+            "h-10 w-10 text-zinc-500 rounded-full",
+            variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
+          )}
         >
           <MoreVertical className="h-5 w-5" />
         </Button>
@@ -162,7 +176,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
             )}>
               Planejamento do Dia
             </span>
-            <Badge 
+            <Badge
               className={cn(
                 "text-[10px] px-2",
                 variant === 'dark'
@@ -178,11 +192,11 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
           <div className="space-y-3">
             {selectedDayEvents.length === 0 ? (
               <>
-                <DropZone 
-                  isActive={false} 
-                  variant={variant} 
-                  size="lg" 
-                  showAddButton 
+                <DropZone
+                  isActive={false}
+                  variant={variant}
+                  size="lg"
+                  showAddButton
                   onAddClick={() => setDrawerExpanded(true)}
                 />
                 <div className={cn(
@@ -204,13 +218,13 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
                       onClick={() => onEventClick?.(event)}
                       variant={variant}
                     />
-                    
+
                     {/* Add slot between cards */}
-                    <DropZone 
-                      isActive={false} 
-                      variant={variant} 
-                      size="sm" 
-                      showAddButton 
+                    <DropZone
+                      isActive={false}
+                      variant={variant}
+                      size="sm"
+                      showAddButton
                       onAddClick={() => setDrawerExpanded(true)}
                     />
                   </React.Fragment>
@@ -291,8 +305,8 @@ const MobileEventCard: React.FC<MobileEventCardProps> = ({
     >
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className={cn(
               "mb-2 text-[10px] px-2 py-0 h-5",
               catColor.bg, catColor.text

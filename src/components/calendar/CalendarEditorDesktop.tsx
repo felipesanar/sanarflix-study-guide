@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ArrowLeft, Save, Search, Sparkles, ChevronLeft, ChevronRight, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -105,12 +105,12 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
   // Loading skeleton
   if (isLoading) {
     return (
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className={cn(
           "fixed inset-0 z-[9999]",
-          variant === 'dark' ? "bg-background" : "bg-white"
+          variant === 'dark' ? "bg-[#09090b]" : "bg-white"
         )}
       >
         <div className="p-6 space-y-6">
@@ -137,19 +137,19 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
   }
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className={cn(
         "fixed inset-0 z-[9999] flex flex-col overflow-hidden",
-        variant === 'dark' ? "bg-background" : "bg-white"
+        variant === 'dark' ? "bg-[#09090b]" : "bg-slate-50"
       )}
     >
       {/* Header */}
       <header className={cn(
         "sticky top-0 z-50 border-b backdrop-blur-xl",
-        variant === 'dark' 
+        variant === 'dark'
           ? "bg-background/95 border-border/50 shadow-lg shadow-black/20"
           : "bg-white/95 border-border/30 shadow-sm"
       )}>
@@ -157,8 +157,8 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
           <div className="flex items-center justify-between">
             {/* Left side */}
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={onClose}
                 className={cn(
@@ -169,12 +169,12 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                 <ArrowLeft className="h-4 w-4" />
                 Voltar
               </Button>
-              
+
               <div className={cn(
                 "w-px h-6",
                 variant === 'dark' ? "bg-border/50" : "bg-border/30"
               )} />
-              
+
               <div className="flex items-center gap-3">
                 <h1 className={cn(
                   "text-lg font-bold",
@@ -182,8 +182,8 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                 )}>
                   Calendário de Estudos
                 </h1>
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className={cn(
                     "text-[10px] font-semibold px-2 py-0.5 border",
                     variant === 'dark'
@@ -197,7 +197,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
             </div>
 
             {/* Right side */}
-            <Button 
+            <Button
               size="sm"
               onClick={onSave}
               disabled={isSaving}
@@ -213,7 +213,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
-          
+
           {/* Subject Bank Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -229,7 +229,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                   {variant === 'light' ? 'Banco de Matérias' : 'Arraste para Adicionar'}
                 </span>
               </div>
-              
+
               {/* Search */}
               <div className="relative w-64">
                 <Search className={cn(
@@ -242,7 +242,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={cn(
                     "pl-9 h-10 rounded-lg",
-                    variant === 'dark' 
+                    variant === 'dark'
                       ? "bg-card border-border/50 focus:border-primary/50"
                       : "bg-white border-border/30 focus:border-primary/50"
                   )}
@@ -286,8 +286,8 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                     </span>
                     {variant === 'light' && (
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="secondary" 
+                        <Badge
+                          variant="secondary"
                           className="text-[10px] px-1.5 py-0 h-5 bg-muted"
                         >
                           {eventsCount[dayIdx]}
@@ -298,9 +298,9 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Day content */}
-                  <div 
+                  <div
                     className={cn(
                       "flex-1 rounded-b-xl border border-t-0 p-3 space-y-2 relative overflow-y-auto transition-colors duration-200",
                       variant === 'dark'
@@ -317,9 +317,9 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                     onDrop={(e) => handleDrop(e, dayIdx)}
                   >
                     {/* Drop zone overlay */}
-                    <DropZone 
-                      isActive={dragOverDay === dayIdx && draggedItem !== null} 
-                      variant={variant} 
+                    <DropZone
+                      isActive={dragOverDay === dayIdx && draggedItem !== null}
+                      variant={variant}
                     />
 
                     {/* Events or empty state */}

@@ -22,80 +22,64 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
   isCompact = false
 }) => {
   const category = getMateriaCategory(event.materia);
-  const icon = getMateriaIcon(event.materia);
-
-  // Get category color based on variant
-  const getCategoryColor = (cat: string) => {
-    const colors: Record<string, { bg: string; text: string }> = {
-      'ANATOMIA': { bg: 'bg-blue-500/20', text: 'text-blue-400' },
-      'FISIOLOGIA': { bg: 'bg-orange-500/20', text: 'text-orange-400' },
-      'BIOQUÍMICA': { bg: 'bg-green-500/20', text: 'text-green-400' },
-      'PATOLOGIA': { bg: 'bg-purple-500/20', text: 'text-purple-400' },
-      'HISTOLOGIA': { bg: 'bg-pink-500/20', text: 'text-pink-400' },
-      'IMUNOLOGIA': { bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
-      'FARMACOLOGIA': { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
-      'CLÍNICA': { bg: 'bg-red-500/20', text: 'text-red-400' },
-    };
-    return colors[cat] || { bg: 'bg-muted', text: 'text-muted-foreground' };
-  };
-
-  const catColor = getCategoryColor(category);
 
   if (isCompact) {
-    // Desktop compact card (dark theme)
+    // Desktop compact card (dark/light mode editor)
     return (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, scale: 0.9 }}
         className={cn(
-          "group p-3 rounded-lg border-l-4 transition-all duration-200 cursor-pointer",
+          "group relative p-2.5 pl-3.5 rounded-lg transition-all duration-200 cursor-pointer overflow-hidden",
           variant === 'dark'
-            ? "bg-card/80 hover:bg-card border-t border-r border-b border-border/40"
-            : "bg-white hover:bg-accent/50 border-t border-r border-b border-border/30 shadow-sm"
+            ? "bg-zinc-800/80 hover:bg-zinc-800 border-y border-r border-white/5 hover:border-white/10 hover:shadow-lg hover:shadow-black/20"
+            : "bg-white hover:bg-white hover:shadow-md border-y border-r border-black/5 hover:border-primary/20",
+          "hover:-translate-y-0.5"
         )}
-        style={{ borderLeftColor: event.color }}
+        style={{
+          boxShadow: variant === 'dark'
+            ? `inset 3px 0 0 0 ${event.color}`
+            : `inset 3px 0 0 0 ${event.color}, 0 1px 3px rgba(0,0,0,0.05)`
+        }}
         onClick={onClick}
-        whileHover={{ scale: 1.02 }}
+        whileHover={{ scale: 1.01 }}
       >
         <div className="flex justify-between items-start gap-2">
           <div className="flex-1 min-w-0">
             <h5 className={cn(
-              "font-medium text-sm leading-tight truncate",
-              variant === 'dark' ? "text-foreground" : "text-foreground"
+              "font-bold text-[13px] leading-tight truncate tracking-tight",
+              variant === 'dark' ? "text-zinc-100" : "text-zinc-700"
             )}>
               {event.title}
             </h5>
-            <Badge 
-              variant="secondary" 
-              className={cn(
-                "mt-1.5 text-[10px] px-1.5 py-0 h-5",
-                catColor.bg, catColor.text
-              )}
-            >
-              {category.charAt(0) + category.slice(1).toLowerCase()}
-            </Badge>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className="text-[9px] font-bold uppercase tracking-wider opacity-80"
+                style={{ color: event.color }}
+              >
+                {category}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground">60m</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(event.id);
-              }}
-            >
-              <GripVertical className="h-3 w-3" />
-            </Button>
-          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 -mr-1 -mt-1 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10 hover:text-red-500 rounded-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove(event.id);
+            }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
       </motion.div>
     );
   }
 
-  // Full card (light theme or mobile)
+  // Full card (light theme or mobile - Legacy/Expanded view)
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -112,12 +96,9 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
     >
       <div className="flex justify-between items-start gap-2">
         <div className="flex-1 min-w-0">
-          <Badge 
-            variant="secondary" 
-            className={cn(
-              "mb-2 text-[10px] px-1.5 py-0 h-5",
-              catColor.bg, catColor.text
-            )}
+          <Badge
+            variant="secondary"
+            className="mb-2 text-[10px] px-1.5 py-0 h-5 bg-muted"
           >
             {category}
           </Badge>
@@ -140,12 +121,8 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
             onRemove(event.id);
           }}
         >
-          <GripVertical className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
-      </div>
-
-      <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-        <span>{icon}</span>
       </div>
     </motion.div>
   );

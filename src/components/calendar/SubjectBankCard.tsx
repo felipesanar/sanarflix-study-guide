@@ -29,13 +29,13 @@ export const SubjectBankCard: React.FC<SubjectBankCardProps> = ({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "relative group cursor-grab active:cursor-grabbing select-none",
-        "min-w-[160px] max-w-[200px]",
-        "p-3 rounded-xl border transition-all duration-200",
-        variant === 'dark' 
-          ? "bg-card/80 border-border/50 hover:border-border hover:bg-card"
-          : "bg-white border-border/30 hover:border-border/60 hover:shadow-md",
-        isDragging && "opacity-50 scale-95"
+        "relative group cursor-grab active:cursor-grabbing select-none overflow-hidden",
+        "min-w-[150px] max-w-[190px]",
+        "p-3.5 rounded-xl border transition-all duration-300",
+        variant === 'dark'
+          ? "bg-zinc-900/80 border-white/5 hover:border-white/10 hover:bg-zinc-800 hover:shadow-lg hover:shadow-black/40"
+          : "bg-white border-black/5 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5",
+        isDragging && "opacity-40 grayscale scale-95"
       )}
       whileHover={{ scale: 1.02, y: -2 }}
       whileTap={{ scale: 0.98 }}
@@ -43,41 +43,48 @@ export const SubjectBankCard: React.FC<SubjectBankCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Color dot indicator */}
-      <div 
-        className="absolute top-3 left-3 w-2.5 h-2.5 rounded-full shadow-sm"
+      {/* Background Glow */}
+      <div
+        className={cn(
+          "absolute top-0 right-0 w-16 h-16 rounded-full blur-[30px] opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none",
+          "translate-x-1/2 -translate-y-1/2"
+        )}
         style={{ backgroundColor: color }}
       />
-      
+
+      {/* Color indicator (Bar) */}
+      <div
+        className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full shadow-sm"
+        style={{ backgroundColor: color }}
+      />
+
       {/* Drag handle */}
       <div className={cn(
-        "absolute top-3 right-3 opacity-40 group-hover:opacity-70 transition-opacity",
-        variant === 'dark' ? "text-muted-foreground" : "text-muted-foreground/80"
+        "absolute top-3 right-3 opacity-20 group-hover:opacity-100 transition-all duration-200",
+        variant === 'dark' ? "text-zinc-400 group-hover:text-white" : "text-zinc-400 group-hover:text-foreground"
       )}>
         <GripVertical className="h-4 w-4" />
       </div>
 
       {/* Content */}
-      <div className="pt-4 pr-4">
-        {variant === 'light' && (
-          <span 
-            className="text-[10px] font-semibold uppercase tracking-wide mb-1 block"
-            style={{ color }}
-          >
-            {category}
-          </span>
-        )}
+      <div className="pl-3 pr-2 pt-1">
+        <span
+          className="text-[9px] font-bold uppercase tracking-wider block mb-1.5 opacity-80"
+          style={{ color }}
+        >
+          {category}
+        </span>
+
         <h4 className={cn(
-          "font-medium leading-tight line-clamp-2",
-          variant === 'dark' ? "text-foreground text-sm" : "text-foreground text-sm"
+          "font-bold leading-tight line-clamp-2",
+          variant === 'dark' ? "text-zinc-100 text-[13px]" : "text-zinc-700 text-[13px]"
         )}>
           {name}
         </h4>
+
         {variant === 'light' && (
-          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-            <span>{icon}</span>
-            <span>•</span>
-            <span>60m</span>
+          <p className="text-[10px] font-medium text-slate-400 mt-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>60 min</span>
           </p>
         )}
       </div>
@@ -88,7 +95,7 @@ export const SubjectBankCard: React.FC<SubjectBankCardProps> = ({
 // Create New Card (Light theme only - disabled state)
 export const CreateNewCard: React.FC = () => {
   return (
-    <div 
+    <div
       className="min-w-[140px] max-w-[180px] p-4 rounded-xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-2 opacity-60 cursor-not-allowed"
       title="Em breve"
     >

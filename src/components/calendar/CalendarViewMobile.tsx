@@ -29,9 +29,9 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
   const today = new Date().getDay();
   const [selectedDay, setSelectedDay] = useState<number>(today);
   const isDark = variant === 'dark';
-  
+
   const dayEvents = events.filter(e => e.day === selectedDay);
-  
+
   // Get current date info for the day selector
   const currentDate = new Date();
   const startOfWeek = new Date(currentDate);
@@ -42,8 +42,8 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
   return (
     <Card className={cn(
       "shadow-lg overflow-hidden transition-all",
-      isDark 
-        ? "bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border-zinc-800" 
+      isDark
+        ? "bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 border-zinc-800"
         : "bg-card border-border/50"
     )}>
       {/* Header */}
@@ -74,14 +74,14 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
               </CardDescription>
             </div>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={onEdit}
             className={cn(
               "gap-1.5 h-8 text-xs font-medium",
-              isDark 
-                ? "border-zinc-700 bg-zinc-800/50 hover:bg-zinc-700 text-white" 
+              isDark
+                ? "border-zinc-700 bg-zinc-800/50 hover:bg-zinc-700 text-white"
                 : "border-border hover:bg-accent"
             )}
           >
@@ -93,10 +93,10 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
 
       {/* Day Selector - Horizontal scroll with dates */}
       <div className={cn(
-        "px-3 py-3",
-        isDark ? "bg-zinc-900/50" : "bg-muted/30"
+        "px-3 py-3 relative z-10",
+        isDark ? "bg-black/20 border-b border-white/5" : "bg-slate-50/50 border-b border-black/5"
       )}>
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
           {DAYS.map((day, idx) => {
             const isSelected = idx === selectedDay;
             const isToday = idx === today;
@@ -104,39 +104,46 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
             date.setDate(startOfWeek.getDate() + idx);
             const dayNumber = date.getDate();
             const hasEvents = events.some(e => e.day === idx);
-            
+
             return (
               <button
                 key={idx}
                 onClick={() => setSelectedDay(idx)}
                 className={cn(
-                  "flex flex-col items-center min-w-[48px] px-2 py-2 rounded-xl transition-all",
+                  "flex flex-col items-center min-w-[52px] px-2 py-2.5 rounded-xl transition-all duration-300 relative overflow-hidden",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
                   isSelected
-                    ? "bg-primary text-primary-foreground shadow-lg"
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25 scale-105"
                     : isDark
-                      ? "text-zinc-400 hover:bg-zinc-800/50"
-                      : "text-muted-foreground hover:bg-accent/50"
+                      ? "bg-white/5 text-zinc-400 border border-white/5"
+                      : "bg-white text-muted-foreground border border-black/5"
                 )}
                 aria-label={`Ver ${DAYS_FULL[idx]}`}
                 aria-pressed={isSelected}
               >
+                {/* Active shine effect */}
+                {isSelected && (
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-50" />
+                )}
+
                 <span className={cn(
-                  "text-[10px] font-medium uppercase",
-                  isSelected ? "text-primary-foreground/80" : ""
+                  "text-[9px] font-bold uppercase tracking-wider",
+                  isSelected ? "text-primary-foreground/90" : ""
                 )}>
                   {day}
                 </span>
                 <span className={cn(
-                  "text-lg font-bold mt-0.5",
+                  "text-lg font-bold mt-0.5 leading-none",
                   isSelected ? "" : isToday ? "text-primary" : ""
                 )}>
                   {dayNumber}
                 </span>
+
+                {/* Dots indicator */}
                 {hasEvents && !isSelected && (
                   <div className={cn(
-                    "w-1 h-1 rounded-full mt-0.5",
-                    isDark ? "bg-zinc-500" : "bg-muted-foreground/50"
+                    "absolute bottom-1.5 w-1 h-1 rounded-full",
+                    isDark ? "bg-zinc-500" : "bg-zinc-400"
                   )} />
                 )}
               </button>
@@ -155,12 +162,12 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
           )}>
             {DAYS_FULL[selectedDay]}
           </h3>
-          <Badge 
-            variant="secondary" 
+          <Badge
+            variant="secondary"
             className={cn(
               "text-xs font-medium",
-              isDark 
-                ? "bg-zinc-800 text-zinc-300 border-zinc-700" 
+              isDark
+                ? "bg-zinc-800 text-zinc-300 border-zinc-700"
                 : "bg-muted text-muted-foreground"
             )}
           >
@@ -222,23 +229,23 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
                   )}
                 >
                   {/* Colored accent bar */}
-                  <div 
+                  <div
                     className="absolute left-0 top-0 bottom-0 w-1"
                     style={{ backgroundColor: event.color }}
                   />
-                  
+
                   <div className="pl-4 pr-3 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         {/* Category/icon */}
-                        <span 
+                        <span
                           className="text-base"
-                          role="img" 
+                          role="img"
                           aria-label="Ícone da matéria"
                         >
                           {getMateriaIcon(event.materia)}
                         </span>
-                        
+
                         {/* Title */}
                         <h4 className={cn(
                           "text-sm font-semibold mt-1",
@@ -246,11 +253,11 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
                         )}>
                           {event.title}
                         </h4>
-                        
+
                       </div>
-                      
+
                       {/* Color dot indicator */}
-                      <div 
+                      <div
                         className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
                         style={{ backgroundColor: event.color }}
                       />
