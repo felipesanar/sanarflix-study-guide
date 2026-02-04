@@ -1,156 +1,61 @@
 
-# Plano de Correção: Inconsistências e Duplicações no Calendário de Estudos
+# Plano de Correção: Tag Duplicada e Toast ao Arrastar
 
-## Diagnóstico Executivo
+## Problemas Identificados
 
-Após auditoria completa do sistema, identifiquei **3 problemas críticos** que causam a inconsistência entre previews e a duplicação de matérias:
+### 1. Tag de Categoria Duplicada
+No arquivo `src/components/calendar/DayColumnCard.tsx`, o Badge de categoria está sendo renderizado **duas vezes** no modo "full card" (quando `isCompact = false`):
+- Primeira renderização: linhas 114-122 (fora do flex container)
+- Segunda renderização: linhas 126-134 (dentro do flex container)
 
-### Problemas Encontrados
+Isso causa a visualização duplicada como "GERAL / GERAL" que aparece na imagem.
 
-1. **Race Condition no Salvamento**
-   - O `saveToDatabase` faz DELETE + INSERT não-atômico
-   - Se duas requisições simultâneas ocorrem (ex: arrasto rápido), ambas podem inserir dados antes que o DELETE da outra execute
-   - **Evidência:** No banco há 4 cópias de cada matéria para o mesmo usuário (`c62a7e9a-0da5-4b5b-bf45-44f559ae5d46`)
+### 2. Toast Excessivo ao Arrastar
+Há dois toasts sendo disparados:
+- `useCalendarSync.ts` linha 236: `toast.success('Matérias salvas com sucesso!')`
+- `StudyGuide.tsx` linhas 250-254: `toast({ title: "Matéria adicionada"... })`
 
-2. **Dessincronização localStorage vs Banco**
-   - O hook carrega localStorage primeiro e sincroniza com banco em background (após 500ms)
-   - Se dois dispositivos/abas abrem o app, cada um pode ter localStorage diferente
-   - A lógica de merge prioriza dados locais, sobrescrevendo dados do servidor
-   - **Evidência:** Preview Lovable e aba separada mostram dados diferentes
+Isso resulta em duas notificações a cada vez que o usuário arrasta uma matéria.
 
-3. **Falta de Deduplicação ao Adicionar**
-   - O `addSubject` sempre adiciona ao array sem verificar se já existe matéria no mesmo dia
-   - Permite arrastar a mesma matéria múltiplas vezes para o mesmo dia
+### 3. Comportamento de Auto-Save
+Atualmente, as matérias **são salvas automaticamente** ao arrastar e soltar porque:
+- `onAddEvent` -> `addEventToCalendar` -> `addSubject` -> `saveSubjects` -> Upsert no banco
 
 ---
 
 ## Solução Proposta
 
-### Fase 1: Correção Imediata de Dados
+### Correção 1: Remover Badge Duplicado
 
-Executar SQL de limpeza para remover duplicatas existentes no banco:
-```sql
-DELETE FROM calendar_subjects 
-WHERE id NOT IN (
-  SELECT MIN(id) 
-  FROM calendar_subjects 
-  GROUP BY user_id, name, day_of_week
-);
-```
+Modificar `src/components/calendar/DayColumnCard.tsx`:
+- Remover o primeiro Badge (linhas 113-122) que está fora do flex container
+- Manter apenas o Badge dentro do flex container
 
-### Fase 2: Refatorar `useCalendarSync.ts`
+### Correção 2: Remover Toast do Hook
 
-#### 2.1 Adicionar Constraint UNIQUE no Banco
-Criar constraint para evitar duplicatas a nível de banco:
-```sql
-ALTER TABLE calendar_subjects 
-ADD CONSTRAINT unique_user_subject_day 
-UNIQUE (user_id, name, day_of_week);
-```
+Modificar `src/hooks/useCalendarSync.ts`:
+- Remover o `toast.success('Matérias salvas com sucesso!')` da linha 236
+- Remover também o `toast.success('Matérias salvas localmente')` da linha 238
+- Manter apenas o toast de erro em caso de falha
+- O feedback ao usuário será dado pelo toast individual de cada ação (se desejado) ou pela UI
 
-#### 2.2 Usar UPSERT em vez de DELETE/INSERT
-Substituir a lógica de salvamento:
-
-**Atual (problemático):**
-```typescript
-// DELETE todos + INSERT todos (não atômico)
-await supabase.from('calendar_subjects').delete().eq('user_id', user.id);
-await supabase.from('calendar_subjects').insert([...]);
-```
-
-**Novo (seguro):**
-```typescript
-// UPSERT atômico com chave única
-await supabase.from('calendar_subjects')
-  .upsert(subjects.map(...), { 
-    onConflict: 'user_id,name,day_of_week',
-    ignoreDuplicates: false
-  });
-
-// DELETE apenas itens removidos (comparando lista)
-await supabase.from('calendar_subjects')
-  .delete()
-  .eq('user_id', user.id)
-  .not('id', 'in', (retainedIds));
-```
-
-#### 2.3 Deduplicação no Cliente
-Ao adicionar matéria, verificar se já existe:
-```typescript
-const addSubject = useCallback(async (subject) => {
-  // Verificar se já existe no dia
-  const exists = subjects.some(
-    s => s.name === subject.name && s.dayOfWeek === subject.dayOfWeek
-  );
-  if (exists) {
-    toast.info('Esta matéria já está agendada para este dia');
-    return;
-  }
-  // ... continua salvamento
-}, [subjects]);
-```
-
-#### 2.4 Priorizar Dados do Servidor
-Inverter a lógica de sincronização para evitar dessincronização:
-```typescript
-// Se ambos têm dados: MESCLAR (não sobrescrever)
-// Usar timestamp de atualização mais recente
-// Ou: sempre buscar do servidor ao abrir (server-first)
-```
-
-### Fase 3: Invalidação de Cache React Query
-
-Implementar invalidação automática ao modificar dados:
-```typescript
-const queryClient = useQueryClient();
-
-// Após qualquer mutação
-queryClient.invalidateQueries({ queryKey: ['calendar-subjects'] });
-```
-
-### Fase 4: Realtime Subscription para Sincronização Multi-Aba
-
-Adicionar listener Supabase Realtime para atualizar quando dados mudam:
-```typescript
-useEffect(() => {
-  const channel = supabase
-    .channel('calendar-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'calendar_subjects',
-      filter: `user_id=eq.${user.id}`
-    }, (payload) => {
-      // Atualizar estado local
-      refetch();
-    })
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, [user.id]);
-```
-
-### Fase 5: Atualizar Documentação
-
-Atualizar `docs/calendar-data-flow.md` removendo referências a `start_time`/`end_time` e documentando nova lógica de sincronização.
+O salvamento automático está correto para garantir sincronização multi-aba e persistência. A remoção do toast elimina a notificação repetitiva.
 
 ---
 
-## Resumo Técnico de Alterações
+## Arquivos a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `src/hooks/useCalendarSync.ts` | Refatorar para UPSERT, adicionar deduplicação, implementar realtime |
-| `supabase/migrations/` | Criar migration com UNIQUE constraint + limpeza de duplicatas |
-| `src/pages/StudyGuide.tsx` | Nenhuma alteração (usa hook corretamente) |
-| `docs/calendar-data-flow.md` | Atualizar documentação |
+| `src/components/calendar/DayColumnCard.tsx` | Remover Badge duplicado (linhas 113-122) |
+| `src/hooks/useCalendarSync.ts` | Remover toasts de sucesso do salvamento |
+| `src/pages/StudyGuide.tsx` | Opcionalmente, remover toast de "Matéria adicionada" para experiência mais limpa |
 
 ---
 
-## Critérios de Sucesso
+## Resultado Esperado
 
-- Não há mais duplicatas no banco de dados
-- Arrastar mesma matéria para mesmo dia mostra toast informativo (não duplica)
-- Abrir app em duas abas mostra mesmo calendário
-- Preview Lovable e aba externa mostram dados idênticos
-- Nenhum erro no console
+- Cada card terá apenas UMA tag de categoria
+- Nenhum toast "Matérias salvas com sucesso" ao arrastar
+- Mantém toast de erro caso falhe sincronização
+- Salvamento automático permanece funcionando (para sync multi-aba)
