@@ -1182,38 +1182,40 @@ export const StudyGuide: React.FC = () => {
               </Select>
             </div>
 
-            {/* Matéria Selector */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card className="border-primary/10 shadow-md">
-                <CardContent className="pt-6 pb-4">
-                  <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2 flex-nowrap sm:flex-wrap snap-x">
-                    <Button 
-                      variant={selectedMateria === '' ? 'default' : 'outline'}
-                      onClick={() => setSelectedMateria('')}
-                      className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
-                    >
-                      <BookOpen className="h-4 w-4" />
-                      Todas as Matérias
-                    </Button>
-                    {filteredMaterias.map((materia, idx) => (
+            {/* Matéria Selector - Hidden in calendar mode */}
+            {viewMode === 'list' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Card className="border-primary/10 shadow-md">
+                  <CardContent className="pt-6 pb-4">
+                    <div className="flex gap-2 overflow-x-auto -mx-2 px-2 pb-2 flex-nowrap sm:flex-wrap snap-x">
                       <Button 
-                        key={idx}
-                        variant={selectedMateria === materia.materia ? 'default' : 'outline'}
-                        onClick={() => setSelectedMateria(materia.materia)}
+                        variant={selectedMateria === '' ? 'default' : 'outline'}
+                        onClick={() => setSelectedMateria('')}
                         className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
                       >
-                        <span className="text-base sm:text-lg">{getMateriaIcon(materia.materia)}</span>
-                        {materia.materia}
+                        <BookOpen className="h-4 w-4" />
+                        Todas as Matérias
                       </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                      {filteredMaterias.map((materia, idx) => (
+                        <Button 
+                          key={idx}
+                          variant={selectedMateria === materia.materia ? 'default' : 'outline'}
+                          onClick={() => setSelectedMateria(materia.materia)}
+                          className="gap-2 shrink-0 whitespace-nowrap snap-start text-xs sm:text-sm"
+                        >
+                          <span className="text-base sm:text-lg">{getMateriaIcon(materia.materia)}</span>
+                          {materia.materia}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
             {/* Content */}
             <AnimatePresence mode="wait">
