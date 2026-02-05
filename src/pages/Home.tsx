@@ -121,7 +121,7 @@ export const Home: React.FC = () => {
         {/* === TABLET LAYOUT (md to lg) === */}
         <div className="hidden md:block lg:hidden space-y-4 md:space-y-5">
           {/* Row 1: Hero + Announcements */}
-          <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4 md:gap-5">
+          <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-4 md:gap-5">
             <motion.div variants={itemVariants} className="min-w-0">
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
             </motion.div>

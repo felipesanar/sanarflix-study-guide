@@ -105,7 +105,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
         
         {/* Content - Fluid padding */}
         <div className="relative p-4 sm:p-6 md:p-8 lg:p-10">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5 lg:gap-8">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 sm:gap-5 xl:gap-8">
             {/* Left content */}
             <div className="flex-1 space-y-3 sm:space-y-4 md:space-y-5">
               {/* Greeting badge */}
@@ -147,7 +147,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="flex-shrink-0"
+              className="flex-shrink-0 w-full sm:w-auto"
             >
               <motion.div
                 whileHover={{ scale: 1.02, y: -1 }}
@@ -160,10 +160,10 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 <Button 
                   onClick={handleContinueStudy}
                   size="lg"
-                  className="relative group h-10 sm:h-11 md:h-12 px-4 sm:px-5 md:px-6 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs sm:text-sm md:text-base"
+                  className="relative group h-auto min-h-[2.5rem] sm:min-h-[2.75rem] md:min-h-[3rem] px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs sm:text-sm md:text-base w-full sm:w-auto"
                 >
-                  <span>Continuar estudos</span>
-                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform duration-200" />
+                  <span className="whitespace-normal sm:whitespace-nowrap">Continuar estudos</span>
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-200" />
                 </Button>
               </motion.div>
             </motion.div>
