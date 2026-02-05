@@ -1,157 +1,270 @@
 
-# Plano: Corrigir CORS em TODAS as Edge Functions
+# Plano: Corrigir Vazamento de Dados de Desempenho Não Liberado
 
-## Diagnóstico do Problema
+## Problema Identificado
 
-O SDK do Supabase envia automaticamente 4 headers de telemetria que **devem** estar na lista de `Access-Control-Allow-Headers`:
-- `x-supabase-client-platform`
-- `x-supabase-client-platform-version`
-- `x-supabase-client-runtime`
-- `x-supabase-client-runtime-version`
+O sistema de liberação de desempenho tem uma falha de segurança/consistência onde dados de simulados com desempenho **ainda não liberado** estão sendo exibidos de três formas:
 
-Se esses headers não estiverem explicitamente permitidos, o browser bloqueia a requisição antes de chegar ao servidor.
+| Local | Bug | Causa Raiz |
+|-------|-----|------------|
+| **Visão Geral** | Conta questões e porcentagem de simulados não liberados | Função RPC `get_user_performance_aggregates` não filtra por `liberacao_desempenho` quando `p_simulado_id` é NULL |
+| **Gráfico de Evolução** | Mostra barras de simulados não liberados | Função RPC `get_all_user_performance_by_area` não filtra por `liberacao_desempenho` |
+| **Dropdown inconsistente** | Ao alternar de um simulado específico, aparecem simulados não liberados | Cache do sessionStorage contém simulados não liberados de chamadas anteriores |
+
+### Simulado Afetado (exemplo encontrado)
+- **Nome**: `[CLARETIANO TESTE] 2_Simulado_2026 (1)`
+- **liberacao_desempenho**: `ao_encerrar`
+- **data_encerramento**: `NULL` (ainda não encerrado)
+- **Resultado esperado**: Desempenho NÃO deveria aparecer
 
 ---
 
-## Funções Afetadas
+## Solução Proposta
 
-| Arquivo | Status | Problema |
-|---------|--------|----------|
-| `_shared/cors.ts` | **CRÍTICO** | Headers incompletos (linha 22 e 31) |
-| `auth-login/index.ts` | **CRÍTICO** | Headers incompletos (linha 23) |
-| `update-password/index.ts` | **CRÍTICO** | Headers incompletos (linha 35) |
-| `save-calendar-arrangement/index.ts` | **CRÍTICO** | Headers incompletos (linha 5) |
-| `study-guide-proxy/index.ts` | **CRÍTICO** | Headers incompletos (linha 21) |
-| `enamed-proxy/index.ts` | **CRÍTICO** | Headers incompletos (linha 21) |
-| `get-study-contents/index.ts` | OK | Já corrigido |
-| `corrigir-simulado/index.ts` | OK | Já corrigido |
-| `b2c-signup/index.ts` | **CRÍTICO** | Usa `_shared/cors.ts` |
-| `session-security/index.ts` | **CRÍTICO** | Usa `_shared/cors.ts` |
+### Alteração 1: Função RPC `get_user_performance_aggregates`
+
+Adicionar filtro de `liberacao_desempenho` no JOIN com `simulados_admin` para excluir dados de simulados não liberados:
+
+```sql
+-- Adicionar JOIN com simulados_admin e filtro de liberação
+-- No CTE user_answers, adicionar condição que verifica:
+-- 1. liberacao_desempenho = 'imediato' OU
+-- 2. liberacao_desempenho = 'agendado' E data_liberacao_desempenho <= NOW() OU
+-- 3. liberacao_desempenho = 'ao_encerrar' E (status = 'encerrado' OU data_encerramento <= NOW())
+```
+
+**Impacto**: A Visão Geral passará a mostrar apenas dados de simulados com desempenho efetivamente liberado.
+
+---
+
+### Alteração 2: Função RPC `get_all_user_performance_by_area`
+
+Adicionar o mesmo filtro de liberação:
+
+```sql
+-- Adicionar condição WHERE que verifica:
+-- 1. liberacao_desempenho = 'imediato' OU
+-- 2. liberacao_desempenho = 'agendado' E data_liberacao_desempenho <= NOW() OU  
+-- 3. liberacao_desempenho = 'ao_encerrar' E (status = 'encerrado' OU data_encerramento <= NOW())
+```
+
+**Impacto**: O gráfico de evolução só mostrará simulados com desempenho liberado.
+
+---
+
+### Alteração 3: Limpeza de Cache no Frontend
+
+Modificar `SimuladoDesempenho.tsx` para invalidar cache quando a lista de simulados mudar (evita inconsistências no dropdown):
+
+```typescript
+// Ao detectar que simulados disponíveis mudaram,
+// limpar caches antigos que podem conter dados inconsistentes
+```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/_shared/cors.ts` | Adicionar headers do SDK nas linhas 22 e 31 |
-| `supabase/functions/auth-login/index.ts` | Adicionar headers do SDK na linha 23 |
-| `supabase/functions/update-password/index.ts` | Adicionar headers do SDK na linha 35 |
-| `supabase/functions/save-calendar-arrangement/index.ts` | Adicionar headers do SDK na linha 5 |
-| `supabase/functions/study-guide-proxy/index.ts` | Adicionar headers do SDK na linha 21 |
-| `supabase/functions/enamed-proxy/index.ts` | Adicionar headers do SDK na linha 21 |
-
----
-
-## Mudança 1: `_shared/cors.ts` (arquivo central)
-
-Este é o arquivo mais importante pois é importado por várias funções.
-
-```typescript
-// Linha 22 - Em buildCorsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-
-// Linha 31 - Em corsHeaders (export legacy)
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Mudança 2: `auth-login/index.ts`
-
-```typescript
-// Linha 23 - Em buildCorsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Mudança 3: `update-password/index.ts`
-
-```typescript
-// Linha 35 - Em buildCorsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Mudança 4: `save-calendar-arrangement/index.ts`
-
-```typescript
-// Linha 5 - Em corsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Mudança 5: `study-guide-proxy/index.ts`
-
-```typescript
-// Linha 21 - Em buildCorsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Mudança 6: `enamed-proxy/index.ts`
-
-```typescript
-// Linha 21 - Em buildCorsHeaders
-// Antes:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-
-// Depois:
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-```
-
----
-
-## Sobre o Aviso de Preload de Imagem
-
-O aviso sobre `lovable-uploads/efb6cdcc-7e6b-4bd1-acc1-0dec71e055ff.png` é um warning de otimização e não afeta a funcionalidade. Indica que uma imagem foi pré-carregada via `<link rel="preload">` mas não foi usada rapidamente. Isso é inofensivo e pode ser ignorado.
+| Arquivo | Tipo | Alteração |
+|---------|------|-----------|
+| Migração SQL (nova) | Banco | Atualizar função `get_user_performance_aggregates` |
+| Migração SQL (nova) | Banco | Atualizar função `get_all_user_performance_by_area` |
+| `src/pages/SimuladoDesempenho.tsx` | Frontend | Invalidar cache quando lista de simulados mudar |
 
 ---
 
 ## Resultado Esperado
 
-Após as correções:
-1. Login funcionará em guia anônima e normal
-2. Guia de estudos carregará corretamente
-3. Todas as Edge Functions aceitarão requisições do domínio `guiadeestudos.sanar.com.br`
-4. Funções que usam `_shared/cors.ts` serão automaticamente corrigidas
+1. **Visão Geral**: Mostrará apenas questões de simulados com desempenho liberado
+2. **Dropdown**: Exibirá apenas simulados com desempenho liberado (já funciona via `get_user_simulados`)
+3. **Gráfico de Evolução**: Mostrará apenas barras de simulados com desempenho liberado
+4. **Consistência total**: Todas as métricas, rankings e agregações respeitarão a configuração de liberação
 
 ---
 
 ## Seção Técnica
 
-O header completo que deve ser usado em TODAS as funções:
+### Nova lógica de filtro (reutilizada em ambas as funções)
 
-```typescript
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version'
+```sql
+JOIN simulados_admin sa ON ap.simulado = sa.id
+WHERE ...
+  AND (
+    sa.liberacao_desempenho = 'imediato'
+    OR (sa.liberacao_desempenho = 'agendado' 
+        AND sa.data_liberacao_desempenho IS NOT NULL 
+        AND sa.data_liberacao_desempenho <= NOW())
+    OR (sa.liberacao_desempenho = 'ao_encerrar' 
+        AND (sa.status = 'encerrado' 
+             OR (sa.data_encerramento IS NOT NULL 
+                 AND sa.data_encerramento <= NOW())))
+  )
 ```
 
-Esses headers são enviados automaticamente pelo SDK `@supabase/supabase-js` quando o cliente chama `supabase.functions.invoke()` ou faz outras requisições autenticadas. A ausência deles nos CORS headers causa a rejeição da requisição preflight (OPTIONS).
+### get_user_performance_aggregates - Versão Corrigida
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_performance_aggregates(p_simulado_id uuid DEFAULT NULL)
+RETURNS json
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  result json;
+BEGIN
+  WITH user_answers AS (
+    SELECT 
+      ap.question_id,
+      ap.correct,
+      q.grande_area as area_name,
+      q.especialidade as specialty_name,
+      q.tema as subspecialty_name,
+      CASE 
+        WHEN LOWER(TRIM(q.grau_dificuldade)) IN ('fácil', 'facil') THEN 'Fácil'
+        WHEN LOWER(TRIM(q.grau_dificuldade)) IN ('médio', 'medio', 'moderado', 'fácil/médio') THEN 'Médio'
+        WHEN LOWER(TRIM(q.grau_dificuldade)) IN ('difícil', 'dificil') THEN 'Difícil'
+        ELSE COALESCE(TRIM(q.grau_dificuldade), 'Médio')
+      END as difficulty
+    FROM answer_progress ap
+    JOIN questoes_simulado q ON ap.question_id = q.id
+    JOIN simulados_admin sa ON ap.simulado = sa.id
+    WHERE ap.user_id = auth.uid()
+      AND (p_simulado_id IS NULL OR ap.simulado = p_simulado_id)
+      -- NOVO: Filtro de liberação de desempenho
+      AND (
+        sa.liberacao_desempenho = 'imediato'
+        OR (sa.liberacao_desempenho = 'agendado' 
+            AND sa.data_liberacao_desempenho IS NOT NULL 
+            AND sa.data_liberacao_desempenho <= NOW())
+        OR (sa.liberacao_desempenho = 'ao_encerrar' 
+            AND (sa.status = 'encerrado' 
+                 OR (sa.data_encerramento IS NOT NULL 
+                     AND sa.data_encerramento <= NOW())))
+      )
+  )
+  SELECT json_build_object(
+    'overallStats', (
+      SELECT json_build_object(
+        'total', COUNT(*),
+        'acertos', COUNT(*) FILTER (WHERE correct = true)
+      )
+      FROM user_answers
+    ),
+    'byArea', (
+      SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+      FROM (
+        SELECT 
+          area_name as name,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE correct = true) as acertos
+        FROM user_answers
+        WHERE area_name IS NOT NULL
+        GROUP BY area_name
+        ORDER BY area_name
+      ) t
+    ),
+    'bySpecialty', (
+      SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+      FROM (
+        SELECT 
+          specialty_name as name,
+          area_name,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE correct = true) as acertos
+        FROM user_answers
+        WHERE specialty_name IS NOT NULL
+        GROUP BY specialty_name, area_name
+        ORDER BY specialty_name
+      ) t
+    ),
+    'bySubspecialty', (
+      SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+      FROM (
+        SELECT 
+          subspecialty_name as name,
+          specialty_name,
+          area_name,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE correct = true) as acertos
+        FROM user_answers
+        WHERE subspecialty_name IS NOT NULL
+        GROUP BY subspecialty_name, specialty_name, area_name
+        ORDER BY subspecialty_name
+      ) t
+    ),
+    'byDifficulty', (
+      SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+      FROM (
+        SELECT 
+          difficulty as name,
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE correct = true) as acertos
+        FROM user_answers
+        WHERE difficulty IS NOT NULL
+        GROUP BY difficulty
+        ORDER BY 
+          CASE difficulty 
+            WHEN 'Fácil' THEN 1 
+            WHEN 'Médio' THEN 2 
+            WHEN 'Difícil' THEN 3 
+            ELSE 4 
+          END
+      ) t
+    )
+  ) INTO result;
+  
+  RETURN result;
+END;
+$$;
+```
+
+### get_all_user_performance_by_area - Versão Corrigida
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_all_user_performance_by_area()
+RETURNS TABLE (
+  simulado_id uuid,
+  simulado_nome text,
+  area_name text,
+  total bigint,
+  acertos bigint
+)
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    ap.simulado as simulado_id,
+    sa.nome as simulado_nome,
+    q."grande_area" as area_name,
+    COUNT(*) as total,
+    COUNT(*) FILTER (WHERE ap.correct = true) as acertos
+  FROM answer_progress ap
+  JOIN questoes_simulado q ON ap.question_id = q."id"
+  JOIN simulados_admin sa ON ap.simulado = sa.id
+  WHERE ap.user_id = auth.uid()
+    AND q."grande_area" IS NOT NULL
+    -- NOVO: Filtro de liberação de desempenho
+    AND (
+      sa.liberacao_desempenho = 'imediato'
+      OR (sa.liberacao_desempenho = 'agendado' 
+          AND sa.data_liberacao_desempenho IS NOT NULL 
+          AND sa.data_liberacao_desempenho <= NOW())
+      OR (sa.liberacao_desempenho = 'ao_encerrar' 
+          AND (sa.status = 'encerrado' 
+               OR (sa.data_encerramento IS NOT NULL 
+                   AND sa.data_encerramento <= NOW())))
+    )
+  GROUP BY ap.simulado, sa.nome, q."grande_area"
+  ORDER BY ap.simulado, q."grande_area";
+END;
+$$;
+```
+
+### Limpeza de Cache no Frontend
+
+```typescript
+// Em SimuladoDesempenho.tsx, adicionar lógica para:
+// 1. Comparar lista atual de simulados com versão anterior
+// 2. Se houver diferença, limpar caches de performance antigos
+// 3. Isso evita que dados em cache de simulados agora filtrados persistam
+```
