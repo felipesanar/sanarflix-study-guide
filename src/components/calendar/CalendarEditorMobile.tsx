@@ -67,7 +67,6 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   const selectedDayEvents = eventsByDay[selectedDay] || [];
 
   const handleAddFromDrawer = (subjectName: string) => {
-    console.log('[StudyCalendarEditor] Mobile add:', subjectName, 'to day', selectedDay);
     onAddEvent(subjectName, selectedDay);
   };
 
@@ -124,6 +123,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
           variant="ghost"
           size="icon"
           onClick={onClose}
+          aria-label="Fechar editor"
           className={cn(
             "h-10 w-10 text-zinc-500 rounded-full",
             variant === 'dark' ? "hover:bg-white/10 hover:text-white" : "hover:bg-black/5 hover:text-black"
@@ -148,6 +148,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Mais opções"
           className={cn(
             "h-10 w-10 text-zinc-500 rounded-full",
             variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
@@ -331,6 +332,11 @@ const MobileEventCard: React.FC<MobileEventCardProps> = ({
           variant="ghost"
           size="icon"
           className="h-8 w-8 opacity-60 flex-shrink-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(event.id);
+          }}
+          aria-label="Remover matéria do dia"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

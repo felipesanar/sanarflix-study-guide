@@ -71,7 +71,7 @@ export const TodayStudyCard: React.FC<TodayStudyCardProps> = ({
       >
         <Card className={cn(
           "relative overflow-hidden transition-all duration-300",
-          "border-border/40 dark:border-white/5",
+          "border-black/5 dark:border-white/10",
           "shadow-lg hover:shadow-xl",
           "bg-gradient-to-br from-card via-card to-card/80",
           className

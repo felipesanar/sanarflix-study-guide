@@ -75,9 +75,9 @@ export const SubjectChips: React.FC<SubjectChipsProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full bg-card shadow-md border border-border/50"
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full bg-card shadow-md border border-border/50"
           onClick={() => scrollTo('left')}
-          aria-label="Scroll left"
+          aria-label="Rolar chips para a esquerda"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
@@ -97,7 +97,7 @@ export const SubjectChips: React.FC<SubjectChipsProps> = ({
         <button
           onClick={() => onSelectSubject('')}
           className={cn(
-            "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 rounded-xl",
+            "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
             "text-sm font-medium transition-all duration-200",
             "border shadow-sm",
             selectedSubject === ''
@@ -119,7 +119,7 @@ export const SubjectChips: React.FC<SubjectChipsProps> = ({
             transition={{ delay: idx * 0.05 }}
             onClick={() => onSelectSubject(subject.name)}
             className={cn(
-              "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 rounded-xl",
+              "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
               "text-sm font-medium transition-all duration-200",
               "border shadow-sm",
               selectedSubject === subject.name
@@ -154,9 +154,9 @@ export const SubjectChips: React.FC<SubjectChipsProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-full bg-card shadow-md border border-border/50"
+          className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full bg-card shadow-md border border-border/50"
           onClick={() => scrollTo('right')}
-          aria-label="Scroll right"
+          aria-label="Rolar chips para a direita"
         >
           <ChevronRight className="h-4 w-4" />
         </Button>

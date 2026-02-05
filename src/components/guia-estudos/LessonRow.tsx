@@ -52,7 +52,7 @@ export const LessonRow = forwardRef<HTMLDivElement, LessonRowProps>(({
         {/* Checkbox */}
         <button
           onClick={onToggleComplete}
-          className="shrink-0 mt-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+          className="shrink-0 mt-0.5 min-h-[44px] min-w-[44px] flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
           aria-label={isCompleted ? "Marcar como pendente" : "Marcar como concluído"}
         >
           <motion.div

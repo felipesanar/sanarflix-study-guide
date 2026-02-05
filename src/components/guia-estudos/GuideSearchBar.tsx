@@ -31,8 +31,17 @@ export const GuideSearchBar: React.FC<GuideSearchBarProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listboxRef = useRef<HTMLUListElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Build flat list of options for keyboard nav: lastSearch (when !value) or suggestions
+  const options = (() => {
+    if (lastSearch && !value) return [{ text: lastSearch, type: 'recent' as const }];
+    return suggestions.slice(0, 6).map((s) => ({ text: s.text, type: s.type }));
+  })();
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -45,20 +54,49 @@ export const GuideSearchBar: React.FC<GuideSearchBarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Show dropdown when focused and has suggestions
+  // Show dropdown when focused and has suggestions; reset highlight
   useEffect(() => {
     if (isFocused && (suggestions.length > 0 || lastSearch)) {
       setShowDropdown(true);
+      setHighlightedIndex(0);
     }
   }, [isFocused, suggestions, lastSearch]);
+
+  // Keep highlighted index in range and scroll into view
+  useEffect(() => {
+    const len = options.length;
+    if (len === 0) return;
+    const idx = Math.max(0, Math.min(highlightedIndex, len - 1));
+    if (idx !== highlightedIndex) setHighlightedIndex(idx);
+    optionRefs.current[idx]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [highlightedIndex, options.length]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setShowDropdown(false);
       inputRef.current?.blur();
+      return;
     }
-    if (e.key === 'Enter' && value.trim()) {
-      setShowDropdown(false);
+    if (!showDropdown || options.length === 0) {
+      if (e.key === 'Enter' && value.trim()) setShowDropdown(false);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % options.length);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i - 1 + options.length) % options.length);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const selected = options[highlightedIndex];
+      if (selected) {
+        handleSuggestionClick(selected.text);
+      }
     }
   };
 
@@ -156,59 +194,45 @@ export const GuideSearchBar: React.FC<GuideSearchBarProps> = ({
               </div>
             )}
 
-            <ul className="py-1 max-h-64 overflow-y-auto" role="listbox">
-              {/* Last search item */}
-              {lastSearch && !value && (
-                <li>
+            <ul ref={listboxRef} className="py-1 max-h-64 overflow-y-auto" role="listbox" aria-label="Sugestões de busca">
+              {options.map((option, idx) => (
+                <li key={`${option.text}-${idx}`} role="option" aria-selected={idx === highlightedIndex}>
                   <button
+                    ref={(el) => { optionRefs.current[idx] = el; }}
                     type="button"
-                    className="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-colors flex items-center gap-3 group"
+                    className={cn(
+                      "w-full text-left px-4 py-2.5 transition-colors flex items-center gap-3 group",
+                      idx === highlightedIndex ? "bg-primary/10 text-foreground" : "hover:bg-primary/5"
+                    )}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSuggestionClick(lastSearch)}
+                    onClick={() => handleSuggestionClick(option.text)}
                   >
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 text-sm truncate">{lastSearch}</span>
-                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                </li>
-              )}
-              
-              {/* Suggestions */}
-              {suggestions.slice(0, 6).map((suggestion, idx) => (
-                <li key={`${suggestion.text}-${idx}`}>
-                  <button
-                    type="button"
-                    className="w-full text-left px-4 py-2.5 hover:bg-primary/5 transition-colors flex items-center gap-3 group"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSuggestionClick(suggestion.text)}
-                  >
-                    {suggestion.type === 'recent' ? (
+                    {option.type === 'recent' ? (
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Search className="h-4 w-4 text-muted-foreground" />
                     )}
                     <span className="flex-1 text-sm truncate">
-                      {/* Highlight matching text */}
-                      {value && suggestion.text.toLowerCase().includes(value.toLowerCase()) ? (
+                      {value && option.text.toLowerCase().includes(value.toLowerCase()) ? (
                         <>
-                          {suggestion.text.substring(0, suggestion.text.toLowerCase().indexOf(value.toLowerCase()))}
+                          {option.text.substring(0, option.text.toLowerCase().indexOf(value.toLowerCase()))}
                           <span className="font-semibold text-primary">
-                            {suggestion.text.substring(
-                              suggestion.text.toLowerCase().indexOf(value.toLowerCase()),
-                              suggestion.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
+                            {option.text.substring(
+                              option.text.toLowerCase().indexOf(value.toLowerCase()),
+                              option.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
                             )}
                           </span>
-                          {suggestion.text.substring(
-                            suggestion.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
+                          {option.text.substring(
+                            option.text.toLowerCase().indexOf(value.toLowerCase()) + value.length
                           )}
                         </>
                       ) : (
-                        suggestion.text
+                        option.text
                       )}
                     </span>
-                    {getTypeLabel(suggestion.type) && (
+                    {getTypeLabel(option.type) && (
                       <span className="text-[10px] font-medium text-muted-foreground/70 uppercase">
-                        {getTypeLabel(suggestion.type)}
+                        {getTypeLabel(option.type)}
                       </span>
                     )}
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />

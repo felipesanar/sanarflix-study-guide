@@ -40,6 +40,8 @@ export const DropZone: React.FC<DropZoneProps> = ({
         onClick={onAddClick}
       >
         <motion.button
+          type="button"
+          aria-label="Adicionar matéria ao dia"
           className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
             variant === 'dark'

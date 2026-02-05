@@ -95,7 +95,6 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
   const handleDrop = (e: React.DragEvent, day: number) => {
     e.preventDefault();
     if (draggedItem) {
-      console.log('[StudyCalendarEditor] Drop:', draggedItem, 'on day', day);
       onAddEvent(draggedItem, day);
     }
     setDraggedItem(null);
@@ -161,6 +160,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
+                aria-label="Voltar ao calendário"
                 className={cn(
                   "gap-2",
                   variant === 'dark' ? "hover:bg-muted" : "hover:bg-muted/50"
@@ -190,6 +190,7 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
               size="sm"
               onClick={onSave}
               disabled={isSaving}
+              aria-label="Salvar alterações do calendário"
               className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-5"
             >
               <Save className="h-4 w-4" />

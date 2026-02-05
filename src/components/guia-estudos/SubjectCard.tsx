@@ -66,7 +66,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
     >
       <Card className={cn(
         "overflow-hidden transition-all duration-300",
-        "border-border/40 dark:border-white/5",
+        "border-black/5 dark:border-white/10",
         "shadow-lg hover:shadow-xl",
         isCompleted && "border-green-500/30 dark:border-green-500/20",
         className
@@ -160,7 +160,7 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
                   value={`tema-${tIdx}`}
                   className={cn(
                     "border rounded-xl px-4 transition-all duration-300",
-                    "border-border/40 dark:border-white/5",
+                    "border-black/5 dark:border-white/10",
                     tema.isCompleted 
                       ? "border-green-500/30 bg-green-50/50 dark:bg-green-950/10" 
                       : "hover:border-primary/20",

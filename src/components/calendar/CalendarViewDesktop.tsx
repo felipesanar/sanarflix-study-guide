@@ -28,8 +28,6 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
   const today = new Date().getDay();
   const isDark = variant === 'dark';
 
-  console.log('[StudyCalendarView] render desktop', { eventsCount: events.length, variant });
-
   return (
     <Card className={cn(
       "shadow-2xl transition-all duration-300 overflow-hidden border-0",
@@ -74,6 +72,7 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
             variant="outline" 
             size="sm"
             onClick={onEdit}
+            aria-label="Editar calendário"
             className={cn(
               "gap-2 font-medium transition-all shadow-lg h-9 px-4 rounded-full",
               isDark 

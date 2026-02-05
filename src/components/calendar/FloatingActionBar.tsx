@@ -74,6 +74,7 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
           size="sm"
           onClick={onUndo}
           disabled={!canUndo}
+          aria-label="Desfazer última alteração"
           className={cn(
             "gap-2 rounded-full px-4",
             variant === 'dark' ? "hover:bg-muted" : "hover:bg-muted/50"
@@ -94,6 +95,7 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
           variant="ghost"
           size="sm"
           onClick={onReset}
+          aria-label="Resetar semana"
           className={cn(
             "gap-2 rounded-full px-4",
             variant === 'dark' ? "hover:bg-muted" : "hover:bg-muted/50"
@@ -157,6 +159,7 @@ export const MobileFooterActions: React.FC<MobileFooterActionsProps> = ({
           size="lg"
           onClick={onUndo}
           disabled={!canUndo}
+          aria-label="Desfazer última alteração"
           className={cn(
             "flex-1 gap-2 rounded-xl h-12",
             variant === 'dark' 
@@ -171,6 +174,7 @@ export const MobileFooterActions: React.FC<MobileFooterActionsProps> = ({
           size="lg"
           onClick={onSave}
           disabled={isSaving}
+          aria-label="Salvar alterações do calendário"
           className="flex-1 gap-2 rounded-xl h-12 bg-primary hover:bg-primary/90"
         >
           {isSaving ? (

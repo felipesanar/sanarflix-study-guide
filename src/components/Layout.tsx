@@ -54,10 +54,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <OfflineIndicator />
       <SidebarProvider>
         {!isModoProva && <AppSidebar />}
-        <SidebarInset className="flex-1 flex flex-col min-h-screen w-full transition-all duration-300">
-        {/* Header with trigger, profile and theme toggle */}
+        <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
+        {/* Header with trigger, profile and theme toggle — z-30 para ficar abaixo da sidebar (z-40) */}
         {!isModoProva && (
-        <header className="sticky top-0 z-50 h-14 bg-transparent dark:bg-black/20 md:bg-white/10 md:backdrop-blur-md dark:backdrop-blur-md md:dark:backdrop-blur-none md:dark:bg-transparent border-none md:border md:border-white/20 dark:border-white/10 md:dark:border-none flex items-center px-4 w-full">
+        <header className="sticky top-0 z-30 h-14 bg-transparent dark:bg-black/20 md:bg-white/10 md:backdrop-blur-md dark:backdrop-blur-md md:dark:backdrop-blur-none md:dark:bg-transparent border-none md:border md:border-white/20 dark:border-white/10 md:dark:border-none flex items-center px-4 w-full shrink-0">
             {/* Desktop - Menu Trigger */}
             {!isModoProva && (
               <div className="hidden md:flex items-center gap-2">
@@ -108,8 +108,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </header>
         )}
 
-          {/* Main content area */}
-          <main className="flex-1 overflow-auto pb-20 md:pb-0">
+          {/* Main content area — min-w-0 crítico para flex encolher e evitar scroll horizontal */}
+          <main className="flex-1 min-w-0 overflow-auto overflow-x-clip pb-20 md:pb-0">
             {children}
           </main>
 

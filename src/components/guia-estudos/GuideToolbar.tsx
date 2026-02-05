@@ -44,6 +44,7 @@ export const GuideToolbar: React.FC<GuideToolbarProps> = ({
         
         <Select value={selectedSemestre} onValueChange={onSemestreChange}>
           <SelectTrigger 
+            aria-label="Selecione o semestre"
             className={cn(
               "w-full sm:w-52 h-10 rounded-xl",
               "bg-card/80 backdrop-blur-sm border-border/50",
@@ -82,6 +83,7 @@ export const GuideToolbar: React.FC<GuideToolbarProps> = ({
               : "text-muted-foreground hover:text-foreground"
           )}
           aria-pressed={viewMode === 'list'}
+          aria-label="Ver como lista"
         >
           {viewMode === 'list' && (
             <motion.div
@@ -104,6 +106,7 @@ export const GuideToolbar: React.FC<GuideToolbarProps> = ({
               : "text-muted-foreground hover:text-foreground"
           )}
           aria-pressed={viewMode === 'calendar'}
+          aria-label="Ver como calendário"
         >
           {viewMode === 'calendar' && (
             <motion.div

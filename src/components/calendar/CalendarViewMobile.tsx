@@ -37,8 +37,6 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
   const startOfWeek = new Date(currentDate);
   startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
 
-  console.log('[StudyCalendarView] render mobile', { eventsCount: events.length, selectedDay, variant });
-
   return (
     <Card className={cn(
       "shadow-lg overflow-hidden transition-all",
@@ -78,6 +76,7 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
             variant="outline"
             size="sm"
             onClick={onEdit}
+            aria-label="Editar calendário"
             className={cn(
               "gap-1.5 h-8 text-xs font-medium",
               isDark

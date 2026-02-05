@@ -67,6 +67,7 @@ export const DayColumnCard: React.FC<DayColumnCardProps> = ({
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Remover matéria do dia"
             className="h-6 w-6 -mr-1 -mt-1 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10 hover:text-red-500 rounded-full"
             onClick={(e) => {
               e.stopPropagation();
