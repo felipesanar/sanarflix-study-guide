@@ -149,9 +149,12 @@ export const useSimuladoStorage = (simuladoId: string) => {
     const estado = carregarEstado();
     if (!estado) return;
 
+    const novoValor = (estado.saidas_de_fullscreen || 0) + 1;
+    console.log(`[Storage] Registrando saída de fullscreen #${novoValor}`);
+
     salvarEstado({
       ...estado,
-      saidas_de_fullscreen: (estado.saidas_de_fullscreen || 0) + 1
+      saidas_de_fullscreen: novoValor
     });
   }, [carregarEstado, salvarEstado]);
 

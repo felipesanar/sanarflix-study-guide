@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 
 interface UseFocusControlProps {
   onSaidaAba: () => void;
@@ -14,34 +14,45 @@ export const useFocusControl = ({
   const [foraDeAba, setForaDeAba] = useState(false);
   const [foraDeTelaCheia, setForaDeTelaCheia] = useState(false);
   const [podeInteragir, setPodeInteragir] = useState(true);
+  
+  // Ref para tracking real-time do estado fullscreen (evita stale closure)
+  const wasInFullscreenRef = useRef(false);
+
+  // Sincroniza ref com estado atual do fullscreen na montagem
+  useEffect(() => {
+    wasInFullscreenRef.current = !!document.fullscreenElement;
+  }, []);
 
   const handleVisibilityChange = useCallback(() => {
     if (document.hidden) {
       setForaDeAba(true);
       onSaidaAba();
-      setPodeInteragir(false); // Bloqueia interação quando sai da aba
+      setPodeInteragir(false);
     } else {
       setForaDeAba(false);
       onRetornoAba();
-      // Ao retornar à aba, permite interação apenas se estiver em fullscreen
       setPodeInteragir(!!document.fullscreenElement);
     }
   }, [onSaidaAba, onRetornoAba]);
 
   const handleFullscreenChange = useCallback(() => {
     const isFullscreen = !!document.fullscreenElement;
-    const wasInFullscreen = !foraDeTelaCheia;
+    const wasInFullscreen = wasInFullscreenRef.current;
+    
+    // Atualiza ref ANTES de qualquer callback
+    wasInFullscreenRef.current = isFullscreen;
     
     setForaDeTelaCheia(!isFullscreen);
     
-    // Registra saída do fullscreen (apenas quando sai, não quando entra)
+    // Detecta saída: estava em fullscreen e agora não está
     if (wasInFullscreen && !isFullscreen && onSaidaFullscreen) {
+      console.log('[FocusControl] Saída de fullscreen detectada');
       onSaidaFullscreen();
     }
     
     // Bloqueia interação fora do fullscreen, permite dentro
     setPodeInteragir(isFullscreen && !document.hidden);
-  }, [foraDeTelaCheia, onSaidaFullscreen]);
+  }, [onSaidaFullscreen]); // Removido foraDeTelaCheia das deps
 
   const entrarTelaCheia = useCallback(async () => {
     try {
@@ -63,12 +74,23 @@ export const useFocusControl = ({
   }, []);
 
   useEffect(() => {
+    // Suporte cross-browser para eventos de fullscreen
+    const fullscreenEvents = [
+      'fullscreenchange',
+      'webkitfullscreenchange', // Safari
+      'mozfullscreenchange'     // Firefox antigo
+    ];
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    fullscreenEvents.forEach(event => {
+      document.addEventListener(event, handleFullscreenChange);
+    });
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      fullscreenEvents.forEach(event => {
+        document.removeEventListener(event, handleFullscreenChange);
+      });
     };
   }, [handleVisibilityChange, handleFullscreenChange]);
 
