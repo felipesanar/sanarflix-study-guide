@@ -19,16 +19,6 @@ type ErrorCode =
 // B2B internal IES - users from this IES get admin role automatically
 const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
 
-// Generate temporary password for new users
-function generateTempPassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `Sanar@${result}`;
-}
-
 // Input validation schema
 const createUserSchema = z.object({
   nome: z.string()
@@ -266,35 +256,47 @@ Deno.serve(async (req) => {
 
     } else {
       // ========== CREATE FLOW ==========
-      console.log(`[Create] User ${email} does not exist, creating with temporary password...`);
+      console.log(`[Create] User ${email} does not exist, creating via invite...`);
       
-      // Generate temporary password
-      const tempPassword = generateTempPassword();
+      const redirectUrl = Deno.env.get("INVITE_REDIRECT_URL") ?? 
+        "https://sanarflix-study-guide.lovable.app/auth/update-password";
 
-      // Create user with temporary password (bypasses email hook issues)
-      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      // Create user via invite (sends email automatically)
+      const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
         email,
-        password: tempPassword,
-        email_confirm: true,
-        user_metadata: userMetadata
-      });
+        {
+          data: userMetadata,
+          redirectTo: redirectUrl
+        }
+      );
 
-      if (createErr) {
-        console.error('[Auth] Failed to create user:', createErr);
+      if (inviteErr) {
+        console.error('[Auth] Failed to invite user:', inviteErr);
         
-        if (createErr.message?.includes('rate limit')) {
+        // Check for specific error types
+        if (inviteErr.message?.includes('rate limit')) {
           return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
         }
         
-        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', createErr.message);
+        // If hook authorization fails, it's likely a configuration issue
+        if (inviteErr.message?.includes('Hook requires authorization')) {
+          console.error('[Auth] Hook authorization error - check SEND_EMAIL_HOOK_SECRET in Supabase Dashboard');
+          return errorResponse(
+            'AUTH_CREATE_FAILED', 
+            'Erro de configuração do hook de email. Verifique as configurações do Auth Hook no Supabase Dashboard.',
+            'O secret do hook pode estar incorreto ou expirado.'
+          );
+        }
+        
+        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', inviteErr.message);
       }
 
-      if (!createData?.user) {
-        console.error('[Auth] Create succeeded but no user returned');
+      if (!inviteData?.user) {
+        console.error('[Auth] Invite succeeded but no user returned');
         return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário: resposta inesperada');
       }
 
-      const userId = createData.user.id;
+      const userId = inviteData.user.id;
       console.log(`[Auth] User created in auth.users with ID: ${userId}`);
 
       // Sync to public.users
@@ -334,18 +336,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`[Success] User ${email} created with temporary password`);
+      console.log(`[Success] User ${email} created and invited`);
       
-      return new Response(
-        JSON.stringify({
-          success: true,
-          action: 'created',
-          userId,
-          email,
-          temporaryPassword: tempPassword,
-          message: 'Usuário criado com senha temporária. Envie a senha ao usuário.'
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return successResponse(
+        'created', 
+        userId, 
+        email, 
+        'Usuário criado e email de convite enviado',
+        { emailSent: true }
       );
     }
 
