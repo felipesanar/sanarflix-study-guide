@@ -307,6 +307,31 @@ export const SimuladoDesempenho: React.FC = () => {
     finally { setLoading(false); }
   };
 
+  // Invalidar caches quando a lista de simulados mudar (evita inconsistências com simulados não liberados)
+  useEffect(() => {
+    if (!user || simulados.length === 0) return;
+    
+    const SIMULADOS_LIST_KEY = `simuladosList_${user.id}`;
+    const cachedSimuladosList = sessionStorage.getItem(SIMULADOS_LIST_KEY);
+    const currentSimuladosIds = simulados.map(s => s.id).sort().join(',');
+    
+    if (cachedSimuladosList && cachedSimuladosList !== currentSimuladosIds) {
+      // A lista de simulados disponíveis mudou - limpar caches antigos
+      console.log('[Cache] Lista de simulados mudou, invalidando caches de performance...');
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.startsWith(`performanceData_${user.id}`) || key.startsWith(`evolutionData_${user.id}`))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+    }
+    
+    // Atualizar a lista de simulados no cache
+    sessionStorage.setItem(SIMULADOS_LIST_KEY, currentSimuladosIds);
+  }, [user, simulados]);
+
   useEffect(() => { if (user) { fetchDataForView(selectedSimulado); } }, [user, selectedSimulado]);
 
   useEffect(() => {
