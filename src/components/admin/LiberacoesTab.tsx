@@ -18,6 +18,7 @@ interface SimuladoFinalizado {
   finalizado_em: string;
   tempo_total_segundos: number;
   saidas_de_aba: number;
+  saidas_de_fullscreen: number;
   liberado_novamente: boolean;
   liberado_em: string | null;
   liberado_por: string | null;
@@ -209,11 +210,21 @@ export default function LiberacoesTab() {
                       </TableCell>
                       <TableCell>{formatTempo(f.tempo_total_segundos)}</TableCell>
                       <TableCell>
-                        {f.saidas_de_aba > 0 ? (
-                          <Badge variant="destructive">{f.saidas_de_aba}</Badge>
-                        ) : (
-                          <Badge variant="secondary">0</Badge>
-                        )}
+                        {(() => {
+                          const totalSaidas = f.saidas_de_aba + (f.saidas_de_fullscreen || 0);
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={totalSaidas > 0 ? 'destructive' : 'secondary'}>
+                                {totalSaidas} total
+                              </Badge>
+                              {(f.saidas_de_aba > 0 || f.saidas_de_fullscreen > 0) && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {f.saidas_de_aba} aba / {f.saidas_de_fullscreen || 0} tela
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {f.liberado_novamente ? (
