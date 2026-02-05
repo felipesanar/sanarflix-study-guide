@@ -64,3 +64,6 @@ verify_jwt = false
 
 [functions.get-vapid-key]
 verify_jwt = false
+
+[functions.corrigir-simulado]
+verify_jwt = false
