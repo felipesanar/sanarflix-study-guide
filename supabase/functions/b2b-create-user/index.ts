@@ -19,6 +19,16 @@ type ErrorCode =
 // B2B internal IES - users from this IES get admin role automatically
 const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
 
+// Generate temporary password for new users
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `Sanar@${result}`;
+}
+
 // Input validation schema
 const createUserSchema = z.object({
   nome: z.string()
@@ -256,37 +266,35 @@ Deno.serve(async (req) => {
 
     } else {
       // ========== CREATE FLOW ==========
-      console.log(`[Create] User ${email} does not exist, creating via invite...`);
+      console.log(`[Create] User ${email} does not exist, creating with temporary password...`);
       
-      const redirectUrl = Deno.env.get("INVITE_REDIRECT_URL") ?? 
-        "https://sanarflix-study-guide.lovable.app/auth/update-password";
+      // Generate temporary password
+      const tempPassword = generateTempPassword();
 
-      // Create user via invite (sends email automatically)
-      const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      // Create user with temporary password (bypasses email hook issues)
+      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email,
-        {
-          data: userMetadata,
-          redirectTo: redirectUrl
-        }
-      );
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: userMetadata
+      });
 
-      if (inviteErr) {
-        console.error('[Auth] Failed to invite user:', inviteErr);
+      if (createErr) {
+        console.error('[Auth] Failed to create user:', createErr);
         
-        // Check for specific error types
-        if (inviteErr.message?.includes('rate limit')) {
+        if (createErr.message?.includes('rate limit')) {
           return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
         }
         
-        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', inviteErr.message);
+        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', createErr.message);
       }
 
-      if (!inviteData?.user) {
-        console.error('[Auth] Invite succeeded but no user returned');
+      if (!createData?.user) {
+        console.error('[Auth] Create succeeded but no user returned');
         return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário: resposta inesperada');
       }
 
-      const userId = inviteData.user.id;
+      const userId = createData.user.id;
       console.log(`[Auth] User created in auth.users with ID: ${userId}`);
 
       // Sync to public.users
@@ -326,14 +334,18 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`[Success] User ${email} created and invited`);
+      console.log(`[Success] User ${email} created with temporary password`);
       
-      return successResponse(
-        'created', 
-        userId, 
-        email, 
-        'Usuário criado e email de convite enviado',
-        { emailSent: true }
+      return new Response(
+        JSON.stringify({
+          success: true,
+          action: 'created',
+          userId,
+          email,
+          temporaryPassword: tempPassword,
+          message: 'Usuário criado com senha temporária. Envie a senha ao usuário.'
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
