@@ -278,13 +278,14 @@ Deno.serve(async (req) => {
           return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
         }
         
-        // If hook authorization fails, it's likely a configuration issue
+        // If hook authorization fails, it's usually a hook/provider configuration issue
+        // (e.g. SEND_EMAIL_HOOK_SECRET mismatch OR Resend still in test mode / domain not verified)
         if (inviteErr.message?.includes('Hook requires authorization')) {
-          console.error('[Auth] Hook authorization error - check SEND_EMAIL_HOOK_SECRET in Supabase Dashboard');
+          console.error('[Auth] Hook error while inviting user - check email hook + provider configuration');
           return errorResponse(
-            'AUTH_CREATE_FAILED', 
-            'Erro de configuração do hook de email. Verifique as configurações do Auth Hook no Supabase Dashboard.',
-            'O secret do hook pode estar incorreto ou expirado.'
+            'AUTH_CREATE_FAILED',
+            'Falha ao enviar email de convite (Auth Hook).',
+            'Verifique: (1) Authentication > Hooks (token/secret) no Supabase; (2) RESEND domínio verificado e remetente (RESEND_FROM). Veja os logs da função custom-email-templates.'
           );
         }
         
