@@ -115,13 +115,20 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <CardTitle className="text-xl mb-2">{simulado.titulo}</CardTitle>
-            <CardDescription className="line-clamp-2">{simulado.descricao}</CardDescription>
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="flex-1 min-w-0 order-2 sm:order-1">
+            <CardTitle className="text-base sm:text-xl mb-1 sm:mb-2 break-words leading-tight">
+              {simulado.titulo}
+            </CardTitle>
+            <CardDescription className="line-clamp-2 text-xs sm:text-sm">
+              {simulado.descricao}
+            </CardDescription>
           </div>
-          <Badge variant="outline" className={cn('border', config.color)}>
+          <Badge 
+            variant="outline" 
+            className={cn('border shrink-0 text-xs order-1 sm:order-2 self-start', config.color)}
+          >
             <Icon className="h-3 w-3 mr-1" />
             {simulado.status === 'disponivel' ? 'Disponível' : 
              simulado.status === 'em_andamento' ? 'Em andamento' : 
@@ -130,25 +137,25 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
+      <CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
+        <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span>{simulado.duracao_minutos} min</span>
           </div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span>{simulado.numero_questoes} questões</span>
           </div>
         </div>
 
         {simulado.tema && (
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="text-xs">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            <Badge variant="secondary" className="text-[10px] sm:text-xs">
               {simulado.tema}
             </Badge>
             {simulado.professor && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-[10px] sm:text-xs">
                 {simulado.professor}
               </Badge>
             )}
@@ -156,15 +163,15 @@ export const SimuladoCard = ({ simulado, onIniciar, onContinuar, onVerDesempenho
         )}
       </CardContent>
 
-      <CardFooter>
+      <CardFooter className="p-4 pt-0 sm:p-6 sm:pt-0">
         <Button
-          className={cn("w-full group-hover:shadow-md transition-shadow", config.buttonClassName)}
+          className={cn("w-full group-hover:shadow-md transition-shadow text-sm", config.buttonClassName)}
           variant={config.buttonVariant}
           onClick={() => config.action(simulado.id)}
           disabled={config.disabled}
         >
-          <Icon className="h-4 w-4 mr-2" />
-          {config.buttonText}
+          <Icon className="h-4 w-4 mr-2 shrink-0" />
+          <span className="truncate">{config.buttonText}</span>
         </Button>
       </CardFooter>
     </Card>
