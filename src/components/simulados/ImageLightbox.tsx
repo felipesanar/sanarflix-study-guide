@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ZoomIn, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -242,6 +242,8 @@ export const ImageLightbox = ({ src, alt, className }: ImageLightboxProps) => {
           style={{ touchAction: 'none' }}
           aria-describedby={undefined}
         >
+          {/* DialogTitle oculto para acessibilidade */}
+          <DialogTitle className="sr-only">{alt || 'Visualização de imagem ampliada'}</DialogTitle>
           {/* Botão de fechar - sempre visível em touch, hover em desktop */}
           <button
             type="button"
