@@ -6,6 +6,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Error codes for detailed error handling
+type ErrorCode = 
+  | 'VALIDATION_ERROR'
+  | 'IES_NOT_FOUND'
+  | 'AUTH_CREATE_FAILED'
+  | 'PROFILE_SYNC_FAILED'
+  | 'UPDATE_FAILED'
+  | 'RATE_LIMITED'
+  | 'INTERNAL_ERROR';
+
+// B2B internal IES - users from this IES get admin role automatically
+const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
+
 // Input validation schema
 const createUserSchema = z.object({
   nome: z.string()
@@ -16,7 +29,8 @@ const createUserSchema = z.object({
   email: z.string()
     .trim()
     .email('Email inválido')
-    .max(255, 'Email muito longo'),
+    .max(255, 'Email muito longo')
+    .transform(val => val.toLowerCase()),
   id_ies: z.string()
     .uuid('ID da IES deve ser um UUID válido'),
   semestre: z.number()
@@ -24,6 +38,48 @@ const createUserSchema = z.object({
     .min(1, 'Semestre mínimo: 1')
     .max(12, 'Semestre máximo: 12')
 });
+
+// Helper function to create error response
+function errorResponse(code: ErrorCode, message: string, details?: string) {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: message,
+      code,
+      details
+    }),
+    { 
+      status: code === 'VALIDATION_ERROR' ? 400 : 
+              code === 'IES_NOT_FOUND' ? 404 :
+              code === 'RATE_LIMITED' ? 429 : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    }
+  );
+}
+
+// Helper function to create success response
+function successResponse(
+  action: 'created' | 'updated',
+  userId: string,
+  email: string,
+  message: string,
+  details?: {
+    emailSent?: boolean;
+    fieldsUpdated?: string[];
+  }
+) {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      action,
+      userId,
+      email,
+      message,
+      details
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
@@ -38,7 +94,8 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!supabaseUrl || !serviceKey || !anonKey) {
-      throw new Error("Missing Supabase environment variables");
+      console.error('[Config] Missing Supabase environment variables');
+      return errorResponse('INTERNAL_ERROR', 'Configuração do servidor incompleta');
     }
 
     // 2. Auth Clients
@@ -55,137 +112,234 @@ Deno.serve(async (req) => {
     // 3. Verify Caller Identity
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
     if (getUserErr || !userData?.user) {
+      console.error('[Auth] Failed to get user:', getUserErr);
       return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
+        JSON.stringify({ success: false, error: "Não autorizado", code: "UNAUTHORIZED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const callerUserId = userData.user.id;
+
     // 4. Verify Admin Role (Secure RPC check)
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
-      _user_id: userData.user.id,
-      _role: 'admin' // Certifique-se que o nome da role no DB é exatamente 'admin'
+      _user_id: callerUserId,
+      _role: 'admin'
     });
 
     if (roleErr || !hasAdminRole) {
       console.error('[Security] Admin check failed:', roleErr);
       return new Response(
-        JSON.stringify({ error: "Forbidden: Admin privileges required" }),
+        JSON.stringify({ success: false, error: "Acesso negado: privilégios de admin necessários", code: "FORBIDDEN" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // 5. Parse & Validate Body
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return errorResponse('VALIDATION_ERROR', 'Corpo da requisição inválido');
+    }
+
     const validationResult = createUserSchema.safeParse(body);
 
     if (!validationResult.success) {
       const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: errorMessages }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
     const { nome, email, id_ies, semestre } = validationResult.data;
-    const userMetadata = { full_name: nome, id_ies, semestre, must_change_password: true };
 
-    // 6. User Management Logic (The Fix)
-    let userId: string;
-    let actionType = "invited";
+    // 6. Validate IES exists
+    const { data: iesData, error: iesError } = await supabaseAdmin
+      .from('ies')
+      .select('id, nome')
+      .eq('id', id_ies)
+      .single();
 
-    const meuRedirect = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://sanarflix-study-guide.lovable.app/auth/update-password";
+    if (iesError || !iesData) {
+      console.error('[Validation] IES not found:', id_ies);
+      return errorResponse('IES_NOT_FOUND', `IES não encontrada: ${id_ies}`);
+    }
 
+    console.log(`[Process] Processing user: ${email} for IES: ${iesData.nome}`);
 
-    // Tenta convidar o usuário. Se ele não existir, cria e manda email. 
-    // Se existir, o inviteUserByEmail geralmente retorna o usuário mas não envia novo convite de senha (dependendo da config).
-    const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: userMetadata,
-      redirectTo: meuRedirect // <--- Agora ele vai para a página certa
-    });
+    // 7. Check if user already exists
+    const { data: existingUser, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id, nome, semestre, id_ies')
+      .eq('email', email)
+      .maybeSingle();
 
-    if (inviteErr) {
-      // Se falhar, verificamos se o usuário já existe para atualizar os dados
-      // A API admin do Supabase não tem um "getByEmail" direto simples, então listamos ou buscamos na tabela pública
-      // Uma estratégia segura é tentar buscar na tabela pública para pegar o ID
-      const { data: publicUser } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
+    if (checkError) {
+      console.error('[Database] Error checking existing user:', checkError);
+      return errorResponse('INTERNAL_ERROR', 'Erro ao verificar usuário existente');
+    }
 
-      if (publicUser) {
-        userId = publicUser.id;
-        actionType = "updated";
+    const userMetadata = { 
+      full_name: nome, 
+      id_ies, 
+      semestre, 
+      must_change_password: true 
+    };
 
-        // Atualiza metadados no Auth
-        await supabaseAdmin.auth.admin.updateUserById(userId, {
-          user_metadata: userMetadata
-        });
-      } else {
-        // Erro real (ex: rate limit, email inválido no provider, etc)
-        throw inviteErr;
+    // 8. Process based on whether user exists
+    if (existingUser) {
+      // ========== UPDATE FLOW ==========
+      console.log(`[Update] User ${email} exists (ID: ${existingUser.id}), updating...`);
+      
+      const fieldsUpdated: string[] = [];
+      
+      // Track what's being updated
+      if (existingUser.semestre !== semestre) {
+        fieldsUpdated.push('semestre');
       }
-    } else {
-      userId = inviteData.user.id;
-    }
+      if (existingUser.nome !== nome) {
+        fieldsUpdated.push('nome');
+      }
+      if (existingUser.id_ies !== id_ies) {
+        fieldsUpdated.push('id_ies');
+      }
 
-    // 7. Upsert Public Profile (Sync Auth -> Public Table)
-    // Usamos upsert para garantir que os dados estejam sincronizados
-    const { error: upsertErr } = await supabaseAdmin
-      .from("users")
-      .upsert({
-        id: userId,
-        email,
-        nome,
-        id_ies,
-        semestre: Number(semestre)
-      }, { onConflict: 'id' });
-
-    if (upsertErr) {
-      console.error('[Database] Upsert failed:', upsertErr);
-      return new Response(
-        JSON.stringify({ error: "User created in Auth but failed to sync profile", details: upsertErr.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      // Update auth.users metadata
+      const { error: authUpdateErr } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.id,
+        { user_metadata: userMetadata }
       );
-    }
 
-    try {
-      if (id_ies === '9f21b138-0027-44c8-9660-dc6706d57bc0') {
+      if (authUpdateErr) {
+        console.error('[Auth] Failed to update auth metadata:', authUpdateErr);
+        // Non-fatal: continue with public.users update
+      }
+
+      // Update public.users
+      const { error: updateErr } = await supabaseAdmin
+        .from('users')
+        .update({
+          nome,
+          id_ies,
+          semestre
+        })
+        .eq('id', existingUser.id);
+
+      if (updateErr) {
+        console.error('[Database] Failed to update user:', updateErr);
+        return errorResponse('UPDATE_FAILED', 'Falha ao atualizar usuário', updateErr.message);
+      }
+
+      // Check and update admin role if needed (for B2B IES)
+      if (id_ies === B2B_IES_ID) {
+        const { error: roleErr } = await supabaseAdmin
+          .from('user_roles')
+          .upsert({
+            user_id: existingUser.id,
+            role: 'admin',
+            granted_by: callerUserId
+          }, { onConflict: 'user_id,role' });
+        
+        if (roleErr) {
+          console.error('[RBAC] Failed to ensure admin role:', roleErr);
+        } else {
+          console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
+        }
+      }
+
+      const message = fieldsUpdated.length > 0 
+        ? `Usuário atualizado: ${fieldsUpdated.join(', ')}`
+        : 'Usuário já estava atualizado';
+
+      console.log(`[Success] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}`);
+      
+      return successResponse('updated', existingUser.id, email, message, { fieldsUpdated });
+
+    } else {
+      // ========== CREATE FLOW ==========
+      console.log(`[Create] User ${email} does not exist, creating via invite...`);
+      
+      const redirectUrl = Deno.env.get("INVITE_REDIRECT_URL") ?? 
+        "https://sanarflix-study-guide.lovable.app/auth/update-password";
+
+      // Create user via invite (sends email automatically)
+      const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+        email,
+        {
+          data: userMetadata,
+          redirectTo: redirectUrl
+        }
+      );
+
+      if (inviteErr) {
+        console.error('[Auth] Failed to invite user:', inviteErr);
+        
+        // Check for specific error types
+        if (inviteErr.message?.includes('rate limit')) {
+          return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
+        }
+        
+        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', inviteErr.message);
+      }
+
+      if (!inviteData?.user) {
+        console.error('[Auth] Invite succeeded but no user returned');
+        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário: resposta inesperada');
+      }
+
+      const userId = inviteData.user.id;
+      console.log(`[Auth] User created in auth.users with ID: ${userId}`);
+
+      // Sync to public.users
+      const { error: upsertErr } = await supabaseAdmin
+        .from('users')
+        .upsert({
+          id: userId,
+          email,
+          nome,
+          id_ies,
+          semestre
+        }, { onConflict: 'id' });
+
+      if (upsertErr) {
+        console.error('[Database] Failed to sync user profile:', upsertErr);
+        return errorResponse(
+          'PROFILE_SYNC_FAILED', 
+          'Usuário criado no auth mas falhou ao sincronizar perfil',
+          upsertErr.message
+        );
+      }
+
+      // Auto-grant admin role for B2B IES users
+      if (id_ies === B2B_IES_ID) {
         const { error: roleErr } = await supabaseAdmin
           .from('user_roles')
           .upsert({
             user_id: userId,
             role: 'admin',
-            granted_by: userData.user.id
+            granted_by: callerUserId
           }, { onConflict: 'user_id,role' });
+        
         if (roleErr) {
-          console.error('[RBAC] Failed to ensure admin role:', roleErr);
+          console.error('[RBAC] Failed to grant admin role:', roleErr);
+        } else {
+          console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
         }
       }
-    } catch (e) {
-      console.error('[RBAC] Unexpected error ensuring admin role:', e);
-    }
 
-    // 8. Success Response
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: actionType === "invited" ? "Convite enviado com sucesso" : "Usuário atualizado com sucesso",
-        userId,
-        email,
-        action: actionType
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      console.log(`[Success] User ${email} created and invited`);
+      
+      return successResponse(
+        'created', 
+        userId, 
+        email, 
+        'Usuário criado e email de convite enviado',
+        { emailSent: true }
+      );
+    }
 
   } catch (error) {
     console.error('[Internal Error]:', error);
-    const msg = error instanceof Error ? error.message : "Internal Server Error";
-
-    return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    const msg = error instanceof Error ? error.message : "Erro interno do servidor";
+    return errorResponse('INTERNAL_ERROR', msg);
   }
 });

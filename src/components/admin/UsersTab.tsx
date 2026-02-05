@@ -7,29 +7,23 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Download, Copy, Users, Shield, RefreshCw, Search } from 'lucide-react';
+import { Upload, Download, Users, Shield, RefreshCw, Search, Copy, Loader2, Mail } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
+import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 
 interface IES {
   id: string;
   nome: string;
 }
 
-interface UserCreationResult {
-  email: string;
-  success: boolean;
-  action?: string;
-  password?: string;
-  error?: string;
-}
-
 export const UsersTab: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
-  const [generatedPassword, setGeneratedPassword] = useState('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [processingResults, setProcessingResults] = useState<UserCreationResult[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
   
   // Sync auth states
   const [syncEmail, setSyncEmail] = useState('');
@@ -45,15 +39,6 @@ export const UsersTab: React.FC = () => {
     if (!error && data) {
       setIesList(data);
     }
-  };
-
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
-    let password = '';
-    for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
   };
 
   const addLog = (message: string) => {
@@ -121,32 +106,38 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-      body: {
-        nome: singleUser.nome,
-        email: singleUser.email,
-        id_ies: singleUser.id_ies,
-        semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
-      },
-    });
+    setIsCreating(true);
 
-    if (error || data?.error) {
-      const msg = error?.message || data?.error || 'Erro ao criar usuário';
-      toast.error(msg);
-      addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
-      return;
+    try {
+      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+        body: {
+          nome: singleUser.nome,
+          email: singleUser.email.toLowerCase().trim(),
+          id_ies: singleUser.id_ies,
+          semestre: parseInt(singleUser.semestre),
+        },
+      });
+
+      if (error || !data?.success) {
+        const msg = error?.message || data?.error || 'Erro ao criar usuário';
+        toast.error(msg);
+        addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+        return;
+      }
+
+      const actionMsg = data.action === 'created' 
+        ? '✅ Usuário criado! Email de convite enviado.'
+        : `🔄 Usuário atualizado: ${data.details?.fieldsUpdated?.join(', ') || 'nenhuma alteração'}`;
+      
+      toast.success(actionMsg);
+      addLog(`${singleUser.email}: ${actionMsg}`);
+      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
+    } catch (err) {
+      console.error('Create user error:', err);
+      toast.error('Erro inesperado ao criar usuário');
+    } finally {
+      setIsCreating(false);
     }
-
-    const successMsg = data?.message || 'Convite enviado com sucesso';
-    toast.success(successMsg);
-    addLog(`Usuário ${singleUser.email}: ${successMsg}`);
-    setGeneratedPassword('');
-    setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
-  };
-
-  const copyPassword = () => {
-    navigator.clipboard.writeText(generatedPassword);
-    toast.success('Senha copiada!');
   };
 
   const processCsvFile = async () => {
@@ -155,60 +146,194 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
-    addLog('Iniciando processamento do arquivo CSV...');
-    const text = await csvFile.text();
-    const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    setIsProcessing(true);
+    setLogs([]);
+    setBatchReport(null);
     
-    const results: UserCreationResult[] = [];
+    const startedAt = new Date();
+    addLog('Iniciando processamento do arquivo CSV...');
 
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
-      const user: any = {};
+    try {
+      const text = await csvFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
       
-      headers.forEach((header, index) => {
-        user[header] = values[index];
-      });
-
-      if (!user.nome || !user.email || !user.id_ies || !user.semestre) {
-        addLog(`Linha ${i + 1}: Dados incompletos, pulando...`);
-        continue;
+      if (lines.length < 2) {
+        toast.error('Arquivo CSV vazio ou sem dados');
+        setIsProcessing(false);
+        return;
       }
 
-      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: {
-          nome: user.nome,
-          email: user.email,
-          id_ies: user.id_ies,
-          semestre: user.semestre ? parseInt(user.semestre) : null,
-        },
-      });
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      // Validate required columns
+      const requiredColumns = ['nome', 'email', 'id_ies', 'semestre'];
+      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      
+      if (missingColumns.length > 0) {
+        toast.error(`Colunas obrigatórias faltando: ${missingColumns.join(', ')}`);
+        addLog(`Erro: colunas faltando - ${missingColumns.join(', ')}`);
+        setIsProcessing(false);
+        return;
+      }
 
-      results.push({
-        email: user.email,
-        action: data?.action,
-        success: !error && !data?.error,
-        error: error?.message || data?.error,
-      });
+      const results: BatchResult[] = [];
+      const processedEmails = new Set<string>();
 
-      addLog(`${user.email}: ${error || data?.error ? 'ERRO - ' + (error?.message || data?.error) : 'Criado com sucesso'}`);
+      addLog(`Processando ${lines.length - 1} linhas...`);
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const user: Record<string, string> = {};
+        
+        headers.forEach((header, index) => {
+          user[header] = values[index] || '';
+        });
+
+        const email = user.email?.toLowerCase().trim();
+        const nome = user.nome?.trim();
+        const id_ies = user.id_ies?.trim();
+        const semestreStr = user.semestre?.trim();
+
+        // Skip empty lines
+        if (!email && !nome) {
+          continue;
+        }
+
+        // Check for duplicates in this batch
+        if (processedEmails.has(email)) {
+          results.push({
+            email,
+            nome,
+            linha: i + 1,
+            success: false,
+            error: {
+              code: 'SKIPPED',
+              message: 'Email já processado neste lote'
+            }
+          });
+          addLog(`Linha ${i + 1}: ${email} - duplicado no lote`);
+          continue;
+        }
+
+        // Basic validation
+        if (!nome || !email || !id_ies || !semestreStr) {
+          results.push({
+            email: email || 'N/A',
+            nome: nome || 'N/A',
+            linha: i + 1,
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Dados incompletos (nome, email, id_ies, semestre obrigatórios)'
+            }
+          });
+          addLog(`Linha ${i + 1}: dados incompletos`);
+          continue;
+        }
+
+        processedEmails.add(email);
+
+        try {
+          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+            body: {
+              nome,
+              email,
+              id_ies,
+              semestre: parseInt(semestreStr),
+            },
+          });
+
+          if (error || !data?.success) {
+            results.push({
+              email,
+              nome,
+              linha: i + 1,
+              success: false,
+              error: {
+                code: data?.code || 'INTERNAL_ERROR',
+                message: error?.message || data?.error || 'Erro desconhecido'
+              }
+            });
+            addLog(`Linha ${i + 1}: ${email} - ERRO: ${data?.error || error?.message}`);
+          } else {
+            results.push({
+              email,
+              nome,
+              linha: i + 1,
+              success: true,
+              action: data.action,
+              message: data.message,
+              fieldsUpdated: data.details?.fieldsUpdated
+            });
+            
+            const icon = data.action === 'created' ? '✅' : '🔄';
+            addLog(`Linha ${i + 1}: ${email} - ${icon} ${data.action}`);
+          }
+        } catch (err) {
+          results.push({
+            email,
+            nome,
+            linha: i + 1,
+            success: false,
+            error: {
+              code: 'INTERNAL_ERROR',
+              message: err instanceof Error ? err.message : 'Erro inesperado'
+            }
+          });
+          addLog(`Linha ${i + 1}: ${email} - ERRO: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
+        }
+      }
+
+      const finishedAt = new Date();
+      
+      const report: BatchReport = {
+        total: results.length,
+        created: results.filter(r => r.success && r.action === 'created').length,
+        updated: results.filter(r => r.success && r.action === 'updated').length,
+        errors: results.filter(r => !r.success).length,
+        skipped: results.filter(r => r.error?.code === 'SKIPPED').length,
+        results,
+        startedAt,
+        finishedAt
+      };
+
+      setBatchReport(report);
+      addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros`);
+      
+      toast.success(`Processamento concluído! ${report.created} criados, ${report.updated} atualizados`);
+    } catch (err) {
+      console.error('CSV processing error:', err);
+      toast.error('Erro ao processar arquivo CSV');
+      addLog(`Erro fatal: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
+    } finally {
+      setIsProcessing(false);
     }
+  };
 
-    setProcessingResults(results);
-    toast.success(`Processamento concluído: ${results.filter(r => r.success).length} usuários criados`);
+  const downloadReport = () => {
+    if (!batchReport) return;
 
-    // Auto download CSV with results
-    const csvContent = 'email,acao\n' + results
-      .filter(r => r.success)
-      .map(r => `${r.email},${r.action || ''}`)
-      .join('\n');
+    const csvContent = [
+      'email,nome,linha,status,acao,campos_atualizados,erro_codigo,erro_mensagem',
+      ...batchReport.results.map(r => [
+        r.email,
+        `"${r.nome}"`,
+        r.linha,
+        r.success ? 'sucesso' : 'erro',
+        r.action || '',
+        r.fieldsUpdated?.join(';') || '',
+        r.error?.code || '',
+        `"${r.error?.message || ''}"`
+      ].join(','))
+    ].join('\n');
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `senhas_geradas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `relatorio_cadastro_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const downloadExampleCsv = () => {
@@ -219,6 +344,7 @@ export const UsersTab: React.FC = () => {
     a.href = url;
     a.download = 'exemplo_usuarios.csv';
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -312,8 +438,13 @@ export const UsersTab: React.FC = () => {
       {/* Single User Creation */}
       <Card>
         <CardHeader>
-          <CardTitle>Criar Usuário Individual</CardTitle>
-          <CardDescription>Adicione um novo usuário manualmente</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Criar Usuário Individual
+          </CardTitle>
+          <CardDescription>
+            Adicione um novo usuário. Um email de convite será enviado automaticamente.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -365,36 +496,41 @@ export const UsersTab: React.FC = () => {
             </div>
           </div>
 
-          <Button onClick={createSingleUser} className="w-full">
-            Criar Usuário
+          <Button onClick={createSingleUser} disabled={isCreating} className="w-full">
+            {isCreating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              <>
+                <Mail className="h-4 w-4 mr-2" />
+                Criar Usuário e Enviar Convite
+              </>
+            )}
           </Button>
-
-          {generatedPassword && (
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <Label>Senha Gerada</Label>
-              <div className="flex gap-2">
-                <Input value={generatedPassword} readOnly />
-                <Button variant="outline" size="icon" onClick={copyPassword}>
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
       {/* Batch User Creation */}
       <Card>
         <CardHeader>
-          <CardTitle>Criação em Lote via CSV</CardTitle>
-          <CardDescription>Importe múltiplos usuários de uma vez</CardDescription>
+          <CardTitle>Cadastro/Atualização em Lote via CSV</CardTitle>
+          <CardDescription>
+            Importe múltiplos usuários. Novos usuários receberão email de convite. 
+            Usuários existentes terão seus dados atualizados.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input
               type="file"
               accept=".csv"
-              onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setCsvFile(e.target.files?.[0] || null);
+                setBatchReport(null);
+              }}
+              disabled={isProcessing}
             />
             <Button variant="outline" onClick={downloadExampleCsv}>
               <Download className="h-4 w-4 mr-2" />
@@ -402,12 +538,31 @@ export const UsersTab: React.FC = () => {
             </Button>
           </div>
 
-          <Button onClick={processCsvFile} disabled={!csvFile} className="w-full">
-            <Upload className="h-4 w-4 mr-2" />
-            Processar Arquivo
+          <Button onClick={processCsvFile} disabled={!csvFile || isProcessing} className="w-full">
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processando...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Processar Arquivo
+              </>
+            )}
           </Button>
 
-          {logs.length > 0 && (
+          {/* Batch Report */}
+          {batchReport && (
+            <BatchProcessingReport
+              report={batchReport}
+              onDownload={downloadReport}
+              onClose={() => setBatchReport(null)}
+            />
+          )}
+
+          {/* Processing Logs */}
+          {logs.length > 0 && !batchReport && (
             <div className="bg-muted rounded-lg p-4 max-h-64 overflow-y-auto">
               <Label className="mb-2 block">Logs de Processamento</Label>
               <div className="font-mono text-xs space-y-1">
