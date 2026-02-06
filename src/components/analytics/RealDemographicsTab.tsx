@@ -111,7 +111,7 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
                 </div>
                 <p className="text-sm text-muted-foreground">Semestres Ativos</p>
                 <p className="text-xs text-muted-foreground mt-3">
-                  {semestreLider.semestre > 0 && `Maior concentração no ${semestreLider.semestre}º semestre`}
+                  {semestreLider.semestre !== 'Nenhum' && semestreLider.semestre !== 'Não informado' && `Maior concentração no ${semestreLider.semestre} semestre`}
                 </p>
               </div>
             </CardContent>
@@ -193,7 +193,7 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={demographics.usuariosPorSemestre}
@@ -203,7 +203,7 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
                       outerRadius={100}
                       paddingAngle={2}
                       dataKey="quantidade"
-                      label={({ semestre }) => `${semestre}º`}
+                      label={({ semestre }) => semestre}
                     >
                       {demographics.usuariosPorSemestre.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -269,19 +269,19 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
           )}
 
           {/* Semestres iniciais */}
-          {semestreLider.semestre <= 2 && semestreLider.quantidade > 0 && (
+          {['1º', '2º'].includes(String(semestreLider.semestre)) && semestreLider.quantidade > 0 && (
             <InsightBox
               tipo="insight"
               titulo="Maioria em semestres iniciais"
-              descricao={`A maior concentração está no ${semestreLider.semestre}º semestre. Foque em conteúdo para iniciantes e retenção a longo prazo.`}
+              descricao={`A maior concentração está no ${semestreLider.semestre} semestre. Foque em conteúdo para iniciantes e retenção a longo prazo.`}
             />
           )}
 
-          {semestreLider.semestre > 4 && semestreLider.quantidade > 0 && (
+          {['5º', '6º', '7º', '8º', '9º', '10º', '11º', '12º'].includes(String(semestreLider.semestre)) && semestreLider.quantidade > 0 && (
             <InsightBox
               tipo="insight"
               titulo="Maioria em semestres avançados"
-              descricao={`A maior concentração está no ${semestreLider.semestre}º semestre. Esses usuários podem ter maior maturidade e expectativas específicas.`}
+              descricao={`A maior concentração está no ${semestreLider.semestre} semestre. Esses usuários podem ter maior maturidade e expectativas específicas.`}
               acao="Considere conteúdo avançado e preparatório para residência"
             />
           )}

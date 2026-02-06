@@ -47,6 +47,7 @@ const Analytics = () => {
     iesId: filters.university
   };
 
+  const data = useAnalyticsData(analyticsFilters);
   const { 
     overview, 
     engagement, 
@@ -55,7 +56,7 @@ const Analytics = () => {
     simulados, 
     isLoading, 
     refetch 
-  } = useAnalyticsData(analyticsFilters);
+  } = data;
 
   const hasAnalyticsAccess = isB2BUser(user);
 
@@ -140,7 +141,7 @@ const Analytics = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <RealOverviewTab overview={overview} engagement={engagement} simulados={simulados} isLoading={isLoading} />
+            <RealOverviewTab overview={overview} engagement={engagement} simulados={simulados} trackingHealth={data.trackingHealth || []} isLoading={isLoading} />
           </TabsContent>
 
           <TabsContent value="engagement" className="space-y-6">
