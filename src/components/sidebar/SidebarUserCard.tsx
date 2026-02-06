@@ -84,7 +84,7 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
             {/* User info */}
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate text-sidebar-foreground group-hover:text-primary transition-colors">
+                <p className="text-sm font-semibold truncate text-sidebar-foreground">
                   {user.nome}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
