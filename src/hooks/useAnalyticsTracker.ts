@@ -64,8 +64,24 @@ export const useAnalyticsTracker = () => {
   const trackSimuladoStart = useCallback(async (simuladoId: string, simuladoNome: string) => {
     if (!user?.id) return;
 
-    // Registrar na tabela específica de simulados iniciados
     try {
+      // VERIFICAÇÃO: Checar se já existe finalização não liberada
+      const { data: finalizacao } = await supabase
+        .from('simulados_finalizados')
+        .select('id, liberado_novamente')
+        .eq('user_id', user.id)
+        .eq('simulado_id', simuladoId)
+        .order('tentativa_numero', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Se existe finalização e NÃO foi liberado novamente, não registrar
+      if (finalizacao && !finalizacao.liberado_novamente) {
+        console.log('[AnalyticsCapture] Simulado já finalizado e não liberado, ignorando tracking de início');
+        return;
+      }
+
+      // Registrar na tabela específica de simulados iniciados
       await supabase
         .from('simulados_iniciados')
         .upsert({

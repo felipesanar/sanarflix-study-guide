@@ -87,6 +87,20 @@ export const ModoProva = () => {
   const inicializarSimulado = async () => {
     setLoading(true);
     try {
+      // VERIFICAÇÃO DE SEGURANÇA: Bloquear acesso se já finalizou e não foi liberado
+      if (user?.id) {
+        const jaConcluido = await simuladosApi.verificarProgressoSimulado(user.id, simuladoId);
+        if (jaConcluido) {
+          toast.error('Você já finalizou este simulado');
+          navigate('/simulados');
+          return;
+        }
+      } else {
+        toast.error('Usuário não autenticado');
+        navigate('/simulados');
+        return;
+      }
+
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
 
