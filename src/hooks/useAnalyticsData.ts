@@ -67,6 +67,7 @@ export interface DateRange {
 export interface AnalyticsFiltersState {
   dateRange: DateRange;
   iesId: string;
+  excludedIES?: string[];
 }
 
 const defaultMetrics: AnalyticsData = {
@@ -141,13 +142,14 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   // Memoizar valores derivados dos filtros para evitar recálculos
   const filterParams = useMemo(() => {
     const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+    const excludedIESIds = filters.excludedIES || [];
     const startDate = filters.dateRange.start.toISOString();
     const endDate = filters.dateRange.end.toISOString();
     const hoje = getTodayBrazilISO();
     const seteDiasAtras = getDaysAgoBrazilISO(7);
     
-    return { iesFilter, startDate, endDate, hoje, seteDiasAtras };
-  }, [filters.iesId, filters.dateRange.start, filters.dateRange.end]);
+    return { iesFilter, excludedIESIds, startDate, endDate, hoje, seteDiasAtras };
+  }, [filters.iesId, filters.excludedIES, filters.dateRange.start, filters.dateRange.end]);
 
   // Cache de user IDs por IES para reutilizar entre queries
   const fetchUserIdsByIES = useCallback(async (iesId: string): Promise<string[]> => {
@@ -158,17 +160,53 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     return users?.map(u => u.id) || [];
   }, []);
 
+  // Buscar user IDs excluindo IES específicas
+  const fetchUserIdsExcludingIES = useCallback(async (excludedIds: string[]): Promise<string[]> => {
+    if (excludedIds.length === 0) return [];
+    
+    // Supabase não suporta .not('in', array) diretamente, então buscamos todos e filtramos
+    const { data: allUsers } = await supabase
+      .from('users')
+      .select('id, id_ies');
+    
+    if (!allUsers) return [];
+    
+    // Filtrar usuários cujo id_ies NÃO está na lista de exclusão
+    return allUsers
+      .filter(u => u.id_ies && !excludedIds.includes(u.id_ies))
+      .map(u => u.id);
+  }, []);
+
   const fetchOverviewMetrics = useCallback(async (): Promise<OverviewMetrics> => {
-    const { iesFilter, startDate, endDate, hoje, seteDiasAtras } = filterParams;
+    const { iesFilter, excludedIESIds, startDate, endDate, hoje, seteDiasAtras } = filterParams;
 
-    console.log('[Analytics] fetchOverviewMetrics:', { iesFilter, startDate, endDate });
+    console.log('[Analytics] fetchOverviewMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Buscar user IDs da IES filtrada (se aplicável)
+    // Buscar user IDs da IES filtrada OU usuários excluindo IES
     let userIdsFromIES: string[] | null = null;
+    let hasExclusions = false;
+    
     if (iesFilter) {
       userIdsFromIES = await fetchUserIdsByIES(iesFilter);
       if (userIdsFromIES.length === 0) {
         // IES sem usuários - retornar zeros
+        return {
+          totalUsuarios: 0,
+          usuariosAtivosHoje: 0,
+          usuariosAtivos7Dias: 0,
+          sessoesHoje: 0,
+          mediaTempoSessao: 0,
+          pageViewsHoje: 0,
+          simuladosIniciadosHoje: 0,
+          simuladosFinalizadosHoje: 0,
+          sanarclassViewsHoje: 0,
+          taxaAbandonoSimulados: 0,
+        };
+      }
+    } else if (excludedIESIds.length > 0) {
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      hasExclusions = true;
+      if (userIdsFromIES.length === 0) {
         return {
           totalUsuarios: 0,
           usuariosAtivosHoje: 0,
@@ -200,56 +238,78 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       // 1. Total de usuários
       iesFilter
         ? supabase.from('users').select('*', { count: 'exact', head: true }).eq('id_ies', iesFilter)
-        : supabase.from('users').select('*', { count: 'exact', head: true }),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('users').select('*', { count: 'exact', head: true }).in('id', userIdsFromIES)
+          : supabase.from('users').select('*', { count: 'exact', head: true }),
 
       // 2. Sessões de hoje
       iesFilter
         ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', hoje).eq('ies_id', iesFilter)
-        : supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', hoje),
 
       // 3. Usuários ativos hoje
       iesFilter
         ? supabase.from('user_sessions').select('user_id').gte('started_at', hoje).eq('ies_id', iesFilter)
-        : supabase.from('user_sessions').select('user_id').gte('started_at', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('user_id').gte('started_at', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('user_id').gte('started_at', hoje),
 
       // 4. Usuários ativos 7 dias
       iesFilter
         ? supabase.from('user_sessions').select('user_id').gte('started_at', seteDiasAtras).eq('ies_id', iesFilter)
-        : supabase.from('user_sessions').select('user_id').gte('started_at', seteDiasAtras),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('user_id').gte('started_at', seteDiasAtras).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('user_id').gte('started_at', seteDiasAtras),
 
       // 5. Duração média de sessão (no dateRange)
       iesFilter
         ? supabase.from('user_sessions').select('duration_seconds').not('duration_seconds', 'is', null).gte('started_at', startDate).lte('started_at', endDate).eq('ies_id', iesFilter)
-        : supabase.from('user_sessions').select('duration_seconds').not('duration_seconds', 'is', null).gte('started_at', startDate).lte('started_at', endDate),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('duration_seconds').not('duration_seconds', 'is', null).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('duration_seconds').not('duration_seconds', 'is', null).gte('started_at', startDate).lte('started_at', endDate),
 
       // 6. Page views de hoje
       iesFilter
         ? supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje).eq('ies_id', iesFilter)
-        : supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje),
 
       // 7. Simulados iniciados hoje (filtrar por user_id se IES)
       iesFilter && userIdsFromIES
         ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', hoje).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', hoje),
 
       // 8. Simulados finalizados hoje
       iesFilter && userIdsFromIES
         ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', hoje).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', hoje),
 
-      // 9. SanarClass views hoje (não tem ies_id, usar join via user_id)
+      // 9. SanarClass views hoje
       iesFilter && userIdsFromIES
         ? supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje).in('user_id', userIdsFromIES)
-        : supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje).in('user_id', userIdsFromIES)
+          : supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje),
 
       // 10. Taxa de abandono (no dateRange)
       Promise.all([
         iesFilter && userIdsFromIES
           ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
-          : supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate),
+          : hasExclusions && userIdsFromIES
+            ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
+            : supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate),
         iesFilter && userIdsFromIES
           ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
-          : supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate)
+          : hasExclusions && userIdsFromIES
+            ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
+            : supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate)
       ])
     ]);
 
@@ -288,22 +348,37 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       sanarclassViewsHoje,
       taxaAbandonoSimulados,
     };
-  }, [filterParams, fetchUserIdsByIES]);
+  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchEngagementMetrics = useCallback(async (): Promise<EngagementMetrics> => {
-    const { iesFilter, startDate, endDate } = filterParams;
+    const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchEngagementMetrics:', { iesFilter, startDate, endDate });
+    console.log('[Analytics] fetchEngagementMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
+
+    // Buscar user IDs para filtrar
+    let userIdsFromIES: string[] | null = null;
+    let hasExclusions = false;
+    
+    if (iesFilter) {
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+    } else if (excludedIESIds.length > 0) {
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      hasExclusions = true;
+    }
 
     // PARALLEL: Buscar sessões e page views em paralelo
     const [sessoesResult, pageViewsResult] = await Promise.all([
       iesFilter
         ? supabase.from('user_sessions').select('started_at, duration_seconds, is_mobile').gte('started_at', startDate).lte('started_at', endDate).eq('ies_id', iesFilter).order('started_at', { ascending: true })
-        : supabase.from('user_sessions').select('started_at, duration_seconds, is_mobile').gte('started_at', startDate).lte('started_at', endDate).order('started_at', { ascending: true }),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('started_at, duration_seconds, is_mobile').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES).order('started_at', { ascending: true })
+          : supabase.from('user_sessions').select('started_at, duration_seconds, is_mobile').gte('started_at', startDate).lte('started_at', endDate).order('started_at', { ascending: true }),
       
       iesFilter
         ? supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate).eq('ies_id', iesFilter)
-        : supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate)
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate).in('user_id', userIdsFromIES)
+          : supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate)
     ]);
 
     const sessoesBrutas = sessoesResult.data || [];
@@ -366,7 +441,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       dispositivosMobile,
       dispositivosDesktop,
     };
-  }, [filterParams]);
+  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchProgressMetrics = useCallback(async (): Promise<ProgressMetrics> => {
     const { iesFilter } = filterParams;
@@ -444,19 +519,33 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   }, [filterParams]);
 
   const fetchDemographicsMetrics = useCallback(async (): Promise<DemographicsMetrics> => {
-    const { iesFilter } = filterParams;
+    const { iesFilter, excludedIESIds } = filterParams;
 
-    console.log('[Analytics] fetchDemographicsMetrics:', { iesFilter });
+    console.log('[Analytics] fetchDemographicsMetrics:', { iesFilter, excludedIESIds });
 
     // PARALLEL: Buscar usuários e IES em paralelo
+    let usuariosQuery;
+    if (iesFilter) {
+      usuariosQuery = supabase.from('users').select('id_ies, semestre').eq('id_ies', iesFilter);
+    } else if (excludedIESIds.length > 0) {
+      // Buscar todos e filtrar no cliente (Supabase não suporta NOT IN diretamente com array)
+      usuariosQuery = supabase.from('users').select('id_ies, semestre');
+    } else {
+      usuariosQuery = supabase.from('users').select('id_ies, semestre');
+    }
+    
     const [usuariosResult, iesResult] = await Promise.all([
-      iesFilter
-        ? supabase.from('users').select('id_ies, semestre').eq('id_ies', iesFilter)
-        : supabase.from('users').select('id_ies, semestre'),
+      usuariosQuery,
       supabase.from('ies').select('id, nome')
     ]);
 
-    const usuariosData = usuariosResult.data || [];
+    let usuariosData = usuariosResult.data || [];
+    
+    // Aplicar filtro de exclusão no cliente se necessário
+    if (!iesFilter && excludedIESIds.length > 0) {
+      usuariosData = usuariosData.filter(u => u.id_ies && !excludedIESIds.includes(u.id_ies));
+    }
+    
     const iesData = iesResult.data || [];
     const iesMap = new Map(iesData.map(i => [i.id, i.nome]));
 
@@ -498,14 +587,19 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   }, [filterParams]);
 
   const fetchSimuladoMetrics = useCallback(async (): Promise<SimuladoMetrics> => {
-    const { iesFilter, startDate, endDate } = filterParams;
+    const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchSimuladoMetrics:', { iesFilter, startDate, endDate });
+    console.log('[Analytics] fetchSimuladoMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Buscar user IDs da IES filtrada (se aplicável)
+    // Buscar user IDs da IES filtrada OU excluindo IES
     let userIdsFromIES: string[] | null = null;
+    let hasExclusions = false;
+    
     if (iesFilter) {
       userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+    } else if (excludedIESIds.length > 0) {
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      hasExclusions = true;
     }
 
     // PARALLEL: Buscar dados base
@@ -514,18 +608,20 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       ? supabase.from('simulados_admin').select('id, nome').contains('ies_ids', [iesFilter])
       : supabase.from('simulados_admin').select('id, nome');
 
+    const useUserFilter = (iesFilter && userIdsFromIES && userIdsFromIES.length > 0) || (hasExclusions && userIdsFromIES && userIdsFromIES.length > 0);
+
     const [simuladosResult, iniciadosResult, finalizadosResult, respostasResult] = await Promise.all([
       simuladosQuery,
       // Iniciados no dateRange - agora inclui user_id para contagem DISTINCT
-      userIdsFromIES && userIdsFromIES.length > 0
+      useUserFilter && userIdsFromIES
         ? supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
         : supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate),
       // Finalizados no dateRange - agora inclui user_id para contagem DISTINCT
-      userIdsFromIES && userIdsFromIES.length > 0
+      useUserFilter && userIdsFromIES
         ? supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
         : supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate),
-      // Respostas (com filtro IES)
-      userIdsFromIES && userIdsFromIES.length > 0
+      // Respostas (com filtro IES ou exclusão)
+      useUserFilter && userIdsFromIES
         ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
         : supabase.from('answer_progress').select('question_id, correct, user_id')
     ]);
@@ -644,18 +740,25 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       },
       questoesProblematicas,
     };
-  }, [filterParams, fetchUserIdsByIES]);
+  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchTrackingHealth = useCallback(async (): Promise<TrackingHealth[]> => {
-    const { seteDiasAtras, iesFilter } = filterParams;
+    const { seteDiasAtras, iesFilter, excludedIESIds } = filterParams;
 
-    console.log('[Analytics] fetchTrackingHealth:', { seteDiasAtras, iesFilter });
+    console.log('[Analytics] fetchTrackingHealth:', { seteDiasAtras, iesFilter, excludedIESIds });
 
-    // Buscar user IDs da IES se filtrado
+    // Buscar user IDs da IES se filtrado ou excluído
     let userIdsFromIES: string[] | null = null;
+    let hasExclusions = false;
+    
     if (iesFilter) {
       userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+    } else if (excludedIESIds.length > 0) {
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      hasExclusions = true;
     }
+
+    const useUserFilter = (iesFilter && userIdsFromIES && userIdsFromIES.length > 0) || (hasExclusions && userIdsFromIES && userIdsFromIES.length > 0);
 
     // PARALLEL: Todas as contagens em paralelo
     const [
@@ -669,30 +772,36 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       // user_sessions
       iesFilter
         ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', seteDiasAtras).eq('ies_id', iesFilter)
-        : supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', seteDiasAtras),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', seteDiasAtras).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', seteDiasAtras),
       
       // page_views
       iesFilter
         ? supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).eq('ies_id', iesFilter)
-        : supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).in('user_id', userIdsFromIES)
+          : supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
       
       // analytics_events
       iesFilter
         ? supabase.from('analytics_events').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).eq('ies_id', iesFilter)
-        : supabase.from('analytics_events').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('analytics_events').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).in('user_id', userIdsFromIES)
+          : supabase.from('analytics_events').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
       
       // study_progress (filtra por user_id)
-      userIdsFromIES && userIdsFromIES.length > 0
+      useUserFilter && userIdsFromIES
         ? supabase.from('study_progress').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).in('user_id', userIdsFromIES)
         : supabase.from('study_progress').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
       
       // aula_views (filtra por user_id)
-      userIdsFromIES && userIdsFromIES.length > 0
+      useUserFilter && userIdsFromIES
         ? supabase.from('aula_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).in('user_id', userIdsFromIES)
         : supabase.from('aula_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras),
       
       // sanarclass_views (filtra por user_id)
-      userIdsFromIES && userIdsFromIES.length > 0
+      useUserFilter && userIdsFromIES
         ? supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras).in('user_id', userIdsFromIES)
         : supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', seteDiasAtras)
     ]);
@@ -705,7 +814,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       { tabela: 'aula_views', ultimos7dias: aulaResult.count || 0, status: getHealthStatus(aulaResult.count || 0) },
       { tabela: 'sanarclass_views', ultimos7dias: sanarResult.count || 0, status: getHealthStatus(sanarResult.count || 0) },
     ];
-  }, [filterParams, fetchUserIdsByIES]);
+  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchAllData = useCallback(async () => {
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
