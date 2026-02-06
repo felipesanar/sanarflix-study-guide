@@ -25,6 +25,7 @@ export interface AnalyticsFilters {
   };
   course: string;
   university: string;
+  excludedIES: string[];
   searchTerm: string;
 }
 
@@ -39,12 +40,14 @@ const Analytics = () => {
     },
     course: '',
     university: '',
+    excludedIES: [],
     searchTerm: ''
   });
 
   const analyticsFilters = {
     dateRange: filters.dateRange,
-    iesId: filters.university
+    iesId: filters.university,
+    excludedIES: filters.excludedIES
   };
 
   const data = useAnalyticsData(analyticsFilters);

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CalendarIcon, Search, Building2, X } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { CalendarIcon, Search, Building2, X, MinusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -28,16 +30,14 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
   onFilterChange
 }) => {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isIESPopoverOpen, setIsIESPopoverOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.searchTerm);
   const [iesList, setIesList] = useState<IESOption[]>([]);
   const [isLoadingIES, setIsLoadingIES] = useState(true);
 
-  // Carregar IES dinamicamente do Supabase
   useEffect(() => {
     const fetchIES = async () => {
       setIsLoadingIES(true);
-      console.log('[AnalyticsFilters] Carregando lista de IES...');
-      
       try {
         const { data, error } = await supabase
           .from('ies')
@@ -48,8 +48,6 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
           console.error('[AnalyticsFilters] Erro ao carregar IES:', error);
           return;
         }
-
-        console.log('[AnalyticsFilters] IES carregadas:', data?.length);
         setIesList(data || []);
       } catch (err) {
         console.error('[AnalyticsFilters] Erro inesperado:', err);
@@ -74,31 +72,66 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value);
-    // Debounce search
     setTimeout(() => {
       onFilterChange({ searchTerm: value });
     }, 500);
   };
 
-  const handleIESChange = (value: string) => {
-    console.log('[AnalyticsFilters] IES selecionada:', value);
-    onFilterChange({ university: value });
+  const handleIESSelect = (iesId: string) => {
+    onFilterChange({ 
+      university: iesId,
+      excludedIES: [] 
+    });
+    setIsIESPopoverOpen(false);
+  };
+
+  const handleExclusionToggle = (iesId: string, isChecked: boolean) => {
+    const currentExclusions = filters.excludedIES || [];
+    let newExclusions: string[];
+    
+    if (isChecked) {
+      newExclusions = [...currentExclusions, iesId];
+    } else {
+      newExclusions = currentExclusions.filter(id => id !== iesId);
+    }
+    
+    onFilterChange({ 
+      excludedIES: newExclusions,
+      university: 'all'
+    });
+  };
+
+  const removeExclusion = (iesId: string) => {
+    const newExclusions = (filters.excludedIES || []).filter(id => id !== iesId);
+    onFilterChange({ excludedIES: newExclusions });
   };
 
   const clearFilters = () => {
     setSearchValue('');
     onFilterChange({
       university: 'all',
+      excludedIES: [],
       searchTerm: '',
     });
   };
 
-  const hasActiveFilters = (filters.university && filters.university !== 'all') || filters.searchTerm;
+  const isAllIES = !filters.university || filters.university === 'all';
+  const hasExclusions = (filters.excludedIES || []).length > 0;
+  const hasActiveFilters = (!isAllIES) || hasExclusions || filters.searchTerm;
   const selectedIES = iesList.find(ies => ies.id === filters.university);
+
+  const getIESButtonText = () => {
+    if (!isAllIES && selectedIES) {
+      return selectedIES.nome;
+    }
+    if (hasExclusions) {
+      return `Todas exceto ${filters.excludedIES!.length}`;
+    }
+    return 'Todas as IES';
+  };
 
   return (
     <div className="space-y-4">
-      {/* Status Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {!hasActiveFilters ? (
@@ -120,9 +153,7 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
         )}
       </div>
 
-      {/* Filter Controls */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Date Range Picker */}
         <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -167,39 +198,114 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
           </PopoverContent>
         </Popover>
 
-        {/* IES Filter - Carregado dinamicamente */}
         {isLoadingIES ? (
           <Skeleton className="h-10 w-full" />
         ) : (
-          <Select value={filters.university || 'all'} onValueChange={handleIESChange}>
-            <SelectTrigger className="h-10">
-              <div className="flex items-center gap-2 truncate">
-                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <SelectValue placeholder="Selecionar IES">
-                  {selectedIES ? selectedIES.nome : 'Todas as IES'}
-                </SelectValue>
+          <Popover open={isIESPopoverOpen} onOpenChange={setIsIESPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal h-10",
+                  hasExclusions && "border-destructive/50"
+                )}
+              >
+                <Building2 className="mr-2 h-4 w-4 shrink-0" />
+                <span className="truncate">{getIESButtonText()}</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="start">
+              <div className="p-3 border-b">
+                <p className="text-sm font-medium text-muted-foreground">Selecionar IES</p>
               </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                <span className="font-medium">Todas as IES</span>
-              </SelectItem>
-              {iesList.length === 0 ? (
-                <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                  Nenhuma IES encontrada
+              
+              <ScrollArea className="h-64">
+                <div className="p-2">
+                  <button
+                    onClick={() => handleIESSelect('all')}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                      isAllIES && !hasExclusions
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                      isAllIES && !hasExclusions ? "border-primary-foreground" : "border-muted-foreground"
+                    )}>
+                      {isAllIES && !hasExclusions && (
+                        <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                      )}
+                    </div>
+                    <span className="font-medium">Todas as IES</span>
+                  </button>
+
+                  <Separator className="my-2" />
+                  
+                  <p className="px-3 py-1 text-xs text-muted-foreground font-medium">Filtrar por IES específica</p>
+                  {iesList.map((ies) => (
+                    <button
+                      key={ies.id}
+                      onClick={() => handleIESSelect(ies.id)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors",
+                        filters.university === ies.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center",
+                        filters.university === ies.id ? "border-primary-foreground" : "border-muted-foreground"
+                      )}>
+                        {filters.university === ies.id && (
+                          <div className="w-2 h-2 rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
+                      <span className="truncate">{ies.nome}</span>
+                    </button>
+                  ))}
+
+                  <Separator className="my-2" />
+                  
+                  <div className="px-3 py-1 flex items-center gap-1">
+                    <MinusCircle className="w-3 h-3 text-destructive" />
+                    <p className="text-xs text-muted-foreground font-medium">Excluir IES da análise</p>
+                  </div>
+                  <p className="px-3 pb-2 text-xs text-muted-foreground">
+                    Marque para ver "Todas EXCETO" as selecionadas
+                  </p>
+                  
+                  {iesList.map((ies) => {
+                    const isExcluded = (filters.excludedIES || []).includes(ies.id);
+                    return (
+                      <label
+                        key={`exclude-${ies.id}`}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors cursor-pointer",
+                          isExcluded 
+                            ? "bg-destructive/10 text-destructive" 
+                            : "hover:bg-muted"
+                        )}
+                      >
+                        <Checkbox
+                          checked={isExcluded}
+                          onCheckedChange={(checked) => handleExclusionToggle(ies.id, checked as boolean)}
+                          className={cn(
+                            isExcluded && "border-destructive data-[state=checked]:bg-destructive"
+                          )}
+                        />
+                        <span className="truncate">{ies.nome}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-              ) : (
-                iesList.map((ies) => (
-                  <SelectItem key={ies.id} value={ies.id}>
-                    {ies.nome}
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
         )}
 
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -211,7 +317,6 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
         </div>
       </div>
 
-      {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 pt-2">
           {selectedIES && (
@@ -226,6 +331,28 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
               </button>
             </Badge>
           )}
+          
+          {(filters.excludedIES || []).map((iesId) => {
+            const ies = iesList.find(i => i.id === iesId);
+            if (!ies) return null;
+            return (
+              <Badge 
+                key={iesId} 
+                variant="outline" 
+                className="gap-1 border-destructive/50 bg-destructive/10 text-destructive"
+              >
+                <MinusCircle className="w-3 h-3" />
+                Exceto: {ies.nome}
+                <button 
+                  onClick={() => removeExclusion(iesId)}
+                  className="ml-1 hover:opacity-70"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            );
+          })}
+          
           {filters.searchTerm && (
             <Badge variant="secondary" className="gap-1">
               <Search className="w-3 h-3" />
