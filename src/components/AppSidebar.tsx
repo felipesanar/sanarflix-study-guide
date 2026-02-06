@@ -164,7 +164,7 @@ export function AppSidebar() {
         collapsible="icon"
       >
         {/* Header with Brand */}
-        <SidebarHeader className={`p-4 ${collapsed ? "px-2" : "px-5"} border-b border-sidebar-border/50`}>
+        <SidebarHeader className={`p-4 ${collapsed ? "px-2" : "px-5"}`}>
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             <div className="relative shrink-0">
               <img
@@ -255,7 +255,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer with Logout */}
-        <SidebarFooter className={`p-4 ${collapsed ? "px-2" : "px-4"} border-t border-sidebar-border/50`}>
+        <SidebarFooter className={`p-4 ${collapsed ? "px-2" : "px-4"}`}>
           <SidebarLogoutButton onLogout={logout} collapsed={collapsed} />
         </SidebarFooter>
       </Sidebar>
