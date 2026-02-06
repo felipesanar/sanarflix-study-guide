@@ -509,9 +509,13 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     }
 
     // PARALLEL: Buscar dados base
-    const [simuladosResult, questoesResult, iniciadosResult, finalizadosResult, respostasResult] = await Promise.all([
-      supabase.from('simulados_admin').select('id, nome'),
-      supabase.from('questoes_simulado').select('simulado_id'),
+    // Simulados filtrados por IES (ies_ids é um array de UUIDs)
+    const simuladosQuery = iesFilter
+      ? supabase.from('simulados_admin').select('id, nome').contains('ies_ids', [iesFilter])
+      : supabase.from('simulados_admin').select('id, nome');
+
+    const [simuladosResult, iniciadosResult, finalizadosResult, respostasResult] = await Promise.all([
+      simuladosQuery,
       // Iniciados no dateRange (com filtro IES)
       userIdsFromIES && userIdsFromIES.length > 0
         ? supabase.from('simulados_iniciados').select('simulado_id').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
@@ -525,6 +529,12 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
         : supabase.from('answer_progress').select('question_id, correct, user_id')
     ]);
+
+    // Buscar questões apenas dos simulados filtrados
+    const simuladoIds = simuladosResult.data?.map(s => s.id) || [];
+    const questoesResult = simuladoIds.length > 0
+      ? await supabase.from('questoes_simulado').select('simulado_id').in('simulado_id', simuladoIds)
+      : { data: [] };
 
     // Processar contagens
     const questoesPorSimulado = new Map<string, number>();
