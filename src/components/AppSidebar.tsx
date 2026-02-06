@@ -164,14 +164,14 @@ export function AppSidebar() {
         collapsible="icon"
       >
         {/* Header with Brand */}
-        <SidebarHeader className={`p-4 ${collapsed ? "px-2" : "px-5"}`}>
+        <SidebarHeader className={`p-4 ${collapsed ? "px-3 flex items-center justify-center" : "px-5"}`}>
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             <div className="relative shrink-0">
               <img
                 src="/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
                 alt="SanarFlix Academy"
                 loading="lazy"
-                className="w-10 h-10 rounded-xl shadow-md object-contain ring-2 ring-primary/10 hover:ring-primary/20 transition-all duration-200"
+                className={`rounded-xl shadow-md object-contain ring-2 ring-primary/10 hover:ring-primary/20 transition-all duration-200 ${collapsed ? "w-9 h-9" : "w-10 h-10"}`}
               />
             </div>
             {!collapsed && (
@@ -183,7 +183,7 @@ export function AppSidebar() {
         </SidebarHeader>
 
         {/* Main Content */}
-        <SidebarContent className={`flex-1 overflow-y-auto p-3 ${collapsed ? "px-2" : "px-4"} space-y-4`}>
+        <SidebarContent className={`flex-1 overflow-y-auto p-3 ${collapsed ? "px-1.5" : "px-4"} space-y-4`}>
           {/* User Card */}
           {user && (
             <SidebarUserCard
@@ -255,7 +255,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* Footer with Logout */}
-        <SidebarFooter className={`p-4 ${collapsed ? "px-2" : "px-4"}`}>
+        <SidebarFooter className={`p-4 ${collapsed ? "px-1.5 flex items-center justify-center" : "px-4"}`}>
           <SidebarLogoutButton onLogout={logout} collapsed={collapsed} />
         </SidebarFooter>
       </Sidebar>

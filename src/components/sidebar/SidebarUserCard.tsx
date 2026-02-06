@@ -47,14 +47,13 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           transition={{ duration: 0.2, ease: "easeOut" }}
           className={`
             group relative w-full text-left 
-            rounded-xl p-3 
-            bg-gradient-to-br from-card via-card to-secondary/20
-            border border-border/40
-            shadow-sm hover:shadow-md
-            hover:border-primary/20
+            rounded-xl
+            ${collapsed 
+              ? "p-2 flex items-center justify-center bg-transparent border-0 shadow-none hover:bg-sidebar-accent/50" 
+              : "p-3 bg-gradient-to-br from-card via-card to-secondary/20 border border-border/40 shadow-sm hover:shadow-md hover:border-primary/20"
+            }
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar
             transition-all duration-200 cursor-pointer
-            ${collapsed ? "px-2 justify-center" : ""}
           `}
           style={{
             boxShadow: "inset 0 1px 0 0 hsl(var(--background) / 0.5)"
@@ -64,7 +63,7 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200">
+              <div className={`flex items-center justify-center bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200 ${collapsed ? "w-9 h-9" : "w-10 h-10"}`}>
                 {initials ? (
                   <span className="text-sm font-semibold text-primary-foreground">
                     {initials}
