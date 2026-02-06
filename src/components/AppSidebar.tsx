@@ -160,13 +160,7 @@ export function AppSidebar() {
     <TooltipProvider delayDuration={0}>
       <Sidebar
         data-testid="app-sidebar"
-        className={`
-          hidden md:flex flex-col
-          bg-sidebar border-r border-sidebar-border
-          shadow-lg dark:shadow-none
-          transition-all duration-300
-          ${collapsed ? "w-[68px]" : "w-[260px]"}
-        `}
+        className="bg-sidebar shadow-lg dark:shadow-none transition-all duration-300"
         collapsible="icon"
       >
         {/* Header with Brand */}
