@@ -4,6 +4,7 @@ import { MetricCard } from './MetricCard';
 import { InsightBox } from './InsightBox';
 import { SectionHeader } from './SectionHeader';
 import { EmptyState } from './EmptyState';
+import { TrackingHealthSection } from './TrackingHealthSection';
 import { 
   Users, 
   Clock, 
@@ -15,12 +16,13 @@ import {
   TrendingUp,
   BarChart3
 } from 'lucide-react';
-import type { OverviewMetrics, EngagementMetrics, SimuladoMetrics } from '@/hooks/useAnalyticsData';
+import type { OverviewMetrics, EngagementMetrics, SimuladoMetrics, TrackingHealth } from '@/hooks/useAnalyticsData';
 
 interface RealOverviewTabProps {
   overview: OverviewMetrics;
   engagement: EngagementMetrics;
   simulados: SimuladoMetrics;
+  trackingHealth: TrackingHealth[];
   isLoading: boolean;
 }
 
@@ -28,6 +30,7 @@ export const RealOverviewTab: React.FC<RealOverviewTabProps> = ({
   overview,
   engagement,
   simulados,
+  trackingHealth,
   isLoading,
 }) => {
   // Calcular insights dinâmicos
@@ -374,6 +377,11 @@ export const RealOverviewTab: React.FC<RealOverviewTabProps> = ({
             />
           </div>
         )}
+      </section>
+
+      {/* Seção: Saúde do Tracking */}
+      <section>
+        <TrackingHealthSection trackingHealth={trackingHealth} isLoading={isLoading} />
       </section>
     </div>
   );

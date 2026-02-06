@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 
 // Tipos para dados de analytics
 export interface OverviewMetrics {
@@ -31,7 +32,7 @@ export interface ProgressMetrics {
 
 export interface DemographicsMetrics {
   usuariosPorIES: { ies_nome: string; ies_id: string; quantidade: number }[];
-  usuariosPorSemestre: { semestre: number; quantidade: number }[];
+  usuariosPorSemestre: { semestre: string; quantidade: number }[];
 }
 
 export interface SimuladoMetrics {
@@ -40,12 +41,19 @@ export interface SimuladoMetrics {
   questoesProblematicas: { questao_id: string; enunciado: string; taxa_erro: number }[];
 }
 
+export interface TrackingHealth {
+  tabela: string;
+  ultimos7dias: number;
+  status: 'ok' | 'baixo' | 'critico';
+}
+
 export interface AnalyticsData {
   overview: OverviewMetrics;
   engagement: EngagementMetrics;
   progress: ProgressMetrics;
   demographics: DemographicsMetrics;
   simulados: SimuladoMetrics;
+  trackingHealth: TrackingHealth[];
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -95,70 +103,132 @@ const defaultMetrics: AnalyticsData = {
     desempenhoGeral: { media_acertos: 0, total_respostas: 0 },
     questoesProblematicas: [],
   },
+  trackingHealth: [],
   isLoading: true,
   error: null,
   lastUpdated: null,
+};
+
+// Helper para obter data de hoje em formato ISO (Brazil timezone)
+const getTodayBrazilISO = (): string => {
+  const brazilDate = getBrazilDate();
+  const year = brazilDate.getFullYear();
+  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
+  const day = String(brazilDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Helper para obter data de N dias atrás em formato ISO (Brazil timezone)
+const getDaysAgoBrazilISO = (days: number): string => {
+  const brazilDate = getBrazilDate();
+  brazilDate.setDate(brazilDate.getDate() - days);
+  const year = brazilDate.getFullYear();
+  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
+  const day = String(brazilDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const [data, setData] = useState<AnalyticsData>(defaultMetrics);
 
   const fetchOverviewMetrics = useCallback(async (): Promise<OverviewMetrics> => {
-    const hoje = new Date().toISOString().split('T')[0];
-    const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const hoje = getTodayBrazilISO();
+    const seteDiasAtras = getDaysAgoBrazilISO(7);
+    const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+    const startDate = filters.dateRange.start.toISOString();
+    const endDate = filters.dateRange.end.toISOString();
 
-    // Total de usuários
-    const { count: totalUsuarios } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true });
+    console.log('[useAnalyticsData] fetchOverviewMetrics - filters:', { hoje, seteDiasAtras, iesFilter, startDate, endDate });
 
-    // Sessões de hoje
-    const { data: sessoesHoje, count: countSessoes } = await supabase
-      .from('user_sessions')
-      .select('*', { count: 'exact' })
-      .gte('started_at', hoje);
+    // Total de usuários (com filtro de IES se aplicável)
+    let usersQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+    if (iesFilter) usersQuery = usersQuery.eq('id_ies', iesFilter);
+    const { count: totalUsuarios } = await usersQuery;
+
+    // Sessões de hoje (com filtro de IES)
+    let sessoesHojeQuery = supabase.from('user_sessions').select('*', { count: 'exact' }).gte('started_at', hoje);
+    if (iesFilter) sessoesHojeQuery = sessoesHojeQuery.eq('ies_id', iesFilter);
+    const { count: countSessoes } = await sessoesHojeQuery;
 
     // Usuários únicos ativos hoje (por sessões)
-    const { data: usuariosAtivosHojeData } = await supabase
-      .from('user_sessions')
-      .select('user_id')
-      .gte('started_at', hoje);
+    let usuariosAtivosHojeQuery = supabase.from('user_sessions').select('user_id').gte('started_at', hoje);
+    if (iesFilter) usuariosAtivosHojeQuery = usuariosAtivosHojeQuery.eq('ies_id', iesFilter);
+    const { data: usuariosAtivosHojeData } = await usuariosAtivosHojeQuery;
     const usuariosAtivosHoje = new Set(usuariosAtivosHojeData?.map(s => s.user_id) || []).size;
 
     // Usuários únicos ativos últimos 7 dias
-    const { data: usuariosAtivos7DiasData } = await supabase
-      .from('user_sessions')
-      .select('user_id')
-      .gte('started_at', seteDiasAtras);
+    let usuariosAtivos7DiasQuery = supabase.from('user_sessions').select('user_id').gte('started_at', seteDiasAtras);
+    if (iesFilter) usuariosAtivos7DiasQuery = usuariosAtivos7DiasQuery.eq('ies_id', iesFilter);
+    const { data: usuariosAtivos7DiasData } = await usuariosAtivos7DiasQuery;
     const usuariosAtivos7Dias = new Set(usuariosAtivos7DiasData?.map(s => s.user_id) || []).size;
 
-    // Média de tempo de sessão (segundos)
-    const { data: sessoesDuracao } = await supabase
+    // Média de tempo de sessão (segundos) - dentro do dateRange
+    let sessoesDuracaoQuery = supabase
       .from('user_sessions')
       .select('duration_seconds')
       .not('duration_seconds', 'is', null)
-      .gte('started_at', seteDiasAtras);
+      .gte('started_at', startDate)
+      .lte('started_at', endDate);
+    if (iesFilter) sessoesDuracaoQuery = sessoesDuracaoQuery.eq('ies_id', iesFilter);
+    const { data: sessoesDuracao } = await sessoesDuracaoQuery;
     const mediaTempoSessao = sessoesDuracao?.length
       ? sessoesDuracao.reduce((acc, s) => acc + (s.duration_seconds || 0), 0) / sessoesDuracao.length / 60
       : 0;
 
     // Page views de hoje
-    const { count: pageViewsHoje } = await supabase
-      .from('page_views')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', hoje);
+    let pageViewsHojeQuery = supabase.from('page_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje);
+    if (iesFilter) pageViewsHojeQuery = pageViewsHojeQuery.eq('ies_id', iesFilter);
+    const { count: pageViewsHoje } = await pageViewsHojeQuery;
 
-    // Simulados iniciados hoje
-    const { count: simuladosIniciadosHoje } = await supabase
-      .from('simulados_iniciados')
-      .select('*', { count: 'exact', head: true })
-      .gte('started_at', hoje);
+    // Simulados iniciados hoje - JOIN com users para filtrar por IES
+    let simuladosIniciadosHojeCount = 0;
+    if (iesFilter) {
+      const { data: simIniciados } = await supabase
+        .from('simulados_iniciados')
+        .select('user_id')
+        .gte('started_at', hoje);
+      
+      if (simIniciados && simIniciados.length > 0) {
+        const userIds = simIniciados.map(s => s.user_id);
+        const { count } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_ies', iesFilter)
+          .in('id', userIds);
+        simuladosIniciadosHojeCount = count || 0;
+      }
+    } else {
+      const { count } = await supabase
+        .from('simulados_iniciados')
+        .select('*', { count: 'exact', head: true })
+        .gte('started_at', hoje);
+      simuladosIniciadosHojeCount = count || 0;
+    }
 
     // Simulados finalizados hoje
-    const { count: simuladosFinalizadosHoje } = await supabase
-      .from('simulados_finalizados')
-      .select('*', { count: 'exact', head: true })
-      .gte('finalizado_em', hoje);
+    let simuladosFinalizadosHojeCount = 0;
+    if (iesFilter) {
+      const { data: simFinalizados } = await supabase
+        .from('simulados_finalizados')
+        .select('user_id')
+        .gte('finalizado_em', hoje);
+      
+      if (simFinalizados && simFinalizados.length > 0) {
+        const userIds = simFinalizados.map(s => s.user_id);
+        const { count } = await supabase
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('id_ies', iesFilter)
+          .in('id', userIds);
+        simuladosFinalizadosHojeCount = count || 0;
+      }
+    } else {
+      const { count } = await supabase
+        .from('simulados_finalizados')
+        .select('*', { count: 'exact', head: true })
+        .gte('finalizado_em', hoje);
+      simuladosFinalizadosHojeCount = count || 0;
+    }
 
     // SanarClass views hoje
     const { count: sanarclassViewsHoje } = await supabase
@@ -166,18 +236,23 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       .select('*', { count: 'exact', head: true })
       .gte('created_at', hoje);
 
-    // Taxa de abandono de simulados
-    const { count: totalIniciados } = await supabase
+    // Taxa de abandono de simulados (no dateRange)
+    let totalIniciadosQuery = supabase
       .from('simulados_iniciados')
-      .select('*', { count: 'exact', head: true })
-      .gte('started_at', filters.dateRange.start.toISOString())
-      .lte('started_at', filters.dateRange.end.toISOString());
+      .select('user_id', { count: 'exact' })
+      .gte('started_at', startDate)
+      .lte('started_at', endDate);
 
-    const { count: totalFinalizados } = await supabase
+    let totalFinalizadosQuery = supabase
       .from('simulados_finalizados')
-      .select('*', { count: 'exact', head: true })
-      .gte('finalizado_em', filters.dateRange.start.toISOString())
-      .lte('finalizado_em', filters.dateRange.end.toISOString());
+      .select('user_id', { count: 'exact' })
+      .gte('finalizado_em', startDate)
+      .lte('finalizado_em', endDate);
+
+    const [{ count: totalIniciados }, { count: totalFinalizados }] = await Promise.all([
+      totalIniciadosQuery,
+      totalFinalizadosQuery
+    ]);
 
     const taxaAbandonoSimulados = totalIniciados && totalIniciados > 0
       ? Math.round(((totalIniciados - (totalFinalizados || 0)) / totalIniciados) * 100)
@@ -190,27 +265,35 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       sessoesHoje: countSessoes || 0,
       mediaTempoSessao: Math.round(mediaTempoSessao * 10) / 10,
       pageViewsHoje: pageViewsHoje || 0,
-      simuladosIniciadosHoje: simuladosIniciadosHoje || 0,
-      simuladosFinalizadosHoje: simuladosFinalizadosHoje || 0,
+      simuladosIniciadosHoje: simuladosIniciadosHojeCount,
+      simuladosFinalizadosHoje: simuladosFinalizadosHojeCount,
       sanarclassViewsHoje: sanarclassViewsHoje || 0,
       taxaAbandonoSimulados,
     };
-  }, [filters.dateRange]);
+  }, [filters.dateRange, filters.iesId]);
 
   const fetchEngagementMetrics = useCallback(async (): Promise<EngagementMetrics> => {
-    const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+    const startDate = filters.dateRange.start.toISOString();
+    const endDate = filters.dateRange.end.toISOString();
 
-    // Sessões por dia
-    const { data: sessoesBrutas } = await supabase
+    console.log('[useAnalyticsData] fetchEngagementMetrics - filters:', { iesFilter, startDate, endDate });
+
+    // Sessões por dia (dentro do dateRange)
+    let sessoesQuery = supabase
       .from('user_sessions')
       .select('started_at, duration_seconds, is_mobile')
-      .gte('started_at', seteDiasAtras)
+      .gte('started_at', startDate)
+      .lte('started_at', endDate)
       .order('started_at', { ascending: true });
+    if (iesFilter) sessoesQuery = sessoesQuery.eq('ies_id', iesFilter);
+    const { data: sessoesBrutas } = await sessoesQuery;
 
-    // Agrupar sessões por dia
+    // Agrupar sessões por dia (usando timezone Brasil)
     const sessoesPorDiaMap = new Map<string, { count: number; totalDuration: number }>();
     sessoesBrutas?.forEach((s) => {
-      const dia = s.started_at.split('T')[0];
+      const brazilDate = toBrazilDate(s.started_at);
+      const dia = `${brazilDate.getFullYear()}-${String(brazilDate.getMonth() + 1).padStart(2, '0')}-${String(brazilDate.getDate()).padStart(2, '0')}`;
       const existing = sessoesPorDiaMap.get(dia) || { count: 0, totalDuration: 0 };
       sessoesPorDiaMap.set(dia, {
         count: existing.count + 1,
@@ -224,11 +307,14 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       duracao_media: vals.count > 0 ? Math.round(vals.totalDuration / vals.count / 60) : 0,
     }));
 
-    // Page views por página
-    const { data: pageViewsBrutas } = await supabase
+    // Page views por página (dentro do dateRange)
+    let pageViewsQuery = supabase
       .from('page_views')
       .select('page_path')
-      .gte('created_at', seteDiasAtras);
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+    if (iesFilter) pageViewsQuery = pageViewsQuery.eq('ies_id', iesFilter);
+    const { data: pageViewsBrutas } = await pageViewsQuery;
 
     const pageViewsMap = new Map<string, number>();
     pageViewsBrutas?.forEach((pv) => {
@@ -241,10 +327,11 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       .sort((a, b) => b.views - a.views)
       .slice(0, 10);
 
-    // Horários de pico
+    // Horários de pico (usando timezone Brasil)
     const horarioMap = new Map<number, number>();
     sessoesBrutas?.forEach((s) => {
-      const hora = new Date(s.started_at).getHours();
+      const brazilDate = toBrazilDate(s.started_at);
+      const hora = brazilDate.getHours();
       const count = horarioMap.get(hora) || 0;
       horarioMap.set(hora, count + 1);
     });
@@ -264,13 +351,24 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       dispositivosMobile,
       dispositivosDesktop,
     };
-  }, []);
+  }, [filters.dateRange, filters.iesId]);
 
   const fetchProgressMetrics = useCallback(async (): Promise<ProgressMetrics> => {
-    // Progresso por matéria
-    const { data: progressoBruto } = await supabase
-      .from('study_progress')
-      .select('materia_id, completed');
+    const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+
+    console.log('[useAnalyticsData] fetchProgressMetrics - filters:', { iesFilter });
+
+    // Buscar IES nome se tiver filtro
+    let iesNome: string | null = null;
+    if (iesFilter) {
+      const { data: iesData } = await supabase.from('ies').select('nome').eq('id', iesFilter).single();
+      iesNome = iesData?.nome || null;
+    }
+
+    // Progresso por matéria (com filtro de IES pelo ies_nome em study_progress)
+    let progressoQuery = supabase.from('study_progress').select('materia_id, completed, ies_nome');
+    if (iesNome) progressoQuery = progressoQuery.eq('ies_nome', iesNome);
+    const { data: progressoBruto } = await progressoQuery;
 
     const materiaMap = new Map<string, { completed: number; total: number }>();
     progressoBruto?.forEach((p) => {
@@ -291,9 +389,9 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       .slice(0, 10);
 
     // Usuários por faixa de progresso
-    const { data: usuarioProgressos } = await supabase
-      .from('study_progress')
-      .select('user_id, completed');
+    let userProgressQuery = supabase.from('study_progress').select('user_id, completed, ies_nome');
+    if (iesNome) userProgressQuery = userProgressQuery.eq('ies_nome', iesNome);
+    const { data: usuarioProgressos } = await userProgressQuery;
 
     const userProgressMap = new Map<string, { completed: number; total: number }>();
     usuarioProgressos?.forEach((p) => {
@@ -334,19 +432,20 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       usuariosPorFaixaProgresso,
       taxaConclusaoConteudo,
     };
-  }, []);
+  }, [filters.iesId]);
 
   const fetchDemographicsMetrics = useCallback(async (): Promise<DemographicsMetrics> => {
-    // Usuários por IES
-    const { data: usuariosData } = await supabase
-      .from('users')
-      .select('id_ies, semestre');
+    const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+
+    console.log('[useAnalyticsData] fetchDemographicsMetrics - filters:', { iesFilter });
+
+    // Usuários por IES (com filtro se aplicável)
+    let usuariosQuery = supabase.from('users').select('id_ies, semestre');
+    if (iesFilter) usuariosQuery = usuariosQuery.eq('id_ies', iesFilter);
+    const { data: usuariosData } = await usuariosQuery;
 
     // Buscar nomes das IES
-    const { data: iesData } = await supabase
-      .from('ies')
-      .select('id, nome');
-
+    const { data: iesData } = await supabase.from('ies').select('id, nome');
     const iesMap = new Map(iesData?.map(i => [i.id, i.nome]) || []);
 
     const usuariosPorIESMap = new Map<string, number>();
@@ -357,10 +456,10 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         const count = usuariosPorIESMap.get(u.id_ies) || 0;
         usuariosPorIESMap.set(u.id_ies, count + 1);
       }
-      if (u.semestre) {
-        const count = usuariosPorSemestreMap.get(u.semestre) || 0;
-        usuariosPorSemestreMap.set(u.semestre, count + 1);
-      }
+      // Tratar semestre 0 ou null como "Não informado"
+      const semestre = u.semestre ?? 0;
+      const count = usuariosPorSemestreMap.get(semestre) || 0;
+      usuariosPorSemestreMap.set(semestre, count + 1);
     });
 
     const usuariosPorIES = Array.from(usuariosPorIESMap.entries())
@@ -371,17 +470,32 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       }))
       .sort((a, b) => b.quantidade - a.quantidade);
 
+    // Tratar semestre 0 como "Não informado"
     const usuariosPorSemestre = Array.from(usuariosPorSemestreMap.entries())
-      .map(([semestre, quantidade]) => ({ semestre, quantidade }))
-      .sort((a, b) => a.semestre - b.semestre);
+      .map(([semestre, quantidade]) => ({ 
+        semestre: semestre === 0 ? 'Não informado' : `${semestre}º`,
+        quantidade 
+      }))
+      .sort((a, b) => {
+        // Colocar "Não informado" no final
+        if (a.semestre === 'Não informado') return 1;
+        if (b.semestre === 'Não informado') return -1;
+        return parseInt(a.semestre) - parseInt(b.semestre);
+      });
 
     return {
       usuariosPorIES,
       usuariosPorSemestre,
     };
-  }, []);
+  }, [filters.iesId]);
 
   const fetchSimuladoMetrics = useCallback(async (): Promise<SimuladoMetrics> => {
+    const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
+    const startDate = filters.dateRange.start.toISOString();
+    const endDate = filters.dateRange.end.toISOString();
+
+    console.log('[useAnalyticsData] fetchSimuladoMetrics - filters:', { iesFilter, startDate, endDate });
+
     // Simulados disponíveis
     const { data: simuladosData } = await supabase
       .from('simulados_admin')
@@ -398,10 +512,12 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       questoesPorSimulado.set(q.simulado_id, count + 1);
     });
 
-    // Iniciados por simulado
+    // Iniciados por simulado (dentro do dateRange)
     const { data: iniciadosData } = await supabase
       .from('simulados_iniciados')
-      .select('simulado_id');
+      .select('simulado_id')
+      .gte('started_at', startDate)
+      .lte('started_at', endDate);
 
     const iniciadosPorSimulado = new Map<string, number>();
     iniciadosData?.forEach((i) => {
@@ -409,10 +525,12 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       iniciadosPorSimulado.set(i.simulado_id, count + 1);
     });
 
-    // Finalizados por simulado
+    // Finalizados por simulado (dentro do dateRange)
     const { data: finalizadosData } = await supabase
       .from('simulados_finalizados')
-      .select('simulado_id');
+      .select('simulado_id')
+      .gte('finalizado_em', startDate)
+      .lte('finalizado_em', endDate);
 
     const finalizadosPorSimulado = new Map<string, number>();
     finalizadosData?.forEach((f) => {
@@ -442,7 +560,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     const totalCorretas = respostasData?.filter(r => r.correct).length || 0;
     const mediaAcertos = totalRespostas > 0 ? Math.round((totalCorretas / totalRespostas) * 100) : 0;
 
-    // Questões problemáticas (maior taxa de erro)
+    // Questões problemáticas (maior taxa de erro) - com JOIN para enunciado real
     const { data: respostasDetalhadas } = await supabase
       .from('answer_progress')
       .select('question_id, correct');
@@ -456,15 +574,41 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       });
     });
 
-    const questoesProblematicas = Array.from(questaoStats.entries())
-      .map(([questao_id, stats]) => ({
-        questao_id,
-        enunciado: `Questão ${questao_id.slice(0, 8)}...`,
-        taxa_erro: stats.total > 0 ? Math.round(((stats.total - stats.corretas) / stats.total) * 100) : 0,
-      }))
-      .filter(q => q.taxa_erro >= 50)
-      .sort((a, b) => b.taxa_erro - a.taxa_erro)
-      .slice(0, 10);
+    // Buscar enunciados reais das questões problemáticas
+    const questoesProblematicasIds = Array.from(questaoStats.entries())
+      .filter(([_, stats]) => stats.total > 0 && ((stats.total - stats.corretas) / stats.total) >= 0.5)
+      .sort((a, b) => {
+        const taxaA = (a[1].total - a[1].corretas) / a[1].total;
+        const taxaB = (b[1].total - b[1].corretas) / b[1].total;
+        return taxaB - taxaA;
+      })
+      .slice(0, 10)
+      .map(([id]) => id);
+
+    let questoesProblematicas: { questao_id: string; enunciado: string; taxa_erro: number }[] = [];
+
+    if (questoesProblematicasIds.length > 0) {
+      const { data: questoesEnunciados } = await supabase
+        .from('questoes_simulado')
+        .select('id, enunciado')
+        .in('id', questoesProblematicasIds);
+
+      const enunciadoMap = new Map(questoesEnunciados?.map(q => [q.id, q.enunciado]) || []);
+
+      questoesProblematicas = questoesProblematicasIds.map(id => {
+        const stats = questaoStats.get(id)!;
+        const enunciadoCompleto = enunciadoMap.get(id) || 'Enunciado indisponível';
+        const enunciadoTruncado = enunciadoCompleto.length > 80 
+          ? enunciadoCompleto.slice(0, 80) + '...' 
+          : enunciadoCompleto;
+        
+        return {
+          questao_id: id,
+          enunciado: enunciadoTruncado,
+          taxa_erro: stats.total > 0 ? Math.round(((stats.total - stats.corretas) / stats.total) * 100) : 0,
+        };
+      });
+    }
 
     return {
       simuladosDisponiveis,
@@ -474,18 +618,96 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       },
       questoesProblematicas,
     };
+  }, [filters.dateRange, filters.iesId]);
+
+  const fetchTrackingHealth = useCallback(async (): Promise<TrackingHealth[]> => {
+    const seteDiasAtras = getDaysAgoBrazilISO(7);
+
+    console.log('[useAnalyticsData] fetchTrackingHealth - desde:', seteDiasAtras);
+
+    const results: TrackingHealth[] = [];
+
+    // user_sessions
+    const { count: sessionsCount } = await supabase
+      .from('user_sessions')
+      .select('*', { count: 'exact', head: true })
+      .gte('started_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'user_sessions', 
+      ultimos7dias: sessionsCount || 0, 
+      status: (sessionsCount || 0) < 5 ? 'critico' : (sessionsCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+
+    // page_views
+    const { count: pageViewsCount } = await supabase
+      .from('page_views')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'page_views', 
+      ultimos7dias: pageViewsCount || 0, 
+      status: (pageViewsCount || 0) < 5 ? 'critico' : (pageViewsCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+
+    // analytics_events
+    const { count: eventsCount } = await supabase
+      .from('analytics_events')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'analytics_events', 
+      ultimos7dias: eventsCount || 0, 
+      status: (eventsCount || 0) < 5 ? 'critico' : (eventsCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+
+    // study_progress
+    const { count: studyCount } = await supabase
+      .from('study_progress')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'study_progress', 
+      ultimos7dias: studyCount || 0, 
+      status: (studyCount || 0) < 5 ? 'critico' : (studyCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+
+    // aula_views
+    const { count: aulaCount } = await supabase
+      .from('aula_views')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'aula_views', 
+      ultimos7dias: aulaCount || 0, 
+      status: (aulaCount || 0) < 5 ? 'critico' : (aulaCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+
+    // sanarclass_views
+    const { count: sanarCount } = await supabase
+      .from('sanarclass_views')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', seteDiasAtras);
+    results.push({ 
+      tabela: 'sanarclass_views', 
+      ultimos7dias: sanarCount || 0, 
+      status: (sanarCount || 0) < 5 ? 'critico' : (sanarCount || 0) < 50 ? 'baixo' : 'ok' 
+    });
+    return results;
   }, []);
 
   const fetchAllData = useCallback(async () => {
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const [overview, engagement, progress, demographics, simulados] = await Promise.all([
+      console.log('[useAnalyticsData] Iniciando fetch de todos os dados com filtros:', filters);
+
+      const [overview, engagement, progress, demographics, simulados, trackingHealth] = await Promise.all([
         fetchOverviewMetrics(),
         fetchEngagementMetrics(),
         fetchProgressMetrics(),
         fetchDemographicsMetrics(),
         fetchSimuladoMetrics(),
+        fetchTrackingHealth(),
       ]);
 
       setData({
@@ -494,19 +716,22 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         progress,
         demographics,
         simulados,
+        trackingHealth,
         isLoading: false,
         error: null,
-        lastUpdated: new Date(),
+        lastUpdated: getBrazilDate(),
       });
+
+      console.log('[useAnalyticsData] Dados carregados com sucesso');
     } catch (error) {
-      console.error('[AnalyticsCapture] Erro ao carregar dados:', error);
+      console.error('[useAnalyticsData] Erro ao carregar dados:', error);
       setData((prev) => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Erro ao carregar dados',
       }));
     }
-  }, [fetchOverviewMetrics, fetchEngagementMetrics, fetchProgressMetrics, fetchDemographicsMetrics, fetchSimuladoMetrics]);
+  }, [fetchOverviewMetrics, fetchEngagementMetrics, fetchProgressMetrics, fetchDemographicsMetrics, fetchSimuladoMetrics, fetchTrackingHealth]);
 
   useEffect(() => {
     fetchAllData();
