@@ -233,7 +233,7 @@ export const BatchProcessingReport: React.FC<BatchProcessingReportProps> = ({
         <div className="flex gap-2 pt-2">
           <Button onClick={onDownload} variant="outline" className="flex-1">
             <Download className="h-4 w-4 mr-2" />
-            Baixar Relatório CSV
+            Baixar Relatório XLSX
           </Button>
           <Button onClick={onClose} className="flex-1">
             Fechar

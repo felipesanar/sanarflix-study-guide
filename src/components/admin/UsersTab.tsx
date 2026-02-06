@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Upload, Download, Users, Shield, RefreshCw, Search, Copy, Loader2, Mail } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
+import * as XLSX from 'xlsx';
 
 interface IES {
   id: string;
@@ -313,27 +314,126 @@ export const UsersTab: React.FC = () => {
   const downloadReport = () => {
     if (!batchReport) return;
 
-    const csvContent = [
-      'email,nome,linha,status,acao,campos_atualizados,erro_codigo,erro_mensagem',
-      ...batchReport.results.map(r => [
-        r.email,
-        `"${r.nome}"`,
-        r.linha,
-        r.success ? 'sucesso' : 'erro',
-        r.action || '',
-        r.fieldsUpdated?.join(';') || '',
-        r.error?.code || '',
-        `"${r.error?.message || ''}"`
-      ].join(','))
-    ].join('\n');
+    const workbook = XLSX.utils.book_new();
+
+    // ========== Sheet 1: Resumo ==========
+    const summaryData = [
+      ['📊 RELATÓRIO DE CADASTRO EM LOTE'],
+      [''],
+      ['Data/Hora Início', batchReport.startedAt.toLocaleString('pt-BR')],
+      ['Data/Hora Fim', batchReport.finishedAt.toLocaleString('pt-BR')],
+      ['Duração', formatDuration(batchReport.startedAt, batchReport.finishedAt)],
+      [''],
+      ['RESUMO'],
+      ['Total Processados', batchReport.total],
+      ['✅ Criados', batchReport.created],
+      ['🔄 Atualizados', batchReport.updated],
+      ['❌ Erros', batchReport.errors],
+      ['⏭️ Ignorados (duplicados)', batchReport.skipped],
+      [''],
+      ['Taxa de Sucesso', `${((batchReport.created + batchReport.updated) / batchReport.total * 100).toFixed(1)}%`]
+    ];
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    summarySheet['!cols'] = [{ wch: 25 }, { wch: 35 }];
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
+
+    // ========== Sheet 2: Todos os Resultados ==========
+    const allResultsData = batchReport.results.map(r => ({
+      'Linha': r.linha,
+      'Email': r.email,
+      'Nome': r.nome,
+      'Status': r.success ? '✅ Sucesso' : '❌ Erro',
+      'Ação': r.action === 'created' ? 'Criado' : r.action === 'updated' ? 'Atualizado' : '-',
+      'Campos Atualizados': r.fieldsUpdated?.join(', ') || '-',
+      'Código Erro': r.error?.code || '-',
+      'Mensagem Erro': r.error?.message || '-'
+    }));
+    const allResultsSheet = XLSX.utils.json_to_sheet(allResultsData);
+    allResultsSheet['!cols'] = [
+      { wch: 8 },  // Linha
+      { wch: 35 }, // Email
+      { wch: 30 }, // Nome
+      { wch: 12 }, // Status
+      { wch: 12 }, // Ação
+      { wch: 25 }, // Campos Atualizados
+      { wch: 20 }, // Código Erro
+      { wch: 50 }, // Mensagem Erro
+    ];
+    XLSX.utils.book_append_sheet(workbook, allResultsSheet, 'Todos os Resultados');
+
+    // ========== Sheet 3: Somente Erros ==========
+    const errorResults = batchReport.results.filter(r => !r.success);
+    if (errorResults.length > 0) {
+      const errorData = errorResults.map(r => ({
+        'Linha': r.linha,
+        'Email': r.email,
+        'Nome': r.nome,
+        'Código': r.error?.code || 'UNKNOWN',
+        'Mensagem': r.error?.message || 'Erro desconhecido'
+      }));
+      const errorSheet = XLSX.utils.json_to_sheet(errorData);
+      errorSheet['!cols'] = [
+        { wch: 8 },
+        { wch: 35 },
+        { wch: 30 },
+        { wch: 20 },
+        { wch: 60 },
+      ];
+      XLSX.utils.book_append_sheet(workbook, errorSheet, 'Erros');
+    }
+
+    // ========== Sheet 4: Criados com Sucesso ==========
+    const createdResults = batchReport.results.filter(r => r.success && r.action === 'created');
+    if (createdResults.length > 0) {
+      const createdData = createdResults.map(r => ({
+        'Linha': r.linha,
+        'Email': r.email,
+        'Nome': r.nome,
+        'Status': 'Email de convite enviado'
+      }));
+      const createdSheet = XLSX.utils.json_to_sheet(createdData);
+      createdSheet['!cols'] = [
+        { wch: 8 },
+        { wch: 35 },
+        { wch: 30 },
+        { wch: 30 },
+      ];
+      XLSX.utils.book_append_sheet(workbook, createdSheet, 'Criados');
+    }
+
+    // ========== Sheet 5: Atualizados ==========
+    const updatedResults = batchReport.results.filter(r => r.success && r.action === 'updated');
+    if (updatedResults.length > 0) {
+      const updatedData = updatedResults.map(r => ({
+        'Linha': r.linha,
+        'Email': r.email,
+        'Nome': r.nome,
+        'Campos Atualizados': r.fieldsUpdated?.join(', ') || 'Nenhuma alteração'
+      }));
+      const updatedSheet = XLSX.utils.json_to_sheet(updatedData);
+      updatedSheet['!cols'] = [
+        { wch: 8 },
+        { wch: 35 },
+        { wch: 30 },
+        { wch: 40 },
+      ];
+      XLSX.utils.book_append_sheet(workbook, updatedSheet, 'Atualizados');
+    }
+
+    // Generate and download
+    const fileName = `relatorio_cadastro_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
     
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `relatorio_cadastro_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    toast.success('Relatório XLSX baixado com sucesso!');
+  };
+
+  const formatDuration = (start: Date, end: Date): string => {
+    const diffMs = end.getTime() - start.getTime();
+    const seconds = Math.floor(diffMs / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
   };
 
   const downloadExampleCsv = () => {
