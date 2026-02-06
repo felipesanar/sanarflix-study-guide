@@ -160,7 +160,7 @@ export function AppSidebar() {
     <TooltipProvider delayDuration={0}>
       <Sidebar
         data-testid="app-sidebar"
-        className="bg-sidebar shadow-lg dark:shadow-none transition-all duration-300"
+        className="bg-transparent transition-all duration-300"
         collapsible="icon"
       >
         {/* Header with Brand */}
