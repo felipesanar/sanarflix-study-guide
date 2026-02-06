@@ -60,6 +60,40 @@ Deno.serve(async (req) => {
     console.log(`[corrigir-simulado] Auto-finalizado: ${auto_finalizado ? 'SIM (sendBeacon)' : 'NÃO (botão)'}`);
     console.log(`[corrigir-simulado] Tempo total: ${tempo_total_segundos}s, Saídas aba: ${saidas_de_aba}, Saídas fullscreen: ${saidas_de_fullscreen ?? 0}`);
 
+    // PASSO 0: Verificar/criar registro de início para consistência
+    const { data: inicioExistente, error: inicioError } = await supabaseAdmin
+      .from('simulados_iniciados')
+      .select('id, started_at')
+      .eq('user_id', user_id)
+      .eq('simulado_id', simulado_id)
+      .maybeSingle();
+
+    if (inicioError) {
+      console.error('[corrigir-simulado] Erro ao verificar início:', inicioError);
+    }
+
+    // Se não existe início, criar um retroativamente (para consistência de dados)
+    if (!inicioExistente) {
+      console.log('[corrigir-simulado] ATENÇÃO: Não existe registro de início. Criando retroativamente...');
+      const startedAtRetroativo = new Date(Date.now() - (tempo_total_segundos * 1000)).toISOString();
+      
+      const { error: insertInicioError } = await supabaseAdmin
+        .from('simulados_iniciados')
+        .insert({
+          user_id: user_id,
+          simulado_id: simulado_id,
+          started_at: startedAtRetroativo
+        });
+      
+      if (insertInicioError && !insertInicioError.message?.includes('duplicate')) {
+        console.error('[corrigir-simulado] Erro ao criar início retroativo:', insertInicioError);
+      } else {
+        console.log(`[corrigir-simulado] Início retroativo criado: ${startedAtRetroativo}`);
+      }
+    } else {
+      console.log(`[corrigir-simulado] Início encontrado: ID=${inicioExistente.id}, started_at=${inicioExistente.started_at}`);
+    }
+
     // PASSO 1: Verificar se existe registro de finalização (e seu status de liberação)
     const { data: finalizacaoExistente, error: finalizacaoError } = await supabaseAdmin
       .from('simulados_finalizados')
