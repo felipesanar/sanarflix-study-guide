@@ -1,68 +1,78 @@
 
-# Plano: Correção do Layout da Sidebar
+# Plano: Melhorar Responsividade da Sidebar Fechada
 
 ## Problema Identificado
+A sidebar quando fechada (modo "icon") está com uma largura muito pequena (3rem = 48px), causando elementos apertados e mal alinhados. Os ícones, avatar do usuário e botão de logout ficam muito próximos das bordas, prejudicando a experiência visual.
 
-A sidebar está sobrepondo o header e o conteúdo das páginas. Isso ocorre devido a um conflito entre os estilos customizados aplicados no redesign e o sistema de CSS variables do componente `Sidebar` do shadcn/ui.
+## Mudanças Propostas
 
-### Causa Raiz (Técnica)
+### 1. Aumentar largura da sidebar fechada
+**Arquivo:** `src/components/ui/sidebar.tsx`
+- Alterar `SIDEBAR_WIDTH_ICON` de `"3rem"` para `"4rem"` (64px)
+- Isso dá mais espaço para os ícones respirarem
 
-1. **Classes de largura conflitantes** em `AppSidebar.tsx`:
-   - O componente aplica `w-[260px]` e `w-[68px]` diretamente
-   - Mas o sistema de sidebar usa CSS variables (`--sidebar-width: min(16rem, 20vw)` = 256px e `--sidebar-width-icon: 3rem` = 48px)
-   - O "spacer div" interno do componente `Sidebar` cria espaço baseado nas CSS variables, não nas classes customizadas
-   - Resultado: diferença de 4-20px causa sobreposição
+### 2. Melhorar centralização do header
+**Arquivo:** `src/components/AppSidebar.tsx`
+- Ajustar padding do `SidebarHeader` quando fechada para centralizar melhor o logo
+- Garantir que o logo fique perfeitamente centralizado
 
-2. **Classes redundantes** `hidden md:flex` conflitando com o sistema interno
+### 3. Otimizar o card do usuário no modo fechado
+**Arquivo:** `src/components/sidebar/SidebarUserCard.tsx`
+- Ajustar padding e centralização quando `collapsed=true`
+- Remover bordas/sombras desnecessárias no modo compacto
+- Garantir que o avatar fique centralizado
 
----
+### 4. Ajustar itens de menu no modo fechado
+**Arquivo:** `src/components/sidebar/SidebarMenuItem.tsx`
+- Melhorar padding e centralização dos ícones
+- Garantir área de clique adequada (min 44px)
+- Remover margens que desalinham os ícones
 
-## Solução
+### 5. Otimizar botão de logout no modo fechado
+**Arquivo:** `src/components/sidebar/SidebarLogoutButton.tsx`
+- Centralizar corretamente o botão
+- Ajustar tamanho para combinar com a nova largura
 
-Remover as classes de largura customizadas e deixar o sistema de CSS variables do shadcn controlar a largura corretamente.
+### 6. Ajustar espaçamentos do conteúdo da sidebar
+**Arquivo:** `src/components/AppSidebar.tsx`
+- Uniformizar padding no modo fechado
+- Garantir alinhamento vertical consistente
 
-### Arquivos a Modificar
-
-**1. `src/components/AppSidebar.tsx`**
-- Remover as classes `w-[260px]` e `w-[68px]` do className
-- Remover `hidden md:flex` (já gerenciado pelo componente base)
-- Manter apenas estilos visuais (bg, border, shadow, transition)
+## Detalhes Técnicos
 
 ```text
-ANTES (linhas 161-170):
-<Sidebar
-  className={`
-    hidden md:flex flex-col
-    bg-sidebar border-r border-sidebar-border
-    shadow-lg dark:shadow-none
-    transition-all duration-300
-    ${collapsed ? "w-[68px]" : "w-[260px]"}
-  `}
-  collapsible="icon"
->
-
-DEPOIS:
-<Sidebar
-  className="bg-sidebar shadow-lg dark:shadow-none transition-all duration-300"
-  collapsible="icon"
->
+┌────────────────────────────────────────────┐
+│  ANTES (3rem = 48px)    DEPOIS (4rem = 64px)
+├────────────────────────────────────────────┤
+│  ┌──┐                    ┌────┐            │
+│  │🔴│ ← cramped          │ 🔴 │ ← centered │
+│  └──┘                    └────┘            │
+│  ┌──┐                    ┌────┐            │
+│  │FS│ ← tight edges      │ FS │ ← spaced   │
+│  └──┘                    └────┘            │
+│  🏠 ← misaligned         │ 🏠 │ ← centered │
+│  📚                      │ 📚 │            │
+│  📋                      │ 📋 │            │
+│  ⚙️                       │ ⚙️  │            │
+│  📊                      │ 📊 │            │
+│  ┌──┐                    ┌────┐            │
+│  │→│ logout              │ → │ logout     │
+│  └──┘                    └────┘            │
+└────────────────────────────────────────────┘
 ```
 
----
+## Arquivos a Modificar
+
+| Arquivo | Modificação |
+|---------|-------------|
+| `src/components/ui/sidebar.tsx` | Aumentar `SIDEBAR_WIDTH_ICON` para 4rem |
+| `src/components/AppSidebar.tsx` | Ajustar padding do header, content e footer no modo fechado |
+| `src/components/sidebar/SidebarUserCard.tsx` | Simplificar e centralizar avatar no modo compacto |
+| `src/components/sidebar/SidebarMenuItem.tsx` | Melhorar centralização dos ícones |
+| `src/components/sidebar/SidebarLogoutButton.tsx` | Ajustar centralização do botão |
 
 ## Resultado Esperado
-
-- Sidebar desktop respeita o espaçamento correto (256px expandida / 48px colapsada)
-- Header e conteúdo principal não são mais sobrepostos
-- Comportamento de colapso (`collapsible="icon"`) funciona corretamente
-- Sem regressões visuais no design premium implementado
-
----
-
-## Verificação
-
-Após a correção, testar:
-1. Visualizar a Home em desktop (1280px+)
-2. Expandir/colapsar a sidebar com o trigger
-3. Verificar que não há sobreposição em nenhuma das páginas
-4. Confirmar que mobile continua usando MobileHeader + MobileBottomNav (sem sidebar)
+- Sidebar fechada com aparência mais equilibrada e profissional
+- Ícones e elementos perfeitamente centralizados
+- Melhor espaçamento entre elementos
+- Experiência visual premium mantendo a transparência definida anteriormente
