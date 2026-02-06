@@ -516,14 +516,14 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     const [simuladosResult, iniciadosResult, finalizadosResult, respostasResult] = await Promise.all([
       simuladosQuery,
-      // Iniciados no dateRange (com filtro IES)
+      // Iniciados no dateRange - agora inclui user_id para contagem DISTINCT
       userIdsFromIES && userIdsFromIES.length > 0
-        ? supabase.from('simulados_iniciados').select('simulado_id').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_iniciados').select('simulado_id').gte('started_at', startDate).lte('started_at', endDate),
-      // Finalizados no dateRange (com filtro IES)
+        ? supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
+        : supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate),
+      // Finalizados no dateRange - agora inclui user_id para contagem DISTINCT
       userIdsFromIES && userIdsFromIES.length > 0
-        ? supabase.from('simulados_finalizados').select('simulado_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_finalizados').select('simulado_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate),
+        ? supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
+        : supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate),
       // Respostas (com filtro IES)
       userIdsFromIES && userIdsFromIES.length > 0
         ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
@@ -542,19 +542,38 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       questoesPorSimulado.set(q.simulado_id, (questoesPorSimulado.get(q.simulado_id) || 0) + 1);
     });
 
-    const iniciadosPorSimulado = new Map<string, number>();
+    // CORREÇÃO: Usar Set para contar pares únicos (user_id + simulado_id)
+    // Isso evita que múltiplas tentativas/duplicatas distorçam as métricas
+    const iniciadosPorSimulado = new Map<string, Set<string>>();
     iniciadosResult.data?.forEach((i) => {
-      iniciadosPorSimulado.set(i.simulado_id, (iniciadosPorSimulado.get(i.simulado_id) || 0) + 1);
+      if (!iniciadosPorSimulado.has(i.simulado_id)) {
+        iniciadosPorSimulado.set(i.simulado_id, new Set());
+      }
+      iniciadosPorSimulado.get(i.simulado_id)!.add(i.user_id);
     });
 
-    const finalizadosPorSimulado = new Map<string, number>();
+    // Criar um Set de todas as chaves (user_id-simulado_id) que têm início válido
+    const iniciosValidos = new Set<string>();
+    iniciadosResult.data?.forEach((i) => {
+      iniciosValidos.add(`${i.user_id}-${i.simulado_id}`);
+    });
+
+    // CORREÇÃO: Finalizações só contam se existir início correspondente
+    const finalizadosPorSimulado = new Map<string, Set<string>>();
     finalizadosResult.data?.forEach((f) => {
-      finalizadosPorSimulado.set(f.simulado_id, (finalizadosPorSimulado.get(f.simulado_id) || 0) + 1);
+      const chave = `${f.user_id}-${f.simulado_id}`;
+      // Só conta se tiver início correspondente
+      if (iniciosValidos.has(chave)) {
+        if (!finalizadosPorSimulado.has(f.simulado_id)) {
+          finalizadosPorSimulado.set(f.simulado_id, new Set());
+        }
+        finalizadosPorSimulado.get(f.simulado_id)!.add(f.user_id);
+      }
     });
 
     const simuladosDisponiveis = simuladosResult.data?.map((s) => {
-      const iniciados = iniciadosPorSimulado.get(s.id) || 0;
-      const finalizados = finalizadosPorSimulado.get(s.id) || 0;
+      const iniciados = iniciadosPorSimulado.get(s.id)?.size || 0;
+      const finalizados = finalizadosPorSimulado.get(s.id)?.size || 0;
       return {
         id: s.id,
         nome: s.nome,
