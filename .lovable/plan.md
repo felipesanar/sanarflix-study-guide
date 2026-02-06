@@ -1,109 +1,223 @@
 
+# Plano: Garantir Integridade de Tentativas Únicas em Simulados
 
-# Plano: Corrigir Métricas de Simulados (Inícios < Conclusões)
+## Diagnóstico Completo
 
-## Problema Identificado
+### Estrutura do Banco de Dados (Correto)
+- **`simulados_iniciados`**: UNIQUE constraint em `(user_id, simulado_id)` - impede duplicatas
+- **`simulados_finalizados`**: UNIQUE constraint em `(user_id, simulado_id, tentativa_numero)` - permite múltiplas tentativas controladas
 
-A contagem de **Total de Inícios (4)** aparece menor que **Total de Conclusões (6)** porque:
+### Regras de Negócio Esperadas
+1. Usuário só pode **iniciar** um simulado uma vez (exceto se liberado pelo admin)
+2. Usuário só pode **finalizar** um simulado uma vez por tentativa
+3. Se já existe par (início + finalização) para aquela tentativa, bloqueado
+4. Admin pode liberar nova tentativa (`liberado_novamente = true`)
 
-1. **2 finalizações sem início correspondente**: Usuários da Fame têm registros na tabela `simulados_finalizados` mas nenhum em `simulados_iniciados`
-2. **1 usuário com múltiplas finalizações**: Um usuário finalizou o mesmo simulado 3 vezes (provavelmente devido a re-liberações ou bugs), mas só conta 1 início
+### Problemas Identificados
+
+**1. ModoProva.tsx - NÃO verifica bloqueio de acesso**
+- Usuário pode acessar `/simulados/:id/prova` diretamente via URL
+- Não chama `verificarProgressoSimulado` antes de inicializar
+- Risco: usuário pode entrar no modo prova mesmo já tendo finalizado
+
+**2. trackSimuladoStart - Usa UPSERT sem verificar liberado_novamente**
+- O upsert em `simulados_iniciados` atualiza `started_at` se já existir
+- Não verifica se o usuário tem permissão para reiniciar
+- Risco: pode "resetar" o timestamp de início mesmo sem autorização
+
+**3. Edge Function - Faltam validações adicionais**
+- Não verifica se existe registro de INÍCIO antes de aceitar finalização
+- Isso explica os 2 registros órfãos (finalização sem início)
+
+**4. SimuladosDisponiveis.tsx - Lógica de status correta**
+- Verifica `simulados_finalizados` e `liberado_novamente` corretamente
+- O botão é desabilitado/alterado conforme status
+
+---
 
 ## Solução Proposta
 
-### Opção A: Corrigir a Query (Recomendado)
-Garantir consistência lógica na exibição, fazendo **JOIN** entre as tabelas para contar apenas pares válidos (início + fim).
+### Fase 1: Frontend - Bloquear Acesso Não Autorizado
 
-**Arquivo:** `src/hooks/useAnalyticsData.ts`
+**Arquivo: `src/pages/ModoProva.tsx`**
+
+Adicionar verificação no `inicializarSimulado()`:
 
 ```typescript
-// Em vez de contar separadamente:
-// - COUNT(*) FROM simulados_iniciados
-// - COUNT(*) FROM simulados_finalizados
+const inicializarSimulado = async () => {
+  setLoading(true);
+  try {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado');
+      navigate('/simulados');
+      return;
+    }
 
-// Fazer uma query que conta DISTINCTAMENTE por (user_id, simulado_id):
-const totalInicios = new Set(
-  iniciadosResult.data?.map(i => `${i.user_id}-${i.simulado_id}`) || []
-).size;
+    // NOVO: Verificar se o usuário pode acessar este simulado
+    const jaConcluido = await simuladosApi.verificarProgressoSimulado(user.id, simuladoId);
+    if (jaConcluido) {
+      toast.error('Você já finalizou este simulado');
+      navigate('/simulados');
+      return;
+    }
 
-const totalFinalizados = new Set(
-  finalizadosResult.data?.map(f => `${f.user_id}-${f.simulado_id}`) || []
-).size;
+    // ... resto do código existente
+  } catch (error) {
+    // ...
+  }
+};
 ```
 
-**E adicionar validação:** Finalizações só contam se existir início correspondente.
+### Fase 2: Tracking - Verificar Permissão Antes de Registrar Início
 
-### Opção B: Corrigir os Dados no Banco (Complementar)
-1. Inserir registros de início faltantes para os 2 usuários órfãos
-2. Remover finalizações duplicadas (manter apenas a mais recente)
+**Arquivo: `src/hooks/useAnalyticsTracker.ts`**
 
-```sql
--- Inserir inícios faltantes
-INSERT INTO simulados_iniciados (user_id, simulado_id, started_at)
-SELECT sf.user_id, sf.simulado_id, sf.finalizado_em - INTERVAL '30 minutes'
-FROM simulados_finalizados sf
-WHERE NOT EXISTS (
-  SELECT 1 FROM simulados_iniciados si 
-  WHERE si.user_id = sf.user_id AND si.simulado_id = sf.simulado_id
-);
+Modificar `trackSimuladoStart` para verificar se pode registrar:
 
--- Remover finalizações duplicadas (manter mais recente)
-DELETE FROM simulados_finalizados sf1
-WHERE EXISTS (
-  SELECT 1 FROM simulados_finalizados sf2 
-  WHERE sf2.user_id = sf1.user_id 
-  AND sf2.simulado_id = sf1.simulado_id
-  AND sf2.finalizado_em > sf1.finalizado_em
-);
+```typescript
+const trackSimuladoStart = useCallback(async (simuladoId: string, simuladoNome: string) => {
+  if (!user?.id) return;
+
+  try {
+    // NOVO: Verificar se já existe finalização não liberada
+    const { data: finalizacao } = await supabase
+      .from('simulados_finalizados')
+      .select('id, liberado_novamente')
+      .eq('user_id', user.id)
+      .eq('simulado_id', simuladoId)
+      .order('tentativa_numero', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // Se existe finalização e NÃO foi liberado novamente, não registrar
+    if (finalizacao && !finalizacao.liberado_novamente) {
+      console.log('[AnalyticsCapture] Simulado já finalizado, ignorando tracking de início');
+      return;
+    }
+
+    // Continuar com o registro
+    await supabase
+      .from('simulados_iniciados')
+      .upsert({
+        user_id: user.id,
+        simulado_id: simuladoId
+      }, { onConflict: 'user_id,simulado_id' });
+  } catch (err) {
+    console.error('[AnalyticsCapture] Error tracking simulado start:', err);
+  }
+
+  trackEvent({
+    eventName: 'simulado_start',
+    category: 'simulado',
+    data: { simuladoId, simuladoNome }
+  });
+}, [user?.id, trackEvent]);
 ```
 
-## Mudanças no Código
+### Fase 3: Edge Function - Validação Reforçada
 
-### 1. Atualizar fetchSimuladoMetrics
+**Arquivo: `supabase/functions/corrigir-simulado/index.ts`**
 
-**Arquivo:** `src/hooks/useAnalyticsData.ts`
+Adicionar verificação de início correspondente:
 
-- Adicionar `user_id` ao SELECT de iniciados e finalizados
-- Usar `Set` para contar pares únicos (user_id + simulado_id)
-- Garantir que finalizados só contam se tiver início correspondente
+```typescript
+// NOVO PASSO (antes do PASSO 1): Verificar se existe início para este simulado
+const { data: inicioExistente, error: inicioError } = await supabaseAdmin
+  .from('simulados_iniciados')
+  .select('id, started_at')
+  .eq('user_id', user_id)
+  .eq('simulado_id', simulado_id)
+  .maybeSingle();
 
-### 2. Adicionar Warning de Integridade (Opcional)
+if (inicioError) {
+  console.error('[corrigir-simulado] Erro ao verificar início:', inicioError);
+}
 
-Na UI, quando detectar inconsistência (finalizados > iniciados para algum simulado), exibir um ícone de warning explicativo.
-
-## Detalhes Técnicos
-
-```text
-ANTES (Contagem simples)
-┌─────────────────────┬────────────────────┐
-│ simulados_iniciados │ COUNT(*) = 111     │
-├─────────────────────┼────────────────────┤
-│ simulados_finalizados│ COUNT(*) = 115    │
-└─────────────────────┴────────────────────┘
-Problema: 115 > 111 (impossível logicamente)
-
-DEPOIS (Contagem com validação)
-┌──────────────────────────────────────────┐
-│ SELECT DISTINCT (user_id, simulado_id)   │
-│ FROM simulados_iniciados                 │
-│ = 111 pares únicos                       │
-├──────────────────────────────────────────┤
-│ SELECT DISTINCT (user_id, simulado_id)   │
-│ FROM simulados_finalizados               │
-│ WHERE EXISTS (início correspondente)     │
-│ = máximo 111 pares válidos               │
-└──────────────────────────────────────────┘
+// Se não existe início, criar um retroativamente (para consistência)
+if (!inicioExistente) {
+  console.log('[corrigir-simulado] ATENÇÃO: Não existe registro de início. Criando retroativamente...');
+  const { error: insertInicioError } = await supabaseAdmin
+    .from('simulados_iniciados')
+    .insert({
+      user_id: user_id,
+      simulado_id: simulado_id,
+      started_at: new Date(Date.now() - (tempo_total_segundos * 1000)).toISOString()
+    });
+  
+  if (insertInicioError && !insertInicioError.message.includes('duplicate')) {
+    console.error('[corrigir-simulado] Erro ao criar início retroativo:', insertInicioError);
+  }
+}
 ```
+
+---
 
 ## Arquivos a Modificar
 
 | Arquivo | Modificação |
 |---------|-------------|
-| `src/hooks/useAnalyticsData.ts` | Corrigir lógica de contagem com DISTINCT e validação de pares |
+| `src/pages/ModoProva.tsx` | Adicionar verificação de `verificarProgressoSimulado` no início |
+| `src/hooks/useAnalyticsTracker.ts` | Verificar finalização existente antes de registrar início |
+| `supabase/functions/corrigir-simulado/index.ts` | Garantir que existe início antes de finalizar |
+
+---
+
+## Fluxo Após Correções
+
+```text
+FLUXO DE TENTATIVA ÚNICA:
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Usuário clica "Iniciar Simulado"                         │
+│    ↓                                                        │
+│ 2. SimuladosDisponiveis verifica finalizados               │
+│    → Se concluído e !liberado_novamente: botão desabilitado │
+│    ↓                                                        │
+│ 3. Usuário navega para /simulados/:id/prova                 │
+│    ↓                                                        │
+│ 4. ModoProva.tsx verifica verificarProgressoSimulado()      │
+│    → Se bloqueado: redireciona para /simulados              │
+│    ↓                                                        │
+│ 5. trackSimuladoStart() verifica permissão                  │
+│    → Se já finalizado e !liberado: não registra             │
+│    → Se ok ou liberado_novamente: upsert em iniciados       │
+│    ↓                                                        │
+│ 6. Usuário responde e clica "Finalizar"                     │
+│    ↓                                                        │
+│ 7. Edge Function corrigir-simulado verifica:                │
+│    → Início existe? Se não, cria retroativamente            │
+│    → Já finalizado e !liberado? Retorna already_processed   │
+│    → liberado_novamente? Move antigas para histórico        │
+│    ↓                                                        │
+│ 8. Insere em simulados_finalizados + answer_progress        │
+│    ↓                                                        │
+│ 9. Limpa localStorage + redireciona                         │
+└─────────────────────────────────────────────────────────────┘
+
+FLUXO DE RE-LIBERAÇÃO (ADMIN):
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Admin marca liberado_novamente = true                    │
+│    ↓                                                        │
+│ 2. Usuário vê botão "Iniciar" novamente                     │
+│    ↓                                                        │
+│ 3. verificarProgressoSimulado() retorna false (liberado)   │
+│    ↓                                                        │
+│ 4. Novo início: upsert atualiza started_at                  │
+│    ↓                                                        │
+│ 5. Ao finalizar:                                            │
+│    → Move respostas antigas para histórico                  │
+│    → Seta liberado_novamente = false no registro antigo    │
+│    → Cria novo registro com tentativa_numero + 1            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Critérios de Sucesso
 
-- [ ] Total de Conclusões nunca ultrapassa Total de Inícios
-- [ ] Métricas refletem pares únicos (user_id + simulado_id)
-- [ ] Dados duplicados ou órfãos não distorcem as estatísticas
-
+- [ ] Usuário não pode acessar ModoProva se já finalizou e não foi liberado
+- [ ] trackSimuladoStart não registra se já finalizado e não liberado
+- [ ] Edge Function cria início retroativo se não existir
+- [ ] Admin pode liberar nova tentativa e fluxo funciona corretamente
+- [ ] Múltiplas tentativas ficam registradas com tentativa_numero correto
+- [ ] Zero duplicatas de início (constraint única mantida)
+- [ ] Zero duplicatas de finalização na mesma tentativa (constraint única mantida)
