@@ -12,41 +12,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    
-
     // Get the authorization header first
     const authHeader = req.headers.get('Authorization');
     
-    
-    if (!authHeader) {
-      console.error('get-study-contents: Missing authorization header');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('get-study-contents: Missing or invalid authorization header');
       return new Response(
         JSON.stringify({ error: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Extract token from Bearer header
     const token = authHeader.replace('Bearer ', '');
-
-    // Create admin client to verify JWT token
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-
-    // Verify the user's JWT token by passing it directly
     
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    // Create client with auth header for JWT validation
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    // Validate JWT using getUser with the token (as per Lovable Cloud requirements)
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError) {
-      console.error('get-study-contents: Auth error:', authError);
+      console.error('get-study-contents: Auth error:', authError.message);
       return new Response(
         JSON.stringify({ error: 'Invalid token', details: authError.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -61,7 +57,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    
+    // Create admin client for database operations (bypasses RLS)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
@@ -86,8 +88,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    
-
     // Fetch conteudos for the user's IES
     const { data: conteudos, error: conteudosError } = await supabaseAdmin
       .from('conteudos')
@@ -101,8 +101,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    
 
     return new Response(
       JSON.stringify({ data: conteudos || [] }),
