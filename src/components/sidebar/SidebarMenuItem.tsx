@@ -40,10 +40,10 @@ export function SidebarNavItem({ item, isActive, collapsed }: SidebarNavItemProp
       aria-current={isActive ? "page" : undefined}
       className={`
         group relative flex items-center gap-3 px-3 py-2.5
-        rounded-xl overflow-hidden
+        rounded-xl
         transition-all duration-200 ease-out
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1
-        ${collapsed ? "justify-center px-2" : ""}
+        ${collapsed ? "justify-center px-2" : "ml-1"}
         ${
           isActive
             ? "bg-primary/10 text-primary font-semibold shadow-sm"
@@ -55,7 +55,7 @@ export function SidebarNavItem({ item, isActive, collapsed }: SidebarNavItemProp
       {isActive && (
         <motion.div
           layoutId="sidebar-active-indicator"
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
+          className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full"
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
       )}
@@ -126,10 +126,10 @@ export function SidebarNavGroup({
       aria-expanded={isOpen}
       className={`
         group relative flex items-center justify-between w-full gap-3 px-3 py-2.5
-        rounded-xl overflow-hidden
+        rounded-xl
         transition-all duration-200 ease-out
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1
-        ${collapsed ? "justify-center px-2" : ""}
+        ${collapsed ? "justify-center px-2" : "ml-1"}
         ${
           isActive
             ? "bg-primary/10 text-primary font-semibold shadow-sm"
@@ -139,7 +139,7 @@ export function SidebarNavGroup({
     >
       {isActive && (
         <motion.div
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
+          className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-full"
           layoutId="sidebar-active-group-indicator"
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
