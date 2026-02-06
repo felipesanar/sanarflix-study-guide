@@ -22,6 +22,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   
   // Session tracking
   useSessionTracker();
@@ -42,7 +43,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
           {/* Desktop Header */}
           {!isModoProva && (
-            <header className="sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 bg-background/80 backdrop-blur-lg border-b border-border/30">
+            <header className={`sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 transition-all duration-300 ${
+              hasScrolled 
+                ? 'bg-background/60 backdrop-blur-md border-b border-border/20' 
+                : 'bg-transparent'
+            }`}>
               <SidebarTrigger className="p-2 hover:bg-accent rounded-lg transition-colors">
                 <Menu className="h-5 w-5 text-foreground" />
               </SidebarTrigger>
@@ -68,7 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {!isModoProva && (
             <FloatingActions showScrollTop={showScrollTop} />
           )}
-          <ScrollTopWatcher setShowScrollTop={setShowScrollTop} />
+          <ScrollTopWatcher setShowScrollTop={setShowScrollTop} setHasScrolled={setHasScrolled} />
         </SidebarInset>
 
         <PasswordDialogConsumer />
@@ -82,13 +87,16 @@ function PasswordDialogConsumer() {
   return <ChangePasswordDialog open={open} onOpenChange={setOpen} />;
 }
 
-function ScrollTopWatcher({ setShowScrollTop }: { setShowScrollTop: (v: boolean) => void }) {
+function ScrollTopWatcher({ setShowScrollTop, setHasScrolled }: { setShowScrollTop: (v: boolean) => void; setHasScrolled: (v: boolean) => void }) {
   React.useEffect(() => {
-    const onScroll = () => setShowScrollTop(window.scrollY > 400);
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+      setHasScrolled(window.scrollY > 10);
+    };
     window.addEventListener('scroll', onScroll);
     onScroll();
     return () => window.removeEventListener('scroll', onScroll);
-  }, [setShowScrollTop]);
+  }, [setShowScrollTop, setHasScrolled]);
   return null;
 }
 
