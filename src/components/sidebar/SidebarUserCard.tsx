@@ -48,20 +48,23 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           className={`
             group relative w-full text-left 
             rounded-xl p-3 
-            bg-gradient-to-br from-card to-secondary/30
-            border border-border/60
+            bg-gradient-to-br from-card via-card to-secondary/20
+            border border-border/40
             shadow-sm hover:shadow-md
             hover:border-primary/20
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar
             transition-all duration-200 cursor-pointer
             ${collapsed ? "px-2 justify-center" : ""}
           `}
+          style={{
+            boxShadow: "inset 0 1px 0 0 hsl(var(--background) / 0.5)"
+          }}
           aria-label="Abrir opções de conta"
         >
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200">
                 {initials ? (
                   <span className="text-sm font-semibold text-primary-foreground">
                     {initials}
@@ -70,9 +73,9 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
                   <User className="h-5 w-5 text-primary-foreground" />
                 )}
               </div>
-              {/* Status indicator - using emerald from design system */}
+              {/* Status indicator */}
               <motion.div
-                className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-sidebar"
+                className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-sidebar shadow-sm"
                 animate={{ scale: [1, 1.15, 1] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
               />

@@ -144,60 +144,78 @@ export function MobileBottomNav() {
                 {showStudyGuide && (
                   <Collapsible open={studyGuideOpen || isStudyGuideActive} onOpenChange={setStudyGuideOpen}>
                     <CollapsibleTrigger asChild>
-                      <button
-                        className={`flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200
-                          ${isStudyGuideActive ? "bg-primary/10 text-primary" : "hover:bg-accent"}`}
-                        aria-expanded={studyGuideOpen}
+                      <motion.button
+                        whileTap={{ scale: 0.98 }}
+                        className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl transition-all duration-200
+                          ${isStudyGuideActive ? "bg-primary/10 text-primary" : "hover:bg-accent active:bg-accent/70"}`}
+                        aria-expanded={studyGuideOpen || isStudyGuideActive}
+                        aria-controls="study-guide-submenu"
                       >
                         <div className="flex items-center gap-3">
                           <BookOpen className="h-5 w-5" />
                           <span className="font-medium">Guia de Estudos</span>
                         </div>
                         <motion.div
-                          animate={{ rotate: studyGuideOpen ? 90 : 0 }}
-                          transition={{ duration: 0.2 }}
+                          animate={{ rotate: studyGuideOpen || isStudyGuideActive ? 90 : 0 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
                         >
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </motion.div>
-                      </button>
+                      </motion.button>
                     </CollapsibleTrigger>
 
-                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                    <CollapsibleContent 
+                      id="study-guide-submenu"
+                      className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up"
+                    >
                       <div className="ml-4 mt-1 pl-4 border-l-2 border-border/50 space-y-1">
-                        {visibleStudyGuideItems.map((item) => (
-                          <NavLink
-                            key={item.url}
-                            to={item.url}
-                            onClick={() => setIsMenuOpen(false)}
-                            className={({ isActive: active }) =>
-                              `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200
-                              ${active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"}`
-                            }
-                          >
-                            <item.icon className="h-4 w-4" />
-                            <span className="text-sm">{item.title}</span>
-                          </NavLink>
-                        ))}
+                        {visibleStudyGuideItems.map((item) => {
+                          const isItemActive = isActive(item.url);
+                          return (
+                            <NavLink
+                              key={item.url}
+                              to={item.url}
+                              onClick={() => setIsMenuOpen(false)}
+                              aria-current={isItemActive ? "page" : undefined}
+                              className={({ isActive: active }) =>
+                                `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 min-h-[44px]
+                                ${active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-accent/50 active:bg-accent/70"}`
+                              }
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span className="text-sm">{item.title}</span>
+                            </NavLink>
+                          );
+                        })}
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
                 )}
 
+                {/* Separator */}
+                {showStudyGuide && visibleMainItems.length > 0 && (
+                  <div className="my-2 mx-4 h-px bg-border/40" />
+                )}
+
                 {/* Main nav items */}
-                {visibleMainItems.map((item) => (
-                  <NavLink
-                    key={item.url}
-                    to={item.url}
-                    onClick={() => setIsMenuOpen(false)}
-                    className={({ isActive: active }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                      ${active ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"}`
-                    }
-                  >
-                    <item.icon className="h-5 w-5" />
-                    <span className="font-medium">{item.title}</span>
-                  </NavLink>
-                ))}
+                {visibleMainItems.map((item) => {
+                  const isItemActive = isActive(item.url);
+                  return (
+                    <NavLink
+                      key={item.url}
+                      to={item.url}
+                      onClick={() => setIsMenuOpen(false)}
+                      aria-current={isItemActive ? "page" : undefined}
+                      className={({ isActive: active }) =>
+                        `flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 min-h-[44px]
+                        ${active ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent active:bg-accent/70"}`
+                      }
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span className="font-medium">{item.title}</span>
+                    </NavLink>
+                  );
+                })}
               </div>
             </SheetContent>
           </Sheet>
