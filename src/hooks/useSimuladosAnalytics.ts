@@ -604,18 +604,30 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         const totalCorr = simRespostas.filter(r => r.correct).length;
 
         // Calculate average unanswered questions per user
+        // FIXED: Use simFinalizados as user base (already date-filtered)
+        // and filter answers from respostasRaw (ignoring temporal paresNoPeriodo filter)
         const totalQuestoes = simQuestoes.length;
-        const usersWithResponses = new Map<string, Set<string>>();
-        simRespostas.forEach(r => {
-          if (!usersWithResponses.has(r.user_id)) {
-            usersWithResponses.set(r.user_id, new Set());
+        const usersFinalizados = new Set(simFinalizados.map(f => f.user_id));
+        
+        // Get ALL answers for this simulado from users who finished (not filtered by paresNoPeriodo)
+        const todasRespostasDoSimulado = respostasRaw.filter(
+          r => r.simulado === s.id && usersFinalizados.has(r.user_id)
+        );
+        
+        // Group responses by user
+        const respostasPorUsuario = new Map<string, Set<string>>();
+        todasRespostasDoSimulado.forEach(r => {
+          if (!respostasPorUsuario.has(r.user_id)) {
+            respostasPorUsuario.set(r.user_id, new Set());
           }
-          usersWithResponses.get(r.user_id)!.add(r.question_id);
+          respostasPorUsuario.get(r.user_id)!.add(r.question_id);
         });
         
+        // Calculate unanswered for each user who finished
         const naoRespondidasPorUsuario: number[] = [];
-        usersWithResponses.forEach((questoesRespondidas) => {
-          const naoRespondidas = totalQuestoes - questoesRespondidas.size;
+        usersFinalizados.forEach(userId => {
+          const questoesRespondidas = respostasPorUsuario.get(userId)?.size || 0;
+          const naoRespondidas = totalQuestoes - questoesRespondidas;
           naoRespondidasPorUsuario.push(Math.max(0, naoRespondidas));
         });
         
