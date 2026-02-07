@@ -410,7 +410,10 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       const participantSimuladoIds = Array.from(simuladoIds);
 
       // PHASE 3: Fetch answers and history in parallel
-      const [respostasRaw, historicoRaw] = await Promise.all([
+      // Get ALL user_ids who finalized (for unanswered calculation)
+      const finalizadosUserIds = Array.from(new Set(finalizados.map(f => f.user_id)));
+      
+      const [respostasRaw, historicoRaw, answerCountsRaw] = await Promise.all([
         fetchAllAnswerProgress({
           userIds: participantUserIds,
           simuladoIds: participantSimuladoIds,
@@ -439,8 +442,51 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
               }
               return all;
             })()
+          : Promise.resolve([]),
+        // Dedicated fetch: count answers per (user_id, simulado) for finalizados
+        // This ensures we get accurate counts regardless of period filters
+        finalizadosUserIds.length > 0 && participantSimuladoIds.length > 0
+          ? (async () => {
+              // Fetch all answers for finalizados users and count per simulado
+              const PAGE_SIZE = 1000;
+              const all: { user_id: string; simulado: string; question_id: string }[] = [];
+              let from = 0;
+              let hasMore = true;
+
+              while (hasMore) {
+                const { data: page, error } = await supabase
+                  .from('answer_progress')
+                  .select('user_id, simulado, question_id')
+                  .in('user_id', finalizadosUserIds)
+                  .in('simulado', participantSimuladoIds)
+                  .order('answer_id', { ascending: true })
+                  .range(from, from + PAGE_SIZE - 1);
+
+                if (error) throw error;
+                const rows = page || [];
+                all.push(...rows);
+                if (rows.length < PAGE_SIZE) hasMore = false;
+                from += PAGE_SIZE;
+              }
+              
+              // Aggregate: count unique question_ids per (user_id, simulado)
+              const countMap = new Map<string, Set<string>>();
+              all.forEach(r => {
+                const key = `${r.user_id}_${r.simulado}`;
+                if (!countMap.has(key)) countMap.set(key, new Set());
+                countMap.get(key)!.add(r.question_id);
+              });
+              
+              return Array.from(countMap.entries()).map(([key, questions]) => {
+                const [user_id, simulado] = key.split('_');
+                return { user_id, simulado, count: questions.size };
+              });
+            })()
           : Promise.resolve([])
       ]);
+      
+      // Store answer counts for unanswered calculation
+      const allAnswerCounts = answerCountsRaw;
 
       console.log('[useSimuladosAnalytics] Phase 3 (answers) complete:', Math.round(performance.now() - startTime), 'ms');
 
@@ -454,6 +500,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         iniciados: iniciados.length,
         finalizados: finalizados.length,
         respostas: respostas.length,
+        answerCounts: allAnswerCounts.length,
       });
 
       // ============== COMPUTE METRICS (all in-memory, fast) ==============
@@ -592,12 +639,10 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         const totalCorr = simRespostas.filter(r => r.correct).length;
 
         // Calculate average unanswered questions per user
-        // Uses simFinalizados (date-filtered) as user base
-        // Combines answer_progress (current) + answer_progress_historico (last attempt if replaced)
+        // Formula: For each user who finished, count their responses and subtract from total questions
         const totalQuestoes = simQuestoes.length;
-        const questaoIdsDoSimulado = new Set(simQuestoes.map(q => q.id));
         
-        // Get the LAST finalization per user for this simulado (for users with multiple attempts)
+        // Get LAST finalization per user (for users with multiple attempts in period)
         const ultimaFinalizacaoPorUsuario = new Map<string, typeof simFinalizados[0]>();
         simFinalizados.forEach(f => {
           const existing = ultimaFinalizacaoPorUsuario.get(f.user_id);
@@ -606,32 +651,19 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
           }
         });
         
-        // Get ALL answers for this simulado from ALL sources (current + historico)
-        // Filter only valid question_ids to avoid counting orphan answers
-        const respostasCurrentSimulado = respostasRaw.filter(
-          r => r.simulado === s.id && 
-               ultimaFinalizacaoPorUsuario.has(r.user_id) &&
-               questaoIdsDoSimulado.has(r.question_id)
-        );
-        const respostasHistoricoSimulado = historicoRaw.filter(
-          r => r.simulado === s.id && 
-               ultimaFinalizacaoPorUsuario.has(r.user_id) &&
-               questaoIdsDoSimulado.has(r.question_id)
-        );
+        // Count answers per user from answer_progress (current answers)
+        // Using allAnswerCounts which was pre-computed with ALL answer_progress data
+        const respostasPorUsuario = new Map<string, number>();
+        allAnswerCounts
+          .filter(ac => ac.simulado === s.id && ultimaFinalizacaoPorUsuario.has(ac.user_id))
+          .forEach(ac => {
+            respostasPorUsuario.set(ac.user_id, ac.count);
+          });
         
-        // Combine both sources, using Set to deduplicate by (user_id, question_id)
-        const respostasPorUsuario = new Map<string, Set<string>>();
-        [...respostasCurrentSimulado, ...respostasHistoricoSimulado].forEach(r => {
-          if (!respostasPorUsuario.has(r.user_id)) {
-            respostasPorUsuario.set(r.user_id, new Set());
-          }
-          respostasPorUsuario.get(r.user_id)!.add(r.question_id);
-        });
-        
-        // Calculate unanswered for each user who finished (only users with last attempt in period)
+        // Calculate unanswered for each user
         const naoRespondidasPorUsuario: number[] = [];
         ultimaFinalizacaoPorUsuario.forEach((_, userId) => {
-          const questoesRespondidas = respostasPorUsuario.get(userId)?.size || 0;
+          const questoesRespondidas = respostasPorUsuario.get(userId) || 0;
           const naoRespondidas = totalQuestoes - questoesRespondidas;
           naoRespondidasPorUsuario.push(Math.max(0, naoRespondidas));
         });
