@@ -1,156 +1,200 @@
 
+# Plano: Corrigir Discrepância no Card "Meu Dia" para Simulados
 
-# Plano: Filtro de Exclusão de IES no Analytics
+## Diagnóstico
 
-## Objetivo
+O card "Meu Dia" na Home exibe "Simulado Disponível" para usuários, mas a página de Simulados mostra "Nenhum simulado encontrado".
 
-Adicionar a opção de visualizar **"Todas as IES EXCETO [selecionadas]"** no filtro de IES do dashboard de Analytics, permitindo análises que excluem instituições específicas (ex: excluir IES de teste, B2C, etc).
+### Causa Raiz Identificada
+
+| Componente | Lógica de Busca | Problema |
+|------------|-----------------|----------|
+| **useMeuDia.ts** (linha 37-38) | `.eq('status', 'ativo')` sem filtro de datas | Retorna simulados expirados |
+| **useHomeData.ts** (linha 156-158) | `.eq('status', 'ativo')` sem filtro de datas | Retorna simulados expirados |
+| **simuladosApi.ts** | `.neq('status', 'encerrado')` + filtro de datas no cliente | Corretamente filtra expirados |
+
+O simulado provavelmente tem `status: 'ativo'` mas `data_encerramento` já passou, então aparece no card mas não na página.
 
 ---
 
-## Mudanças Necessárias
+## Solução
 
-### 1. Atualizar Interface de Filtros
-
-**Arquivo:** `src/pages/Analytics.tsx`
-
-Adicionar novo campo `excludedIES` ao tipo `AnalyticsFilters`:
-
-```typescript
-export interface AnalyticsFilters {
-  dateRange: { start: Date; end: Date };
-  course: string;
-  university: string;
-  excludedIES: string[]; // NOVO: IES a excluir quando university = 'all'
-  searchTerm: string;
-}
-```
-
-### 2. Redesenhar o Componente de Filtro
-
-**Arquivo:** `src/components/analytics/AnalyticsFilters.tsx`
-
-**Nova UI:**
-- Quando "Todas as IES" está selecionado, mostrar botão/toggle "Exceto..."
-- Ao clicar, abre multi-select com checkboxes das IES disponíveis
-- Mostrar badges das IES excluídas abaixo do filtro
-- Cada badge tem botão X para remover da exclusão
-
-**Mockup da UI:**
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  📅 01/01/25 - 06/02/25    │  🏛️ Todas as IES ▾  │ 🔍 Buscar │
-└─────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-                              ┌─────────────────────┐
-                              │ ○ Todas as IES      │
-                              │ ─────────────────── │
-                              │ ○ Fame              │
-                              │ ○ USCS              │
-                              │ ○ Claretiano        │
-                              │ ...                 │
-                              │ ─────────────────── │
-                              │ ☐ Excluir B2C       │
-                              │ ☐ Excluir B2B       │
-                              │ ☐ Excluir Barao...  │
-                              └─────────────────────┘
-
-[Quando IES excluídas estão ativas:]
-
-┌──────────────────────────────────────────────────────────────┐
-│ 🏷️ Filtros ativos                                            │
-│ ┌──────────────────────┐  ┌──────────────────────┐           │
-│ │ 🏛️ Exceto: B2C  ✕    │  │ 🏛️ Exceto: B2B  ✕    │           │
-│ └──────────────────────┘  └──────────────────────┘           │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 3. Propagar Exclusões para o Hook de Dados
-
-**Arquivo:** `src/hooks/useAnalyticsData.ts`
-
-**Mudanças:**
-- Receber `excludedIES: string[]` nos filtros
-- Criar helper `fetchUserIdsExcludingIES(excludedIds: string[])` que retorna IDs de usuários de TODAS as IES EXCETO as especificadas
-- Modificar `filterParams` para incluir `excludedIESIds`
-- Aplicar lógica: se `iesFilter` está definido, usar ele; senão, se `excludedIESIds.length > 0`, buscar todos EXCETO esses
-
-**Lógica de filtragem:**
-
-```typescript
-const filterParams = useMemo(() => {
-  const iesFilter = filters.iesId && filters.iesId !== 'all' ? filters.iesId : null;
-  const excludedIESIds = filters.excludedIES || [];
-  
-  return { 
-    iesFilter, 
-    excludedIESIds,
-    // ... resto
-  };
-}, [filters.iesId, filters.excludedIES, ...]);
-```
-
-**Na query de usuários:**
-
-```typescript
-// Se tem exclusões (e não tem filtro específico)
-if (!iesFilter && excludedIESIds.length > 0) {
-  const { data: users } = await supabase
-    .from('users')
-    .select('id')
-    .not('id_ies', 'in', `(${excludedIESIds.join(',')})`);
-  userIdsFromIES = users?.map(u => u.id) || [];
-}
-```
+Aplicar a mesma lógica de filtragem por datas (implementada no `simuladosApi.ts`) nos dois hooks do "Meu Dia".
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Modificação |
-|---------|-------------|
-| `src/pages/Analytics.tsx` | Adicionar `excludedIES: string[]` ao tipo e estado inicial |
-| `src/components/analytics/AnalyticsFilters.tsx` | Adicionar UI de exclusão com multi-select/checkboxes |
-| `src/hooks/useAnalyticsData.ts` | Aplicar lógica de exclusão em todas as queries |
+### 1. `src/hooks/home/useMeuDia.ts`
+
+**Modificar query (linhas 35-38):**
+```typescript
+// ANTES:
+supabase
+  .from('simulados_admin')
+  .select('id, nome, status')
+  .eq('status', 'ativo'),
+
+// DEPOIS:
+supabase
+  .from('simulados_admin')
+  .select('id, nome, status, data_liberacao, data_encerramento')
+  .neq('status', 'encerrado'),
+```
+
+**Modificar função `addAvailableSimulado` (linhas 144-170):**
+```typescript
+const addAvailableSimulado = async (
+  user: User, 
+  simulados: { id: string; nome: string; data_liberacao?: string; data_encerramento?: string }[], 
+  items: MeuDiaItem[]
+) => {
+  try {
+    // NOVO: Filtrar por datas (mesma lógica de simuladosApi.ts)
+    const agora = new Date();
+    const simuladosDisponiveis = simulados.filter(s => {
+      const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
+      const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
+      return liberado && naoEncerrado;
+    });
+
+    // Se não há simulados disponíveis após filtro de datas, não adicionar
+    if (simuladosDisponiveis.length === 0) return;
+
+    // Verificar quais o usuário já finalizou
+    const { data: finalizados } = await supabase
+      .from('simulados_finalizados')
+      .select('simulado_id')
+      .eq('user_id', user.id);
+
+    const finalizadosIds = new Set((finalizados || []).map((r) => r.simulado_id));
+    const disponiveis = simuladosDisponiveis.filter((s) => !finalizadosIds.has(s.id));
+    const availableSimulado = disponiveis[0] || simuladosDisponiveis[0];
+
+    if (availableSimulado) {
+      items.push({
+        id: `simulado-${availableSimulado.id}-${Date.now()}`,
+        type: 'simulado',
+        title: 'Simulado Disponível',
+        subtitle: availableSimulado.nome || 'Simulado',
+        path: '/simulados',
+        icon: 'Trophy',
+        color: 'from-orange-500 to-red-500',
+        source: 'fallback',
+      });
+    }
+  } catch (e) {
+    console.warn('[Meu Dia] Erro ao avaliar simulados:', e);
+  }
+};
+```
 
 ---
 
-## Detalhes Técnicos
+### 2. `src/hooks/useHomeData.ts`
 
-### Interface do Select com Exclusão
-
-Usar o componente existente `Select` do Radix com customização:
-- Separador visual entre "selecionar IES" e "excluir IES"
-- Checkboxes na seção de exclusão (não radio buttons)
-- Manter compatibilidade: selecionar uma IES específica limpa exclusões e vice-versa
-
-### Query de Exclusão no Supabase
-
+**Modificar query (linhas 155-158):**
 ```typescript
-// Excluir IES pelo ID usando .not()
-const { data } = await supabase
-  .from('users')
-  .select('id')
-  .not('id_ies', 'in', `(${excludedIds.map(id => `"${id}"`).join(',')})`);
+// ANTES:
+supabase
+  .from('simulados_admin')
+  .select('id, nome, status')
+  .eq('status', 'ativo'),
+
+// DEPOIS:
+supabase
+  .from('simulados_admin')
+  .select('id, nome, status, data_liberacao, data_encerramento')
+  .neq('status', 'encerrado'),
 ```
 
-### Estado Visual
+**Modificar lógica de simulados (linhas 301-330):**
+```typescript
+// Adicionar "Simulado Disponível" somente se houver simulado REALMENTE disponível
+try {
+  // NOVO: Filtrar por datas (mesma lógica de simuladosApi.ts)
+  const agora = new Date();
+  const simuladosDisponiveis = ((simuladoRes.data || []) as any[]).filter((s: any) => {
+    const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
+    const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
+    return liberado && naoEncerrado;
+  });
 
-- "Todas as IES" + nenhuma exclusão = Badge verde "Todos os dados"
-- "Todas as IES" + exclusões = Badge "Filtros ativos" + badges de exclusão
-- IES específica selecionada = Badge da IES (comportamento atual)
+  // Se não há simulados disponíveis após filtro de datas, não adicionar item
+  if (simuladosDisponiveis.length === 0) {
+    // Não adiciona item de simulado
+  } else {
+    const { data: finalizados } = await supabase
+      .from('simulados_finalizados')
+      .select('simulado_id')
+      .eq('user_id', user.id);
+
+    const finalizadosIds = new Set((finalizados || []).map((r: any) => r.simulado_id));
+    const disponiveis = simuladosDisponiveis.filter((s: any) => !finalizadosIds.has(s.id));
+    let availableSimulado = disponiveis[0] || null;
+    if (!availableSimulado && simuladosDisponiveis.length > 0) {
+      availableSimulado = simuladosDisponiveis[0];
+    }
+
+    if (availableSimulado) {
+      items.push({
+        id: `simulado-${availableSimulado.id}-${Date.now()}`,
+        type: 'simulado',
+        title: 'Simulado Disponível',
+        subtitle: availableSimulado.nome || 'Simulado',
+        path: '/simulados',
+        icon: 'Trophy',
+        color: 'from-orange-500 to-red-500',
+        source: 'fallback' as const,
+      });
+    }
+  }
+} catch (e) {
+  console.warn('[Meu Dia] Erro ao avaliar simulados disponíveis:', e);
+}
+```
+
+---
+
+## Fluxo Após Correção
+
+```text
+ANTES (Problema):
+┌─────────────────────────────────────────────────────────┐
+│ useMeuDia.ts / useHomeData.ts                           │
+│   → Busca WHERE status = 'ativo'                        │
+│   → Retorna simulados expirados (data_encerramento <)   │
+│   → Card mostra "Simulado Disponível" ❌                │
+│                                                         │
+│ simuladosApi.ts                                         │
+│   → Busca WHERE status != 'encerrado'                   │
+│   → Filtra por datas no cliente                         │
+│   → Expirados são removidos                             │
+│   → Página mostra "Nenhum simulado" ✅                  │
+└─────────────────────────────────────────────────────────┘
+
+DEPOIS (Corrigido):
+┌─────────────────────────────────────────────────────────┐
+│ useMeuDia.ts / useHomeData.ts                           │
+│   → Busca WHERE status != 'encerrado'                   │
+│   → Filtra por datas no cliente (mesma lógica)          │
+│   → Expirados são removidos                             │
+│   → Card NÃO mostra "Simulado Disponível" ✅            │
+│                                                         │
+│ simuladosApi.ts                                         │
+│   → Mesma lógica, consistente                           │
+│   → Página mostra "Nenhum simulado" ✅                  │
+│                                                         │
+│ ✅ CONSISTÊNCIA GARANTIDA                               │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Critérios de Sucesso
 
-- [ ] Usuário pode selecionar IES a excluir do dropdown
-- [ ] Múltiplas IES podem ser excluídas simultaneamente
-- [ ] Badges mostram IES excluídas com botão X para remover
-- [ ] Todas as abas refletem a exclusão (métricas diminuem)
-- [ ] Selecionar uma IES específica limpa as exclusões
-- [ ] Export CSV respeita as exclusões
-- [ ] Performance mantida (sem queries adicionais desnecessárias)
-
+- O card "Meu Dia" só mostra "Simulado Disponível" se realmente houver simulados acessíveis
+- Simulados com `data_encerramento` passada não aparecem no card
+- Simulados com `data_liberacao` futura não aparecem no card
+- Consistência entre card "Meu Dia" e página de Simulados
+- Funciona para todos os usuários, não apenas um específico
