@@ -1,130 +1,164 @@
 
-# Plano: Fundo Colorido Sutil com Glassmorphism nos Chips de Matéria
+# Plano: Tornar "O Que Estudar Hoje" Imediato como a Home
 
-## Problema Atual
+## Problema Identificado
 
-O pontinho colorido ao lado do nome da matéria parece um indicador de notificação ou "item novo", causando confusão visual.
+O card "O Que Estudar Hoje" na página do Guia de Estudos demora a carregar porque o hook `useCalendarSync` aguarda uma resposta do banco de dados antes de exibir os dados, mesmo tendo um cache local disponível.
+
+### Fluxo Atual (Lento)
 
 ```
-┌─────────────────────────┐
-│ 🧬 Biologia Molecular ● │  ← Pontinho parece notificação
-└─────────────────────────┘
+1. Página carrega
+2. useCalendarSync inicia com subjects = []
+3. loading = true (mostra skeleton)
+4. Aguarda loadFromDatabase() (chamada de rede)
+5. Só então subjects = dados (mostra conteúdo)
+```
+
+### Fluxo da Home (Rápido)
+
+```
+1. Página carrega
+2. readCacheSync() lê sessionStorage ANTES do useState
+3. Estados inicializados COM dados do cache
+4. loading = false (mostra conteúdo imediatamente)
+5. Background: atualiza dados do servidor
 ```
 
 ---
 
-## Solução Proposta
+## Solução
 
-Substituir o pontinho por um fundo sutil com a cor da matéria, aplicando efeito glassmorphism/perolado para uma aparência premium.
+Aplicar a mesma estratégia "cache-first" do `useHomeData` no `useCalendarSync`:
 
-```
-┌─────────────────────────┐
-│ 🧬 Biologia Molecular   │  ← Fundo com tom sutil da cor
-│   (fundo rosa claro)    │     + glassmorphism
-└─────────────────────────┘
-```
+1. **Leitura síncrona do cache** no início do hook (antes do `useState`)
+2. **Inicialização do estado com dados do cache**
+3. **Loading = false** se tiver cache
+4. **Background refresh** para buscar dados atualizados do servidor
 
 ---
 
 ## Arquivo a Modificar
 
-**`src/components/guia-estudos/SubjectChips.tsx`**
+**`src/hooks/useCalendarSync.ts`**
 
 ### Mudanças
 
-1. **Remover o pontinho colorido** (linhas 137-142)
-
-2. **Aplicar fundo colorido sutil via inline styles** quando a matéria NÃO está selecionada:
+1. **Adicionar função de leitura síncrona** (similar ao `readCacheSync` da Home):
 
 ```typescript
-{subjects.map((subject, idx) => {
-  const isSelected = selectedSubject === subject.name;
+// Leitura síncrona do cache ANTES do useState
+const readCacheSync = (): CalendarSubject[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+    
+    const data: StoredData = JSON.parse(stored);
+    // Verificar se o cache é recente (últimos 30 minutos)
+    const CACHE_TTL = 30 * 60 * 1000;
+    if (data.subjects && data.lastUpdated && (Date.now() - data.lastUpdated) < CACHE_TTL) {
+      return data.subjects;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+```
+
+2. **Modificar a inicialização do hook**:
+
+```typescript
+export const useCalendarSync = () => {
+  const { user } = useAuth();
   
-  // Estilo do fundo colorido sutil (quando não selecionado)
-  const subtleColorStyle = !isSelected && subject.color ? {
-    backgroundColor: `color-mix(in srgb, ${subject.color} 8%, transparent)`,
-    borderColor: `color-mix(in srgb, ${subject.color} 20%, hsl(var(--border)))`,
-  } : {};
+  // Leitura síncrona do cache ANTES do useState
+  const cachedSubjects = useMemo(() => readCacheSync(), []);
+  
+  // Inicializar estado COM dados do cache (evita loading)
+  const [subjects, setSubjects] = useState<CalendarSubject[]>(cachedSubjects);
+  const [loading, setLoading] = useState(cachedSubjects.length === 0);
+  // ...
+```
 
-  return (
-    <motion.button
-      key={subject.name}
-      // ... outras props
-      className={cn(
-        "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
-        "text-sm font-medium transition-all duration-200",
-        "border shadow-sm",
-        isSelected
-          ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-          : "hover:brightness-105 border-border/50 text-foreground",
-        // Glassmorphism sutil quando tem cor
-        !isSelected && subject.color && "backdrop-blur-sm"
-      )}
-      style={subtleColorStyle}
-      // ...
-    >
-      <span className="text-base" style={{ 
-        filter: isSelected ? 'brightness(1.2)' : 'none' 
-      }}>
-        {subject.icon}
-      </span>
-      <span className="whitespace-nowrap">{subject.name}</span>
-      {/* REMOVIDO: pontinho colorido */}
-    </motion.button>
-  );
-})}
+3. **Modificar o useEffect de inicialização** para fazer refresh em background:
+
+```typescript
+useEffect(() => {
+  const initialize = async () => {
+    if (user?.id) {
+      // Se já tem cache, não mostrar loading (atualiza em background)
+      if (cachedSubjects.length > 0) {
+        // Atualizar em background sem mostrar loading
+        const serverSubjects = await loadFromDatabase();
+        setSubjects(serverSubjects);
+        saveToLocalStorage(serverSubjects);
+      } else {
+        // Sem cache: loading normal
+        setLoading(true);
+        const serverSubjects = await loadFromDatabase();
+        setSubjects(serverSubjects);
+        saveToLocalStorage(serverSubjects);
+        setLoading(false);
+      }
+    } else {
+      // Usuário não autenticado
+      if (cachedSubjects.length === 0) {
+        const localSubjects = loadFromLocalStorage();
+        setSubjects(localSubjects);
+      }
+      setLoading(false);
+    }
+  };
+
+  initialize();
+}, [user, loadFromDatabase, loadFromLocalStorage, saveToLocalStorage]);
 ```
 
 ---
 
-## Efeito Visual Esperado
-
-### Light Mode
-- Fundo: Cor da matéria com ~8% de opacidade
-- Borda: Cor da matéria com ~20% de opacidade misturada com border padrão
-- Efeito perolado: `backdrop-blur-sm` para suavidade
-
-### Dark Mode
-- Mesmo efeito, mas `color-mix` adapta naturalmente
-- O fundo colorido fica mais evidente em fundos escuros
-
----
-
-## Comparativo Visual
+## Fluxo Após Correção
 
 ```
-ANTES:
-┌────────────────────────────┐
-│ 🧬 Biologia Molecular  🔴  │  ← Pontinho confuso
-│ 🫀 Anatomia            🔵  │
-│ 💊 Farmacologia        🟢  │
-└────────────────────────────┘
+ANTES (Lento):
+┌─────────────────────────────────────────────────────────┐
+│ 1. useCalendarSync inicia                               │
+│ 2. subjects = [] (vazio)                                │
+│ 3. loading = true                                       │
+│ 4. Mostra skeleton ⏳                                   │
+│ 5. Aguarda loadFromDatabase() (300-800ms)               │
+│ 6. subjects = dados                                     │
+│ 7. loading = false                                      │
+│ 8. Mostra conteúdo ✅                                   │
+└─────────────────────────────────────────────────────────┘
 
-DEPOIS:
-┌────────────────────────────┐
-│ 🧬 Biologia Molecular      │  ← Fundo rosa sutil
-│ 🫀 Anatomia                │  ← Fundo azul sutil  
-│ 💊 Farmacologia            │  ← Fundo verde sutil
-└────────────────────────────┘
+DEPOIS (Imediato):
+┌─────────────────────────────────────────────────────────┐
+│ 1. readCacheSync() (síncrono, < 1ms)                    │
+│ 2. subjects = dados do cache                            │
+│ 3. loading = false                                      │
+│ 4. Mostra conteúdo imediatamente ✅                     │
+│ 5. Background: loadFromDatabase()                       │
+│ 6. Atualiza subjects se houver diferença                │
+└─────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Detalhes Técnicos
-
-| Propriedade | Valor | Motivo |
-|-------------|-------|--------|
-| `color-mix opacity (bg)` | 8% | Sutil, não compete com texto |
-| `color-mix opacity (border)` | 20% | Visível mas não agressivo |
-| `backdrop-blur-sm` | 4px blur | Efeito glassmorphism leve |
-| `hover:brightness-105` | 5% mais claro | Feedback de hover sutil |
 
 ---
 
 ## Benefícios
 
-- Remove ambiguidade do pontinho (não parece mais notificação)
-- Visual premium e moderno
-- Cada matéria tem identidade visual única
-- Funciona bem em Light e Dark mode
-- Mantém o destaque primário para item selecionado
+- **Experiência instantânea**: O card mostra os dados imediatamente em revisitas
+- **Consistência**: Mesma estratégia usada na Home
+- **Dados atualizados**: Background refresh garante sincronização com o servidor
+- **Zero flicker**: Sem skeleton desnecessário quando há cache
+
+---
+
+## Detalhes Técnicos
+
+| Aspecto | Valor |
+|---------|-------|
+| Cache TTL | 30 minutos (localStorage) |
+| Leitura síncrona | `readCacheSync()` antes do useState |
+| Background refresh | Sempre busca do servidor, mesmo com cache |
+| Fallback | Se cache expirado/vazio, mostra loading normalmente |
