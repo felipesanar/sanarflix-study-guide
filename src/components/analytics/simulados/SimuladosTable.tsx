@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Search, ChevronDown, ChevronUp, ExternalLink, 
-  Clock, AlertTriangle, FileText, Info
+  Clock, AlertTriangle, FileText, Info, HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SimuladoOverview } from '@/hooks/useSimuladosAnalytics';
@@ -191,6 +191,18 @@ export const SimuladosTable: React.FC<SimuladosTableProps> = ({
                     </Tooltip>
                   </TooltipProvider>
                 </TableHead>
+                <TableHead className="text-center hidden lg:table-cell">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger className="flex items-center gap-1 mx-auto">
+                        <HelpCircle className="w-3 h-3" /> Ñ Resp.
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Média de questões não respondidas por aluno</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -257,11 +269,22 @@ export const SimuladosTable: React.FC<SimuladosTableProps> = ({
                     <TableCell className="text-center hidden lg:table-cell">
                       <div className={cn(
                         "flex items-center justify-center gap-1 text-sm",
-                        hasFriction && "text-yellow-600"
+                        hasFriction && "text-amber-600 dark:text-amber-500"
                       )}>
                         {hasFriction && <AlertTriangle className="w-3 h-3" />}
                         <span className="font-mono text-xs">
                           {sim.saidas_aba_media.toFixed(1)}/{sim.saidas_fullscreen_media.toFixed(1)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center hidden lg:table-cell">
+                      <div className={cn(
+                        "flex items-center justify-center gap-1 text-sm",
+                        sim.questoes_nao_respondidas_media > 0 && "text-amber-600 dark:text-amber-500"
+                      )}>
+                        {sim.questoes_nao_respondidas_media > 0 && <HelpCircle className="w-3 h-3" />}
+                        <span className="font-mono text-xs">
+                          {sim.questoes_nao_respondidas_media.toFixed(1)}
                         </span>
                       </div>
                     </TableCell>
