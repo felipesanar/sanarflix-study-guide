@@ -111,37 +111,46 @@ export const SubjectChips: React.FC<SubjectChipsProps> = ({
         </button>
 
         {/* Subject chips */}
-        {subjects.map((subject, idx) => (
-          <motion.button
-            key={subject.name}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: idx * 0.05 }}
-            onClick={() => onSelectSubject(subject.name)}
-            className={cn(
-              "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
-              "text-sm font-medium transition-all duration-200",
-              "border shadow-sm",
-              selectedSubject === subject.name
-                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
-                : "bg-card hover:bg-muted border-border/50 text-foreground hover:border-primary/30"
-            )}
-            aria-pressed={selectedSubject === subject.name}
-          >
-            <span className="text-base" style={{ 
-              filter: selectedSubject === subject.name ? 'brightness(1.2)' : 'none' 
-            }}>
-              {subject.icon}
-            </span>
-            <span className="whitespace-nowrap">{subject.name}</span>
-            {subject.color && selectedSubject !== subject.name && (
-              <div 
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: subject.color }}
-              />
-            )}
-          </motion.button>
-        ))}
+        {subjects.map((subject, idx) => {
+          const isSelected = selectedSubject === subject.name;
+          
+          // Estilo do fundo colorido sutil (quando não selecionado e tem cor)
+          const subtleColorStyle = !isSelected && subject.color ? {
+            backgroundColor: `color-mix(in srgb, ${subject.color} 8%, transparent)`,
+            borderColor: `color-mix(in srgb, ${subject.color} 20%, hsl(var(--border)))`,
+          } : {};
+
+          return (
+            <motion.button
+              key={subject.name}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: idx * 0.05 }}
+              onClick={() => onSelectSubject(subject.name)}
+              className={cn(
+                "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
+                "text-sm font-medium transition-all duration-200",
+                "border shadow-sm",
+                isSelected
+                  ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+                  : "hover:brightness-105 border-border/50 text-foreground",
+                // Glassmorphism sutil quando tem cor e não está selecionado
+                !isSelected && subject.color && "backdrop-blur-sm",
+                // Fallback para bg-card quando não tem cor
+                !isSelected && !subject.color && "bg-card hover:bg-muted hover:border-primary/30"
+              )}
+              style={subtleColorStyle}
+              aria-pressed={isSelected}
+            >
+              <span className="text-base" style={{ 
+                filter: isSelected ? 'brightness(1.2)' : 'none' 
+              }}>
+                {subject.icon}
+              </span>
+              <span className="whitespace-nowrap">{subject.name}</span>
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Right fade + scroll button */}
