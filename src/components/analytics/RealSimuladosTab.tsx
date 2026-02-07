@@ -159,9 +159,6 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
         <div className="flex items-center gap-2 mb-4">
           <Target className="w-4 h-4 text-primary" />
           <h3 className="font-semibold">Resumo Executivo</h3>
-          <Badge variant="secondary" className="ml-2 text-xs">
-            {executive.totalRespostas.toLocaleString('pt-BR')} respostas
-          </Badge>
         </div>
         <ExecutiveKPICards kpis={executive} isLoading={isLoading} />
       </section>
