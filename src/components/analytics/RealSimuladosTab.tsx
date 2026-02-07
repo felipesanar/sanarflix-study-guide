@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
-  Download, RefreshCw, BarChart3, Target, TrendingUp, 
+  Download, BarChart3, Target, TrendingUp, 
   AlertTriangle, FileText, Layers, Users, FileSpreadsheet, FileDown
 } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
@@ -127,16 +127,6 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
           className="mb-0"
         />
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refetch}
-            disabled={isLoading}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Atualizar</span>
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
