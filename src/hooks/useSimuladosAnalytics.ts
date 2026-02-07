@@ -270,7 +270,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       'respondida?': boolean | null;
     };
 
-    // Optimized parallel paginated fetch
+    // Optimized parallel paginated fetch with deterministic ordering
     const fetchAllAnswerProgress = async (params: {
       userIds: string[];
       simuladoIds: string[];
@@ -281,40 +281,28 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       const PAGE_SIZE = 1000;
       const all: AnswerRow[] = [];
       
-      // Fetch pages in parallel batches of 3 to avoid overwhelming the server
+      // Sequential pagination with deterministic order to ensure consistent results
       let from = 0;
       let hasMore = true;
 
       while (hasMore) {
-        const pagePromises = [];
-        for (let i = 0; i < 3 && hasMore; i++) {
-          const pageFrom = from + i * PAGE_SIZE;
-          pagePromises.push(
-            supabase
-              .from('answer_progress')
-              .select('question_id, correct, user_id, simulado, resposta_usuario, "respondida?"')
-              .in('user_id', userIds)
-              .in('simulado', simuladoIds)
-              .range(pageFrom, pageFrom + PAGE_SIZE - 1)
-          );
+        const { data: page, error } = await supabase
+          .from('answer_progress')
+          .select('question_id, correct, user_id, simulado, resposta_usuario, "respondida?"')
+          .in('user_id', userIds)
+          .in('simulado', simuladoIds)
+          .order('answer_id', { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        const rows = (page || []) as AnswerRow[];
+        all.push(...rows);
+        
+        if (rows.length < PAGE_SIZE) {
+          hasMore = false;
+        } else {
+          from += PAGE_SIZE;
         }
-
-        const results = await Promise.all(pagePromises);
-        let totalFetched = 0;
-
-        for (const result of results) {
-          if (result.error) throw result.error;
-          const rows = (result.data || []) as AnswerRow[];
-          all.push(...rows);
-          totalFetched += rows.length;
-          if (rows.length < PAGE_SIZE) {
-            hasMore = false;
-            break;
-          }
-        }
-
-        from += 3 * PAGE_SIZE;
-        if (totalFetched === 0) hasMore = false;
       }
 
       return all;
@@ -604,28 +592,45 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         const totalCorr = simRespostas.filter(r => r.correct).length;
 
         // Calculate average unanswered questions per user
-        // FIXED: Use simFinalizados as user base (already date-filtered)
-        // and filter answers from respostasRaw (ignoring temporal paresNoPeriodo filter)
+        // Uses simFinalizados (date-filtered) as user base
+        // Combines answer_progress (current) + answer_progress_historico (last attempt if replaced)
         const totalQuestoes = simQuestoes.length;
-        const usersFinalizados = new Set(simFinalizados.map(f => f.user_id));
+        const questaoIdsDoSimulado = new Set(simQuestoes.map(q => q.id));
         
-        // Get ALL answers for this simulado from users who finished (not filtered by paresNoPeriodo)
-        const todasRespostasDoSimulado = respostasRaw.filter(
-          r => r.simulado === s.id && usersFinalizados.has(r.user_id)
+        // Get the LAST finalization per user for this simulado (for users with multiple attempts)
+        const ultimaFinalizacaoPorUsuario = new Map<string, typeof simFinalizados[0]>();
+        simFinalizados.forEach(f => {
+          const existing = ultimaFinalizacaoPorUsuario.get(f.user_id);
+          if (!existing || new Date(f.finalizado_em) > new Date(existing.finalizado_em)) {
+            ultimaFinalizacaoPorUsuario.set(f.user_id, f);
+          }
+        });
+        
+        // Get ALL answers for this simulado from ALL sources (current + historico)
+        // Filter only valid question_ids to avoid counting orphan answers
+        const respostasCurrentSimulado = respostasRaw.filter(
+          r => r.simulado === s.id && 
+               ultimaFinalizacaoPorUsuario.has(r.user_id) &&
+               questaoIdsDoSimulado.has(r.question_id)
+        );
+        const respostasHistoricoSimulado = historicoRaw.filter(
+          r => r.simulado === s.id && 
+               ultimaFinalizacaoPorUsuario.has(r.user_id) &&
+               questaoIdsDoSimulado.has(r.question_id)
         );
         
-        // Group responses by user
+        // Combine both sources, using Set to deduplicate by (user_id, question_id)
         const respostasPorUsuario = new Map<string, Set<string>>();
-        todasRespostasDoSimulado.forEach(r => {
+        [...respostasCurrentSimulado, ...respostasHistoricoSimulado].forEach(r => {
           if (!respostasPorUsuario.has(r.user_id)) {
             respostasPorUsuario.set(r.user_id, new Set());
           }
           respostasPorUsuario.get(r.user_id)!.add(r.question_id);
         });
         
-        // Calculate unanswered for each user who finished
+        // Calculate unanswered for each user who finished (only users with last attempt in period)
         const naoRespondidasPorUsuario: number[] = [];
-        usersFinalizados.forEach(userId => {
+        ultimaFinalizacaoPorUsuario.forEach((_, userId) => {
           const questoesRespondidas = respostasPorUsuario.get(userId)?.size || 0;
           const naoRespondidas = totalQuestoes - questoesRespondidas;
           naoRespondidasPorUsuario.push(Math.max(0, naoRespondidas));
