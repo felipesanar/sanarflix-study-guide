@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
+import { toBrazilDate } from '@/utils/timezone';
 
 // ============== TYPES ==============
 export interface SimuladoOverview {
@@ -183,14 +183,30 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
     error: null,
   });
 
-  const filterParams = useMemo(() => ({
-    startDate: filters.dateRange.start.toISOString(),
-    endDate: filters.dateRange.end.toISOString(),
-    iesId: filters.iesId && filters.iesId !== 'all' ? filters.iesId : null,
-    excludedIES: filters.excludedIES || [],
-    simuladoId: filters.simuladoId || null,
-    semestre: filters.semestre || null,
-  }), [filters]);
+  const filterParams = useMemo(() => {
+    // Normalize dateRange to full days in Brazil timezone (inclusive)
+    const startBrazil = toBrazilDate(filters.dateRange.start);
+    startBrazil.setHours(0, 0, 0, 0);
+
+    const endBrazil = toBrazilDate(filters.dateRange.end);
+    endBrazil.setHours(23, 59, 59, 999);
+
+    return {
+      startDate: startBrazil.toISOString(),
+      endDate: endBrazil.toISOString(),
+      iesId: filters.iesId && filters.iesId !== 'all' ? filters.iesId : null,
+      excludedIES: filters.excludedIES || [],
+      simuladoId: filters.simuladoId || null,
+      semestre: filters.semestre || null,
+    };
+  }, [
+    filters.dateRange.start,
+    filters.dateRange.end,
+    filters.iesId,
+    filters.excludedIES,
+    filters.simuladoId,
+    filters.semestre,
+  ]);
 
   const fetchData = useCallback(async () => {
     console.log('[useSimuladosAnalytics][Simulados] Fetching with filters:', filterParams);
@@ -218,29 +234,38 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       return results.flat();
     };
 
+    type AnswerRow = {
+      question_id: string;
+      correct: boolean;
+      user_id: string;
+      simulado: string;
+      resposta_usuario: string | null;
+      'respondida?': boolean | null;
+    };
+
     const fetchAllAnswerProgress = async (params: {
       userIds: string[];
       simuladoIds: string[];
     }) => {
       const { userIds, simuladoIds } = params;
       if (userIds.length === 0 || simuladoIds.length === 0) {
-        return [] as { question_id: string; correct: boolean; user_id: string; simulado: string }[];
+        return [] as AnswerRow[];
       }
 
       const PAGE_SIZE = 1000;
-      const all: { question_id: string; correct: boolean; user_id: string; simulado: string }[] = [];
+      const all: AnswerRow[] = [];
       let from = 0;
 
       while (true) {
         const { data: page, error } = await supabase
           .from('answer_progress')
-          .select('question_id, correct, user_id, simulado')
+          .select('question_id, correct, user_id, simulado, resposta_usuario, "respondida?"')
           .in('user_id', userIds)
           .in('simulado', simuladoIds)
           .range(from, from + PAGE_SIZE - 1);
 
         if (error) throw error;
-        const rows = page || [];
+        const rows = (page || []) as AnswerRow[];
         all.push(...rows);
         if (rows.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
@@ -251,28 +276,32 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
 
     const fetchHistoricoByFinalizacoes = async (finalizacaoIds: string[]) => {
       if (finalizacaoIds.length === 0) {
-        return [] as { question_id: string; correct: boolean; user_id: string; simulado: string }[];
+        return [] as AnswerRow[];
       }
 
       // historico is typically small, but still paginate for safety
       const PAGE_SIZE = 1000;
-      const all: { question_id: string; correct: boolean; user_id: string; simulado: string }[] = [];
+      const all: AnswerRow[] = [];
       let from = 0;
 
       while (true) {
         const { data: page, error } = await supabase
           .from('answer_progress_historico')
-          .select('question_id, correct, user_id, simulado, finalizacao_original_id')
+          .select('question_id, correct, user_id, simulado, resposta_usuario, "respondida?", finalizacao_original_id')
           .in('finalizacao_original_id', finalizacaoIds)
           .range(from, from + PAGE_SIZE - 1);
 
         if (error) throw error;
-        const rows = (page || []).map(r => ({
+
+        const rows: AnswerRow[] = (page || []).map((r: any) => ({
           question_id: r.question_id,
           correct: r.correct,
           user_id: r.user_id,
           simulado: r.simulado,
+          resposta_usuario: r.resposta_usuario ?? null,
+          'respondida?': (r['respondida?'] ?? null) as boolean | null,
         }));
+
         all.push(...rows);
         if (rows.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
@@ -284,11 +313,11 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
     try {
       const { startDate, endDate, iesId, excludedIES, simuladoId, semestre } = filterParams;
 
-      // Fetch base data in parallel (all under 1000 rows)
+      // Fetch base data in parallel
       const [simuladosAdminRes, iniciadosRes, finalizadosRes, questoesRes, iesRes] = await Promise.all([
-        iesId
-          ? supabase.from('simulados_admin').select('*').contains('ies_ids', [iesId])
-          : supabase.from('simulados_admin').select('*'),
+        // NOTE: IES filter is applied by user cohort (users.id_ies), not by simulado configuration (simulados_admin.ies_ids).
+        // This avoids hiding real usage when simulados were reconfigured after students already took them.
+        supabase.from('simulados_admin').select('*'),
         supabase
           .from('simulados_iniciados')
           .select('simulado_id, user_id, started_at')
@@ -317,16 +346,20 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         finalizados = finalizados.filter(f => f.simulado_id === simuladoId);
       }
 
-      // Filter simulados by IES (config)
-      const relevantSimulados = iesId
-        ? simuladosAdmin.filter(s => s.ies_ids?.includes(iesId))
-        : simuladosAdmin;
-      const simuladoIds = new Set(relevantSimulados.map(s => s.id));
 
-      iniciados = iniciados.filter(i => simuladoIds.has(i.simulado_id));
-      finalizados = finalizados.filter(f => simuladoIds.has(f.simulado_id));
+      const isAnswered = (r: { resposta_usuario: string | null; 'respondida?': boolean | null }) => {
+        return (
+          (r.resposta_usuario && r.resposta_usuario.trim() !== '') ||
+          r['respondida?'] === true
+        );
+      };
 
-      // Fetch only users involved in this period (avoid 1000 row limit)
+      // Keep only events whose simulado exists in simulados_admin
+      const knownSimuladoIds = new Set(simuladosAdmin.map(s => s.id));
+      iniciados = iniciados.filter(i => knownSimuladoIds.has(i.simulado_id));
+      finalizados = finalizados.filter(f => knownSimuladoIds.has(f.simulado_id));
+
+      // Fetch only users involved in this period
       const eventUserIds = Array.from(
         new Set([...iniciados.map(i => i.user_id), ...finalizados.map(f => f.user_id)])
       );
@@ -353,32 +386,50 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       iniciados = iniciados.filter(i => allowedUserIds.has(i.user_id));
       finalizados = finalizados.filter(f => allowedUserIds.has(f.user_id));
 
-      // CRITICAL: answer_progress has no timestamp. We scope respostas to (user_id, simulado_id) pairs that finalized in the selected period.
-      const finalizadosNoPeriodo = new Set(finalizados.map(f => `${f.user_id}_${f.simulado_id}`));
-      const finalizadoUserIds = Array.from(new Set(finalizados.map(f => f.user_id)));
-      const simuladoIdsArray = Array.from(simuladoIds);
+      // Recompute in-scope simulados AFTER applying user cohort filters
+      const relevantSimuladoIds = new Set([
+        ...iniciados.map(i => i.simulado_id),
+        ...finalizados.map(f => f.simulado_id),
+      ]);
+      const relevantSimulados = simuladosAdmin.filter(s => relevantSimuladoIds.has(s.id));
+      const simuladoIds = new Set(relevantSimulados.map(s => s.id));
+
+      // answer_progress has no timestamp. We scope respostas to participants (started OR finalized) inside the selected period.
+      const paresNoPeriodo = new Set([
+        ...iniciados.map(i => `${i.user_id}_${i.simulado_id}`),
+        ...finalizados.map(f => `${f.user_id}_${f.simulado_id}`),
+      ]);
+
+      const participantUserIds = Array.from(
+        new Set([...iniciados.map(i => i.user_id), ...finalizados.map(f => f.user_id)])
+      );
+      const participantSimuladoIds = Array.from(simuladoIds);
 
       // Fetch ALL respostas for the in-scope users/simulados (paginate to bypass Supabase 1000 limit)
       const respostasRaw = await fetchAllAnswerProgress({
-        userIds: finalizadoUserIds,
-        simuladoIds: simuladoIdsArray,
+        userIds: participantUserIds,
+        simuladoIds: participantSimuladoIds,
       });
 
-      let respostas = respostasRaw.filter(r => finalizadosNoPeriodo.has(`${r.user_id}_${r.simulado}`));
+      let respostas = respostasRaw.filter(r => paresNoPeriodo.has(`${r.user_id}_${r.simulado}`));
 
-      // Include historical attempts that were archived but whose finalization is inside the selected period
+      // Include historical attempts archived for finalizations inside the selected period
       const historico = await fetchHistoricoByFinalizacoes(finalizados.map(f => f.id));
-      const historicoFiltrado = historico.filter(r => finalizadosNoPeriodo.has(`${r.user_id}_${r.simulado}`));
+      const historicoFiltrado = historico.filter(r => paresNoPeriodo.has(`${r.user_id}_${r.simulado}`));
       respostas = [...respostas, ...historicoFiltrado];
 
+      // CRITICAL: accuracy should consider only questions actually answered by the student
+      respostas = respostas.filter(isAnswered);
+
       console.log('[useSimuladosAnalytics][Simulados] counts', {
+        simuladosAdmin: simuladosAdmin.length,
         relevantSimulados: relevantSimulados.length,
         iniciados: iniciados.length,
         finalizados: finalizados.length,
         eventUsers: eventUserIds.length,
         allowedUsers: allowedUserIds.size,
         respostasRaw: respostasRaw.length,
-        respostasInScope: respostas.length,
+        respostasAnsweredInScope: respostas.length,
         historicoInScope: historicoFiltrado.length,
       });
 
