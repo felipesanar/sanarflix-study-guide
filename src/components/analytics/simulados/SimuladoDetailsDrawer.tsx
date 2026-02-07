@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Clock, Users, Target, AlertTriangle, CheckCircle2, 
-  TrendingUp, BarChart3, Calendar, Timer
+  TrendingUp, BarChart3, Calendar, Timer, HelpCircle, FileQuestion
 } from 'lucide-react';
 import type { SimuladoOverview, SegmentacaoIES, SegmentacaoDimensao } from '@/hooks/useSimuladosAnalytics';
 import { format } from 'date-fns';
@@ -158,7 +158,7 @@ export const SimuladoDetailsDrawer: React.FC<SimuladoDetailsDrawerProps> = ({
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
                   Indicadores de Fricção
                 </CardTitle>
               </CardHeader>
@@ -181,6 +181,66 @@ export const SimuladoDetailsDrawer: React.FC<SimuladoDetailsDrawerProps> = ({
                     <Badge variant="outline">{simulado.questoes_anuladas}</Badge>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Questões Não Respondidas */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <FileQuestion className="w-4 h-4 text-amber-500" />
+                  Questões Não Respondidas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Média por aluno</span>
+                  <Badge 
+                    variant={simulado.questoes_nao_respondidas_media > 5 ? 'destructive' : 
+                            simulado.questoes_nao_respondidas_media > 0 ? 'secondary' : 'default'}
+                    className="font-mono"
+                  >
+                    {simulado.questoes_nao_respondidas_media.toFixed(1)}
+                  </Badge>
+                </div>
+                
+                {/* Taxa de questões não respondidas */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Taxa de não preenchimento</span>
+                    <span>
+                      {simulado.total_questoes > 0 
+                        ? ((simulado.questoes_nao_respondidas_media / simulado.total_questoes) * 100).toFixed(1)
+                        : 0}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={simulado.total_questoes > 0 
+                      ? (simulado.questoes_nao_respondidas_media / simulado.total_questoes) * 100
+                      : 0} 
+                    className="h-1.5" 
+                  />
+                </div>
+
+                {/* Contextual insight */}
+                <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                  {simulado.questoes_nao_respondidas_media === 0 ? (
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <p>Excelente! Todos os alunos responderam todas as questões.</p>
+                    </div>
+                  ) : simulado.questoes_nao_respondidas_media <= 3 ? (
+                    <div className="flex items-start gap-2">
+                      <HelpCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <p>Poucos alunos deixaram questões em branco. Pode indicar dificuldade com questões específicas ou gestão de tempo.</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                      <p>Alta taxa de questões não respondidas. Verifique se o tempo da prova está adequado ou se há problemas técnicos.</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
