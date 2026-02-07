@@ -160,7 +160,7 @@ const Analytics = () => {
           </TabsContent>
 
           <TabsContent value="simulados" className="space-y-6">
-            <RealSimuladosTab simulados={simulados} isLoading={isLoading} />
+            <RealSimuladosTab filters={filters} />
           </TabsContent>
 
           <TabsContent value="realtime" className="space-y-6">
