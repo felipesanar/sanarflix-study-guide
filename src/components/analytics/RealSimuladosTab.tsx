@@ -2,9 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Download, RefreshCw, BarChart3, Target, TrendingUp, 
-  AlertTriangle, FileText, Layers, Users
+  AlertTriangle, FileText, Layers, Users, FileSpreadsheet, FileDown
 } from 'lucide-react';
 import { SectionHeader } from './SectionHeader';
 import { EmptyState } from './EmptyState';
@@ -18,6 +24,7 @@ import {
   SimuladoDetailsDrawer
 } from './simulados';
 import { useSimuladosAnalytics, type SimuladoOverview } from '@/hooks/useSimuladosAnalytics';
+import { exportToCSV, exportToXLSX } from '@/utils/exportSimuladosAnalytics';
 import type { AnalyticsFilters as FiltersType } from '@/pages/Analytics';
 
 interface RealSimuladosTabProps {
@@ -57,33 +64,26 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
     setDrawerOpen(true);
   };
 
-  const handleExport = () => {
-    // Build CSV data
-    const headers = ['Simulado', 'Status', 'Iniciados', 'Concluintes', 'Taxa Conclusão', 'Acurácia', 'Tempo Mediano (min)'];
-    const rows = simulados.map(s => [
-      s.nome,
-      s.status,
-      s.iniciados_unicos,
-      s.concluintes_unicos,
-      `${s.taxa_conclusao}%`,
-      `${s.acuracia_media}%`,
-      Math.round(s.tempo_mediano_segundos / 60),
-    ]);
+  // Export data object for reuse
+  const exportData = useMemo(() => ({
+    executive,
+    simulados,
+    segmentacaoIES,
+    segmentacaoSemestre,
+    segmentacaoArea,
+    segmentacaoEspecialidade,
+    segmentacaoTema,
+    segmentacaoDificuldade,
+    questoesProblematicas,
+    comportamento,
+  }), [executive, simulados, segmentacaoIES, segmentacaoSemestre, segmentacaoArea, segmentacaoEspecialidade, segmentacaoTema, segmentacaoDificuldade, questoesProblematicas, comportamento]);
 
-    const csvContent = [
-      `# Relatório de Simulados - Exportado em ${new Date().toLocaleDateString('pt-BR')}`,
-      `# Período: ${filters.dateRange.start.toLocaleDateString('pt-BR')} - ${filters.dateRange.end.toLocaleDateString('pt-BR')}`,
-      `# IES: ${filters.university || 'Todas'}`,
-      '',
-      headers.join(','),
-      ...rows.map(r => r.join(',')),
-    ].join('\n');
+  const handleExportCSV = () => {
+    exportToCSV(exportData, filters);
+  };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `simulados_analytics_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  const handleExportXLSX = () => {
+    exportToXLSX(exportData, filters);
   };
 
   // Check if we have any data
@@ -137,16 +137,30 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={isLoading || !hasData}
-            className="gap-2"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Exportar CSV</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoading || !hasData}
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Exportar</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportXLSX} className="gap-2 cursor-pointer">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Excel (.xlsx)</span>
+                <Badge variant="secondary" className="ml-auto text-xs">Recomendado</Badge>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
+                <FileDown className="w-4 h-4 text-muted-foreground" />
+                <span>CSV (.csv)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
