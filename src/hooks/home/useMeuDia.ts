@@ -34,8 +34,8 @@ export const useMeuDia = () => {
         .limit(1),
       supabase
         .from('simulados_admin')
-        .select('id, nome, status')
-        .eq('status', 'ativo'),
+        .select('id, nome, status, data_liberacao, data_encerramento')
+        .neq('status', 'encerrado'),
     ]);
 
     const studyGuideData = studyGuideRes.data;
@@ -141,16 +141,32 @@ export const useMeuDia = () => {
     items.push(...(subjectItems.filter(Boolean) as MeuDiaItem[]).slice(0, 2));
   };
 
-  const addAvailableSimulado = async (user: User, ativos: { id: string; nome: string }[], items: MeuDiaItem[]) => {
+  const addAvailableSimulado = async (
+    user: User,
+    simulados: { id: string; nome: string; data_liberacao?: string; data_encerramento?: string }[],
+    items: MeuDiaItem[]
+  ) => {
     try {
+      // Filtrar por datas (mesma lógica de simuladosApi.ts)
+      const agora = new Date();
+      const simuladosDisponiveis = simulados.filter((s) => {
+        const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
+        const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
+        return liberado && naoEncerrado;
+      });
+
+      // Se não há simulados disponíveis após filtro de datas, não adicionar
+      if (simuladosDisponiveis.length === 0) return;
+
+      // Verificar quais o usuário já finalizou
       const { data: finalizados } = await supabase
         .from('simulados_finalizados')
         .select('simulado_id')
         .eq('user_id', user.id);
 
       const finalizadosIds = new Set((finalizados || []).map((r) => r.simulado_id));
-      const disponiveis = ativos.filter((s) => !finalizadosIds.has(s.id));
-      const availableSimulado = disponiveis[0] || ativos[0];
+      const disponiveis = simuladosDisponiveis.filter((s) => !finalizadosIds.has(s.id));
+      const availableSimulado = disponiveis[0] || simuladosDisponiveis[0];
 
       if (availableSimulado) {
         items.push({

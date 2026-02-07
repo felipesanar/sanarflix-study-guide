@@ -154,8 +154,8 @@ export const useHomeData = () => {
         .limit(1),
       supabase
         .from('simulados_admin')
-        .select('id, nome, status')
-        .eq('status', 'ativo'),
+        .select('id, nome, status, data_liberacao, data_encerramento')
+        .neq('status', 'encerrado'),
     ]);
 
     // Process study guide
@@ -298,32 +298,42 @@ export const useHomeData = () => {
 
 
 
-    // Adicionar "Simulado Disponível" somente se houver simulado ativo não respondido pelo usuário
+    // Adicionar "Simulado Disponível" somente se houver simulado REALMENTE disponível
     try {
-      const { data: finalizados } = await supabase
-        .from('simulados_finalizados')
-        .select('simulado_id')
-        .eq('user_id', user.id);
+      // Filtrar por datas (mesma lógica de simuladosApi.ts)
+      const agora = new Date();
+      const simuladosDisponiveis = ((simuladoRes.data || []) as any[]).filter((s: any) => {
+        const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
+        const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
+        return liberado && naoEncerrado;
+      });
 
-      const finalizadosIds = new Set((finalizados || []).map((r: any) => r.simulado_id));
-      const ativos = (simuladoRes.data || []) as any[];
-      const disponiveis = ativos.filter((s: any) => !finalizadosIds.has(s.id));
-      let availableSimulado = disponiveis[0] || null;
-      if (!availableSimulado && ativos.length > 0) {
-        availableSimulado = ativos[0];
-      }
+      // Se não há simulados disponíveis após filtro de datas, não adicionar item
+      if (simuladosDisponiveis.length > 0) {
+        const { data: finalizados } = await supabase
+          .from('simulados_finalizados')
+          .select('simulado_id')
+          .eq('user_id', user.id);
 
-      if (availableSimulado) {
-        items.push({
-          id: `simulado-${availableSimulado.id}-${Date.now()}`,
-          type: 'simulado',
-          title: 'Simulado Disponível',
-          subtitle: availableSimulado.nome || 'Simulado',
-          path: '/simulados',
-          icon: 'Trophy',
-          color: 'from-orange-500 to-red-500',
-          source: 'fallback' as const,
-        });
+        const finalizadosIds = new Set((finalizados || []).map((r: any) => r.simulado_id));
+        const disponiveis = simuladosDisponiveis.filter((s: any) => !finalizadosIds.has(s.id));
+        let availableSimulado = disponiveis[0] || null;
+        if (!availableSimulado && simuladosDisponiveis.length > 0) {
+          availableSimulado = simuladosDisponiveis[0];
+        }
+
+        if (availableSimulado) {
+          items.push({
+            id: `simulado-${availableSimulado.id}-${Date.now()}`,
+            type: 'simulado',
+            title: 'Simulado Disponível',
+            subtitle: availableSimulado.nome || 'Simulado',
+            path: '/simulados',
+            icon: 'Trophy',
+            color: 'from-orange-500 to-red-500',
+            source: 'fallback' as const,
+          });
+        }
       }
     } catch (e) {
       console.warn('⚠️ [Meu Dia] Erro ao avaliar simulados disponíveis:', e);
