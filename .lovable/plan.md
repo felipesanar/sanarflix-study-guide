@@ -1,200 +1,130 @@
 
-# Plano: Corrigir Discrepância no Card "Meu Dia" para Simulados
+# Plano: Fundo Colorido Sutil com Glassmorphism nos Chips de Matéria
 
-## Diagnóstico
+## Problema Atual
 
-O card "Meu Dia" na Home exibe "Simulado Disponível" para usuários, mas a página de Simulados mostra "Nenhum simulado encontrado".
+O pontinho colorido ao lado do nome da matéria parece um indicador de notificação ou "item novo", causando confusão visual.
 
-### Causa Raiz Identificada
-
-| Componente | Lógica de Busca | Problema |
-|------------|-----------------|----------|
-| **useMeuDia.ts** (linha 37-38) | `.eq('status', 'ativo')` sem filtro de datas | Retorna simulados expirados |
-| **useHomeData.ts** (linha 156-158) | `.eq('status', 'ativo')` sem filtro de datas | Retorna simulados expirados |
-| **simuladosApi.ts** | `.neq('status', 'encerrado')` + filtro de datas no cliente | Corretamente filtra expirados |
-
-O simulado provavelmente tem `status: 'ativo'` mas `data_encerramento` já passou, então aparece no card mas não na página.
+```
+┌─────────────────────────┐
+│ 🧬 Biologia Molecular ● │  ← Pontinho parece notificação
+└─────────────────────────┘
+```
 
 ---
 
-## Solução
+## Solução Proposta
 
-Aplicar a mesma lógica de filtragem por datas (implementada no `simuladosApi.ts`) nos dois hooks do "Meu Dia".
+Substituir o pontinho por um fundo sutil com a cor da matéria, aplicando efeito glassmorphism/perolado para uma aparência premium.
+
+```
+┌─────────────────────────┐
+│ 🧬 Biologia Molecular   │  ← Fundo com tom sutil da cor
+│   (fundo rosa claro)    │     + glassmorphism
+└─────────────────────────┘
+```
 
 ---
 
-## Arquivos a Modificar
+## Arquivo a Modificar
 
-### 1. `src/hooks/home/useMeuDia.ts`
+**`src/components/guia-estudos/SubjectChips.tsx`**
 
-**Modificar query (linhas 35-38):**
+### Mudanças
+
+1. **Remover o pontinho colorido** (linhas 137-142)
+
+2. **Aplicar fundo colorido sutil via inline styles** quando a matéria NÃO está selecionada:
+
 ```typescript
-// ANTES:
-supabase
-  .from('simulados_admin')
-  .select('id, nome, status')
-  .eq('status', 'ativo'),
+{subjects.map((subject, idx) => {
+  const isSelected = selectedSubject === subject.name;
+  
+  // Estilo do fundo colorido sutil (quando não selecionado)
+  const subtleColorStyle = !isSelected && subject.color ? {
+    backgroundColor: `color-mix(in srgb, ${subject.color} 8%, transparent)`,
+    borderColor: `color-mix(in srgb, ${subject.color} 20%, hsl(var(--border)))`,
+  } : {};
 
-// DEPOIS:
-supabase
-  .from('simulados_admin')
-  .select('id, nome, status, data_liberacao, data_encerramento')
-  .neq('status', 'encerrado'),
-```
-
-**Modificar função `addAvailableSimulado` (linhas 144-170):**
-```typescript
-const addAvailableSimulado = async (
-  user: User, 
-  simulados: { id: string; nome: string; data_liberacao?: string; data_encerramento?: string }[], 
-  items: MeuDiaItem[]
-) => {
-  try {
-    // NOVO: Filtrar por datas (mesma lógica de simuladosApi.ts)
-    const agora = new Date();
-    const simuladosDisponiveis = simulados.filter(s => {
-      const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
-      const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
-      return liberado && naoEncerrado;
-    });
-
-    // Se não há simulados disponíveis após filtro de datas, não adicionar
-    if (simuladosDisponiveis.length === 0) return;
-
-    // Verificar quais o usuário já finalizou
-    const { data: finalizados } = await supabase
-      .from('simulados_finalizados')
-      .select('simulado_id')
-      .eq('user_id', user.id);
-
-    const finalizadosIds = new Set((finalizados || []).map((r) => r.simulado_id));
-    const disponiveis = simuladosDisponiveis.filter((s) => !finalizadosIds.has(s.id));
-    const availableSimulado = disponiveis[0] || simuladosDisponiveis[0];
-
-    if (availableSimulado) {
-      items.push({
-        id: `simulado-${availableSimulado.id}-${Date.now()}`,
-        type: 'simulado',
-        title: 'Simulado Disponível',
-        subtitle: availableSimulado.nome || 'Simulado',
-        path: '/simulados',
-        icon: 'Trophy',
-        color: 'from-orange-500 to-red-500',
-        source: 'fallback',
-      });
-    }
-  } catch (e) {
-    console.warn('[Meu Dia] Erro ao avaliar simulados:', e);
-  }
-};
+  return (
+    <motion.button
+      key={subject.name}
+      // ... outras props
+      className={cn(
+        "shrink-0 snap-start flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl",
+        "text-sm font-medium transition-all duration-200",
+        "border shadow-sm",
+        isSelected
+          ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20"
+          : "hover:brightness-105 border-border/50 text-foreground",
+        // Glassmorphism sutil quando tem cor
+        !isSelected && subject.color && "backdrop-blur-sm"
+      )}
+      style={subtleColorStyle}
+      // ...
+    >
+      <span className="text-base" style={{ 
+        filter: isSelected ? 'brightness(1.2)' : 'none' 
+      }}>
+        {subject.icon}
+      </span>
+      <span className="whitespace-nowrap">{subject.name}</span>
+      {/* REMOVIDO: pontinho colorido */}
+    </motion.button>
+  );
+})}
 ```
 
 ---
 
-### 2. `src/hooks/useHomeData.ts`
+## Efeito Visual Esperado
 
-**Modificar query (linhas 155-158):**
-```typescript
-// ANTES:
-supabase
-  .from('simulados_admin')
-  .select('id, nome, status')
-  .eq('status', 'ativo'),
+### Light Mode
+- Fundo: Cor da matéria com ~8% de opacidade
+- Borda: Cor da matéria com ~20% de opacidade misturada com border padrão
+- Efeito perolado: `backdrop-blur-sm` para suavidade
 
-// DEPOIS:
-supabase
-  .from('simulados_admin')
-  .select('id, nome, status, data_liberacao, data_encerramento')
-  .neq('status', 'encerrado'),
+### Dark Mode
+- Mesmo efeito, mas `color-mix` adapta naturalmente
+- O fundo colorido fica mais evidente em fundos escuros
+
+---
+
+## Comparativo Visual
+
 ```
+ANTES:
+┌────────────────────────────┐
+│ 🧬 Biologia Molecular  🔴  │  ← Pontinho confuso
+│ 🫀 Anatomia            🔵  │
+│ 💊 Farmacologia        🟢  │
+└────────────────────────────┘
 
-**Modificar lógica de simulados (linhas 301-330):**
-```typescript
-// Adicionar "Simulado Disponível" somente se houver simulado REALMENTE disponível
-try {
-  // NOVO: Filtrar por datas (mesma lógica de simuladosApi.ts)
-  const agora = new Date();
-  const simuladosDisponiveis = ((simuladoRes.data || []) as any[]).filter((s: any) => {
-    const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agora;
-    const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agora;
-    return liberado && naoEncerrado;
-  });
-
-  // Se não há simulados disponíveis após filtro de datas, não adicionar item
-  if (simuladosDisponiveis.length === 0) {
-    // Não adiciona item de simulado
-  } else {
-    const { data: finalizados } = await supabase
-      .from('simulados_finalizados')
-      .select('simulado_id')
-      .eq('user_id', user.id);
-
-    const finalizadosIds = new Set((finalizados || []).map((r: any) => r.simulado_id));
-    const disponiveis = simuladosDisponiveis.filter((s: any) => !finalizadosIds.has(s.id));
-    let availableSimulado = disponiveis[0] || null;
-    if (!availableSimulado && simuladosDisponiveis.length > 0) {
-      availableSimulado = simuladosDisponiveis[0];
-    }
-
-    if (availableSimulado) {
-      items.push({
-        id: `simulado-${availableSimulado.id}-${Date.now()}`,
-        type: 'simulado',
-        title: 'Simulado Disponível',
-        subtitle: availableSimulado.nome || 'Simulado',
-        path: '/simulados',
-        icon: 'Trophy',
-        color: 'from-orange-500 to-red-500',
-        source: 'fallback' as const,
-      });
-    }
-  }
-} catch (e) {
-  console.warn('[Meu Dia] Erro ao avaliar simulados disponíveis:', e);
-}
+DEPOIS:
+┌────────────────────────────┐
+│ 🧬 Biologia Molecular      │  ← Fundo rosa sutil
+│ 🫀 Anatomia                │  ← Fundo azul sutil  
+│ 💊 Farmacologia            │  ← Fundo verde sutil
+└────────────────────────────┘
 ```
 
 ---
 
-## Fluxo Após Correção
+## Detalhes Técnicos
 
-```text
-ANTES (Problema):
-┌─────────────────────────────────────────────────────────┐
-│ useMeuDia.ts / useHomeData.ts                           │
-│   → Busca WHERE status = 'ativo'                        │
-│   → Retorna simulados expirados (data_encerramento <)   │
-│   → Card mostra "Simulado Disponível" ❌                │
-│                                                         │
-│ simuladosApi.ts                                         │
-│   → Busca WHERE status != 'encerrado'                   │
-│   → Filtra por datas no cliente                         │
-│   → Expirados são removidos                             │
-│   → Página mostra "Nenhum simulado" ✅                  │
-└─────────────────────────────────────────────────────────┘
-
-DEPOIS (Corrigido):
-┌─────────────────────────────────────────────────────────┐
-│ useMeuDia.ts / useHomeData.ts                           │
-│   → Busca WHERE status != 'encerrado'                   │
-│   → Filtra por datas no cliente (mesma lógica)          │
-│   → Expirados são removidos                             │
-│   → Card NÃO mostra "Simulado Disponível" ✅            │
-│                                                         │
-│ simuladosApi.ts                                         │
-│   → Mesma lógica, consistente                           │
-│   → Página mostra "Nenhum simulado" ✅                  │
-│                                                         │
-│ ✅ CONSISTÊNCIA GARANTIDA                               │
-└─────────────────────────────────────────────────────────┘
-```
+| Propriedade | Valor | Motivo |
+|-------------|-------|--------|
+| `color-mix opacity (bg)` | 8% | Sutil, não compete com texto |
+| `color-mix opacity (border)` | 20% | Visível mas não agressivo |
+| `backdrop-blur-sm` | 4px blur | Efeito glassmorphism leve |
+| `hover:brightness-105` | 5% mais claro | Feedback de hover sutil |
 
 ---
 
-## Critérios de Sucesso
+## Benefícios
 
-- O card "Meu Dia" só mostra "Simulado Disponível" se realmente houver simulados acessíveis
-- Simulados com `data_encerramento` passada não aparecem no card
-- Simulados com `data_liberacao` futura não aparecem no card
-- Consistência entre card "Meu Dia" e página de Simulados
-- Funciona para todos os usuários, não apenas um específico
+- Remove ambiguidade do pontinho (não parece mais notificação)
+- Visual premium e moderno
+- Cada matéria tem identidade visual única
+- Funciona bem em Light e Dark mode
+- Mantém o destaque primário para item selecionado
