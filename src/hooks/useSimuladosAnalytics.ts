@@ -449,29 +449,31 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
           ? (async () => {
               // Fetch all answers for finalizados users and count per simulado
               const PAGE_SIZE = 1000;
-              const all: { user_id: string; simulado: string; question_id: string }[] = [];
+              const all: { user_id: string; simulado: string; question_id: string; 'respondida?': boolean | null }[] = [];
               let from = 0;
               let hasMore = true;
 
               while (hasMore) {
                 const { data: page, error } = await supabase
                   .from('answer_progress')
-                  .select('user_id, simulado, question_id')
+                  .select('user_id, simulado, question_id, "respondida?"')
                   .in('user_id', finalizadosUserIds)
                   .in('simulado', participantSimuladoIds)
                   .order('answer_id', { ascending: true })
                   .range(from, from + PAGE_SIZE - 1);
 
                 if (error) throw error;
-                const rows = page || [];
+                const rows = (page || []) as { user_id: string; simulado: string; question_id: string; 'respondida?': boolean | null }[];
                 all.push(...rows);
                 if (rows.length < PAGE_SIZE) hasMore = false;
                 from += PAGE_SIZE;
               }
               
               // Aggregate: count unique question_ids per (user_id, simulado)
+              // ONLY count questions where "respondida?" = true
               const countMap = new Map<string, Set<string>>();
               all.forEach(r => {
+                if (r['respondida?'] !== true) return; // Skip unanswered questions
                 const key = `${r.user_id}_${r.simulado}`;
                 if (!countMap.has(key)) countMap.set(key, new Set());
                 countMap.get(key)!.add(r.question_id);
@@ -639,8 +641,8 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         const totalCorr = simRespostas.filter(r => r.correct).length;
 
         // Calculate average unanswered questions per user
-        // Formula: For each user who finished, count their responses and subtract from total questions
-        const totalQuestoes = simQuestoes.length;
+        // Formula: For each user who finished, count their responses and subtract from total non-cancelled questions
+        const totalQuestoes = simQuestoes.filter(q => !q.anulada).length;
         
         // Get LAST finalization per user (for users with multiple attempts in period)
         const ultimaFinalizacaoPorUsuario = new Map<string, typeof simFinalizados[0]>();
