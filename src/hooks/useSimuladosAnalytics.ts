@@ -307,7 +307,16 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       // Filter data by relevant simulados
       iniciados = iniciados.filter(i => simuladoIds.has(i.simulado_id));
       finalizados = finalizados.filter(f => simuladoIds.has(f.simulado_id));
-      respostas = respostas.filter(r => simuladoIds.has(r.simulado));
+      
+      // CRITICAL: Filter respostas by users who finalized in the period AND by simulado
+      // Since answer_progress has no timestamp, we use finalizados to determine which responses are in scope
+      const finalizadosNoPeríodo = new Set(
+        finalizados.map(f => `${f.user_id}_${f.simulado_id}`)
+      );
+      respostas = respostas.filter(r => 
+        simuladoIds.has(r.simulado) && 
+        finalizadosNoPeríodo.has(`${r.user_id}_${r.simulado}`)
+      );
 
       // ============== EXECUTIVE KPIs ==============
       const uniqueIniciados = new Set(iniciados.map(i => i.user_id));
