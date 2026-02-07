@@ -192,137 +192,201 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
     semestre: filters.semestre || null,
   }), [filters]);
 
-  const fetchUserIdsByIES = useCallback(async (iesId: string): Promise<string[]> => {
-    const { data: users } = await supabase
-      .from('users')
-      .select('id')
-      .eq('id_ies', iesId);
-    return users?.map(u => u.id) || [];
-  }, []);
-
-  const fetchUserIdsExcludingIES = useCallback(async (excludedIds: string[]): Promise<string[]> => {
-    if (excludedIds.length === 0) return [];
-    const { data: allUsers } = await supabase.from('users').select('id, id_ies');
-    if (!allUsers) return [];
-    return allUsers.filter(u => u.id_ies && !excludedIds.includes(u.id_ies)).map(u => u.id);
-  }, []);
-
   const fetchData = useCallback(async () => {
-    console.log('[useSimuladosAnalytics] Fetching with filters:', filterParams);
+    console.log('[useSimuladosAnalytics][Simulados] Fetching with filters:', filterParams);
     setData(prev => ({ ...prev, isLoading: true, error: null }));
+
+    const chunk = <T,>(arr: T[], size: number) => {
+      const res: T[][] = [];
+      for (let i = 0; i < arr.length; i += size) res.push(arr.slice(i, i + size));
+      return res;
+    };
+
+    const fetchUsersByIds = async (ids: string[]) => {
+      if (ids.length === 0) return [] as { id: string; id_ies: string | null; semestre: number | null }[];
+      const parts = chunk(ids, 500);
+      const results = await Promise.all(
+        parts.map(async (p) => {
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, id_ies, semestre')
+            .in('id', p);
+          if (error) throw error;
+          return data || [];
+        })
+      );
+      return results.flat();
+    };
+
+    const fetchAllAnswerProgress = async (params: {
+      userIds: string[];
+      simuladoIds: string[];
+    }) => {
+      const { userIds, simuladoIds } = params;
+      if (userIds.length === 0 || simuladoIds.length === 0) {
+        return [] as { question_id: string; correct: boolean; user_id: string; simulado: string }[];
+      }
+
+      const PAGE_SIZE = 1000;
+      const all: { question_id: string; correct: boolean; user_id: string; simulado: string }[] = [];
+      let from = 0;
+
+      while (true) {
+        const { data: page, error } = await supabase
+          .from('answer_progress')
+          .select('question_id, correct, user_id, simulado')
+          .in('user_id', userIds)
+          .in('simulado', simuladoIds)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        const rows = page || [];
+        all.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      return all;
+    };
+
+    const fetchHistoricoByFinalizacoes = async (finalizacaoIds: string[]) => {
+      if (finalizacaoIds.length === 0) {
+        return [] as { question_id: string; correct: boolean; user_id: string; simulado: string }[];
+      }
+
+      // historico is typically small, but still paginate for safety
+      const PAGE_SIZE = 1000;
+      const all: { question_id: string; correct: boolean; user_id: string; simulado: string }[] = [];
+      let from = 0;
+
+      while (true) {
+        const { data: page, error } = await supabase
+          .from('answer_progress_historico')
+          .select('question_id, correct, user_id, simulado, finalizacao_original_id')
+          .in('finalizacao_original_id', finalizacaoIds)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        const rows = (page || []).map(r => ({
+          question_id: r.question_id,
+          correct: r.correct,
+          user_id: r.user_id,
+          simulado: r.simulado,
+        }));
+        all.push(...rows);
+        if (rows.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      return all;
+    };
 
     try {
       const { startDate, endDate, iesId, excludedIES, simuladoId, semestre } = filterParams;
 
-      // Resolve user IDs for IES filtering
-      let userIds: string[] | null = null;
-      if (iesId) {
-        userIds = await fetchUserIdsByIES(iesId);
-        if (userIds.length === 0) {
-          setData(prev => ({ ...prev, isLoading: false }));
-          return;
-        }
-      } else if (excludedIES.length > 0) {
-        userIds = await fetchUserIdsExcludingIES(excludedIES);
-      }
-
-      // Fetch base data in parallel
-      const [
-        simuladosAdminRes,
-        iniciadosRes,
-        finalizadosRes,
-        respostasRes,
-        questoesRes,
-        usersRes,
-        iesRes,
-      ] = await Promise.all([
-        // Simulados config
+      // Fetch base data in parallel (all under 1000 rows)
+      const [simuladosAdminRes, iniciadosRes, finalizadosRes, questoesRes, iesRes] = await Promise.all([
         iesId
           ? supabase.from('simulados_admin').select('*').contains('ies_ids', [iesId])
           : supabase.from('simulados_admin').select('*'),
-        // Iniciados in date range
-        supabase.from('simulados_iniciados')
+        supabase
+          .from('simulados_iniciados')
           .select('simulado_id, user_id, started_at')
           .gte('started_at', startDate)
           .lte('started_at', endDate),
-        // Finalizados in date range
-        supabase.from('simulados_finalizados')
+        supabase
+          .from('simulados_finalizados')
           .select('id, simulado_id, user_id, finalizado_em, tempo_total_segundos, saidas_de_aba, saidas_de_fullscreen, tentativa_numero, liberado_novamente')
           .gte('finalizado_em', startDate)
           .lte('finalizado_em', endDate),
-        // Respostas (will filter by simulado_id if needed)
-        supabase.from('answer_progress')
-          .select('question_id, correct, user_id, simulado'),
-        // Questões
-        supabase.from('questoes_simulado')
+        supabase
+          .from('questoes_simulado')
           .select('id, simulado_id, enunciado, grande_area, especialidade, tema, grau_dificuldade, anulada, comentario, alternativa_a, alternativa_b, alternativa_c, alternativa_d'),
-        // Users for segmentation
-        supabase.from('users').select('id, id_ies, semestre'),
-        // IES names
         supabase.from('ies').select('id, nome'),
       ]);
 
       const simuladosAdmin = simuladosAdminRes.data || [];
       let iniciados = iniciadosRes.data || [];
       let finalizados = finalizadosRes.data || [];
-      let respostas = respostasRes.data || [];
       const questoes = questoesRes.data || [];
-      const users = usersRes.data || [];
       const iesList = iesRes.data || [];
 
-      // Apply user filter if needed
-      if (userIds) {
-        iniciados = iniciados.filter(i => userIds!.includes(i.user_id));
-        finalizados = finalizados.filter(f => userIds!.includes(f.user_id));
-        respostas = respostas.filter(r => userIds!.includes(r.user_id));
-      }
-
-      // Apply semestre filter
-      if (semestre) {
-        const semestreUserIds = users.filter(u => u.semestre === semestre).map(u => u.id);
-        iniciados = iniciados.filter(i => semestreUserIds.includes(i.user_id));
-        finalizados = finalizados.filter(f => semestreUserIds.includes(f.user_id));
-        respostas = respostas.filter(r => semestreUserIds.includes(r.user_id));
-      }
-
-      // Apply simulado filter
+      // Apply simulado filter early
       if (simuladoId) {
         iniciados = iniciados.filter(i => i.simulado_id === simuladoId);
         finalizados = finalizados.filter(f => f.simulado_id === simuladoId);
-        respostas = respostas.filter(r => r.simulado === simuladoId);
       }
 
-      // Build lookup maps
-      const iesMap = new Map(iesList.map(i => [i.id, i.nome]));
-      const userIesMap = new Map(users.map(u => [u.id, u.id_ies]));
-      const userSemestreMap = new Map(users.map(u => [u.id, u.semestre]));
-      const questaoMap = new Map(questoes.map(q => [q.id, q]));
-
-      // Filter simulados by IES
+      // Filter simulados by IES (config)
       const relevantSimulados = iesId
         ? simuladosAdmin.filter(s => s.ies_ids?.includes(iesId))
         : simuladosAdmin;
       const simuladoIds = new Set(relevantSimulados.map(s => s.id));
 
-      // Filter data by relevant simulados
       iniciados = iniciados.filter(i => simuladoIds.has(i.simulado_id));
       finalizados = finalizados.filter(f => simuladoIds.has(f.simulado_id));
-      
-      // CRITICAL: Filter respostas by users who finalized in the period AND by simulado
-      // Since answer_progress has no timestamp, we use finalizados to determine which responses are in scope
-      const finalizadosNoPeríodo = new Set(
-        finalizados.map(f => `${f.user_id}_${f.simulado_id}`)
+
+      // Fetch only users involved in this period (avoid 1000 row limit)
+      const eventUserIds = Array.from(
+        new Set([...iniciados.map(i => i.user_id), ...finalizados.map(f => f.user_id)])
       );
-      respostas = respostas.filter(r => 
-        simuladoIds.has(r.simulado) && 
-        finalizadosNoPeríodo.has(`${r.user_id}_${r.simulado}`)
+      const users = await fetchUsersByIds(eventUserIds);
+
+      const iesMap = new Map(iesList.map(i => [i.id, i.nome] as const));
+      const userById = new Map(users.map(u => [u.id, u] as const));
+      const userIesMap = new Map(users.map(u => [u.id, u.id_ies] as const));
+      const userSemestreMap = new Map(users.map(u => [u.id, u.semestre] as const));
+      const questaoMap = new Map(questoes.map(q => [q.id, q] as const));
+
+      // Apply user-based filters (IES, excludedIES, semestre)
+      const allowedUserIds = new Set(
+        eventUserIds.filter(uid => {
+          const u = userById.get(uid);
+          if (!u) return false;
+          if (iesId && u.id_ies !== iesId) return false;
+          if (excludedIES?.length > 0 && u.id_ies && excludedIES.includes(u.id_ies)) return false;
+          if (semestre && u.semestre !== semestre) return false;
+          return true;
+        })
       );
+
+      iniciados = iniciados.filter(i => allowedUserIds.has(i.user_id));
+      finalizados = finalizados.filter(f => allowedUserIds.has(f.user_id));
+
+      // CRITICAL: answer_progress has no timestamp. We scope respostas to (user_id, simulado_id) pairs that finalized in the selected period.
+      const finalizadosNoPeriodo = new Set(finalizados.map(f => `${f.user_id}_${f.simulado_id}`));
+      const finalizadoUserIds = Array.from(new Set(finalizados.map(f => f.user_id)));
+      const simuladoIdsArray = Array.from(simuladoIds);
+
+      // Fetch ALL respostas for the in-scope users/simulados (paginate to bypass Supabase 1000 limit)
+      const respostasRaw = await fetchAllAnswerProgress({
+        userIds: finalizadoUserIds,
+        simuladoIds: simuladoIdsArray,
+      });
+
+      let respostas = respostasRaw.filter(r => finalizadosNoPeriodo.has(`${r.user_id}_${r.simulado}`));
+
+      // Include historical attempts that were archived but whose finalization is inside the selected period
+      const historico = await fetchHistoricoByFinalizacoes(finalizados.map(f => f.id));
+      const historicoFiltrado = historico.filter(r => finalizadosNoPeriodo.has(`${r.user_id}_${r.simulado}`));
+      respostas = [...respostas, ...historicoFiltrado];
+
+      console.log('[useSimuladosAnalytics][Simulados] counts', {
+        relevantSimulados: relevantSimulados.length,
+        iniciados: iniciados.length,
+        finalizados: finalizados.length,
+        eventUsers: eventUserIds.length,
+        allowedUsers: allowedUserIds.size,
+        respostasRaw: respostasRaw.length,
+        respostasInScope: respostas.length,
+        historicoInScope: historicoFiltrado.length,
+      });
 
       // ============== EXECUTIVE KPIs ==============
       const uniqueIniciados = new Set(iniciados.map(i => i.user_id));
       const uniqueFinalizados = new Set(finalizados.map(f => f.user_id));
-      const taxaConclusao = uniqueIniciados.size > 0 
-        ? Math.round((uniqueFinalizados.size / uniqueIniciados.size) * 100) 
+      const taxaConclusao = uniqueIniciados.size > 0
+        ? Math.round((uniqueFinalizados.size / uniqueIniciados.size) * 100)
         : 0;
 
       const totalRespostas = respostas.length;
@@ -480,10 +544,10 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       // ============== PROBLEMATIC QUESTIONS ==============
       const questaoStats = new Map<string, { corretas: number; total: number; respostasAlternativa: Map<string, number> }>();
       respostas.forEach(r => {
-        const existing = questaoStats.get(r.question_id) || { 
-          corretas: 0, 
-          total: 0, 
-          respostasAlternativa: new Map() 
+        const existing = questaoStats.get(r.question_id) || {
+          corretas: 0,
+          total: 0,
+          respostasAlternativa: new Map(),
         };
         questaoStats.set(r.question_id, {
           corretas: existing.corretas + (r.correct ? 1 : 0),
@@ -512,7 +576,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
             taxa_erro: Math.round(((stats.total - stats.corretas) / stats.total) * 100),
             n_respostas: stats.total,
             anulada: q?.anulada || false,
-            distribuicao: [], // TODO: fetch detailed distribution
+            distribuicao: [],
             comentario: q?.comentario || null,
           };
         });
@@ -527,11 +591,11 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         saidasAbaP95: percentile(saidasAba, 95),
         saidasFullscreenMedia: saidasFullscreen.length > 0 ? saidasFullscreen.reduce((a, b) => a + b, 0) / saidasFullscreen.length : 0,
         saidasFullscreenP95: percentile(saidasFullscreen, 95),
-        tempoMedioPorQuestao: null, // Would need totalQuestoes per finalized
+        tempoMedioPorQuestao: null,
         abandono: {
           totalIniciados: uniqueIniciados.size,
           totalFinalizados: uniqueFinalizados.size,
-          taxaAbandono: uniqueIniciados.size > 0 
+          taxaAbandono: uniqueIniciados.size > 0
             ? Math.round(((uniqueIniciados.size - uniqueFinalizados.size) / uniqueIniciados.size) * 100)
             : 0,
         },
@@ -549,7 +613,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
           alunosIniciaram: uniqueIniciados.size,
           alunosConcluiram: uniqueFinalizados.size,
           taxaConclusao,
-          deltaConclusaoPeriodoAnterior: null, // TODO: compare with previous period
+          deltaConclusaoPeriodoAnterior: null,
           acuraciaMedia,
           tempoMedianoMinutos: Math.round(tempoMediano / 60),
           tempoMedioMinutos: Math.round(tempoMedio / 60),
@@ -566,8 +630,8 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
           conclusaoPorDia: Array.from(conclusaoPorDiaMap.entries())
             .map(([data, count]) => ({ data, count }))
             .sort((a, b) => a.data.localeCompare(b.data)),
-          acuraciaPorDia: [], // TODO: implement if needed
-          tempoPorDia: [], // TODO: implement if needed
+          acuraciaPorDia: [],
+          tempoPorDia: [],
           heatmapHorario: Array.from(heatmapMap.entries())
             .map(([key, count]) => {
               const [hora, dia] = key.split('-').map(Number);
@@ -586,16 +650,15 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         isLoading: false,
         error: null,
       });
-
     } catch (err) {
-      console.error('[useSimuladosAnalytics] Error:', err);
-      setData(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: err instanceof Error ? err.message : 'Erro ao carregar dados' 
+      console.error('[useSimuladosAnalytics][Simulados] Error:', err);
+      setData(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Erro ao carregar dados',
       }));
     }
-  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams]);
 
   useEffect(() => {
     fetchData();
