@@ -22,6 +22,7 @@ export interface SimuladoOverview {
   saidas_fullscreen_media: number;
   tentativas_media: number;
   questoes_anuladas: number;
+  questoes_nao_respondidas_media: number;
 }
 
 export interface ExecutiveKPIs {
@@ -602,6 +603,26 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
         const simTentativas = simFinalizados.map(f => f.tentativa_numero || 1);
         const totalCorr = simRespostas.filter(r => r.correct).length;
 
+        // Calculate average unanswered questions per user
+        const totalQuestoes = simQuestoes.length;
+        const usersWithResponses = new Map<string, Set<string>>();
+        simRespostas.forEach(r => {
+          if (!usersWithResponses.has(r.user_id)) {
+            usersWithResponses.set(r.user_id, new Set());
+          }
+          usersWithResponses.get(r.user_id)!.add(r.question_id);
+        });
+        
+        const naoRespondidasPorUsuario: number[] = [];
+        usersWithResponses.forEach((questoesRespondidas) => {
+          const naoRespondidas = totalQuestoes - questoesRespondidas.size;
+          naoRespondidasPorUsuario.push(Math.max(0, naoRespondidas));
+        });
+        
+        const questoesNaoRespondidasMedia = naoRespondidasPorUsuario.length > 0
+          ? naoRespondidasPorUsuario.reduce((a, b) => a + b, 0) / naoRespondidasPorUsuario.length
+          : 0;
+
         return {
           id: s.id,
           nome: s.nome,
@@ -621,6 +642,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
           saidas_fullscreen_media: simSaidasFs.length > 0 ? simSaidasFs.reduce((a, b) => a + b, 0) / simSaidasFs.length : 0,
           tentativas_media: simTentativas.length > 0 ? simTentativas.reduce((a, b) => a + b, 0) / simTentativas.length : 0,
           questoes_anuladas: simQuestoes.filter(q => q.anulada).length,
+          questoes_nao_respondidas_media: questoesNaoRespondidasMedia,
         };
       });
 
