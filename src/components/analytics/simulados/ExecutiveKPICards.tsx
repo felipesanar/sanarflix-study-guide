@@ -140,9 +140,13 @@ export const ExecutiveKPICards: React.FC<ExecutiveKPICardsProps> = ({ kpis, isLo
 
       <KPICard
         title="Acurácia Média"
-        value={`${kpis.acuraciaMedia}%`}
-        subtitle="taxa de acertos"
-        tooltip="Média geral de acertos em todas as questões respondidas. Acima de 70% indica bom desempenho."
+        value={kpis.totalRespostas > 0 ? `${kpis.acuraciaMedia}%` : '—'}
+        subtitle={kpis.totalRespostas > 0 ? 'taxa de acertos' : 'sem respostas no recorte'}
+        tooltip={
+          kpis.totalRespostas > 0
+            ? 'Média geral de acertos em todas as questões respondidas. Acima de 70% indica bom desempenho.'
+            : 'Sem respostas registradas para este recorte (período/IES/semestre). Ajuste os filtros para visualizar a acurácia.'
+        }
         icon={<Target className="w-4 h-4 text-primary" />}
         status={acuraciaStatus}
         sample={kpis.totalRespostas}
