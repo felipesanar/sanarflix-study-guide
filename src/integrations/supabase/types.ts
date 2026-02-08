@@ -1126,6 +1126,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_progress_nodes: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          node_id: string
+          node_type: Database["public"]["Enums"]["progress_node_type"]
+          source: Database["public"]["Enums"]["progress_source"]
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          node_id: string
+          node_type: Database["public"]["Enums"]["progress_node_type"]
+          source?: Database["public"]["Enums"]["progress_source"]
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          node_id?: string
+          node_type?: Database["public"]["Enums"]["progress_node_type"]
+          source?: Database["public"]["Enums"]["progress_source"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           granted_at: string | null
@@ -1226,6 +1259,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_theme: {
+        Args: { p_materia: string; p_subtema?: string; p_tema: string }
+        Returns: Json
+      }
       get_all_user_performance_by_area: {
         Args: never
         Returns: {
@@ -1268,6 +1305,7 @@ export type Database = {
           feature_key: string
         }[]
       }
+      get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
         | {
             Args: { sub_name: string }
@@ -1359,9 +1397,15 @@ export type Database = {
         Args: { p_feature: string; p_ies_id: string }
         Returns: boolean
       }
+      uncomplete_theme: {
+        Args: { p_materia: string; p_subtema?: string; p_tema: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "b2b_partner"
+      progress_node_type: "aula" | "subtema" | "tema" | "materia"
+      progress_source: "manual" | "bulk" | "auto"
     }
     CompositeTypes: {
       question_details_type: {
@@ -1500,6 +1544,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "b2b_partner"],
+      progress_node_type: ["aula", "subtema", "tema", "materia"],
+      progress_source: ["manual", "bulk", "auto"],
     },
   },
 } as const
