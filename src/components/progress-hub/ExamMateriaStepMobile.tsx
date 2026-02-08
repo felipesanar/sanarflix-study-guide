@@ -48,17 +48,17 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
   };
 
   return (
-    <div className="flex flex-col py-4 space-y-4 min-h-[70vh]">
+    <div className="flex flex-col min-h-0 max-h-[85vh]">
       {/* Header with back button and date preview */}
-      <div className="flex items-center justify-between px-1">
+      <div className="flex items-center justify-between py-2 shrink-0">
         <Button
           variant="ghost"
-          size="lg"
-          className="gap-2 -ml-3 h-12 px-4 rounded-xl active:scale-95 transition-transform"
+          size="sm"
+          className="gap-1.5 -ml-2 h-10 px-3 rounded-lg active:scale-95 transition-transform"
           onClick={onBack}
           disabled={isSubmitting}
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
           Voltar
         </Button>
 
@@ -66,28 +66,28 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
         <motion.div
           initial={shouldReduceMotion ? {} : { scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="flex items-center gap-2 text-sm bg-primary/10 text-primary px-4 py-2 rounded-full font-medium"
+          className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full font-medium"
         >
-          <Calendar className="h-4 w-4" aria-hidden="true" />
+          <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{format(selectedDate, 'dd/MM', { locale: ptBR })}</span>
           <span className="text-primary/70">• {daysUntil}d</span>
         </motion.div>
       </div>
 
       {/* Title */}
-      <div className="flex items-center gap-3 px-1">
-        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <BookOpen className="h-6 w-6 text-primary" aria-hidden="true" />
+      <div className="flex items-center gap-3 py-2 shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
-        <div>
-          <h2 className="text-xl font-semibold">Qual matéria?</h2>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold leading-tight">Qual matéria?</h2>
           <p className="text-sm text-muted-foreground">Selecione a disciplina</p>
         </div>
       </div>
 
-      {/* Materia list - Full width vertical layout for mobile */}
-      <ScrollArea className="flex-1 -mx-4 px-4">
-        <div className="flex flex-col gap-3 pb-2">
+      {/* Materia list - Full width vertical layout with scroll */}
+      <ScrollArea className="flex-1 min-h-0 -mx-4 px-4">
+        <div className="flex flex-col gap-2 py-2">
           {materias.map((materia) => {
             const isSelected = selectedMateria === materia;
             const progress = getProgress(materia);
@@ -101,19 +101,19 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
                 onClick={() => onMateriaSelect(materia)}
                 disabled={isSubmitting}
                 className={cn(
-                  "relative w-full px-4 py-4 rounded-2xl border-2 text-left",
-                  "transition-all duration-200 min-h-[56px]",
+                  "relative w-full px-3 py-3 rounded-xl border text-left",
+                  "transition-all duration-200 min-h-[48px]",
                   "flex items-center gap-3",
-                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
                   "active:scale-[0.98]",
                   isSelected
-                    ? "border-primary bg-primary/10 shadow-md shadow-primary/10"
-                    : "border-border hover:border-primary/50 bg-card"
+                    ? "border-primary bg-primary/10 shadow-sm"
+                    : "border-border bg-card hover:border-primary/40"
                 )}
               >
                 {/* Checkbox circle */}
                 <div className={cn(
-                  "w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all",
+                  "w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all",
                   isSelected
                     ? "border-primary bg-primary"
                     : "border-muted-foreground/40"
@@ -126,22 +126,25 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
                         exit={shouldReduceMotion ? {} : { scale: 0 }}
                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                       >
-                        <Check className="h-4 w-4 text-primary-foreground" aria-hidden="true" />
+                        <Check className="h-3 w-3 text-primary-foreground" aria-hidden="true" />
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* Content */}
+                {/* Content - Full name visible */}
                 <div className="flex-1 min-w-0">
                   <span className={cn(
-                    "font-medium text-base block",
+                    "font-medium text-sm block leading-tight",
+                    "break-words hyphens-auto",
                     isSelected && "text-primary"
-                  )}>
+                  )}
+                  style={{ wordBreak: 'break-word' }}
+                  >
                     {materia}
                   </span>
                   
-                  {/* Progress bar - always visible for selected */}
+                  {/* Progress bar - show when selected */}
                   <AnimatePresence>
                     {isSelected && progress && (
                       <motion.div
@@ -149,9 +152,9 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="mt-2 space-y-1 overflow-hidden"
+                        className="mt-1.5 space-y-1 overflow-hidden"
                       >
-                        <Progress value={percentage} className="h-2" />
+                        <Progress value={percentage} className="h-1.5" />
                         <span className="text-xs text-muted-foreground">
                           {percentage}% concluído
                         </span>
@@ -162,7 +165,7 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
 
                 {/* Percentage badge (when not selected) */}
                 {!isSelected && progress && percentage > 0 && (
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full shrink-0">
                     {percentage}%
                   </span>
                 )}
@@ -172,34 +175,25 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
         </div>
       </ScrollArea>
 
-      {/* Exam name input (optional) - Fixed at bottom */}
-      <div className="space-y-2 px-1">
-        <Label htmlFor="exam-name-mobile" className="text-sm text-muted-foreground">
-          Nome da prova (opcional)
-        </Label>
-        <Input
-          id="exam-name-mobile"
-          placeholder="P1, P2, Prova Final..."
-          value={examName}
-          onChange={(e) => onExamNameChange(e.target.value)}
-          disabled={isSubmitting}
-          maxLength={50}
-          className="h-12 rounded-xl text-base"
-        />
-      </div>
+      {/* Exam name input + Submit button - Fixed at bottom */}
+      <div className="shrink-0 pt-3 space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="exam-name-mobile" className="text-xs text-muted-foreground">
+            Nome da prova (opcional)
+          </Label>
+          <Input
+            id="exam-name-mobile"
+            placeholder="P1, P2, Prova Final..."
+            value={examName}
+            onChange={(e) => onExamNameChange(e.target.value)}
+            disabled={isSubmitting}
+            maxLength={50}
+            className="h-10 rounded-lg text-sm"
+          />
+        </div>
 
-      {/* Footer button - Large for mobile */}
-      <motion.div
-        initial={shouldReduceMotion ? {} : { opacity: 0, y: 10 }}
-        animate={{ 
-          opacity: selectedMateria ? 1 : 0.5, 
-          y: 0,
-        }}
-        transition={{ duration: 0.2 }}
-        className="pt-2"
-      >
         <Button
-          className="w-full h-14 gap-2 rounded-2xl font-semibold text-lg"
+          className="w-full h-12 gap-2 rounded-xl font-semibold text-base"
           disabled={!selectedMateria || isSubmitting}
           onClick={onSubmit}
         >
@@ -208,7 +202,7 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                className="h-5 w-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
+                className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full"
               />
               Salvando...
             </>
@@ -219,7 +213,7 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
             </>
           )}
         </Button>
-      </motion.div>
+      </div>
     </div>
   );
 };
