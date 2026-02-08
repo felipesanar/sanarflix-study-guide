@@ -67,3 +67,6 @@ verify_jwt = false
 
 [functions.corrigir-simulado]
 verify_jwt = false
+
+[functions.admin-upload-study-guide]
+verify_jwt = false

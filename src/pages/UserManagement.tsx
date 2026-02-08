@@ -7,7 +7,8 @@ import SanarClassTab from '@/components/admin/SanarClassTab';
 import SimuladosTab from '@/components/admin/SimuladosTab';
 import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
-import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2 } from 'lucide-react';
+import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
+import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload } from 'lucide-react';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -44,26 +45,30 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 max-w-5xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-6xl">
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Usuários
+              <span className="hidden sm:inline">Usuários</span>
             </TabsTrigger>
             <TabsTrigger value="avisos" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
-              Avisos
+              <span className="hidden sm:inline">Avisos</span>
             </TabsTrigger>
             <TabsTrigger value="ies-features" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
-              IES Features
+              <span className="hidden sm:inline">IES</span>
+            </TabsTrigger>
+            <TabsTrigger value="guia-estudos" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Guia</span>
             </TabsTrigger>
             <TabsTrigger value="sanarclass" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              SanarClass
+              <span className="hidden sm:inline">SanarClass</span>
             </TabsTrigger>
             <TabsTrigger value="simulados" className="flex items-center gap-2">
               <ClipboardList className="h-4 w-4" />
-              Simulados
+              <span className="hidden sm:inline">Simulados</span>
             </TabsTrigger>
           </TabsList>
 
@@ -77,6 +82,10 @@ const UserManagement: React.FC = () => {
 
           <TabsContent value="ies-features" className="mt-6">
             <IesFeaturesTab />
+          </TabsContent>
+
+          <TabsContent value="guia-estudos" className="mt-6">
+            <StudyGuideImportTab />
           </TabsContent>
 
           <TabsContent value="sanarclass" className="mt-6">
