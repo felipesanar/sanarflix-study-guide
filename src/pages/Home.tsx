@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useHomeData } from '@/hooks/useHomeData';
 import { useAnnouncements } from '@/hooks/home/useAnnouncements';
+import { useUserExams, calculateExamInsight } from '@/hooks/useUserExams';
+import { useProgressHub } from '@/hooks/useProgressHub';
 import { WelcomeCard } from '@/components/home/WelcomeCard';
 import { AnnouncementsCard } from '@/components/home/AnnouncementsCard';
 import { MeuDiaCard } from '@/components/home/MeuDiaCard';
@@ -10,9 +12,14 @@ import { SimuladoPerformanceCard } from '@/components/home/SimuladoPerformanceCa
 import { MeuSemestreCard } from '@/components/home/MeuSemestreCard';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { HomePageSkeleton } from '@/components/skeletons/HomePageSkeleton';
-import { ProgressSummaryCard } from '@/components/home/ProgressSummaryCard';
+import { AddExamWizard } from '@/components/progress-hub/AddExamWizard';
+import { AddExamWizardMobile } from '@/components/progress-hub/AddExamWizardMobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const Home: React.FC = () => {
+  const isMobile = useIsMobile();
+  const [showAddExamWizard, setShowAddExamWizard] = useState(false);
+
   const {
     loading,
     error,
@@ -25,6 +32,26 @@ export const Home: React.FC = () => {
     simuladoData,
     refetch,
   } = useHomeData();
+
+  // Exam data
+  const { exams, loading: examsLoading, addExam } = useUserExams();
+  const { data: progressData } = useProgressHub();
+
+  // Calculate next exam insight
+  const nextExamInsight = useMemo(() => {
+    if (!exams.length) return null;
+    const exam = exams[0]; // Already sorted by date
+    const materiaProgress = progressData?.by_materia?.find(
+      m => m.materia.toLowerCase() === exam.materia.toLowerCase()
+    ) ?? null;
+    return calculateExamInsight(exam, materiaProgress);
+  }, [exams, progressData]);
+
+  // Extract materia names from progress data
+  const materiaNames = useMemo(() => 
+    progressData?.by_materia?.map(m => m.materia) || [], 
+    [progressData]
+  );
 
   // Announcement data for mobile badge integration
   const {
@@ -39,6 +66,14 @@ export const Home: React.FC = () => {
   if (loading && !hasData) {
     return <HomePageSkeleton />;
   }
+
+  const handleAddExam = async (materia: string, examName: string, examDate: string) => {
+    const result = await addExam(materia, examName, examDate);
+    if (!result.error) {
+      setShowAddExamWizard(false);
+    }
+    return { error: result.error };
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -82,7 +117,7 @@ export const Home: React.FC = () => {
       >
         {/* === DESKTOP LAYOUT (lg+) === */}
         <div className="hidden lg:block space-y-5 lg:space-y-6">
-          {/* Row 1: Hero Welcome + Announcements - Using percentages for better overflow control */}
+          {/* Row 1: Hero Welcome + Announcements */}
           <div className="grid grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)] gap-5 lg:gap-6">
             <motion.div variants={itemVariants} className="min-w-0">
               <WelcomeCard hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
@@ -91,11 +126,6 @@ export const Home: React.FC = () => {
               <AnnouncementsCard />
             </motion.div>
           </div>
-
-          {/* Row 1.5: Progress Summary Card */}
-          <motion.div variants={itemVariants}>
-            <ProgressSummaryCard />
-          </motion.div>
 
           {/* Row 2: Meu Dia + Ranking */}
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 lg:gap-6">
@@ -106,6 +136,9 @@ export const Home: React.FC = () => {
                 loading={loading}
                 error={error}
                 onRetry={refetch}
+                nextExam={nextExamInsight}
+                examLoading={examsLoading}
+                onAddExamClick={() => setShowAddExamWizard(true)}
               />
             </motion.div>
             <motion.div variants={itemVariants} className="min-w-0">
@@ -135,11 +168,6 @@ export const Home: React.FC = () => {
               <AnnouncementsCard />
             </motion.div>
           </div>
-
-          {/* Row 1.5: Progress Summary Card */}
-          <motion.div variants={itemVariants}>
-            <ProgressSummaryCard />
-          </motion.div>
           
           {/* Row 2: Meu Dia + Ranking */}
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 md:gap-5">
@@ -150,6 +178,9 @@ export const Home: React.FC = () => {
                 loading={loading}
                 error={error}
                 onRetry={refetch}
+                nextExam={nextExamInsight}
+                examLoading={examsLoading}
+                onAddExamClick={() => setShowAddExamWizard(true)}
               />
             </motion.div>
             <motion.div variants={itemVariants} className="min-w-0">
@@ -184,13 +215,6 @@ export const Home: React.FC = () => {
             />
           </motion.div>
 
-          {/* Announcement card removed on mobile - now integrated as badge in WelcomeCard */}
-
-          {/* Progress Summary Card - Priority on mobile */}
-          <motion.div variants={itemVariants}>
-            <ProgressSummaryCard />
-          </motion.div>
-
           {/* What to study today - priority on mobile */}
           <motion.div variants={itemVariants}>
             <MeuDiaCard 
@@ -199,6 +223,9 @@ export const Home: React.FC = () => {
               loading={loading}
               error={error}
               onRetry={refetch}
+              nextExam={nextExamInsight}
+              examLoading={examsLoading}
+              onAddExamClick={() => setShowAddExamWizard(true)}
             />
           </motion.div>
 
@@ -221,6 +248,25 @@ export const Home: React.FC = () => {
 
       {/* Quick actions dock */}
       <QuickActionsDock hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+
+      {/* Add Exam Wizard Modal */}
+      {isMobile ? (
+        <AddExamWizardMobile
+          open={showAddExamWizard}
+          onOpenChange={setShowAddExamWizard}
+          onAdd={handleAddExam}
+          materias={materiaNames}
+          materiasProgress={progressData?.by_materia || []}
+        />
+      ) : (
+        <AddExamWizard
+          open={showAddExamWizard}
+          onOpenChange={setShowAddExamWizard}
+          onAdd={handleAddExam}
+          materias={materiaNames}
+          materiasProgress={progressData?.by_materia || []}
+        />
+      )}
     </div>
   );
 };
