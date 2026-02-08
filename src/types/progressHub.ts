@@ -35,6 +35,15 @@ export interface TemaProgress {
   days_inactive?: number;
 }
 
+export interface SubtemaProgress {
+  materia: string;
+  tema: string;
+  subtema: string;
+  total: number;
+  completed: number;
+  percentage: number;
+}
+
 export interface WeeklyEvolution {
   week_start: string;
   completed_count: number;
@@ -60,6 +69,8 @@ export interface NextAction {
   reason: string;
   priority: number;
   type: 'today_focus' | 'quick_win' | 'unlock_progress';
+  /** Estimated duration in minutes (null if unknown) */
+  estimated_minutes?: number | null;
 }
 
 export interface RiskAlert {
@@ -81,6 +92,7 @@ export interface ProgressHubData {
   streak: ProgressStreak;
   by_materia: MateriaProgress[];
   by_tema: TemaProgress[];
+  by_subtema: SubtemaProgress[];
   weekly_evolution: WeeklyEvolution[];
   last_activity: LastActivity | null;
   next_actions: NextAction[];

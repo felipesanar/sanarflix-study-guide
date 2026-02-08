@@ -1,7 +1,7 @@
 export { ProgressHeroCard } from './ProgressHeroCard';
 export { NextActionsCard } from './NextActionsCard';
-export { ConsistencyCard } from './ConsistencyCard';
 export { SemesterMapCard } from './SemesterMapCard';
+export { ConsistencyCard } from './ConsistencyCard';
 export { WeeklyEvolutionCard } from './WeeklyEvolutionCard';
 export { ProgressHubSkeleton } from './ProgressHubSkeleton';
 export { FiltersDrawerMobile, type ProgressFilters, type FilterStatus } from './FiltersDrawerMobile';
@@ -12,3 +12,4 @@ export { EmptyState } from './EmptyState';
 export { PreProvaMode } from './PreProvaMode';
 export { MilestoneCelebration, useMilestoneCelebration, type MilestoneType } from './MilestoneCelebration';
 export { SpacedRevisionCard } from './SpacedRevisionCard';
+export { TemaItem } from './TemaItem';

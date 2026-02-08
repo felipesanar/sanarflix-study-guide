@@ -118,23 +118,27 @@ export const Dashboard: React.FC = () => {
 
     let byMateria = data.by_materia;
     let byTema = data.by_tema;
+    let bySubtema = data.by_subtema || [];
 
     // Filter by materia
     if (filters.materia) {
       byMateria = byMateria.filter(m => m.materia === filters.materia);
       byTema = byTema.filter(t => t.materia === filters.materia);
+      bySubtema = bySubtema.filter(s => s.materia === filters.materia);
     }
 
     // Filter by status
     if (filters.status === 'pending') {
       byMateria = byMateria.filter(m => m.percentage < 100);
       byTema = byTema.filter(t => t.percentage < 100);
+      bySubtema = bySubtema.filter(s => s.percentage < 100);
     } else if (filters.status === 'completed') {
       byMateria = byMateria.filter(m => m.percentage === 100);
       byTema = byTema.filter(t => t.percentage === 100);
+      bySubtema = bySubtema.filter(s => s.percentage === 100);
     }
 
-    return { byMateria, byTema };
+    return { byMateria, byTema, bySubtema };
   }, [data, filters]);
 
   // Count active filters
@@ -542,6 +546,7 @@ export const Dashboard: React.FC = () => {
             <SemesterMapCard
               byMateria={filteredData.byMateria}
               byTema={filteredData.byTema}
+              bySubtema={filteredData.bySubtema}
               onCompleteTheme={handleCompleteTheme}
               onThemeClick={handleThemeClick}
               syncing={syncing}

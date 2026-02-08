@@ -10,13 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { MateriaProgress, TemaProgress } from '@/types/progressHub';
+import type { MateriaProgress, TemaProgress, SubtemaProgress } from '@/types/progressHub';
 import { TEMA_STATUS, getTemaStatus } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
+import { TemaItem } from './TemaItem';
 
 interface SemesterMapCardProps {
   byMateria: MateriaProgress[];
   byTema: TemaProgress[];
+  bySubtema: SubtemaProgress[];
   onCompleteTheme?: (materia: string, tema: string) => void;
   onThemeClick?: (materia: string, tema: string) => void;
   syncing?: boolean;
@@ -25,6 +27,7 @@ interface SemesterMapCardProps {
 export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   byMateria,
   byTema,
+  bySubtema,
   onCompleteTheme,
   onThemeClick,
   syncing
@@ -183,78 +186,19 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                         aria-label={`Temas de ${materia.materia}`}
                       >
                         {temasForMateria.map((tema) => {
-                          const temaStatus = getTemaStatus(tema.percentage);
-                          const temaStatusConfig = TEMA_STATUS[temaStatus];
-                          const isTemaComplete = tema.percentage === 100;
-
+                          const subtemasForTema = bySubtema.filter(
+                            s => s.materia === tema.materia && s.tema === tema.tema
+                          );
+                          
                           return (
-                            <div
+                            <TemaItem
                               key={`${tema.materia}-${tema.tema}`}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                              role="listitem"
-                            >
-                              {/* Status icon */}
-                              <div className="flex-shrink-0" aria-hidden="true">
-                                {isTemaComplete ? (
-                                  <Trophy className="h-4 w-4 text-emerald-500" />
-                                ) : temaStatus === 'atrasado' ? (
-                                  <AlertCircle className="h-4 w-4 text-red-500" />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
-                                )}
-                              </div>
-
-                              {/* Tema info */}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{tema.tema}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {tema.completed}/{tema.total} aulas
-                                </p>
-                              </div>
-
-                              {/* Status + actions */}
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <Badge 
-                                  variant="secondary"
-                                  className={cn("text-xs", temaStatusConfig.color)}
-                                >
-                                  {temaStatusConfig.label}
-                                </Badge>
-
-                                {!isTemaComplete && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewPending(materia.materia, tema.tema);
-                                    }}
-                                    aria-label={`Ver aulas pendentes de ${tema.tema}`}
-                                  >
-                                    Ver
-                                    <ExternalLink className="h-3 w-3 ml-1" aria-hidden="true" />
-                                  </Button>
-                                )}
-
-                                {!isTemaComplete && onCompleteTheme && (
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-                                    disabled={syncing}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onCompleteTheme(materia.materia, tema.tema);
-                                    }}
-                                    aria-label={`Marcar ${tema.tema} como concluído`}
-                                  >
-                                    <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
-                                    Concluir
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
+                              tema={tema}
+                              subtemas={subtemasForTema}
+                              onCompleteTheme={onCompleteTheme}
+                              onThemeClick={onThemeClick}
+                              syncing={syncing}
+                            />
                           );
                         })}
                       </motion.div>

@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, FileText, ListChecks, Sparkles, 
-  Zap, Rocket, ChevronRight, ExternalLink 
+  Zap, Rocket, ChevronRight, Clock 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -102,6 +102,7 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
           const hasVideo = !!action.link_aula;
           const hasPdf = !!action.link_pdf;
           const hasQuiz = !!action.link_quiz;
+          const estimatedMinutes = action.estimated_minutes;
 
           return (
             <motion.div
@@ -127,13 +128,21 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
                 role="button"
                 aria-label={`${typeConfig.label}: ${action.aula || action.tema || action.materia}. ${action.reason}`}
               >
-                {/* Type badge */}
+                {/* Type badge + duration */}
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <Badge variant="secondary" className={cn("text-xs", typeConfig.color)}>
-                    <TypeIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-                    {typeConfig.label}
-                  </Badge>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className={cn("text-xs", typeConfig.color)}>
+                      <TypeIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+                      {typeConfig.label}
+                    </Badge>
+                    {estimatedMinutes && (
+                      <Badge variant="outline" className="text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                        ~{estimatedMinutes} min
+                      </Badge>
+                    )}
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" aria-hidden="true" />
                 </div>
 
                 {/* Content info */}
