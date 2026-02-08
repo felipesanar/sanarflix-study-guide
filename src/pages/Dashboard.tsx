@@ -541,16 +541,18 @@ export const Dashboard: React.FC = () => {
             />
           </motion.div>
           
-          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 space-y-4 lg:space-y-5">
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}
               syncing={syncing}
             />
-            <DiagnosticsCard 
-              byMateria={data.by_materia}
-              byTema={data.by_tema}
-            />
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <DiagnosticsCard 
+                byMateria={data.by_materia}
+                byTema={data.by_tema}
+              />
+            </div>
           </motion.div>
 
           {/* === ROW 3: Weekly Evolution (6 cols) + Coverage (6 cols) === */}
