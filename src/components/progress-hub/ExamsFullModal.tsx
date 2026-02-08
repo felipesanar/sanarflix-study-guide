@@ -8,7 +8,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExamItem } from './ExamItem';
 import type { ExamInsight } from '@/types/progressHub';
 
@@ -27,7 +26,7 @@ export const ExamsFullModal: React.FC<ExamsFullModalProps> = ({
   exams,
   onNavigate,
   onRemove,
-  onAddClick
+  onAddClick,
 }) => {
   const shouldReduceMotion = useReducedMotion();
 
@@ -73,7 +72,10 @@ export const ExamsFullModal: React.FC<ExamsFullModalProps> = ({
             </Button>
           </div>
         ) : (
-          <ScrollArea className="flex-1 min-h-0">
+          <div
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+            aria-label="Lista de provas cadastradas"
+          >
             <div className="px-6 py-4 space-y-3">
               <AnimatePresence mode="popLayout">
                 {exams.map((insight) => (
@@ -95,9 +97,10 @@ export const ExamsFullModal: React.FC<ExamsFullModalProps> = ({
                 ))}
               </AnimatePresence>
             </div>
-          </ScrollArea>
+          </div>
         )}
       </DialogContent>
     </Dialog>
   );
 };
+
