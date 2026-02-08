@@ -475,7 +475,7 @@ export const Dashboard: React.FC = () => {
             />
           </motion.div>
 
-          {/* === ROW 2: Next Actions (6 cols) + Consistency (6 cols) === */}
+          {/* === ROW 2: Next Actions (6 cols) + [Consistency + Diagnostics stacked] (6 cols) === */}
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
             <NextActionsCard 
               actions={data.next_actions} 
@@ -483,30 +483,27 @@ export const Dashboard: React.FC = () => {
             />
           </motion.div>
           
-          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 space-y-4 lg:space-y-5">
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}
               syncing={syncing}
             />
-          </motion.div>
-
-          {/* === ROW 3: Diagnostics + Weekly Evolution + Coverage (4+4+4 on xl, 6+6+12 on md) === */}
-          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
             <DiagnosticsCard 
               byMateria={data.by_materia}
               byTema={data.by_tema}
             />
           </motion.div>
-          
-          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
+
+          {/* === ROW 3: Weekly Evolution (6 cols) + Coverage (6 cols) === */}
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
             <WeeklyEvolutionCard 
               evolution={data.weekly_evolution}
               totalContent={data.overview.total}
             />
           </motion.div>
           
-          <motion.div variants={itemVariants} className="col-span-12 xl:col-span-4">
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
             <CoverageRankingCard byMateria={data.by_materia} />
           </motion.div>
 
