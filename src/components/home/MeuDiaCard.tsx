@@ -10,6 +10,8 @@ import {
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIesFeatures } from '@/hooks/useIesFeatures';
+import { UpcomingExamBanner } from './UpcomingExamBanner';
+import type { ExamInsight } from '@/types/progressHub';
 
 interface MeuDiaCardProps {
   items: MeuDiaItem[];
@@ -17,6 +19,10 @@ interface MeuDiaCardProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  // Exam props
+  nextExam?: ExamInsight | null;
+  examLoading?: boolean;
+  onAddExamClick?: () => void;
 }
 
 const iconMap: Record<string, any> = { BookOpen, Zap, BarChart3 };
@@ -144,7 +150,10 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   hasStudyGuide,
   loading = false,
   error = null,
-  onRetry
+  onRetry,
+  nextExam,
+  examLoading = false,
+  onAddExamClick
 }) => {
   const navigate = useNavigate();
 
@@ -201,6 +210,15 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
       </div>
       
       <div className="relative px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6">
+        {/* Upcoming Exam Banner - always show at top if handler exists */}
+        {onAddExamClick && (
+          <UpcomingExamBanner
+            exam={nextExam ?? null}
+            loading={examLoading}
+            onAddExamClick={onAddExamClick}
+          />
+        )}
+
         {loading && <LoadingSkeleton />}
         
         {!loading && error && <ErrorState onRetry={onRetry} />}
