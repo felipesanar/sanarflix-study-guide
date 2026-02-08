@@ -1,117 +1,160 @@
 
 
-# Plano: Reorganizar Cards do Dashboard
+# Plano: Corrigir Indicação Visual de Dias Ativos na Consistência
 
-## Objetivo
+## Problema Identificado
 
-Reorganizar o layout do grid para:
-1. Empilhar "Sua Consistência" + "Diagnóstico" verticalmente na coluna ao lado do "O que fazer agora"
-2. Mover "Sua Cobertura" para ficar ao lado da "Evolução Semanal"
+Os cards "Hero" e "Sua Consistência" não refletem corretamente os dias em que houve atividade de estudo. A lógica atual usa `i < streak.active_days_week` que marca os **primeiros N dias da semana** (D, S, T...) ao invés dos **dias específicos** com atividade.
 
-## Layout Atual
+**Exemplo do bug:**
+- Hoje é sábado (dia 6)
+- Usuário estudou na quarta (3) e hoje (6)
+- O card deveria marcar: ☐D ☐S ☐T ✓Q ☐Q ☐S ✓S
+- O card mostra atualmente: ✓D ✓S ☐T ☐Q ☐Q ☐S ☐S
+
+## Causa Raiz
+
+A edge function `get-progress-hub` retorna apenas um contador (`active_days_week: 2`), mas o frontend precisa saber **quais dias específicos** tiveram atividade.
+
+## Solução
+
+### 1. Atualizar Edge Function (`get-progress-hub/index.ts`)
+
+Modificar o cálculo de streak para retornar também um array com os dias ativos:
+
+```typescript
+// Linhas ~546-555 - Calcular dias ativos COM os índices
+const weekStart = new Date(today);
+weekStart.setDate(today.getDate() - today.getDay()); // Domingo como início
+
+let activeDaysThisWeek = 0;
+const activeDaysOfWeek: number[] = []; // NOVO: array com índices dos dias ativos
+
+for (let i = 0; i < 7; i++) {
+  const checkDate = new Date(weekStart.getTime() + i * 86400000);
+  if (activityDates.has(checkDate.toISOString().split('T')[0])) {
+    activeDaysThisWeek++;
+    activeDaysOfWeek.push(i); // NOVO: adicionar índice do dia (0=dom, 1=seg, etc)
+  }
+}
+
+// Na resposta (linha ~707):
+streak: {
+  current: currentStreak,
+  active_days_week: activeDaysThisWeek,
+  active_days_of_week: activeDaysOfWeek, // NOVO
+  goal: 3
+}
+```
+
+### 2. Atualizar Tipo `ProgressStreak` (`src/types/progressHub.ts`)
+
+```typescript
+export interface ProgressStreak {
+  current: number;
+  active_days_week: number;
+  active_days_of_week: number[]; // NOVO: [0,2,5] = domingo, terça, sexta
+  goal: number;
+  weeks_achieved?: number;
+}
+```
+
+### 3. Corrigir `ConsistencyCard.tsx` (linhas 67-68)
+
+```typescript
+// ANTES
+const isActive = i < streak.active_days_week;
+
+// DEPOIS
+const isActive = streak.active_days_of_week?.includes(i) ?? false;
+```
+
+### 4. Corrigir `ProgressHeroCard.tsx` (linhas 197-204)
+
+```typescript
+// ANTES
+{[...Array(7)].map((_, i) => (
+  <div 
+    key={i}
+    className={cn(
+      "w-3 h-3 rounded-sm transition-colors",
+      i < streak.active_days_week
+        ? "bg-primary"
+        : "bg-muted-foreground/20"
+    )}
+  />
+))}
+
+// DEPOIS
+{[...Array(7)].map((_, i) => (
+  <div 
+    key={i}
+    className={cn(
+      "w-3 h-3 rounded-sm transition-colors",
+      streak.active_days_of_week?.includes(i)
+        ? "bg-primary"
+        : "bg-muted-foreground/20"
+    )}
+  />
+))}
+```
+
+### 5. Atualizar `ProgressSummaryCard.tsx` (Home)
+
+Aplicar a mesma correção se houver visualização de dias ativos.
+
+### 6. Atualizar `useProgressHub.ts` - Fallback para compatibilidade
+
+Adicionar fallback no hook para garantir compatibilidade durante a transição:
+
+```typescript
+// No processamento da resposta
+const responseWithGoal = {
+  ...response,
+  streak: {
+    ...response.streak,
+    goal: streakGoal,
+    // Fallback: se API antiga não retornar active_days_of_week
+    active_days_of_week: response.streak.active_days_of_week ?? []
+  }
+};
+```
+
+## Visualização do Comportamento Esperado
 
 ```text
-ROW 2:  ┌─────────────────────┐  ┌─────────────────────┐
-        │  O que fazer agora  │  │   Sua consistência  │
-        │       (6 cols)      │  │       (6 cols)      │
-        └─────────────────────┘  └─────────────────────┘
+Semana: D=Domingo, S=Segunda, T=Terça, Q=Quarta, Q=Quinta, S=Sexta, S=Sábado
 
-ROW 3:  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-        │  Diagnóstico │  │ Evol. Semanal│  │ Sua Cobertura│
-        │   (4 cols)   │  │   (4 cols)   │  │   (4 cols)   │
-        └──────────────┘  └──────────────┘  └──────────────┘
+Se hoje é Sábado (6) e houve atividade na Quarta (3) e Sábado (6):
+
+ANTES (bug):
+┌─────────────────────────────────────────┐
+│  ✓D  ✓S  ☐T  ☐Q  ☐Q  ☐S  ☐S           │
+│                            ↑ hoje       │
+└─────────────────────────────────────────┘
+
+DEPOIS (correto):
+┌─────────────────────────────────────────┐
+│  ☐D  ☐S  ☐T  ✓Q  ☐Q  ☐S  ✓S           │
+│              ↑estudou      ↑ hoje/estudou│
+└─────────────────────────────────────────┘
 ```
 
-## Layout Proposto
+## Arquivos a Modificar
 
-```text
-ROW 2:  ┌─────────────────────┐  ┌─────────────────────┐
-        │                     │  │   Sua consistência  │
-        │  O que fazer agora  │  ├─────────────────────┤
-        │                     │  │     Diagnóstico     │
-        │       (6 cols)      │  │       (6 cols)      │
-        └─────────────────────┘  └─────────────────────┘
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/get-progress-hub/index.ts` | Adicionar cálculo de `active_days_of_week` e incluir na resposta |
+| `src/types/progressHub.ts` | Adicionar campo `active_days_of_week: number[]` ao tipo |
+| `src/components/progress-hub/ConsistencyCard.tsx` | Usar `includes(i)` ao invés de `i <` |
+| `src/components/progress-hub/ProgressHeroCard.tsx` | Usar `includes(i)` ao invés de `i <` |
+| `src/hooks/useProgressHub.ts` | Adicionar fallback para compatibilidade |
 
-ROW 3:  ┌─────────────────────┐  ┌─────────────────────┐
-        │   Evolução Semanal  │  │    Sua Cobertura    │
-        │       (6 cols)      │  │       (6 cols)      │
-        └─────────────────────┘  └─────────────────────┘
-```
+## Teste
 
-## Mudanças em `Dashboard.tsx`
-
-### ROW 2 - Agrupar cards na coluna direita (linhas 478-492)
-
-**Antes:**
-```tsx
-{/* ROW 2: Next Actions (6 cols) + Consistency (6 cols) */}
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-  <NextActionsCard ... />
-</motion.div>
-
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-  <ConsistencyCard ... />
-</motion.div>
-```
-
-**Depois:**
-```tsx
-{/* ROW 2: Next Actions (6 cols) + [Consistency + Diagnostics stacked] (6 cols) */}
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-  <NextActionsCard ... />
-</motion.div>
-
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6 space-y-4 lg:space-y-5">
-  <ConsistencyCard ... />
-  <DiagnosticsCard ... />
-</motion.div>
-```
-
-### ROW 3 - Weekly Evolution + Coverage lado a lado (linhas 494-511)
-
-**Antes:**
-```tsx
-{/* ROW 3: Diagnostics + Weekly Evolution + Coverage (4+4+4) */}
-<motion.div className="col-span-12 md:col-span-6 xl:col-span-4">
-  <DiagnosticsCard ... />
-</motion.div>
-
-<motion.div className="col-span-12 md:col-span-6 xl:col-span-4">
-  <WeeklyEvolutionCard ... />
-</motion.div>
-
-<motion.div className="col-span-12 xl:col-span-4">
-  <CoverageRankingCard ... />
-</motion.div>
-```
-
-**Depois:**
-```tsx
-{/* ROW 3: Weekly Evolution (6 cols) + Coverage (6 cols) */}
-<motion.div className="col-span-12 md:col-span-6">
-  <WeeklyEvolutionCard ... />
-</motion.div>
-
-<motion.div className="col-span-12 md:col-span-6">
-  <CoverageRankingCard ... />
-</motion.div>
-```
-
-## Responsividade
-
-| Breakpoint | Layout ROW 2 | Layout ROW 3 |
-|------------|--------------|--------------|
-| Mobile (<768px) | Empilhado (NextActions → Consistency → Diagnostics) | Empilhado (Evolution → Coverage) |
-| Tablet (768px+) | 6+6 colunas com Consistency+Diagnostics empilhados | 6+6 colunas |
-| Desktop (1024px+) | Mesmo que tablet | Mesmo que tablet |
-
-## Resultado Visual Esperado
-
-Os dois cards "Sua Consistência" e "Diagnóstico" juntos terão aproximadamente a mesma altura do card "O que fazer agora", criando um layout equilibrado. O "Sua Cobertura" ao lado da "Evolução Semanal" oferece mais espaço para cada gráfico.
-
-## Arquivo a Modificar
-
-| Arquivo | Linhas | Mudança |
-|---------|--------|---------|
-| `src/pages/Dashboard.tsx` | 478-511 | Reorganizar grid ROW 2 e ROW 3 conforme descrito |
+Após a implementação:
+1. Marcar uma aula como concluída no Guia de Estudos
+2. Navegar para o Dashboard
+3. Verificar que o dia de hoje (sábado) aparece marcado nos dois cards
+4. Verificar que outros dias da semana sem atividade aparecem desmarcados
 
