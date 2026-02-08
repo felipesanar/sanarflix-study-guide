@@ -92,6 +92,33 @@ export interface ProgressHubUser {
   exam_date?: string | null;
 }
 
+// ============================================
+// User Exams (Multi-Exam Tracking)
+// ============================================
+
+export interface UserExam {
+  id: string;
+  user_id: string;
+  materia: string;
+  exam_name: string;
+  exam_date: string; // ISO date string
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ExamInsight {
+  exam: UserExam;
+  materia_progress: MateriaProgress | null;
+  days_remaining: number;
+  lessons_remaining: number;
+  lessons_per_day: number;
+  quizzes_completed: number;
+  status: 'critical' | 'warning' | 'on_track' | 'excellent';
+  message: string;
+  cta_label: string;
+  cta_action: 'study' | 'review' | 'finish';
+}
+
 export interface ProgressHubData {
   overview: ProgressOverview;
   streak: ProgressStreak;
