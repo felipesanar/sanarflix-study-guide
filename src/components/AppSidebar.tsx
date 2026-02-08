@@ -24,6 +24,7 @@ import {
   Home as HomeIcon,
   GraduationCap,
   TrendingUp,
+  Route,
 } from "lucide-react";
 
 import {
@@ -70,6 +71,13 @@ const menuItems = [
     icon: TrendingUp,
     accessKey: "analytics" as const,
     description: "Métricas e insights avançados",
+  },
+  {
+    title: "Jornada do Estudante",
+    url: "/jornada-estudante",
+    icon: Route,
+    accessKey: "analytics" as const,
+    description: "Funil e engajamento dos alunos",
   },
 ];
 
