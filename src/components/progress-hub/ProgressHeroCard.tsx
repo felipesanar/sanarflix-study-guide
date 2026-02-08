@@ -180,10 +180,10 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
           </div>
 
           {/* Right: Streak + CTAs */}
-          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 lg:flex-1 lg:justify-end">
+          <div className="flex flex-col gap-3 lg:flex-1 lg:items-end">
             {/* Streak mini card */}
             <motion.div 
-              className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3 shrink-0 w-full sm:w-auto"
+              className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3 w-fit"
               role="status"
               aria-label={`Atividade semanal: ${streak.active_days_week} de ${streak.goal} dias`}
               {...getAnimationProps({
@@ -205,15 +205,15 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                   />
                 ))}
               </div>
-              <div className="text-sm">
+              <div className="text-sm whitespace-nowrap">
                 <span className="font-semibold">{streak.active_days_week}</span>
                 <span className="text-muted-foreground">/{streak.goal} dias</span>
               </div>
             </motion.div>
 
-            {/* CTAs */}
+            {/* CTAs - Stack vertically on tablet, row on large screens */}
             <motion.div 
-              className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto"
+              className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto"
               {...getAnimationProps({
                 initial: { opacity: 0, y: 10 },
                 animate: { opacity: 1, y: 0 },
@@ -224,28 +224,28 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                 onClick={handleContinue}
                 size="default"
                 className={cn(
-                  "gap-2 flex-1 sm:flex-initial min-w-[140px] justify-center",
+                  "gap-2 justify-center whitespace-nowrap",
                   "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   "transition-all duration-200 hover:shadow-md active:scale-[0.98]"
                 )}
               >
                 <Play className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden md:inline">Continuar de onde parei</span>
-                <span className="md:hidden">Continuar</span>
+                <span className="hidden xl:inline">Continuar de onde parei</span>
+                <span className="xl:hidden">Continuar</span>
               </Button>
               <Button 
                 onClick={handleOpenCalendar}
                 variant="outline"
                 size="default"
                 className={cn(
-                  "gap-2 flex-1 sm:flex-initial min-w-[120px] justify-center",
+                  "gap-2 justify-center whitespace-nowrap",
                   "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   "transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
                 )}
               >
                 <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden md:inline">Organizar semana</span>
-                <span className="md:hidden">Organizar</span>
+                <span className="hidden xl:inline">Organizar semana</span>
+                <span className="xl:hidden">Organizar</span>
               </Button>
             </motion.div>
           </div>
