@@ -10,6 +10,7 @@ import { SimuladoPerformanceCard } from '@/components/home/SimuladoPerformanceCa
 import { MeuSemestreCard } from '@/components/home/MeuSemestreCard';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { HomePageSkeleton } from '@/components/skeletons/HomePageSkeleton';
+import { ProgressSummaryCard } from '@/components/home/ProgressSummaryCard';
 
 export const Home: React.FC = () => {
   const {
@@ -91,6 +92,11 @@ export const Home: React.FC = () => {
             </motion.div>
           </div>
 
+          {/* Row 1.5: Progress Summary Card */}
+          <motion.div variants={itemVariants}>
+            <ProgressSummaryCard />
+          </motion.div>
+
           {/* Row 2: Meu Dia + Ranking */}
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 lg:gap-6">
             <motion.div variants={itemVariants} className="min-w-0">
@@ -129,6 +135,11 @@ export const Home: React.FC = () => {
               <AnnouncementsCard />
             </motion.div>
           </div>
+
+          {/* Row 1.5: Progress Summary Card */}
+          <motion.div variants={itemVariants}>
+            <ProgressSummaryCard />
+          </motion.div>
           
           {/* Row 2: Meu Dia + Ranking */}
           <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 md:gap-5">
@@ -174,6 +185,11 @@ export const Home: React.FC = () => {
           </motion.div>
 
           {/* Announcement card removed on mobile - now integrated as badge in WelcomeCard */}
+
+          {/* Progress Summary Card - Priority on mobile */}
+          <motion.div variants={itemVariants}>
+            <ProgressSummaryCard />
+          </motion.div>
 
           {/* What to study today - priority on mobile */}
           <motion.div variants={itemVariants}>
