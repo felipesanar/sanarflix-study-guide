@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,8 @@ import {
   type AnalyticsExportFilters,
   type ExportPreviewStats
 } from '@/utils/exportAnalyticsReport';
-import { exportToXLSX as exportSimuladosPremiumXLSX, type SimuladosPremiumExportData } from '@/utils/exportSimuladosAnalytics';
+import { exportToXLSX as exportSimuladosPremiumXLSX } from '@/utils/exportSimuladosAnalytics';
+import { fetchSimuladosAnalyticsData, type SimuladosFilters } from '@/hooks/useSimuladosAnalytics';
 
 type ExportFormat = 'xlsx-full' | 'csv' | 'xlsx-simulados';
 
@@ -51,7 +52,6 @@ interface ExportReportModalProps {
     excludedIES: string[];
   };
   data: AnalyticsExportData;
-  simuladosPremiumData?: SimuladosPremiumExportData | null;
 }
 
 const formatOptions: { 
@@ -114,12 +114,13 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
   onOpenChange,
   filters,
   data,
-  simuladosPremiumData,
 }) => {
   const { user } = useAuth();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('xlsx-full');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Calculate preview stats
   const previewStats = useMemo<ExportPreviewStats>(() => {
@@ -140,7 +141,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
   const fileSizes = useMemo(() => ({
     'xlsx-full': estimateFileSizeKB(data, 'xlsx'),
     'csv': estimateFileSizeKB(data, 'csv'),
-    'xlsx-simulados': Math.round(estimateFileSizeKB(data, 'xlsx') * 0.6),
+    'xlsx-simulados': Math.round(estimateFileSizeKB(data, 'xlsx') * 1.2), // Premium is larger
   }), [data]);
 
   const handleExport = async () => {
@@ -148,18 +149,9 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
 
     setIsExporting(true);
     setExportProgress(0);
+    setProgressMessage('Iniciando...');
 
     try {
-      const progressInterval = setInterval(() => {
-        setExportProgress(prev => {
-          if (prev >= 85) {
-            clearInterval(progressInterval);
-            return 85;
-          }
-          return prev + 15;
-        });
-      }, 100);
-
       const exportFilters: AnalyticsExportFilters = {
         dateRange: filters.dateRange,
         university: filters.university !== 'all' ? filters.university : null,
@@ -167,37 +159,78 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
         exportedBy: user?.email || 'Sistema',
       };
 
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       if (selectedFormat === 'xlsx-full') {
+        const progressInterval = setInterval(() => {
+          setExportProgress(prev => prev >= 85 ? 85 : prev + 15);
+        }, 100);
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
         exportAnalyticsXLSX(data, exportFilters);
+        
+        clearInterval(progressInterval);
+        setExportProgress(100);
       } else if (selectedFormat === 'csv') {
+        const progressInterval = setInterval(() => {
+          setExportProgress(prev => prev >= 85 ? 85 : prev + 20);
+        }, 80);
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
         exportAnalyticsCSV(data, exportFilters);
+        
+        clearInterval(progressInterval);
+        setExportProgress(100);
       } else if (selectedFormat === 'xlsx-simulados') {
-        if (!simuladosPremiumData) {
-          throw new Error('Dados Premium de Simulados não carregados. Acesse a aba Simulados no Analytics e tente novamente.');
-        }
+        // ON-DEMAND FETCH - busca os dados completos de simulados diretamente!
+        abortControllerRef.current = new AbortController();
+        
+        setExportProgress(5);
+        setProgressMessage('Carregando dados de simulados...');
+        
+        const simuladosFilters: SimuladosFilters = {
+          dateRange: filters.dateRange,
+          iesId: filters.university !== 'all' ? filters.university : null,
+          excludedIES: filters.excludedIES,
+        };
 
-        exportSimuladosPremiumXLSX(simuladosPremiumData, {
+        const simuladosData = await fetchSimuladosAnalyticsData(
+          simuladosFilters,
+          abortControllerRef.current.signal
+        );
+
+        setExportProgress(60);
+        setProgressMessage('Processando métricas pedagógicas...');
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        setExportProgress(80);
+        setProgressMessage('Gerando planilha premium...');
+        
+        exportSimuladosPremiumXLSX(simuladosData, {
           dateRange: filters.dateRange,
           university: filters.university !== 'all' ? filters.university : null,
           excludedIES: filters.excludedIES,
         });
-      }
 
-      clearInterval(progressInterval);
-      setExportProgress(100);
+        setExportProgress(100);
+        setProgressMessage('Concluído!');
+      }
 
       setTimeout(() => {
         setIsExporting(false);
         setExportProgress(0);
+        setProgressMessage('');
         onOpenChange(false);
       }, 800);
 
     } catch (error) {
-      console.error('[ExportReportModal] Erro ao exportar:', error);
+      // Ignore abort errors
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('[ExportReportModal] Export aborted');
+      } else {
+        console.error('[ExportReportModal] Erro ao exportar:', error);
+      }
       setIsExporting(false);
       setExportProgress(0);
+      setProgressMessage('');
     }
   };
 
@@ -205,11 +238,15 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
     if (!open) {
       setIsExporting(false);
       setExportProgress(0);
+      setProgressMessage('');
+      // Abort any pending fetch
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     }
   }, [open]);
 
-  // Simulados Premium exige os dados completos do hook useSimuladosAnalytics (carregados ao abrir a aba Simulados)
-  const hasSimuladosPremiumData = (simuladosPremiumData?.simulados?.length ?? 0) > 0;
   const selectedOption = formatOptions.find(o => o.value === selectedFormat);
 
   return (
@@ -312,7 +349,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
               </h3>
               <div className="space-y-2 sm:space-y-3">
                 {formatOptions.map((option) => {
-                  const isDisabled = option.value === 'xlsx-simulados' && !hasSimuladosPremiumData;
+                  // Simulados Premium agora busca dados on-demand, sempre disponível!
                   const isSelected = selectedFormat === option.value;
                   const Icon = option.icon;
                   
@@ -320,19 +357,18 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
                     <motion.button
                       key={option.value}
                       type="button"
-                      onClick={() => !isDisabled && setSelectedFormat(option.value)}
-                      disabled={isDisabled}
+                      onClick={() => setSelectedFormat(option.value)}
+                      disabled={false}
                       className={`
-                        relative w-full text-left p-3 sm:p-4 rounded-xl border transition-all duration-300
+                        relative w-full text-left p-3 sm:p-4 rounded-xl border transition-all duration-300 cursor-pointer
                         ${isSelected 
                           ? 'border-primary bg-gradient-to-r shadow-lg shadow-primary/10 ring-1 ring-primary/30' 
                           : 'border-border/50 bg-card/50 hover:border-primary/30 hover:bg-card'
                         }
-                        ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
                         ${isSelected ? option.gradient : ''}
                       `}
-                      whileHover={!isDisabled ? { scale: 1.01 } : {}}
-                      whileTap={!isDisabled ? { scale: 0.99 } : {}}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
                     >
                       {/* Indicador de seleção */}
                       <div className={`
@@ -404,11 +440,11 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
                             <span>~{fileSizes[option.value]} KB</span>
                           </div>
                           
-                          {isDisabled && (
-                            <div className="flex items-center gap-1 text-[10px] sm:text-xs text-amber-600 dark:text-amber-400">
-                              <AlertCircle className="w-3 h-3" />
-                              <span>Acesse Simulados</span>
-                            </div>
+                          {option.value === 'xlsx-simulados' && (
+                            <Badge variant="outline" className="text-[10px] gap-1 border-violet-500/30 text-violet-600 dark:text-violet-400">
+                              <Zap className="w-2.5 h-2.5" />
+                              On-demand
+                            </Badge>
                           )}
                         </div>
                       </div>
@@ -464,7 +500,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
               </Button>
               <Button 
                 onClick={handleExport}
-                disabled={isExporting || !data || (selectedFormat === 'xlsx-simulados' && !hasSimuladosPremiumData)}
+                disabled={isExporting || !data}
                 className="flex-1 sm:flex-none gap-2 text-sm bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
               >
                 {isExporting ? (
