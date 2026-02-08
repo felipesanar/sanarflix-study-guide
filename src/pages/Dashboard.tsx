@@ -22,7 +22,6 @@ import {
   FilterChips,
   RiskAlertBanner,
   EmptyState,
-  SpacedRevisionCard,
   DiagnosticsCard,
   CoverageRankingCard,
   ExamTrackerCard,
@@ -342,19 +341,6 @@ export const Dashboard: React.FC = () => {
     });
   }, [trackEvent]);
 
-  // Handle spaced revision navigate
-  const handleRevisionNavigate = useCallback((materia: string, tema: string) => {
-    trackEvent({
-      eventName: 'navigate_to_guide_from_hub',
-      category: 'navigation',
-      data: {
-        source: 'spaced_revision',
-        materia,
-        tema,
-      }
-    });
-  }, [trackEvent]);
-
   // Show skeleton while loading
   if (loading && !data) {
     return (
@@ -464,148 +450,126 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Main Layout: Content + Exam Tracker Sidebar */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-          {/* Main Content Column */}
-          <div className="space-y-6">
-            {/* Hero Card */}
-            <motion.div variants={itemVariants}>
-              <ProgressHeroCard
-                overview={data.overview}
-                streak={data.streak}
-                lastActivity={data.last_activity}
-                user={data.user}
-                onContinueClick={handleContinueClick}
-                onCalendarClick={handleCalendarClick}
-              />
-            </motion.div>
-
-            {/* Mobile: Exam Tracker (shows after Hero) */}
-            {isMobile && (
-              <motion.div variants={itemVariants}>
-                <ExamTrackerCard
-                  byMateria={data.by_materia}
-                  materiasList={materiasList}
-                />
-              </motion.div>
-            )}
-
-            {/* Grid: Next Actions + Consistency + Diagnostics */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <motion.div variants={itemVariants}>
-                <NextActionsCard 
-                  actions={data.next_actions} 
-                  onActionClick={handleActionClick}
-                />
-              </motion.div>
-              <motion.div variants={itemVariants}>
-                <ConsistencyCard 
-                  streak={data.streak} 
-                  onGoalChange={handleGoalChange}
-                  syncing={syncing}
-                />
-              </motion.div>
-              <motion.div variants={itemVariants}>
-                <DiagnosticsCard 
-                  byMateria={data.by_materia}
-                  byTema={data.by_tema}
-                />
-              </motion.div>
-            </div>
-
-            {/* Grid: Weekly Evolution + Coverage Ranking + Spaced Revision */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <motion.div variants={itemVariants}>
-                <WeeklyEvolutionCard 
-                  evolution={data.weekly_evolution}
-                  totalContent={data.overview.total}
-                />
-              </motion.div>
-              <motion.div variants={itemVariants}>
-                <CoverageRankingCard byMateria={data.by_materia} />
-              </motion.div>
-              <motion.div variants={itemVariants}>
-                <SpacedRevisionCard
-                  byTema={data.by_tema}
-                  onNavigate={handleRevisionNavigate}
-                />
-              </motion.div>
-            </div>
-          </div>
-
-          {/* Desktop: Exam Tracker Sidebar */}
-          {!isMobile && (
-            <motion.div 
-              variants={itemVariants} 
-              className="xl:sticky xl:top-6 xl:self-start"
-            >
-              <ExamTrackerCard
-                byMateria={data.by_materia}
-                materiasList={materiasList}
-              />
-            </motion.div>
-          )}
-        </div>
-
-        {/* Filters Section */}
-        <motion.div variants={itemVariants} className="space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <h2 className="text-lg font-semibold">Mapa do Semestre</h2>
-            
-            {/* Mobile: Filter drawer */}
-            {isMobile && (
-              <div className="ml-auto">
-                <FiltersDrawerMobile
-                  filters={filters}
-                  materias={materiasList}
-                  temas={temasList}
-                  onFiltersChange={handleFiltersChange}
-                  activeCount={activeFiltersCount}
-                  totalCount={totalCount}
-                  filteredCount={filteredCount}
-                />
-              </div>
-            )}
-          </div>
-          
-          {/* Desktop: Inline filters */}
-          {!isMobile && (
-            <FiltersDesktop
-              filters={filters}
-              materias={materiasList}
-              temas={temasList}
-              onFiltersChange={handleFiltersChange}
-              totalCount={totalCount}
-              filteredCount={filteredCount}
-            />
-          )}
-        </motion.div>
-
-        {/* Active filter chips (mobile only, desktop shows inline) */}
-        {isMobile && activeFiltersCount > 0 && (
-          <motion.div variants={itemVariants}>
-            <FilterChips
-              filters={filters}
-              onRemoveFilter={handleRemoveFilter}
-              onClearAll={handleClearFilters}
+        {/* Main Grid Layout - 12 columns */}
+        <motion.div 
+          variants={containerVariants}
+          className="grid grid-cols-12 gap-4 lg:gap-5"
+        >
+          {/* === ROW 1: Hero (8-9 cols) + Suas Provas (4-3 cols) === */}
+          <motion.div variants={itemVariants} className="col-span-12 lg:col-span-8 xl:col-span-9">
+            <ProgressHeroCard
+              overview={data.overview}
+              streak={data.streak}
+              lastActivity={data.last_activity}
+              user={data.user}
+              onContinueClick={handleContinueClick}
+              onCalendarClick={handleCalendarClick}
             />
           </motion.div>
-        )}
+          
+          <motion.div variants={itemVariants} className="col-span-12 lg:col-span-4 xl:col-span-3">
+            <ExamTrackerCard
+              byMateria={data.by_materia}
+              materiasList={materiasList}
+              compact
+            />
+          </motion.div>
 
-        {/* Semester Map or Empty State */}
-        <motion.div variants={itemVariants}>
-          {hasFilteredResults ? (
-            <SemesterMapCard
-              byMateria={filteredData.byMateria}
-              byTema={filteredData.byTema}
-              bySubtema={filteredData.bySubtema}
-              onCompleteTheme={handleCompleteTheme}
-              onThemeClick={handleThemeClick}
+          {/* === ROW 2: Next Actions (6 cols) + Consistency (6 cols) === */}
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+            <NextActionsCard 
+              actions={data.next_actions} 
+              onActionClick={handleActionClick}
+            />
+          </motion.div>
+          
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+            <ConsistencyCard 
+              streak={data.streak} 
+              onGoalChange={handleGoalChange}
               syncing={syncing}
             />
-          ) : (
-            <EmptyState onClearFilters={handleClearFilters} />
+          </motion.div>
+
+          {/* === ROW 3: Diagnostics + Weekly Evolution + Coverage (4+4+4 on xl, 6+6+12 on md) === */}
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
+            <DiagnosticsCard 
+              byMateria={data.by_materia}
+              byTema={data.by_tema}
+            />
+          </motion.div>
+          
+          <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
+            <WeeklyEvolutionCard 
+              evolution={data.weekly_evolution}
+              totalContent={data.overview.total}
+            />
+          </motion.div>
+          
+          <motion.div variants={itemVariants} className="col-span-12 xl:col-span-4">
+            <CoverageRankingCard byMateria={data.by_materia} />
+          </motion.div>
+
+          {/* === ROW 4: Filters Section === */}
+          <motion.div variants={itemVariants} className="col-span-12 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <h2 className="text-lg font-semibold">Mapa do Semestre</h2>
+              
+              {/* Mobile: Filter drawer */}
+              {isMobile && (
+                <div className="ml-auto">
+                  <FiltersDrawerMobile
+                    filters={filters}
+                    materias={materiasList}
+                    temas={temasList}
+                    onFiltersChange={handleFiltersChange}
+                    activeCount={activeFiltersCount}
+                    totalCount={totalCount}
+                    filteredCount={filteredCount}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Desktop: Inline filters */}
+            {!isMobile && (
+              <FiltersDesktop
+                filters={filters}
+                materias={materiasList}
+                temas={temasList}
+                onFiltersChange={handleFiltersChange}
+                totalCount={totalCount}
+                filteredCount={filteredCount}
+              />
+            )}
+          </motion.div>
+
+          {/* Active filter chips (mobile only) */}
+          {isMobile && activeFiltersCount > 0 && (
+            <motion.div variants={itemVariants} className="col-span-12">
+              <FilterChips
+                filters={filters}
+                onRemoveFilter={handleRemoveFilter}
+                onClearAll={handleClearFilters}
+              />
+            </motion.div>
           )}
+
+          {/* === ROW 5: Semester Map === */}
+          <motion.div variants={itemVariants} className="col-span-12">
+            {hasFilteredResults ? (
+              <SemesterMapCard
+                byMateria={filteredData.byMateria}
+                byTema={filteredData.byTema}
+                bySubtema={filteredData.bySubtema}
+                onCompleteTheme={handleCompleteTheme}
+                onThemeClick={handleThemeClick}
+                syncing={syncing}
+              />
+            ) : (
+              <EmptyState onClearFilters={handleClearFilters} />
+            )}
+          </motion.div>
         </motion.div>
       </motion.div>
     </div>

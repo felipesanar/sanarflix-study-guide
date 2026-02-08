@@ -21,5 +21,6 @@ export { WeekDetailSheet } from './WeekDetailSheet';
 export { ExamTrackerCard } from './ExamTrackerCard';
 export { AddExamModal } from './AddExamModal';
 export { ExamItem } from './ExamItem';
+export { ExamsFullModal } from './ExamsFullModal';
 export type { ProgressFilters, FilterStatus, SortOption } from './FiltersDrawerMobile';
 export type { MilestoneType } from './MilestoneCelebration';
