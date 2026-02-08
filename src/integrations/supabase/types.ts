@@ -1099,6 +1099,36 @@ export type Database = {
           },
         ]
       }
+      user_exams: {
+        Row: {
+          created_at: string | null
+          exam_date: string
+          exam_name: string
+          id: string
+          materia: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          exam_date: string
+          exam_name?: string
+          id?: string
+          materia: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          exam_date?: string
+          exam_name?: string
+          id?: string
+          materia?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           completed_at: string

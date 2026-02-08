@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -22,16 +22,15 @@ import {
   FilterChips,
   RiskAlertBanner,
   EmptyState,
-  PreProvaMode,
   SpacedRevisionCard,
-  ExamCountdownCard,
   DiagnosticsCard,
   CoverageRankingCard,
+  ExamTrackerCard,
   useMilestoneCelebration,
   type ProgressFilters,
   type MilestoneType,
 } from '@/components/progress-hub';
-import type { NextAction, RiskAlert, MateriaProgress } from '@/types/progressHub';
+import type { NextAction, MateriaProgress } from '@/types/progressHub';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
@@ -43,7 +42,6 @@ export const Dashboard: React.FC = () => {
   const shouldReduceMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const hasTrackedView = useRef(false);
   const previousMateriaProgress = useRef<Map<string, number>>(new Map());
   
@@ -59,9 +57,6 @@ export const Dashboard: React.FC = () => {
 
   // Milestone celebration
   const { showCelebration, CelebrationComponent } = useMilestoneCelebration();
-
-  // Pre-prova mode from URL
-  const isPreProvaMode = searchParams.get('mode') === 'preprova';
 
   // Filters state
   const [filters, setFilters] = useState<ProgressFilters>({
@@ -84,12 +79,11 @@ export const Dashboard: React.FC = () => {
           streak_current: data.streak.current,
           status_level: data.overview.status_level,
           total_materias: data.overview.total_materias,
-          is_preprova_mode: isPreProvaMode,
         }
       });
       hasTrackedView.current = true;
     }
-  }, [data, trackEvent, isPreProvaMode]);
+  }, [data, trackEvent]);
 
   // Check for milestone achievements
   useEffect(() => {
@@ -236,21 +230,6 @@ export const Dashboard: React.FC = () => {
     setFilters({ status: 'all', materia: null, tema: null, sortBy: 'alphabetical' });
   }, []);
 
-  // Handle pre-prova mode toggle
-  const handlePreProvaToggle = useCallback((active: boolean) => {
-    if (active) {
-      setSearchParams({ mode: 'preprova' });
-      trackEvent({
-        eventName: 'preprova_mode_activated',
-        category: 'interaction',
-        data: {}
-      });
-    } else {
-      searchParams.delete('mode');
-      setSearchParams(searchParams);
-    }
-  }, [searchParams, setSearchParams, trackEvent]);
-
   // Track continue click
   const handleContinueClick = useCallback(() => {
     trackEvent({
@@ -376,19 +355,6 @@ export const Dashboard: React.FC = () => {
     });
   }, [trackEvent]);
 
-  // Handle pre-prova navigate
-  const handlePreProvaNavigate = useCallback((materia: string, tema: string) => {
-    trackEvent({
-      eventName: 'navigate_to_guide_from_hub',
-      category: 'navigation',
-      data: {
-        source: 'preprova_checklist',
-        materia,
-        tema,
-      }
-    });
-  }, [trackEvent]);
-
   // Show skeleton while loading
   if (loading && !data) {
     return (
@@ -488,7 +454,7 @@ export const Dashboard: React.FC = () => {
         )}
 
         {/* Risk Alerts */}
-        {data.risk_alerts && data.risk_alerts.length > 0 && !isPreProvaMode && (
+        {data.risk_alerts && data.risk_alerts.length > 0 && (
           <motion.div variants={itemVariants}>
             <RiskAlertBanner
               alerts={data.risk_alerts}
@@ -498,87 +464,87 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Pre-Prova Mode (when active, shows prominently) */}
-        {isPreProvaMode && (
-          <motion.div variants={itemVariants}>
-            <PreProvaMode
-              byTema={data.by_tema}
-              onNavigate={handlePreProvaNavigate}
-              onActivate={handlePreProvaToggle}
-            />
-          </motion.div>
-        )}
-
-        {/* Hero Card */}
-        <motion.div variants={itemVariants}>
-          <ProgressHeroCard
-            overview={data.overview}
-            streak={data.streak}
-            lastActivity={data.last_activity}
-            user={data.user}
-            onContinueClick={handleContinueClick}
-            onCalendarClick={handleCalendarClick}
-          />
-        </motion.div>
-
-        {/* Grid: Next Actions + Consistency + Diagnostics */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <motion.div variants={itemVariants}>
-            <NextActionsCard 
-              actions={data.next_actions} 
-              onActionClick={handleActionClick}
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <ConsistencyCard 
-              streak={data.streak} 
-              onGoalChange={handleGoalChange}
-              syncing={syncing}
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <DiagnosticsCard 
-              byMateria={data.by_materia}
-              byTema={data.by_tema}
-            />
-          </motion.div>
-        </div>
-
-        {/* Grid: Weekly Evolution + Coverage Ranking + Spaced Revision */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <motion.div variants={itemVariants}>
-            <WeeklyEvolutionCard 
-              evolution={data.weekly_evolution}
-              totalContent={data.overview.total}
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <CoverageRankingCard byMateria={data.by_materia} />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <SpacedRevisionCard
-              byTema={data.by_tema}
-              onNavigate={handleRevisionNavigate}
-            />
-          </motion.div>
-        </div>
-
-        {/* Pre-Prova Toggle (when not active) + Exam Countdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {!isPreProvaMode && (
+        {/* Main Layout: Content + Exam Tracker Sidebar */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
+          {/* Main Content Column */}
+          <div className="space-y-6">
+            {/* Hero Card */}
             <motion.div variants={itemVariants}>
-              <PreProvaMode
-                byTema={data.by_tema}
-                onNavigate={handlePreProvaNavigate}
-                onActivate={handlePreProvaToggle}
+              <ProgressHeroCard
+                overview={data.overview}
+                streak={data.streak}
+                lastActivity={data.last_activity}
+                user={data.user}
+                onContinueClick={handleContinueClick}
+                onCalendarClick={handleCalendarClick}
+              />
+            </motion.div>
+
+            {/* Mobile: Exam Tracker (shows after Hero) */}
+            {isMobile && (
+              <motion.div variants={itemVariants}>
+                <ExamTrackerCard
+                  byMateria={data.by_materia}
+                  materiasList={materiasList}
+                />
+              </motion.div>
+            )}
+
+            {/* Grid: Next Actions + Consistency + Diagnostics */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <motion.div variants={itemVariants}>
+                <NextActionsCard 
+                  actions={data.next_actions} 
+                  onActionClick={handleActionClick}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <ConsistencyCard 
+                  streak={data.streak} 
+                  onGoalChange={handleGoalChange}
+                  syncing={syncing}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <DiagnosticsCard 
+                  byMateria={data.by_materia}
+                  byTema={data.by_tema}
+                />
+              </motion.div>
+            </div>
+
+            {/* Grid: Weekly Evolution + Coverage Ranking + Spaced Revision */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <motion.div variants={itemVariants}>
+                <WeeklyEvolutionCard 
+                  evolution={data.weekly_evolution}
+                  totalContent={data.overview.total}
+                />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <CoverageRankingCard byMateria={data.by_materia} />
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <SpacedRevisionCard
+                  byTema={data.by_tema}
+                  onNavigate={handleRevisionNavigate}
+                />
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Desktop: Exam Tracker Sidebar */}
+          {!isMobile && (
+            <motion.div 
+              variants={itemVariants} 
+              className="xl:sticky xl:top-6 xl:self-start"
+            >
+              <ExamTrackerCard
+                byMateria={data.by_materia}
+                materiasList={materiasList}
               />
             </motion.div>
           )}
-          <motion.div variants={itemVariants}>
-            <ExamCountdownCard 
-              examDate={data.user.exam_date || null}
-            />
-          </motion.div>
         </div>
 
         {/* Filters Section */}
