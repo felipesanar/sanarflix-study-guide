@@ -9,7 +9,7 @@ import { MobileSummaryHeader } from './MobileSummaryHeader';
 import { MobileTabBar } from './MobileTabBar';
 import { MobileStickyCtaBar } from './MobileStickyCtaBar';
 import { AgoraTab } from './tabs/AgoraTab';
-import type { ProgressHubData, NextAction, MateriaProgress, TemaProgress, SubtemaProgress } from '@/types/progressHub';
+import type { ProgressHubData, NextAction, MateriaProgress, TemaProgress, SubtemaProgress, ExamInsight } from '@/types/progressHub';
 import type { ProgressFilters } from '@/components/progress-hub';
 
 // Lazy load heavy components
@@ -25,6 +25,7 @@ interface ProgressHubMobileProps {
   semestreWarning?: string | null;
   user?: { ies_nome?: string };
   semestreAtivo?: number | null;
+  nextExam?: ExamInsight | null;
   // Filtered data
   filteredData: {
     byMateria: MateriaProgress[];
@@ -73,6 +74,7 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   semestreWarning,
   user,
   semestreAtivo,
+  nextExam,
   filteredData,
   filters,
   materiasList,
@@ -103,6 +105,13 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   const [activeTab, setActiveTab] = useState<MobileTab>('agora');
   const [showStickyBar, setShowStickyBar] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleExamClick = useCallback(() => {
+    if (nextExam?.exam?.id) {
+      onExamClicked(nextExam.exam.id, 'mobile_header');
+      setActiveTab('provas');
+    }
+  }, [nextExam, onExamClicked]);
 
   // Track scroll for sticky CTA
   useEffect(() => {
@@ -216,8 +225,10 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
           syncing={syncing}
           userName={user?.ies_nome}
           semestre={semestreAtivo}
+          nextExam={nextExam}
           onContinue={handleContinue}
           onOrganize={handleOrganize}
+          onExamClick={handleExamClick}
         />
 
         {/* Semester warning */}
