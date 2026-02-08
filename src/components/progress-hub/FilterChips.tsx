@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { ProgressFilters, FilterStatus } from './FiltersDrawerMobile';
+import type { ProgressFilters, FilterStatus, SortOption } from './FiltersDrawerMobile';
 import { cn } from '@/lib/utils';
 
 interface FilterChipsProps {
@@ -17,13 +17,24 @@ const STATUS_LABELS: Record<FilterStatus, string> = {
   completed: 'Concluídos',
 };
 
+const SORT_LABELS: Record<SortOption, string> = {
+  alphabetical: 'A-Z',
+  backlog: 'Maior backlog',
+  percentage: 'Menor %',
+  inactive: 'Mais atrasado',
+};
+
 export const FilterChips: React.FC<FilterChipsProps> = ({
   filters,
   onRemoveFilter,
   onClearAll,
   className,
 }) => {
-  const hasActiveFilters = filters.status !== 'all' || filters.materia !== null;
+  const hasActiveFilters = 
+    filters.status !== 'all' || 
+    filters.materia !== null || 
+    filters.tema !== null ||
+    filters.sortBy !== 'alphabetical';
 
   if (!hasActiveFilters) {
     return null;
@@ -60,6 +71,34 @@ export const FilterChips: React.FC<FilterChipsProps> = ({
         >
           <span className="truncate">{filters.materia}</span>
           <X className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+        </Badge>
+      )}
+
+      {/* Tema chip */}
+      {filters.tema && (
+        <Badge
+          variant="secondary"
+          className="gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium cursor-pointer hover:bg-secondary/80 transition-colors max-w-[200px]"
+          onClick={() => onRemoveFilter('tema')}
+          role="button"
+          aria-label={`Remover filtro: ${filters.tema}`}
+        >
+          <span className="truncate">{filters.tema}</span>
+          <X className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+        </Badge>
+      )}
+
+      {/* Sort chip */}
+      {filters.sortBy !== 'alphabetical' && (
+        <Badge
+          variant="secondary"
+          className="gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium cursor-pointer hover:bg-secondary/80 transition-colors"
+          onClick={() => onRemoveFilter('sortBy')}
+          role="button"
+          aria-label={`Remover ordenação: ${SORT_LABELS[filters.sortBy]}`}
+        >
+          <span>Ordenar: {SORT_LABELS[filters.sortBy]}</span>
+          <X className="h-3 w-3" aria-hidden="true" />
         </Badge>
       )}
 

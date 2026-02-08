@@ -16,12 +16,15 @@ import {
   WeeklyEvolutionCard,
   ProgressHubSkeleton,
   FiltersDrawerMobile,
+  FiltersDesktop,
   FilterChips,
   RiskAlertBanner,
   EmptyState,
   PreProvaMode,
   SpacedRevisionCard,
   ExamCountdownCard,
+  DiagnosticsCard,
+  CoverageRankingCard,
   useMilestoneCelebration,
   type ProgressFilters,
   type MilestoneType,
@@ -61,6 +64,8 @@ export const Dashboard: React.FC = () => {
   const [filters, setFilters] = useState<ProgressFilters>({
     status: 'all',
     materia: null,
+    tema: null,
+    sortBy: 'alphabetical',
   });
 
   // Track page view
@@ -128,6 +133,12 @@ export const Dashboard: React.FC = () => {
       bySubtema = bySubtema.filter(s => s.materia === filters.materia);
     }
 
+    // Filter by tema
+    if (filters.tema) {
+      byTema = byTema.filter(t => t.tema === filters.tema);
+      bySubtema = bySubtema.filter(s => s.tema === filters.tema);
+    }
+
     // Filter by status
     if (filters.status === 'pending') {
       byMateria = byMateria.filter(m => m.percentage < 100);
@@ -139,7 +150,25 @@ export const Dashboard: React.FC = () => {
       bySubtema = bySubtema.filter(s => s.percentage === 100);
     }
 
-    return { byMateria, byTema, bySubtema };
+    // Sort
+    const sortFn = (a: any, b: any) => {
+      switch (filters.sortBy) {
+        case 'backlog':
+          return (b.total - b.completed) - (a.total - a.completed);
+        case 'percentage':
+          return a.percentage - b.percentage;
+        case 'inactive':
+          return (b.days_inactive || 0) - (a.days_inactive || 0);
+        default:
+          return a.materia?.localeCompare(b.materia) || a.tema?.localeCompare(b.tema) || 0;
+      }
+    };
+
+    return { 
+      byMateria: [...byMateria].sort(sortFn), 
+      byTema: [...byTema].sort(sortFn), 
+      bySubtema: [...bySubtema].sort(sortFn) 
+    };
   }, [data, filters]);
 
   // Count active filters
@@ -147,6 +176,8 @@ export const Dashboard: React.FC = () => {
     let count = 0;
     if (filters.status !== 'all') count++;
     if (filters.materia !== null) count++;
+    if (filters.tema !== null) count++;
+    if (filters.sortBy !== 'alphabetical') count++;
     return count;
   }, [filters]);
 
@@ -155,6 +186,26 @@ export const Dashboard: React.FC = () => {
     if (!data) return [];
     return data.by_materia.map(m => m.materia).sort();
   }, [data]);
+
+  // Get temas list for filter (dependent on selected materia)
+  const temasList = useMemo(() => {
+    if (!data || !filters.materia) return [];
+    return data.by_tema
+      .filter(t => t.materia === filters.materia)
+      .map(t => t.tema)
+      .sort();
+  }, [data, filters.materia]);
+
+  // Total counts for filter results
+  const totalCount = useMemo(() => {
+    if (!data) return 0;
+    return data.by_materia.length + data.by_tema.length;
+  }, [data]);
+
+  const filteredCount = useMemo(() => {
+    if (!filteredData) return 0;
+    return filteredData.byMateria.length + filteredData.byTema.length;
+  }, [filteredData]);
 
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: ProgressFilters) => {
@@ -172,12 +223,14 @@ export const Dashboard: React.FC = () => {
   const handleRemoveFilter = useCallback((key: keyof ProgressFilters) => {
     setFilters(prev => ({
       ...prev,
-      [key]: key === 'status' ? 'all' : null,
+      [key]: key === 'status' ? 'all' : key === 'sortBy' ? 'alphabetical' : null,
+      // Reset tema if materia is being cleared
+      ...(key === 'materia' ? { tema: null } : {}),
     }));
   }, []);
 
   const handleClearFilters = useCallback(() => {
-    setFilters({ status: 'all', materia: null });
+    setFilters({ status: 'all', materia: null, tema: null, sortBy: 'alphabetical' });
   }, []);
 
   // Handle pre-prova mode toggle
@@ -453,7 +506,7 @@ export const Dashboard: React.FC = () => {
           />
         </motion.div>
 
-        {/* Grid: Next Actions + Consistency + Evolution */}
+        {/* Grid: Next Actions + Consistency + Diagnostics */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <motion.div variants={itemVariants}>
             <NextActionsCard 
@@ -469,12 +522,34 @@ export const Dashboard: React.FC = () => {
             />
           </motion.div>
           <motion.div variants={itemVariants}>
-            <WeeklyEvolutionCard evolution={data.weekly_evolution} />
+            <DiagnosticsCard 
+              byMateria={data.by_materia}
+              byTema={data.by_tema}
+            />
           </motion.div>
         </div>
 
-        {/* Pre-Prova Toggle (when not active) + Exam Countdown + Spaced Revision */}
+        {/* Grid: Weekly Evolution + Coverage Ranking + Spaced Revision */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <motion.div variants={itemVariants}>
+            <WeeklyEvolutionCard 
+              evolution={data.weekly_evolution}
+              totalContent={data.overview.total}
+            />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+            <CoverageRankingCard byMateria={data.by_materia} />
+          </motion.div>
+          <motion.div variants={itemVariants}>
+            <SpacedRevisionCard
+              byTema={data.by_tema}
+              onNavigate={handleRevisionNavigate}
+            />
+          </motion.div>
+        </div>
+
+        {/* Pre-Prova Toggle (when not active) + Exam Countdown */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {!isPreProvaMode && (
             <motion.div variants={itemVariants}>
               <PreProvaMode
@@ -489,44 +564,44 @@ export const Dashboard: React.FC = () => {
               examDate={data.user.exam_date || null}
             />
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <SpacedRevisionCard
-              byTema={data.by_tema}
-              onNavigate={handleRevisionNavigate}
-            />
-          </motion.div>
         </div>
 
         {/* Filters Section */}
-        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-2">
+        <motion.div variants={itemVariants} className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <h2 className="text-lg font-semibold">Mapa do Semestre</h2>
+            
             {/* Mobile: Filter drawer */}
             {isMobile && (
-              <FiltersDrawerMobile
-                filters={filters}
-                materias={materiasList}
-                onFiltersChange={handleFiltersChange}
-                activeCount={activeFiltersCount}
-              />
+              <div className="ml-auto">
+                <FiltersDrawerMobile
+                  filters={filters}
+                  materias={materiasList}
+                  temas={temasList}
+                  onFiltersChange={handleFiltersChange}
+                  activeCount={activeFiltersCount}
+                  totalCount={totalCount}
+                  filteredCount={filteredCount}
+                />
+              </div>
             )}
           </div>
           
-          {/* Desktop: Inline filter chips */}
+          {/* Desktop: Inline filters */}
           {!isMobile && (
-            <div className="flex items-center gap-2 ml-auto">
-              <FiltersDrawerMobile
-                filters={filters}
-                materias={materiasList}
-                onFiltersChange={handleFiltersChange}
-                activeCount={activeFiltersCount}
-              />
-            </div>
+            <FiltersDesktop
+              filters={filters}
+              materias={materiasList}
+              temas={temasList}
+              onFiltersChange={handleFiltersChange}
+              totalCount={totalCount}
+              filteredCount={filteredCount}
+            />
           )}
         </motion.div>
 
-        {/* Active filter chips */}
-        {activeFiltersCount > 0 && (
+        {/* Active filter chips (mobile only, desktop shows inline) */}
+        {isMobile && activeFiltersCount > 0 && (
           <motion.div variants={itemVariants}>
             <FilterChips
               filters={filters}
