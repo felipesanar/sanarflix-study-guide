@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { MateriaProgress } from '@/types/progressHub';
 
@@ -85,8 +84,15 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
         </div>
       </div>
 
-      {/* Materia list - Full width vertical layout with scroll */}
-      <ScrollArea className="flex-1 min-h-0 -mx-4 px-4">
+      {/* Materia list - Full width vertical layout with invisible scroll */}
+      <div 
+        className={cn(
+          "flex-1 min-h-0 -mx-4 px-4 overflow-y-auto",
+          "[&::-webkit-scrollbar]:hidden",
+          "[-ms-overflow-style:none]",
+          "[scrollbar-width:none]"
+        )}
+      >
         <div className="flex flex-col gap-2 py-2">
           {materias.map((materia) => {
             const isSelected = selectedMateria === materia;
@@ -173,7 +179,7 @@ export const ExamMateriaStepMobile: React.FC<ExamMateriaStepMobileProps> = ({
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Exam name input + Submit button - Fixed at bottom */}
       <div className="shrink-0 pt-3 space-y-3">
