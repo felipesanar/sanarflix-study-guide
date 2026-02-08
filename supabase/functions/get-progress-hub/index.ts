@@ -142,12 +142,21 @@ Deno.serve(async (req) => {
     const completedContents = allContents.filter(c => completedIds.has(c.id)).length;
     const percentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
 
-    // Calculate progress by materia
-    const materiaMap = new Map<string, { total: number; completed: number; temas: Map<string, { total: number; completed: number }> }>();
+    // Calculate progress by materia, tema, and subtema
+    const materiaMap = new Map<string, { 
+      total: number; 
+      completed: number; 
+      temas: Map<string, { 
+        total: number; 
+        completed: number;
+        subtemas: Map<string, { total: number; completed: number }>;
+      }> 
+    }>();
     
     for (const content of allContents) {
       const materia = content.materia || 'Geral';
       const tema = content.tema || 'Sem tema';
+      const subtema = content.subtema || '';
       
       if (!materiaMap.has(materia)) {
         materiaMap.set(materia, { total: 0, completed: 0, temas: new Map() });
@@ -161,7 +170,7 @@ Deno.serve(async (req) => {
       }
       
       if (!materiaData.temas.has(tema)) {
-        materiaData.temas.set(tema, { total: 0, completed: 0 });
+        materiaData.temas.set(tema, { total: 0, completed: 0, subtemas: new Map() });
       }
       
       const temaData = materiaData.temas.get(tema)!;
@@ -169,6 +178,18 @@ Deno.serve(async (req) => {
       
       if (completedIds.has(content.id)) {
         temaData.completed++;
+      }
+      
+      // Track subtema if exists
+      if (subtema) {
+        if (!temaData.subtemas.has(subtema)) {
+          temaData.subtemas.set(subtema, { total: 0, completed: 0 });
+        }
+        const subtemaData = temaData.subtemas.get(subtema)!;
+        subtemaData.total++;
+        if (completedIds.has(content.id)) {
+          subtemaData.completed++;
+        }
       }
     }
 
@@ -230,6 +251,36 @@ Deno.serve(async (req) => {
       }
     }
     byTema.sort((a, b) => a.materia.localeCompare(b.materia) || a.tema.localeCompare(b.tema));
+    
+    // Build by_subtema array
+    const bySubtema: Array<{ 
+      materia: string; 
+      tema: string; 
+      subtema: string;
+      total: number; 
+      completed: number; 
+      percentage: number;
+    }> = [];
+    
+    for (const [materia, data] of materiaMap.entries()) {
+      for (const [tema, temaData] of data.temas.entries()) {
+        for (const [subtema, subtemaData] of temaData.subtemas.entries()) {
+          bySubtema.push({
+            materia,
+            tema,
+            subtema,
+            total: subtemaData.total,
+            completed: subtemaData.completed,
+            percentage: subtemaData.total > 0 ? Math.round((subtemaData.completed / subtemaData.total) * 100) : 0
+          });
+        }
+      }
+    }
+    bySubtema.sort((a, b) => 
+      a.materia.localeCompare(b.materia) || 
+      a.tema.localeCompare(b.tema) || 
+      a.subtema.localeCompare(b.subtema)
+    );
     
     // Build risk alerts (temas with no activity in 14+ days and < 80% complete)
     const riskAlerts = byTema
@@ -335,6 +386,7 @@ Deno.serve(async (req) => {
       .slice(0, 50);
 
     // Build next actions (smart recommendations)
+    // Estimated minutes: quick_win = 10, today_focus = 15, unlock_progress = 20
     const nextActions: NextAction[] = [];
     
     // Priority 1: Today's focus (from calendar)
@@ -348,7 +400,8 @@ Deno.serve(async (req) => {
             ...pending,
             reason: `Está no seu calendário de hoje`,
             priority: 1,
-            type: 'today_focus'
+            type: 'today_focus',
+            estimated_minutes: 15
           });
         }
       }
@@ -370,7 +423,8 @@ Deno.serve(async (req) => {
           ...pending,
           reason: `${materia.materia} está com ${materia.percentage}% - quase lá!`,
           priority: 2,
-          type: 'quick_win'
+          type: 'quick_win',
+          estimated_minutes: 10
         });
       }
     }
@@ -391,7 +445,8 @@ Deno.serve(async (req) => {
           ...pending,
           reason: `Avance em ${materia.materia} (${materia.percentage}% concluído)`,
           priority: 3,
-          type: 'unlock_progress'
+          type: 'unlock_progress',
+          estimated_minutes: 20
         });
       }
     }
@@ -405,7 +460,8 @@ Deno.serve(async (req) => {
             ...pending,
             reason: 'Continue seu progresso',
             priority: 4,
-            type: 'today_focus'
+            type: 'today_focus',
+            estimated_minutes: 15
           });
         }
       }
@@ -449,6 +505,7 @@ Deno.serve(async (req) => {
       },
       by_materia: byMateria,
       by_tema: byTema,
+      by_subtema: bySubtema,
       weekly_evolution: weeklyEvolution,
       last_activity: lastActivity,
       next_actions: nextActions,
