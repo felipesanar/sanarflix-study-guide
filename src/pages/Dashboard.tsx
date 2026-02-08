@@ -10,6 +10,7 @@ import { useActiveSemester } from '@/hooks/useActiveSemester';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { usePageTimeTracking } from '@/hooks/usePageTimeTracking';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUserExams, calculateExamInsight } from '@/hooks/useUserExams';
 import { toast } from 'sonner';
 import {
   ProgressHeroCard,
@@ -31,7 +32,7 @@ import {
   type ProgressFilters,
   type MilestoneType,
 } from '@/components/progress-hub';
-import type { NextAction, MateriaProgress } from '@/types/progressHub';
+import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
@@ -69,6 +70,28 @@ export const Dashboard: React.FC = () => {
     completeTheme,
     updateStreakGoal 
   } = useProgressHub();
+
+  // User exams for mobile header
+  const { exams } = useUserExams();
+
+  // Calculate next exam insight for mobile header
+  const nextExam = useMemo((): ExamInsight | null => {
+    if (!exams || exams.length === 0 || !data) return null;
+    
+    // Find the nearest upcoming exam
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    const upcomingExams = exams
+      .map(exam => {
+        const materiaProgress = data.by_materia.find(m => m.materia === exam.materia) || null;
+        return calculateExamInsight(exam, materiaProgress);
+      })
+      .filter(insight => insight.days_remaining >= 0)
+      .sort((a, b) => a.days_remaining - b.days_remaining);
+    
+    return upcomingExams[0] || null;
+  }, [exams, data]);
 
   // Milestone celebration
   const { showCelebration, CelebrationComponent } = useMilestoneCelebration();
@@ -509,6 +532,7 @@ export const Dashboard: React.FC = () => {
           semestreWarning={semestreWarning}
           user={user ? { ies_nome: user.ies_nome } : undefined}
           semestreAtivo={semestreAtivo}
+          nextExam={nextExam}
           filteredData={filteredData}
           filters={filters}
           materiasList={materiasList}
