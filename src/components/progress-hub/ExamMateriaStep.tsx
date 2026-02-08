@@ -85,9 +85,9 @@ export const ExamMateriaStep: React.FC<ExamMateriaStepProps> = ({
         </div>
       </div>
 
-      {/* Materia chips grid */}
+      {/* Materia chips - Responsive grid that shows full names */}
       <ScrollArea className="flex-1 -mx-1 px-1">
-        <div className="flex flex-wrap gap-2 pb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2">
           {materias.map((materia) => {
             const isSelected = selectedMateria === materia;
             const progress = getProgress(materia);
@@ -97,21 +97,26 @@ export const ExamMateriaStep: React.FC<ExamMateriaStepProps> = ({
               <motion.button
                 key={materia}
                 type="button"
-                whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
                 whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                 onClick={() => onMateriaSelect(materia)}
                 disabled={isSubmitting}
                 className={cn(
-                  "relative px-4 py-3 rounded-xl border-2 text-left transition-all duration-200",
-                  "flex flex-col gap-1.5 min-w-[140px] max-w-[180px] flex-1",
+                  "relative w-full px-4 py-3 rounded-xl border-2 text-left transition-all duration-200",
+                  "flex items-start gap-3 min-h-[52px]",
                   "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
                   isSelected
                     ? "border-primary bg-primary/10 shadow-md shadow-primary/10"
                     : "border-border hover:border-primary/50 hover:bg-accent/50"
                 )}
               >
-                {/* Materia name with check */}
-                <div className="flex items-center gap-2">
+                {/* Checkbox circle */}
+                <div className={cn(
+                  "w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all mt-0.5",
+                  isSelected
+                    ? "border-primary bg-primary"
+                    : "border-muted-foreground/40"
+                )}>
                   <AnimatePresence mode="wait">
                     {isSelected && (
                       <motion.div
@@ -120,35 +125,50 @@ export const ExamMateriaStep: React.FC<ExamMateriaStepProps> = ({
                         exit={shouldReduceMotion ? {} : { scale: 0, rotate: 90 }}
                         transition={{ type: "spring", stiffness: 400, damping: 20 }}
                       >
-                        <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                        <Check className="h-3 w-3 text-primary-foreground" aria-hidden="true" />
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  <span className={cn(
-                    "font-medium text-sm truncate",
-                    isSelected && "text-primary"
-                  )}>
-                    {materia}
-                  </span>
                 </div>
 
-                {/* Progress bar - only show when selected */}
-                <AnimatePresence>
-                  {isSelected && progress && (
-                    <motion.div
-                      initial={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="space-y-1 overflow-hidden"
-                    >
-                      <Progress value={percentage} className="h-1.5" />
-                      <span className="text-xs text-muted-foreground">
-                        {percentage}% concluído
-                      </span>
-                    </motion.div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Materia name - Full text with word break */}
+                  <span className={cn(
+                    "font-medium text-sm block leading-tight",
+                    "break-words hyphens-auto",
+                    isSelected && "text-primary"
                   )}
-                </AnimatePresence>
+                  style={{ wordBreak: 'break-word' }}
+                  >
+                    {materia}
+                  </span>
+
+                  {/* Progress bar - only show when selected */}
+                  <AnimatePresence>
+                    {isSelected && progress && (
+                      <motion.div
+                        initial={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="space-y-1 overflow-hidden mt-2"
+                      >
+                        <Progress value={percentage} className="h-1.5" />
+                        <span className="text-xs text-muted-foreground">
+                          {percentage}% concluído
+                        </span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Percentage badge (when not selected) */}
+                {!isSelected && progress && percentage > 0 && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
+                    {percentage}%
+                  </span>
+                )}
               </motion.button>
             );
           })}

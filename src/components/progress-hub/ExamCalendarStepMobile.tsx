@@ -5,6 +5,7 @@ import { format, differenceInDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
 interface ExamCalendarStepMobileProps {
@@ -51,117 +52,123 @@ export const ExamCalendarStepMobile: React.FC<ExamCalendarStepMobileProps> = ({
   const countdownInfo = getCountdownMessage(daysUntil);
 
   return (
-    <div className="flex flex-col py-4 space-y-4">
-      {/* Header - Mobile optimized */}
-      <div className="flex items-center gap-3 px-1">
-        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <CalendarDays className="h-6 w-6 text-primary" aria-hidden="true" />
+    <div className="flex flex-col min-h-0 max-h-[85vh]">
+      {/* Header - Compact */}
+      <div className="flex items-center gap-3 py-3 px-1 shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <CalendarDays className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
-        <div>
-          <h2 className="text-xl font-semibold">Quando será sua prova?</h2>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold leading-tight">Quando será sua prova?</h2>
           <p className="text-sm text-muted-foreground">Selecione a data</p>
         </div>
       </div>
 
-      {/* Calendar - Large touch targets for mobile */}
-      <motion.div
-        initial={shouldReduceMotion ? {} : { scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="flex justify-center"
-      >
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={onSelect}
-          disabled={(date) => startOfDay(date) < today}
-          locale={ptBR}
-          className={cn(
-            "rounded-2xl border-2 border-border shadow-lg p-3 pointer-events-auto",
-            "bg-card w-full"
-          )}
-          classNames={{
-            months: "flex flex-col space-y-4",
-            month: "space-y-3",
-            caption: "flex justify-center pt-1 relative items-center text-base font-semibold",
-            caption_label: "text-base font-semibold",
-            nav: "space-x-1 flex items-center",
-            nav_button: cn(
-              "h-10 w-10 bg-transparent p-0 opacity-70 hover:opacity-100",
-              "hover:bg-accent rounded-xl transition-all active:scale-95"
-            ),
-            nav_button_previous: "absolute left-1",
-            nav_button_next: "absolute right-1",
-            table: "w-full border-collapse",
-            head_row: "flex justify-between",
-            head_cell: "text-muted-foreground rounded-md w-12 font-medium text-xs",
-            row: "flex w-full mt-1 justify-between",
-            cell: cn(
-              "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
-              "h-12 w-12" // 48px for touch-friendly targets
-            ),
-            day: cn(
-              "h-12 w-12 p-0 font-normal rounded-2xl text-base",
-              "transition-all duration-150",
-              "active:scale-90",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            ),
-            day_selected: cn(
-              "bg-primary text-primary-foreground font-bold",
-              "scale-110 shadow-lg shadow-primary/40",
-              "ring-2 ring-primary ring-offset-2 ring-offset-background"
-            ),
-            day_today: "bg-accent text-accent-foreground font-semibold",
-            day_outside: "text-muted-foreground opacity-40",
-            day_disabled: "text-muted-foreground opacity-25 cursor-not-allowed",
-            day_hidden: "invisible",
+      {/* Scrollable Content */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="flex flex-col items-center py-2 px-1">
+          {/* Calendar - Responsive sizing */}
+          <motion.div
+            initial={shouldReduceMotion ? {} : { scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-[340px]"
+          >
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={onSelect}
+              disabled={(date) => startOfDay(date) < today}
+              locale={ptBR}
+              className={cn(
+                "rounded-xl border border-border shadow-sm p-2 pointer-events-auto",
+                "bg-card w-full mx-auto"
+              )}
+              classNames={{
+                months: "flex flex-col space-y-3",
+                month: "space-y-2",
+                caption: "flex justify-center pt-1 relative items-center text-sm font-semibold",
+                caption_label: "text-sm font-semibold",
+                nav: "space-x-1 flex items-center",
+                nav_button: cn(
+                  "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100",
+                  "hover:bg-accent rounded-lg transition-all active:scale-95"
+                ),
+                nav_button_previous: "absolute left-0",
+                nav_button_next: "absolute right-0",
+                table: "w-full border-collapse",
+                head_row: "flex justify-around",
+                head_cell: "text-muted-foreground rounded-md w-9 font-medium text-xs",
+                row: "flex w-full mt-1 justify-around",
+                cell: cn(
+                  "relative p-0.5 text-center text-sm focus-within:relative focus-within:z-20",
+                  "h-9 w-9"
+                ),
+                day: cn(
+                  "h-9 w-9 p-0 font-normal rounded-lg text-sm",
+                  "transition-all duration-150",
+                  "active:scale-90",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+                ),
+                day_selected: cn(
+                  "bg-primary text-primary-foreground font-bold",
+                  "scale-105 shadow-md shadow-primary/30",
+                  "ring-2 ring-primary ring-offset-1 ring-offset-background"
+                ),
+                day_today: "bg-accent text-accent-foreground font-semibold",
+                day_outside: "text-muted-foreground opacity-40",
+                day_disabled: "text-muted-foreground opacity-25 cursor-not-allowed",
+                day_hidden: "invisible",
+              }}
+            />
+          </motion.div>
+
+          {/* Date feedback - Animated */}
+          <div className="h-14 flex items-center justify-center mt-2">
+            <AnimatePresence mode="wait">
+              {selectedDate && countdownInfo && (
+                <motion.div
+                  key={selectedDate.toISOString()}
+                  initial={shouldReduceMotion ? {} : { opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={shouldReduceMotion ? {} : { opacity: 0, y: -8, scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="text-center"
+                >
+                  <p className="text-base font-semibold flex items-center gap-2 justify-center">
+                    <span className="text-xl">{countdownInfo.emoji}</span>
+                    {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+                  </p>
+                  <p className={cn("text-sm", getUrgencyStyles(daysUntil))}>
+                    {countdownInfo.text}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </ScrollArea>
+
+      {/* CTA Button - Fixed at bottom with safe area */}
+      <div className="shrink-0 pt-3 pb-2">
+        <motion.div
+          initial={shouldReduceMotion ? {} : { opacity: 0, y: 10 }}
+          animate={{ 
+            opacity: selectedDate ? 1 : 0.5, 
+            y: 0,
           }}
-        />
-      </motion.div>
-
-      {/* Date feedback - Animated */}
-      <div className="h-16 flex items-center justify-center">
-        <AnimatePresence mode="wait">
-          {selectedDate && countdownInfo && (
-            <motion.div
-              key={selectedDate.toISOString()}
-              initial={shouldReduceMotion ? {} : { opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={shouldReduceMotion ? {} : { opacity: 0, y: -10, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="text-center"
-            >
-              <p className="text-xl font-semibold flex items-center gap-2 justify-center">
-                <span className="text-2xl">{countdownInfo.emoji}</span>
-                {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
-              </p>
-              <p className={cn("text-sm mt-0.5", getUrgencyStyles(daysUntil))}>
-                {countdownInfo.text}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* CTA Button - Large for mobile */}
-      <motion.div
-        initial={shouldReduceMotion ? {} : { opacity: 0, y: 10 }}
-        animate={{ 
-          opacity: selectedDate ? 1 : 0.5, 
-          y: 0,
-        }}
-        transition={{ duration: 0.2 }}
-        className="pt-2"
-      >
-        <Button
-          className="w-full h-14 text-lg gap-2 rounded-2xl font-semibold"
-          disabled={!selectedDate}
-          onClick={onNext}
+          transition={{ duration: 0.2 }}
         >
-          Próximo
-          <ArrowRight className="h-5 w-5" />
-        </Button>
-      </motion.div>
+          <Button
+            className="w-full h-12 text-base gap-2 rounded-xl font-semibold"
+            disabled={!selectedDate}
+            onClick={onNext}
+          >
+            Próximo
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+        </motion.div>
+      </div>
     </div>
   );
 };
