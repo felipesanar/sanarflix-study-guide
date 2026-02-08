@@ -250,7 +250,7 @@ export const DynamicRoutes: React.FC = () => {
           )}
 
           {/* Student Journey Analytics - Admin only */}
-          {accessRules.analytics && (
+          {accessRules.analytics ? (
             <Route
               path="/jornada-estudante"
               element={
@@ -264,6 +264,8 @@ export const DynamicRoutes: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+          ) : (
+            <Route path="/jornada-estudante" element={<Navigate to="/simulados" replace />} />
           )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
