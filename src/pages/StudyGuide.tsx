@@ -10,6 +10,7 @@ import { useTheme } from 'next-themes';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useStudyProgress } from '@/hooks/useStudyProgress';
 import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 // Premium Components
@@ -133,6 +134,7 @@ export const StudyGuide: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
+  const { progress, loading: progressLoading, toggleContentCompletion, loadAllProgress, isCompleted: isProgressCompleted } = useStudyProgress();
   const isMobile = useIsMobile();
   const { theme } = useTheme();
   const location = useLocation();
@@ -149,7 +151,6 @@ export const StudyGuide: React.FC = () => {
   const [selectedSemestre, setSelectedSemestre] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastSearchTerm, setLastSearchTerm] = useState<string>('');
-  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
   const [selectedMateria, setSelectedMateria] = useState<string>('');
   const [deepLinkAula, setDeepLinkAula] = useState<string | null>(null);
   const [deepLinkTema, setDeepLinkTema] = useState<string | null>(null);
@@ -202,25 +203,13 @@ export const StudyGuide: React.FC = () => {
     if (saved) setLastSearchTerm(saved);
   }, []);
 
-  // Load completed items
+  // Load progress from Supabase when semester changes
   useEffect(() => {
-    const stored = localStorage.getItem('study-progress');
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        if (Array.isArray(data)) {
-          setCompletedItems(new Set(data));
-        }
-      } catch (e) {
-        console.error('Error loading progress:', e);
-      }
+    if (user?.ies_nome && selectedSemestre) {
+      const semestre = parseInt(selectedSemestre) || user.semestre || 1;
+      loadAllProgress(semestre, user.ies_nome);
     }
-  }, []);
-
-  // Save progress
-  const saveProgress = (items: Set<string>) => {
-    localStorage.setItem('study-progress', JSON.stringify([...items]));
-  };
+  }, [selectedSemestre, user?.ies_nome, user?.semestre, loadAllProgress]);
 
   // Fetch contents
   useEffect(() => {
@@ -337,18 +326,18 @@ export const StudyGuide: React.FC = () => {
   const getAulaId = (item: ConteudoData) => 
     `${item.semestre}-${item.materia}-${item.tema}-${item.subtema}-${item.aula}`;
 
-  const isCompleted = (item: ConteudoData) => completedItems.has(getAulaId(item));
+  const isCompleted = (item: ConteudoData) => isProgressCompleted(getAulaId(item));
 
-  const toggleCompletion = (item: ConteudoData) => {
+  const toggleCompletion = async (item: ConteudoData) => {
     const id = getAulaId(item);
-    const newSet = new Set(completedItems);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setCompletedItems(newSet);
-    saveProgress(newSet);
+    const semestre = parseInt(item.semestre) || parseInt(selectedSemestre) || user?.semestre || 1;
+    await toggleContentCompletion(
+      'aula',
+      id,
+      item.materia,
+      semestre,
+      user?.ies_nome || ''
+    );
   };
 
   // Grouped data
@@ -688,16 +677,16 @@ export const StudyGuide: React.FC = () => {
                             selectedSemestre={selectedSemestre}
                             highlightedAula={deepLinkAula}
                             highlightedTema={deepLinkTema}
-                            isAulaCompleted={(aulaId) => completedItems.has(aulaId)}
-                            onAulaToggle={(aulaId) => {
-                              const newSet = new Set(completedItems);
-                              if (newSet.has(aulaId)) {
-                                newSet.delete(aulaId);
-                              } else {
-                                newSet.add(aulaId);
-                              }
-                              setCompletedItems(newSet);
-                              saveProgress(newSet);
+                            isAulaCompleted={(aulaId) => isProgressCompleted(aulaId)}
+                            onAulaToggle={async (aulaId) => {
+                              const semestre = parseInt(selectedSemestre) || user?.semestre || 1;
+                              await toggleContentCompletion(
+                                'aula',
+                                aulaId,
+                                materia.materia,
+                                semestre,
+                                user?.ies_nome || ''
+                              );
                             }}
                             aulaRefs={aulaRefs}
                           />
