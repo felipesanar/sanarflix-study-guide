@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import Autoplay from 'embla-carousel-autoplay';
 import { 
   GraduationCap, Plus, Calendar, ChevronRight, Clock, Zap
 } from 'lucide-react';
@@ -8,6 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi
+} from '@/components/ui/carousel';
 import { cn } from '@/lib/utils';
 import { useUserExams, calculateExamInsight } from '@/hooks/useUserExams';
 import { AddExamWizard } from './AddExamWizard';
@@ -34,6 +41,31 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isFullModalOpen, setIsFullModalOpen] = useState(false);
+  
+  // Carousel state
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Autoplay plugin - pauses on hover
+  const autoplayPlugin = useRef(
+    Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true })
+  );
+  
+  // Track current slide
+  useEffect(() => {
+    if (!carouselApi) return;
+    
+    setCurrentSlide(carouselApi.selectedScrollSnap());
+    
+    const onSelect = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    };
+    
+    carouselApi.on('select', onSelect);
+    return () => {
+      carouselApi.off('select', onSelect);
+    };
+  }, [carouselApi]);
 
   // Calculate insights for each exam
   const examInsights = useMemo((): ExamInsight[] => {
@@ -185,8 +217,13 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
     );
   }
 
-  // Compact mode with exams
+  // Compact mode with exams - Netflix-style carousel
   if (compact) {
+    const hasMultipleExams = examInsights.length > 1;
+    const carouselPlugins = shouldReduceMotion || !hasMultipleExams 
+      ? [] 
+      : [autoplayPlugin.current];
+
     return (
       <>
         <Card className={cn("h-full flex flex-col", className)}>
@@ -195,6 +232,11 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
               <CardTitle className="flex items-center gap-2 text-base">
                 <GraduationCap className="h-4 w-4 text-primary" aria-hidden="true" />
                 Suas Provas
+                {hasMultipleExams && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({examInsights.length})
+                  </span>
+                )}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -209,72 +251,103 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
           </CardHeader>
 
           <CardContent className="pt-0 flex-1 flex flex-col min-h-0">
-            <div className="space-y-2.5 flex-1">
-              {previewExams.map((insight) => (
-                <motion.div
-                  key={insight.exam.id}
-                  initial={shouldReduceMotion ? {} : { opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
-                  whileTap={shouldReduceMotion ? {} : { scale: 0.99 }}
-                  className={cn(
-                    "rounded-xl border p-3 cursor-pointer transition-all duration-200",
-                    "hover:shadow-md hover:border-primary/30",
-                    getStatusBg(insight.status)
-                  )}
-                  onClick={() => handleNavigate(insight.exam.materia)}
-                >
-                  <div className="flex items-start gap-2.5">
-                    {/* Status indicator with pulse for urgent */}
-                    <div className="relative">
-                      <span className="text-base" aria-hidden="true">{getStatusIcon(insight.status)}</span>
-                      {insight.status === 'critical' && insight.days_remaining <= 3 && (
-                        <motion.div
-                          animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
-                          transition={{ repeat: Infinity, duration: 1.5 }}
-                          className="absolute inset-0 rounded-full bg-destructive/30"
-                        />
+            <Carousel
+              setApi={setCarouselApi}
+              plugins={carouselPlugins}
+              opts={{ loop: true, align: 'start' }}
+              className="w-full flex-1"
+            >
+              <CarouselContent className="-ml-2">
+                {examInsights.map((insight) => (
+                  <CarouselItem key={insight.exam.id} className="pl-2 basis-full">
+                    <div
+                      className={cn(
+                        "rounded-xl border p-3 cursor-pointer transition-all duration-200",
+                        "hover:shadow-md hover:border-primary/30",
+                        getStatusBg(insight.status)
                       )}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <h4 className="font-semibold text-sm truncate">{insight.exam.materia}</h4>
-                        <div className="flex items-center gap-1">
-                          {insight.days_remaining <= 7 && (
-                            <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                      onClick={() => handleNavigate(insight.exam.materia)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          handleNavigate(insight.exam.materia);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        {/* Status indicator with pulse for urgent */}
+                        <div className="relative flex-shrink-0">
+                          <span className="text-base" aria-hidden="true">{getStatusIcon(insight.status)}</span>
+                          {insight.status === 'critical' && insight.days_remaining <= 3 && (
+                            <motion.div
+                              animate={shouldReduceMotion ? {} : { scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                              transition={{ repeat: Infinity, duration: 1.5 }}
+                              className="absolute inset-0 rounded-full bg-destructive/30"
+                            />
                           )}
-                          <span className={cn("text-xs font-bold tabular-nums", getStatusColor(insight.status))}>
-                            {insight.days_remaining === 0 ? 'Hoje!' : 
-                             insight.days_remaining === 1 ? 'Amanhã' : 
-                             `${insight.days_remaining}d`}
-                          </span>
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-semibold text-sm truncate">{insight.exam.materia}</h4>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {insight.days_remaining <= 7 && (
+                                <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                              )}
+                              <span className={cn("text-xs font-bold tabular-nums", getStatusColor(insight.status))}>
+                                {insight.days_remaining === 0 ? 'Hoje!' : 
+                                 insight.days_remaining === 1 ? 'Amanhã' : 
+                                 `${insight.days_remaining}d`}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {insight.materia_progress && (
+                            <div className="mt-2 space-y-1">
+                              <Progress value={insight.materia_progress.percentage} className="h-1.5" />
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span>{insight.materia_progress.percentage}%</span>
+                                {insight.status === 'critical' && insight.lessons_per_day > 0 && (
+                                  <span className="flex items-center gap-0.5 text-destructive font-medium">
+                                    <Zap className="h-2.5 w-2.5" aria-hidden="true" />
+                                    {Math.ceil(insight.lessons_per_day)}/dia
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      
-                      {insight.materia_progress && (
-                        <div className="mt-2 space-y-1">
-                          <Progress value={insight.materia_progress.percentage} className="h-1.5" />
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span>{insight.materia_progress.percentage}%</span>
-                            {insight.status === 'critical' && insight.lessons_per_day > 0 && (
-                              <span className="flex items-center gap-0.5 text-destructive font-medium">
-                                <Zap className="h-2.5 w-2.5" aria-hidden="true" />
-                                {Math.ceil(insight.lessons_per_day)}/dia
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+
+            {/* Navigation dots (Netflix-style) */}
+            {hasMultipleExams && (
+              <div className="flex justify-center gap-1.5 pt-3">
+                {examInsights.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => carouselApi?.scrollTo(idx)}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all duration-300",
+                      idx === currentSlide 
+                        ? "bg-primary w-4" 
+                        : "bg-muted-foreground/30 hover:bg-muted-foreground/50 w-1.5"
+                    )}
+                    aria-label={`Ir para prova ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Footer: View all or Add */}
             <div className="flex items-center gap-2 pt-2 mt-auto border-t">
-              {hasMoreExams ? (
+              {examInsights.length > 2 ? (
                 <Button
                   variant="ghost"
                   size="sm"
