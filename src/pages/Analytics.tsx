@@ -158,7 +158,15 @@ const Analytics = () => {
           </TabsContent>
 
           <TabsContent value="engagement" className="space-y-6">
-            <RealEngagementTab engagement={engagement} isLoading={isLoading} />
+            <RealEngagementTab 
+              engagement={engagement} 
+              isLoading={isLoading} 
+              filters={{
+                dateRange: filters.dateRange,
+                iesId: filters.university,
+                excludedIES: filters.excludedIES,
+              }}
+            />
           </TabsContent>
 
           <TabsContent value="progress" className="space-y-6">
