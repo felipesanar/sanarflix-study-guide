@@ -15,6 +15,8 @@ export interface ProgressOverview {
 export interface ProgressStreak {
   current: number;
   active_days_week: number;
+  /** Array of day indices with activity (0=Sunday, 1=Monday, etc.) */
+  active_days_of_week: number[];
   goal: number;
   /** Number of consecutive weeks where goal was met */
   weeks_achieved?: number;

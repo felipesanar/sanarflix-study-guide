@@ -65,7 +65,7 @@ export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({
           aria-label={`Atividade semanal: ${streak.active_days_week} dias ativos`}
         >
           {DAYS.map((day, i) => {
-            const isActive = i < streak.active_days_week;
+            const isActive = streak.active_days_of_week?.includes(i) ?? false;
             const isToday = i === new Date().getDay();
             
             return (

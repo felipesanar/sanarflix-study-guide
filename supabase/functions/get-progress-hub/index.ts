@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
             status_level: 'starting',
             status_message: 'Sem conteúdos para seu semestre'
           },
-          streak: { current: 0, active_days_week: 0, goal: 3 },
+          streak: { current: 0, active_days_week: 0, active_days_of_week: [], goal: 3 },
           by_materia: [],
           by_tema: [],
           by_subtema: [],
@@ -543,14 +543,16 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Active days this week
+    // Active days this week (Sunday = 0, Monday = 1, etc.)
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay() + 1);
+    weekStart.setDate(today.getDate() - today.getDay()); // Start from Sunday
     let activeDaysThisWeek = 0;
+    const activeDaysOfWeek: number[] = []; // Array with specific day indices (0=Sun, 1=Mon, etc.)
     for (let i = 0; i < 7; i++) {
       const checkDate = new Date(weekStart.getTime() + i * 86400000);
       if (activityDates.has(checkDate.toISOString().split('T')[0])) {
         activeDaysThisWeek++;
+        activeDaysOfWeek.push(i); // Store the day index
       }
     }
 
@@ -704,6 +706,7 @@ Deno.serve(async (req) => {
       streak: {
         current: currentStreak,
         active_days_week: activeDaysThisWeek,
+        active_days_of_week: activeDaysOfWeek, // Specific day indices [0=Sun, 1=Mon, ...]
         goal: 3 // Default goal, can be made configurable later
       },
       by_materia: byMateria,
