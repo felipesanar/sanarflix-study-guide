@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  GraduationCap, Plus, Calendar, ChevronRight, Clock
+  GraduationCap, Plus, Calendar, ChevronRight, Clock, Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useUserExams, calculateExamInsight } from '@/hooks/useUserExams';
-import { AddExamModal } from './AddExamModal';
+import { AddExamWizard } from './AddExamWizard';
 import { ExamItem } from './ExamItem';
 import { ExamsFullModal } from './ExamsFullModal';
 import type { MateriaProgress, ExamInsight } from '@/types/progressHub';
@@ -70,10 +70,19 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
 
   const getStatusColor = (status: ExamInsight['status']) => {
     switch (status) {
-      case 'critical': return 'text-red-500';
+      case 'critical': return 'text-destructive';
       case 'warning': return 'text-amber-500';
       case 'on_track': return 'text-emerald-500';
-      case 'excellent': return 'text-blue-500';
+      case 'excellent': return 'text-primary';
+    }
+  };
+
+  const getStatusBg = (status: ExamInsight['status']) => {
+    switch (status) {
+      case 'critical': return 'bg-destructive/10 border-destructive/30';
+      case 'warning': return 'bg-amber-500/10 border-amber-500/30';
+      case 'on_track': return 'bg-emerald-500/10 border-emerald-500/30';
+      case 'excellent': return 'bg-primary/10 border-primary/30';
     }
   };
 
@@ -129,10 +138,11 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
           </CardContent>
         </Card>
 
-        <AddExamModal
+        <AddExamWizard
           open={isAddModalOpen}
           onOpenChange={setIsAddModalOpen}
           materias={materiasList}
+          materiasProgress={byMateria}
           onAdd={handleAddExam}
         />
       </>
@@ -164,10 +174,11 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
           </CardContent>
         </Card>
 
-        <AddExamModal
+        <AddExamWizard
           open={isAddModalOpen}
           onOpenChange={setIsAddModalOpen}
           materias={materiasList}
+          materiasProgress={byMateria}
           onAdd={handleAddExam}
         />
       </>
@@ -198,38 +209,61 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
           </CardHeader>
 
           <CardContent className="pt-0 flex-1 flex flex-col min-h-0">
-            <div className="space-y-2 flex-1">
+            <div className="space-y-2.5 flex-1">
               {previewExams.map((insight) => (
                 <motion.div
                   key={insight.exam.id}
-                  initial={shouldReduceMotion ? {} : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={shouldReduceMotion ? {} : { opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
+                  whileTap={shouldReduceMotion ? {} : { scale: 0.99 }}
                   className={cn(
-                    "rounded-lg border p-2.5 cursor-pointer transition-colors hover:bg-accent/50",
-                    insight.status === 'critical' && "border-l-2 border-l-red-500",
-                    insight.status === 'warning' && "border-l-2 border-l-amber-500",
-                    insight.status === 'on_track' && "border-l-2 border-l-emerald-500",
-                    insight.status === 'excellent' && "border-l-2 border-l-blue-500"
+                    "rounded-xl border p-3 cursor-pointer transition-all duration-200",
+                    "hover:shadow-md hover:border-primary/30",
+                    getStatusBg(insight.status)
                   )}
                   onClick={() => handleNavigate(insight.exam.materia)}
                 >
-                  <div className="flex items-start gap-2">
-                    <span className="text-sm" aria-hidden="true">{getStatusIcon(insight.status)}</span>
+                  <div className="flex items-start gap-2.5">
+                    {/* Status indicator with pulse for urgent */}
+                    <div className="relative">
+                      <span className="text-base" aria-hidden="true">{getStatusIcon(insight.status)}</span>
+                      {insight.status === 'critical' && insight.days_remaining <= 3 && (
+                        <motion.div
+                          animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                          transition={{ repeat: Infinity, duration: 1.5 }}
+                          className="absolute inset-0 rounded-full bg-destructive/30"
+                        />
+                      )}
+                    </div>
+                    
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <h4 className="font-medium text-sm truncate">{insight.exam.materia}</h4>
-                        <span className={cn("text-xs font-medium", getStatusColor(insight.status))}>
-                          {insight.days_remaining === 0 ? 'Hoje' : 
-                           insight.days_remaining === 1 ? 'Amanhã' : 
-                           `${insight.days_remaining}d`}
-                        </span>
-                      </div>
-                      {insight.materia_progress && (
-                        <div className="mt-1.5">
-                          <Progress value={insight.materia_progress.percentage} className="h-1.5" />
-                          <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                            {insight.materia_progress.percentage}% concluído
+                        <h4 className="font-semibold text-sm truncate">{insight.exam.materia}</h4>
+                        <div className="flex items-center gap-1">
+                          {insight.days_remaining <= 7 && (
+                            <Clock className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
+                          )}
+                          <span className={cn("text-xs font-bold tabular-nums", getStatusColor(insight.status))}>
+                            {insight.days_remaining === 0 ? 'Hoje!' : 
+                             insight.days_remaining === 1 ? 'Amanhã' : 
+                             `${insight.days_remaining}d`}
                           </span>
+                        </div>
+                      </div>
+                      
+                      {insight.materia_progress && (
+                        <div className="mt-2 space-y-1">
+                          <Progress value={insight.materia_progress.percentage} className="h-1.5" />
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>{insight.materia_progress.percentage}%</span>
+                            {insight.status === 'critical' && insight.lessons_per_day > 0 && (
+                              <span className="flex items-center gap-0.5 text-destructive font-medium">
+                                <Zap className="h-2.5 w-2.5" aria-hidden="true" />
+                                {Math.ceil(insight.lessons_per_day)}/dia
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -265,10 +299,11 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
           </CardContent>
         </Card>
 
-        <AddExamModal
+        <AddExamWizard
           open={isAddModalOpen}
           onOpenChange={setIsAddModalOpen}
           materias={materiasList}
+          materiasProgress={byMateria}
           onAdd={handleAddExam}
         />
 
@@ -333,10 +368,11 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
         </CardContent>
       </Card>
 
-      <AddExamModal
+      <AddExamWizard
         open={isAddModalOpen}
         onOpenChange={setIsAddModalOpen}
         materias={materiasList}
+        materiasProgress={byMateria}
         onAdd={handleAddExam}
       />
     </>
