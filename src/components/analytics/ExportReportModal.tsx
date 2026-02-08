@@ -94,13 +94,13 @@ const formatOptions: {
   },
   {
     value: 'xlsx-simulados',
-    label: 'Apenas Simulados',
+    label: 'Simulados Premium',
     subtitle: '.xlsx',
     features: [
-      'Foco em performance',
-      '10 abas especializadas',
-      'Questões problemáticas',
-      'Análise pedagógica',
+      '15 abas especializadas',
+      'Gaps pedagógicos rankeados',
+      'Matriz IES × Simulado',
+      'Heatmap + Distribuição',
     ],
     icon: BarChart3,
     iconColor: 'text-violet-500',
