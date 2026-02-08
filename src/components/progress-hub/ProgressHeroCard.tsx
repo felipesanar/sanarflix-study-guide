@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Rocket, RefreshCw, TrendingUp, Zap, Crown, 
@@ -17,6 +17,8 @@ interface ProgressHeroCardProps {
   streak: ProgressStreak;
   lastActivity: LastActivity | null;
   user: ProgressHubUser;
+  onContinueClick?: () => void;
+  onCalendarClick?: () => void;
 }
 
 const StatusIcon = ({ status }: { status: ProgressOverview['status_level'] }) => {
@@ -28,19 +30,23 @@ const StatusIcon = ({ status }: { status: ProgressOverview['status_level'] }) =>
     dominating: Crown
   };
   const Icon = icons[status];
-  return <Icon className="h-4 w-4" />;
+  return <Icon className="h-4 w-4" aria-hidden="true" />;
 };
 
 export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
   overview,
   streak,
   lastActivity,
-  user
+  user,
+  onContinueClick,
+  onCalendarClick
 }) => {
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
   const statusConfig = STATUS_CONFIG[overview.status_level];
 
   const handleContinue = () => {
+    onContinueClick?.();
     if (lastActivity) {
       const params = new URLSearchParams();
       if (lastActivity.materia) params.set('materia', lastActivity.materia);
@@ -52,13 +58,21 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
   };
 
   const handleOpenCalendar = () => {
+    onCalendarClick?.();
     navigate('/guia-estudos?view=calendar&edit=true');
   };
 
+  // Animation variants with reduced motion support
+  const getAnimationProps = (props: object) => shouldReduceMotion ? {} : props;
+
   return (
-    <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/5">
+    <Card 
+      className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/5"
+      role="region"
+      aria-label="Resumo do progresso"
+    >
       {/* Subtle pattern */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]" aria-hidden="true">
         <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] [background-size:24px_24px]" />
       </div>
 
@@ -69,11 +83,17 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
             {/* Progress ring */}
             <motion.div 
               className="relative"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
+              {...getAnimationProps({
+                initial: { scale: 0.8, opacity: 0 },
+                animate: { scale: 1, opacity: 1 },
+                transition: { duration: 0.5, ease: 'easeOut' }
+              })}
             >
-              <svg className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 -rotate-90">
+              <svg 
+                className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 -rotate-90"
+                role="img"
+                aria-label={`Progresso: ${overview.percentage}% concluído`}
+              >
                 {/* Background circle */}
                 <circle
                   cx="50%"
@@ -92,9 +112,9 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                   fill="none"
                   strokeLinecap="round"
                   className="stroke-primary"
-                  initial={{ pathLength: 0 }}
+                  initial={shouldReduceMotion ? { pathLength: overview.percentage / 100 } : { pathLength: 0 }}
                   animate={{ pathLength: overview.percentage / 100 }}
-                  transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+                  transition={shouldReduceMotion ? {} : { duration: 1, ease: 'easeOut', delay: 0.2 }}
                   style={{
                     strokeDasharray: '283',
                     strokeDashoffset: `calc(283 - (283 * ${overview.percentage}) / 100)`
@@ -105,9 +125,11 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <motion.span 
                   className="text-2xl sm:text-3xl lg:text-4xl font-bold"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
+                  {...getAnimationProps({
+                    initial: { opacity: 0 },
+                    animate: { opacity: 1 },
+                    transition: { delay: 0.5 }
+                  })}
                 >
                   {overview.percentage}%
                 </motion.span>
@@ -123,20 +145,24 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                   "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium w-fit",
                   statusConfig.color
                 )}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                {...getAnimationProps({
+                  initial: { opacity: 0, x: -10 },
+                  animate: { opacity: 1, x: 0 },
+                  transition: { delay: 0.3 }
+                })}
               >
                 <StatusIcon status={overview.status_level} />
-                {overview.status_message}
+                <span>{overview.status_message}</span>
               </motion.div>
 
               {/* Stats */}
               <motion.div 
                 className="space-y-1"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
+                {...getAnimationProps({
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  transition: { delay: 0.4 }
+                })}
               >
                 <p className="text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">{overview.completed}</span> de {overview.total} aulas
@@ -153,11 +179,15 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
             {/* Streak mini card */}
             <motion.div 
               className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
+              role="status"
+              aria-label={`Atividade semanal: ${streak.active_days_week} de ${streak.goal} dias`}
+              {...getAnimationProps({
+                initial: { opacity: 0, y: 10 },
+                animate: { opacity: 1, y: 0 },
+                transition: { delay: 0.5 }
+              })}
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" aria-hidden="true">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div
                     key={i}
@@ -179,16 +209,18 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
             {/* CTAs */}
             <motion.div 
               className="flex flex-col sm:flex-row gap-2"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+              {...getAnimationProps({
+                initial: { opacity: 0, y: 10 },
+                animate: { opacity: 1, y: 0 },
+                transition: { delay: 0.6 }
+              })}
             >
               <Button 
                 onClick={handleContinue}
                 size="lg"
-                className="gap-2"
+                className="gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <Play className="h-4 w-4" />
+                <Play className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Continuar de onde parei</span>
                 <span className="sm:hidden">Continuar</span>
               </Button>
@@ -196,9 +228,9 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                 onClick={handleOpenCalendar}
                 variant="outline"
                 size="lg"
-                className="gap-2"
+                className="gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Organizar semana</span>
                 <span className="sm:hidden">Agenda</span>
               </Button>

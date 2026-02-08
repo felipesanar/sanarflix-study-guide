@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, ChevronDown, ChevronRight, CheckCircle2, 
@@ -18,6 +18,7 @@ interface SemesterMapCardProps {
   byMateria: MateriaProgress[];
   byTema: TemaProgress[];
   onCompleteTheme?: (materia: string, tema: string) => void;
+  onThemeClick?: (materia: string, tema: string) => void;
   syncing?: boolean;
 }
 
@@ -25,9 +26,11 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   byMateria,
   byTema,
   onCompleteTheme,
+  onThemeClick,
   syncing
 }) => {
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
   const [expandedMaterias, setExpandedMaterias] = useState<Set<string>>(new Set());
 
   const toggleMateria = (materia: string) => {
@@ -43,6 +46,7 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   };
 
   const handleViewPending = (materia: string, tema?: string) => {
+    onThemeClick?.(materia, tema || '');
     const params = new URLSearchParams();
     params.set('materia', materia);
     if (tema) params.set('tema', tema);
@@ -50,18 +54,25 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
     navigate(`/guia-estudos?${params.toString()}`);
   };
 
+  // Animation helpers
+  const getAnimationProps = (delay: number) => shouldReduceMotion ? {} : {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    transition: { delay }
+  };
+
   if (byMateria.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <BookOpen className="h-5 w-5 text-primary" />
+            <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
             Mapa do Semestre
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center justify-center py-8 text-center" role="status">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3" aria-hidden="true">
               📚
             </div>
             <p className="font-medium">Nenhum conteúdo disponível</p>
@@ -78,11 +89,11 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <BookOpen className="h-5 w-5 text-primary" />
+          <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
           Mapa do Semestre
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3" role="list" aria-label="Progresso por matéria">
         {byMateria.map((materia, index) => {
           const isExpanded = expandedMaterias.has(materia.materia);
           const materiaStatus = getTemaStatus(materia.percentage);
@@ -93,9 +104,8 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
           return (
             <motion.div
               key={materia.materia}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
+              {...getAnimationProps(index * 0.05)}
+              role="listitem"
             >
               <Collapsible open={isExpanded} onOpenChange={() => toggleMateria(materia.materia)}>
                 <CollapsibleTrigger asChild>
@@ -103,12 +113,23 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                     className={cn(
                       "w-full p-4 rounded-xl border bg-card cursor-pointer",
                       "hover:bg-muted/50 hover:border-primary/20 transition-all",
+                      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       isExpanded && "border-primary/30 bg-muted/30"
                     )}
+                    tabIndex={0}
+                    role="button"
+                    aria-expanded={isExpanded}
+                    aria-label={`${materia.materia}: ${materia.percentage}% concluído, ${materia.completed} de ${materia.total} aulas`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleMateria(materia.materia);
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       {/* Expand icon */}
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0" aria-hidden="true">
                         {isExpanded ? (
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         ) : (
@@ -123,11 +144,15 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                             {materia.materia}
                           </h4>
                           {isComplete && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" aria-label="Concluído" />
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Progress value={materia.percentage} className="h-1.5 flex-1" />
+                          <Progress 
+                            value={materia.percentage} 
+                            className="h-1.5 flex-1" 
+                            aria-label={`${materia.percentage}% concluído`}
+                          />
                           <span className="text-xs text-muted-foreground flex-shrink-0">
                             {materia.completed}/{materia.total}
                           </span>
@@ -149,11 +174,13 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                   <AnimatePresence>
                     {isExpanded && (
                       <motion.div
-                        initial={{ opacity: 0, height: 0 }}
+                        initial={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
+                        exit={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
+                        transition={shouldReduceMotion ? {} : { duration: 0.2 }}
                         className="pl-8 pr-4 py-2 space-y-2"
+                        role="list"
+                        aria-label={`Temas de ${materia.materia}`}
                       >
                         {temasForMateria.map((tema) => {
                           const temaStatus = getTemaStatus(tema.percentage);
@@ -164,9 +191,10 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                             <div
                               key={`${tema.materia}-${tema.tema}`}
                               className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                              role="listitem"
                             >
                               {/* Status icon */}
-                              <div className="flex-shrink-0">
+                              <div className="flex-shrink-0" aria-hidden="true">
                                 {isTemaComplete ? (
                                   <Trophy className="h-4 w-4 text-emerald-500" />
                                 ) : temaStatus === 'atrasado' ? (
@@ -197,14 +225,15 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-7 text-xs"
+                                    className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleViewPending(materia.materia, tema.tema);
                                     }}
+                                    aria-label={`Ver aulas pendentes de ${tema.tema}`}
                                   >
                                     Ver
-                                    <ExternalLink className="h-3 w-3 ml-1" />
+                                    <ExternalLink className="h-3 w-3 ml-1" aria-hidden="true" />
                                   </Button>
                                 )}
 
@@ -212,14 +241,15 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                                   <Button
                                     size="sm"
                                     variant="secondary"
-                                    className="h-7 text-xs"
+                                    className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
                                     disabled={syncing}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onCompleteTheme(materia.materia, tema.tema);
                                     }}
+                                    aria-label={`Marcar ${tema.tema} como concluído`}
                                   >
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
                                     Concluir
                                   </Button>
                                 )}

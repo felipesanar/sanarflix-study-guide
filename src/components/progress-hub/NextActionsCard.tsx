@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   Play, FileText, ListChecks, Sparkles, 
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 interface NextActionsCardProps {
   actions: NextAction[];
   onComplete?: (action: NextAction) => void;
+  onActionClick?: (action: NextAction, actionType: 'view' | 'video' | 'pdf' | 'quiz') => void;
 }
 
 const ActionTypeConfig = {
@@ -36,22 +37,24 @@ const ActionTypeConfig = {
 
 export const NextActionsCard: React.FC<NextActionsCardProps> = ({ 
   actions,
-  onComplete 
+  onComplete,
+  onActionClick
 }) => {
   const navigate = useNavigate();
+  const shouldReduceMotion = useReducedMotion();
 
   if (actions.length === 0) {
     return (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
             Próximos passos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center justify-center py-8 text-center" role="status">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3" aria-hidden="true">
               🎉
             </div>
             <p className="font-medium">Tudo em dia!</p>
@@ -63,6 +66,7 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
   }
 
   const handleOpenContent = (action: NextAction) => {
+    onActionClick?.(action, 'view');
     // Deep link to study guide
     const params = new URLSearchParams();
     if (action.materia) params.set('materia', action.materia);
@@ -71,19 +75,27 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
     navigate(`/guia-estudos?${params.toString()}`);
   };
 
-  const handleOpenLink = (url: string) => {
+  const handleOpenLink = (action: NextAction, type: 'video' | 'pdf' | 'quiz', url: string) => {
+    onActionClick?.(action, type);
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Animation helpers
+  const getAnimationProps = (delay: number) => shouldReduceMotion ? {} : {
+    initial: { opacity: 0, x: -10 },
+    animate: { opacity: 1, x: 0 },
+    transition: { delay }
   };
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Sparkles className="h-5 w-5 text-primary" />
+          <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
           O que fazer agora
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3" role="list" aria-label="Próximas ações recomendadas">
         {actions.slice(0, 3).map((action, index) => {
           const typeConfig = ActionTypeConfig[action.type];
           const TypeIcon = typeConfig.icon;
@@ -94,25 +106,34 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
           return (
             <motion.div
               key={action.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
+              {...getAnimationProps(index * 0.1)}
               className="group relative"
+              role="listitem"
             >
               <div 
                 className={cn(
                   "p-4 rounded-xl border bg-card",
-                  "hover:bg-muted/50 hover:border-primary/20 transition-all cursor-pointer"
+                  "hover:bg-muted/50 hover:border-primary/20 transition-all cursor-pointer",
+                  "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                 )}
                 onClick={() => handleOpenContent(action)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleOpenContent(action);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`${typeConfig.label}: ${action.aula || action.tema || action.materia}. ${action.reason}`}
               >
                 {/* Type badge */}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <Badge variant="secondary" className={cn("text-xs", typeConfig.color)}>
-                    <TypeIcon className="h-3 w-3 mr-1" />
+                    <TypeIcon className="h-3 w-3 mr-1" aria-hidden="true" />
                     {typeConfig.label}
                   </Badge>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
                 </div>
 
                 {/* Content info */}
@@ -125,18 +146,19 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
                 </p>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   {hasVideo && (
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1"
+                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenLink(action.link_aula!);
+                        handleOpenLink(action, 'video', action.link_aula!);
                       }}
+                      aria-label={`Assistir aula: ${action.aula || action.tema}`}
                     >
-                      <Play className="h-3 w-3" />
+                      <Play className="h-3 w-3" aria-hidden="true" />
                       Assistir
                     </Button>
                   )}
@@ -144,13 +166,14 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1"
+                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenLink(action.link_pdf!);
+                        handleOpenLink(action, 'pdf', action.link_pdf!);
                       }}
+                      aria-label={`Abrir PDF: ${action.aula || action.tema}`}
                     >
-                      <FileText className="h-3 w-3" />
+                      <FileText className="h-3 w-3" aria-hidden="true" />
                       PDF
                     </Button>
                   )}
@@ -158,13 +181,14 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1"
+                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenLink(action.link_quiz!);
+                        handleOpenLink(action, 'quiz', action.link_quiz!);
                       }}
+                      aria-label={`Fazer quiz: ${action.aula || action.tema}`}
                     >
-                      <ListChecks className="h-3 w-3" />
+                      <ListChecks className="h-3 w-3" aria-hidden="true" />
                       Quiz
                     </Button>
                   )}
