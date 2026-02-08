@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Play, FileText, ListChecks, Sparkles, 
+  Play, FileText, ListChecks, CircleHelp, 
   Zap, Rocket, ChevronRight, Clock 
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ interface NextActionsCardProps {
 
 const ActionTypeConfig = {
   today_focus: {
-    icon: Sparkles,
+    icon: CircleHelp,
     label: 'Foco de hoje',
     color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
   },
@@ -47,8 +47,8 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
+        <CardTitle className="flex items-center gap-2 text-lg">
+            <CircleHelp className="h-5 w-5 text-primary" aria-hidden="true" />
             Próximos passos
           </CardTitle>
         </CardHeader>
@@ -91,7 +91,7 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
-          <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
+          <CircleHelp className="h-5 w-5 text-primary" aria-hidden="true" />
           O que fazer agora
         </CardTitle>
       </CardHeader>
