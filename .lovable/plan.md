@@ -1,186 +1,132 @@
 
-# Plano: Melhorar Exibicao de Erros no Importador de Guia de Estudos
+# Plano: Lista de Usuarios com Edicao Inline
 
 ## Objetivo
-Transformar a exibicao de erros de validacao em uma interface mais clara, amigavel e acionavel, permitindo ao usuario entender exatamente o problema e saber o que fazer para corrigi-lo.
+Adicionar uma nova secao na aba "Usuarios" do painel de administracao que exibe todos os usuarios cadastrados em uma tabela, permitindo visualizar e editar seus dados diretamente na linha (inline editing).
 
-## Problemas Atuais
-1. Codigos de erro tecnicos (ex: `INVALID_SEMESTRE`) sao pouco amigaveis
-2. Mensagens genericas que nao explicam claramente o problema
-3. Nao ha orientacoes sobre como corrigir cada tipo de erro
-4. Nao ha agrupamento inteligente por tipo de acao necessaria
-5. Limitacao de visualizacao (mostra apenas 5 exemplos)
+## Funcionalidades
 
-## Solucao Proposta
+### 1. Listagem de Usuarios
+- Tabela com todas as colunas: Nome, Email, IES, Semestre
+- Busca/filtro por nome, email ou IES
+- Paginacao para performance (ex: 25 usuarios por pagina)
+- Indicador de loading durante carregamento
+- Badge indicando role (Admin, Professor, Aluno)
 
-### 1. Mapa de Erros com Metadados Ricos
-Criar um catalogo de tipos de erro com:
-- Titulo amigavel em portugues
-- Descricao detalhada do problema
-- Icone visual apropriado
-- Lista de acoes possiveis para correcao
-- Nivel de severidade visual
+### 2. Edicao Inline
+- Clique duplo ou botao "Editar" transforma a linha em modo de edicao
+- Campos editaveis: Nome, IES (dropdown), Semestre (input numerico)
+- Email e aparece como read-only (nao editavel, pois e identificador unico)
+- Botoes "Salvar" e "Cancelar" aparecem durante edicao
+- Validacao em tempo real dos campos
 
-```text
-+--------------------------------------------------+
-|  Codigo Interno  |  Titulo Amigavel              |
-+--------------------------------------------------+
-|  INVALID_SEMESTRE | "Semestre Invalido"          |
-|  MISSING_MATERIA  | "Materia Obrigatoria"        |
-|  INVALID_URL      | "Link com Formato Incorreto" |
-|  UNMAPPED_SHEET   | "Aba Sem IES Vinculada"      |
-|  DUPLICATE_ROW    | "Linha Duplicada"            |
-|  SPARSE_ROW       | "Linha com Poucos Dados"     |
-+--------------------------------------------------+
-```
+### 3. Acoes Disponiveis
+- Editar inline (nome, IES, semestre)
+- Promover/remover role de admin
+- Reenviar email de convite
+- Sincronizar autenticacao (integra com funcao existente)
 
-### 2. Componente de Erro Expandivel (`ErrorGroupCard`)
-Cada categoria de erro sera um card expandivel contendo:
-- Header com icone, titulo amigavel, badge de quantidade
-- Descricao clara do problema quando expandido
-- Lista de linhas afetadas (com scroll interno)
-- Secao "O que fazer" com acoes recomendadas
-- Valores invalidos encontrados (ex: lista de semestres invalidos unicos)
+## Arquitetura Tecnica
+
+### Novo Componente: `UsersListTable.tsx`
+Componente dedicado para a listagem e edicao de usuarios:
 
 ```text
-+-------------------------------------------------------+
-| [!] Semestre Invalido                    2.725 linhas |
-|     "O campo semestre deve conter um numero"          |
-+-------------------------------------------------------+
-| EXPANDIDO:                                            |
-|                                                       |
-| O que esta errado?                                    |
-| O campo "semestre" deve conter um numero de 1 a 12,   |
-| porem encontramos valores como texto. Valores         |
-| invalidos encontrados: INTERNATO, N/A, INTEGRAL.      |
-|                                                       |
-| Linhas afetadas: 1569, 1570, 1571, 1572... (+2721)    |
-|                                                       |
-| Como resolver?                                        |
-| [Botao] Baixar lista de linhas com erro               |
-| [Botao] Editar arquivo original e re-importar         |
-|                                                       |
-| Dica: Se "INTERNATO" representa o 11o ou 12o          |
-| semestre, substitua pelo numero correspondente.       |
-+-------------------------------------------------------+
++------------------------------------------------------------------+
+| [Buscar usuarios...]                    [Filtrar por IES: Todas] |
++------------------------------------------------------------------+
+| Nome           | Email              | IES       | Sem | Acoes    |
++------------------------------------------------------------------+
+| Joao Silva     | joao@ex.com        | USCS      | 5   | [Edit]   |
+| Maria Santos   | maria@ex.com       | Claretiano| 7   | [Edit]   |
+|                                                                  |
+| [Em edicao - campos inline]                                      |
+| [Input Nome]   | maria@ex.com       | [Select]  |[7] | [✓] [✕]  |
++------------------------------------------------------------------+
+| Mostrando 1-25 de 150                       [<] [1] [2] [3] [>]  |
++------------------------------------------------------------------+
 ```
 
-### 3. Acoes Disponiveis por Tipo de Erro
+### Fluxo de Dados
 
-Para `INVALID_SEMESTRE`:
-- Baixar lista de linhas afetadas
-- Sugestao: mapear valores textuais para numeros
+1. **Buscar usuarios**: Query ao Supabase com JOIN na tabela `ies` para obter nome da IES
+2. **Buscar roles**: Query separada na tabela `user_roles` para identificar admins
+3. **Atualizar usuario**: Reutiliza a edge function `b2b-create-user` (ja suporta UPDATE)
+4. **Gerenciar roles**: Query direta na `user_roles` (admin tem permissao via RLS)
 
-Para `MISSING_MATERIA`:
-- Baixar lista de linhas sem materia
-- Orientar preenchimento obrigatorio
+### Estado do Componente
 
-Para `INVALID_URL`:
-- Listar URLs malformados
-- Mostrar formato esperado (https://...)
-
-Para `UNMAPPED_SHEET`:
-- Botao para voltar a etapa de configuracao
-- Instrucao para mapear a aba
-
-Para `DUPLICATE_ROW`:
-- Informar que duplicatas serao ignoradas automaticamente no modo MERGE
-- Opcao de baixar lista para revisao manual
-
-Para `SPARSE_ROW` (aviso):
-- Mostrar que a importacao continuara normalmente
-- Sugerir revisar se dados estao incompletos intencionalmente
-
-### 4. Download Inteligente de Erros
-- Botao por categoria de erro (baixar apenas erros daquele tipo)
-- Botao geral para baixar relatorio completo
-- CSV com colunas: linha, aba, campo, valor_atual, valor_esperado
-
-### 5. Visual Premium
-- Cards com bordas coloridas por severidade
-- Animacao suave de expansao/colapso
-- Badges com cores: vermelho (critico), amarelo (aviso)
-- Scroll area com altura maxima para listas longas
-- Valores invalidos destacados com `code` styling
-
-## Arquivos a Modificar
-
-### 1. Novo Arquivo: `errorMetadata.ts`
-Catalogo centralizado de metadados de erros com:
-- Mapa de codigo para titulo/descricao/acoes
-- Funcoes helper para formatar mensagens
-
-### 2. Novo Componente: `ErrorGroupCard.tsx`
-Card expandivel para cada categoria de erro:
-- Header clicavel para expandir/colapsar
-- Secoes internas: descricao, linhas, acoes
-- Botoes de acao contextuais
-
-### 3. Atualizar: `ValidationSummary.tsx`
-- Substituir lista simples por `ErrorGroupCard`s
-- Adicionar logica de extracao de valores unicos invalidos
-- Melhorar layout geral
-
-### 4. Atualizar: `parseFile.ts`
-- Adicionar campo `invalidValue` ao `ValidationIssue`
-- Enriquecer mensagens de erro com mais contexto
-
-## Secao Tecnica
-
-### Estrutura do Catalogo de Erros
 ```typescript
-interface ErrorMetadata {
-  title: string;
-  icon: LucideIcon;
-  severity: 'critical' | 'warning' | 'info';
-  description: string;
-  actions: ErrorAction[];
-  tip?: string;
+interface UserRow {
+  id: string;
+  nome: string;
+  email: string;
+  id_ies: string | null;
+  ies_nome: string | null;
+  semestre: number | null;
+  roles: string[];
 }
 
-interface ErrorAction {
-  label: string;
-  type: 'download' | 'navigate' | 'info';
-  handler?: (issues: ValidationIssue[]) => void;
+interface EditingState {
+  userId: string | null;
+  nome: string;
+  id_ies: string;
+  semestre: string;
 }
-
-const ERROR_METADATA: Record<string, ErrorMetadata> = {
-  INVALID_SEMESTRE: {
-    title: 'Semestre Invalido',
-    icon: Calendar,
-    severity: 'critical',
-    description: 'O campo semestre deve conter um numero de 1 a 12.',
-    actions: [
-      { label: 'Baixar linhas afetadas', type: 'download' },
-    ],
-    tip: 'Se o arquivo usa nomes como "INTERNATO", substitua pelo numero do semestre correspondente (ex: 11 ou 12).'
-  },
-  // ... outros erros
-};
 ```
 
-### Extracao de Valores Unicos
-```typescript
-const uniqueInvalidValues = useMemo(() => {
-  const values = new Set<string>();
-  issues.forEach(issue => {
-    const match = issue.message.match(/"([^"]+)"/);
-    if (match) values.add(match[1]);
-  });
-  return Array.from(values).slice(0, 10);
-}, [issues]);
+### Validacoes
+- Nome: minimo 2 caracteres, apenas letras e espacos
+- Semestre: numero de 1 a 12
+- IES: deve existir na lista
+
+## Arquivos a Criar/Modificar
+
+### 1. Criar: `src/components/admin/UsersListTable.tsx`
+Componente principal com:
+- Fetch de usuarios com paginacao
+- Busca e filtros
+- Modo de edicao inline
+- Acoes por usuario
+
+### 2. Modificar: `src/components/admin/UsersTab.tsx`
+- Adicionar estatisticas reais (total de usuarios, admins)
+- Integrar o novo `UsersListTable` acima dos cards existentes
+- Reorganizar layout para acomodar a nova secao
+
+## Interface Visual
+
+### Linha Normal
+```text
+| Nome Completo    | email@exemplo.com | IES Nome | 5  | [Editar] [⋮] |
 ```
 
-## Entregaveis
-1. Catalogo de metadados de erros (`errorMetadata.ts`)
-2. Componente `ErrorGroupCard.tsx` com UI premium
-3. `ValidationSummary.tsx` atualizado
-4. Funcao de download por categoria de erro
-5. Campos enriquecidos no `ValidationIssue`
+### Linha em Edicao
+```text
+| [Input: Nome]    | email@exemplo.com | [Select] |[5] | [Salvar] [Cancelar] |
+```
+
+### Menu de Acoes (dropdown no botao ⋮)
+- Reenviar convite (se nunca confirmou email)
+- Sincronizar auth (chama funcao existente)
+- Promover a admin / Remover admin
+
+## Consideracoes de Segurança
+
+1. Todas as atualizacoes passam pela edge function `b2b-create-user` que:
+   - Verifica se o caller tem role 'admin' via RPC seguro
+   - Valida todos os campos com Zod
+   - Atualiza `auth.users` e `public.users` de forma atomica
+
+2. Gerenciamento de roles usa RLS da tabela `user_roles`:
+   - Apenas admins podem INSERT/UPDATE/DELETE
+
+3. Listagem respeita politica RLS:
+   - Admins podem ver todos os usuarios (`has_role(auth.uid(), 'admin')`)
 
 ## Beneficios
-- Usuario entende imediatamente o que esta errado
-- Acoes claras e contextuais para cada tipo de erro
-- Visual premium e profissional
-- Reducao de duvidas e tickets de suporte
-- Fluxo de correcao guiado passo a passo
+- Visao completa de todos os usuarios do sistema
+- Edicao rapida sem precisar abrir formularios separados
+- Busca e filtros para localizar usuarios rapidamente
+- Gerenciamento de roles integrado
+- Reutiliza infraestrutura existente (edge functions, RLS)
