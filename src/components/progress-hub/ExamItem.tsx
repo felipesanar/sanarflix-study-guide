@@ -56,9 +56,10 @@ export const ExamItem: React.FC<ExamItemProps> = ({
   const percentage = insight.materia_progress?.percentage || 0;
   const isPastExam = insight.days_remaining < 0;
 
-  // Format date for display
+  // Format date for display - parse date string correctly to avoid timezone issues
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day); // Month is 0-indexed
     return date.toLocaleDateString('pt-BR', {
       day: 'numeric',
       month: 'short'
