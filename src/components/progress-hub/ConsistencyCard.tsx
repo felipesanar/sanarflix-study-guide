@@ -4,6 +4,7 @@ import { Flame, Target, Trophy, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StreakGoalSlider } from './StreakGoalSlider';
+import { GoalHistoryBadge } from './GoalHistoryBadge';
 import type { ProgressStreak } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
 
@@ -158,14 +159,19 @@ export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({
         </motion.div>
 
         {/* Current streak */}
-        {streak.current > 0 && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-            <Flame className="h-4 w-4 text-orange-500" aria-hidden="true" />
-            <span>
-              Sequência atual: <strong className="text-foreground">{streak.current} dias</strong>
-            </span>
-          </div>
-        )}
+        <div className="flex items-center justify-between">
+          {streak.current > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+              <Flame className="h-4 w-4 text-orange-500" aria-hidden="true" />
+              <span>
+                Sequência atual: <strong className="text-foreground">{streak.current} dias</strong>
+              </span>
+            </div>
+          )}
+          {streak.weeks_achieved && streak.weeks_achieved > 0 && (
+            <GoalHistoryBadge weeksAchieved={streak.weeks_achieved} />
+          )}
+        </div>
       </CardContent>
     </Card>
   );

@@ -21,6 +21,7 @@ import {
   EmptyState,
   PreProvaMode,
   SpacedRevisionCard,
+  ExamCountdownCard,
   useMilestoneCelebration,
   type ProgressFilters,
   type MilestoneType,
@@ -472,8 +473,8 @@ export const Dashboard: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* Pre-Prova Toggle (when not active) + Spaced Revision */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Pre-Prova Toggle (when not active) + Exam Countdown + Spaced Revision */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {!isPreProvaMode && (
             <motion.div variants={itemVariants}>
               <PreProvaMode
@@ -483,6 +484,11 @@ export const Dashboard: React.FC = () => {
               />
             </motion.div>
           )}
+          <motion.div variants={itemVariants}>
+            <ExamCountdownCard 
+              examDate={data.user.exam_date || null}
+            />
+          </motion.div>
           <motion.div variants={itemVariants}>
             <SpacedRevisionCard
               byTema={data.by_tema}

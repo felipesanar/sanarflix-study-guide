@@ -16,6 +16,8 @@ export interface ProgressStreak {
   current: number;
   active_days_week: number;
   goal: number;
+  /** Number of consecutive weeks where goal was met */
+  weeks_achieved?: number;
 }
 
 export interface MateriaProgress {
@@ -85,6 +87,7 @@ export interface ProgressHubUser {
   nome: string;
   semestre: number | null;
   streak_goal?: number;
+  exam_date?: string | null;
 }
 
 export interface ProgressHubData {
