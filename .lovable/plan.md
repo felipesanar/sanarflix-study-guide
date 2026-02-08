@@ -1,398 +1,645 @@
 
-# Plano de Reorganização da Central de Progresso
+# Plano: Experiência Premium de Adicionar Prova
 
-## Análise do Problema Atual
+## Diagnóstico do Problema Atual
 
-### Problemas Identificados na Screenshot
+### O Que Está Ruim na Screenshot
 
-| Problema | Descrição | Impacto |
-|----------|-----------|---------|
-| **Cards Espremidos** | Os cards "O que fazer agora", "Sua consistência" e "Diagnóstico" estão em 3 colunas muito estreitas (lg:grid-cols-3), deixando o conteúdo apertado | UX ruim, texto truncado, difícil leitura |
-| **Grande Espaço Vazio** | Entre o Hero Card e a linha de 3 cards há um gap visual, e o ExamTracker na lateral cria um "buraco" no layout | Layout desequilibrado |
-| **ExamTracker Flutuando** | O "Suas Provas" está numa coluna separada de 320px fixa, mas visualmente desconectado do restante | Não se integra ao layout |
-| **Grid Rígido** | O grid `xl:grid-cols-[1fr_320px]` força uma divisão que não escala bem em diferentes viewports | Responsividade ruim |
-| **Proporções Desiguais** | Cards de alturas diferentes forçam espaços vazios entre linhas | Visual "quebrado" |
-
-### Estrutura Atual do Layout
-
-```text
-┌─────────────────────────────────────────────────┬──────────────────┐
-│ Header                                          │                  │
-├─────────────────────────────────────────────────┤                  │
-│ Hero Card (LARGO, ocupa toda a coluna principal)│   ExamTracker    │
-├─────────────────────────────────────────────────┤   (320px fixo)   │
-│ NextActions │ Consistency │ Diagnostics         │                  │
-│    (1/3)    │    (1/3)    │    (1/3)            │                  │
-├─────────────────────────────────────────────────┤                  │
-│ Weekly     │ Coverage    │ SpacedRevision       │                  │
-│  (1/3)     │   (1/3)     │    (1/3)             │                  │
-├─────────────────────────────────────────────────┴──────────────────┤
-│ Filtros + Mapa do Semestre                                         │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-**Problemas técnicos:**
-- Linha 468: `grid-cols-1 xl:grid-cols-[1fr_320px]` - coluna fixa não escala
-- Linha 494: `lg:grid-cols-3` - 3 colunas muito apertadas em telas menores
-- Linha 517: segunda linha de 3 colunas igualmente estreitas
-- `ExamTrackerCard` posicionado fora do fluxo natural dos cards
+| Elemento | Problema | Impacto UX |
+|----------|----------|------------|
+| **Input type="date"** | Input HTML nativo, feio, sem estilo | Experiência inconsistente entre browsers |
+| **Fluxo Linear** | Matéria → Nome → Data (forma tradicional) | Tedioso, não engaja |
+| **Visual Básico** | Dialog genérico, campos padrão | Sem personalidade, zero "wow factor" |
+| **Sem Feedbacks** | Nenhuma animação ou feedback visual | Não transmite progresso/sucesso |
+| **Card Pequeno** | "Suas Provas" muito simples | Não valoriza a informação da prova |
 
 ---
 
-## Proposta de Novo Layout
+## Nova Proposta: Calendar-First Experience
 
-### Princípio: "Layout como Lego"
+### Conceito Principal
 
-A ideia é usar um **grid 12 colunas** (ou grid areas) onde cada card ocupa um número de colunas proporcional à sua importância e tamanho de conteúdo, evitando espaços vazios.
-
-### Novo Layout Desktop (1280+)
+Inverter o fluxo: **começar pela data** (o mais visual e emocional) e depois complementar com matéria/nome.
 
 ```text
-┌────────────────────────────────────────────────────────────────────┐
-│ Header                                                             │
-├────────────────────────────────────────────────────────────────────┤
-│ Risk Alerts (full width, se houver)                                │
-├────────────────────────────────────────┬───────────────────────────┤
-│                                        │                           │
-│ Hero Card                              │   📚 Suas Provas          │
-│ (8 colunas)                            │   (4 colunas, compacto)   │
-│                                        │                           │
-├────────────────────┬───────────────────┴───────────────────────────┤
-│ O que fazer agora  │              Sua Consistência                 │
-│ (6 colunas)        │              (6 colunas)                      │
-├────────────────────┼───────────────────┬───────────────────────────┤
-│ Diagnóstico        │ Evolução Semanal  │ Sua Cobertura             │
-│ (4 colunas)        │ (4 colunas)       │ (4 colunas)               │
-├────────────────────┴───────────────────┴───────────────────────────┤
-│ Filtros + Mapa do Semestre (full width)                            │
-└────────────────────────────────────────────────────────────────────┘
+FLUXO ATUAL:                    NOVO FLUXO:
+┌──────────────┐               ┌──────────────────────────────────┐
+│ 1. Matéria   │               │ 1. CALENDÁRIO GRANDE             │
+│ 2. Nome      │     →         │    (visual, interativo)          │
+│ 3. Data      │               │ 2. Seleciona matéria (chips)     │
+│              │               │ 3. Nome (opcional, inline)       │
+└──────────────┘               └──────────────────────────────────┘
 ```
 
-**Nota:** SpacedRevisionCard será movido para dentro do Mapa do Semestre ou removido (pois duplica informação com Diagnóstico).
+---
 
-### Novo Layout Tablet (768-1279px)
+## Design do Novo Modal: "Adicionar Prova"
+
+### Layout em 2 Etapas com Transição Fluida
 
 ```text
-┌────────────────────────────────────────┐
-│ Header                                 │
-├────────────────────────────────────────┤
-│ Hero Card (full width)                 │
-├───────────────────┬────────────────────┤
-│ Suas Provas       │ O que fazer agora  │
-│ (compacto)        │                    │
-├───────────────────┼────────────────────┤
-│ Consistência      │ Diagnóstico        │
-├───────────────────┴────────────────────┤
-│ Evolução Semanal (full width)          │
-├────────────────────────────────────────┤
-│ Sua Cobertura (full width)             │
-├────────────────────────────────────────┤
-│ Filtros + Mapa do Semestre             │
-└────────────────────────────────────────┘
+╔══════════════════════════════════════════════════════════════════════╗
+║  STEP 1: Quando Será Sua Prova?                              [X]    ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║                    ┌────────────────────────────┐                    ║
+║                    │  ◄    Fevereiro 2026   ►   │                    ║
+║                    ├────────────────────────────┤                    ║
+║                    │ Do  Se  Te  Qu  Qu  Se  Sa │                    ║
+║                    │                          1 │                    ║
+║                    │  2   3   4   5   6   7   8 │                    ║
+║                    │  9  10  11  12  13  14  15 │  ← Data hoje       ║
+║                    │ 16  17  18  19  20  21  22 │                    ║
+║                    │ 23  24 [25] 26  27  28     │  ← Selecionada     ║
+║                    └────────────────────────────┘                    ║
+║                                                                      ║
+║                    📅 25 de fevereiro                                ║
+║                        em 17 dias                                    ║
+║                                                                      ║
+║                              [Próximo →]                             ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+             ↓ Animação slide-left ↓
+
+╔══════════════════════════════════════════════════════════════════════╗
+║  STEP 2: Qual Matéria?                      ← Voltar         [X]    ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║       📅 25/02 — em 17 dias              (mini preview fixo)         ║
+║                                                                      ║
+║  ┌─────────────────────────────────────────────────────────────────┐ ║
+║  │  Selecione a matéria:                                           │ ║
+║  │                                                                 │ ║
+║  │  [ Ciências Básicas    ] [ Farmacologia      ] [ Anatomia     ] │ ║
+║  │  [ Fisiologia          ] [ Bioquímica        ] [ Histologia   ] │ ║
+║  │  [ Patologia           ] [ Microbiologia     ]                  │ ║
+║  └─────────────────────────────────────────────────────────────────┘ ║
+║                                                                      ║
+║  ┌─────────────────────────────────────────────────────────────────┐ ║
+║  │  Nome da prova (opcional):                                      │ ║
+║  │  ┌───────────────────────────────────────────────────────────┐  │ ║
+║  │  │ P1, P2, Prova Final...                                    │  │ ║
+║  │  └───────────────────────────────────────────────────────────┘  │ ║
+║  └─────────────────────────────────────────────────────────────────┘ ║
+║                                                                      ║
+║          [← Voltar]                        [✓ Salvar Prova]          ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
 ```
 
-### Novo Layout Mobile (< 768px)
+---
+
+## Feedbacks Visuais Premium
+
+### 1. Seleção de Data
+
+Quando o usuário clica numa data:
 
 ```text
-┌──────────────────────────┐
-│ Header                   │
-├──────────────────────────┤
-│ Hero Card                │
-├──────────────────────────┤
-│ 📚 Suas Provas (colaps.) │
-├──────────────────────────┤
-│ O que fazer agora        │
-├──────────────────────────┤
-│ Consistência             │
-├──────────────────────────┤
-│ Diagnóstico              │
-├──────────────────────────┤
-│ Evolução Semanal         │
-├──────────────────────────┤
-│ Cobertura                │
-├──────────────────────────┤
-│ [Filtros] + Mapa         │
-└──────────────────────────┘
+┌─────────────────────────────────────┐
+│  23  24 [25] 26  27  28             │
+│           ↑                         │
+│     ┌─────────────────┐             │
+│     │ ● Pulse effect  │             │
+│     │ ● Scale 1.1     │             │
+│     │ ● Cor primária  │             │
+│     │ ● Checkmark ✓   │             │
+│     └─────────────────┘             │
+└─────────────────────────────────────┘
 ```
+
+- **Microanimação**: Scale bounce (1.0 → 1.15 → 1.0)
+- **Pulse ring**: Efeito ripple suave saindo da data
+- **Badge flutuante**: Mostra "em X dias" instantaneamente
+
+### 2. Seleção de Matéria (Chips)
+
+```text
+ANTES:                          DEPOIS (selecionada):
+┌──────────────┐               ┌──────────────────┐
+│ Farmacologia │               │ ✓ Farmacologia   │
+└──────────────┘               │   ████████████   │ ← progress bar
+                               │   45% concluído  │
+                               └──────────────────┘
+```
+
+- Ao clicar: Scale 0.95 → 1.05 → 1.0
+- Checkmark aparece com spring animation
+- Mini progress bar da matéria aparece com fade-in
+
+### 3. Transição Entre Steps
+
+- **Step 1 → Step 2**: Slide-left + fade
+- **Step 2 → Step 1**: Slide-right + fade
+- Duração: 300ms, easing: cubic-bezier(0.4, 0, 0.2, 1)
+
+### 4. Sucesso ao Salvar
+
+```text
+╔═══════════════════════════════════════════════════╗
+║                                                   ║
+║           🎉  Prova Adicionada!                   ║
+║                                                   ║
+║        ┌────────────────────────────────┐         ║
+║        │ 📚 Farmacologia                │         ║
+║        │ 📅 25 de fevereiro (17 dias)   │         ║
+║        │                                │         ║
+║        │ [████████████░░░░░░] 45%       │         ║
+║        │ Continue estudando!            │         ║
+║        └────────────────────────────────┘         ║
+║                                                   ║
+║          [Adicionar outra]    [Fechar]            ║
+║                                                   ║
+╚═══════════════════════════════════════════════════╝
+```
+
+- Confetti burst (Framer Motion)
+- Checkmark animated (draw SVG)
+- Card preview com todas as infos
+
+---
+
+## Novo Design do "ExamTrackerCard"
+
+### Versão Compacta Melhorada
+
+```text
+┌───────────────────────────────────────────────────────────┐
+│ 📚 Suas Provas                                     [+]    │
+├───────────────────────────────────────────────────────────┤
+│                                                           │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │ 🔴 Farmacologia                           5 dias ⏰ │  │
+│  │    ████████░░░░░░░░░░░░ 42%                        │  │
+│  │    ⚡ Acelere! 3 aulas/dia                         │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                           │
+│  ┌─────────────────────────────────────────────────────┐  │
+│  │ 🟢 Anatomia                               20 dias   │  │
+│  │    ████████████████░░░░ 78%                        │  │
+│  │    ✅ Bom ritmo!                                   │  │
+│  └─────────────────────────────────────────────────────┘  │
+│                                                           │
+│  ─────────────────────────────────────────────────────── │
+│  [Ver todas (3)]                                          │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Detalhes Visuais
+
+- **Cards internos com gradiente sutil** baseado no status
+- **Barra de progresso colorida** (vermelho → amarelo → verde → azul)
+- **Ícone de relógio pulsante** quando dias < 7
+- **Hover effect**: Eleva card + sombra + cursor pointer
+- **Click**: Navega para guia de estudos da matéria
+
+---
+
+## Componentes a Criar/Modificar
+
+### Novos Componentes
+
+| Componente | Responsabilidade |
+|------------|------------------|
+| `AddExamWizard.tsx` | Modal wizard multi-step (substitui AddExamModal) |
+| `ExamCalendarStep.tsx` | Step 1: Calendário estilizado |
+| `ExamMateriaStep.tsx` | Step 2: Grid de chips + nome |
+| `ExamSuccessStep.tsx` | Step 3: Feedback de sucesso |
+| `ExamCardPreview.tsx` | Preview compacto inline do card salvo |
+
+### Componentes a Refatorar
+
+| Componente | Mudanças |
+|------------|----------|
+| `ExamTrackerCard.tsx` | Novo design visual premium |
+| `ExamItem.tsx` | Layout mais rico, gradientes, animações |
+| `ExamsFullModal.tsx` | Usar novo wizard para adicionar |
 
 ---
 
 ## Implementação Técnica
 
-### 1. Refatorar Grid Principal em Dashboard.tsx
-
-**Antes (atual):**
-```tsx
-<div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
-  <div className="space-y-6">
-    {/* Hero + cards */}
-  </div>
-  <ExamTrackerCard /> {/* Isolado na lateral */}
-</div>
-```
-
-**Depois (proposta):**
-```tsx
-<div className="grid grid-cols-12 gap-4 lg:gap-6">
-  {/* Row 1: Hero + Exams */}
-  <div className="col-span-12 lg:col-span-8">
-    <ProgressHeroCard />
-  </div>
-  <div className="col-span-12 lg:col-span-4">
-    <ExamTrackerCard compact />
-  </div>
-
-  {/* Row 2: Next Actions + Consistency */}
-  <div className="col-span-12 md:col-span-6">
-    <NextActionsCard />
-  </div>
-  <div className="col-span-12 md:col-span-6">
-    <ConsistencyCard />
-  </div>
-
-  {/* Row 3: Diagnostics + Evolution + Coverage */}
-  <div className="col-span-12 md:col-span-6 lg:col-span-4">
-    <DiagnosticsCard />
-  </div>
-  <div className="col-span-12 md:col-span-6 lg:col-span-4">
-    <WeeklyEvolutionCard />
-  </div>
-  <div className="col-span-12 lg:col-span-4">
-    <CoverageRankingCard />
-  </div>
-
-  {/* Row 4: Filters + Map */}
-  <div className="col-span-12">
-    {/* Filters section */}
-  </div>
-  <div className="col-span-12">
-    <SemesterMapCard />
-  </div>
-</div>
-```
-
-### 2. ExamTrackerCard Compacto
-
-Adicionar prop `compact` ao ExamTrackerCard para comportamento diferenciado:
-
-**Comportamento quando `compact={true}`:**
-- Altura máxima de ~250px inicialmente
-- Mostra apenas 2 provas em preview
-- Botão "Ver todas" expande via modal/sheet ao invés de expandir inline
-- Modo colapsado ainda menor (apenas contador)
-
-**Quando o usuário clica "+":**
-- Abre um Modal/Dialog bonito (não expande o card)
-- Lista todas as provas com scroll
-- Permite adicionar/editar/remover
-
-### 3. Cards com Altura Consistente
-
-Adicionar `min-h-[280px]` ou flexbox stretch para manter altura uniforme nas linhas:
+### 1. AddExamWizard (Wizard Multi-Step)
 
 ```tsx
-// Em cada card wrapper
-<div className="col-span-12 md:col-span-6 flex">
-  <NextActionsCard className="flex-1" />
-</div>
+interface WizardState {
+  step: 'calendar' | 'materia' | 'success';
+  selectedDate: Date | null;
+  selectedMateria: string | null;
+  examName: string;
+}
+
+export const AddExamWizard: React.FC<Props> = ({ ... }) => {
+  const [state, setState] = useState<WizardState>({
+    step: 'calendar',
+    selectedDate: null,
+    selectedMateria: null,
+    examName: ''
+  });
+
+  // Framer Motion variants para transições
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0
+    }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction: number) => ({
+      x: direction < 0 ? 300 : -300,
+      opacity: 0
+    })
+  };
+
+  return (
+    <Dialog>
+      <DialogContent className="sm:max-w-lg overflow-hidden">
+        <AnimatePresence mode="wait" custom={direction}>
+          {state.step === 'calendar' && (
+            <motion.div key="calendar" variants={slideVariants}>
+              <ExamCalendarStep
+                selectedDate={state.selectedDate}
+                onSelect={(date) => setState(s => ({ ...s, selectedDate: date }))}
+                onNext={() => setState(s => ({ ...s, step: 'materia' }))}
+              />
+            </motion.div>
+          )}
+          
+          {state.step === 'materia' && (
+            <motion.div key="materia" variants={slideVariants}>
+              <ExamMateriaStep
+                selectedMateria={state.selectedMateria}
+                materias={materiasList}
+                examName={state.examName}
+                onBack={() => setState(s => ({ ...s, step: 'calendar' }))}
+                onSubmit={handleSubmit}
+              />
+            </motion.div>
+          )}
+          
+          {state.step === 'success' && (
+            <motion.div key="success" variants={slideVariants}>
+              <ExamSuccessStep
+                examInsight={savedInsight}
+                onAddAnother={() => reset()}
+                onClose={() => onOpenChange(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </DialogContent>
+    </Dialog>
+  );
+};
 ```
 
-### 4. Remover SpacedRevisionCard da Grid Principal
+### 2. ExamCalendarStep (Calendar Premium)
 
-O SpacedRevisionCard duplica funcionalidade do DiagnosticsCard (ambos mostram temas negligenciados). Opções:
+```tsx
+export const ExamCalendarStep: React.FC<Props> = ({ selectedDate, onSelect, onNext }) => {
+  const today = new Date();
+  
+  // Customização do Calendar para visual premium
+  const modifiers = {
+    selected: selectedDate,
+    today: today
+  };
+  
+  const modifiersStyles = {
+    selected: {
+      backgroundColor: 'hsl(var(--primary))',
+      color: 'white',
+      fontWeight: 'bold',
+      transform: 'scale(1.1)',
+      boxShadow: '0 4px 12px hsl(var(--primary) / 0.3)'
+    }
+  };
 
-1. **Integrar ao DiagnosticsCard** como uma aba/toggle
-2. **Mover para dentro do SemesterMapCard** como seção auxiliar
-3. **Remover completamente** (preferido para simplificar layout)
+  // Calcular dias restantes
+  const daysUntil = selectedDate 
+    ? differenceInDays(selectedDate, today) 
+    : null;
+
+  return (
+    <div className="space-y-6">
+      <DialogHeader>
+        <DialogTitle className="text-xl text-center">
+          📅 Quando será sua prova?
+        </DialogTitle>
+        <DialogDescription className="text-center">
+          Selecione a data no calendário
+        </DialogDescription>
+      </DialogHeader>
+
+      {/* Calendário centralizado e grande */}
+      <div className="flex justify-center">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={onSelect}
+          disabled={(date) => date < today}
+          className="rounded-xl border-2 shadow-lg p-4 pointer-events-auto"
+          classNames={{
+            day_selected: "bg-primary text-primary-foreground scale-110 shadow-lg transition-all",
+            day: "h-10 w-10 transition-all hover:scale-105"
+          }}
+        />
+      </div>
+
+      {/* Feedback visual da seleção */}
+      <AnimatePresence>
+        {selectedDate && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-center space-y-1"
+          >
+            <p className="text-lg font-semibold">
+              📅 {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {daysUntil === 0 && "Hoje! 😮"}
+              {daysUntil === 1 && "Amanhã! 🔥"}
+              {daysUntil > 1 && `em ${daysUntil} dias`}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CTA */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: selectedDate ? 1 : 0.5 }}
+      >
+        <Button
+          className="w-full h-12 text-base gap-2"
+          disabled={!selectedDate}
+          onClick={onNext}
+        >
+          Próximo
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </motion.div>
+    </div>
+  );
+};
+```
+
+### 3. ExamMateriaStep (Chips Grid)
+
+```tsx
+export const ExamMateriaStep: React.FC<Props> = ({ 
+  selectedMateria, 
+  materias, 
+  materiasProgress,
+  examName,
+  selectedDate,
+  onBack, 
+  onSubmit 
+}) => {
+  const shouldReduceMotion = useReducedMotion();
+  
+  return (
+    <div className="space-y-6">
+      {/* Header com mini-preview da data */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Voltar
+        </Button>
+        
+        <div className="flex items-center gap-2 text-sm bg-muted px-3 py-1.5 rounded-full">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>{format(selectedDate, 'dd/MM')}</span>
+          <span className="text-muted-foreground">
+            • {differenceInDays(selectedDate, new Date())}d
+          </span>
+        </div>
+      </div>
+
+      <DialogHeader>
+        <DialogTitle className="text-xl">Qual matéria?</DialogTitle>
+      </DialogHeader>
+
+      {/* Grid de Matérias como Chips */}
+      <div className="flex flex-wrap gap-2">
+        {materias.map((materia) => {
+          const isSelected = selectedMateria === materia;
+          const progress = materiasProgress.find(m => m.materia === materia);
+          
+          return (
+            <motion.button
+              key={materia}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => onSelectMateria(materia)}
+              className={cn(
+                "px-4 py-3 rounded-xl border-2 text-left transition-all",
+                "flex flex-col gap-1 min-w-[140px]",
+                isSelected 
+                  ? "border-primary bg-primary/10 shadow-md" 
+                  : "border-border hover:border-primary/50 hover:bg-accent"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <AnimatePresence>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    >
+                      <Check className="h-4 w-4 text-primary" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <span className="font-medium text-sm truncate">{materia}</span>
+              </div>
+              
+              {/* Mini progress */}
+              {progress && isSelected && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-1"
+                >
+                  <Progress value={progress.percentage} className="h-1.5" />
+                  <span className="text-xs text-muted-foreground">
+                    {progress.percentage}% concluído
+                  </span>
+                </motion.div>
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {/* Nome da Prova (opcional) */}
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">
+          Nome da prova (opcional)
+        </Label>
+        <Input
+          placeholder="P1, P2, Prova Final..."
+          value={examName}
+          onChange={(e) => onExamNameChange(e.target.value)}
+          className="h-11"
+        />
+      </div>
+
+      {/* Footer */}
+      <div className="flex gap-3">
+        <Button variant="outline" className="flex-1" onClick={onBack}>
+          Voltar
+        </Button>
+        <Button 
+          className="flex-1 gap-2" 
+          disabled={!selectedMateria}
+          onClick={onSubmit}
+        >
+          <Check className="h-4 w-4" />
+          Salvar Prova
+        </Button>
+      </div>
+    </div>
+  );
+};
+```
+
+### 4. ExamSuccessStep (Celebração)
+
+```tsx
+export const ExamSuccessStep: React.FC<Props> = ({ insight, onAddAnother, onClose }) => {
+  const shouldReduceMotion = useReducedMotion();
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="text-center space-y-6 py-4"
+    >
+      {/* Confetti animation (se prefers-reduced-motion permite) */}
+      {!shouldReduceMotion && <ConfettiBurst />}
+      
+      {/* Checkmark animado */}
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+        className="w-16 h-16 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"
+      >
+        <motion.div
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        >
+          <Check className="h-8 w-8 text-emerald-600" />
+        </motion.div>
+      </motion.div>
+
+      <div>
+        <h3 className="text-xl font-semibold">Prova Adicionada!</h3>
+        <p className="text-muted-foreground mt-1">Boa sorte nos estudos 🎯</p>
+      </div>
+
+      {/* Preview do card salvo */}
+      <div className="bg-muted/50 rounded-xl p-4 text-left space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="font-medium">{insight.exam.materia}</span>
+          <span className="text-sm text-muted-foreground">
+            {insight.exam.exam_name}
+          </span>
+        </div>
+        
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4" />
+          <span>{format(new Date(insight.exam.exam_date), "d 'de' MMMM", { locale: ptBR })}</span>
+          <span className="text-muted-foreground">
+            ({insight.days_remaining} dias)
+          </span>
+        </div>
+
+        {insight.materia_progress && (
+          <div className="space-y-1">
+            <Progress value={insight.materia_progress.percentage} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {insight.materia_progress.percentage}% concluído • {insight.message}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <Button variant="outline" className="flex-1" onClick={onAddAnother}>
+          <Plus className="h-4 w-4 mr-2" />
+          Adicionar outra
+        </Button>
+        <Button className="flex-1" onClick={onClose}>
+          Fechar
+        </Button>
+      </div>
+    </motion.div>
+  );
+};
+```
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Dashboard.tsx` | Refatorar grid para 12 colunas, reordenar cards, remover SpacedRevisionCard da grid principal |
-| `src/components/progress-hub/ExamTrackerCard.tsx` | Adicionar prop `compact`, criar versão modal para lista completa |
-| `src/components/progress-hub/AddExamModal.tsx` | Evoluir para modal completo com lista de provas + formulário |
-| `src/components/progress-hub/ProgressHeroCard.tsx` | Ajustar flexbox interno para não quebrar em viewports menores |
+| Arquivo | Ação |
+|---------|------|
+| `src/components/progress-hub/AddExamModal.tsx` | Remover (substituído por AddExamWizard) |
+| `src/components/progress-hub/AddExamWizard.tsx` | **Criar** - Wizard completo multi-step |
+| `src/components/progress-hub/ExamCalendarStep.tsx` | **Criar** - Step 1 do wizard |
+| `src/components/progress-hub/ExamMateriaStep.tsx` | **Criar** - Step 2 do wizard |
+| `src/components/progress-hub/ExamSuccessStep.tsx` | **Criar** - Step 3 celebração |
+| `src/components/progress-hub/ExamTrackerCard.tsx` | **Refatorar** - Novo design visual |
+| `src/components/progress-hub/ExamItem.tsx` | **Refatorar** - Layout premium |
+| `src/components/progress-hub/ExamsFullModal.tsx` | Usar novo wizard |
+| `src/components/progress-hub/index.ts` | Exportar novos componentes |
 
 ---
 
-## Detalhamento das Mudanças
-
-### Dashboard.tsx - Nova Estrutura
-
-**Linhas a modificar:** 408-610 (seção de render principal)
-
-```tsx
-// NOVO: Estrutura de grid 12 colunas
-<motion.div className="grid grid-cols-12 gap-4 lg:gap-6">
-  
-  {/* === ROW 1: Hero + Suas Provas === */}
-  <motion.div variants={itemVariants} className="col-span-12 lg:col-span-8 xl:col-span-9">
-    <ProgressHeroCard {...heroProps} />
-  </motion.div>
-  
-  <motion.div variants={itemVariants} className="col-span-12 lg:col-span-4 xl:col-span-3">
-    <ExamTrackerCard 
-      byMateria={data.by_materia}
-      materiasList={materiasList}
-      compact={true}
-    />
-  </motion.div>
-
-  {/* === ROW 2: Ações + Consistência (2 colunas iguais) === */}
-  <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-    <NextActionsCard actions={data.next_actions} onActionClick={handleActionClick} />
-  </motion.div>
-  
-  <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-    <ConsistencyCard streak={data.streak} onGoalChange={handleGoalChange} syncing={syncing} />
-  </motion.div>
-
-  {/* === ROW 3: Diagnóstico + Evolução + Cobertura (3 colunas em XL) === */}
-  <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
-    <DiagnosticsCard byMateria={data.by_materia} byTema={data.by_tema} />
-  </motion.div>
-  
-  <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 xl:col-span-4">
-    <WeeklyEvolutionCard evolution={data.weekly_evolution} totalContent={data.overview.total} />
-  </motion.div>
-  
-  <motion.div variants={itemVariants} className="col-span-12 xl:col-span-4">
-    <CoverageRankingCard byMateria={data.by_materia} />
-  </motion.div>
-
-  {/* === FILTERS + MAP === */}
-  <motion.div variants={itemVariants} className="col-span-12">
-    {/* Filters section... */}
-  </motion.div>
-  
-  <motion.div variants={itemVariants} className="col-span-12">
-    {/* SemesterMapCard... */}
-  </motion.div>
-</motion.div>
-```
-
-### ExamTrackerCard.tsx - Modo Compacto
-
-**Adicionar prop e comportamento:**
-
-```tsx
-interface ExamTrackerCardProps {
-  byMateria: MateriaProgress[];
-  materiasList: string[];
-  compact?: boolean; // NOVO
-  className?: string;
-}
-
-// Quando compact=true:
-// - Limitar exibição a 2 exames
-// - "Ver mais" abre Dialog ao invés de expandir
-// - Altura máxima restrita
-// - Card mais limpo visualmente
-```
-
-**Estado vazio ainda mais compacto:**
-```tsx
-// Quando não há provas e compact=true:
-<Card className="h-auto">
-  <CardContent className="flex items-center justify-between py-4">
-    <div className="flex items-center gap-3">
-      <Calendar className="h-5 w-5 text-muted-foreground" />
-      <span className="text-sm text-muted-foreground">Suas Provas</span>
-    </div>
-    <Button size="sm" variant="outline" onClick={() => setIsAddModalOpen(true)}>
-      <Plus className="h-4 w-4 mr-1" /> Adicionar
-    </Button>
-  </CardContent>
-</Card>
-```
-
-### ExamsFullModal - Novo Componente
-
-Modal para visualização completa das provas:
-
-```tsx
-// src/components/progress-hub/ExamsFullModal.tsx
-
-interface ExamsFullModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  exams: ExamInsight[];
-  materiasList: string[];
-  onAddExam: (...) => Promise<any>;
-  onRemoveExam: (...) => Promise<any>;
-  onNavigate: (materia: string) => void;
-}
-
-// Dialog grande com:
-// - Lista completa de provas com scroll
-// - Botão de adicionar no header
-// - Insights completos visíveis
-// - Edição inline
-```
-
----
-
-## Breakpoints e Responsividade
-
-| Viewport | Comportamento |
-|----------|---------------|
-| **< 640px (xs/sm)** | 1 coluna, cards empilhados verticalmente |
-| **640-767px (sm)** | 1 coluna, ExamTracker colapsado por padrão |
-| **768-1023px (md)** | 2 colunas (6+6), ExamTracker full width após Hero |
-| **1024-1279px (lg)** | Hero 8 + Exams 4, grid 2+2 nos cards |
-| **1280+px (xl)** | Hero 9 + Exams 3, grid 3 colunas nos cards |
-
----
-
-## Ordem de Implementação
-
-1. **ExamTrackerCard** - Adicionar prop `compact` e comportamento de modal
-2. **Dashboard.tsx** - Refatorar grid para 12 colunas
-3. **ExamsFullModal** - Criar modal para lista completa
-4. **Cards individuais** - Ajustar `className` para suportar flex-1 / height matching
-5. **Remover SpacedRevisionCard** - Do grid principal (manter componente para uso futuro)
-
----
-
-## Checklist de QA
-
-### Responsividade
-- [ ] 360px - todos os cards em 1 coluna, sem overflow-x
-- [ ] 768px - grids 2 colunas, Hero + Exams empilhados
-- [ ] 1024px - Hero (8) + Exams (4)
-- [ ] 1280px+ - Layout completo 12 colunas
-- [ ] 1920px - Nenhum espaço vazio desproporcional
+## Checklist de Qualidade
 
 ### Visual
-- [ ] Cards com altura uniforme em cada linha
-- [ ] Zero espaços "buracos" entre cards
-- [ ] ExamTracker compacto no desktop
-- [ ] ExamTracker expandível via modal
-- [ ] Light/Dark mode consistente
+- [ ] Calendário centralizado, grande, bonito
+- [ ] Transições suaves entre steps (300ms)
+- [ ] Chips de matéria com hover/selected states
+- [ ] Feedback visual ao selecionar data
+- [ ] Celebração animada no sucesso
+- [ ] Dark/Light mode perfeito
 
-### Funcionalidade
-- [ ] Adicionar prova via modal funciona
-- [ ] Ver todas as provas no modal funciona
-- [ ] CTAs de todos os cards navegam corretamente
-- [ ] Filtros do Mapa funcionam
-- [ ] Animações suaves (prefers-reduced-motion respeitado)
+### UX
+- [ ] Fluxo calendar-first (data → matéria → nome)
+- [ ] Botão "Voltar" funcional
+- [ ] Preview da data sempre visível no step 2
+- [ ] Progress da matéria visível ao selecionar
+- [ ] "Adicionar outra" após sucesso
+
+### Acessibilidade
+- [ ] prefers-reduced-motion respeitado
+- [ ] aria-labels em todos os botões
+- [ ] Focus trap no modal
+- [ ] Navegação por teclado
 
 ### Performance
-- [ ] Sem re-renders desnecessários
-- [ ] Nenhum layout shift ao carregar
-- [ ] Transições CSS, não JavaScript pesado
+- [ ] Lazy load do Calendar
+- [ ] useMemo para cálculos de daysUntil
+- [ ] Animações via CSS/Framer (não JS pesado)
 
 ---
 
 ## Resultado Esperado
 
-Após a implementação, a página terá:
+Após a implementação:
 
-1. **Layout "Lego"** - Cards encaixados como blocos, sem espaços vazios
-2. **ExamTracker integrado** - Não mais flutuando isolado na lateral
-3. **Responsividade fluida** - Adapta-se naturalmente a diferentes telas
-4. **Hierarquia visual clara** - Hero + Exams no topo, ações/insights no meio, mapa embaixo
-5. **Menos clutter** - SpacedRevisionCard removido (funcionalidade coberta pelo Diagnóstico)
+1. **Experiência "Wow"**: O usuário clica em adicionar, vê um calendário grande e bonito, seleciona a data com animação satisfatória
+2. **Fluxo Intuitivo**: Data → Matéria (chips visuais) → Nome (opcional) → Sucesso com celebração
+3. **Feedbacks Constantes**: Cada ação tem resposta visual imediata
+4. **Cards Premium**: O card "Suas Provas" mostra informações de forma rica e engajante
+5. **Zero Frustração**: Fácil voltar, corrigir, e adicionar múltiplas provas
+
