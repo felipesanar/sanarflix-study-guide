@@ -121,8 +121,7 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({
                   onClick={() => setViewMode('percentage')}
                   aria-pressed={viewMode === 'percentage'}
                 >
-                  <Percent className="h-3.5 w-3.5 mr-1" />
-                  %
+                  <Percent className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
