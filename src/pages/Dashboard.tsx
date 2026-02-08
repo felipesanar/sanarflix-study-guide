@@ -49,18 +49,8 @@ export const Dashboard: React.FC = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const hasTrackedView = useRef(false);
-  const isInitialLoad = useRef(true);
-  
-  // Load celebrated milestones from localStorage
-  const [celebratedMilestones, setCelebratedMilestones] = useState<CelebratedMilestones>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      // We'll update this after user/semester are available
-      return {};
-    } catch {
-      return {};
-    }
-  });
+  const celebratedMilestonesRef = useRef<CelebratedMilestones>({});
+  const hasInitializedMilestones = useRef(false);
   
   const { 
     data, 
@@ -102,33 +92,36 @@ export const Dashboard: React.FC = () => {
     }
   }, [data, trackEvent]);
 
-  // Load celebrated milestones from localStorage when user/semester are available
+  // Initialize celebrated milestones from localStorage on first load
   useEffect(() => {
-    if (!user?.id || !semestreAtivo) return;
+    if (!user?.id || !semestreAtivo || hasInitializedMilestones.current) return;
     
     try {
       const storageKey = getMilestoneStorageKey(user.id, semestreAtivo);
       const stored = localStorage.getItem(storageKey);
       if (stored) {
-        setCelebratedMilestones(JSON.parse(stored));
+        celebratedMilestonesRef.current = JSON.parse(stored);
       }
     } catch {
       // Ignore parse errors
     }
+    hasInitializedMilestones.current = true;
   }, [user?.id, semestreAtivo]);
 
-  // Check for milestone achievements with localStorage persistence
+  // Check for milestone achievements - only triggers when data changes AFTER initialization
   useEffect(() => {
-    if (!data || !user?.id || !semestreAtivo) return;
+    // Wait for milestone initialization to complete
+    if (!data || !user?.id || !semestreAtivo || !hasInitializedMilestones.current) return;
 
     const storageKey = getMilestoneStorageKey(user.id, semestreAtivo);
     let updated = false;
-    const newCelebrated = { ...celebratedMilestones };
+    let celebrationToShow: { threshold: MilestoneType; materia: string } | null = null;
+    const currentCelebrated = { ...celebratedMilestonesRef.current };
 
     for (const materia of data.by_materia) {
       const materiaName = materia.materia;
       const currentPercentage = materia.percentage;
-      const alreadyCelebrated = newCelebrated[materiaName] || [];
+      const alreadyCelebrated = currentCelebrated[materiaName] || [];
 
       // Find milestones that were reached but not yet celebrated
       for (const threshold of MILESTONE_THRESHOLDS) {
@@ -136,23 +129,14 @@ export const Dashboard: React.FC = () => {
           currentPercentage >= threshold && 
           !alreadyCelebrated.includes(threshold)
         ) {
-          // Mark as celebrated
-          newCelebrated[materiaName] = [...alreadyCelebrated, threshold];
+          // Mark as celebrated in our ref
+          currentCelebrated[materiaName] = [...alreadyCelebrated, threshold];
           updated = true;
 
-          // Only show celebration if this is NOT the initial page load
-          // (i.e., the user has just progressed to this milestone)
-          if (!isInitialLoad.current) {
-            showCelebration(threshold, materiaName);
-            
-            trackEvent({
-              eventName: 'milestone_achieved',
-              category: 'interaction',
-              data: {
-                milestone: threshold,
-                materia: materiaName,
-              }
-            });
+          // Only show celebration if we already had some celebrated milestones
+          // (meaning this isn't the first time loading the page)
+          if (alreadyCelebrated.length > 0) {
+            celebrationToShow = { threshold, materia: materiaName };
           }
           
           break; // Only one celebration at a time per materia
@@ -160,15 +144,24 @@ export const Dashboard: React.FC = () => {
       }
     }
 
-    // Persist to localStorage if there were updates
+    // Persist to localStorage and update ref if there were updates
     if (updated) {
-      setCelebratedMilestones(newCelebrated);
-      localStorage.setItem(storageKey, JSON.stringify(newCelebrated));
+      celebratedMilestonesRef.current = currentCelebrated;
+      localStorage.setItem(storageKey, JSON.stringify(currentCelebrated));
     }
 
-    // Mark initial load as complete after first data processing
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
+    // Show celebration after state updates (only one per render)
+    if (celebrationToShow) {
+      showCelebration(celebrationToShow.threshold, celebrationToShow.materia);
+      
+      trackEvent({
+        eventName: 'milestone_achieved',
+        category: 'interaction',
+        data: {
+          milestone: celebrationToShow.threshold,
+          materia: celebrationToShow.materia,
+        }
+      });
     }
   }, [data, user?.id, semestreAtivo, showCelebration, trackEvent]);
 
