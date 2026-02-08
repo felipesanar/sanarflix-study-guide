@@ -31,6 +31,8 @@ export interface TemaProgress {
   total: number;
   completed: number;
   percentage: number;
+  last_activity_at?: string | null;
+  days_inactive?: number;
 }
 
 export interface WeeklyEvolution {
@@ -60,9 +62,18 @@ export interface NextAction {
   type: 'today_focus' | 'quick_win' | 'unlock_progress';
 }
 
+export interface RiskAlert {
+  id: string;
+  materia: string;
+  tema: string;
+  days_inactive: number;
+  percentage: number;
+}
+
 export interface ProgressHubUser {
   nome: string;
   semestre: number | null;
+  streak_goal?: number;
 }
 
 export interface ProgressHubData {
@@ -73,6 +84,7 @@ export interface ProgressHubData {
   weekly_evolution: WeeklyEvolution[];
   last_activity: LastActivity | null;
   next_actions: NextAction[];
+  risk_alerts: RiskAlert[];
   today_subjects: string[];
   user: ProgressHubUser;
 }

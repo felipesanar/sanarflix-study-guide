@@ -180,20 +180,69 @@ Deno.serve(async (req) => {
       percentage: data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0
     })).sort((a, b) => a.materia.localeCompare(b.materia));
 
-    // Build by_tema array
-    const byTema: Array<{ materia: string; tema: string; total: number; completed: number; percentage: number }> = [];
+    // Build by_tema array with last activity tracking
+    const byTema: Array<{ 
+      materia: string; 
+      tema: string; 
+      total: number; 
+      completed: number; 
+      percentage: number;
+      last_activity_at: string | null;
+      days_inactive: number;
+    }> = [];
+    
+    // Get last activity per tema
+    const temaLastActivity = new Map<string, string>();
+    for (const p of (progressData || [])) {
+      if (!p.completed_at) continue;
+      const content = allContents.find(c => c.id === p.content_id);
+      if (!content) continue;
+      
+      const temaKey = `${content.materia}::${content.tema || 'Sem tema'}`;
+      const existingDate = temaLastActivity.get(temaKey);
+      if (!existingDate || new Date(p.completed_at) > new Date(existingDate)) {
+        temaLastActivity.set(temaKey, p.completed_at);
+      }
+    }
+    
     for (const [materia, data] of materiaMap.entries()) {
       for (const [tema, temaData] of data.temas.entries()) {
+        const temaKey = `${materia}::${tema}`;
+        const lastActivityAt = temaLastActivity.get(temaKey) || null;
+        
+        let daysInactive = 999;
+        if (lastActivityAt) {
+          const lastDate = new Date(lastActivityAt);
+          daysInactive = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        } else if (temaData.completed > 0) {
+          daysInactive = 0;
+        }
+        
         byTema.push({
           materia,
           tema,
           total: temaData.total,
           completed: temaData.completed,
-          percentage: temaData.total > 0 ? Math.round((temaData.completed / temaData.total) * 100) : 0
+          percentage: temaData.total > 0 ? Math.round((temaData.completed / temaData.total) * 100) : 0,
+          last_activity_at: lastActivityAt,
+          days_inactive: daysInactive
         });
       }
     }
     byTema.sort((a, b) => a.materia.localeCompare(b.materia) || a.tema.localeCompare(b.tema));
+    
+    // Build risk alerts (temas with no activity in 14+ days and < 80% complete)
+    const riskAlerts = byTema
+      .filter(t => t.days_inactive >= 14 && t.percentage < 80 && t.percentage > 0)
+      .sort((a, b) => b.days_inactive - a.days_inactive)
+      .slice(0, 5)
+      .map(t => ({
+        id: `risk_${t.materia}_${t.tema}`.replace(/\s+/g, '_').toLowerCase(),
+        materia: t.materia,
+        tema: t.tema,
+        days_inactive: t.days_inactive,
+        percentage: t.percentage
+      }));
 
     // Calculate weekly evolution (last 8 weeks)
     const eightWeeksAgo = new Date();
@@ -396,17 +445,19 @@ Deno.serve(async (req) => {
       streak: {
         current: currentStreak,
         active_days_week: activeDaysThisWeek,
-        goal: 3
+        goal: 3 // Default goal, can be made configurable later
       },
       by_materia: byMateria,
       by_tema: byTema,
       weekly_evolution: weeklyEvolution,
       last_activity: lastActivity,
       next_actions: nextActions,
+      risk_alerts: riskAlerts,
       today_subjects: todaySubjects,
       user: {
         nome: userData.nome,
-        semestre: userData.semestre
+        semestre: userData.semestre,
+        streak_goal: 3 // Default, can be stored in user preferences
       }
     };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export interface StudyProgressItem {
   id: string;
@@ -64,13 +64,9 @@ export const useStudyProgress = (): UseStudyProgressResult => {
       });
 
       setProgress(progressMap);
-      } catch (error) {
-        // Error loading study progress
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar o progresso dos estudos",
-        variant: "destructive",
-      });
+    } catch (error) {
+      // Error loading study progress
+      toast.error('Não foi possível carregar o progresso dos estudos');
     } finally {
       setLoading(false);
     }
@@ -117,17 +113,24 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         throw error;
       }
 
-      toast({
-        title: newStatus ? "Conteúdo marcado como concluído" : "Conteúdo marcado como pendente",
-        description: `O conteúdo foi ${newStatus ? 'concluído' : 'marcado como pendente'} com sucesso`,
-      });
-      } catch (error) {
-        // Error updating study progress
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o progresso",
-        variant: "destructive",
-      });
+      // Show success toast with CTA to view progress (only when completing)
+      if (newStatus) {
+        toast.success('Aula concluída! 🎉', {
+          description: 'Seu progresso foi atualizado',
+          action: {
+            label: 'Ver impacto',
+            onClick: () => {
+              window.location.href = '/dashboard';
+            }
+          },
+          duration: 5000,
+        });
+      } else {
+        toast.info('Conteúdo marcado como pendente');
+      }
+    } catch (error) {
+      // Error updating study progress
+      toast.error('Não foi possível atualizar o progresso');
     }
   };
 
