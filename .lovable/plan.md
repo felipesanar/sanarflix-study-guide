@@ -1,176 +1,117 @@
 
 
-# Plano: Carrossel Netflix-Style para Card de Provas
+# Plano: Reorganizar Cards do Dashboard
 
 ## Objetivo
 
-Transformar o card "Suas Provas" (modo compacto) de uma lista vertical que cresce em altura para um carrossel horizontal estilo Netflix com:
-- Auto-play rotativo
-- Navegação por swipe/toque
-- Indicadores de navegação (dots)
-- Transição suave entre slides
+Reorganizar o layout do grid para:
+1. Empilhar "Sua Consistência" + "Diagnóstico" verticalmente na coluna ao lado do "O que fazer agora"
+2. Mover "Sua Cobertura" para ficar ao lado da "Evolução Semanal"
 
-## Estado Atual (Screenshot)
-
-O card exibe todas as provas empilhadas verticalmente, aumentando a altura do card e ocupando muito espaço vertical no grid.
-
-## Solução Proposta
-
-### 1. Nova Dependência
-
-Instalar o plugin de autoplay do Embla Carousel:
-```
-embla-carousel-autoplay
-```
-
-### 2. Mudanças no `ExamTrackerCard.tsx` (modo compact)
-
-Substituir a lista vertical por um carrossel usando os componentes existentes de `@/components/ui/carousel`:
-
-```tsx
-// Importações adicionais
-import Autoplay from "embla-carousel-autoplay";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  type CarouselApi
-} from '@/components/ui/carousel';
-
-// State para controlar slide atual
-const [api, setApi] = React.useState<CarouselApi>();
-const [current, setCurrent] = React.useState(0);
-
-// Autoplay plugin (pausa ao hover)
-const autoplayPlugin = useRef(
-  Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true })
-);
-
-// Listener de navegação
-useEffect(() => {
-  if (!api) return;
-  setCurrent(api.selectedScrollSnap());
-  api.on("select", () => setCurrent(api.selectedScrollSnap()));
-}, [api]);
-```
-
-### 3. Layout Visual do Carrossel
+## Layout Atual
 
 ```text
-┌──────────────────────────────────────┐
-│ 🎓 Suas Provas                    +  │
-├──────────────────────────────────────┤
-│ ┌──────────────────────────────────┐ │
-│ │ 🔴 Anatomia do Aparelho I... ⏱2d │ │
-│ │ ─────────────── 33%      ⚡6/dia │ │
-│ └──────────────────────────────────┘ │
-│              ● ○ ○ ○                 │ ← Dots de navegação
-├──────────────────────────────────────┤
-│           Ver todas (4) →            │
-└──────────────────────────────────────┘
+ROW 2:  ┌─────────────────────┐  ┌─────────────────────┐
+        │  O que fazer agora  │  │   Sua consistência  │
+        │       (6 cols)      │  │       (6 cols)      │
+        └─────────────────────┘  └─────────────────────┘
+
+ROW 3:  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+        │  Diagnóstico │  │ Evol. Semanal│  │ Sua Cobertura│
+        │   (4 cols)   │  │   (4 cols)   │  │   (4 cols)   │
+        └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
-### 4. Estrutura do JSX (Compact Mode)
+## Layout Proposto
 
+```text
+ROW 2:  ┌─────────────────────┐  ┌─────────────────────┐
+        │                     │  │   Sua consistência  │
+        │  O que fazer agora  │  ├─────────────────────┤
+        │                     │  │     Diagnóstico     │
+        │       (6 cols)      │  │       (6 cols)      │
+        └─────────────────────┘  └─────────────────────┘
+
+ROW 3:  ┌─────────────────────┐  ┌─────────────────────┐
+        │   Evolução Semanal  │  │    Sua Cobertura    │
+        │       (6 cols)      │  │       (6 cols)      │
+        └─────────────────────┘  └─────────────────────┘
+```
+
+## Mudanças em `Dashboard.tsx`
+
+### ROW 2 - Agrupar cards na coluna direita (linhas 478-492)
+
+**Antes:**
 ```tsx
-<CardContent className="pt-0 flex-1 flex flex-col min-h-0">
-  <Carousel
-    setApi={setApi}
-    plugins={examInsights.length > 1 ? [autoplayPlugin.current] : []}
-    opts={{ loop: true, align: 'start' }}
-    className="w-full"
-  >
-    <CarouselContent className="-ml-2">
-      {examInsights.map((insight, index) => (
-        <CarouselItem key={insight.exam.id} className="pl-2 basis-full">
-          {/* Card de prova - mesmo layout atual mas sem motion wrapper */}
-          <div className={cn(
-            "rounded-xl border p-3 cursor-pointer transition-all",
-            getStatusBg(insight.status)
-          )}>
-            {/* Conteúdo do ExamItem inline */}
-          </div>
-        </CarouselItem>
-      ))}
-    </CarouselContent>
-  </Carousel>
-  
-  {/* Dots de navegação (quando > 1 prova) */}
-  {examInsights.length > 1 && (
-    <div className="flex justify-center gap-1.5 pt-2">
-      {examInsights.map((_, idx) => (
-        <button
-          key={idx}
-          onClick={() => api?.scrollTo(idx)}
-          className={cn(
-            "w-1.5 h-1.5 rounded-full transition-all",
-            idx === current 
-              ? "bg-primary w-3" 
-              : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
-          )}
-          aria-label={`Ir para prova ${idx + 1}`}
-        />
-      ))}
-    </div>
-  )}
-  
-  {/* Footer mantido */}
-</CardContent>
+{/* ROW 2: Next Actions (6 cols) + Consistency (6 cols) */}
+<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+  <NextActionsCard ... />
+</motion.div>
+
+<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+  <ConsistencyCard ... />
+</motion.div>
 ```
 
-### 5. Comportamentos Especiais
-
-| Cenário | Comportamento |
-|---------|---------------|
-| 1 prova | Sem carrossel, layout atual simples |
-| 2+ provas | Carrossel com autoplay e dots |
-| Hover | Pausa autoplay |
-| Swipe (mobile) | Navega entre slides |
-| Click no dot | Vai para slide específico |
-| Click no slide | Navega para `/guia-estudos?materia=X` |
-
-### 6. Configuração do Autoplay
-
-- **Delay**: 4000ms (4 segundos por slide)
-- **Loop**: Infinito
-- **Pause on hover**: Sim (melhor UX)
-- **Stop on interaction**: Não (continua após swipe)
-
-### 7. Animação dos Dots
-
-O dot ativo terá largura maior (estilo Netflix/iOS):
-```css
-.active-dot { width: 12px; } /* pill shape */
-.inactive-dot { width: 6px; } /* circle */
-```
-
-### 8. Respeito a `prefers-reduced-motion`
-
-Se o usuário preferir movimento reduzido:
-- Desabilitar autoplay
-- Manter navegação manual funcional
-
+**Depois:**
 ```tsx
-const shouldReduceMotion = useReducedMotion();
-const plugins = shouldReduceMotion || examInsights.length <= 1 
-  ? [] 
-  : [autoplayPlugin.current];
+{/* ROW 2: Next Actions (6 cols) + [Consistency + Diagnostics stacked] (6 cols) */}
+<motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
+  <NextActionsCard ... />
+</motion.div>
+
+<motion.div variants={itemVariants} className="col-span-12 md:col-span-6 space-y-4 lg:space-y-5">
+  <ConsistencyCard ... />
+  <DiagnosticsCard ... />
+</motion.div>
 ```
 
-## Arquivos a Modificar
+### ROW 3 - Weekly Evolution + Coverage lado a lado (linhas 494-511)
 
-| Arquivo | Mudança |
-|---------|---------|
-| `package.json` | Adicionar `embla-carousel-autoplay` |
-| `src/components/progress-hub/ExamTrackerCard.tsx` | Implementar carrossel no modo compact (linhas 188-320) |
+**Antes:**
+```tsx
+{/* ROW 3: Diagnostics + Weekly Evolution + Coverage (4+4+4) */}
+<motion.div className="col-span-12 md:col-span-6 xl:col-span-4">
+  <DiagnosticsCard ... />
+</motion.div>
 
-## Resultado Esperado
+<motion.div className="col-span-12 md:col-span-6 xl:col-span-4">
+  <WeeklyEvolutionCard ... />
+</motion.div>
 
-- ✅ Card mantém altura fixa (não cresce com mais provas)
-- ✅ Transição suave estilo Netflix entre provas
-- ✅ Autoplay pausável ao hover
-- ✅ Navegação por swipe no mobile
-- ✅ Dots indicam prova atual e permitem navegação
-- ✅ Acessibilidade mantida (keyboard navigation)
-- ✅ Respeita `prefers-reduced-motion`
+<motion.div className="col-span-12 xl:col-span-4">
+  <CoverageRankingCard ... />
+</motion.div>
+```
+
+**Depois:**
+```tsx
+{/* ROW 3: Weekly Evolution (6 cols) + Coverage (6 cols) */}
+<motion.div className="col-span-12 md:col-span-6">
+  <WeeklyEvolutionCard ... />
+</motion.div>
+
+<motion.div className="col-span-12 md:col-span-6">
+  <CoverageRankingCard ... />
+</motion.div>
+```
+
+## Responsividade
+
+| Breakpoint | Layout ROW 2 | Layout ROW 3 |
+|------------|--------------|--------------|
+| Mobile (<768px) | Empilhado (NextActions → Consistency → Diagnostics) | Empilhado (Evolution → Coverage) |
+| Tablet (768px+) | 6+6 colunas com Consistency+Diagnostics empilhados | 6+6 colunas |
+| Desktop (1024px+) | Mesmo que tablet | Mesmo que tablet |
+
+## Resultado Visual Esperado
+
+Os dois cards "Sua Consistência" e "Diagnóstico" juntos terão aproximadamente a mesma altura do card "O que fazer agora", criando um layout equilibrado. O "Sua Cobertura" ao lado da "Evolução Semanal" oferece mais espaço para cada gráfico.
+
+## Arquivo a Modificar
+
+| Arquivo | Linhas | Mudança |
+|---------|--------|---------|
+| `src/pages/Dashboard.tsx` | 478-511 | Reorganizar grid ROW 2 e ROW 3 conforme descrito |
 
