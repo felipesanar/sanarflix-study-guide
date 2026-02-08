@@ -164,14 +164,14 @@ export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({
   }
 
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-4 w-4 text-primary" aria-hidden="true" />
           Diagnóstico
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-2 flex-1 overflow-hidden">
         {insights.map((insight, index) => {
           const Icon = insight.icon;
           return (
