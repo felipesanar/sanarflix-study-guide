@@ -1,17 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  Dialog,
-  DialogContent,
-} from '@/components/ui/dialog';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { ExamCalendarStep } from './ExamCalendarStep';
-import { ExamMateriaStep } from './ExamMateriaStep';
-import { ExamSuccessStep } from './ExamSuccessStep';
-import { AddExamWizardMobile } from './AddExamWizardMobile';
+  Drawer,
+  DrawerContent,
+} from '@/components/ui/drawer';
+import { ExamCalendarStepMobile } from './ExamCalendarStepMobile';
+import { ExamMateriaStepMobile } from './ExamMateriaStepMobile';
+import { ExamSuccessStepMobile } from './ExamSuccessStepMobile';
 import { calculateExamInsight } from '@/hooks/useUserExams';
 import type { MateriaProgress, ExamInsight, UserExam } from '@/types/progressHub';
-
 
 type WizardStep = 'calendar' | 'materia' | 'success';
 
@@ -20,10 +17,10 @@ interface WizardState {
   selectedDate: Date | undefined;
   selectedMateria: string;
   examName: string;
-  direction: number; // 1 = forward, -1 = backward
+  direction: number;
 }
 
-interface AddExamWizardProps {
+interface AddExamWizardMobileProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   materias: string[];
@@ -39,23 +36,29 @@ const initialState: WizardState = {
   direction: 1,
 };
 
-export const AddExamWizard: React.FC<AddExamWizardProps> = ({
+// Haptic feedback helper
+const triggerHaptic = (duration: number = 10) => {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(duration);
+  }
+};
+
+export const AddExamWizardMobile: React.FC<AddExamWizardMobileProps> = ({
   open,
   onOpenChange,
   materias,
   materiasProgress,
   onAdd,
 }) => {
-  const isMobile = useIsMobile();
   const shouldReduceMotion = useReducedMotion();
   const [state, setState] = useState<WizardState>(initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedInsight, setSavedInsight] = useState<ExamInsight | null>(null);
 
-  // Animation variants for step transitions
+  // Mobile-optimized animation variants
   const slideVariants = useMemo(() => ({
     enter: (direction: number) => ({
-      x: shouldReduceMotion ? 0 : direction > 0 ? 200 : -200,
+      x: shouldReduceMotion ? 0 : direction > 0 ? '100%' : '-100%',
       opacity: 0,
     }),
     center: {
@@ -63,14 +66,15 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
       opacity: 1,
     },
     exit: (direction: number) => ({
-      x: shouldReduceMotion ? 0 : direction < 0 ? 200 : -200,
+      x: shouldReduceMotion ? 0 : direction < 0 ? '100%' : '-100%',
       opacity: 0,
     }),
   }), [shouldReduceMotion]);
 
-  const transitionConfig = useMemo(() => ({
-    x: { type: "spring" as const, stiffness: 400, damping: 35 },
-    opacity: { duration: 0.2 },
+  // Faster transitions for mobile
+  const mobileTransition = useMemo(() => ({
+    x: { type: "spring" as const, stiffness: 500, damping: 40 },
+    opacity: { duration: 0.15 },
   }), []);
 
   // Reset wizard state
@@ -79,7 +83,7 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
     setSavedInsight(null);
   }, []);
 
-  // Handle dialog close
+  // Handle drawer close
   const handleOpenChange = useCallback((newOpen: boolean) => {
     if (!newOpen) {
       setTimeout(resetWizard, 200);
@@ -87,18 +91,21 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
     onOpenChange(newOpen);
   }, [onOpenChange, resetWizard]);
 
-  // Navigate to next step
+  // Navigate to step
   const goToStep = useCallback((step: WizardStep, direction: number = 1) => {
+    triggerHaptic(5);
     setState(prev => ({ ...prev, step, direction }));
   }, []);
 
-  // Handle date selection
+  // Handle date selection with haptic
   const handleDateSelect = useCallback((date: Date | undefined) => {
+    triggerHaptic(10);
     setState(prev => ({ ...prev, selectedDate: date }));
   }, []);
 
-  // Handle materia selection
+  // Handle materia selection with haptic
   const handleMateriaSelect = useCallback((materia: string) => {
+    triggerHaptic(10);
     setState(prev => ({ ...prev, selectedMateria: materia }));
   }, []);
 
@@ -112,6 +119,7 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
     if (!state.selectedDate || !state.selectedMateria) return;
 
     setIsSubmitting(true);
+    triggerHaptic(15);
 
     const year = state.selectedDate.getFullYear();
     const month = String(state.selectedDate.getMonth() + 1).padStart(2, '0');
@@ -123,6 +131,8 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
     setIsSubmitting(false);
 
     if (!result.error) {
+      triggerHaptic(20);
+      
       const mockExam: UserExam = {
         id: 'temp',
         user_id: '',
@@ -145,34 +155,21 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
 
   // Handle "Add another" action
   const handleAddAnother = useCallback(() => {
+    triggerHaptic(10);
     resetWizard();
   }, [resetWizard]);
 
-  // Mobile: Use dedicated mobile wizard with Drawer
-  if (isMobile) {
-    return (
-      <AddExamWizardMobile
-        open={open}
-        onOpenChange={onOpenChange}
-        materias={materias}
-        materiasProgress={materiasProgress}
-        onAdd={onAdd}
-      />
-    );
-  }
-
-  // Desktop: Use Dialog-based wizard
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent 
-        className="sm:max-w-md md:max-w-lg overflow-hidden p-0"
-        aria-describedby="exam-wizard-description"
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      <DrawerContent 
+        className="max-h-[96vh] focus:outline-none"
+        aria-describedby="exam-wizard-mobile-description"
       >
-        <span id="exam-wizard-description" className="sr-only">
+        <span id="exam-wizard-mobile-description" className="sr-only">
           Wizard para adicionar nova prova em três etapas
         </span>
         
-        <div className="relative min-h-[500px] p-6">
+        <div className="relative overflow-hidden px-4 pb-[env(safe-area-inset-bottom,16px)]">
           <AnimatePresence mode="wait" custom={state.direction}>
             {state.step === 'calendar' && (
               <motion.div
@@ -182,10 +179,9 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={transitionConfig}
-                className="absolute inset-0 p-6"
+                transition={mobileTransition}
               >
-                <ExamCalendarStep
+                <ExamCalendarStepMobile
                   selectedDate={state.selectedDate}
                   onSelect={handleDateSelect}
                   onNext={() => goToStep('materia', 1)}
@@ -202,10 +198,9 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={transitionConfig}
-                className="absolute inset-0 p-6"
+                transition={mobileTransition}
               >
-                <ExamMateriaStep
+                <ExamMateriaStepMobile
                   selectedDate={state.selectedDate}
                   selectedMateria={state.selectedMateria}
                   examName={state.examName}
@@ -228,10 +223,9 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={transitionConfig}
-                className="absolute inset-0 p-6"
+                transition={mobileTransition}
               >
-                <ExamSuccessStep
+                <ExamSuccessStepMobile
                   insight={savedInsight}
                   onAddAnother={handleAddAnother}
                   onClose={() => handleOpenChange(false)}
@@ -240,7 +234,7 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
             )}
           </AnimatePresence>
         </div>
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 };
