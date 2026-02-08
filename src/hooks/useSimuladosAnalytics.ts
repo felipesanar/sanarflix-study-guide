@@ -353,23 +353,32 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       iniciados = iniciados.filter(i => knownSimuladoIds.has(i.simulado_id));
       finalizados = finalizados.filter(f => knownSimuladoIds.has(f.simulado_id));
 
-      // PHASE 2: Fetch users in parallel batches
+      // PHASE 2: Fetch users and admin IDs in parallel batches
       const eventUserIds = Array.from(
         new Set([...iniciados.map(i => i.user_id), ...finalizados.map(f => f.user_id)])
       );
 
-      let users: { id: string; id_ies: string | null; semestre: number | null }[] = [];
-      if (eventUserIds.length > 0) {
-        const userBatches = chunk(eventUserIds, 500);
-        const userResults = await Promise.all(
-          userBatches.map(batch =>
-            supabase.from('users').select('id, id_ies, semestre').in('id', batch)
-          )
-        );
-        users = userResults.flatMap(r => r.data || []);
-      }
+      // Buscar users E admin IDs em paralelo
+      const [usersResult, adminRolesResult] = await Promise.all([
+        eventUserIds.length > 0
+          ? (async () => {
+              const userBatches = chunk(eventUserIds, 500);
+              const userResults = await Promise.all(
+                userBatches.map(batch =>
+                  supabase.from('users').select('id, id_ies, semestre').in('id', batch)
+                )
+              );
+              return userResults.flatMap(r => r.data || []);
+            })()
+          : Promise.resolve([]),
+        supabase.from('user_roles').select('user_id').eq('role', 'admin')
+      ]);
 
-      console.log('[useSimuladosAnalytics] Phase 2 (users) complete:', Math.round(performance.now() - startTime), 'ms');
+      const users = usersResult;
+      const adminIds = new Set((adminRolesResult.data || []).map(r => r.user_id));
+
+      console.log('[useSimuladosAnalytics] Phase 2 (users + admins) complete:', Math.round(performance.now() - startTime), 'ms');
+      console.log('[useSimuladosAnalytics] Excluding', adminIds.size, 'admin users from analytics');
 
       const iesMap = new Map(iesList.map(i => [i.id, i.nome] as const));
       const userById = new Map(users.map(u => [u.id, u] as const));
@@ -377,9 +386,11 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       const userSemestreMap = new Map(users.map(u => [u.id, u.semestre] as const));
       const questaoMap = new Map(questoes.map(q => [q.id, q] as const));
 
-      // Apply user-based filters
+      // Apply user-based filters (EXCLUDING ADMINS)
       const allowedUserIds = new Set(
         eventUserIds.filter(uid => {
+          // CRÍTICO: Excluir admins de TODAS as métricas
+          if (adminIds.has(uid)) return false;
           const u = userById.get(uid);
           if (!u) return false;
           if (iesId && u.id_ies !== iesId) return false;

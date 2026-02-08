@@ -153,17 +153,26 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     return { iesFilter, excludedIESIds, startDate, endDate, hoje, seteDiasAtras };
   }, [filters.iesId, filters.excludedIES, filters.dateRange.start, filters.dateRange.end]);
 
-  // Cache de user IDs por IES para reutilizar entre queries
-  const fetchUserIdsByIES = useCallback(async (iesId: string): Promise<string[]> => {
+  // Helper para buscar user IDs de admins (para exclusão global)
+  const fetchAdminUserIds = useCallback(async (): Promise<Set<string>> => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'admin');
+    return new Set(data?.map(r => r.user_id) || []);
+  }, []);
+
+  // Cache de user IDs por IES para reutilizar entre queries (exclui admins)
+  const fetchUserIdsByIES = useCallback(async (iesId: string, adminIds: Set<string>): Promise<string[]> => {
     const { data: users } = await supabase
       .from('users')
       .select('id')
       .eq('id_ies', iesId);
-    return users?.map(u => u.id) || [];
+    return (users?.map(u => u.id) || []).filter(id => !adminIds.has(id));
   }, []);
 
-  // Buscar user IDs excluindo IES específicas
-  const fetchUserIdsExcludingIES = useCallback(async (excludedIds: string[]): Promise<string[]> => {
+  // Buscar user IDs excluindo IES específicas (exclui admins)
+  const fetchUserIdsExcludingIES = useCallback(async (excludedIds: string[], adminIds: Set<string>): Promise<string[]> => {
     if (excludedIds.length === 0) return [];
     
     // Supabase não suporta .not('in', array) diretamente, então buscamos todos e filtramos
@@ -173,10 +182,48 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     
     if (!allUsers) return [];
     
-    // Filtrar usuários cujo id_ies NÃO está na lista de exclusão
+    // Filtrar usuários cujo id_ies NÃO está na lista de exclusão E não são admins
     return allUsers
-      .filter(u => u.id_ies && !excludedIds.includes(u.id_ies))
+      .filter(u => u.id_ies && !excludedIds.includes(u.id_ies) && !adminIds.has(u.id))
       .map(u => u.id);
+  }, []);
+
+  // Helper para buscar TODAS as respostas com paginação (sem limite de 1000)
+  const fetchAllAnswerProgress = useCallback(async (
+    userFilter: string[] | null,
+    adminIds: Set<string>
+  ): Promise<{ question_id: string; correct: boolean; user_id: string }[]> => {
+    const PAGE_SIZE = 1000;
+    const all: { question_id: string; correct: boolean; user_id: string }[] = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from('answer_progress')
+        .select('question_id, correct, user_id')
+        .order('answer_id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (userFilter && userFilter.length > 0) {
+        query = query.in('user_id', userFilter);
+      }
+
+      const { data: page, error } = await query;
+      if (error) throw error;
+      
+      // Filtrar admins dos resultados
+      const rows = (page || []).filter(r => r.user_id && !adminIds.has(r.user_id));
+      all.push(...rows);
+      
+      if ((page || []).length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        from += PAGE_SIZE;
+      }
+    }
+
+    return all;
   }, []);
 
   const fetchOverviewMetrics = useCallback(async (): Promise<OverviewMetrics> => {
@@ -184,12 +231,16 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     console.log('[Analytics] fetchOverviewMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Buscar user IDs da IES filtrada OU usuários excluindo IES
+    // CRÍTICO: Buscar admin IDs primeiro para exclusão global
+    const adminIds = await fetchAdminUserIds();
+    console.log('[Analytics] Excluding', adminIds.size, 'admin users from overview metrics');
+
+    // Buscar user IDs da IES filtrada OU usuários excluindo IES (já exclui admins)
     let userIdsFromIES: string[] | null = null;
     let hasExclusions = false;
     
     if (iesFilter) {
-      userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter, adminIds);
       if (userIdsFromIES.length === 0) {
         // IES sem usuários - retornar zeros
         return {
@@ -206,7 +257,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         };
       }
     } else if (excludedIESIds.length > 0) {
-      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds, adminIds);
       hasExclusions = true;
       if (userIdsFromIES.length === 0) {
         return {
@@ -350,21 +401,24 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       sanarclassViewsHoje,
       taxaAbandonoSimulados,
     };
-  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchEngagementMetrics = useCallback(async (): Promise<EngagementMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
     console.log('[Analytics] fetchEngagementMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Buscar user IDs para filtrar
+    // CRÍTICO: Buscar admin IDs primeiro para exclusão global
+    const adminIds = await fetchAdminUserIds();
+
+    // Buscar user IDs para filtrar (já exclui admins)
     let userIdsFromIES: string[] | null = null;
     let hasExclusions = false;
     
     if (iesFilter) {
-      userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter, adminIds);
     } else if (excludedIESIds.length > 0) {
-      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds, adminIds);
       hasExclusions = true;
     }
 
@@ -453,7 +507,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       dispositivosDesktop,
       totalSessoesPeriodo,
     };
-  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchProgressMetrics = useCallback(async (): Promise<ProgressMetrics> => {
     const { iesFilter } = filterParams;
@@ -603,14 +657,18 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     console.log('[Analytics] fetchSimuladoMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Buscar user IDs da IES filtrada OU excluindo IES
+    // CRÍTICO: Buscar admin IDs primeiro para exclusão global
+    const adminIds = await fetchAdminUserIds();
+    console.log('[Analytics] Excluding', adminIds.size, 'admin users from simulado metrics');
+
+    // Buscar user IDs da IES filtrada OU excluindo IES (já exclui admins)
     let userIdsFromIES: string[] | null = null;
     let hasExclusions = false;
     
     if (iesFilter) {
-      userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter, adminIds);
     } else if (excludedIESIds.length > 0) {
-      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds, adminIds);
       hasExclusions = true;
     }
 
@@ -622,7 +680,8 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     const useUserFilter = (iesFilter && userIdsFromIES && userIdsFromIES.length > 0) || (hasExclusions && userIdsFromIES && userIdsFromIES.length > 0);
 
-    const [simuladosResult, iniciadosResult, finalizadosResult, respostasResult] = await Promise.all([
+    // MUDANÇA: Usar paginação para respostas (via fetchAllAnswerProgress) em vez de query simples
+    const [simuladosResult, iniciadosResult, finalizadosResult] = await Promise.all([
       simuladosQuery,
       // Iniciados no dateRange - agora inclui user_id para contagem DISTINCT
       useUserFilter && userIdsFromIES
@@ -632,11 +691,15 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       useUserFilter && userIdsFromIES
         ? supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
         : supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate),
-      // Respostas (com filtro IES ou exclusão)
-      useUserFilter && userIdsFromIES
-        ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
-        : supabase.from('answer_progress').select('question_id, correct, user_id')
     ]);
+
+    // PAGINAÇÃO COMPLETA: Buscar TODAS as respostas (22.000+) sem limite de 1000
+    console.log('[Analytics] Fetching all answers with pagination...');
+    const respostasData = await fetchAllAnswerProgress(
+      useUserFilter && userIdsFromIES ? userIdsFromIES : null,
+      adminIds
+    );
+    console.log('[Analytics] Total answers fetched:', respostasData.length);
 
     // Buscar questões apenas dos simulados filtrados
     const simuladoIds = simuladosResult.data?.map(s => s.id) || [];
@@ -692,8 +755,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       };
     }) || [];
 
-    // Desempenho geral
-    const respostasData = respostasResult.data || [];
+    // Desempenho geral (respostasData já veio da paginação acima)
     const totalRespostas = respostasData.length;
     const totalCorretas = respostasData.filter(r => r.correct).length;
     const mediaAcertos = totalRespostas > 0 ? Math.round((totalCorretas / totalRespostas) * 100) : 0;
@@ -752,21 +814,24 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       },
       questoesProblematicas,
     };
-  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchAllAnswerProgress, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchTrackingHealth = useCallback(async (): Promise<TrackingHealth[]> => {
     const { seteDiasAtras, iesFilter, excludedIESIds } = filterParams;
 
     console.log('[Analytics] fetchTrackingHealth:', { seteDiasAtras, iesFilter, excludedIESIds });
 
-    // Buscar user IDs da IES se filtrado ou excluído
+    // CRÍTICO: Buscar admin IDs primeiro para exclusão global
+    const adminIds = await fetchAdminUserIds();
+
+    // Buscar user IDs da IES se filtrado ou excluído (já exclui admins)
     let userIdsFromIES: string[] | null = null;
     let hasExclusions = false;
     
     if (iesFilter) {
-      userIdsFromIES = await fetchUserIdsByIES(iesFilter);
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter, adminIds);
     } else if (excludedIESIds.length > 0) {
-      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds);
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds, adminIds);
       hasExclusions = true;
     }
 
@@ -826,7 +891,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       { tabela: 'aula_views', ultimos7dias: aulaResult.count || 0, status: getHealthStatus(aulaResult.count || 0) },
       { tabela: 'sanarclass_views', ultimos7dias: sanarResult.count || 0, status: getHealthStatus(sanarResult.count || 0) },
     ];
-  }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchAllData = useCallback(async () => {
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
