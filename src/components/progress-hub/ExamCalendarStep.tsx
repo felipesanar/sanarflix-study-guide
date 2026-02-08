@@ -51,7 +51,7 @@ export const ExamCalendarStep: React.FC<ExamCalendarStepProps> = ({
   const countdownInfo = getCountdownMessage(daysUntil);
 
   return (
-    <div className="flex flex-col h-full space-y-5">
+    <div className="flex flex-col gap-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -74,8 +74,8 @@ export const ExamCalendarStep: React.FC<ExamCalendarStepProps> = ({
         </Button>
       </div>
 
-      {/* Calendar - Large and centered */}
-      <div className="flex-1 flex flex-col items-center justify-center">
+      {/* Calendar - Centered, natural size */}
+      <div className="flex justify-center py-2">
         <motion.div
           initial={shouldReduceMotion ? {} : { scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -129,50 +129,41 @@ export const ExamCalendarStep: React.FC<ExamCalendarStepProps> = ({
             }}
           />
         </motion.div>
-
-        {/* Date feedback - Animated */}
-        <div className="h-16 flex items-center justify-center mt-4">
-          <AnimatePresence mode="wait">
-            {selectedDate && countdownInfo && (
-              <motion.div
-                key={selectedDate.toISOString()}
-                initial={shouldReduceMotion ? {} : { opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={shouldReduceMotion ? {} : { opacity: 0, y: -10, scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="text-center"
-              >
-                <p className="text-lg font-semibold flex items-center gap-2 justify-center">
-                  <span className="text-xl">{countdownInfo.emoji}</span>
-                  {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
-                </p>
-                <p className={cn("text-sm", getUrgencyStyles(daysUntil))}>
-                  {countdownInfo.text}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
 
-      {/* CTA Button */}
-      <motion.div
-        initial={shouldReduceMotion ? {} : { opacity: 0, y: 10 }}
-        animate={{ 
-          opacity: selectedDate ? 1 : 0.5, 
-          y: 0,
-        }}
-        transition={{ duration: 0.2 }}
+      {/* Date feedback - Fixed height */}
+      <div className="h-14 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {selectedDate && countdownInfo && (
+            <motion.div
+              key={selectedDate.toISOString()}
+              initial={shouldReduceMotion ? {} : { opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={shouldReduceMotion ? {} : { opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="text-center"
+            >
+              <p className="text-lg font-semibold flex items-center gap-2 justify-center">
+                <span className="text-xl">{countdownInfo.emoji}</span>
+                {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+              </p>
+              <p className={cn("text-sm", getUrgencyStyles(daysUntil))}>
+                {countdownInfo.text}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* CTA Button - Always visible */}
+      <Button
+        className="w-full h-12 text-base gap-2 rounded-xl font-medium"
+        disabled={!selectedDate}
+        onClick={onNext}
       >
-        <Button
-          className="w-full h-12 text-base gap-2 rounded-xl font-medium"
-          disabled={!selectedDate}
-          onClick={onNext}
-        >
-          Próximo
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </motion.div>
+        Próximo
+        <ArrowRight className="h-4 w-4" />
+      </Button>
     </div>
   );
 };

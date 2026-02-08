@@ -165,14 +165,14 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
-        className="sm:max-w-md md:max-w-lg overflow-hidden p-0"
+        className="sm:max-w-lg overflow-visible p-0"
         aria-describedby="exam-wizard-description"
       >
         <span id="exam-wizard-description" className="sr-only">
           Wizard para adicionar nova prova em três etapas
         </span>
         
-        <div className="relative min-h-[500px] p-6">
+        <div className="p-6">
           <AnimatePresence mode="wait" custom={state.direction}>
             {state.step === 'calendar' && (
               <motion.div
@@ -183,7 +183,6 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 animate="center"
                 exit="exit"
                 transition={transitionConfig}
-                className="absolute inset-0 p-6"
               >
                 <ExamCalendarStep
                   selectedDate={state.selectedDate}
@@ -203,7 +202,6 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 animate="center"
                 exit="exit"
                 transition={transitionConfig}
-                className="absolute inset-0 p-6"
               >
                 <ExamMateriaStep
                   selectedDate={state.selectedDate}
@@ -229,7 +227,6 @@ export const AddExamWizard: React.FC<AddExamWizardProps> = ({
                 animate="center"
                 exit="exit"
                 transition={transitionConfig}
-                className="absolute inset-0 p-6"
               >
                 <ExamSuccessStep
                   insight={savedInsight}
