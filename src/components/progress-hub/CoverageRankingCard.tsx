@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart2, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,10 +10,12 @@ import { cn } from '@/lib/utils';
 
 interface CoverageRankingCardProps {
   byMateria: MateriaProgress[];
+  onMateriaClick?: (materia: string, rank: number, direction: 'low' | 'high') => void;
 }
 
-export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = ({ 
-  byMateria 
+export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = memo(({ 
+  byMateria,
+  onMateriaClick
 }) => {
   const navigate = useNavigate();
 
@@ -26,15 +28,17 @@ export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = ({
     };
   }, [byMateria]);
 
-  const handleNavigate = (materia: string) => {
+  const handleNavigate = useCallback((materia: string, rank: number, direction: 'low' | 'high') => {
+    onMateriaClick?.(materia, rank, direction);
     navigate(`/guia-estudos?materia=${encodeURIComponent(materia)}`);
-  };
+  }, [navigate, onMateriaClick]);
 
-  const handleFocusOnLeast = () => {
+  const handleFocusOnLeast = useCallback(() => {
     if (leastStudied[0]) {
+      onMateriaClick?.(leastStudied[0].materia, 1, 'low');
       navigate(`/guia-estudos?materia=${encodeURIComponent(leastStudied[0].materia)}`);
     }
-  };
+  }, [leastStudied, navigate, onMateriaClick]);
 
   if (byMateria.length === 0) {
     return (
@@ -84,7 +88,7 @@ export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = ({
                     "hover:bg-muted/50 transition-colors text-left",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   )}
-                  onClick={() => handleNavigate(materia.materia)}
+                  onClick={() => handleNavigate(materia.materia, index + 1, 'low')}
                   aria-label={`${materia.materia}: ${materia.percentage}% concluído`}
                 >
                   <span className="text-xs font-medium text-muted-foreground w-4">
@@ -132,7 +136,7 @@ export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = ({
                     "hover:bg-muted/50 transition-colors text-left",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   )}
-                  onClick={() => handleNavigate(materia.materia)}
+                  onClick={() => handleNavigate(materia.materia, index + 1, 'high')}
                   aria-label={`${materia.materia}: ${materia.percentage}% concluído`}
                 >
                   <span className="text-xs font-medium text-muted-foreground w-4">
@@ -176,4 +180,6 @@ export const CoverageRankingCard: React.FC<CoverageRankingCardProps> = ({
       </CardContent>
     </Card>
   );
-};
+});
+
+CoverageRankingCard.displayName = 'CoverageRankingCard';

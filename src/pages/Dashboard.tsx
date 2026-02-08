@@ -8,6 +8,7 @@ import { useProgressHub } from '@/hooks/useProgressHub';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveSemester } from '@/hooks/useActiveSemester';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { usePageTimeTracking } from '@/hooks/usePageTimeTracking';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
 import {
@@ -51,6 +52,12 @@ export const Dashboard: React.FC = () => {
   const hasTrackedView = useRef(false);
   const celebratedMilestonesRef = useRef<CelebratedMilestones>({});
   const hasInitializedMilestones = useRef(false);
+  const loadStartTime = useRef(Date.now());
+
+  // Page time tracking
+  usePageTimeTracking({
+    pageName: 'progress_hub',
+  });
   
   const { 
     data, 
@@ -73,10 +80,11 @@ export const Dashboard: React.FC = () => {
     sortBy: 'alphabetical',
   });
 
-  // Track page view
+  // Track page view and initial load performance
   useEffect(() => {
     if (data && !hasTrackedView.current) {
       const isFirstView = data.overview.completed === 0;
+      const loadTime = Date.now() - loadStartTime.current;
       
       trackEvent({
         eventName: isFirstView ? 'progress_hub_first_view' : 'progress_hub_view',
@@ -86,11 +94,15 @@ export const Dashboard: React.FC = () => {
           streak_current: data.streak.current,
           status_level: data.overview.status_level,
           total_materias: data.overview.total_materias,
+          has_cache: loadTime < 200,
+          device: isMobile ? 'mobile' : 'desktop',
+          load_time_ms: loadTime,
         }
       });
+
       hasTrackedView.current = true;
     }
-  }, [data, trackEvent]);
+  }, [data, trackEvent, isMobile]);
 
   // Initialize celebrated milestones from localStorage on first load
   useEffect(() => {
@@ -258,14 +270,15 @@ export const Dashboard: React.FC = () => {
   const handleFiltersChange = useCallback((newFilters: ProgressFilters) => {
     setFilters(newFilters);
     trackEvent({
-      eventName: 'filter_applied',
+      eventName: 'progress_hub_filter_applied',
       category: 'interaction',
       data: {
-        filter_type: newFilters.status !== 'all' ? 'status' : 'materia',
-        filter_value: newFilters.status !== 'all' ? newFilters.status : newFilters.materia,
+        filter_type: newFilters.status !== 'all' ? 'status' : (newFilters.materia ? 'materia' : 'sort'),
+        filter_value: newFilters.status !== 'all' ? newFilters.status : newFilters.materia || newFilters.sortBy,
+        results_count: filteredCount,
       }
     });
-  }, [trackEvent]);
+  }, [trackEvent, filteredCount]);
 
   const handleRemoveFilter = useCallback((key: keyof ProgressFilters) => {
     setFilters(prev => ({
@@ -382,6 +395,59 @@ export const Dashboard: React.FC = () => {
     });
     navigate(`/guia-estudos?materia=${encodeURIComponent(materia)}&tema=${encodeURIComponent(tema)}`);
   }, [navigate, trackEvent]);
+
+  // Track diagnostics insight click
+  const handleDiagnosticClick = useCallback((insightType: string, materia: string, tema?: string) => {
+    trackEvent({
+      eventName: 'progress_hub_diagnostic_clicked',
+      category: 'interaction',
+      data: {
+        insight_type: insightType,
+        materia,
+        tema: tema || null,
+        source_card: 'diagnostics',
+      }
+    });
+  }, [trackEvent]);
+
+  // Track coverage ranking click
+  const handleCoverageClick = useCallback((materia: string, rank: number, direction: 'low' | 'high') => {
+    trackEvent({
+      eventName: 'progress_hub_coverage_ranking_clicked',
+      category: 'interaction',
+      data: {
+        materia,
+        rank_position: rank,
+        direction,
+      }
+    });
+  }, [trackEvent]);
+
+  // Track weekly chart interaction
+  const handleChartInteract = useCallback((weekIndex: number, metric: 'aulas' | '%') => {
+    trackEvent({
+      eventName: 'progress_hub_weekly_chart_interacted',
+      category: 'interaction',
+      data: {
+        week_index: weekIndex,
+        metric,
+      }
+    });
+  }, [trackEvent]);
+
+  // Track semester map toggle
+  const handleSemesterMapToggle = useCallback((materia: string, tema: string, expanded: boolean) => {
+    trackEvent({
+      eventName: 'progress_hub_semester_map_toggled',
+      category: 'interaction',
+      data: {
+        level: tema ? 'tema' : 'materia',
+        materia,
+        tema: tema || null,
+        expanded,
+      }
+    });
+  }, [trackEvent]);
 
   // Handle risk alert dismiss
   const handleRiskDismiss = useCallback((alertId: string) => {
@@ -523,6 +589,27 @@ export const Dashboard: React.FC = () => {
               byMateria={data.by_materia}
               materiasList={materiasList}
               compact
+              onExamAdded={(materia, daysUntil) => {
+                trackEvent({
+                  eventName: 'progress_hub_exam_added',
+                  category: 'interaction',
+                  data: { materia, days_until_exam: daysUntil, success: true }
+                });
+              }}
+              onExamRemoved={(examId, daysUntil) => {
+                trackEvent({
+                  eventName: 'progress_hub_exam_removed',
+                  category: 'interaction',
+                  data: { exam_id_hash: examId.substring(0, 8), days_until_exam: daysUntil }
+                });
+              }}
+              onExamClicked={(examId, source) => {
+                trackEvent({
+                  eventName: 'progress_hub_exam_clicked',
+                  category: 'interaction',
+                  data: { exam_id_hash: examId.substring(0, 8), source }
+                });
+              }}
             />
           </motion.div>
 
@@ -541,10 +628,11 @@ export const Dashboard: React.FC = () => {
               syncing={syncing}
             />
             <div className="flex-1 min-h-0 overflow-hidden">
-              <DiagnosticsCard 
-                byMateria={data.by_materia}
-                byTema={data.by_tema}
-              />
+            <DiagnosticsCard 
+              byMateria={data.by_materia}
+              byTema={data.by_tema}
+              onInsightClick={handleDiagnosticClick}
+            />
             </div>
           </motion.div>
 
@@ -553,11 +641,12 @@ export const Dashboard: React.FC = () => {
             <WeeklyEvolutionCard 
               evolution={data.weekly_evolution}
               totalContent={data.overview.total}
+              onChartInteract={handleChartInteract}
             />
           </motion.div>
           
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
-            <CoverageRankingCard byMateria={data.by_materia} />
+            <CoverageRankingCard byMateria={data.by_materia} onMateriaClick={handleCoverageClick} />
           </motion.div>
 
           {/* === ROW 4: Filters Section === */}
