@@ -144,7 +144,11 @@ export const ExamSuccessStepMobile: React.FC<ExamSuccessStepMobileProps> = ({
           
           <div className="flex items-center gap-2 text-base">
             <Calendar className="h-5 w-5 text-muted-foreground" />
-            <span>{format(new Date(exam.exam_date), "d 'de' MMMM", { locale: ptBR })}</span>
+            {/* Parse date correctly to avoid timezone issues */}
+            <span>{(() => {
+              const [year, month, day] = exam.exam_date.split('-').map(Number);
+              return format(new Date(year, month - 1, day), "d 'de' MMMM", { locale: ptBR });
+            })()}</span>
             <span className={cn("font-semibold", getStatusColor(status))}>
               ({days_remaining === 0 ? 'Hoje!' : 
                 days_remaining === 1 ? 'Amanhã' : 

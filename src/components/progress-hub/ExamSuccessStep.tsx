@@ -96,9 +96,11 @@ export const ExamSuccessStep: React.FC<ExamSuccessStepProps> = ({
 
   const percentage = insight.materia_progress?.percentage || 0;
 
-  // Format exam date
+  // Format exam date - parse correctly to avoid timezone issues
+  const [year, month, day] = insight.exam.exam_date.split('-').map(Number);
+  const examDateParsed = new Date(year, month - 1, day);
   const formattedDate = format(
-    new Date(insight.exam.exam_date),
+    examDateParsed,
     "d 'de' MMMM",
     { locale: ptBR }
   );

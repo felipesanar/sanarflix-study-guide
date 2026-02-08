@@ -206,7 +206,10 @@ export function calculateExamInsight(
 ): ExamInsight {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
-  const examDate = new Date(exam.exam_date);
+  
+  // Parse exam date correctly to avoid timezone issues
+  const [year, month, day] = exam.exam_date.split('-').map(Number);
+  const examDate = new Date(year, month - 1, day);
   examDate.setHours(0, 0, 0, 0);
   
   const daysRemaining = Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
