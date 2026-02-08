@@ -153,9 +153,96 @@ export async function parseCSV(file: File): Promise<{
 }
 
 /**
+ * Normalize text for fuzzy matching (removes accents, lowercase, remove common suffixes)
+ */
+function normalizeForMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[\s\-_]/g, '') // Remove spaces, dashes, underscores
+    .replace(/[^\w]/g, '') // Remove special chars
+    .trim();
+}
+
+/**
+ * Calculate similarity score between two strings (0-1)
+ * Uses Levenshtein-inspired approach with prefix/contains bonuses
+ */
+function calculateSimilarity(a: string, b: string): number {
+  const normA = normalizeForMatch(a);
+  const normB = normalizeForMatch(b);
+  
+  // Exact match (after normalization)
+  if (normA === normB) return 1.0;
+  
+  // One contains the other entirely
+  if (normA.includes(normB) || normB.includes(normA)) {
+    const longer = Math.max(normA.length, normB.length);
+    const shorter = Math.min(normA.length, normB.length);
+    return 0.8 + (shorter / longer) * 0.2;
+  }
+  
+  // Prefix match
+  const minLen = Math.min(normA.length, normB.length);
+  let prefixMatch = 0;
+  for (let i = 0; i < minLen; i++) {
+    if (normA[i] === normB[i]) {
+      prefixMatch++;
+    } else {
+      break;
+    }
+  }
+  
+  if (prefixMatch >= 3) {
+    return 0.6 + (prefixMatch / Math.max(normA.length, normB.length)) * 0.3;
+  }
+  
+  // Simple character overlap score
+  const setA = new Set(normA.split(''));
+  const setB = new Set(normB.split(''));
+  let overlap = 0;
+  setA.forEach(c => { if (setB.has(c)) overlap++; });
+  
+  const overlapScore = overlap / Math.max(setA.size, setB.size);
+  
+  return overlapScore * 0.5;
+}
+
+/**
+ * Find best matching IES for a sheet name
+ */
+export function findBestIesMatch(
+  sheetName: string, 
+  iesList: Array<{ id: string; nome: string }>
+): { iesId: string | null; iesName: string | null; score: number } {
+  if (!iesList.length) return { iesId: null, iesName: null, score: 0 };
+  
+  let bestMatch: { iesId: string; iesName: string; score: number } | null = null;
+  
+  for (const ies of iesList) {
+    const score = calculateSimilarity(sheetName, ies.nome);
+    
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { iesId: ies.id, iesName: ies.nome, score };
+    }
+  }
+  
+  // Only return if score is high enough (>= 0.7 = strong match)
+  if (bestMatch && bestMatch.score >= 0.7) {
+    return bestMatch;
+  }
+  
+  return { iesId: null, iesName: null, score: 0 };
+}
+
+/**
  * Parse XLSX file with multiple sheets
  */
-export async function parseXLSX(file: File): Promise<{
+export async function parseXLSX(
+  file: File,
+  iesList?: Array<{ id: string; nome: string }>
+): Promise<{
   sheets: Array<{
     name: string;
     rows: Record<string, string>[];
@@ -212,8 +299,21 @@ export async function parseXLSX(file: File): Promise<{
             }
           }
           
-          // Try to auto-match IES from first row's id_ies
-          const firstRowIesId = rows[0]?.id_ies || rows[0]?.idies || null;
+          // Try to auto-match IES from first row's id_ies (UUID)
+          let mappedIesId: string | null = rows[0]?.id_ies || rows[0]?.idies || null;
+          let mappedIesName: string | null = null;
+          let autoMatched = !!mappedIesId;
+          
+          // If no direct ID match, try fuzzy match by sheet name
+          if (!mappedIesId && iesList && iesList.length > 0) {
+            const match = findBestIesMatch(sheetName, iesList);
+            if (match.iesId) {
+              mappedIesId = match.iesId;
+              mappedIesName = match.iesName;
+              autoMatched = true;
+              console.log(LOG_PREFIX, `Auto-matched sheet "${sheetName}" to IES "${match.iesName}" (score: ${match.score.toFixed(2)})`);
+            }
+          }
           
           sheets.push({
             name: sheetName,
@@ -221,9 +321,9 @@ export async function parseXLSX(file: File): Promise<{
             sheetInfo: {
               name: sheetName,
               rowCount: rows.length,
-              mappedIesId: firstRowIesId,
-              mappedIesName: null,
-              autoMatched: !!firstRowIesId,
+              mappedIesId,
+              mappedIesName,
+              autoMatched,
             },
           });
         }

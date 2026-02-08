@@ -124,7 +124,8 @@ export const StudyGuideImportWizard: React.FC = () => {
         setRawData(new Map([[sheetInfo.name, rows]]));
         setSheetMappings([]);
       } else {
-        const { sheets: parsedSheets } = await parseXLSX(selectedFile);
+        // Pass IES list to enable fuzzy name matching
+        const { sheets: parsedSheets } = await parseXLSX(selectedFile, iesList);
         const newSheets = parsedSheets.map(s => s.sheetInfo);
         setSheets(newSheets);
         
@@ -132,21 +133,25 @@ export const StudyGuideImportWizard: React.FC = () => {
         parsedSheets.forEach(s => newRawData.set(s.name, s.rows));
         setRawData(newRawData);
 
-        // Auto-map sheets to IES if possible
+        // Auto-map sheets to IES based on parser results
         const autoMappings: SheetMapping[] = [];
         for (const sheet of newSheets) {
           if (sheet.mappedIesId) {
+            // Find IES name from list or use the one from parser
             const ies = iesList.find(i => i.id === sheet.mappedIesId);
-            if (ies) {
-              autoMappings.push({
-                sheetName: sheet.name,
-                iesId: ies.id,
-                iesNome: ies.nome,
-              });
-            }
+            const iesNome = ies?.nome || sheet.mappedIesName || 'IES';
+            autoMappings.push({
+              sheetName: sheet.name,
+              iesId: sheet.mappedIesId,
+              iesNome,
+            });
           }
         }
         setSheetMappings(autoMappings);
+        
+        // Log auto-matching results
+        const autoMatchedCount = autoMappings.length;
+        console.log(LOG_PREFIX, `Auto-matched ${autoMatchedCount}/${newSheets.length} sheets to IES`);
       }
 
       setStatus('idle');
