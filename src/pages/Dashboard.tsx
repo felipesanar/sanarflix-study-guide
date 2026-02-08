@@ -27,6 +27,7 @@ import {
   CoverageRankingCard,
   ExamTrackerCard,
   useMilestoneCelebration,
+  ProgressHubMobile,
   type ProgressFilters,
   type MilestoneType,
 } from '@/components/progress-hub';
@@ -495,7 +496,67 @@ export const Dashboard: React.FC = () => {
     return null;
   }
 
+  // === MOBILE LAYOUT ===
+  if (isMobile) {
+    return (
+      <>
+        {/* Milestone Celebration Portal */}
+        {CelebrationComponent}
+        
+        <ProgressHubMobile
+          data={data}
+          syncing={syncing}
+          semestreWarning={semestreWarning}
+          user={user ? { ies_nome: user.ies_nome } : undefined}
+          semestreAtivo={semestreAtivo}
+          filteredData={filteredData}
+          filters={filters}
+          materiasList={materiasList}
+          temasList={temasList}
+          activeFiltersCount={activeFiltersCount}
+          totalCount={totalCount}
+          filteredCount={filteredCount}
+          onFiltersChange={handleFiltersChange}
+          onRemoveFilter={handleRemoveFilter}
+          onClearFilters={handleClearFilters}
+          onContinueClick={handleContinueClick}
+          onCalendarClick={handleCalendarClick}
+          onActionClick={handleActionClick}
+          onGoalChange={handleGoalChange}
+          onRiskNavigate={handleRiskNavigate}
+          onRiskDismiss={handleRiskDismiss}
+          onDiagnosticClick={handleDiagnosticClick}
+          onCoverageClick={handleCoverageClick}
+          onChartInteract={handleChartInteract}
+          onThemeClick={handleThemeClick}
+          onSemesterMapToggle={handleSemesterMapToggle}
+          onExamAdded={(materia, daysUntil) => {
+            trackEvent({
+              eventName: 'progress_hub_exam_added',
+              category: 'interaction',
+              data: { materia, days_until_exam: daysUntil, success: true }
+            });
+          }}
+          onExamRemoved={(examId, daysUntil) => {
+            trackEvent({
+              eventName: 'progress_hub_exam_removed',
+              category: 'interaction',
+              data: { exam_id_hash: examId.substring(0, 8), days_until_exam: daysUntil }
+            });
+          }}
+          onExamClicked={(examId, source) => {
+            trackEvent({
+              eventName: 'progress_hub_exam_clicked',
+              category: 'interaction',
+              data: { exam_id_hash: examId.substring(0, 8), source }
+            });
+          }}
+        />
+      </>
+    );
+  }
 
+  // === DESKTOP LAYOUT ===
   const containerVariants = shouldReduceMotion ? {} : {
     hidden: { opacity: 0 },
     show: {

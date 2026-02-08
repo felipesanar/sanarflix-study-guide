@@ -29,5 +29,6 @@ export { ExamSuccessStep } from './ExamSuccessStep';
 export { ExamSuccessStepMobile } from './ExamSuccessStepMobile';
 export { ExamItem } from './ExamItem';
 export { ExamsFullModal } from './ExamsFullModal';
+export { ProgressHubMobile } from './mobile/ProgressHubMobile';
 export type { ProgressFilters, FilterStatus, SortOption } from './FiltersDrawerMobile';
 export type { MilestoneType } from './MilestoneCelebration';
