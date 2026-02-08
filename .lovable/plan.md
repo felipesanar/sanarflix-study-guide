@@ -1,95 +1,252 @@
 
-# Plano: Corrigir EmptyState e Lógica de Onboarding
+# Plano: Corrigir Persistência de Progresso no Guia de Estudos
 
 ## Problema Identificado
 
-### Causa Raiz (Dados)
-Existem **duas fontes de dados de progresso incompatíveis**:
+A página `StudyGuide.tsx` foi redesenhada com novos componentes (`SubjectCard`, `LessonRow`) que **não utilizam o hook `useStudyProgress`**. Em vez disso, usam um sistema local baseado em `Set<string>` + `localStorage`, que:
 
-| Tabela | Uso | content_id format | Onde é salvo |
-|--------|-----|-------------------|--------------|
-| `user_progress` | Legado (ENAMED) | `enamed_Semana 01...` (string composta) | Fluxos antigos |
-| `study_progress` | Guia de Estudos atual | Texto descritivo | `useStudyProgress` hook |
+1. **Não persiste no banco de dados** — progresso salvo apenas no navegador local
+2. **Não sincroniza entre dispositivos** — usuário perde progresso em outro navegador
+3. **Não aparece no Dashboard** — pois o Dashboard lê da tabela `study_progress`
+4. **Pode perder dados** — cache do navegador pode ser limpo
 
-A Edge Function `get-progress-hub` olha apenas para `user_progress` e tenta fazer match com `conteudos.id` (UUID), resultando em **0 matches** mesmo quando o usuário tem progresso registrado.
+### Evidência
 
-### Causa Raiz (UX)
-O EmptyState atual é exibido baseado em `data.overview.completed === 0`, que:
-1. Não funciona por causa do bug de dados acima
-2. **Não é a lógica correta** — deveria ser um "welcome screen" de **onboarding único**, não um estado vazio recorrente
+```typescript
+// StudyGuide.tsx - Sistema ATUAL (quebrado)
+const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
+useEffect(() => {
+  const stored = localStorage.getItem('study-progress'); // ❌ Só localStorage
+  // ...
+}, []);
+
+const saveProgress = (items: Set<string>) => {
+  localStorage.setItem('study-progress', JSON.stringify([...items])); // ❌ Não salva no Supabase
+};
+```
+
+Enquanto existe o hook correto (`useStudyProgress`) que:
+- Salva no Supabase (`study_progress`)
+- Faz upsert com conflito correto
+- Mostra toasts de sucesso
+- Permite rollback otimista
 
 ---
 
 ## Solução Proposta
 
-### Opção A: Remover o EmptyState de Primeiro Acesso (Recomendado)
-O usuário está certo: se o EmptyState vai continuar aparecendo quando não tem progresso, é melhor remover.
+### Estratégia: Integrar o hook `useStudyProgress` no `SubjectCard`/`LessonRow`
 
-**Ação:**
-- Remover a condição `if (data.overview.completed === 0 && data.overview.total > 0)` do Dashboard
-- O HeroCard já mostra 0% de forma clara, não precisa de tela separada
-- Manter apenas o `EmptyState` para `no_filter_results`
-
-### Opção B: Implementar Onboarding de Primeira Vez Corretamente (Mais Complexo)
-Se quiser manter o welcome screen, precisa:
-1. Criar flag `has_seen_progress_hub_onboarding` no localStorage ou tabela `user_preferences`
-2. Mostrar apenas UMA vez na vida
-3. Ter botão "Entendi" que marca como visto
+Em vez de reescrever toda a página, vamos:
+1. Adicionar o hook `useStudyProgress` no nível do `StudyGuide.tsx`
+2. Carregar progresso do Supabase ao iniciar
+3. Substituir `completedItems`/`saveProgress` pelo hook
+4. Manter compatibilidade com o formato de IDs existente
 
 ---
 
-## Implementação (Opção A - Remover)
+## Mudanças Técnicas
 
-### Arquivo: `src/pages/Dashboard.tsx`
+### 1. `src/pages/StudyGuide.tsx`
 
-**Remover linhas 369-378:**
-```tsx
-// REMOVER ESTE BLOCO
-if (data.overview.completed === 0 && data.overview.total > 0) {
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <EmptyState userName={data.user.nome} type="first_access" />
-      </div>
-    </div>
-  );
-}
+**Adicionar import e hook:**
+```typescript
+import { useStudyProgress } from '@/hooks/useStudyProgress';
+
+// Dentro do componente:
+const { progress, loading: progressLoading, toggleContentCompletion, loadProgress } = useStudyProgress();
 ```
 
-**Resultado:**
-- Dashboard sempre mostra o HeroCard, mesmo com 0% de progresso
-- O HeroCard já comunica visualmente que o aluno está começando
-- O status_message "Começando a jornada" já existe para esse caso
+**Remover estado local de progresso (linhas 152, 206-223):**
+```typescript
+// REMOVER:
+const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
 
-### Arquivo: `src/components/progress-hub/EmptyState.tsx`
+// REMOVER useEffect de localStorage
+// REMOVER função saveProgress
+```
 
-**Simplificar o componente:**
-- Manter apenas o tipo `no_filter_results`
-- Remover o bloco `first_access` ou marcar como deprecated
+**Carregar progresso ao selecionar matéria:**
+```typescript
+useEffect(() => {
+  if (user?.ies_nome && selectedSemestre && selectedMateria) {
+    loadProgress(selectedMateria, parseInt(selectedSemestre), user.ies_nome);
+  }
+}, [selectedMateria, selectedSemestre, user?.ies_nome]);
+```
+
+**Atualizar função `isCompleted`:**
+```typescript
+const isCompleted = (item: ConteudoData) => {
+  const key = `aula-${getAulaId(item)}-${item.materia}`;
+  return progress.get(key) || false;
+};
+```
+
+**Atualizar callback `onAulaToggle` em SubjectCard:**
+```typescript
+onAulaToggle={async (aulaId) => {
+  await toggleContentCompletion(
+    'aula',
+    aulaId,
+    selectedMateria || filteredMaterias[0]?.materia || '',
+    parseInt(selectedSemestre),
+    user?.ies_nome || ''
+  );
+}}
+```
+
+### 2. `src/hooks/useStudyProgress.ts`
+
+**Ajustar formato do content_id para compatibilidade:**
+
+O hook atual usa `content_id` como campo, mas o StudyGuide gera IDs compostos como:
+`${semestre}-${materia}-${tema}-${subtema}-${aula}`
+
+Precisamos garantir que o upsert use esse mesmo formato.
+
+**Carregar progresso global (não apenas por matéria):**
+
+Adicionar opção para carregar todo o progresso do usuário de uma vez:
+
+```typescript
+const loadAllProgress = async (semestre: number, iesNome: string) => {
+  if (!user?.id) return;
+
+  const { data, error } = await supabase
+    .from('study_progress')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('semestre', semestre)
+    .eq('ies_nome', iesNome);
+
+  if (!error && data) {
+    const progressMap = new Map<string, boolean>();
+    data.forEach((item: any) => {
+      // Usar content_id diretamente como chave
+      progressMap.set(item.content_id, item.completed);
+    });
+    setProgress(progressMap);
+  }
+};
+```
+
+### 3. Migração de Dados Existentes
+
+Para não perder progresso já registrado no localStorage:
+```typescript
+// Ao carregar, mesclar localStorage com banco (uma única vez)
+useEffect(() => {
+  const migrateLocalStorageToSupabase = async () => {
+    const stored = localStorage.getItem('study-progress');
+    if (!stored || !user?.id) return;
+    
+    try {
+      const items = JSON.parse(stored);
+      if (Array.isArray(items) && items.length > 0) {
+        // Fazer batch insert no Supabase
+        const records = items.map(id => ({
+          user_id: user.id,
+          user_email: user.email,
+          content_type: 'aula',
+          content_id: id,
+          materia_id: id.split('-')[1] || 'unknown',
+          semestre: parseInt(id.split('-')[0]) || user.semestre || 1,
+          ies_nome: user.ies_nome || '',
+          completed: true,
+        }));
+        
+        await supabase.from('study_progress').upsert(records, {
+          onConflict: 'user_id,content_type,content_id,materia_id',
+        });
+        
+        // Limpar localStorage após migração
+        localStorage.removeItem('study-progress');
+      }
+    } catch (e) {
+      console.error('Migration failed:', e);
+    }
+  };
+  
+  migrateLocalStorageToSupabase();
+}, [user?.id]);
+```
 
 ---
 
-## Fix Secundário: Corrigir Lógica de Dados (Importante para Futuro)
+## Fluxo de Dados Corrigido
 
-A Edge Function precisa ser ajustada para ler da tabela **correta** (`study_progress`), não da `user_progress` legada. Isso é uma correção separada que deve ser feita após este fix.
+```text
+Usuário clica em "Concluir Aula"
+         │
+         ▼
+┌─────────────────────────────┐
+│  toggleContentCompletion()  │
+│  (useStudyProgress hook)    │
+└─────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│  1. Atualização otimista    │◀─┐
+│     (UI fica verde)         │  │ Rollback se erro
+└─────────────────────────────┘  │
+         │                       │
+         ▼                       │
+┌─────────────────────────────┐  │
+│  2. Upsert no Supabase      │──┘
+│     (study_progress)        │
+└─────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│  3. Toast de confirmação    │
+│     + CTA "Ver impacto"     │
+└─────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│  4. Dashboard atualizado    │
+│     (lê de study_progress)  │
+└─────────────────────────────┘
+```
 
-**Escopo do fix de dados (não incluído neste plano):**
-1. Modificar `get-progress-hub` para ler de `study_progress` 
-2. Ou criar view unificada que junta ambas as tabelas
-3. Ou migrar dados de `user_progress` para novo formato
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/StudyGuide.tsx` | Substituir localStorage pelo hook `useStudyProgress` |
+| `src/hooks/useStudyProgress.ts` | Adicionar `loadAllProgress()` e migração de localStorage |
+| `src/components/guia-estudos/SubjectCard.tsx` | Sem mudanças (já recebe callbacks) |
+| `src/components/guia-estudos/LessonRow.tsx` | Sem mudanças (já recebe callbacks) |
 
 ---
 
 ## Critérios de Aceitação
 
-- [ ] EmptyState de "primeiro acesso" não aparece mais
-- [ ] Dashboard mostra HeroCard com 0% para usuários novos
-- [ ] Status badge mostra "Começando a jornada" para 0%
-- [ ] EmptyState de "filtro sem resultados" continua funcionando
-- [ ] Nenhuma regressão no Guia de Estudos
+- [ ] Marcar aula como concluída persiste no banco `study_progress`
+- [ ] Recarregar página mantém estado de conclusão
+- [ ] Progresso aparece corretamente no Dashboard (/dashboard)
+- [ ] Toast de sucesso aparece ao marcar
+- [ ] Dados existentes no localStorage são migrados uma única vez
+- [ ] Nenhuma regressão em deep links, calendário, ou filtros
+- [ ] Funciona offline com graceful degradation (fallback para localStorage)
 
 ---
 
-## Esforço
-**S (Small)** — Apenas remoção de código
+## Esforço Estimado
 
+**M (Medium)** — Refatoração de lógica de estado em 2 arquivos principais
+
+---
+
+## Riscos e Mitigações
+
+| Risco | Mitigação |
+|-------|-----------|
+| Perda de dados do localStorage | Migração automática antes de limpar |
+| IDs incompatíveis entre sistemas | Usar o mesmo formato `semestre-materia-tema-subtema-aula` |
+| Race conditions no upsert | onConflict já configurado na tabela |
+| Usuário offline | Manter fallback para localStorage como cache secundário |
