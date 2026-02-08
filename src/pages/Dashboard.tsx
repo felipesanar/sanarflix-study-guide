@@ -34,6 +34,13 @@ import type { NextAction, MateriaProgress } from '@/types/progressHub';
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
 
+// Helper to get localStorage key for celebrated milestones
+const getMilestoneStorageKey = (userId: string, semestre: number) => 
+  `celebrated_milestones_${userId}_${semestre}`;
+
+// Type for celebrated milestones storage
+type CelebratedMilestones = Record<string, MilestoneType[]>;
+
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { semestreAtivo, warning: semestreWarning } = useActiveSemester();
@@ -42,7 +49,18 @@ export const Dashboard: React.FC = () => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const hasTrackedView = useRef(false);
-  const previousMateriaProgress = useRef<Map<string, number>>(new Map());
+  const isInitialLoad = useRef(true);
+  
+  // Load celebrated milestones from localStorage
+  const [celebratedMilestones, setCelebratedMilestones] = useState<CelebratedMilestones>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      // We'll update this after user/semester are available
+      return {};
+    } catch {
+      return {};
+    }
+  });
   
   const { 
     data, 
@@ -84,35 +102,75 @@ export const Dashboard: React.FC = () => {
     }
   }, [data, trackEvent]);
 
-  // Check for milestone achievements
+  // Load celebrated milestones from localStorage when user/semester are available
   useEffect(() => {
-    if (!data) return;
+    if (!user?.id || !semestreAtivo) return;
+    
+    try {
+      const storageKey = getMilestoneStorageKey(user.id, semestreAtivo);
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        setCelebratedMilestones(JSON.parse(stored));
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, [user?.id, semestreAtivo]);
 
-    // Check each materia for milestone crossing
+  // Check for milestone achievements with localStorage persistence
+  useEffect(() => {
+    if (!data || !user?.id || !semestreAtivo) return;
+
+    const storageKey = getMilestoneStorageKey(user.id, semestreAtivo);
+    let updated = false;
+    const newCelebrated = { ...celebratedMilestones };
+
     for (const materia of data.by_materia) {
-      const prevPercentage = previousMateriaProgress.current.get(materia.materia) || 0;
+      const materiaName = materia.materia;
       const currentPercentage = materia.percentage;
+      const alreadyCelebrated = newCelebrated[materiaName] || [];
 
-      // Find any threshold that was crossed
+      // Find milestones that were reached but not yet celebrated
       for (const threshold of MILESTONE_THRESHOLDS) {
-        if (prevPercentage < threshold && currentPercentage >= threshold) {
-          showCelebration(threshold, materia.materia);
+        if (
+          currentPercentage >= threshold && 
+          !alreadyCelebrated.includes(threshold)
+        ) {
+          // Mark as celebrated
+          newCelebrated[materiaName] = [...alreadyCelebrated, threshold];
+          updated = true;
+
+          // Only show celebration if this is NOT the initial page load
+          // (i.e., the user has just progressed to this milestone)
+          if (!isInitialLoad.current) {
+            showCelebration(threshold, materiaName);
+            
+            trackEvent({
+              eventName: 'milestone_achieved',
+              category: 'interaction',
+              data: {
+                milestone: threshold,
+                materia: materiaName,
+              }
+            });
+          }
           
-          trackEvent({
-            eventName: 'milestone_achieved',
-            category: 'interaction',
-            data: {
-              milestone: threshold,
-              materia: materia.materia,
-            }
-          });
-          break; // Only show one celebration at a time
+          break; // Only one celebration at a time per materia
         }
       }
-
-      previousMateriaProgress.current.set(materia.materia, currentPercentage);
     }
-  }, [data, showCelebration, trackEvent]);
+
+    // Persist to localStorage if there were updates
+    if (updated) {
+      setCelebratedMilestones(newCelebrated);
+      localStorage.setItem(storageKey, JSON.stringify(newCelebrated));
+    }
+
+    // Mark initial load as complete after first data processing
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+    }
+  }, [data, user?.id, semestreAtivo, showCelebration, trackEvent]);
 
   // Filter materias and temas based on filters
   const filteredData = useMemo(() => {
