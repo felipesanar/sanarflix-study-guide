@@ -38,6 +38,7 @@ export function useProgressHub() {
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [streakGoal, setStreakGoal] = useState<number>(cachedData?.streak.goal || 3);
   const fetchedRef = useRef(false);
 
   const saveToCache = useCallback((data: ProgressHubData) => {
@@ -74,8 +75,17 @@ export function useProgressHub() {
         return;
       }
 
-      setData(response);
-      saveToCache(response);
+      // Apply local streak goal override
+      const responseWithGoal = {
+        ...response,
+        streak: {
+          ...response.streak,
+          goal: streakGoal
+        }
+      };
+
+      setData(responseWithGoal);
+      saveToCache(responseWithGoal);
     } catch (err) {
       console.error('Progress hub unexpected error:', err);
       setError('Erro inesperado ao carregar dados');
@@ -83,7 +93,7 @@ export function useProgressHub() {
       setLoading(false);
       setSyncing(false);
     }
-  }, [user?.id, cachedData, saveToCache]);
+  }, [user?.id, cachedData, saveToCache, streakGoal]);
 
   // Initial fetch
   useEffect(() => {
@@ -220,6 +230,26 @@ export function useProgressHub() {
     fetchData(true);
   }, [fetchData]);
 
+  // Update streak goal (local state + cache)
+  const updateStreakGoal = useCallback((goal: number) => {
+    setStreakGoal(goal);
+    
+    // Update data with new goal
+    if (data) {
+      const updatedData = {
+        ...data,
+        streak: {
+          ...data.streak,
+          goal
+        }
+      };
+      setData(updatedData);
+      saveToCache(updatedData);
+    }
+    
+    // TODO: Persist to backend when user preferences table is ready
+  }, [data, saveToCache]);
+
   // Clear cache
   const clearCache = useCallback(() => {
     localStorage.removeItem(CACHE_KEY);
@@ -233,6 +263,7 @@ export function useProgressHub() {
     refresh,
     completeTheme,
     uncompleteTheme,
+    updateStreakGoal,
     clearCache
   };
 }

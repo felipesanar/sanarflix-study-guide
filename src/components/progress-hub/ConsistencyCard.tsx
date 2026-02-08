@@ -3,17 +3,24 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Flame, Target, Trophy, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { StreakGoalSlider } from './StreakGoalSlider';
 import type { ProgressStreak } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
 
 interface ConsistencyCardProps {
   streak: ProgressStreak;
+  onGoalChange?: (goal: number) => void;
+  syncing?: boolean;
 }
 
 const DAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const DAYS_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
-export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({ streak }) => {
+export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({ 
+  streak, 
+  onGoalChange,
+  syncing = false 
+}) => {
   const shouldReduceMotion = useReducedMotion();
   const progressPercent = Math.min((streak.active_days_week / streak.goal) * 100, 100);
   const metGoal = streak.active_days_week >= streak.goal;
@@ -29,16 +36,25 @@ export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({ streak }) => {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Flame 
-            className={cn(
-              "h-5 w-5 transition-colors",
-              metGoal ? "text-orange-500" : "text-muted-foreground"
-            )} 
-            aria-hidden="true"
-          />
-          Sua consistência
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Flame 
+              className={cn(
+                "h-5 w-5 transition-colors",
+                metGoal ? "text-orange-500" : "text-muted-foreground"
+              )} 
+              aria-hidden="true"
+            />
+            Sua consistência
+          </CardTitle>
+          {onGoalChange && (
+            <StreakGoalSlider
+              currentGoal={streak.goal}
+              onGoalChange={onGoalChange}
+              disabled={syncing}
+            />
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Weekly dots */}
