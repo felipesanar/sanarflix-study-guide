@@ -9,8 +9,6 @@ import {
   Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import type { MateriaProgress, TemaProgress } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
@@ -142,38 +140,38 @@ export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({
   };
 
   if (insights.length === 0) {
-    return (
-      <Card className="h-full">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" aria-hidden="true" />
-            Diagnóstico
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-3">
-              <Trophy className="h-6 w-6 text-emerald-500" />
-            </div>
-            <p className="font-medium text-foreground">Tudo em dia!</p>
-            <p className="text-sm text-muted-foreground">
-              Continue no ritmo
-            </p>
+  return (
+    <Card className="h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Target className="h-4 w-4 text-primary" aria-hidden="true" />
+          Diagnóstico
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center justify-center py-4 text-center">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-2">
+            <Trophy className="h-5 w-5 text-emerald-500" />
           </div>
-        </CardContent>
-      </Card>
-    );
+          <p className="font-medium text-sm text-foreground">Tudo em dia!</p>
+          <p className="text-xs text-muted-foreground">
+            Continue no ritmo
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
   }
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Target className="h-5 w-5 text-primary" aria-hidden="true" />
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Target className="h-4 w-4 text-primary" aria-hidden="true" />
           Diagnóstico
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         {insights.map((insight, index) => {
           const Icon = insight.icon;
           return (
@@ -183,7 +181,7 @@ export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
               className={cn(
-                "group flex items-start gap-3 p-3 rounded-lg",
+                "group flex items-center gap-2 p-2 rounded-lg",
                 "bg-muted/50 hover:bg-muted transition-colors cursor-pointer",
                 "border border-transparent hover:border-border"
               )}
@@ -194,28 +192,26 @@ export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({
               aria-label={`${insight.title}: ${insight.description}. ${insight.value} ${insight.unit}. ${insight.cta}`}
             >
               <div className={cn(
-                "p-2 rounded-lg shrink-0",
+                "p-1.5 rounded-md shrink-0",
                 insight.type === 'backlog' && "bg-amber-100 dark:bg-amber-900/30",
                 insight.type === 'neglected' && "bg-red-100 dark:bg-red-900/30",
                 insight.type === 'advanced' && "bg-emerald-100 dark:bg-emerald-900/30",
                 insight.type === 'quick_win' && "bg-blue-100 dark:bg-blue-900/30"
               )}>
-                <Icon className={cn("h-4 w-4", insight.iconColor)} />
+                <Icon className={cn("h-3.5 w-3.5", insight.iconColor)} />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {insight.title}
-                  </p>
-                  <Badge variant="secondary" className="text-xs shrink-0">
-                    {insight.value} {insight.unit}
-                  </Badge>
-                </div>
-                <p className="font-medium text-sm truncate mt-0.5">
+              <div className="flex-1 min-w-0 flex items-center gap-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                  {insight.title}
+                </p>
+                <p className="font-medium text-xs truncate flex-1">
                   {insight.description}
                 </p>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                  {insight.value} {insight.unit}
+                </span>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0 mt-1" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </motion.div>
           );
         })}
