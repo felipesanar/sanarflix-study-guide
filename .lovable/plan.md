@@ -1,105 +1,115 @@
 
-# Plano: Corrigir Sobreposição do DiagnosticsCard com CoverageRankingCard
+# Plano: Integrar Jornada do Estudante na Aba Engajamento
 
-## Problema
+## Objetivo
+Transformar a página separada "Jornada do Estudante" em uma sub-seção dentro da aba **Engajamento** do Analytics, criando uma navegação interna com duas visões: "Engajamento" (atual) e "Jornada do Estudante".
 
-O card de Diagnóstico está ultrapassando os limites do seu container e sobrepondo o card "Sua Cobertura" abaixo. Isso acontece porque o bloco que contém ConsistencyCard + DiagnosticsCard não tem altura limitada.
-
-## Análise da Estrutura
-
-```text
-ROW 2 - Grid Layout Atual:
-┌────────────────────────────┬────────────────────────────┐
-│ NextActionsCard            │ ConsistencyCard            │
-│ (col-span-6)               │ + DiagnosticsCard          │
-│ ~380px altura natural      │ (col-span-6, space-y-4)    │
-│                            │ SEM LIMITE DE ALTURA ❌    │
-└────────────────────────────┴────────────────────────────┘
-
-ROW 3:
-┌────────────────────────────┬────────────────────────────┐
-│ WeeklyEvolutionCard        │ CoverageRankingCard        │
-│                            │ ← SOBREPOSTO!              │
-└────────────────────────────┴────────────────────────────┘
-```
-
-## Solução
-
-Limitar a altura do bloco da direita (ConsistencyCard + DiagnosticsCard) para que ele alinhe verticalmente com o NextActionsCard, forçando o DiagnosticsCard a usar `overflow-hidden` ou `max-height` para impedir que cresça além do disponível.
-
-A abordagem mais robusta é usar **flexbox com flex-1** para que o DiagnosticsCard ocupe apenas o espaço restante após o ConsistencyCard.
-
-## Mudanças Técnicas
-
-### 1. Alterar o container da direita para usar flexbox
-
-**Arquivo:** `src/pages/Dashboard.tsx`
-
-**Linha 544** - Trocar `space-y-4 lg:space-y-5` por um layout flex com altura definida:
-
-```tsx
-// ANTES (linha 544)
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6 space-y-4 lg:space-y-5">
-  <ConsistencyCard ... />
-  <DiagnosticsCard ... />
-</motion.div>
-
-// DEPOIS
-<motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
-  <ConsistencyCard ... />
-  <div className="flex-1 min-h-0 overflow-hidden">
-    <DiagnosticsCard ... />
-  </div>
-</motion.div>
-```
-
-### 2. Garantir que o DiagnosticsCard respeite altura do container
-
-**Arquivo:** `src/components/progress-hub/DiagnosticsCard.tsx`
-
-Adicionar `h-full` ao Card raiz e `overflow-auto` ao CardContent para permitir scroll interno se necessário (ou `overflow-hidden` para simplesmente cortar):
-
-```tsx
-// ANTES (linha 166-167)
-<Card className="h-full">
-  ...
-  <CardContent className="space-y-2">
-
-// DEPOIS
-<Card className="h-full flex flex-col">
-  ...
-  <CardContent className="space-y-2 flex-1 overflow-hidden">
-```
-
-## Resultado Visual Esperado
+## Arquitetura Proposta
 
 ```text
-ROW 2:
-┌────────────────────────────┬────────────────────────────┐
-│ NextActionsCard            │ ConsistencyCard (~40%)     │
-│                            ├────────────────────────────┤
-│                            │ DiagnosticsCard (~60%)     │
-│                            │ (altura limitada)          │
-│____________________________│____________________________│
-                              ↑ Alturas alinhadas
+Analytics.tsx
+└── TabsContent value="engagement"
+    └── RealEngagementTab (atualizado)
+        ├── Sub-Tabs internas:
+        │   ├── "Métricas Gerais" (conteúdo atual do RealEngagementTab)
+        │   └── "Jornada do Estudante" (conteúdo do StudentJourneyDashboard)
+```
 
-ROW 3 (com espaço correto acima):
-┌────────────────────────────┬────────────────────────────┐
-│ WeeklyEvolutionCard        │ CoverageRankingCard        │
-│                            │ ✅ Sem sobreposição        │
-└────────────────────────────┴────────────────────────────┘
+## Mudanças Necessárias
+
+### 1. Atualizar `RealEngagementTab.tsx`
+- Adicionar sub-tabs internas usando o componente `Tabs` do Radix
+- Tab 1: "Métricas Gerais" - manter o conteúdo atual (sessões, páginas, dispositivos, horários)
+- Tab 2: "Jornada" - incorporar o conteúdo do StudentJourneyDashboard
+
+### 2. Criar componente `StudentJourneySection.tsx`
+- Extrair a lógica e UI do `StudentJourneyDashboard.tsx` para um componente reutilizável
+- Remover o header próprio (título e seletor de período) já que estará dentro do Analytics
+- Receber `filters` como props para usar o mesmo período/IES do Analytics pai
+- Manter: KPIs, Funil, Gráfico de atividade diária, Top matérias, Buscas sem resultado
+
+### 3. Ajustar `Analytics.tsx`
+- Passar os `filters` (dateRange, iesId) para o `RealEngagementTab`
+- O componente de Jornada usará esses filtros automaticamente
+
+### 4. Limpar rotas e sidebar
+- Remover a rota `/jornada-estudante` do `DynamicRoutes.tsx`
+- Remover o item "Jornada do Estudante" da sidebar em `AppSidebar.tsx`
+- Deletar ou deprecar o arquivo `StudentJourneyDashboard.tsx` (ou manter como redirect)
+
+## UI Final Proposta
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Analytics                          [Atualizar] [Exportar] │
+├─────────────────────────────────────────────────────────┤
+│  [Filtros: Data | IES | Excluir...]                       │
+├─────────────────────────────────────────────────────────┤
+│  Visão Geral | [Engajamento] | Progresso | Demografia...  │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│   ┌──────────────────┬─────────────────┐                │
+│   │ Métricas Gerais  │     Jornada     │  ← Sub-tabs    │
+│   └──────────────────┴─────────────────┘                │
+│                                                          │
+│   [Conteúdo da sub-tab selecionada]                     │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Detalhes Técnicos
+
+### Props do novo componente `StudentJourneySection`
+```typescript
+interface StudentJourneySectionProps {
+  filters: {
+    dateRange: { start: Date; end: Date };
+    iesId?: string;
+    excludedIES?: string[];
+  };
+  isLoading?: boolean;
+}
+```
+
+### Estrutura das sub-tabs em `RealEngagementTab`
+```typescript
+<Tabs defaultValue="metrics" className="w-full">
+  <TabsList className="grid w-full grid-cols-2 max-w-md mb-6">
+    <TabsTrigger value="metrics">Métricas Gerais</TabsTrigger>
+    <TabsTrigger value="journey">Jornada</TabsTrigger>
+  </TabsList>
+  
+  <TabsContent value="metrics">
+    {/* Conteúdo atual: Sessões, Páginas, Dispositivos, Horários */}
+  </TabsContent>
+  
+  <TabsContent value="journey">
+    <StudentJourneySection filters={filters} />
+  </TabsContent>
+</Tabs>
 ```
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Dashboard.tsx` | Envolver DiagnosticsCard em div com `flex-1 min-h-0 overflow-hidden` e trocar `space-y` por `flex flex-col gap-*` |
-| `src/components/progress-hub/DiagnosticsCard.tsx` | Adicionar `flex flex-col` ao Card e `flex-1 overflow-hidden` ao CardContent |
+| Arquivo | Ação |
+|---------|------|
+| `src/components/analytics/RealEngagementTab.tsx` | Adicionar sub-tabs e integrar StudentJourneySection |
+| `src/components/analytics/StudentJourneySection.tsx` | **Criar** - Componente extraído do Dashboard |
+| `src/pages/Analytics.tsx` | Passar filters para RealEngagementTab |
+| `src/components/DynamicRoutes.tsx` | Remover rota `/jornada-estudante` |
+| `src/components/AppSidebar.tsx` | Remover item da sidebar |
+| `src/pages/StudentJourneyDashboard.tsx` | Deletar ou manter redirect |
+
+## Benefícios
+
+1. **Navegação mais limpa** - Menos itens na sidebar
+2. **Contexto unificado** - Jornada usa os mesmos filtros do Analytics
+3. **Relacionamento lógico** - Engajamento e Jornada são complementares
+4. **Menos código duplicado** - Um único sistema de filtros
+5. **UX consistente** - Usuário não precisa alternar entre páginas
 
 ## Considerações
 
-- O `min-h-0` é essencial em flex items para permitir que eles encolham abaixo do tamanho natural do conteúdo
-- O `overflow-hidden` garante que o conteúdo extra seja cortado ao invés de vazar
-- Se desejar scroll interno no DiagnosticsCard, trocar por `overflow-auto`
-- Essa abordagem é responsiva e funciona em qualquer tamanho de tela
+- O seletor de período interno do StudentJourneyDashboard será substituído pelo filtro global do Analytics
+- Os dados serão refetchados quando os filtros mudarem (já implementado via React Query)
+- A URL permanece `/analytics` com a aba "engagement" selecionada
