@@ -3,12 +3,13 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, ChevronRight, CheckCircle2, 
-  AlertCircle, Trophy, ExternalLink, BookMarked
+  AlertCircle, Trophy, ExternalLink, BookMarked, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { TemaProgress, SubtemaProgress } from '@/types/progressHub';
 import { TEMA_STATUS, getTemaStatus } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
@@ -54,66 +55,99 @@ export const TemaItem: React.FC<TemaItemProps> = ({
   // If no subtemas, render simple row
   if (!hasSubtemas) {
     return (
-      <div
-        className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-        role="listitem"
-      >
-        {/* Status icon */}
-        <div className="flex-shrink-0" aria-hidden="true">
-          {isTemaComplete ? (
-            <Trophy className="h-4 w-4 text-emerald-500" />
-          ) : temaStatus === 'atrasado' ? (
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          ) : (
-            <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+      <TooltipProvider delayDuration={300}>
+        <motion.div
+          className={cn(
+            "flex items-center gap-3 p-3 rounded-lg",
+            "bg-muted/30 hover:bg-muted/50 hover:shadow-sm",
+            "border border-transparent hover:border-border/50",
+            "transition-all duration-200"
           )}
-        </div>
+          role="listitem"
+          whileHover={shouldReduceMotion ? {} : { scale: 1.005 }}
+          whileTap={shouldReduceMotion ? {} : { scale: 0.995 }}
+        >
+          {/* Status icon */}
+          <div className="flex-shrink-0" aria-hidden="true">
+            {isTemaComplete ? (
+              <motion.div
+                initial={shouldReduceMotion ? {} : { scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 20 }}
+              >
+                <Trophy className="h-4 w-4 text-emerald-500" />
+              </motion.div>
+            ) : temaStatus === 'atrasado' ? (
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <div className="w-4 h-4 rounded-full border-2 border-muted-foreground/30" />
+            )}
+          </div>
 
-        {/* Tema info */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{tema.tema}</p>
-          <p className="text-xs text-muted-foreground">
-            {tema.completed}/{tema.total} aulas
-          </p>
-        </div>
+          {/* Tema info */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{tema.tema}</p>
+            <p className="text-xs text-muted-foreground">
+              {tema.completed}/{tema.total} aulas
+            </p>
+          </div>
 
-        {/* Status + actions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Badge 
-            variant="secondary"
-            className={cn("text-xs", temaStatusConfig.color)}
-          >
-            {temaStatusConfig.label}
-          </Badge>
-
-          {!isTemaComplete && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={handleViewPending}
-              aria-label={`Ver aulas pendentes de ${tema.tema}`}
-            >
-              Ver
-              <ExternalLink className="h-3 w-3 ml-1" aria-hidden="true" />
-            </Button>
-          )}
-
-          {!isTemaComplete && onCompleteTheme && (
-            <Button
-              size="sm"
+          {/* Status + actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <Badge 
               variant="secondary"
-              className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-              disabled={syncing}
-              onClick={handleCompleteTheme}
-              aria-label={`Marcar ${tema.tema} como concluído`}
+              className={cn("text-xs hidden sm:inline-flex", temaStatusConfig.color)}
             >
-              <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
-              Concluir
-            </Button>
-          )}
-        </div>
-      </div>
+              {temaStatusConfig.label}
+            </Badge>
+
+            {!isTemaComplete && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-9 w-9 sm:h-7 sm:w-auto sm:px-2 text-xs focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={handleViewPending}
+                    aria-label={`Ver aulas pendentes de ${tema.tema}`}
+                  >
+                    <ExternalLink className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
+                    <span className="hidden sm:inline ml-1">Ver</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Ver aulas pendentes</TooltipContent>
+              </Tooltip>
+            )}
+
+            {!isTemaComplete && onCompleteTheme && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className={cn(
+                      "h-9 min-w-[44px] sm:h-7 sm:min-w-0 text-xs",
+                      "focus-visible:ring-2 focus-visible:ring-ring",
+                      "transition-all duration-200"
+                    )}
+                    disabled={syncing}
+                    onClick={handleCompleteTheme}
+                    aria-label={`Marcar ${tema.tema} como concluído`}
+                  >
+                    {syncing ? (
+                      <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
+                    )}
+                    <span className="hidden sm:inline ml-1">Concluir</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">Marcar como concluído</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </motion.div>
+      </TooltipProvider>
     );
   }
 
@@ -167,45 +201,53 @@ export const TemaItem: React.FC<TemaItemProps> = ({
             </div>
           </div>
 
-          {/* Status + actions */}
-          <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <Badge 
-              variant="secondary"
-              className={cn("text-xs", temaStatusConfig.color)}
+        {/* Status + actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Badge 
+            variant="secondary"
+            className={cn("text-xs", temaStatusConfig.color)}
+          >
+            {tema.percentage}%
+          </Badge>
+
+          {!isTemaComplete && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-9 w-9 sm:h-7 sm:w-auto sm:px-2 text-xs focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewPending();
+              }}
+              aria-label={`Ver aulas pendentes de ${tema.tema}`}
             >
-              {tema.percentage}%
-            </Badge>
+              <ExternalLink className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
+              <span className="hidden sm:inline ml-1">Ver</span>
+            </Button>
+          )}
 
-            {!isTemaComplete && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleViewPending();
-                }}
-                aria-label={`Ver aulas pendentes de ${tema.tema}`}
-              >
-                Ver
-                <ExternalLink className="h-3 w-3 ml-1" aria-hidden="true" />
-              </Button>
-            )}
-
-            {!isTemaComplete && onCompleteTheme && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 text-xs focus-visible:ring-2 focus-visible:ring-ring"
-                disabled={syncing}
-                onClick={handleCompleteTheme}
-                aria-label={`Marcar ${tema.tema} como concluído`}
-              >
-                <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
-                Concluir
-              </Button>
-            )}
-          </div>
+          {!isTemaComplete && onCompleteTheme && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className={cn(
+                "h-9 min-w-[44px] sm:h-7 sm:min-w-0 text-xs",
+                "focus-visible:ring-2 focus-visible:ring-ring",
+                "transition-all duration-200"
+              )}
+              disabled={syncing}
+              onClick={handleCompleteTheme}
+              aria-label={`Marcar ${tema.tema} como concluído`}
+            >
+              {syncing ? (
+                <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline ml-1">Concluir</span>
+            </Button>
+          )}
+        </div>
         </div>
       </CollapsibleTrigger>
 

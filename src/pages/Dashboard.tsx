@@ -372,13 +372,13 @@ export const Dashboard: React.FC = () => {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.08 }
+      transition: { staggerChildren: 0.05 }
     }
   };
 
   const itemVariants = shouldReduceMotion ? {} : {
-    hidden: { opacity: 0, y: 12 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.35 } }
+    hidden: { opacity: 0, y: 8 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.25 } }
   };
 
   const hasFilteredResults = filteredData && (filteredData.byMateria.length > 0 || filteredData.byTema.length > 0);

@@ -107,14 +107,17 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
           return (
             <motion.div
               key={action.id}
-              {...getAnimationProps(index * 0.1)}
+              {...getAnimationProps(index * 0.08)}
               className="group relative"
               role="listitem"
+              whileHover={shouldReduceMotion ? {} : { scale: 1.01 }}
+              whileTap={shouldReduceMotion ? {} : { scale: 0.99 }}
             >
               <div 
                 className={cn(
                   "p-4 rounded-xl border bg-card",
-                  "hover:bg-muted/50 hover:border-primary/20 transition-all cursor-pointer",
+                  "hover:bg-muted/50 hover:border-primary/20 hover:shadow-md",
+                  "transition-all duration-200 cursor-pointer",
                   "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                 )}
                 onClick={() => handleOpenContent(action)}
@@ -155,50 +158,62 @@ export const NextActionsCard: React.FC<NextActionsCardProps> = ({
                 </p>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
                   {hasVideo && (
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        "h-8 sm:h-7 min-w-[44px] sm:min-w-0 text-xs gap-1",
+                        "focus-visible:ring-2 focus-visible:ring-ring",
+                        "transition-all duration-200 hover:shadow-sm"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenLink(action, 'video', action.link_aula!);
                       }}
                       aria-label={`Assistir aula: ${action.aula || action.tema}`}
                     >
-                      <Play className="h-3 w-3" aria-hidden="true" />
-                      Assistir
+                      <Play className="h-3.5 w-3.5 sm:h-3 sm:w-3" aria-hidden="true" />
+                      <span className="hidden sm:inline">Assistir</span>
                     </Button>
                   )}
                   {hasPdf && (
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        "h-8 sm:h-7 min-w-[44px] sm:min-w-0 text-xs gap-1",
+                        "focus-visible:ring-2 focus-visible:ring-ring",
+                        "transition-all duration-200 hover:shadow-sm"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenLink(action, 'pdf', action.link_pdf!);
                       }}
                       aria-label={`Abrir PDF: ${action.aula || action.tema}`}
                     >
-                      <FileText className="h-3 w-3" aria-hidden="true" />
-                      PDF
+                      <FileText className="h-3.5 w-3.5 sm:h-3 sm:w-3" aria-hidden="true" />
+                      <span className="hidden sm:inline">PDF</span>
                     </Button>
                   )}
                   {hasQuiz && (
                     <Button 
                       size="sm" 
                       variant="secondary"
-                      className="h-7 text-xs gap-1 focus-visible:ring-2 focus-visible:ring-ring"
+                      className={cn(
+                        "h-8 sm:h-7 min-w-[44px] sm:min-w-0 text-xs gap-1",
+                        "focus-visible:ring-2 focus-visible:ring-ring",
+                        "transition-all duration-200 hover:shadow-sm"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenLink(action, 'quiz', action.link_quiz!);
                       }}
                       aria-label={`Fazer quiz: ${action.aula || action.tema}`}
                     >
-                      <ListChecks className="h-3 w-3" aria-hidden="true" />
-                      Quiz
+                      <ListChecks className="h-3.5 w-3.5 sm:h-3 sm:w-3" aria-hidden="true" />
+                      <span className="hidden sm:inline">Quiz</span>
                     </Button>
                   )}
                 </div>
