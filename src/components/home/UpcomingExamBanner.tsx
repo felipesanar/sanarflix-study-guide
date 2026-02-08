@@ -145,8 +145,10 @@ export const UpcomingExamBanner: React.FC<UpcomingExamBannerProps> = ({
         {/* Main content */}
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <GraduationCap className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground truncate">
+            <span className="text-[10px] font-medium text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+              Próxima prova
+            </span>
+            <span className="text-xs text-muted-foreground">
               {formatExamDate(exam.exam.exam_date)}
             </span>
             <span className={cn(
