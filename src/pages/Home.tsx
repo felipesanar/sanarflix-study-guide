@@ -34,7 +34,7 @@ export const Home: React.FC = () => {
   } = useHomeData();
 
   // Exam data
-  const { exams, loading: examsLoading, addExam } = useUserExams();
+  const { exams, loading: examsLoading, addExam, removeExam, updateExam } = useUserExams();
   const { data: progressData } = useProgressHub();
 
   // Calculate next exam insight
@@ -73,6 +73,17 @@ export const Home: React.FC = () => {
       setShowAddExamWizard(false);
     }
     return { error: result.error };
+  };
+
+  const handleRemoveExam = async (examId: string) => {
+    await removeExam(examId);
+  };
+
+  // For now, editing opens the wizard with the exam pre-selected (not implemented yet)
+  // Future: could open a specific edit modal
+  const handleEditExam = (examId: string) => {
+    // TODO: Implement exam editing - for now just show a toast
+    console.log('[Home] Edit exam:', examId);
   };
 
   const containerVariants = {
@@ -139,6 +150,8 @@ export const Home: React.FC = () => {
                 nextExam={nextExamInsight}
                 examLoading={examsLoading}
                 onAddExamClick={() => setShowAddExamWizard(true)}
+                onEditExam={handleEditExam}
+                onRemoveExam={handleRemoveExam}
               />
             </motion.div>
             <motion.div variants={itemVariants} className="min-w-0">
@@ -181,6 +194,8 @@ export const Home: React.FC = () => {
                 nextExam={nextExamInsight}
                 examLoading={examsLoading}
                 onAddExamClick={() => setShowAddExamWizard(true)}
+                onEditExam={handleEditExam}
+                onRemoveExam={handleRemoveExam}
               />
             </motion.div>
             <motion.div variants={itemVariants} className="min-w-0">
@@ -226,6 +241,8 @@ export const Home: React.FC = () => {
               nextExam={nextExamInsight}
               examLoading={examsLoading}
               onAddExamClick={() => setShowAddExamWizard(true)}
+              onEditExam={handleEditExam}
+              onRemoveExam={handleRemoveExam}
             />
           </motion.div>
 
