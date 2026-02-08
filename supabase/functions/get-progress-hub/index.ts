@@ -110,15 +110,58 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 3. Get user's progress
-    const { data: progressData, error: progressError } = await supabaseAdmin
-      .from('user_progress')
-      .select('content_id, completed_at')
-      .eq('user_id', user.id);
+    // 3. Get user's progress from BOTH tables (legacy user_progress + new study_progress)
+    // This ensures we catch progress from both the old and new systems
+    const [legacyProgressResult, studyProgressResult] = await Promise.all([
+      supabaseAdmin
+        .from('user_progress')
+        .select('content_id, completed_at')
+        .eq('user_id', user.id),
+      supabaseAdmin
+        .from('study_progress')
+        .select('content_id, completed_at')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+    ]);
 
-    if (progressError) {
-      console.error('get-progress-hub: Progress error:', progressError);
+    if (legacyProgressResult.error) {
+      console.error('get-progress-hub: Legacy progress error:', legacyProgressResult.error);
     }
+    if (studyProgressResult.error) {
+      console.error('get-progress-hub: Study progress error:', studyProgressResult.error);
+    }
+
+    // Merge both progress sources
+    const legacyProgress = legacyProgressResult.data || [];
+    const studyProgress = studyProgressResult.data || [];
+    
+    // Build a map of content_id to completed_at from both sources
+    const progressMap = new Map<string, string>();
+    
+    // Add legacy progress
+    for (const p of legacyProgress) {
+      if (p.completed_at) {
+        progressMap.set(p.content_id, p.completed_at);
+      }
+    }
+    
+    // Add study_progress (overwrites if newer)
+    for (const p of studyProgress) {
+      if (p.completed_at) {
+        const existing = progressMap.get(p.content_id);
+        if (!existing || new Date(p.completed_at) > new Date(existing)) {
+          progressMap.set(p.content_id, p.completed_at);
+        }
+      }
+    }
+    
+    // Convert to array format for compatibility with existing code
+    const progressData = Array.from(progressMap.entries()).map(([content_id, completed_at]) => ({
+      content_id,
+      completed_at
+    }));
+    
+    console.log(`get-progress-hub: Found ${legacyProgress.length} legacy + ${studyProgress.length} study progress items = ${progressData.length} total`);
 
     // 4. Get user's calendar subjects
     const { data: calendarData } = await supabaseAdmin
@@ -133,14 +176,54 @@ Deno.serve(async (req) => {
       .filter((s: CalendarSubject) => s.day_of_week === dayOfWeek)
       .map((s: CalendarSubject) => s.name.toLowerCase());
 
-    // Build lookup sets
-    const completedIds = new Set((progressData || []).map(p => p.content_id));
+    // Build lookup sets - now we need to match both by UUID and composite ID
+    const completedIdsSet = new Set((progressData || []).map(p => p.content_id));
     const allContents = conteudos || [];
+    
+    // Helper function to generate composite ID matching the Study Guide format
+    const getCompositeId = (content: typeof allContents[0], semestre: number): string => {
+      const parts = [
+        semestre.toString(),
+        content.materia || '',
+        content.tema || '',
+        content.subtema || '',
+        content.aula || ''
+      ];
+      return parts.join('-');
+    };
+    
+    // Helper to check if content is completed (by UUID or composite ID)
+    const isContentCompleted = (content: typeof allContents[0]): boolean => {
+      // Check by UUID (legacy user_progress)
+      if (completedIdsSet.has(content.id)) return true;
+      
+      // Check by composite ID (study_progress format)
+      const compositeId = getCompositeId(content, userData.semestre || 1);
+      if (completedIdsSet.has(compositeId)) return true;
+      
+      return false;
+    };
+    
+    // Get completed_at for a content (checking both formats)
+    const getCompletedAt = (content: typeof allContents[0]): string | null => {
+      // Check by UUID first
+      const byUUID = progressData.find(p => p.content_id === content.id);
+      if (byUUID) return byUUID.completed_at;
+      
+      // Check by composite ID
+      const compositeId = getCompositeId(content, userData.semestre || 1);
+      const byComposite = progressData.find(p => p.content_id === compositeId);
+      if (byComposite) return byComposite.completed_at;
+      
+      return null;
+    };
     
     // Calculate overview
     const totalContents = allContents.length;
-    const completedContents = allContents.filter(c => completedIds.has(c.id)).length;
+    const completedContents = allContents.filter(c => isContentCompleted(c)).length;
     const percentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+    
+    console.log(`get-progress-hub: Total contents: ${totalContents}, Completed: ${completedContents}, Percentage: ${percentage}%`);
 
     // Calculate progress by materia, tema, and subtema
     const materiaMap = new Map<string, { 
@@ -165,7 +248,7 @@ Deno.serve(async (req) => {
       const materiaData = materiaMap.get(materia)!;
       materiaData.total++;
       
-      if (completedIds.has(content.id)) {
+      if (isContentCompleted(content)) {
         materiaData.completed++;
       }
       
@@ -176,7 +259,7 @@ Deno.serve(async (req) => {
       const temaData = materiaData.temas.get(tema)!;
       temaData.total++;
       
-      if (completedIds.has(content.id)) {
+      if (isContentCompleted(content)) {
         temaData.completed++;
       }
       
@@ -187,7 +270,7 @@ Deno.serve(async (req) => {
         }
         const subtemaData = temaData.subtemas.get(subtema)!;
         subtemaData.total++;
-        if (completedIds.has(content.id)) {
+        if (isContentCompleted(content)) {
           subtemaData.completed++;
         }
       }
@@ -212,11 +295,22 @@ Deno.serve(async (req) => {
       days_inactive: number;
     }> = [];
     
-    // Get last activity per tema
+    // Get last activity per tema - need to match both UUID and composite ID formats
     const temaLastActivity = new Map<string, string>();
     for (const p of (progressData || [])) {
       if (!p.completed_at) continue;
-      const content = allContents.find(c => c.id === p.content_id);
+      
+      // Try to find content by UUID first
+      let content = allContents.find(c => c.id === p.content_id);
+      
+      // If not found, try matching by composite ID
+      if (!content) {
+        content = allContents.find(c => {
+          const compositeId = getCompositeId(c, userData.semestre || 1);
+          return compositeId === p.content_id;
+        });
+      }
+      
       if (!content) continue;
       
       const temaKey = `${content.materia}::${content.tema || 'Sem tema'}`;
@@ -368,7 +462,16 @@ Deno.serve(async (req) => {
     let lastActivity = null;
     if (sortedProgress.length > 0) {
       const lastContentId = sortedProgress[0].content_id;
-      const lastContent = allContents.find(c => c.id === lastContentId);
+      
+      // Try to find content by UUID first, then by composite ID
+      let lastContent = allContents.find(c => c.id === lastContentId);
+      if (!lastContent) {
+        lastContent = allContents.find(c => {
+          const compositeId = getCompositeId(c, userData.semestre || 1);
+          return compositeId === lastContentId;
+        });
+      }
+      
       if (lastContent) {
         lastActivity = {
           content_id: lastContentId,
@@ -382,7 +485,7 @@ Deno.serve(async (req) => {
 
     // Get pending contents (not completed)
     const pendingContents: PendingContent[] = allContents
-      .filter(c => !completedIds.has(c.id))
+      .filter(c => !isContentCompleted(c))
       .slice(0, 50);
 
     // Build next actions (smart recommendations)
