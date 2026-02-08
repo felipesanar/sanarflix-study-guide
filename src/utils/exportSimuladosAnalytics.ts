@@ -21,6 +21,9 @@ interface ExportFilters {
   excludedIES: string[];
 }
 
+export type SimuladosPremiumExportData = ExportData;
+export type SimuladosPremiumExportFilters = ExportFilters;
+
 // ============== HELPERS ==============
 const formatPercent = (value: number): string => `${value.toFixed(1)}%`;
 const formatNumber = (value: number): string => value.toLocaleString('pt-BR');

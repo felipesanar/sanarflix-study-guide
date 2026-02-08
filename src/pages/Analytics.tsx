@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { SimuladosPremiumExportData } from '@/utils/exportSimuladosAnalytics';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +34,7 @@ const Analytics = () => {
   const { user } = useAuth();
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [simuladosPremiumData, setSimuladosPremiumData] = useState<SimuladosPremiumExportData | null>(null);
   const [filters, setFilters] = useState<AnalyticsFilters>({
     dateRange: {
       start: new Date(getBrazilDate().getTime() - 30 * 24 * 60 * 60 * 1000),
@@ -170,7 +172,7 @@ const Analytics = () => {
           </TabsContent>
 
           <TabsContent value="simulados" className="space-y-6">
-            <RealSimuladosTab filters={filters} />
+            <RealSimuladosTab filters={filters} onPremiumExportData={setSimuladosPremiumData} />
           </TabsContent>
 
           <TabsContent value="realtime" className="space-y-6">
@@ -191,6 +193,7 @@ const Analytics = () => {
           demographics,
           simulados,
         }}
+        simuladosPremiumData={simuladosPremiumData}
       />
     </div>
   );

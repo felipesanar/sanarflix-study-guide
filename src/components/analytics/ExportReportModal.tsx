@@ -32,13 +32,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   exportAnalyticsXLSX, 
   exportAnalyticsCSV, 
-  exportSimuladosFromAnalyticsData,
   calculatePreviewStats,
   estimateFileSizeKB,
   type AnalyticsExportData,
   type AnalyticsExportFilters,
   type ExportPreviewStats
 } from '@/utils/exportAnalyticsReport';
+import { exportToXLSX as exportSimuladosPremiumXLSX, type SimuladosPremiumExportData } from '@/utils/exportSimuladosAnalytics';
 
 type ExportFormat = 'xlsx-full' | 'csv' | 'xlsx-simulados';
 
@@ -51,6 +51,7 @@ interface ExportReportModalProps {
     excludedIES: string[];
   };
   data: AnalyticsExportData;
+  simuladosPremiumData?: SimuladosPremiumExportData | null;
 }
 
 const formatOptions: { 
@@ -113,6 +114,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
   onOpenChange,
   filters,
   data,
+  simuladosPremiumData,
 }) => {
   const { user } = useAuth();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('xlsx-full');
@@ -172,8 +174,15 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
       } else if (selectedFormat === 'csv') {
         exportAnalyticsCSV(data, exportFilters);
       } else if (selectedFormat === 'xlsx-simulados') {
-        // Export simplificado de simulados usando os dados disponíveis
-        exportSimuladosFromAnalyticsData(data, exportFilters);
+        if (!simuladosPremiumData) {
+          throw new Error('Dados Premium de Simulados não carregados. Acesse a aba Simulados no Analytics e tente novamente.');
+        }
+
+        exportSimuladosPremiumXLSX(simuladosPremiumData, {
+          dateRange: filters.dateRange,
+          university: filters.university !== 'all' ? filters.university : null,
+          excludedIES: filters.excludedIES,
+        });
       }
 
       clearInterval(progressInterval);
@@ -199,8 +208,8 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
     }
   }, [open]);
 
-  // Simulados data is always available from data.simulados
-  const hasSimuladosData = data?.simulados?.simuladosDisponiveis?.length > 0;
+  // Simulados Premium exige os dados completos do hook useSimuladosAnalytics (carregados ao abrir a aba Simulados)
+  const hasSimuladosPremiumData = (simuladosPremiumData?.simulados?.length ?? 0) > 0;
   const selectedOption = formatOptions.find(o => o.value === selectedFormat);
 
   return (
@@ -303,7 +312,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
               </h3>
               <div className="space-y-2 sm:space-y-3">
                 {formatOptions.map((option) => {
-                  const isDisabled = option.value === 'xlsx-simulados' && !hasSimuladosData;
+                  const isDisabled = option.value === 'xlsx-simulados' && !hasSimuladosPremiumData;
                   const isSelected = selectedFormat === option.value;
                   const Icon = option.icon;
                   
@@ -455,7 +464,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
               </Button>
               <Button 
                 onClick={handleExport}
-                disabled={isExporting || !data}
+                disabled={isExporting || !data || (selectedFormat === 'xlsx-simulados' && !hasSimuladosPremiumData)}
                 className="flex-1 sm:flex-none gap-2 text-sm bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
               >
                 {isExporting ? (
