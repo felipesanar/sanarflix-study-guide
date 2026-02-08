@@ -49,11 +49,20 @@ const getAppVersion = (): string => {
 // ============== PREVIEW STATS ==============
 export function calculatePreviewStats(data: AnalyticsExportData): ExportPreviewStats {
   const totalUsuarios = data.overview.totalUsuarios;
-  const sessoesNoPeriodo = data.engagement.sessoesPorDia.reduce((acc, d) => acc + d.sessoes, 0);
-  const simuladosAnalisados = data.simulados.simuladosDisponiveis.length;
-  const questoesMapeadas = data.simulados.questoesProblematicas.length;
   
-  // Estimativa de registros
+  // CORREÇÃO: Usar contagem real de sessões (totalSessoesPeriodo) do hook
+  const sessoesNoPeriodo = data.engagement.totalSessoesPeriodo 
+    || data.engagement.sessoesPorDia.reduce((acc, d) => acc + d.sessoes, 0);
+  
+  const simuladosAnalisados = data.simulados.simuladosDisponiveis.length;
+  
+  // CORREÇÃO: Total de questões de TODOS os simulados, não apenas problemáticas
+  const questoesMapeadas = data.simulados.simuladosDisponiveis.reduce(
+    (acc, s) => acc + (s.total_questoes || 0), 
+    0
+  );
+  
+  // Estimativa de registros totais
   const registrosTotais = 
     totalUsuarios + 
     sessoesNoPeriodo + 

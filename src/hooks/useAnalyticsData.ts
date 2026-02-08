@@ -22,6 +22,7 @@ export interface EngagementMetrics {
   horariosPico: { hora: number; acessos: number }[];
   dispositivosMobile: number;
   dispositivosDesktop: number;
+  totalSessoesPeriodo: number; // Contagem real via count: 'exact'
 }
 
 export interface ProgressMetrics {
@@ -89,6 +90,7 @@ const defaultMetrics: AnalyticsData = {
     horariosPico: [],
     dispositivosMobile: 0,
     dispositivosDesktop: 0,
+    totalSessoesPeriodo: 0,
   },
   progress: {
     progressoMedioPorMateria: [],
@@ -366,8 +368,8 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       hasExclusions = true;
     }
 
-    // PARALLEL: Buscar sessões e page views em paralelo
-    const [sessoesResult, pageViewsResult] = await Promise.all([
+    // PARALLEL: Buscar sessões, page views e contagem total em paralelo
+    const [sessoesResult, pageViewsResult, totalSessoesCountResult] = await Promise.all([
       iesFilter
         ? supabase.from('user_sessions').select('started_at, duration_seconds, is_mobile').gte('started_at', startDate).lte('started_at', endDate).eq('ies_id', iesFilter).order('started_at', { ascending: true })
         : hasExclusions && userIdsFromIES
@@ -378,8 +380,17 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         ? supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate).eq('ies_id', iesFilter)
         : hasExclusions && userIdsFromIES
           ? supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate).in('user_id', userIdsFromIES)
-          : supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate)
+          : supabase.from('page_views').select('page_path').gte('created_at', startDate).lte('created_at', endDate),
+      
+      // Query separada para contagem REAL de sessões (sem limite de 1000 linhas)
+      iesFilter
+        ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).eq('ies_id', iesFilter)
+        : hasExclusions && userIdsFromIES
+          ? supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
+          : supabase.from('user_sessions').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate)
     ]);
+
+    const totalSessoesPeriodo = totalSessoesCountResult.count || 0;
 
     const sessoesBrutas = sessoesResult.data || [];
     const pageViewsBrutas = pageViewsResult.data || [];
@@ -440,6 +451,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       horariosPico,
       dispositivosMobile,
       dispositivosDesktop,
+      totalSessoesPeriodo,
     };
   }, [filterParams, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
