@@ -19,18 +19,14 @@ interface SemesterMapCardProps {
   byMateria: MateriaProgress[];
   byTema: TemaProgress[];
   bySubtema: SubtemaProgress[];
-  onCompleteTheme?: (materia: string, tema: string) => void;
   onThemeClick?: (materia: string, tema: string) => void;
-  syncing?: boolean;
 }
 
 export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   byMateria,
   byTema,
   bySubtema,
-  onCompleteTheme,
-  onThemeClick,
-  syncing
+  onThemeClick
 }) => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -243,9 +239,7 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                                 key={`${tema.materia}-${tema.tema}`}
                                 tema={tema}
                                 subtemas={subtemasForTema}
-                                onCompleteTheme={onCompleteTheme}
                                 onThemeClick={onThemeClick}
-                                syncing={syncing}
                               />
                             );
                           })}

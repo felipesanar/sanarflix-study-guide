@@ -562,9 +562,7 @@ export const Dashboard: React.FC = () => {
                 byMateria={filteredData.byMateria}
                 byTema={filteredData.byTema}
                 bySubtema={filteredData.bySubtema}
-                onCompleteTheme={handleCompleteTheme}
                 onThemeClick={handleThemeClick}
-                syncing={syncing}
               />
             ) : (
               <EmptyState onClearFilters={handleClearFilters} />

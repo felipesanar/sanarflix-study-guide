@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, ChevronRight, CheckCircle2, 
-  AlertCircle, Trophy, ExternalLink, BookMarked, Loader2
+  AlertCircle, Trophy, ExternalLink, BookMarked
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,17 +17,13 @@ import { cn } from '@/lib/utils';
 interface TemaItemProps {
   tema: TemaProgress;
   subtemas: SubtemaProgress[];
-  onCompleteTheme?: (materia: string, tema: string) => void;
   onThemeClick?: (materia: string, tema: string) => void;
-  syncing?: boolean;
 }
 
 export const TemaItem: React.FC<TemaItemProps> = ({
   tema,
   subtemas,
-  onCompleteTheme,
-  onThemeClick,
-  syncing
+  onThemeClick
 }) => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -47,10 +43,6 @@ export const TemaItem: React.FC<TemaItemProps> = ({
     navigate(`/guia-estudos?${params.toString()}`);
   };
 
-  const handleCompleteTheme = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCompleteTheme?.(tema.materia, tema.tema);
-  };
 
   // If no subtemas, render simple row
   if (!hasSubtemas) {
@@ -119,32 +111,6 @@ export const TemaItem: React.FC<TemaItemProps> = ({
               </Tooltip>
             )}
 
-            {!isTemaComplete && onCompleteTheme && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className={cn(
-                      "h-9 min-w-[44px] sm:h-7 sm:min-w-0 text-xs",
-                      "focus-visible:ring-2 focus-visible:ring-ring",
-                      "transition-all duration-200"
-                    )}
-                    disabled={syncing}
-                    onClick={handleCompleteTheme}
-                    aria-label={`Marcar ${tema.tema} como concluído`}
-                  >
-                    {syncing ? (
-                      <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
-                    )}
-                    <span className="hidden sm:inline ml-1">Concluir</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Marcar como concluído</TooltipContent>
-              </Tooltip>
-            )}
           </div>
         </motion.div>
       </TooltipProvider>
@@ -226,27 +192,6 @@ export const TemaItem: React.FC<TemaItemProps> = ({
             </Button>
           )}
 
-          {!isTemaComplete && onCompleteTheme && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className={cn(
-                "h-9 min-w-[44px] sm:h-7 sm:min-w-0 text-xs",
-                "focus-visible:ring-2 focus-visible:ring-ring",
-                "transition-all duration-200"
-              )}
-              disabled={syncing}
-              onClick={handleCompleteTheme}
-              aria-label={`Marcar ${tema.tema} como concluído`}
-            >
-              {syncing ? (
-                <Loader2 className="h-4 w-4 sm:h-3 sm:w-3 animate-spin" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 sm:h-3 sm:w-3" aria-hidden="true" />
-              )}
-              <span className="hidden sm:inline ml-1">Concluir</span>
-            </Button>
-          )}
         </div>
         </div>
       </CollapsibleTrigger>
