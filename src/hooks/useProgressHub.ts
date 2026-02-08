@@ -75,12 +75,14 @@ export function useProgressHub() {
         return;
       }
 
-      // Apply local streak goal override
+      // Apply local streak goal override and ensure compatibility
       const responseWithGoal = {
         ...response,
         streak: {
           ...response.streak,
-          goal: streakGoal
+          goal: streakGoal,
+          // Fallback for compatibility if API doesn't return active_days_of_week
+          active_days_of_week: response.streak.active_days_of_week ?? []
         }
       };
 

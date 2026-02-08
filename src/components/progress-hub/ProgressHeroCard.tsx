@@ -198,7 +198,7 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                     key={i}
                     className={cn(
                       "w-3 h-3 rounded-sm transition-colors",
-                      i < streak.active_days_week
+                      streak.active_days_of_week?.includes(i)
                         ? "bg-primary"
                         : "bg-muted-foreground/20"
                     )}
