@@ -44,7 +44,7 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
 
   const { 
     executive, 
-    temporal, 
+    temporal,
     segmentacaoIES,
     segmentacaoSemestre,
     segmentacaoArea,
@@ -67,6 +67,7 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
   // Export data object for reuse
   const exportData = useMemo(() => ({
     executive,
+    temporal,
     simulados,
     segmentacaoIES,
     segmentacaoSemestre,
@@ -76,7 +77,7 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
     segmentacaoDificuldade,
     questoesProblematicas,
     comportamento,
-  }), [executive, simulados, segmentacaoIES, segmentacaoSemestre, segmentacaoArea, segmentacaoEspecialidade, segmentacaoTema, segmentacaoDificuldade, questoesProblematicas, comportamento]);
+  }), [executive, temporal, simulados, segmentacaoIES, segmentacaoSemestre, segmentacaoArea, segmentacaoEspecialidade, segmentacaoTema, segmentacaoDificuldade, questoesProblematicas, comportamento]);
 
   const handleExportCSV = () => {
     exportToCSV(exportData, filters);
