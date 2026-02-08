@@ -1,232 +1,165 @@
 
-# Plano de Correcao: Paginacao Completa e Exclusao de Admins no Analytics
+# Transformacao do Export de Simulados: De Recorte Basico para Analise Profunda Premium
 
-## Problemas Identificados
+## Diagnostico Atual
 
-### Problema 1: Total de Respostas Limitado a 1.000
+### O que o Export "Apenas Simulados" faz hoje (exportSimuladosFromAnalyticsData)
+Arquivo: `src/utils/exportAnalyticsReport.ts` linhas 446-508
 
-**Localizacao:** `src/hooks/useAnalyticsData.ts` linhas 636-639
+| Aba | Conteudo | Problema |
+|-----|----------|----------|
+| 1. Resumo | 4 metricas basicas (total simulados, media acertos, total respostas, questoes problematicas) | Muito superficial, sem contexto |
+| 2. Simulados | Lista com nome, questoes, iniciados, finalizados, taxa | Falta: acuracia, tempo, saidas de aba, IES vinculadas |
+| 3. Questoes Problematicas | Enunciado + taxa erro | Falta: grande area, especialidade, tema, dificuldade, distribuicao alternativas |
 
-```typescript
-// ATUAL - SEM paginacao (limite padrao de 1000 linhas)
-useUserFilter && userIdsFromIES
-  ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
-  : supabase.from('answer_progress').select('question_id, correct, user_id')
-```
+### O que o hook useSimuladosAnalytics disponibiliza (mas NAO esta sendo usado)
+Arquivo: `src/hooks/useSimuladosAnalytics.ts`
 
-**Evidencia:** A tabela `answer_progress` possui **22.000+ registros**, mas a query retorna apenas 1.000 (limite padrao do Supabase).
+**Dados ricos nao aproveitados:**
+- `segmentacaoIES` - Acuracia por instituicao com n_respostas
+- `segmentacaoSemestre` - Acuracia por semestre com n_respostas  
+- `segmentacaoArea` - Acuracia por grande area medica
+- `segmentacaoEspecialidade` - Acuracia por especialidade
+- `segmentacaoTema` - Acuracia por tema
+- `segmentacaoDificuldade` - Acuracia por nivel de dificuldade
+- `temporal.inicioPorDia` - Evolucao temporal de inicios
+- `temporal.conclusaoPorDia` - Evolucao temporal de conclusoes
+- `temporal.heatmapHorario` - Mapa de calor hora x dia
+- `comportamento` - Metricas de integridade (saidas aba, fullscreen, p95, abandono)
+- `executive` - KPIs executivos completos
 
-O hook `useSimuladosAnalytics.ts` JA implementa paginacao correta (linhas 273-309) com `fetchAllAnswerProgress`, mas o `useAnalyticsData.ts` NAO usa essa tecnica.
+**Por simulado (SimuladoOverview):**
+- `acuracia_media`, `tempo_mediano_segundos`, `tempo_medio_segundos`
+- `saidas_aba_media`, `saidas_fullscreen_media`
+- `tentativas_media`, `questoes_anuladas`, `questoes_nao_respondidas_media`
+- `ies_ids` - IES vinculadas ao simulado
 
----
-
-### Problema 2: Usuarios Admin NAO Excluidos
-
-**Evidencia:** Existem **8 usuarios admin** na tabela `user_roles`:
-- 86c38a5e-a43c-4e53-932e-bff888ac75b6
-- 7299f7c2-9bb1-47ae-804a-4199522c4fc3
-- c62a7e9a-0da5-4b5b-bf45-44f559ae5d46
-- bb23becf-1d21-46bd-8a48-357a9807bbb3
-- 70f1d617-0703-4e7b-a12a-88fce9c7ff36
-- dc435ead-062c-4277-ae61-9d161bd560f0
-- 6bbe275a-466c-48c6-a5dd-f307958145ed
-- b920c8b5-3ba9-4380-9834-fad0fa4bcda4
-
-**Impacto:** Todas as metricas (usuarios totais, sessoes, respostas de simulado, page views, etc.) incluem dados de admins, distorcendo os relatorios B2B.
-
-**Correcao necessaria:** Excluir os IDs de admins de TODAS as queries de analytics:
-- `fetchOverviewMetrics`
-- `fetchEngagementMetrics`
-- `fetchProgressMetrics`
-- `fetchDemographicsMetrics`
-- `fetchSimuladoMetrics`
-- `fetchTrackingHealth`
-
-E tambem no `useSimuladosAnalytics.ts`:
-- Fase 2 (fetch de users)
-- Filtro `allowedUserIds`
+**Por questao (QuestaoProblematica):**
+- `grande_area`, `especialidade`, `tema`, `dificuldade`
+- `distribuicao` - Array com contagem por alternativa
+- `comentario`, `anulada`
 
 ---
 
-## Plano de Implementacao
+## Solucao: Novo Export Premium de Simulados
 
-### FASE 1: Adicionar Helper para Buscar IDs de Admins
+### Arquitetura
+O export de simulados deve usar os dados do `useSimuladosAnalytics` diretamente, nao o simplificado do `useAnalyticsData.simulados`.
 
-**Arquivo:** `src/hooks/useAnalyticsData.ts`
+**Mudanca de abordagem:**
+- ANTES: `exportSimuladosFromAnalyticsData(data: AnalyticsExportData)` - dados superficiais
+- DEPOIS: `exportSimuladosPremium(data: SimuladosAnalyticsData)` - dados completos
 
-Adicionar funcao helper para buscar os user_ids de usuarios com role 'admin':
+### Nova Estrutura do XLSX (15+ abas especializadas)
 
-```typescript
-const fetchAdminUserIds = useCallback(async (): Promise<Set<string>> => {
-  const { data } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .eq('role', 'admin');
-  return new Set(data?.map(r => r.user_id) || []);
-}, []);
-```
+| Aba | Conteudo Detalhado |
+|-----|-------------------|
+| 1. Capa Executiva | Logo, periodo, filtros, resumo de 12+ KPIs |
+| 2. KPIs Executivos | Tabela completa com todas as metricas executive |
+| 3. Simulados Detalhados | 14 colunas: nome, status, datas, duracao, questoes, iniciados, concluintes, taxa, acuracia, tempo mediano, saidas aba/fullscreen, tentativas, anuladas |
+| 4. Performance por IES | Ranking de IES por acuracia com n_respostas e alunos |
+| 5. Performance por Semestre | Comparativo de semestres |
+| 6. Performance por Grande Area | Gaps pedagogicos por area medica |
+| 7. Performance por Especialidade | Especialidades com maior/menor acuracia |
+| 8. Performance por Tema | Granularidade maxima - todos os temas |
+| 9. Performance por Dificuldade | Comparativo Facil/Medio/Dificil |
+| 10. Evolucao Temporal | Series inicios e conclusoes por dia |
+| 11. Heatmap de Atividade | Matriz hora x dia da semana |
+| 12. Questoes Problematicas | Top 50 com 9 colunas: enunciado, area, esp, tema, dif, taxa erro, n_respostas, anulada, comentario |
+| 13. Comportamento e Integridade | Metricas de friccao, abandono, p95, simulados com alta friccao |
+| 14. Matriz Simulado x IES | Tabela cruzada: acuracia de cada simulado por IES (nova analise!) |
+| 15. Metadados Tecnicos | Contagens, versao, filtros, timestamp |
 
----
+### Analises Exclusivas (nao presentes no Excel Completo)
 
-### FASE 2: Excluir Admins em Todas as Queries de useAnalyticsData
+1. **Matriz Cruzada Simulado x IES**
+   - Linha: cada simulado
+   - Coluna: cada IES
+   - Celula: acuracia media
+   - Permite comparar performance relativa entre instituicoes em cada prova
 
-**2.1. Modificar `fetchUserIdsByIES` e `fetchUserIdsExcludingIES`:**
+2. **Gaps Pedagogicos Rankeados**
+   - Listar temas/especialidades com acuracia < 50%
+   - Ordenar por n_respostas (priorizar gaps com volume)
+   - Adicionar coluna "Prioridade de Intervencao" (alta/media/baixa)
 
-Adicionar parametro `excludeAdmins: Set<string>` e filtrar na resposta:
+3. **Analise de Distribuicao de Respostas**
+   - Para cada questao problematica, mostrar % em cada alternativa
+   - Identificar distratores mais escolhidos (potencial de insight pedagogico)
 
-```typescript
-const fetchUserIdsByIES = useCallback(async (iesId: string, excludeAdmins: Set<string>): Promise<string[]> => {
-  const { data: users } = await supabase
-    .from('users')
-    .select('id')
-    .eq('id_ies', iesId);
-  return (users?.map(u => u.id) || []).filter(id => !excludeAdmins.has(id));
-}, []);
-```
-
-**2.2. Aplicar exclusao em TODAS as queries:**
-
-No inicio de `fetchOverviewMetrics`, `fetchEngagementMetrics`, etc:
-
-```typescript
-const adminIds = await fetchAdminUserIds();
-
-// Em queries com count
-const totalUsuariosQuery = iesFilter
-  ? supabase.from('users').select('*', { count: 'exact', head: true })
-      .eq('id_ies', iesFilter)
-      .not('id', 'in', `(${Array.from(adminIds).join(',')})`)
-  : // ...
-```
-
----
-
-### FASE 3: Implementar Paginacao para answer_progress em useAnalyticsData
-
-**3.1. Criar helper de paginacao:**
-
-```typescript
-const fetchAllAnswerProgress = async (
-  userFilter: string[] | null,
-  adminIds: Set<string>
-): Promise<{ question_id: string; correct: boolean; user_id: string }[]> => {
-  const PAGE_SIZE = 1000;
-  const all: { question_id: string; correct: boolean; user_id: string }[] = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from('answer_progress')
-      .select('question_id, correct, user_id')
-      .order('answer_id', { ascending: true })
-      .range(from, from + PAGE_SIZE - 1);
-
-    if (userFilter && userFilter.length > 0) {
-      query = query.in('user_id', userFilter);
-    }
-
-    const { data: page, error } = await query;
-    if (error) throw error;
-    
-    const rows = (page || []).filter(r => !adminIds.has(r.user_id));
-    all.push(...rows);
-    
-    if ((page || []).length < PAGE_SIZE) {
-      hasMore = false;
-    } else {
-      from += PAGE_SIZE;
-    }
-  }
-
-  return all;
-};
-```
-
-**3.2. Substituir a query atual em `fetchSimuladoMetrics`:**
-
-```typescript
-// ANTES (linha 636-639)
-const respostasResult = useUserFilter && userIdsFromIES
-  ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
-  : supabase.from('answer_progress').select('question_id, correct, user_id')
-
-// DEPOIS
-const respostasData = await fetchAllAnswerProgress(
-  useUserFilter && userIdsFromIES ? userIdsFromIES : null,
-  adminIds
-);
-```
+4. **Indicadores Comparativos**
+   - Delta entre IES: diferenca entre melhor e pior performance
+   - Coeficiente de variacao por tema (consistencia de aprendizado)
 
 ---
 
-### FASE 4: Excluir Admins em useSimuladosAnalytics
+## Implementacao Tecnica
 
-**Arquivo:** `src/hooks/useSimuladosAnalytics.ts`
+### Passo 1: Criar nova funcao de export
+Arquivo: `src/utils/exportSimuladosAnalytics.ts` (ja existe, expandir)
 
-**4.1. Buscar admin IDs no inicio de `fetchData`:**
+Adicionar: `exportSimuladosPremiumXLSX(data: SimuladosAnalyticsData, filters: ExportFilters)`
 
-```typescript
-const { data: adminRoles } = await supabase
-  .from('user_roles')
-  .select('user_id')
-  .eq('role', 'admin');
-const adminIds = new Set((adminRoles || []).map(r => r.user_id));
-```
+### Passo 2: Atualizar ExportReportModal para chamar o hook correto
+Arquivo: `src/components/analytics/ExportReportModal.tsx`
 
-**4.2. Filtrar admins ao construir `allowedUserIds` (linha 381-390):**
+**Problema atual:** O modal recebe `data: AnalyticsExportData` que tem dados simplificados de simulados.
 
-```typescript
-const allowedUserIds = new Set(
-  eventUserIds.filter(uid => {
-    if (adminIds.has(uid)) return false; // NOVA LINHA: excluir admins
-    const u = userById.get(uid);
-    if (!u) return false;
-    if (iesId && u.id_ies !== iesId) return false;
-    if (excludedIES?.length > 0 && u.id_ies && excludedIES.includes(u.id_ies)) return false;
-    if (semestre && u.semestre !== semestre) return false;
-    return true;
-  })
-);
-```
+**Solucao:** Quando o usuario seleciona "Apenas Simulados":
+- Usar os dados do `useSimuladosAnalytics` (ja disponivel na aba Simulados)
+- Passar `SimuladosAnalyticsData` para a nova funcao de export
+
+**Abordagem de integracao:**
+- Adicionar prop opcional `simuladosFullData?: SimuladosAnalyticsData` ao modal
+- Quando disponivel, usar para o export premium
+- Quando nao disponivel (ex: acessou modal de outra aba), mostrar mensagem sugerindo ir para aba Simulados
+
+### Passo 3: Conectar RealSimuladosTab com ExportReportModal
+Arquivo: `src/components/analytics/RealSimuladosTab.tsx`
+
+Ja existe `handleExportXLSX` que chama `exportToXLSX`. Precisamos garantir que o modal global tenha acesso a esses dados.
+
+**Opcao elegante:** Criar um contexto `SimuladosAnalyticsContext` que compartilha os dados entre a aba e o modal. Ou passar via props de Analytics.tsx.
+
+### Passo 4: Enriquecer CSV de simulados
+Atualizar `exportToCSV` em `exportSimuladosAnalytics.ts` para incluir todas as secoes novas.
 
 ---
 
-### FASE 5: Atualizar Exports para Refletir Dados Corretos
+## Diferenciais do Export Premium vs Completo
 
-Os arquivos de exportacao ja usam os dados processados pelos hooks, entao automaticamente refletirao os valores corretos apos as correcoes acima.
-
-Garantir que a label "Total de Respostas" no XLSX exiba o valor real (22.000+) em vez de 1.000.
+| Aspecto | XLSX Completo | XLSX Simulados Premium |
+|---------|---------------|------------------------|
+| Foco | Generalista (engajamento, demografia, etc) | Exclusivamente pedagogico |
+| Granularidade | 8 abas com visao geral | 15 abas com drilldown |
+| Simulados | Lista basica (5 colunas) | Tabela completa (14 colunas) |
+| Segmentacao | IES e semestre (2 abas) | IES, semestre, area, especialidade, tema, dificuldade (6 abas) |
+| Questoes | Top 50 com 3 colunas | Top 50 com 9 colunas + distribuicao |
+| Analises exclusivas | Nenhuma | Matriz cruzada, gaps rankeados, comportamento detalhado |
+| Temporal | Sessoes por dia | Inicios e conclusoes por dia + heatmap |
+| Comportamento | Nao inclui | Saidas aba/fullscreen, p95, abandono, friccao alta |
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/hooks/useAnalyticsData.ts` | Adicionar `fetchAdminUserIds`, paginacao de respostas, excluir admins em todas as queries |
-| `src/hooks/useSimuladosAnalytics.ts` | Adicionar exclusao de admins em `allowedUserIds` |
+| Arquivo | Alteracao |
+|---------|-----------|
+| `src/utils/exportSimuladosAnalytics.ts` | Expandir `exportToXLSX` para 15 abas + nova funcao com matriz cruzada |
+| `src/components/analytics/ExportReportModal.tsx` | Adicionar prop `simuladosFullData`, chamar export correto |
+| `src/pages/Analytics.tsx` | Passar dados de simulados para o modal quando na aba Simulados |
+| `src/components/analytics/RealSimuladosTab.tsx` | Expor dados via callback ou context para o modal |
 
 ---
 
 ## Resultado Esperado
 
 **Antes:**
-- Total de Respostas: 1.000 (truncado)
-- Usuarios incluem admins
-- Sessoes incluem admins
-- Desempenho de simulado inclui dados de teste de admins
+- Export de simulados = 3 abas basicas com dados superficiais
+- Mesma informacao que ja esta no Excel completo (so menos)
 
 **Depois:**
-- Total de Respostas: 22.000+ (real)
-- Usuarios: somente alunos B2B (sem admins)
-- Sessoes: somente de alunos (sem admins)
-- Metricas pedagogicas limpas, sem distorcao de dados de teste
-
----
-
-## Nota Tecnica: Performance
-
-A paginacao sequencial adicionara latencia (~100-200ms por pagina de 1000 registros). Para 22.000 registros, serao ~22 iteracoes = 2-4 segundos adicionais.
-
-Mitigacao: O hook `useSimuladosAnalytics` ja usa cache de 5 minutos (SWR pattern), e o `useAnalyticsData` mantem estado local. O impacto sera notado apenas no primeiro carregamento ou refresh manual.
+- Export de simulados = 15 abas especializadas com analise profunda
+- Dados exclusivos: matriz cruzada, gaps rankeados, distribuicao de alternativas, heatmap
+- Valor real para coordenadores pedagogicos e gestores de IES
+- Justifica ter uma opcao separada no modal
