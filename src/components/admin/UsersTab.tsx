@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Upload, Download, Users, Shield, RefreshCw, Search, Copy, Loader2, Mail } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
+import { UsersListTable } from './UsersListTable';
 import * as XLSX from 'xlsx';
 
 interface IES {
@@ -26,6 +27,10 @@ export const UsersTab: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
   
+  // Stats
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [totalAdmins, setTotalAdmins] = useState<number | null>(null);
+  
   // Sync auth states
   const [syncEmail, setSyncEmail] = useState('');
   const [syncLoading, setSyncLoading] = useState(false);
@@ -41,6 +46,11 @@ export const UsersTab: React.FC = () => {
       setIesList(data);
     }
   };
+
+  const handleStatsUpdate = useCallback((users: number, admins: number) => {
+    setTotalUsers(users);
+    setTotalAdmins(admins);
+  }, []);
 
   const addLog = (message: string) => {
     const timestamp = getBrazilDate().toLocaleTimeString('pt-BR');
@@ -457,7 +467,9 @@ export const UsersTab: React.FC = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">
+              {totalUsers !== null ? totalUsers.toLocaleString('pt-BR') : '-'}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -466,10 +478,15 @@ export const UsersTab: React.FC = () => {
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">
+              {totalAdmins !== null ? totalAdmins : '-'}
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Users List Table - NEW */}
+      <UsersListTable iesList={iesList} onStatsUpdate={handleStatsUpdate} />
 
       {/* Sync User Auth - Fix Login Issues */}
       <Card className="border-amber-500/30 bg-amber-500/5">
