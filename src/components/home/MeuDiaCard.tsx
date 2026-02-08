@@ -23,6 +23,8 @@ interface MeuDiaCardProps {
   nextExam?: ExamInsight | null;
   examLoading?: boolean;
   onAddExamClick?: () => void;
+  onEditExam?: (examId: string) => void;
+  onRemoveExam?: (examId: string) => void;
 }
 
 const iconMap: Record<string, any> = { BookOpen, Zap, BarChart3 };
@@ -153,7 +155,9 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   onRetry,
   nextExam,
   examLoading = false,
-  onAddExamClick
+  onAddExamClick,
+  onEditExam,
+  onRemoveExam
 }) => {
   const navigate = useNavigate();
 
@@ -216,6 +220,8 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
             exam={nextExam ?? null}
             loading={examLoading}
             onAddExamClick={onAddExamClick}
+            onEditExam={onEditExam}
+            onRemoveExam={onRemoveExam}
           />
         )}
 
