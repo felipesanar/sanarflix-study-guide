@@ -11,6 +11,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useStudyProgress } from '@/hooks/useStudyProgress';
+import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { usePageTimeTracking } from '@/hooks/usePageTimeTracking';
+import { useWebVitals } from '@/hooks/useWebVitals';
 import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 // Premium Components
@@ -89,7 +92,9 @@ const readStudyGuideCache = (iesId: string, semestre: number | undefined): Conte
       }
     }
   } catch (e) {
-    console.warn('Falha ao ler cache do StudyGuide:', e);
+    if (import.meta.env.DEV) {
+      console.warn('[StudyGuide] Falha ao ler cache:', e);
+    }
   }
   return null;
 };
@@ -138,6 +143,17 @@ export const StudyGuide: React.FC = () => {
   const isMobile = useIsMobile();
   const { theme } = useTheme();
   const location = useLocation();
+  
+  // Analytics
+  const analytics = useAnalyticsTracker();
+  const hasTrackedViewRef = useRef(false);
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Track page time on exit
+  usePageTimeTracking({ pageName: 'study_guide', enabled: true });
+  
+  // Track web vitals
+  useWebVitals();
 
   // Cache-first loading
   const cachedContents = useMemo(() => {
@@ -183,7 +199,7 @@ export const StudyGuide: React.FC = () => {
     setCalendarEvents(events);
   }, [subjects]);
 
-  // Deep link handling
+  // Deep link handling with analytics
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const m = params.get('materia');
@@ -195,7 +211,12 @@ export const StudyGuide: React.FC = () => {
     if (aula) setDeepLinkAula(aula);
     if (tema) setDeepLinkTema(tema);
     if (subtema) setDeepLinkSubtema(subtema);
-  }, [location.search]);
+    
+    // Track deep link if any param exists
+    if (m || aula || tema || subtema) {
+      analytics.trackStudyGuideDeepLinkOpened({ materia: m, tema, aula, subtema });
+    }
+  }, [location.search, analytics]);
 
   // Load last search
   useEffect(() => {
@@ -211,7 +232,24 @@ export const StudyGuide: React.FC = () => {
     }
   }, [selectedSemestre, user?.ies_nome, user?.semestre, loadAllProgress]);
 
-  // Fetch contents
+  // Track page view once data is loaded
+  useEffect(() => {
+    if (!isLoading && conteudos.length > 0 && selectedSemestre && !hasTrackedViewRef.current) {
+      hasTrackedViewRef.current = true;
+      analytics.trackStudyGuideView({
+        semestre: selectedSemestre,
+        viewMode,
+        hasCache: !!cachedContents
+      });
+      analytics.trackCacheHit('localStorage', 'study_guide', !!cachedContents);
+      
+      if (import.meta.env.DEV) {
+        console.log('[StudyGuide] Page view tracked', { semestre: selectedSemestre, viewMode, hasCache: !!cachedContents });
+      }
+    }
+  }, [isLoading, conteudos.length, selectedSemestre, viewMode, cachedContents, analytics]);
+
+  // Fetch contents with latency tracking
   useEffect(() => {
     const fetchConteudos = async () => {
       if (!user?.id_ies) {
@@ -221,6 +259,8 @@ export const StudyGuide: React.FC = () => {
 
       if (hasLoadedData.current && conteudos.length > 0) return;
 
+      const startTime = Date.now();
+
       try {
         setIsLoading(true);
         const cacheKey = `study_contents_${user.id_ies}_${user.semestre}`;
@@ -229,6 +269,10 @@ export const StudyGuide: React.FC = () => {
           cacheKey,
           async () => {
             const { data: response, error } = await supabase.functions.invoke('get-study-contents');
+            
+            const latency = Date.now() - startTime;
+            analytics.trackEdgeLatency('get-study-contents', latency, !error);
+            
             if (error) throw error;
             if (!response?.data) throw new Error('Invalid response');
             return (response.data || []).map((item: any) => ({
@@ -280,7 +324,17 @@ export const StudyGuide: React.FC = () => {
           }
         }
       } catch (error) {
-        console.error('Error fetching contents:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        analytics.trackStudyGuideError({
+          errorType: 'edge_invoke',
+          messageSanitized: errorMessage,
+          context: 'fetchConteudos'
+        });
+        
+        if (import.meta.env.DEV) {
+          console.error('[StudyGuide] Error fetching contents:', error);
+        }
+        
         toast({
           title: 'Erro',
           description: 'Não foi possível carregar os conteúdos',
@@ -292,7 +346,7 @@ export const StudyGuide: React.FC = () => {
     };
 
     fetchConteudos();
-  }, [user?.id_ies]);
+  }, [user?.id_ies, user?.semestre, analytics, conteudos.length]);
 
   // Deep link scroll
   useEffect(() => {
@@ -328,17 +382,54 @@ export const StudyGuide: React.FC = () => {
 
   const isCompleted = (item: ConteudoData) => isProgressCompleted(getAulaId(item));
 
-  const toggleCompletion = async (item: ConteudoData) => {
+  const toggleCompletion = useCallback(async (item: ConteudoData) => {
     const id = getAulaId(item);
     const semestre = parseInt(item.semestre) || parseInt(selectedSemestre) || user?.semestre || 1;
-    await toggleContentCompletion(
-      'aula',
-      id,
-      item.materia,
-      semestre,
-      user?.ies_nome || ''
-    );
-  };
+    const wasCompleted = !isProgressCompleted(id);
+    const startTime = Date.now();
+    
+    try {
+      await toggleContentCompletion(
+        'aula',
+        id,
+        item.materia,
+        semestre,
+        user?.ies_nome || ''
+      );
+      
+      const latency = Date.now() - startTime;
+      
+      analytics.trackStudyGuideLessonCompletion({
+        semestre,
+        materia: item.materia,
+        tema: item.tema,
+        subtema: item.subtema,
+        aula: item.aula,
+        wasCompleted,
+        source: 'checkbox',
+        latencyMs: latency,
+        success: true
+      });
+      
+      // Track funnel event
+      if (wasCompleted) {
+        analytics.trackFunnelGuideToCompletion(item.materia, 1);
+      }
+    } catch (error) {
+      const latency = Date.now() - startTime;
+      analytics.trackStudyGuideLessonCompletion({
+        semestre,
+        materia: item.materia,
+        tema: item.tema,
+        subtema: item.subtema,
+        aula: item.aula,
+        wasCompleted,
+        source: 'checkbox',
+        latencyMs: latency,
+        success: false
+      });
+    }
+  }, [selectedSemestre, user?.semestre, user?.ies_nome, toggleContentCompletion, isProgressCompleted, analytics]);
 
   // Grouped data
   const groupedData = useMemo(() => {
@@ -389,10 +480,48 @@ export const StudyGuide: React.FC = () => {
     return Array.from(materiaMap.values());
   }, [conteudos, selectedSemestre]);
 
-  // Filtered by search
+  // Filtered by search with debounced tracking
   const filteredMaterias = useMemo(() => {
     if (!searchQuery.trim()) return groupedData;
     const query = searchQuery.toLowerCase();
+    
+    // Track search with debounce
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      const results = groupedData
+        .map((m) => {
+          const filteredTemas = m.temas
+            .map((t) => {
+              const filteredSubtemas = t.subtemas
+                .map((st) => ({
+                  ...st,
+                  aulas: st.aulas.filter((a) =>
+                    m.materia.toLowerCase().includes(query) ||
+                    t.tema.toLowerCase().includes(query) ||
+                    st.subtema.toLowerCase().includes(query) ||
+                    a.aula.toLowerCase().includes(query)
+                  )
+                }))
+                .filter((st) => st.aulas.length > 0);
+              return { ...t, subtemas: filteredSubtemas };
+            })
+            .filter((t) => t.subtemas.length > 0);
+          return { ...m, temas: filteredTemas };
+        })
+        .filter((m) => m.temas.length > 0);
+      
+      const totalResults = results.reduce((sum, m) => 
+        sum + m.temas.reduce((tSum, t) => 
+          tSum + t.subtemas.reduce((stSum, st) => stSum + st.aulas.length, 0), 0), 0);
+      
+      analytics.trackStudyGuideSearch({
+        query: searchQuery,
+        resultsCount: totalResults,
+        source: 'input'
+      });
+    }, 400);
     
     return groupedData
       .map((m) => {
@@ -415,7 +544,7 @@ export const StudyGuide: React.FC = () => {
         return { ...m, temas: filteredTemas };
       })
       .filter((m) => m.temas.length > 0);
-  }, [groupedData, searchQuery]);
+  }, [groupedData, searchQuery, analytics]);
 
   const availableSubjectNames = useMemo(() => 
     filteredMaterias.map(m => m.materia), [filteredMaterias]);
@@ -479,26 +608,29 @@ export const StudyGuide: React.FC = () => {
     return allAulas.every(a => isCompleted(a));
   };
 
-  // Calendar handlers
-  const addEventToCalendar = async (materia: string, day: number) => {
+  // Calendar handlers with analytics
+  const addEventToCalendar = useCallback(async (materia: string, day: number) => {
     await addSubject({
       name: materia,
       dayOfWeek: day,
       color: getMateriaColor(materia)
     });
-  };
+    analytics.trackStudyGuideCalendarSubjectAdded(materia, day);
+  }, [addSubject, analytics]);
 
-  const removeEventFromCalendar = async (id: string) => {
+  const removeEventFromCalendar = useCallback(async (id: string) => {
     const event = calendarEvents.find(e => e.id === id);
     if (!event) return;
     await removeSubject(event.day, event.materia);
+    analytics.trackStudyGuideCalendarSubjectRemoved(event.materia, event.day);
     toast({ title: "Matéria removida", description: "Matéria removida do calendário" });
-  };
+  }, [calendarEvents, removeSubject, analytics]);
 
-  const openMateriaSheet = (materia: string) => {
+  const openMateriaSheet = useCallback((materia: string) => {
     setSelectedEventMateria(materia);
     setSheetOpen(true);
-  };
+    analytics.trackStudyGuideTodayCardClicked(materia, getBrazilDayOfWeek(), 'subject');
+  }, [analytics]);
 
   const confirmEditMode = useCallback(() => {
     setCalendarSyncStatus('syncing');
@@ -520,6 +652,50 @@ export const StudyGuide: React.FC = () => {
   const handleCalendarReset = useCallback(() => {
     toast({ title: "Semana resetada", description: "Todas as matérias foram removidas" });
   }, []);
+
+  // Handle view mode change with analytics
+  const handleViewModeChange = useCallback((mode: 'list' | 'calendar') => {
+    setViewMode(mode);
+    if (mode === 'calendar') {
+      analytics.trackStudyGuideCalendarOpened('view', isMobile ? 'mobile' : 'desktop');
+    }
+  }, [analytics, isMobile]);
+
+  // Handle edit mode with analytics
+  const handleEnterEditMode = useCallback(() => {
+    setIsEditMode(true);
+    analytics.trackStudyGuideCalendarOpened('edit', isMobile ? 'mobile' : 'desktop');
+  }, [analytics, isMobile]);
+
+  // Handle subject chip click with analytics
+  const handleSubjectChipClick = useCallback((materia: string) => {
+    setSelectedMateria(materia);
+    analytics.trackStudyGuideSubjectChipClicked(materia, 'chips');
+  }, [analytics]);
+
+  // Handle content action (video, pdf, quiz) with analytics
+  const handleContentAction = useCallback((item: ConteudoData, actionType: 'video' | 'pdf' | 'quiz', url: string) => {
+    analytics.trackStudyGuideContentAction({
+      actionType,
+      materia: item.materia,
+      tema: item.tema,
+      subtema: item.subtema,
+      aula: item.aula,
+      provider: 'sanarclass'
+    });
+    analytics.trackFunnelGuideToContentAction(actionType, item.materia);
+    window.open(url, '_blank');
+  }, [analytics]);
+
+  // Handle search suggestion click with analytics
+  const handleSearchSuggestionClick = useCallback((text: string) => {
+    setSearchQuery(text);
+    analytics.trackStudyGuideSearch({
+      query: text,
+      resultsCount: -1, // Will be tracked on actual filter
+      source: lastSearchTerm === text ? 'history' : 'suggestion'
+    });
+  }, [analytics, lastSearchTerm]);
 
   // Today's subjects
   const todaySubjects = useMemo(() => {
@@ -598,7 +774,7 @@ export const StudyGuide: React.FC = () => {
               suggestions={suggestions}
               lastSearch={lastSearchTerm}
               placeholder="O que você quer aprender hoje?"
-              onSuggestionClick={(text) => setSearchQuery(text)}
+              onSuggestionClick={handleSearchSuggestionClick}
             />
           </div>
         </div>
@@ -610,7 +786,7 @@ export const StudyGuide: React.FC = () => {
               subjects={todaySubjects}
               onSubjectClick={openMateriaSheet}
               onRemoveSubject={(id) => removeEventFromCalendar(id)}
-              onGoToCalendar={() => setViewMode('calendar')}
+              onGoToCalendar={() => handleViewModeChange('calendar')}
               isHero
             />
 
@@ -620,7 +796,7 @@ export const StudyGuide: React.FC = () => {
               semestres={semestres}
               viewMode={viewMode}
               onSemestreChange={setSelectedSemestre}
-              onViewModeChange={setViewMode}
+              onViewModeChange={handleViewModeChange}
             />
 
             {/* Subject Chips - Only in list mode */}
@@ -628,7 +804,7 @@ export const StudyGuide: React.FC = () => {
               <SubjectChips
                 subjects={subjectChipsData}
                 selectedSubject={selectedMateria}
-                onSelectSubject={setSelectedMateria}
+                onSelectSubject={handleSubjectChipClick}
               />
             )}
 
@@ -680,13 +856,42 @@ export const StudyGuide: React.FC = () => {
                             isAulaCompleted={(aulaId) => isProgressCompleted(aulaId)}
                             onAulaToggle={async (aulaId) => {
                               const semestre = parseInt(selectedSemestre) || user?.semestre || 1;
-                              await toggleContentCompletion(
-                                'aula',
-                                aulaId,
-                                materia.materia,
-                                semestre,
-                                user?.ies_nome || ''
-                              );
+                              const startTime = Date.now();
+                              const wasCompleted = !isProgressCompleted(aulaId);
+                              
+                              try {
+                                await toggleContentCompletion(
+                                  'aula',
+                                  aulaId,
+                                  materia.materia,
+                                  semestre,
+                                  user?.ies_nome || ''
+                                );
+                                
+                                // Parse aulaId to get details
+                                const parts = aulaId.split('-');
+                                analytics.trackStudyGuideLessonCompletion({
+                                  semestre,
+                                  materia: materia.materia,
+                                  tema: parts[2] || '',
+                                  subtema: parts[3] || '',
+                                  aula: parts.slice(4).join('-') || '',
+                                  wasCompleted,
+                                  source: 'checkbox',
+                                  latencyMs: Date.now() - startTime,
+                                  success: true
+                                });
+                                
+                                if (wasCompleted) {
+                                  analytics.trackFunnelGuideToCompletion(materia.materia, 1);
+                                }
+                              } catch (error) {
+                                analytics.trackStudyGuideError({
+                                  errorType: 'supabase_query',
+                                  messageSanitized: 'Failed to toggle completion',
+                                  context: 'onAulaToggle'
+                                });
+                              }
                             }}
                             aulaRefs={aulaRefs}
                           />
@@ -706,7 +911,7 @@ export const StudyGuide: React.FC = () => {
                   <div className="md:hidden">
                     <CalendarViewMobile
                       events={calendarEvents}
-                      onEdit={() => setIsEditMode(true)}
+                      onEdit={handleEnterEditMode}
                       onEventClick={(event) => openMateriaSheet(event.materia)}
                       variant={calendarVariant}
                     />
@@ -716,7 +921,7 @@ export const StudyGuide: React.FC = () => {
                   <div className="hidden md:block">
                     <CalendarViewDesktop
                       events={calendarEvents}
-                      onEdit={() => setIsEditMode(true)}
+                      onEdit={handleEnterEditMode}
                       onEventClick={(event) => openMateriaSheet(event.materia)}
                       variant={calendarVariant}
                     />
@@ -791,7 +996,14 @@ export const StudyGuide: React.FC = () => {
                   value={`tema-${tIdx}`}
                   className="border rounded-xl px-4 shadow-sm border-border/40 dark:border-white/5"
                 >
-                  <AccordionTrigger className="hover:no-underline py-4">
+                  <AccordionTrigger 
+                    className="hover:no-underline py-4"
+                    onClick={() => analytics.trackStudyGuideThemeToggled(
+                      selectedMateriaContents.materia, 
+                      tema.tema, 
+                      true
+                    )}
+                  >
                     <div className="flex items-center gap-3 flex-1 text-left">
                       <Brain className="h-5 w-5 text-primary shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -860,7 +1072,7 @@ export const StudyGuide: React.FC = () => {
                                           size="sm"
                                           variant="outline"
                                           className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
-                                          onClick={() => window.open(aula.link_aula!, '_blank')}
+                                          onClick={() => handleContentAction(aulaData, 'video', aula.link_aula!)}
                                         >
                                           <Play className="h-3 w-3" />
                                           Assistir
@@ -871,7 +1083,7 @@ export const StudyGuide: React.FC = () => {
                                           size="sm"
                                           variant="outline"
                                           className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
-                                          onClick={() => window.open(aula.link_pdf!, '_blank')}
+                                          onClick={() => handleContentAction(aulaData, 'pdf', aula.link_pdf!)}
                                         >
                                           <FileText className="h-3 w-3" />
                                           PDF
@@ -882,7 +1094,7 @@ export const StudyGuide: React.FC = () => {
                                           size="sm"
                                           variant="outline"
                                           className="h-8 gap-1.5 rounded-lg text-xs hover:bg-primary hover:text-primary-foreground"
-                                          onClick={() => window.open(aula.link_quiz!, '_blank')}
+                                          onClick={() => handleContentAction(aulaData, 'quiz', aula.link_quiz!)}
                                         >
                                           <Brain className="h-3 w-3" />
                                           Quiz
@@ -907,5 +1119,3 @@ export const StudyGuide: React.FC = () => {
     </div>
   );
 };
-
-export default StudyGuide;
