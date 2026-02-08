@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { Check, ChevronsUpDown, SortAsc, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Search, SortAsc, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Command,
   CommandEmpty,
@@ -32,6 +32,8 @@ interface FiltersDesktopProps {
   onFiltersChange: (filters: ProgressFilters) => void;
   totalCount: number;
   filteredCount: number;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
@@ -54,6 +56,8 @@ export const FiltersDesktop: React.FC<FiltersDesktopProps> = ({
   onFiltersChange,
   totalCount,
   filteredCount,
+  searchQuery = '',
+  onSearchChange,
 }) => {
   const [materiaOpen, setMateriaOpen] = React.useState(false);
   const [temaOpen, setTemaOpen] = React.useState(false);
@@ -275,15 +279,35 @@ export const FiltersDesktop: React.FC<FiltersDesktopProps> = ({
           </Button>
         )}
 
-        {/* Results Counter */}
-        <div className="ml-auto flex items-center gap-2">
-          <Badge 
-            variant="secondary" 
-            className="font-normal text-xs"
-          >
-            {filteredCount} de {totalCount} itens
-          </Badge>
-        </div>
+        {/* Search Input */}
+        {onSearchChange && (
+          <div className="ml-auto relative">
+            <Search 
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+              aria-hidden="true" 
+            />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Buscar matéria ou tema..."
+              className="pl-9 pr-9 h-9 text-sm w-64"
+              aria-label="Buscar no mapa do semestre"
+            />
+            {searchQuery && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => onSearchChange('')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-muted"
+                aria-label="Limpar busca"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
