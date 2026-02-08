@@ -1,445 +1,532 @@
 
-# Plano de Evolução Premium da Central de Progresso
 
-## ✅ Status: Implementado
+# Plano: Evolução do Modo Pré-Prova — Sempre Ativo e Multi-Prova
 
-### Componentes Criados
-- `FiltersDesktop.tsx` — Filtros inline premium para desktop com Combobox de busca
-- `DiagnosticsCard.tsx` — Insights objetivos (maior backlog, tema negligenciado, vitória rápida)
-- `CoverageRankingCard.tsx` — Ranking menos/mais estudado com barras de progresso
-- `WeekDetailSheet.tsx` — Detalhes ao clicar no gráfico semanal
+## Resumo Executivo
 
-### Componentes Refinados
-- `FiltersDrawerMobile.tsx` — Adicionado filtro por Tema + Ordenação + Contador
-- `FilterChips.tsx` — Suporte a Tema e Ordenação
-- `WeeklyEvolutionCard.tsx` — Toggle count/% + clique para drill-down
-- `Dashboard.tsx` — Novo layout com cards de diagnóstico e cobertura
-
-### Tipos Atualizados
-- `ProgressFilters`: Adicionado `tema: string | null` e `sortBy: SortOption`
-- `SortOption`: `'alphabetical' | 'backlog' | 'percentage' | 'inactive'`
+Transformar o Modo Pré-Prova de um recurso opcional em uma **funcionalidade core sempre visível** que ajuda o aluno a gerenciar múltiplas provas associadas às matérias do semestre, com insights inteligentes sobre preparação.
 
 ---
 
-1. **Arquitetura de componentes** — bem separados, cada um com responsabilidade clara
-2. **Hero Card** — visual premium com círculo de progresso animado
-3. **Mapa do Semestre** — drill-down hierárquico matéria→tema→subtema
-4. **Busca no Mapa** — `SemesterMapSearch` já funcional
-5. **Consistency Card** — visual dos dias da semana
-6. **Weekly Evolution Chart** — Area chart limpo
-7. **Risk Alerts** — sistema de alertas para temas inativos
-8. **Spaced Revision** — sugestões de revisão inteligentes
-9. **Pre-Prova Mode** — funcionalidade diferenciada
-10. **Acessibilidade** — já tem aria-labels, focus states, sr-only
-11. **Animações** — Framer Motion com `shouldReduceMotion`
+## O Que Existe Hoje vs O Que Será Feito
 
-### O Que Está Faltando (Evoluir)
-
-| Gap | Impacto | Prioridade |
-|-----|---------|------------|
-| Filtros desktop não tem Select com busca | Fricção para IES com muitas matérias | P1 |
-| Filtros não incluem Tema (dependente de matéria) | Granularidade limitada | P1 |
-| Sem ordenação (ex: mais atrasados primeiro) | Difícil priorizar ação | P1 |
-| Sem indicador de "X itens filtrados" | Feedback incompleto | P2 |
-| Gráficos não são clicáveis (drill-down) | Oportunidade perdida | P1 |
-| Sem bloco "Menos vs Mais" / Diagnóstico | Insight objetivos ausentes | P1 |
-| Sem alternância de visualização no gráfico (% vs count) | Flexibilidade limitada | P2 |
-| FilterChips sem contagem de resultados | Feedback incompleto | P2 |
-| Desktop usa mesmo `FiltersDrawerMobile` | UX subótima no desktop | P2 |
+| Aspecto | Hoje | Depois |
+|---------|------|--------|
+| Ativação | Manual (Switch ou URL) | **Sempre ativo** |
+| Posição | Grid de 2 colunas, meio da página | **Topo direito, coluna lateral fixa** |
+| Número de provas | 1 única data global | **Múltiplas provas por matéria** |
+| Armazenamento | localStorage apenas | **Banco de dados (user_exams)** |
+| Insights | Checklist genérico por % | **Insights por prova + progresso específico** |
+| Associação | Nenhuma | **Prova ↔ Matéria** |
 
 ---
 
-## Fase 1 — O Que Permanece vs O Que Será Refinado
+## Arquitetura da Solução
 
-### Permanece (sem mudanças estruturais)
-- `ProgressHeroCard` — apenas micro-refinamentos
-- `ConsistencyCard` — manter como está
-- `WeeklyEvolutionCard` — adicionar toggle de visualização
-- `RiskAlertBanner` — manter
-- `SpacedRevisionCard` — manter
-- `PreProvaMode` — manter
-- `ExamCountdownCard` — manter
-- `TemaItem` — manter
+### 1. Nova Tabela: `user_exams`
 
-### Será Refinado
-- **Filtros Desktop** — novo componente `FiltersDesktop` com Select/Combobox
-- **Filtros Mobile** — evoluir `FiltersDrawerMobile` para incluir Tema
-- **SemesterMapCard** — adicionar contador de resultados + integração com gráficos
-- **Novo Bloco: DiagnosticsCard** — insights objetivos
-- **Novo Bloco: CoverageRankingCard** — ranking menos/mais estudado
-- **WeeklyEvolutionCard** — toggle % acumulado vs contagem
+```sql
+CREATE TABLE user_exams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  materia TEXT NOT NULL,
+  exam_name TEXT NOT NULL DEFAULT 'Prova',
+  exam_date DATE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  UNIQUE(user_id, materia, exam_date)
+);
 
----
+-- RLS
+ALTER TABLE user_exams ENABLE ROW LEVEL SECURITY;
 
-## Fase 2 — Upgrade dos Filtros
-
-### A) Filtros Desktop — Novo Componente `FiltersDesktop`
-
-```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│ [🔍 Matéria ▾] [📚 Tema ▾] [Status ▾] [Ordenar ▾] [Limpar]            │
-│                                                                         │
-│ Chips ativos: [Anatomia ✕] [Pendentes ✕]  ──  48 de 120 itens          │
-└─────────────────────────────────────────────────────────────────────────┘
+CREATE POLICY "Users can manage own exams"
+  ON user_exams FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 ```
 
-**Comportamento:**
-- **Matéria**: Combobox com busca (Radix Command/Popover)
-- **Tema**: Dependente da matéria selecionada (disabled se nenhuma matéria)
-- **Status**: Todos | Pendentes | Concluídos
-- **Ordenar**: Alfabético | Maior backlog | Menor % | Mais atrasado
-- **Chips ativos**: Removíveis individualmente
-- **Contador**: "X de Y itens" (muda ao filtrar)
+### 2. Novo Componente: `ExamTrackerCard`
 
-**Estados:**
-- Loading durante recálculo (opacity 50% + spinner discreto)
-- Transição suave ao aplicar (fade 200ms)
-- Tema resetado se matéria mudar
-
-### B) Filtros Mobile — Evoluir `FiltersDrawerMobile`
-
-**Adicionar seções:**
-1. Status (manter)
-2. Matéria (manter)
-3. **Novo: Tema** (aparece após selecionar matéria)
-4. **Novo: Ordenação** (chips inline)
-
-**Melhorias:**
-- Badge no botão com contagem de filtros ativos (já existe)
-- Preview de contagem no Drawer: "Mostrando X itens"
-- Animação ao aplicar (fechar com slide + update suave)
-
-### C) Tipos Atualizados
-
-```typescript
-export interface ProgressFilters {
-  status: 'all' | 'pending' | 'completed';
-  materia: string | null;
-  tema: string | null; // NOVO
-  sortBy: 'alphabetical' | 'backlog' | 'percentage' | 'inactive'; // NOVO
-}
-```
-
----
-
-## Fase 3 — Granularidade: Drill-Down de Gráficos
-
-### A) Clique no Gráfico de Evolução Semanal
-
-Ao clicar em uma barra/ponto do `WeeklyEvolutionCard`:
-- Abre Sheet/Drawer "Detalhes da Semana X"
-- Lista aulas concluídas naquela semana
-- CTA: "Ver todas as aulas" (navega para Guia filtrado)
-
-**Implementação:**
-- Adicionar `onClick` ao `<Area>` do Recharts
-- Novo componente `WeekDetailSheet`
-
-### B) Toggle de Visualização no Gráfico
-
-Adicionar toggle no header do `WeeklyEvolutionCard`:
-- "Aulas" (contagem absoluta) — padrão
-- "Progresso" (% acumulado)
-
-```typescript
-const [viewMode, setViewMode] = useState<'count' | 'percentage'>('count');
-```
-
----
-
-## Fase 4 — Novo Bloco: DiagnosticsCard
-
-**Objetivo:** Responder "onde eu devo focar?" de forma objetiva.
-
-### UI Proposta
+Substitui `PreProvaMode` + `ExamCountdownCard` por um único componente premium:
 
 ```text
 ┌─────────────────────────────────────────────────┐
-│ 🔍 Diagnóstico Rápido                          │
+│ 📚 Suas Provas                          [+ Add] │
 ├─────────────────────────────────────────────────┤
-│ ⚠️ Maior backlog                               │
-│    Anatomia • 45 aulas pendentes               │
-│    [Ver pendências →]                          │
-│─────────────────────────────────────────────────│
-│ 🔴 Tema mais negligenciado                     │
-│    Sistema Cardiovascular • 23 dias sem atividade│
-│    [Retomar →]                                 │
-│─────────────────────────────────────────────────│
-│ 📊 Matéria mais avançada                       │
-│    Farmacologia • 92% concluído                │
-│    [Finalizar →]                               │
+│                                                 │
+│ 🔴 Anatomia                                     │
+│    Prova em 5 dias                              │
+│    ┌──────────────────────────────────────────┐ │
+│    │ ▓▓▓▓▓▓░░░░░░░░░ 42% concluído            │ │
+│    │ 15/36 aulas • 3 quizzes feitos           │ │
+│    └──────────────────────────────────────────┘ │
+│    ⚠️ Você precisa acelerar! 4 aulas/dia       │
+│    [Estudar Anatomia →]                         │
+│                                                 │
+│ 🟡 Farmacologia                                 │
+│    Prova em 12 dias                             │
+│    ┌──────────────────────────────────────────┐ │
+│    │ ▓▓▓▓▓▓▓▓▓▓▓▓░░░ 78% concluído            │ │
+│    │ 28/36 aulas • 5 quizzes feitos           │ │
+│    └──────────────────────────────────────────┘ │
+│    ✅ Bom ritmo! Continue assim                 │
+│    [Revisar Farmacologia →]                     │
+│                                                 │
+│ 🟢 Fisiologia                                   │
+│    Prova em 20 dias                             │
+│    ┌──────────────────────────────────────────┐ │
+│    │ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 92% concluído            │ │
+│    │ 33/36 aulas • 8 quizzes feitos           │ │
+│    └──────────────────────────────────────────┘ │
+│    🎯 Quase lá! Foque na revisão                │
+│    [Finalizar Fisiologia →]                     │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│ Sem provas em breve                             │
+│ [+ Adicionar prova]                             │
 └─────────────────────────────────────────────────┘
 ```
 
-### Dados (calculados no frontend a partir de `data`)
-
-```typescript
-interface DiagnosticInsight {
-  type: 'backlog' | 'neglected' | 'advanced' | 'quick_win';
-  title: string;
-  description: string;
-  materia: string;
-  tema?: string;
-  value: number; // aulas pendentes, dias inativos, ou %
-  cta: string;
-}
-
-const insights = useMemo(() => {
-  const results: DiagnosticInsight[] = [];
-  
-  // Maior backlog (matéria com mais pendências)
-  const maxBacklog = data.by_materia
-    .map(m => ({ ...m, pending: m.total - m.completed }))
-    .sort((a, b) => b.pending - a.pending)[0];
-  
-  if (maxBacklog && maxBacklog.pending > 5) {
-    results.push({
-      type: 'backlog',
-      title: 'Maior backlog',
-      description: `${maxBacklog.pending} aulas pendentes`,
-      materia: maxBacklog.materia,
-      value: maxBacklog.pending,
-      cta: 'Ver pendências'
-    });
-  }
-  
-  // Tema mais negligenciado (maior days_inactive com < 80%)
-  const neglected = data.by_tema
-    .filter(t => t.days_inactive && t.days_inactive > 7 && t.percentage < 80)
-    .sort((a, b) => (b.days_inactive || 0) - (a.days_inactive || 0))[0];
-  
-  // Matéria mais avançada (para incentivar finalizar)
-  const advanced = data.by_materia
-    .filter(m => m.percentage >= 70 && m.percentage < 100)
-    .sort((a, b) => b.percentage - a.percentage)[0];
-  
-  return results;
-}, [data]);
-```
-
-### Arquivo Novo
-
-- `src/components/progress-hub/DiagnosticsCard.tsx`
-
----
-
-## Fase 5 — Novo Bloco: CoverageRankingCard
-
-**Objetivo:** Responder "o que estou vendo menos vs mais?"
-
-### UI Proposta
+### 3. Modal de Adição de Prova
 
 ```text
 ┌─────────────────────────────────────────────────┐
-│ 📊 Sua Cobertura                               │
-│                                                │
-│ ┌─ Menos estudado ────────────────────────────┐│
-│ │ 1. Neurologia        ▓▓░░░░░░░░░░ 18%      ││
-│ │ 2. Psiquiatria       ▓▓▓░░░░░░░░░ 25%      ││
-│ │ 3. Dermatologia      ▓▓▓▓░░░░░░░░ 32%      ││
-│ └─────────────────────────────────────────────┘│
-│                                                │
-│ ┌─ Mais avançado ─────────────────────────────┐│
-│ │ 1. Farmacologia      ▓▓▓▓▓▓▓▓▓▓░░ 92%      ││
-│ │ 2. Anatomia          ▓▓▓▓▓▓▓▓▓░░░ 85%      ││
-│ │ 3. Fisiologia        ▓▓▓▓▓▓▓▓░░░░ 78%      ││
-│ └─────────────────────────────────────────────┘│
-│                                                │
-│ [Focar no menos estudado →]                    │
+│ Adicionar Prova                           [X]   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ Matéria *                                       │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ Selecione a matéria            ▾           │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Nome da Prova (opcional)                        │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ P1, P2, Prova Final...                      │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ Data da Prova *                                 │
+│ ┌─────────────────────────────────────────────┐ │
+│ │ 📅 Selecionar data                          │ │
+│ └─────────────────────────────────────────────┘ │
+│                                                 │
+│ [Cancelar]                        [Salvar]      │
 └─────────────────────────────────────────────────┘
 ```
 
-### Dados
+### 4. Lógica de Insights por Prova
+
+Para cada prova cadastrada, calcular:
 
 ```typescript
-const leastStudied = useMemo(() => 
-  data.by_materia
-    .filter(m => m.percentage < 50)
-    .sort((a, b) => a.percentage - b.percentage)
-    .slice(0, 3),
-  [data.by_materia]
-);
+interface ExamInsight {
+  exam: UserExam;
+  materia: MateriaProgress;
+  daysRemaining: number;
+  lessonsRemaining: number;
+  lessonsPerDay: number; // lessonsRemaining / daysRemaining
+  status: 'critical' | 'warning' | 'on_track' | 'excellent';
+  message: string;
+}
 
-const mostAdvanced = useMemo(() =>
-  data.by_materia
-    .filter(m => m.percentage >= 50)
-    .sort((a, b) => b.percentage - a.percentage)
-    .slice(0, 3),
-  [data.by_materia]
-);
+// Status logic:
+// - critical: < 7 dias E < 50% concluído
+// - warning: < 14 dias E < 70% concluído OU lessonsPerDay > 3
+// - on_track: progresso adequado ao tempo restante
+// - excellent: >= 80% concluído OU finalizado
 ```
 
-### Arquivo Novo
+### 5. Estado Vazio (Sem Provas)
 
-- `src/components/progress-hub/CoverageRankingCard.tsx`
-
----
-
-## Fase 6 — Ajustes nos Gráficos Existentes
-
-### WeeklyEvolutionCard
-
-| Mudança | Descrição |
-|---------|-----------|
-| Toggle view | Botão "Aulas / %" no header |
-| Clique na barra | Abre Sheet com detalhes da semana |
-| Tooltip melhorado | Mostrar data completa + contexto |
-| Empty state | Já existe, manter |
-
-### Recharts Clicável
-
-```typescript
-<Area
-  type="monotone"
-  dataKey="count"
-  onClick={(data) => handleWeekClick(data.payload)}
-  style={{ cursor: 'pointer' }}
-  // ...
-/>
+```text
+┌─────────────────────────────────────────────────┐
+│ 📚 Suas Provas                                  │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│    ┌─────────────────────────────────────────┐  │
+│    │       📅                                │  │
+│    │                                         │  │
+│    │   Cadastre suas provas para            │  │
+│    │   acompanhar seu progresso              │  │
+│    │                                         │  │
+│    │   [+ Adicionar primeira prova]          │  │
+│    └─────────────────────────────────────────┘  │
+│                                                 │
+└─────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Fase 7 — Mudanças Técnicas
-
-### Arquivos a Criar
-
-| Arquivo | Propósito |
-|---------|-----------|
-| `src/components/progress-hub/FiltersDesktop.tsx` | Filtros inline para desktop |
-| `src/components/progress-hub/DiagnosticsCard.tsx` | Insights objetivos |
-| `src/components/progress-hub/CoverageRankingCard.tsx` | Ranking menos/mais |
-| `src/components/progress-hub/WeekDetailSheet.tsx` | Detalhes ao clicar no gráfico |
-
-### Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/pages/Dashboard.tsx` | Adicionar novos cards, filtros desktop, lógica de ordenação |
-| `src/components/progress-hub/FiltersDrawerMobile.tsx` | Adicionar Tema + Ordenação |
-| `src/components/progress-hub/FilterChips.tsx` | Adicionar Tema chip + contador |
-| `src/components/progress-hub/WeeklyEvolutionCard.tsx` | Toggle view + onClick |
-| `src/types/progressHub.ts` | Atualizar `ProgressFilters` |
-| `src/components/progress-hub/index.ts` | Exportar novos componentes |
-
-### Performance
-
-- Todos os cálculos de insights ficam em `useMemo` (já padrão)
-- Nenhuma mudança necessária no Edge Function
-- Cache SWR mantido (15 min TTL)
-
----
-
-## Fase 8 — Layout Atualizado
+## Layout Atualizado do Dashboard
 
 ### Desktop (1280+)
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ Header: Central de Progresso • IES • Semestre                       │
-├─────────────────────────────────────────────────────────────────────┤
-│ [Risk Alert Banner - se houver]                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│ Hero Card (100% width)                                              │
-├────────────────────────────┬───────────────────┬────────────────────┤
-│ NextActionsCard            │ ConsistencyCard   │ DiagnosticsCard    │
-│ (1/3)                      │ (1/3)             │ (1/3) — NOVO       │
-├────────────────────────────┼───────────────────┼────────────────────┤
-│ WeeklyEvolutionCard        │ CoverageRankingCard│ SpacedRevision    │
-│ (1/3)                      │ (1/3) — NOVO      │ (1/3)              │
-├────────────────────────────┴───────────────────┴────────────────────┤
-│ Filtros Desktop + Contador + Chips                                  │
-├─────────────────────────────────────────────────────────────────────┤
-│ Mapa do Semestre (SemesterMapCard)                                  │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ Header: Central de Progresso • IES • Semestre                        │
+├───────────────────────────────────────┬──────────────────────────────┤
+│ [Risk Alert Banner - se houver]       │                              │
+├───────────────────────────────────────┤                              │
+│                                       │   📚 SUAS PROVAS             │
+│ Hero Card (2/3 width)                 │   (ExamTrackerCard)          │
+│                                       │                              │
+├────────────────────┬──────────────────┤   - Prova Anatomia (5d)      │
+│ NextActionsCard    │ ConsistencyCard  │   - Prova Farmaco (12d)      │
+│                    │                  │   - Prova Fisio (20d)        │
+├────────────────────┼──────────────────┤                              │
+│ DiagnosticsCard    │ CoverageRanking  │   [+ Adicionar]              │
+│                    │                  │                              │
+├────────────────────┼──────────────────┤                              │
+│ WeeklyEvolution    │ SpacedRevision   │                              │
+│                    │                  │                              │
+├────────────────────┴──────────────────┤                              │
+│ Filtros + Mapa do Semestre            │                              │
+│                                       │                              │
+└───────────────────────────────────────┴──────────────────────────────┘
 ```
 
 ### Mobile
 
+No mobile, `ExamTrackerCard` fica **logo após o Hero Card**:
+
 ```text
 ┌─────────────────────────────┐
 │ Header                      │
-├─────────────────────────────┤
-│ Risk Alert (se houver)      │
-├─────────────────────────────┤
 │ Hero Card                   │
-├─────────────────────────────┤
+│ 📚 Suas Provas (collapsed)  │  ← Expande ao tocar
 │ NextActionsCard             │
-├─────────────────────────────┤
 │ ConsistencyCard             │
-├─────────────────────────────┤
-│ DiagnosticsCard — NOVO      │
-├─────────────────────────────┤
-│ WeeklyEvolutionCard         │
-├─────────────────────────────┤
-│ CoverageRankingCard — NOVO  │
-├─────────────────────────────┤
-│ SpacedRevisionCard          │
-├─────────────────────────────┤
-│ [Filtros] + Chips ativos    │
-├─────────────────────────────┤
-│ Mapa do Semestre            │
+│ ...                         │
 └─────────────────────────────┘
 ```
 
 ---
 
-## Fase 9 — Checklist de QA
+## Mudanças Técnicas
 
-### Responsividade
-- [ ] 360px — todos os cards em coluna única, sem overflow-x
-- [ ] 768px — grids 2 colunas
-- [ ] 1024px — grids 2-3 colunas
-- [ ] 1280px+ — layout completo 3 colunas
+### Arquivos a Criar
 
-### Acessibilidade
-- [ ] Todos os novos componentes com aria-labels
-- [ ] Focus states em todos elementos interativos
-- [ ] Navegação por teclado nos filtros e cards
-- [ ] Gráficos com resumo sr-only
+| Arquivo | Propósito |
+|---------|-----------|
+| `supabase/migrations/XXXX_create_user_exams.sql` | Tabela de provas do usuário |
+| `src/components/progress-hub/ExamTrackerCard.tsx` | Card principal sempre visível |
+| `src/components/progress-hub/AddExamModal.tsx` | Modal para adicionar prova |
+| `src/components/progress-hub/ExamItem.tsx` | Linha individual de prova |
+| `src/hooks/useUserExams.ts` | Hook para CRUD de provas |
 
-### Light/Dark Mode
-- [ ] DiagnosticsCard legível em ambos temas
-- [ ] CoverageRankingCard barras com contraste adequado
-- [ ] Filtros com cores consistentes
+### Arquivos a Modificar
 
-### Deep Links
-- [ ] CTAs dos novos cards navegam corretamente para `/guia-estudos?...`
-- [ ] Parâmetros de filtro preservados na URL
+| Arquivo | Mudança |
+|---------|---------|
+| `src/pages/Dashboard.tsx` | Novo layout 2 colunas com ExamTrackerCard fixo à direita |
+| `src/types/progressHub.ts` | Adicionar `UserExam` e `ExamInsight` types |
+| `src/components/progress-hub/index.ts` | Exportar novos componentes |
+| `supabase/functions/get-progress-hub/index.ts` | Retornar `user_exams` no payload |
 
-### Performance
-- [ ] Nenhum re-render desnecessário (React DevTools)
-- [ ] useMemo em todos os cálculos de insights
-- [ ] Sem layout shift ao carregar
+### Arquivos a Remover/Deprecar
 
-### Regressões
-- [ ] Mapa do Semestre continua expandindo/colapsando
-- [ ] Busca no mapa funciona
-- [ ] Marcar tema como concluído funciona
-- [ ] Risk Alerts dispensáveis
-- [ ] Pre-Prova mode funciona via URL
+| Arquivo | Ação |
+|---------|------|
+| `src/components/progress-hub/PreProvaMode.tsx` | Substituído por `ExamTrackerCard` |
+| `src/components/progress-hub/ExamCountdownCard.tsx` | Substituído por `ExamTrackerCard` |
 
 ---
 
-## Resumo de Entregáveis
+## Novos Types
 
-1. **4 novos componentes**: `FiltersDesktop`, `DiagnosticsCard`, `CoverageRankingCard`, `WeekDetailSheet`
-2. **5 componentes refinados**: `FiltersDrawerMobile`, `FilterChips`, `WeeklyEvolutionCard`, `Dashboard`, `index.ts`
-3. **1 tipo atualizado**: `ProgressFilters`
-4. **0 mudanças no backend** — todos os dados necessários já existem
+```typescript
+// src/types/progressHub.ts
+
+export interface UserExam {
+  id: string;
+  user_id: string;
+  materia: string;
+  exam_name: string;
+  exam_date: string; // ISO date
+  created_at: string;
+}
+
+export interface ExamInsight {
+  exam: UserExam;
+  materia_progress: MateriaProgress | null;
+  days_remaining: number;
+  lessons_remaining: number;
+  lessons_per_day: number;
+  quizzes_completed: number;
+  status: 'critical' | 'warning' | 'on_track' | 'excellent';
+  message: string;
+  cta_label: string;
+  cta_action: 'study' | 'review' | 'finish';
+}
+
+// Atualizar ProgressHubData
+export interface ProgressHubData {
+  // ...existing fields
+  user_exams: ExamInsight[]; // NOVO
+}
+```
+
+---
+
+## Hook: `useUserExams`
+
+```typescript
+// src/hooks/useUserExams.ts
+
+export function useUserExams() {
+  const { user } = useAuth();
+  
+  const [exams, setExams] = useState<UserExam[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Fetch exams
+  const fetchExams = async () => {
+    const { data, error } = await supabase
+      .from('user_exams')
+      .select('*')
+      .eq('user_id', user?.id)
+      .gte('exam_date', new Date().toISOString().split('T')[0])
+      .order('exam_date', { ascending: true });
+    
+    if (!error) setExams(data || []);
+    setLoading(false);
+  };
+  
+  // Add exam
+  const addExam = async (materia: string, examName: string, examDate: string) => {
+    const { data, error } = await supabase
+      .from('user_exams')
+      .insert({
+        user_id: user?.id,
+        materia,
+        exam_name: examName || 'Prova',
+        exam_date: examDate
+      })
+      .select()
+      .single();
+    
+    if (!error && data) {
+      setExams(prev => [...prev, data].sort((a, b) => 
+        new Date(a.exam_date).getTime() - new Date(b.exam_date).getTime()
+      ));
+      toast.success('Prova adicionada!');
+    }
+    
+    return { data, error };
+  };
+  
+  // Remove exam
+  const removeExam = async (examId: string) => {
+    const { error } = await supabase
+      .from('user_exams')
+      .delete()
+      .eq('id', examId);
+    
+    if (!error) {
+      setExams(prev => prev.filter(e => e.id !== examId));
+      toast.success('Prova removida');
+    }
+    
+    return { error };
+  };
+  
+  // Edit exam
+  const updateExam = async (examId: string, updates: Partial<UserExam>) => {
+    const { error } = await supabase
+      .from('user_exams')
+      .update(updates)
+      .eq('id', examId);
+    
+    if (!error) {
+      setExams(prev => prev.map(e => e.id === examId ? { ...e, ...updates } : e));
+    }
+    
+    return { error };
+  };
+  
+  return {
+    exams,
+    loading,
+    addExam,
+    removeExam,
+    updateExam,
+    refresh: fetchExams
+  };
+}
+```
+
+---
+
+## Lógica de Insights (Detalhada)
+
+```typescript
+// Dentro de ExamTrackerCard.tsx ou useUserExams.ts
+
+const calculateInsight = (exam: UserExam, materiaProgress: MateriaProgress | null): ExamInsight => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const examDate = new Date(exam.exam_date);
+  examDate.setHours(0, 0, 0, 0);
+  
+  const daysRemaining = Math.ceil((examDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Sem dados de progresso
+  if (!materiaProgress) {
+    return {
+      exam,
+      materia_progress: null,
+      days_remaining: daysRemaining,
+      lessons_remaining: 0,
+      lessons_per_day: 0,
+      quizzes_completed: 0,
+      status: daysRemaining <= 7 ? 'critical' : 'warning',
+      message: 'Você ainda não começou esta matéria',
+      cta_label: 'Começar a estudar',
+      cta_action: 'study'
+    };
+  }
+  
+  const lessonsRemaining = materiaProgress.total - materiaProgress.completed;
+  const lessonsPerDay = daysRemaining > 0 ? lessonsRemaining / daysRemaining : lessonsRemaining;
+  const percentage = materiaProgress.percentage;
+  
+  let status: ExamInsight['status'];
+  let message: string;
+  let ctaLabel: string;
+  let ctaAction: ExamInsight['cta_action'];
+  
+  if (percentage >= 90) {
+    status = 'excellent';
+    message = '🎯 Quase lá! Foque na revisão final';
+    ctaLabel = 'Revisar';
+    ctaAction = 'review';
+  } else if (percentage >= 70 || (daysRemaining > 14 && lessonsPerDay <= 2)) {
+    status = 'on_track';
+    message = '✅ Bom ritmo! Continue assim';
+    ctaLabel = 'Continuar';
+    ctaAction = 'study';
+  } else if (daysRemaining <= 7 && percentage < 50) {
+    status = 'critical';
+    message = `⚠️ Atenção! ${Math.ceil(lessonsPerDay)} aulas/dia necessárias`;
+    ctaLabel = 'Acelerar';
+    ctaAction = 'study';
+  } else {
+    status = 'warning';
+    message = `📊 Mantenha o foco. ${lessonsRemaining} aulas restantes`;
+    ctaLabel = 'Estudar';
+    ctaAction = 'study';
+  }
+  
+  return {
+    exam,
+    materia_progress: materiaProgress,
+    days_remaining: daysRemaining,
+    lessons_remaining: lessonsRemaining,
+    lessons_per_day: lessonsPerDay,
+    quizzes_completed: 0, // TODO: fetch from quiz data if available
+    status,
+    message,
+    cta_label: ctaLabel,
+    cta_action: ctaAction
+  };
+};
+```
+
+---
+
+## Componente: ExamTrackerCard
+
+```typescript
+// src/components/progress-hub/ExamTrackerCard.tsx
+
+interface ExamTrackerCardProps {
+  exams: ExamInsight[];
+  byMateria: MateriaProgress[];
+  materiasList: string[];
+  onAddExam: (materia: string, name: string, date: string) => Promise<any>;
+  onRemoveExam: (examId: string) => Promise<any>;
+  onNavigate: (materia: string) => void;
+  loading?: boolean;
+}
+
+export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
+  exams,
+  byMateria,
+  materiasList,
+  onAddExam,
+  onRemoveExam,
+  onNavigate,
+  loading
+}) => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const shouldReduceMotion = useReducedMotion();
+  
+  // Status colors
+  const getStatusColor = (status: ExamInsight['status']) => {
+    switch (status) {
+      case 'critical': return 'border-l-red-500 bg-red-50 dark:bg-red-950/20';
+      case 'warning': return 'border-l-amber-500 bg-amber-50 dark:bg-amber-950/20';
+      case 'on_track': return 'border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/20';
+      case 'excellent': return 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/20';
+    }
+  };
+  
+  // ... render logic
+};
+```
 
 ---
 
 ## Critérios de Aceitação
 
-- [ ] Filtros desktop com Combobox funcional e bonito
-- [ ] Filtros mobile incluem Tema dependente de Matéria
-- [ ] Ordenação disponível (backlog, %, inatividade)
-- [ ] Contador "X de Y itens" visível
-- [ ] DiagnosticsCard mostra 2-3 insights objetivos com CTAs
-- [ ] CoverageRankingCard mostra ranking menos/mais estudado
-- [ ] Gráfico semanal tem toggle count/% e é clicável
-- [ ] Todos os CTAs navegam corretamente com deep links
-- [ ] Zero overflow em mobile
-- [ ] Light/Dark impecável
-- [ ] Performance suave (sem jank)
+- [ ] Card "Suas Provas" sempre visível no topo direito (desktop) ou após Hero (mobile)
+- [ ] Sem switch de ativação — funcionalidade core sempre presente
+- [ ] Usuário pode adicionar múltiplas provas com matéria + data
+- [ ] Cada prova mostra countdown + progresso da matéria associada
+- [ ] Insights inteligentes calculados (critical/warning/on_track/excellent)
+- [ ] Deep link "Estudar X" navega para `/guia-estudos?materia=X`
+- [ ] Dados persistidos no banco (`user_exams`)
+- [ ] Estado vazio amigável com CTA para adicionar primeira prova
+- [ ] Provas passadas automaticamente ocultadas (ou marcadas como "realizada")
+- [ ] Editar/remover prova funcional
+- [ ] Responsivo: coluna lateral no desktop, card expandível no mobile
+- [ ] Light/dark mode impecável
+- [ ] Zero regressões nos componentes existentes
+
+---
+
+## Migração de Dados
+
+Para usuários que já têm `exam_date` no localStorage (`ExamCountdownCard`):
+
+```typescript
+// Em useUserExams.ts - executar uma vez
+useEffect(() => {
+  const migrateOldExamDate = async () => {
+    const oldDate = localStorage.getItem('progress_hub_exam_date');
+    if (!oldDate || !user?.id) return;
+    
+    // Criar uma prova genérica para a data antiga
+    await addExam('Geral', 'Prova', oldDate);
+    localStorage.removeItem('progress_hub_exam_date');
+  };
+  
+  migrateOldExamDate();
+}, [user?.id]);
+```
+
+---
+
+## Ordem de Implementação
+
+1. **Migração SQL** — Criar tabela `user_exams` com RLS
+2. **Types** — Adicionar `UserExam` e `ExamInsight`
+3. **Hook** — Criar `useUserExams` com CRUD
+4. **Edge Function** — Incluir `user_exams` no payload de `get-progress-hub`
+5. **Componentes** — `ExamTrackerCard`, `AddExamModal`, `ExamItem`
+6. **Dashboard** — Novo layout com coluna lateral
+7. **Remover** — `PreProvaMode.tsx`, `ExamCountdownCard.tsx`
+8. **Migração** — Dados do localStorage para banco
+9. **Testes** — QA completo
+
