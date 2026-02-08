@@ -152,17 +152,18 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
             return (
               <motion.div
                 key={materia.materia}
-                {...getAnimationProps(index * 0.05)}
+                {...getAnimationProps(index * 0.04)}
                 role="listitem"
               >
                 <Collapsible open={isExpanded} onOpenChange={() => toggleMateria(materia.materia)}>
                   <CollapsibleTrigger asChild>
-                    <div
+                    <motion.div
                       className={cn(
                         "w-full p-4 rounded-xl border bg-card cursor-pointer",
-                        "hover:bg-muted/50 hover:border-primary/20 transition-all",
+                        "hover:bg-muted/50 hover:border-primary/20 hover:shadow-md",
+                        "transition-all duration-200",
                         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                        isExpanded && "border-primary/30 bg-muted/30"
+                        isExpanded && "border-primary/30 bg-muted/30 shadow-sm"
                       )}
                       tabIndex={0}
                       role="button"
@@ -174,6 +175,8 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                           toggleMateria(materia.materia);
                         }
                       }}
+                      whileHover={shouldReduceMotion ? {} : { scale: 1.005 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.995 }}
                     >
                       <div className="flex items-center gap-3">
                         {/* Expand icon */}
@@ -215,7 +218,7 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                           {materia.percentage}%
                         </Badge>
                       </div>
-                    </div>
+                    </motion.div>
                   </CollapsibleTrigger>
 
                   <CollapsibleContent>

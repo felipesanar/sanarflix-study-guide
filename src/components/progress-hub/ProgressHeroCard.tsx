@@ -67,7 +67,12 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
 
   return (
     <Card 
-      className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/5 via-background to-primary/10 dark:from-primary/10 dark:via-background dark:to-primary/5"
+      className={cn(
+        "relative overflow-hidden border-0",
+        "bg-gradient-to-br from-primary/5 via-background to-primary/10",
+        "dark:from-primary/10 dark:via-background dark:to-primary/5",
+        "shadow-sm hover:shadow-md transition-shadow duration-300"
+      )}
       role="region"
       aria-label="Resumo do progresso"
     >
@@ -218,7 +223,11 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
               <Button 
                 onClick={handleContinue}
                 size="lg"
-                className="gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={cn(
+                  "gap-2",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+                )}
               >
                 <Play className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Continuar de onde parei</span>
@@ -228,7 +237,11 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                 onClick={handleOpenCalendar}
                 variant="outline"
                 size="lg"
-                className="gap-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={cn(
+                  "gap-2",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
+                )}
               >
                 <Calendar className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Organizar semana</span>

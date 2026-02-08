@@ -65,7 +65,7 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({ evolut
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <TrendingUp className="h-5 w-5 text-primary" />
+            <TrendingUp className="h-5 w-5 text-primary" aria-hidden="true" />
             Evolução Semanal
           </CardTitle>
           <div className="flex items-center gap-4 text-sm">
@@ -77,11 +77,21 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({ evolut
         </div>
       </CardHeader>
       <CardContent>
+        {/* Screen reader summary */}
+        <div className="sr-only" role="region" aria-label="Resumo da evolução semanal">
+          Nas últimas {evolution.length} semanas, você completou {totalThisMonth} aulas, 
+          com média de {avgPerWeek} aulas por semana. 
+          {trend === 'up' && 'Sua tendência está em alta.'}
+          {trend === 'down' && 'Sua tendência está em baixa.'}
+          {trend === 'stable' && 'Sua tendência está estável.'}
+        </div>
+        
         <motion.div 
           className="h-48"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
+          aria-hidden="true"
         >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

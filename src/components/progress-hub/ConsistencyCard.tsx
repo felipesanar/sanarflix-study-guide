@@ -71,42 +71,44 @@ export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({
             return (
               <motion.div
                 key={i}
-                {...getAnimationProps(i * 0.05)}
+                {...getAnimationProps(i * 0.04)}
                 className="flex flex-col items-center gap-1"
               >
                 <span 
                   className={cn(
                     "text-[10px] font-medium",
-                    isToday ? "text-primary" : "text-muted-foreground"
+                    isToday ? "text-primary font-bold" : "text-muted-foreground"
                   )}
                   aria-hidden="true"
                 >
                   {day}
                 </span>
-                <div
+                <motion.div
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                    "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200",
                     isActive
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary text-primary-foreground shadow-sm"
                       : isToday
                         ? "bg-primary/20 border-2 border-primary border-dashed"
-                        : "bg-muted"
+                        : "bg-muted hover:bg-muted/80"
                   )}
                   role="checkbox"
                   aria-checked={isActive}
-                  aria-label={`${DAYS_FULL[i]}: ${isActive ? 'ativo' : 'inativo'}`}
+                  aria-label={`${DAYS_FULL[i]}: ${isActive ? 'ativo' : 'inativo'}${isToday ? ' (hoje)' : ''}`}
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
+                  whileTap={shouldReduceMotion ? {} : { scale: 0.95 }}
                 >
                   {isActive && (
                     <motion.div
-                      initial={shouldReduceMotion ? {} : { scale: 0 }}
-                      animate={{ scale: 1 }}
+                      initial={shouldReduceMotion ? {} : { scale: 0, rotate: -45 }}
+                      animate={{ scale: 1, rotate: 0 }}
                       transition={shouldReduceMotion ? {} : { type: 'spring', stiffness: 500, damping: 20 }}
                       aria-hidden="true"
                     >
                       ✓
                     </motion.div>
                   )}
-                </div>
+                </motion.div>
               </motion.div>
             );
           })}
