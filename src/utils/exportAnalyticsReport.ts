@@ -29,6 +29,7 @@ export interface ExportPreviewStats {
   sessoesNoPeriodo: number;
   simuladosAnalisados: number;
   questoesMapeadas: number;
+  questoesProblematicas: number; // Questões com taxa de erro >= 50%
   registrosTotais: number;
 }
 
@@ -50,17 +51,20 @@ const getAppVersion = (): string => {
 export function calculatePreviewStats(data: AnalyticsExportData): ExportPreviewStats {
   const totalUsuarios = data.overview.totalUsuarios;
   
-  // CORREÇÃO: Usar contagem real de sessões (totalSessoesPeriodo) do hook
+  // Usar contagem real de sessões (totalSessoesPeriodo) do hook
   const sessoesNoPeriodo = data.engagement.totalSessoesPeriodo 
     || data.engagement.sessoesPorDia.reduce((acc, d) => acc + d.sessoes, 0);
   
   const simuladosAnalisados = data.simulados.simuladosDisponiveis.length;
   
-  // CORREÇÃO: Total de questões de TODOS os simulados, não apenas problemáticas
+  // Total de questões de TODOS os simulados
   const questoesMapeadas = data.simulados.simuladosDisponiveis.reduce(
     (acc, s) => acc + (s.total_questoes || 0), 
     0
   );
+  
+  // Questões problemáticas (taxa de erro >= 50%)
+  const questoesProblematicas = data.simulados.questoesProblematicas.length;
   
   // Estimativa de registros totais
   const registrosTotais = 
@@ -74,6 +78,7 @@ export function calculatePreviewStats(data: AnalyticsExportData): ExportPreviewS
     sessoesNoPeriodo,
     simuladosAnalisados,
     questoesMapeadas,
+    questoesProblematicas,
     registrosTotais,
   };
 }
@@ -436,4 +441,68 @@ export function estimateFileSizeKB(data: AnalyticsExportData, format: 'xlsx' | '
   const perRecordSize = format === 'xlsx' ? 0.05 : 0.02; // KB per record
   
   return Math.round(baseSize + (stats.registrosTotais * perRecordSize));
+}
+
+// ============== SIMULADOS-ONLY XLSX EXPORT ==============
+export function exportSimuladosFromAnalyticsData(data: AnalyticsExportData, filters: AnalyticsExportFilters): void {
+  const wb = XLSX.utils.book_new();
+  const timestamp = formatDateTime(new Date());
+
+  // ABA 1: RESUMO
+  const resumoData = [
+    ['RELATÓRIO DE SIMULADOS'],
+    ['SanarFlix Academy'],
+    [''],
+    ['Exportado em', timestamp],
+    ['Período', `${formatDate(filters.dateRange.start)} a ${formatDate(filters.dateRange.end)}`],
+    ['IES', filters.universityName || filters.university || 'Todas'],
+    [''],
+    ['MÉTRICAS GERAIS'],
+    ['Métrica', 'Valor'],
+    ['Total de Simulados', data.simulados.simuladosDisponiveis.length],
+    ['Média de Acertos', `${data.simulados.desempenhoGeral.media_acertos}%`],
+    ['Total de Respostas', formatBR(data.simulados.desempenhoGeral.total_respostas)],
+    ['Questões Problemáticas', data.simulados.questoesProblematicas.length],
+  ];
+  const wsResumo = XLSX.utils.aoa_to_sheet(resumoData);
+  wsResumo['!cols'] = [{ wch: 25 }, { wch: 40 }];
+  XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+  // ABA 2: LISTA DE SIMULADOS
+  const simuladosHeader = ['Nome', 'Total Questões', 'Iniciados', 'Finalizados', 'Taxa de Conclusão'];
+  const simuladosRows = data.simulados.simuladosDisponiveis.map(s => [
+    s.nome,
+    s.total_questoes,
+    s.iniciados,
+    s.finalizados,
+    `${s.taxa_conclusao}%`,
+  ]);
+  const wsSimulados = XLSX.utils.aoa_to_sheet([
+    ['LISTA DE SIMULADOS'],
+    [''],
+    simuladosHeader,
+    ...simuladosRows,
+  ]);
+  wsSimulados['!cols'] = [{ wch: 45 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsSimulados, 'Simulados');
+
+  // ABA 3: QUESTÕES PROBLEMÁTICAS
+  const questoesHeader = ['#', 'Enunciado', 'Taxa de Erro (%)'];
+  const questoesRows = data.simulados.questoesProblematicas.map((q, idx) => [
+    idx + 1,
+    q.enunciado.substring(0, 200).replace(/\n/g, ' '),
+    `${q.taxa_erro}%`,
+  ]);
+  const wsQuestoes = XLSX.utils.aoa_to_sheet([
+    ['QUESTÕES PROBLEMÁTICAS (Taxa de Erro ≥ 50%)'],
+    [''],
+    questoesHeader,
+    ...questoesRows,
+  ]);
+  wsQuestoes['!cols'] = [{ wch: 5 }, { wch: 100 }, { wch: 18 }];
+  XLSX.utils.book_append_sheet(wb, wsQuestoes, 'Questões Problemáticas');
+
+  // Download
+  const filename = `simulados_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, filename);
 }
