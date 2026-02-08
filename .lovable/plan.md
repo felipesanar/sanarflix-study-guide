@@ -1,164 +1,221 @@
 
-# Plano: Remover Card de Progresso e Adicionar Provas no MeuDiaCard
+# Plano: Redesign Premium do UpcomingExamBanner
 
-## Objetivo
+## Problema Identificado
 
-Remover o `ProgressSummaryCard` (card com 14%, "Acelerando", streak) da Home e adicionar um indicador compacto de provas vinculado ao `MeuDiaCard`, mantendo o grid/layout original intacto.
+O banner de prova atual tem falhas críticas de UI/UX:
+- **Apenas o botão "Acelerar" é clicável** - o card não abre nenhum modal ou detalhe
+- **Visual confuso** - falta clareza sobre o que é, título truncado sem contexto
+- **Sem hierarquia visual** - usuário não entende rapidamente o que está vendo
+- **Sem interatividade completa** - não pode editar, ver detalhes ou remover a prova
 
-## Análise do Layout Atual
+## Solução Proposta
 
-O layout atual da Home possui três linhas principais:
-- **Linha 1**: WelcomeCard + AnnouncementsCard
-- **Linha 1.5**: ProgressSummaryCard (será removido)
-- **Linha 2**: MeuDiaCard + RankingCard
-- **Linha 3**: SimuladoPerformanceCard + MeuSemestreCard
+Criar um banner **premium e claramente interativo** que:
+1. Seja **todo clicável** para abrir um sheet/modal de detalhes
+2. Tenha **clareza visual imediata** com título, contexto e hierarquia
+3. Mostre **ações claras** com feedback visual
+4. Transmita **urgência proporcional ao status** (crítico, atenção, ok)
 
-Ao remover a Linha 1.5, o layout volta ao original e mais enxuto.
-
-## Abordagem: Seção de Prova Inline no MeuDiaCard
-
-A melhor forma de integrar provas sem atrapalhar o layout é criar uma **seção compacta dentro do próprio MeuDiaCard**, exibida como um "banner" ou item especial no topo da lista de atividades.
+## Design Proposto
 
 ```text
-┌─────────────────────────────────────────┐
-│  🗓️ Meu Dia              3 Sugestões   │
-├─────────────────────────────────────────┤
-│  ┌────────────────────────────────────┐ │  ← Novo: Banner de Próxima Prova
-│  │ 🎓 Bioquímica em 5 dias            │ │
-│  │   ████████░░░░ 68%  | Estudar →    │ │
-│  └────────────────────────────────────┘ │
-│                                         │
-│  📚 Aula: Proteínas        [Assistir →] │  ← Sugestões do calendário
-│  📚 Aula: Lipídios         [Assistir →] │
-│  📚 Revisão: Carboidratos  [Assistir →] │
-│                                         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  [Título claro] Próxima Prova          [badge: 5 dias] [editar]│
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   📚 Políticas Públicas e Sistemas de Saúde                     │
+│      Prova: AP2 • 13 de fev                                     │
+│                                                                  │
+│   ████████░░░░░░░░░░░░ 45%                                      │
+│                                                                  │
+│   ⚡ 4 aulas por dia para atingir a meta                        │
+│                                                                  │
+│   [════════════ Estudar agora ════════════>]                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Arquitetura da Solução
+## Melhorias de UI
 
-### 1. Criar componente `UpcomingExamBanner`
+### 1. Header com Contexto Claro
+- **Título fixo**: "Próxima Prova" para o usuário saber imediatamente o que é
+- **Badge de contagem regressiva**: destaque visual com dias restantes
+- **Botão de editar/gerenciar**: ícone de 3 pontos ou lápis para abrir opções
 
-Componente leve e compacto para exibir a próxima prova:
+### 2. Conteúdo Principal
+- **Nome da matéria completo** (sem truncate, com wrap se necessário)
+- **Nome da prova + data formatada** claramente abaixo
+- **Barra de progresso maior** (h-2 ou h-2.5) com cores por status
+- **Mensagem de insight** contextual (ex: "4 aulas/dia para atingir a meta")
 
+### 3. CTA Claro e Destacado
+- **Botão primário full-width** com gradiente sutil
+- **Texto dinâmico**: "Estudar agora", "Acelerar", "Revisar"
+- **Ícone de seta** indicando ação
+
+### 4. Estados Visuais por Status
 ```typescript
-// src/components/home/UpcomingExamBanner.tsx
-
-interface UpcomingExamBannerProps {
-  exam: ExamInsight | null;
-  loading: boolean;
-  onStudyClick: (materia: string) => void;
-  onAddExamClick: () => void;
+const statusStyles = {
+  critical: {
+    border: 'border-destructive/40',
+    bg: 'bg-gradient-to-br from-destructive/15 via-destructive/5 to-transparent',
+    badge: 'bg-destructive text-destructive-foreground',
+    cta: 'bg-destructive hover:bg-destructive/90',
+    icon: AlertTriangle,
+    pulse: true // animação de urgência
+  },
+  warning: {
+    border: 'border-amber-500/40',
+    bg: 'bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent',
+    badge: 'bg-amber-500 text-white',
+    cta: 'bg-amber-500 hover:bg-amber-600',
+    icon: Clock,
+    pulse: false
+  },
+  on_track: {
+    border: 'border-emerald-500/40',
+    bg: 'bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent',
+    badge: 'bg-emerald-500 text-white',
+    cta: 'variant-outline',
+    icon: CheckCircle,
+    pulse: false
+  },
+  excellent: {
+    border: 'border-primary/40',
+    bg: 'bg-gradient-to-br from-primary/10 via-primary/5 to-transparent',
+    badge: 'bg-primary text-primary-foreground',
+    cta: 'variant-outline',
+    icon: Trophy,
+    pulse: false
+  }
 }
 ```
 
-**Características:**
-- Exibe a prova mais próxima (se houver)
-- Mostra: matéria, dias restantes, barra de progresso, botão de ação
-- Estado vazio: "Cadastre sua próxima prova" (link para wizard)
-- Ocupa no máximo ~70px de altura
+### 5. Interatividade Completa
 
-### 2. Modificar `MeuDiaCard`
-
-Integrar o `UpcomingExamBanner` no topo do conteúdo:
-
+**Card clicável** com handler dedicado:
 ```typescript
-interface MeuDiaCardProps {
-  items: MeuDiaItem[];
-  hasStudyGuide: boolean;
-  loading?: boolean;
-  error?: string | null;
-  onRetry?: () => void;
-  // Novos props para provas
-  nextExam?: ExamInsight | null;
-  examLoading?: boolean;
-  onAddExamClick?: () => void;
-}
+const handleCardClick = () => {
+  // Abre bottom sheet no mobile / dialog no desktop com:
+  // - Detalhes da prova
+  // - Estatísticas de progresso
+  // - Ações: Estudar, Editar data, Remover prova
+};
 ```
 
-### 3. Atualizar `Home.tsx`
+**Bottom Sheet de Detalhes (novo componente)**:
+- Informações completas da prova
+- Gráfico de progresso por tema
+- Lista de próximas aulas recomendadas
+- Botões: "Ir para matéria", "Editar prova", "Remover"
 
-- Remover `ProgressSummaryCard` de todos os layouts (Desktop, Tablet, Mobile)
-- Buscar dados de provas usando `useUserExams` e `calculateExamInsight`
-- Passar a próxima prova para o `MeuDiaCard`
-- Adicionar modal de cadastro de prova (reutilizar `AddExamWizard`)
+## Arquivos a Modificar
 
-## Mudanças nos Arquivos
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/home/UpcomingExamBanner.tsx` | Reescrever completamente com novo design |
+| `src/components/home/ExamDetailSheet.tsx` | **Criar** - Sheet/Dialog para detalhes da prova |
+| `src/components/home/MeuDiaCard.tsx` | Ajustar props se necessário |
+| `src/pages/Home.tsx` | Passar handlers adicionais para edição/remoção |
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/home/UpcomingExamBanner.tsx` | **Criar** - Banner compacto de próxima prova |
-| `src/components/home/MeuDiaCard.tsx` | Adicionar props e renderizar UpcomingExamBanner |
-| `src/pages/Home.tsx` | Remover ProgressSummaryCard, integrar lógica de provas |
-| `src/components/home/ProgressSummaryCard.tsx` | Pode ser mantido/deprecado (não usado na Home) |
+## Novo UpcomingExamBanner - Estrutura
 
-## Design do UpcomingExamBanner
+```tsx
+<motion.div
+  onClick={handleCardClick}
+  className={cn(
+    "relative rounded-xl border-2 p-4 cursor-pointer transition-all",
+    "hover:shadow-lg hover:scale-[1.01] active:scale-[0.99]",
+    statusStyles.border, statusStyles.bg
+  )}
+>
+  {/* Pulse animation for critical */}
+  {statusStyles.pulse && <PulseRing />}
 
-### Estado com prova cadastrada
+  {/* Header Row */}
+  <div className="flex items-center justify-between mb-3">
+    <div className="flex items-center gap-2">
+      <StatusIcon className="h-4 w-4" />
+      <span className="text-xs font-medium text-muted-foreground">Próxima Prova</span>
+    </div>
+    <div className="flex items-center gap-2">
+      <Badge className={statusStyles.badge}>
+        {daysRemaining === 0 ? 'Hoje!' : `${daysRemaining} dias`}
+      </Badge>
+      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleEdit}>
+        <MoreVertical className="h-4 w-4" />
+      </Button>
+    </div>
+  </div>
+
+  {/* Main Content */}
+  <div className="space-y-2">
+    <h4 className="font-semibold text-sm text-foreground">
+      {exam.materia}
+    </h4>
+    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <Calendar className="h-3 w-3" />
+      {exam.exam_name} • {formatDate(exam.exam_date)}
+    </p>
+  </div>
+
+  {/* Progress */}
+  <div className="mt-3 space-y-1.5">
+    <Progress value={percentage} className="h-2" />
+    <div className="flex justify-between text-xs">
+      <span className="text-muted-foreground">{completed}/{total} aulas</span>
+      <span className={cn("font-semibold", statusStyles.text)}>{percentage}%</span>
+    </div>
+  </div>
+
+  {/* Insight Message */}
+  {lessons_per_day > 0 && (
+    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Zap className="h-3 w-3" />
+      <span>{Math.ceil(lessons_per_day)} aulas/dia para atingir a meta</span>
+    </div>
+  )}
+
+  {/* CTA Button */}
+  <Button
+    onClick={(e) => { e.stopPropagation(); handleStudy(); }}
+    className={cn("w-full mt-4 gap-2", statusStyles.cta)}
+  >
+    {cta_label}
+    <ArrowRight className="h-4 w-4" />
+  </Button>
+</motion.div>
+```
+
+## Estado Vazio (Sem Prova)
+
+Design convidativo para adicionar prova:
 ```text
-┌────────────────────────────────────────────────────────┐
-│  🎓  Bioquímica         ████████░░ 68%    5 dias  →   │
-│      ⚡ 2 aulas/dia restantes                          │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  📅  Acompanhe suas provas                   │
+│                                              │
+│      Cadastre sua próxima prova para         │
+│      organizar seus estudos                  │
+│                                              │
+│      [───── + Adicionar prova ─────]         │
+│                                              │
+└──────────────────────────────────────────────┘
 ```
 
-### Estado sem prova
-```text
-┌────────────────────────────────────────────────────────┐
-│  🗓️  Cadastre sua próxima prova para acompanhar  [+]  │
-└────────────────────────────────────────────────────────┘
-```
+## Critérios de Sucesso
 
-## Cores por Status (reutilizando do ExamTrackerCard)
-- 🔴 **Critical** (≤7 dias, <50%): Vermelho/destructive
-- 🟡 **Warning**: Âmbar
-- 🟢 **On Track**: Verde
-- 🔵 **Excellent** (≥90%): Primário
+1. **Card inteiro clicável** - abre sheet de detalhes
+2. **Clareza visual imediata** - usuário entende em 2 segundos o que é
+3. **Hierarquia de informação** - título > matéria > data > progresso > ação
+4. **Feedback visual** - hover/press states premium
+5. **Ações acessíveis** - estudar, editar, remover sem ambiguidade
+6. **Responsivo** - funciona bem em 375px até 1440px
+7. **Urgência proporcional** - visual crítico para provas próximas
 
-## Considerações
+## Próximos Passos
 
-1. **Reutilização**: O modal `AddExamWizard` já existe e será reutilizado
-2. **Dados**: Usar `useUserExams` + `calculateExamInsight` (já implementados)
-3. **Responsividade**: Banner é compacto e funciona em todas as telas
-4. **Performance**: Dados de provas já são carregados via React Query com cache
-5. **Consistência**: Visual segue os padrões do MeuDiaCard existente
-
-## Fluxo de Dados
-
-```text
-Home.tsx
-├── useUserExams() → exams[]
-├── useProgressHub() → byMateria[]
-├── calculateExamInsight(exams[0], byMateria) → nextExam
-│
-└── MeuDiaCard
-    └── UpcomingExamBanner
-        ├── nextExam (props)
-        └── onClick → navigate('/guia-estudos?materia=X')
-```
-
-## Detalhes Técnicos
-
-### Hook de dados no Home
-```typescript
-// Em Home.tsx
-const { exams, loading: examsLoading, addExam } = useUserExams();
-const { data: progressData } = useProgressHub();
-
-// Calcular próxima prova
-const nextExamInsight = useMemo(() => {
-  if (!exams.length || !progressData) return null;
-  const exam = exams[0]; // Já ordenado por data
-  const materiaProgress = progressData.by_materia.find(
-    m => m.materia.toLowerCase() === exam.materia.toLowerCase()
-  );
-  return calculateExamInsight(exam, materiaProgress || null);
-}, [exams, progressData]);
-```
-
-## Resultado Final
-
-- Layout da Home **mais limpo** (sem card de progresso ocupando linha inteira)
-- Provas integradas **organicamente** ao fluxo do dia
-- **Zero quebra** no grid original
-- Usuário vê informação de prova **contextualizada** com suas atividades do dia
+1. Reescrever `UpcomingExamBanner.tsx` com novo design
+2. Criar `ExamDetailSheet.tsx` para modal de detalhes
+3. Atualizar `Home.tsx` com handlers de edição/remoção
+4. Testar em mobile e desktop
