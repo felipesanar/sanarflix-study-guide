@@ -86,6 +86,8 @@ export interface RiskAlert {
 export interface ProgressHubUser {
   nome: string;
   semestre: number | null;
+  /** Warning message if semester is not defined */
+  semestre_warning?: string | null;
   streak_goal?: number;
   exam_date?: string | null;
 }

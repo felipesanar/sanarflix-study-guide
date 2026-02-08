@@ -96,17 +96,68 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Get all contents for user's IES
-    const { data: conteudos, error: conteudosError } = await supabaseAdmin
+    // 2. Get contents for user's IES - SEMESTER SCOPED
+    // CRITICAL: The Progress Dashboard must only consider content from the student's current semester
+    const userSemestre = userData.semestre;
+    
+    if (!userSemestre) {
+      console.warn('get-progress-hub: User has no semester defined, using fallback');
+    }
+    
+    // Build query - filter by semester if available
+    let conteudosQuery = supabaseAdmin
       .from('conteudos')
-      .select('id, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+      .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
       .eq('id_ies', userData.id_ies);
+    
+    // SEMESTER FILTER: Only fetch content from user's semester
+    if (userSemestre) {
+      conteudosQuery = conteudosQuery.eq('semestre', String(userSemestre));
+    }
+    
+    const { data: conteudos, error: conteudosError } = await conteudosQuery;
 
     if (conteudosError) {
       console.error('get-progress-hub: Contents error:', conteudosError);
       return new Response(
         JSON.stringify({ error: 'Failed to fetch contents' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`get-progress-hub: Fetched ${conteudos?.length || 0} contents for semester ${userSemestre || 'ALL'}`);
+    
+    // Handle empty state - no contents for semester
+    if (!conteudos || conteudos.length === 0) {
+      console.log('get-progress-hub: No contents found for semester, returning empty state');
+      return new Response(
+        JSON.stringify({
+          overview: {
+            total: 0,
+            completed: 0,
+            percentage: 0,
+            total_materias: 0,
+            total_temas: 0,
+            status_level: 'starting',
+            status_message: 'Sem conteúdos para seu semestre'
+          },
+          streak: { current: 0, active_days_week: 0, goal: 3 },
+          by_materia: [],
+          by_tema: [],
+          by_subtema: [],
+          weekly_evolution: [],
+          last_activity: null,
+          next_actions: [],
+          risk_alerts: [],
+          today_subjects: [],
+          user: {
+            nome: userData.nome,
+            semestre: userSemestre,
+            semestre_warning: !userSemestre ? 'Semestre não definido' : null,
+            streak_goal: 3
+          }
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -119,7 +170,7 @@ Deno.serve(async (req) => {
         .eq('user_id', user.id),
       supabaseAdmin
         .from('study_progress')
-        .select('content_id, completed_at')
+        .select('content_id, completed_at, semestre')
         .eq('user_id', user.id)
         .eq('completed', true)
     ]);
@@ -131,27 +182,86 @@ Deno.serve(async (req) => {
       console.error('get-progress-hub: Study progress error:', studyProgressResult.error);
     }
 
-    // Merge both progress sources
+    // Merge both progress sources - SEMESTER SCOPED
     const legacyProgress = legacyProgressResult.data || [];
     const studyProgress = studyProgressResult.data || [];
     
-    // Build a map of content_id to completed_at from both sources
+    // Build a Set of valid content IDs from the semester (for cross-referencing)
+    const validContentIds = new Set(conteudos.map(c => c.id));
+    
+    // Helper function to generate composite ID matching the Study Guide format
+    // Defined early so it can be used in progress filtering
+    const getCompositeId = (content: { materia?: string; tema?: string | null; subtema?: string | null; aula?: string | null }, semestre: number): string => {
+      const parts = [
+        semestre.toString(),
+        content.materia || '',
+        content.tema || '',
+        content.subtema || '',
+        content.aula || ''
+      ];
+      return parts.join('-');
+    };
+    const extractSemestreFromContentId = (contentId: string): number | null => {
+      if (!contentId) return null;
+      const parts = contentId.split('-');
+      if (parts.length >= 1) {
+        const firstPart = parseInt(parts[0], 10);
+        if (!isNaN(firstPart) && firstPart >= 1 && firstPart <= 12) {
+          return firstPart;
+        }
+      }
+      return null;
+    };
+    
+    // Filter function to check if progress belongs to active semester
+    const isProgressFromSemester = (contentId: string): boolean => {
+      // Method 1: Check if content_id is a valid UUID from the semester contents
+      if (validContentIds.has(contentId)) return true;
+      
+      // Method 2: Extract semester from composite content_id
+      if (userSemestre) {
+        const extractedSemestre = extractSemestreFromContentId(contentId);
+        if (extractedSemestre !== null) {
+          return extractedSemestre === userSemestre;
+        }
+      }
+      
+      // Method 3: If content_id matches composite format for any semester content
+      for (const content of conteudos) {
+        const compositeId = getCompositeId(content, userSemestre || 1);
+        if (compositeId === contentId) return true;
+      }
+      
+      return false;
+    };
+    
+    // Build a map of content_id to completed_at from both sources - FILTERED BY SEMESTER
     const progressMap = new Map<string, string>();
     
-    // Add legacy progress
+    // Add legacy progress - only if content belongs to semester
     for (const p of legacyProgress) {
-      if (p.completed_at) {
+      if (p.completed_at && isProgressFromSemester(p.content_id)) {
         progressMap.set(p.content_id, p.completed_at);
       }
     }
     
-    // Add study_progress (overwrites if newer)
+    // Add study_progress - filter by semester field or content_id
     for (const p of studyProgress) {
-      if (p.completed_at) {
-        const existing = progressMap.get(p.content_id);
-        if (!existing || new Date(p.completed_at) > new Date(existing)) {
-          progressMap.set(p.content_id, p.completed_at);
-        }
+      if (!p.completed_at) continue;
+      
+      // First check explicit semester field
+      if (userSemestre && p.semestre && p.semestre !== userSemestre) {
+        continue; // Skip progress from other semesters
+      }
+      
+      // Then check content_id
+      if (!isProgressFromSemester(p.content_id)) {
+        continue;
+      }
+      
+      const existing = progressMap.get(p.content_id);
+      if (!existing || new Date(p.completed_at) > new Date(existing)) {
+        progressMap.set(p.content_id, p.completed_at);
       }
     }
     
@@ -161,7 +271,7 @@ Deno.serve(async (req) => {
       completed_at
     }));
     
-    console.log(`get-progress-hub: Found ${legacyProgress.length} legacy + ${studyProgress.length} study progress items = ${progressData.length} total`);
+    console.log(`get-progress-hub: Semester ${userSemestre} - Found ${progressData.length} progress items (filtered from ${legacyProgress.length} legacy + ${studyProgress.length} study)`);
 
     // 4. Get user's calendar subjects
     const { data: calendarData } = await supabaseAdmin
@@ -180,17 +290,7 @@ Deno.serve(async (req) => {
     const completedIdsSet = new Set((progressData || []).map(p => p.content_id));
     const allContents = conteudos || [];
     
-    // Helper function to generate composite ID matching the Study Guide format
-    const getCompositeId = (content: typeof allContents[0], semestre: number): string => {
-      const parts = [
-        semestre.toString(),
-        content.materia || '',
-        content.tema || '',
-        content.subtema || '',
-        content.aula || ''
-      ];
-      return parts.join('-');
-    };
+    // Note: getCompositeId already defined above for progress filtering
     
     // Helper to check if content is completed (by UUID or composite ID)
     const isContentCompleted = (content: typeof allContents[0]): boolean => {
@@ -616,7 +716,8 @@ Deno.serve(async (req) => {
       today_subjects: todaySubjects,
       user: {
         nome: userData.nome,
-        semestre: userData.semestre,
+        semestre: userSemestre,
+        semestre_warning: !userSemestre ? 'Semestre não definido para o usuário' : null,
         streak_goal: 3 // Default, can be stored in user preferences
       }
     };

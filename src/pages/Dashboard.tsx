@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BarChart3, RefreshCw } from 'lucide-react';
+import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useProgressHub } from '@/hooks/useProgressHub';
 import { useAuth } from '@/contexts/AuthContext';
+import { useActiveSemester } from '@/hooks/useActiveSemester';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from 'sonner';
@@ -36,6 +38,7 @@ const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { semestreAtivo, warning: semestreWarning } = useActiveSemester();
   const { trackEvent } = useAnalyticsTracker();
   const shouldReduceMotion = useReducedMotion();
   const isMobile = useIsMobile();
@@ -461,7 +464,7 @@ export const Dashboard: React.FC = () => {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold">Central de Progresso</h1>
               <p className="text-sm text-muted-foreground">
-                {user?.ies_nome} • {user?.semestre}º período
+                {user?.ies_nome} • {semestreAtivo ? `${semestreAtivo}º período` : 'Período não definido'}
               </p>
             </div>
           </div>
@@ -471,6 +474,18 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
         </motion.div>
+
+        {/* Semester Warning Banner */}
+        {(semestreWarning || data.user?.semestre_warning) && (
+          <motion.div variants={itemVariants}>
+            <Alert className="border-chart-3/50 bg-chart-3/10">
+              <AlertTriangle className="h-4 w-4" style={{ color: 'hsl(var(--chart-3))' }} />
+              <AlertDescription className="text-foreground">
+                {semestreWarning || data.user?.semestre_warning}. Os dados podem não refletir seu progresso real.
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
 
         {/* Risk Alerts */}
         {data.risk_alerts && data.risk_alerts.length > 0 && !isPreProvaMode && (
