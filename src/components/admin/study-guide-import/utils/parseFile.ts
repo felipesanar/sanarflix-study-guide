@@ -416,6 +416,7 @@ export function validateAndNormalize(
         severity: 'error',
         code: 'INVALID_SEMESTRE',
         message: `Semestre inválido: "${semestreRaw}". Deve ser um número entre 1 e 12.`,
+        invalidValue: String(semestreRaw || ''),
       });
       return; // Skip this row
     }
@@ -430,6 +431,7 @@ export function validateAndNormalize(
         severity: 'error',
         code: 'MISSING_MATERIA',
         message: 'Campo matéria é obrigatório.',
+        invalidValue: '',
       });
       return;
     }
@@ -453,6 +455,7 @@ export function validateAndNormalize(
         severity: 'warning',
         code: 'INVALID_URL',
         message: `URL de aula inválida: "${linkAula?.substring(0, 50)}..."`,
+        invalidValue: linkAula?.substring(0, 100) || '',
       });
     }
     
@@ -465,6 +468,7 @@ export function validateAndNormalize(
         severity: 'warning',
         code: 'SPARSE_ROW',
         message: 'Linha com poucos dados preenchidos.',
+        invalidValue: undefined,
       });
     }
     
@@ -505,6 +509,7 @@ export function validateAndNormalize(
       severity: 'warning',
       code: 'DUPLICATE_ROW',
       message: 'Linha duplicada encontrada (será ignorada se modo MERGE).',
+      invalidValue: undefined,
     });
   });
   
@@ -526,7 +531,7 @@ export function validateAndNormalize(
  * Generate error report as CSV
  */
 export function generateErrorReport(issues: ValidationIssue[]): string {
-  const headers = ['row_number', 'sheet_name', 'field', 'severity', 'code', 'message'];
+  const headers = ['row_number', 'sheet_name', 'field', 'severity', 'code', 'message', 'invalid_value'];
   const rows = issues.map(issue => [
     String(issue.rowNumber),
     issue.sheetName || '',
@@ -534,6 +539,7 @@ export function generateErrorReport(issues: ValidationIssue[]): string {
     issue.severity,
     issue.code,
     `"${issue.message.replace(/"/g, '""')}"`,
+    `"${(issue.invalidValue || '').replace(/"/g, '""')}"`,
   ]);
   
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
