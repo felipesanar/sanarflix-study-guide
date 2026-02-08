@@ -79,6 +79,9 @@ export const Dashboard: React.FC = () => {
     tema: null,
     sortBy: 'alphabetical',
   });
+  
+  // Search query state (lifted from SemesterMapCard)
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   // Track page view and initial load performance
   useEffect(() => {
@@ -679,6 +682,8 @@ export const Dashboard: React.FC = () => {
                 onFiltersChange={handleFiltersChange}
                 totalCount={totalCount}
                 filteredCount={filteredCount}
+                searchQuery={mapSearchQuery}
+                onSearchChange={setMapSearchQuery}
               />
             )}
           </motion.div>
@@ -702,6 +707,8 @@ export const Dashboard: React.FC = () => {
                 byTema={filteredData.byTema}
                 bySubtema={filteredData.bySubtema}
                 onThemeClick={handleThemeClick}
+                searchQuery={mapSearchQuery}
+                onSearchChange={setMapSearchQuery}
               />
             ) : (
               <EmptyState onClearFilters={handleClearFilters} />

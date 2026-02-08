@@ -13,25 +13,32 @@ import type { MateriaProgress, TemaProgress, SubtemaProgress } from '@/types/pro
 import { TEMA_STATUS, getTemaStatus } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
 import { TemaItem } from './TemaItem';
-import { SemesterMapSearch } from './SemesterMapSearch';
 
 interface SemesterMapCardProps {
   byMateria: MateriaProgress[];
   byTema: TemaProgress[];
   bySubtema: SubtemaProgress[];
   onThemeClick?: (materia: string, tema: string) => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   byMateria,
   byTema,
   bySubtema,
-  onThemeClick
+  onThemeClick,
+  searchQuery: externalSearchQuery,
+  onSearchChange,
 }) => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
   const [expandedMaterias, setExpandedMaterias] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
+  
+  // Use external search query if provided, otherwise use internal
+  const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
+  const setSearchQuery = onSearchChange || setInternalSearchQuery;
 
   // Filter materias and temas by search query
   const { filteredMaterias, filteredTemas, filteredSubtemas } = useMemo(() => {
@@ -109,20 +116,8 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
-            Mapa do Semestre
-          </CardTitle>
-          <SemesterMapSearch
-            value={searchQuery}
-            onChange={setSearchQuery}
-            className="sm:w-64"
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3" role="list" aria-label="Progresso por matéria">
+      <CardContent className="space-y-3 pt-0" role="list" aria-label="Progresso por matéria">
+      
         {filteredMaterias.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center" role="status">
             <p className="text-sm text-muted-foreground">
