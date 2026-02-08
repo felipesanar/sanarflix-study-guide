@@ -18,8 +18,9 @@ import {
   Loader2,
   Calendar,
   Building2,
-  TrendingUp,
-  FileBarChart,
+  Activity,
+  HelpCircle,
+  Target,
   Clock,
   Zap
 } from 'lucide-react';
@@ -259,13 +260,47 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
               </div>
             </div>
 
+            {/* Preview dos dados - MOVIDO PARA CIMA */}
+            <div className="space-y-3">
+              <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+                <Database className="w-4 h-4 text-muted-foreground" />
+                Dados incluídos no relatório
+              </h3>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                {[
+                  { icon: Users, label: 'Usuários', value: previewStats.totalUsuarios, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+                  { icon: Activity, label: 'Sessões', value: previewStats.sessoesNoPeriodo, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                  { icon: Target, label: 'Simulados', value: previewStats.simuladosAnalisados, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                  { icon: HelpCircle, label: 'Questões', value: previewStats.questoesMapeadas, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                ].map((stat, idx) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className={`p-2.5 sm:p-3 rounded-xl ${stat.bg} border border-border/30 text-center`}
+                  >
+                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${stat.color}`} />
+                    <p className="text-base sm:text-lg font-bold text-foreground font-mono">
+                      {stat.value.toLocaleString('pt-BR')}
+                    </p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {stat.label}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            <Separator className="bg-border/50" />
+
             {/* Seleção de formato */}
             <div className="space-y-3">
               <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
-                <FileBarChart className="w-4 h-4 text-muted-foreground" />
+                <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
                 Selecione o formato
               </h3>
-              
               <div className="space-y-2 sm:space-y-3">
                 {formatOptions.map((option) => {
                   const isDisabled = option.value === 'xlsx-simulados' && !hasSimuladosData;
@@ -371,41 +406,6 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
                     </motion.button>
                   );
                 })}
-              </div>
-            </div>
-
-            <Separator className="bg-border/50" />
-
-            {/* Preview dos dados - Grid premium */}
-            <div className="space-y-3">
-              <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
-                <Database className="w-4 h-4 text-muted-foreground" />
-                Preview dos dados
-              </h3>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                {[
-                  { icon: Users, label: 'Usuários', value: previewStats.totalUsuarios, color: 'text-blue-500' },
-                  { icon: TrendingUp, label: 'Sessões', value: previewStats.sessoesNoPeriodo, color: 'text-emerald-500' },
-                  { icon: BarChart3, label: 'Simulados', value: previewStats.simuladosAnalisados, color: 'text-violet-500' },
-                  { icon: FileBarChart, label: 'Questões', value: previewStats.questoesMapeadas, color: 'text-amber-500' },
-                ].map((stat, idx) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="p-2.5 sm:p-3 rounded-xl bg-muted/30 border border-border/30 text-center"
-                  >
-                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${stat.color}`} />
-                    <p className="text-base sm:text-lg font-bold text-foreground font-mono">
-                      {stat.value.toLocaleString('pt-BR')}
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      {stat.label}
-                    </p>
-                  </motion.div>
-                ))}
               </div>
             </div>
           </div>
