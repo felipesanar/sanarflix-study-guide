@@ -1,153 +1,176 @@
 
-# Plano: Corrigir Responsividade do ProgressHeroCard
 
-## Problema Identificado
+# Plano: Carrossel Netflix-Style para Card de Provas
 
-Na screenshot, o card Hero está cortado à direita, com o botão "Organizar" truncado. O layout flex atual não está quebrando corretamente em telas intermediárias.
+## Objetivo
 
-### Análise do Código Atual (linha 183):
+Transformar o card "Suas Provas" (modo compacto) de uma lista vertical que cresce em altura para um carrossel horizontal estilo Netflix com:
+- Auto-play rotativo
+- Navegação por swipe/toque
+- Indicadores de navegação (dots)
+- Transição suave entre slides
 
-```tsx
-<div className="flex-1 flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-4 lg:items-end xl:items-center lg:justify-end">
-```
+## Estado Atual (Screenshot)
 
-**Problemas:**
-1. `sm:flex-row` força elementos lado a lado muito cedo (640px+)
-2. Botões com texto longo não cabem no espaço
-3. O container `flex-1` tenta ocupar todo espaço restante mas não quebra linha
-4. Os botões têm `size="lg"` que ocupa muito espaço horizontal
+O card exibe todas as provas empilhadas verticalmente, aumentando a altura do card e ocupando muito espaço vertical no grid.
 
 ## Solução Proposta
 
-### Mudanças no `ProgressHeroCard.tsx`:
+### 1. Nova Dependência
 
-#### 1. Layout Principal (linha 85)
-```tsx
-// ANTES
-<div className="flex flex-col lg:flex-row lg:items-center gap-6">
-
-// DEPOIS - Permitir wrap quando necessário
-<div className="flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-6">
+Instalar o plugin de autoplay do Embla Carousel:
+```
+embla-carousel-autoplay
 ```
 
-#### 2. Container Direito - Streak + CTAs (linha 183)
-```tsx
-// ANTES
-<div className="flex-1 flex flex-col sm:flex-row lg:flex-col xl:flex-row gap-4 lg:items-end xl:items-center lg:justify-end">
+### 2. Mudanças no `ExamTrackerCard.tsx` (modo compact)
 
-// DEPOIS - Permitir flex-wrap e melhor distribuição
-<div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 lg:flex-1 lg:justify-end">
+Substituir a lista vertical por um carrossel usando os componentes existentes de `@/components/ui/carousel`:
+
+```tsx
+// Importações adicionais
+import Autoplay from "embla-carousel-autoplay";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi
+} from '@/components/ui/carousel';
+
+// State para controlar slide atual
+const [api, setApi] = React.useState<CarouselApi>();
+const [current, setCurrent] = React.useState(0);
+
+// Autoplay plugin (pausa ao hover)
+const autoplayPlugin = useRef(
+  Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true })
+);
+
+// Listener de navegação
+useEffect(() => {
+  if (!api) return;
+  setCurrent(api.selectedScrollSnap());
+  api.on("select", () => setCurrent(api.selectedScrollSnap()));
+}, [api]);
 ```
 
-#### 3. Container dos Botões (linhas 215-250)
-```tsx
-// ANTES
-<motion.div className="flex flex-col sm:flex-row gap-2">
+### 3. Layout Visual do Carrossel
 
-// DEPOIS - Sempre wrap e usar sm:flex-nowrap apenas em telas maiores
-<motion.div className="flex flex-col xs:flex-row flex-wrap gap-2 w-full sm:w-auto">
-```
-
-#### 4. Botões - Reduzir size e melhorar texto responsivo (linhas 223-249)
-```tsx
-// ANTES
-<Button size="lg" className="gap-2 ...">
-  <span className="hidden sm:inline">Continuar de onde parei</span>
-  <span className="sm:hidden">Continuar</span>
-</Button>
-
-// DEPOIS - Usar size default e texto mais curto em telas médias
-<Button 
-  size="default" 
-  className="gap-2 flex-1 sm:flex-initial min-w-[140px] justify-center ..."
->
-  <Play className="h-4 w-4 shrink-0" />
-  <span className="hidden md:inline">Continuar de onde parei</span>
-  <span className="md:hidden">Continuar</span>
-</Button>
-
-<Button 
-  variant="outline"
-  size="default"
-  className="gap-2 flex-1 sm:flex-initial min-w-[120px] justify-center ..."
->
-  <Calendar className="h-4 w-4 shrink-0" />
-  <span className="hidden md:inline">Organizar semana</span>
-  <span className="md:hidden">Organizar</span>
-</Button>
-```
-
-#### 5. Streak Mini Card - Garantir que não estica demais (linhas 185-212)
-```tsx
-// ANTES
-<motion.div className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3">
-
-// DEPOIS - Limitar largura e shrink
-<motion.div className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3 shrink-0 w-full sm:w-auto">
-```
-
-## Layout Visual Esperado
-
-### Desktop (>1024px):
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│ ┌──────┐  ⚡ Acelerando           ○○○○○●●  4/5 dias              │
-│ │ 12%  │  15 de 124 aulas        ┌────────────────┐ ┌──────────┐ │
-│ │concl.│  6 matérias • 29 temas  │▶ Continuar ... │ │📅Organiz.│ │
-│ └──────┘                         └────────────────┘ └──────────┘ │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│ 🎓 Suas Provas                    +  │
+├──────────────────────────────────────┤
+│ ┌──────────────────────────────────┐ │
+│ │ 🔴 Anatomia do Aparelho I... ⏱2d │ │
+│ │ ─────────────── 33%      ⚡6/dia │ │
+│ └──────────────────────────────────┘ │
+│              ● ○ ○ ○                 │ ← Dots de navegação
+├──────────────────────────────────────┤
+│           Ver todas (4) →            │
+└──────────────────────────────────────┘
 ```
 
-### Tablet (768-1024px):
-```text
-┌───────────────────────────────────────────────────┐
-│ ┌──────┐  ⚡ Acelerando                           │
-│ │ 12%  │  15 de 124 aulas                        │
-│ │concl.│  6 matérias • 29 temas                  │
-│ └──────┘                                          │
-│ ┌─────────────────────────────────────────────────┤
-│ │ ○○○○○●● 4/5 dias                               │
-│ │ ┌─────────────────┐  ┌──────────────────────┐  │
-│ │ │ ▶ Continuar     │  │ 📅 Organizar         │  │
-│ │ └─────────────────┘  └──────────────────────┘  │
-│ └─────────────────────────────────────────────────┤
-└───────────────────────────────────────────────────┘
+### 4. Estrutura do JSX (Compact Mode)
+
+```tsx
+<CardContent className="pt-0 flex-1 flex flex-col min-h-0">
+  <Carousel
+    setApi={setApi}
+    plugins={examInsights.length > 1 ? [autoplayPlugin.current] : []}
+    opts={{ loop: true, align: 'start' }}
+    className="w-full"
+  >
+    <CarouselContent className="-ml-2">
+      {examInsights.map((insight, index) => (
+        <CarouselItem key={insight.exam.id} className="pl-2 basis-full">
+          {/* Card de prova - mesmo layout atual mas sem motion wrapper */}
+          <div className={cn(
+            "rounded-xl border p-3 cursor-pointer transition-all",
+            getStatusBg(insight.status)
+          )}>
+            {/* Conteúdo do ExamItem inline */}
+          </div>
+        </CarouselItem>
+      ))}
+    </CarouselContent>
+  </Carousel>
+  
+  {/* Dots de navegação (quando > 1 prova) */}
+  {examInsights.length > 1 && (
+    <div className="flex justify-center gap-1.5 pt-2">
+      {examInsights.map((_, idx) => (
+        <button
+          key={idx}
+          onClick={() => api?.scrollTo(idx)}
+          className={cn(
+            "w-1.5 h-1.5 rounded-full transition-all",
+            idx === current 
+              ? "bg-primary w-3" 
+              : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+          )}
+          aria-label={`Ir para prova ${idx + 1}`}
+        />
+      ))}
+    </div>
+  )}
+  
+  {/* Footer mantido */}
+</CardContent>
 ```
 
-### Mobile (<768px):
-```text
-┌────────────────────────────┐
-│ ┌──────┐  ⚡ Acelerando    │
-│ │ 12%  │  15 de 124 aulas │
-│ │concl.│  6 mat. • 29 tem │
-│ └──────┘                   │
-│                            │
-│ ○○○○○●● 4/5 dias          │
-│                            │
-│ ┌────────────────────────┐ │
-│ │    ▶ Continuar         │ │
-│ └────────────────────────┘ │
-│ ┌────────────────────────┐ │
-│ │    📅 Organizar        │ │
-│ └────────────────────────┘ │
-└────────────────────────────┘
+### 5. Comportamentos Especiais
+
+| Cenário | Comportamento |
+|---------|---------------|
+| 1 prova | Sem carrossel, layout atual simples |
+| 2+ provas | Carrossel com autoplay e dots |
+| Hover | Pausa autoplay |
+| Swipe (mobile) | Navega entre slides |
+| Click no dot | Vai para slide específico |
+| Click no slide | Navega para `/guia-estudos?materia=X` |
+
+### 6. Configuração do Autoplay
+
+- **Delay**: 4000ms (4 segundos por slide)
+- **Loop**: Infinito
+- **Pause on hover**: Sim (melhor UX)
+- **Stop on interaction**: Não (continua após swipe)
+
+### 7. Animação dos Dots
+
+O dot ativo terá largura maior (estilo Netflix/iOS):
+```css
+.active-dot { width: 12px; } /* pill shape */
+.inactive-dot { width: 6px; } /* circle */
 ```
 
-## Arquivo a Modificar
+### 8. Respeito a `prefers-reduced-motion`
 
-| Arquivo | Linhas | Mudança |
-|---------|--------|---------|
-| `src/components/progress-hub/ProgressHeroCard.tsx` | 85 | Ajustar gap responsivo |
-| | 183 | Adicionar flex-wrap e melhor distribuição |
-| | 186 | Streak card com largura controlada |
-| | 216 | Container CTAs com wrap |
-| | 223-235 | Botão "Continuar" menor e responsivo |
-| | 236-249 | Botão "Organizar" menor e responsivo |
+Se o usuário preferir movimento reduzido:
+- Desabilitar autoplay
+- Manter navegação manual funcional
+
+```tsx
+const shouldReduceMotion = useReducedMotion();
+const plugins = shouldReduceMotion || examInsights.length <= 1 
+  ? [] 
+  : [autoplayPlugin.current];
+```
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `package.json` | Adicionar `embla-carousel-autoplay` |
+| `src/components/progress-hub/ExamTrackerCard.tsx` | Implementar carrossel no modo compact (linhas 188-320) |
 
 ## Resultado Esperado
 
-- ✅ Botões nunca são cortados em nenhum breakpoint
-- ✅ Texto se adapta (curto em telas médias, completo em grandes)
-- ✅ Layout quebra linha quando necessário
-- ✅ Streak card não força overflow horizontal
-- ✅ Experiência consistente em todos os tamanhos de tela
+- ✅ Card mantém altura fixa (não cresce com mais provas)
+- ✅ Transição suave estilo Netflix entre provas
+- ✅ Autoplay pausável ao hover
+- ✅ Navegação por swipe no mobile
+- ✅ Dots indicam prova atual e permitem navegação
+- ✅ Acessibilidade mantida (keyboard navigation)
+- ✅ Respeita `prefers-reduced-motion`
+
