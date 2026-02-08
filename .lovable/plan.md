@@ -1,276 +1,164 @@
 
-# Plano: Evolução Enterprise da Seção Jornada do Estudante
+# Plano: Remover Card de Progresso e Adicionar Provas no MeuDiaCard
 
-## Visão Geral
+## Objetivo
 
-Transformar a seção "Jornada" de um dashboard básico em um **Analytics Engine de nível enterprise** com cruzamento avançado de dados, análise preditiva, segmentação comportamental e insights acionáveis automáticos.
+Remover o `ProgressSummaryCard` (card com 14%, "Acelerando", streak) da Home e adicionar um indicador compacto de provas vinculado ao `MeuDiaCard`, mantendo o grid/layout original intacto.
 
-## Dados Disponíveis para Cruzamento
+## Análise do Layout Atual
 
-Com base na exploração do banco, identificamos **15+ fontes de dados** que podem ser cruzadas:
+O layout atual da Home possui três linhas principais:
+- **Linha 1**: WelcomeCard + AnnouncementsCard
+- **Linha 1.5**: ProgressSummaryCard (será removido)
+- **Linha 2**: MeuDiaCard + RankingCard
+- **Linha 3**: SimuladoPerformanceCard + MeuSemestreCard
 
-| Fonte | Dados | Uso na Jornada |
-|-------|-------|----------------|
-| `analytics_events` | 1047 eventos, 14 tipos | Funil, comportamento |
-| `user_sessions` | 1916 sessões, 7.8min média | Retenção, engagement |
-| `page_views` | Views por página | Navegação, drop-offs |
-| `study_progress` | Progresso por matéria | Correlação estudo x performance |
-| `simulados_finalizados` | 220 conclusões | Conversão, tempo até ação |
-| `answer_progress` | 22k respostas, 52% acerto | Performance pedagógica |
-| `questoes_simulado` | 600 questões, 7 áreas | Gaps de conhecimento |
-| `calendar_subjects` | 27 itens, 6 usuários | Engajamento profundo |
-| `user_exams` | Provas cadastradas | Preparação ativa |
-| `users` | Dados demográficos | Segmentação por semestre/IES |
+Ao remover a Linha 1.5, o layout volta ao original e mais enxuto.
 
-## Arquitetura do Novo StudentJourneySection
+## Abordagem: Seção de Prova Inline no MeuDiaCard
+
+A melhor forma de integrar provas sem atrapalhar o layout é criar uma **seção compacta dentro do próprio MeuDiaCard**, exibida como um "banner" ou item especial no topo da lista de atividades.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                    JORNADA DO ESTUDANTE (Enterprise)                 │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  ┌────────────────────── EXECUTIVE SUMMARY ──────────────────────┐  │
-│  │  [DAU] [WAU] [Stickiness] [Time to Value] [Churn Risk]        │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌─────────────────────── JOURNEY FUNNEL ────────────────────────┐  │
-│  │  Primeiro Acesso → Exploração → Engajamento →                 │  │
-│  │  Consumo → Conversão (Simulado) → Retenção                    │  │
-│  │  [Gráfico de Sankey ou Funil Visual Interativo]               │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-│  ┌──────────── BEHAVIORAL SEGMENTS ──────────────┬──────────────┐  │
-│  │  Cohorts:                                      │  Retention   │  │
-│  │  • Power Users (7+ dias)                       │  Cohort Grid │  │
-│  │  • Regulars (4-6 dias)                         │  [Week 0-4]  │  │
-│  │  • Ocasionais (2-3 dias)                       │              │  │
-│  │  • Churned (1 dia)                             │              │  │
-│  └────────────────────────────────────────────────┴──────────────┘  │
-│                                                                      │
-│  ┌─────────────── LEARNING VELOCITY ─────────────┬──────────────┐  │
-│  │  Acurácia por Grande Área                      │  Correlação  │  │
-│  │  [Radar Chart 7 áreas]                         │  Estudo x    │  │
-│  │  • Clínica Médica: 50%                         │  Performance │  │
-│  │  • GO: 55.6%                                   │              │  │
-│  │  • Cirurgia: 49.7%                             │              │  │
-│  └────────────────────────────────────────────────┴──────────────┘  │
-│                                                                      │
-│  ┌─────── ENGAGEMENT DEPTH ──────┬─────── SMART INSIGHTS ───────┐  │
-│  │  Session Depth Distribution    │  • 84% não usa calendário    │  │
-│  │  [1pg] [2-3pg] [4-6pg] [7+pg]  │  • 15% visitou apenas 1 dia  │  │
-│  │                                │  • GO tem +6% de acerto      │  │
-│  │  Peak Hours Heatmap            │  • Cirurgia é gargalo        │  │
-│  │  [Seg-Dom x 0-23h]             │                              │  │
-│  └────────────────────────────────┴──────────────────────────────┘  │
-│                                                                      │
-│  ┌──────────────────── RISK ALERTS ─────────────────────────────┐  │
-│  │  🔴 42 usuários em risco de churn (1 visita nos últimos 14d)  │  │
-│  │  🟡 Cirurgia e Saúde Mental abaixo de 50% acerto             │  │
-│  │  🟢 Retenção semana 1: 79% voltaram pelo menos 2x            │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  🗓️ Meu Dia              3 Sugestões   │
+├─────────────────────────────────────────┤
+│  ┌────────────────────────────────────┐ │  ← Novo: Banner de Próxima Prova
+│  │ 🎓 Bioquímica em 5 dias            │ │
+│  │   ████████░░░░ 68%  | Estudar →    │ │
+│  └────────────────────────────────────┘ │
+│                                         │
+│  📚 Aula: Proteínas        [Assistir →] │  ← Sugestões do calendário
+│  📚 Aula: Lipídios         [Assistir →] │
+│  📚 Revisão: Carboidratos  [Assistir →] │
+│                                         │
+└─────────────────────────────────────────┘
 ```
 
-## Componentes a Implementar
+## Arquitetura da Solução
 
-### 1. Executive Summary Cards (KPIs Avançados)
+### 1. Criar componente `UpcomingExamBanner`
 
-| Métrica | Cálculo | Fonte |
-|---------|---------|-------|
-| DAU/WAU/MAU | Usuários únicos por período | `user_sessions` |
-| Stickiness (DAU/MAU) | Razão de engajamento | `user_sessions` |
-| Time to First Simulado | Tempo entre 1ª sessão e 1º simulado | `user_sessions` + `simulados_finalizados` |
-| Avg Session Depth | Páginas por sessão | `page_views` |
-| Churn Risk Score | Usuários inativos | `user_sessions` |
-| Calendar Adoption | % usando calendário | `calendar_subjects` |
+Componente leve e compacto para exibir a próxima prova:
 
-### 2. Journey Funnel Avançado (6 Estágios)
+```typescript
+// src/components/home/UpcomingExamBanner.tsx
+
+interface UpcomingExamBannerProps {
+  exam: ExamInsight | null;
+  loading: boolean;
+  onStudyClick: (materia: string) => void;
+  onAddExamClick: () => void;
+}
+```
+
+**Características:**
+- Exibe a prova mais próxima (se houver)
+- Mostra: matéria, dias restantes, barra de progresso, botão de ação
+- Estado vazio: "Cadastre sua próxima prova" (link para wizard)
+- Ocupa no máximo ~70px de altura
+
+### 2. Modificar `MeuDiaCard`
+
+Integrar o `UpcomingExamBanner` no topo do conteúdo:
+
+```typescript
+interface MeuDiaCardProps {
+  items: MeuDiaItem[];
+  hasStudyGuide: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  // Novos props para provas
+  nextExam?: ExamInsight | null;
+  examLoading?: boolean;
+  onAddExamClick?: () => void;
+}
+```
+
+### 3. Atualizar `Home.tsx`
+
+- Remover `ProgressSummaryCard` de todos os layouts (Desktop, Tablet, Mobile)
+- Buscar dados de provas usando `useUserExams` e `calculateExamInsight`
+- Passar a próxima prova para o `MeuDiaCard`
+- Adicionar modal de cadastro de prova (reutilizar `AddExamWizard`)
+
+## Mudanças nos Arquivos
+
+| Arquivo | Ação |
+|---------|------|
+| `src/components/home/UpcomingExamBanner.tsx` | **Criar** - Banner compacto de próxima prova |
+| `src/components/home/MeuDiaCard.tsx` | Adicionar props e renderizar UpcomingExamBanner |
+| `src/pages/Home.tsx` | Remover ProgressSummaryCard, integrar lógica de provas |
+| `src/components/home/ProgressSummaryCard.tsx` | Pode ser mantido/deprecado (não usado na Home) |
+
+## Design do UpcomingExamBanner
+
+### Estado com prova cadastrada
+```text
+┌────────────────────────────────────────────────────────┐
+│  🎓  Bioquímica         ████████░░ 68%    5 dias  →   │
+│      ⚡ 2 aulas/dia restantes                          │
+└────────────────────────────────────────────────────────┘
+```
+
+### Estado sem prova
+```text
+┌────────────────────────────────────────────────────────┐
+│  🗓️  Cadastre sua próxima prova para acompanhar  [+]  │
+└────────────────────────────────────────────────────────┘
+```
+
+## Cores por Status (reutilizando do ExamTrackerCard)
+- 🔴 **Critical** (≤7 dias, <50%): Vermelho/destructive
+- 🟡 **Warning**: Âmbar
+- 🟢 **On Track**: Verde
+- 🔵 **Excellent** (≥90%): Primário
+
+## Considerações
+
+1. **Reutilização**: O modal `AddExamWizard` já existe e será reutilizado
+2. **Dados**: Usar `useUserExams` + `calculateExamInsight` (já implementados)
+3. **Responsividade**: Banner é compacto e funciona em todas as telas
+4. **Performance**: Dados de provas já são carregados via React Query com cache
+5. **Consistência**: Visual segue os padrões do MeuDiaCard existente
+
+## Fluxo de Dados
 
 ```text
-Estágio 1: Primeiro Acesso
-  ↓ (users com 1ª sessão)
-Estágio 2: Exploração (2+ páginas na sessão)
-  ↓
-Estágio 3: Engajamento (retornou no dia seguinte)
-  ↓
-Estágio 4: Consumo (acessou Guia ou SanarClass)
-  ↓
-Estágio 5: Conversão (completou 1 simulado)
-  ↓
-Estágio 6: Retenção (voltou após completar)
+Home.tsx
+├── useUserExams() → exams[]
+├── useProgressHub() → byMateria[]
+├── calculateExamInsight(exams[0], byMateria) → nextExam
+│
+└── MeuDiaCard
+    └── UpcomingExamBanner
+        ├── nextExam (props)
+        └── onClick → navigate('/guia-estudos?materia=X')
 ```
 
-### 3. Retention Cohort Grid (Matriz de Retenção)
+## Detalhes Técnicos
 
-Tabela visual estilo Mixpanel/Amplitude mostrando:
-- Linhas: Semanas de entrada (cohort)
-- Colunas: Semanas subsequentes (W0, W1, W2, W3, W4)
-- Células: % de retenção com cor gradiente (verde→vermelho)
+### Hook de dados no Home
+```typescript
+// Em Home.tsx
+const { exams, loading: examsLoading, addExam } = useUserExams();
+const { data: progressData } = useProgressHub();
 
-### 4. Behavioral Segments
-
-Segmentar automaticamente usuários em:
-- **Power Users**: 7+ dias de acesso no período
-- **Regulares**: 4-6 dias
-- **Ocasionais**: 2-3 dias
-- **Em Risco**: 1 dia apenas
-- **Churned**: Sem acesso há 14+ dias
-
-### 5. Learning Velocity (Performance Pedagógica)
-
-- **Radar Chart**: Acurácia por Grande Área (7 eixos)
-- **Correlação**: Cruzar `study_progress` com `answer_progress` para ver se quem estuda mais acerta mais
-- **Gaps Identificados**: Top 3 áreas com menor acerto
-
-### 6. Engagement Depth Analysis
-
-- **Session Depth**: Distribuição de páginas por sessão
-- **Time on Platform**: Tempo médio diário
-- **Peak Hours Heatmap**: Matriz Dia da Semana x Hora
-
-### 7. Smart Insights Engine
-
-Algoritmo que detecta automaticamente:
-- Anomalias (quedas repentinas)
-- Oportunidades (features subutilizadas)
-- Riscos (padrões de churn)
-- Correlações (estudo → performance)
-
-### 8. Risk Alert Banner
-
-Cards visuais com:
-- 🔴 Crítico: Usuários em churn iminente
-- 🟡 Atenção: Áreas acadêmicas problemáticas
-- 🟢 Positivo: Métricas acima do benchmark
-
-## Estrutura de Arquivos
-
-```text
-src/components/analytics/journey/
-├── StudentJourneySection.tsx      # Container principal (reescrito)
-├── ExecutiveSummaryCards.tsx      # KPIs enterprise
-├── JourneyFunnelChart.tsx         # Funil visual 6 estágios
-├── RetentionCohortGrid.tsx        # Matriz de retenção
-├── BehavioralSegments.tsx         # Segmentação de usuários
-├── LearningVelocityCard.tsx       # Radar + correlações
-├── EngagementDepthCard.tsx        # Session depth + heatmap
-├── SmartInsightsEngine.tsx        # Insights automáticos
-├── RiskAlertBanner.tsx            # Alertas visuais
-├── hooks/
-│   └── useJourneyAnalytics.ts     # Hook de data fetching
-└── types.ts                       # Tipos e interfaces
+// Calcular próxima prova
+const nextExamInsight = useMemo(() => {
+  if (!exams.length || !progressData) return null;
+  const exam = exams[0]; // Já ordenado por data
+  const materiaProgress = progressData.by_materia.find(
+    m => m.materia.toLowerCase() === exam.materia.toLowerCase()
+  );
+  return calculateExamInsight(exam, materiaProgress || null);
+}, [exams, progressData]);
 ```
 
-## Queries de Dados
+## Resultado Final
 
-### Query 1: Executive Metrics
-```sql
--- DAU, WAU, MAU, Stickiness
-WITH daily AS (
-  SELECT DATE(started_at) as d, COUNT(DISTINCT user_id) as dau
-  FROM user_sessions WHERE started_at > NOW() - INTERVAL '30 days'
-  GROUP BY d
-)
-SELECT AVG(dau) as avg_dau, MAX(dau) as peak_dau
-FROM daily
-```
-
-### Query 2: Retention Cohort
-```sql
-WITH cohorts AS (
-  SELECT user_id, DATE(MIN(started_at)) as cohort_week
-  FROM user_sessions GROUP BY user_id
-),
-activity AS (
-  SELECT user_id, DATE(started_at) as activity_date
-  FROM user_sessions
-)
-SELECT cohort_week, 
-  COUNT(DISTINCT CASE WHEN activity_date = cohort_week THEN user_id END) as week_0,
-  COUNT(DISTINCT CASE WHEN activity_date BETWEEN cohort_week + 7 AND cohort_week + 13 THEN user_id END) as week_1
-FROM cohorts c JOIN activity a USING (user_id)
-GROUP BY cohort_week
-```
-
-### Query 3: Learning Velocity (Cross-table)
-```sql
-SELECT qs.grande_area,
-  COUNT(DISTINCT ap.user_id) as respondentes,
-  AVG(CASE WHEN ap.correct THEN 1.0 ELSE 0.0 END) * 100 as accuracy,
-  COUNT(*) as total_respostas
-FROM answer_progress ap
-JOIN questoes_simulado qs ON ap.question_id = qs.id
-GROUP BY qs.grande_area
-```
-
-## Tecnologias e Bibliotecas
-
-- **Gráficos**: Recharts (já instalado)
-  - `RadarChart` para áreas de conhecimento
-  - `Sankey` ou custom SVG para funil
-  - `Heatmap` customizado para horários
-- **Animações**: Framer Motion (já instalado)
-- **Data Fetching**: React Query com cache agressivo
-- **UI**: shadcn/ui components existentes
-
-## Detalhes de UI/UX
-
-### Design Premium
-- Cards com bordas sutis e sombras
-- Gradientes para indicar intensidade
-- Animações de entrada suaves
-- Tooltips ricos com contexto
-- Estados de loading skeleton personalizados
-
-### Cores por Criticidade
-- 🔴 Vermelho: < 30% ou risco alto
-- 🟠 Laranja: 30-50% ou atenção
-- 🟡 Amarelo: 50-70% ou neutro
-- 🟢 Verde: > 70% ou excelente
-
-### Responsividade
-- Desktop: Grid 2-3 colunas
-- Tablet: Grid 2 colunas
-- Mobile: Stack vertical com cards colapsáveis
-
-## Métricas de Sucesso
-
-1. Dashboard carrega em < 2s
-2. Todas as 8 seções funcionando
-3. Insights automáticos detectando pelo menos 3 padrões
-4. Matriz de retenção com pelo menos 4 semanas
-5. Zero erros de console
-6. Mobile-friendly (testado em 375px)
-
-## Fases de Implementação
-
-### Fase 1: Infraestrutura (Hook + Tipos)
-- Criar `useJourneyAnalytics.ts` com todas as queries
-- Definir interfaces TypeScript
-- Setup de cache e error handling
-
-### Fase 2: Core Components
-- ExecutiveSummaryCards
-- JourneyFunnelChart (6 estágios)
-- BehavioralSegments
-
-### Fase 3: Advanced Analytics
-- RetentionCohortGrid
-- LearningVelocityCard (Radar)
-- EngagementDepthCard (Heatmap)
-
-### Fase 4: Intelligence Layer
-- SmartInsightsEngine
-- RiskAlertBanner
-- Testes e polish
-
-## Resultado Esperado
-
-Uma seção de Jornada que responde perguntas como:
-- "Quantos usuários voltam após o primeiro dia?"
-- "Qual área acadêmica precisa de mais conteúdo?"
-- "Quem está em risco de churn?"
-- "O calendário de estudos impacta performance?"
-- "Qual o horário ideal para push notifications?"
-- "Quanto tempo leva para um usuário fazer seu primeiro simulado?"
+- Layout da Home **mais limpo** (sem card de progresso ocupando linha inteira)
+- Provas integradas **organicamente** ao fluxo do dia
+- **Zero quebra** no grid original
+- Usuário vê informação de prova **contextualizada** com suas atividades do dia
