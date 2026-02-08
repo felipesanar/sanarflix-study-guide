@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import Autoplay from 'embla-carousel-autoplay';
@@ -27,13 +27,19 @@ interface ExamTrackerCardProps {
   materiasList: string[];
   compact?: boolean;
   className?: string;
+  onExamAdded?: (materia: string, daysUntil: number) => void;
+  onExamRemoved?: (examId: string, daysUntil: number) => void;
+  onExamClicked?: (examId: string, source: 'carousel' | 'card') => void;
 }
 
-export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
+export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = memo(({
   byMateria,
   materiasList,
   compact = false,
-  className
+  className,
+  onExamAdded,
+  onExamRemoved,
+  onExamClicked
 }) => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -82,20 +88,41 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
   const hasMoreExams = compact && examInsights.length > 2;
 
   // Handle navigation to study guide
-  const handleNavigate = (materia: string) => {
+  const handleNavigate = useCallback((materia: string, examId?: string, source: 'carousel' | 'card' = 'card') => {
+    if (examId) {
+      onExamClicked?.(examId, source);
+    }
     navigate(`/guia-estudos?materia=${encodeURIComponent(materia)}`);
-  };
+  }, [navigate, onExamClicked]);
 
   // Handle add exam
-  const handleAddExam = async (materia: string, examName: string, examDate: string) => {
+  const handleAddExam = useCallback(async (materia: string, examName: string, examDate: string) => {
+    const startTime = Date.now();
     const result = await addExam(materia, examName, examDate);
+    
+    if (!result.error) {
+      // Calculate days until exam
+      const [year, month, day] = examDate.split('-').map(Number);
+      const examDateObj = new Date(year, month - 1, day);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysUntil = Math.ceil((examDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      onExamAdded?.(materia, daysUntil);
+    }
+    
     return { error: result.error };
-  };
+  }, [addExam, onExamAdded]);
 
   // Handle remove exam
-  const handleRemoveExam = async (examId: string) => {
+  const handleRemoveExam = useCallback(async (examId: string) => {
+    // Find exam to get days remaining
+    const exam = examInsights.find(e => e.exam.id === examId);
+    if (exam) {
+      onExamRemoved?.(examId, exam.days_remaining);
+    }
     await removeExam(examId);
-  };
+  }, [removeExam, examInsights, onExamRemoved]);
 
   // Get next upcoming exam for compact preview
   const nextExam = examInsights[0];
@@ -450,4 +477,6 @@ export const ExamTrackerCard: React.FC<ExamTrackerCardProps> = ({
       />
     </>
   );
-};
+});
+
+ExamTrackerCard.displayName = 'ExamTrackerCard';

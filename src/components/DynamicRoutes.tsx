@@ -20,6 +20,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
+const StudentJourneyDashboard = lazy(() => import("@/pages/StudentJourneyDashboard"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -246,6 +247,23 @@ export const DynamicRoutes: React.FC = () => {
             />
           ) : (
             <Route path="/sanarclass" element={<Navigate to="/simulados" replace />} />
+          )}
+
+          {/* Student Journey Analytics - Admin only */}
+          {accessRules.analytics && (
+            <Route
+              path="/jornada-estudante"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando jornada..."
+                    waitForData={true}
+                  >
+                    <StudentJourneyDashboard />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
           )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />

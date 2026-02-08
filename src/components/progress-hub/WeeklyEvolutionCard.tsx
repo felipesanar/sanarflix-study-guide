@@ -16,11 +16,15 @@ import { WeekDetailSheet } from './WeekDetailSheet';
 interface WeeklyEvolutionCardProps {
   evolution: WeeklyEvolution[];
   totalContent?: number;
+  onChartInteract?: (weekIndex: number, metric: 'aulas' | '%') => void;
+  onViewModeChange?: (mode: 'count' | 'percentage') => void;
 }
 
 export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({ 
   evolution,
-  totalContent = 100
+  totalContent = 100,
+  onChartInteract,
+  onViewModeChange
 }) => {
   const [viewMode, setViewMode] = useState<'count' | 'percentage'>('count');
   const [selectedWeek, setSelectedWeek] = useState<{ weekStart: string; count: number } | null>(null);
@@ -56,10 +60,18 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({
   const previousWeek = evolution[1]?.completed_count || 0;
   const trend = lastWeek > previousWeek ? 'up' : lastWeek < previousWeek ? 'down' : 'stable';
 
-  const handleWeekClick = (data: any) => {
+  const handleWeekClick = (data: any, index?: number) => {
     if (data && data.weekStart) {
       setSelectedWeek({ weekStart: data.weekStart, count: data.count });
+      if (index !== undefined) {
+        onChartInteract?.(index, viewMode === 'count' ? 'aulas' : '%');
+      }
     }
+  };
+
+  const handleViewModeChange = (newMode: 'count' | 'percentage') => {
+    setViewMode(newMode);
+    onViewModeChange?.(newMode);
   };
 
   if (evolution.length === 0) {
@@ -105,7 +117,7 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({
                     "h-7 px-2 text-xs rounded-md",
                     viewMode === 'count' && "bg-background shadow-sm"
                   )}
-                  onClick={() => setViewMode('count')}
+                  onClick={() => handleViewModeChange('count')}
                   aria-pressed={viewMode === 'count'}
                 >
                   <BarChart className="h-3.5 w-3.5 mr-1" />
@@ -118,7 +130,7 @@ export const WeeklyEvolutionCard: React.FC<WeeklyEvolutionCardProps> = ({
                     "h-7 px-2 text-xs rounded-md",
                     viewMode === 'percentage' && "bg-background shadow-sm"
                   )}
-                  onClick={() => setViewMode('percentage')}
+                  onClick={() => handleViewModeChange('percentage')}
                   aria-pressed={viewMode === 'percentage'}
                 >
                   <Percent className="h-3.5 w-3.5" />

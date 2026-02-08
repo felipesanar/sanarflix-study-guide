@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { 
   AlertTriangle, 
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 interface DiagnosticsCardProps {
   byMateria: MateriaProgress[];
   byTema: TemaProgress[];
+  onInsightClick?: (insightType: string, materia: string, tema?: string) => void;
 }
 
 interface DiagnosticInsight {
@@ -34,7 +35,8 @@ interface DiagnosticInsight {
 
 export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({ 
   byMateria, 
-  byTema 
+  byTema,
+  onInsightClick
 }) => {
   const navigate = useNavigate();
 
@@ -130,14 +132,17 @@ export const DiagnosticsCard: React.FC<DiagnosticsCardProps> = ({
     return results.slice(0, 3);
   }, [byMateria, byTema]);
 
-  const handleNavigate = (insight: DiagnosticInsight) => {
+  const handleNavigate = useCallback((insight: DiagnosticInsight) => {
+    // Track the click
+    onInsightClick?.(insight.type, insight.materia, insight.tema);
+    
     const params = new URLSearchParams();
     params.set('materia', insight.materia);
     if (insight.tema) {
       params.set('tema', insight.tema);
     }
     navigate(`/guia-estudos?${params.toString()}`);
-  };
+  }, [navigate, onInsightClick]);
 
   if (insights.length === 0) {
   return (
