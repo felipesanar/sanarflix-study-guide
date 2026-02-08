@@ -1,297 +1,147 @@
 
-# Plano: Experiência Mobile Premium para Adicionar Prova
+# Plano: Melhorar Responsividade e UI do Wizard Desktop
 
-## Diagnóstico do Problema Atual
+## Problemas Identificados nas Screenshots
 
-### Problemas Identificados no Mobile
+### Screenshot 1: Step Calendário
+- Botão "Próximo" cortado (não visível)
+- Há espaço desperdiçado abaixo do feedback de data
+- Modal com altura fixa quando poderia ser dinâmica
 
-| Problema | Descrição | Impacto UX |
-|----------|-----------|------------|
-| **Dialog não é nativo mobile** | Usa `Dialog` (Radix) que centraliza na tela. No mobile, modais centrados são ruins | Padrece "app desktop no celular" |
-| **Calendário pequeno** | Células de 40x40px são apertadas para dedos (mínimo recomendado: 44px) | Difícil tocar nas datas |
-| **Sem gesture de swipe** | Usuário não pode deslizar para voltar ou fechar | Não se sente nativo |
-| **Altura fixa 500px** | `min-h-[500px]` pode ser maior que a tela de alguns celulares | Scroll desnecessário ou corte |
-| **Chips pequenos** | Chips de matéria com `min-w-[140px]` ficam apertados em telas < 375px | Texto truncado, toque difícil |
-| **Sem haptic feedback** | Nenhuma vibração ao selecionar data/matéria | Experiência "morta" |
-| **Botão fechar pequeno** | Botão X de 32x32px no canto superior | Difícil de alcançar |
+### Screenshot 2: Step Matéria  
+- **ScrollArea desnecessária** - Modal tem espaço para expandir
+- Chips de matéria com nomes truncados ("Ciências soci-ais, saúde e meio ambiente")
+- Grid 2 colunas muito apertado para 4 matérias
+- Não segue o padrão visual do "Seu Guia" (SubjectChips.tsx)
 
-### Análise Técnica
+## Referência: Padrões do "Seu Guia"
 
-O projeto já tem:
-- `vaul` (Drawer) instalado - perfeito para bottom sheets nativos mobile
-- `useIsMobile()` hook funcionando - para detectar contexto
-- Componentes `SubjectDrawerMobile` e padrões de drawer já implementados em outras partes
-
----
-
-## Proposta: Drawer Bottom Sheet para Mobile
-
-### Princípio: "Mobile-First Native Feel"
-
-```text
-DESKTOP:                           MOBILE:
-┌───────────────────────┐         ╭───────────────────────────╮
-│                       │         │  ──────  (drag handle)    │
-│   ┌─────────────┐     │         │                           │
-│   │   Dialog    │     │         │  📅 Quando será sua prova?│
-│   │  Centered   │     │         │                           │
-│   └─────────────┘     │         │   [  Calendário GRANDE  ] │
-│                       │         │   [  (scroll interno)   ] │
-└───────────────────────┘         │                           │
-                                  │        [Próximo →]        │
-                                  ╰───────────────────────────╯
-                                        ↑ Desliza de baixo
-```
+| Componente | Padrão Utilizado |
+|------------|------------------|
+| **SubjectChips** | Chips horizontais com scroll, min-h-[44px], nomes completos (`whitespace-nowrap`) |
+| **TodayStudyCard** | Grid responsivo `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` |
+| **SubjectCard** | Cards com `break-words hyphens-auto`, nunca truncam texto |
+| **CalendarViewDesktop** | Headers com ícone + título + descrição lado a lado |
 
 ---
 
-## Design Mobile: Bottom Sheet Full-Height
+## Solução Proposta
 
-### Step 1: Calendário (Mobile)
+### 1. `ExamMateriaStep.tsx` - Refatorar Completamente
 
-```text
-╭───────────────────────────────────────────────╮
-│  ──────────────────────  (drag handle)        │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │   📅                                    │  │
-│  │   Quando será sua prova?                │  │
-│  │   Selecione a data no calendário        │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │                                         │  │
-│  │         ◄  Fevereiro 2026  ►            │  │
-│  │                                         │  │
-│  │    Do   Se   Te   Qu   Qu   Se   Sa     │  │
-│  │                               1         │  │
-│  │     2    3    4    5    6    7    8     │  │
-│  │     9   10   11   12   13   14   15     │  │
-│  │    16   17   18   19   20   21   22     │  │
-│  │    23   24  [25]  26   27   28          │  │
-│  │                                         │  │
-│  │    (Células 48x48px para touch)         │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│    ┌─────────────────────────────────────┐    │
-│    │  📅 25 de fevereiro • em 17 dias    │    │
-│    └─────────────────────────────────────┘    │
-│                                               │
-│  ╔═════════════════════════════════════════╗  │
-│  ║             Próximo  →                  ║  │
-│  ╚═════════════════════════════════════════╝  │
-│                                               │
-╰───────────────────────────────────────────────╯
-```
+**Problemas atuais:**
+- `ScrollArea` forçando scroll quando há espaço
+- Grid `grid-cols-2` não adapta ao conteúdo
+- Altura fixa `min-h-[500px]` no container pai
 
-**Melhorias mobile:**
-- Células do calendário: 48x48px (touch-friendly)
-- Drag handle visível para fechar arrastando
-- Safe area padding no bottom
-- Feedback de seleção com escala maior (1.15x)
-
-### Step 2: Matéria (Mobile)
-
-```text
-╭───────────────────────────────────────────────╮
-│  ──────────────────────  (drag handle)        │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │  ← Voltar          📅 25/02 • 17d       │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │   📚 Qual matéria?                      │  │
-│  │   Selecione a disciplina                │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │                                         │  │
-│  │   [ Anatomia             ] → CHIP FULL  │  │
-│  │                                         │  │
-│  │   [ Farmacologia   ✓     ] ← SELECTED   │  │
-│  │   [████████░░] 45%                      │  │
-│  │                                         │  │
-│  │   [ Fisiologia           ]              │  │
-│  │                                         │  │
-│  │   [ Bioquímica           ]              │  │
-│  │                                         │  │
-│  │   ... (scroll)                          │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │  Nome: P1, P2...  (optional)            │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ╔═════════════════════════════════════════╗  │
-│  ║          ✓ Salvar Prova                 ║  │
-│  ╚═════════════════════════════════════════╝  │
-│                                               │
-╰───────────────────────────────────────────────╯
-```
-
-**Melhorias mobile:**
-- Chips de matéria FULL WIDTH (não lado a lado)
-- Scroll vertical suave na lista
-- Botão "Voltar" com área de toque generosa (44px)
-- Input de nome fixo no bottom com safe area
-
-### Step 3: Sucesso (Mobile)
-
-```text
-╭───────────────────────────────────────────────╮
-│                                               │
-│           🎉 (confetti animado)               │
-│                                               │
-│           ╭─────────────────────╮             │
-│           │        ✓            │             │
-│           │   (animação scale)  │             │
-│           ╰─────────────────────╯             │
-│                                               │
-│           Prova Adicionada!                   │
-│           Boa sorte nos estudos 🎯            │
-│                                               │
-│  ┌─────────────────────────────────────────┐  │
-│  │  📚 Farmacologia                        │  │
-│  │  📅 25 de fevereiro • 17 dias           │  │
-│  │  [████████████░░░░░] 45%                │  │
-│  │  Continue estudando!                    │  │
-│  └─────────────────────────────────────────┘  │
-│                                               │
-│  ╔═════════════════════════════════════════╗  │
-│  ║  + Adicionar outra      │      Fechar   ║  │
-│  ╚═════════════════════════════════════════╝  │
-│                                               │
-╰───────────────────────────────────────────────╯
-```
-
----
-
-## Implementação Técnica
-
-### 1. Arquitetura: Drawer para Mobile, Dialog para Desktop
-
-Criar um componente wrapper que detecta o contexto:
+**Solução:**
 
 ```tsx
-// AddExamWizard.tsx (refatorado)
+// REMOVER: ScrollArea wrapper
+// REMOVER: min-h e alturas fixas que forçam scroll
 
-export const AddExamWizard: React.FC<Props> = (props) => {
-  const isMobile = useIsMobile();
-  
-  if (isMobile) {
-    return <AddExamWizardMobile {...props} />;
-  }
-  
-  return <AddExamWizardDesktop {...props} />;
-};
-```
-
-### 2. AddExamWizardMobile (Novo Componente)
-
-Usar `vaul` Drawer ao invés de Dialog:
-
-```tsx
-// AddExamWizardMobile.tsx
-
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
-
-export const AddExamWizardMobile: React.FC<Props> = ({
-  open,
-  onOpenChange,
-  ...props
-}) => {
-  return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[96vh] px-4 pb-safe">
-        {/* Steps animados */}
-        <AnimatePresence mode="wait">
-          {/* Calendar, Materia, Success */}
-        </AnimatePresence>
-      </DrawerContent>
-    </Drawer>
-  );
-};
-```
-
-### 3. ExamCalendarStepMobile (Calendário Otimizado)
-
-```tsx
-// ExamCalendarStepMobile.tsx
-
-<Calendar
-  classNames={{
-    // Células maiores para touch
-    head_cell: "w-12 text-xs", // 48px
-    cell: "h-12 w-12",          // 48px x 48px
-    day: cn(
-      "h-12 w-12 p-0 font-normal rounded-2xl",
-      "active:scale-95 transition-transform", // Press feedback
-    ),
-    day_selected: cn(
-      "bg-primary text-primary-foreground font-bold",
-      "scale-105 shadow-lg shadow-primary/40",
-    ),
-  }}
-/>
-```
-
-### 4. ExamMateriaStepMobile (Lista Vertical)
-
-```tsx
-// Layout de chips em coluna única para mobile
-
-<div className="flex flex-col gap-3">
-  {materias.map((materia) => (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
-      className={cn(
-        "w-full px-4 py-4 rounded-2xl border-2",
-        "min-h-[56px] flex items-center gap-3", // 56px altura mínima
+// NOVO: Container flex que cresce naturalmente
+<div className="flex flex-col gap-5">
+  {/* Grid de matérias - SEM scroll, expande o modal */}
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {materias.map((materia) => (
+      // Cada chip é um card completo
+      <button className={cn(
+        "w-full p-4 rounded-xl border-2 text-left",
+        "flex items-center gap-3",
+        "min-h-[56px]", // Touch-friendly
         isSelected && "border-primary bg-primary/10"
-      )}
-    >
-      {/* Full width chip */}
-    </motion.button>
-  ))}
+      )}>
+        {/* Radio visual */}
+        <div className="w-5 h-5 rounded-full border-2 shrink-0">
+          {isSelected && <Check />}
+        </div>
+        
+        {/* Nome COMPLETO - nunca trunca */}
+        <div className="flex-1 min-w-0">
+          <span className="font-medium text-sm break-words">
+            {materia}
+          </span>
+          {/* Progress inline quando selecionado */}
+          {isSelected && progress && (
+            <div className="mt-2">
+              <Progress value={percentage} />
+              <span className="text-xs">{percentage}% concluído</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Badge de % quando NÃO selecionado */}
+        {!isSelected && percentage > 0 && (
+          <Badge>{percentage}%</Badge>
+        )}
+      </button>
+    ))}
+  </div>
 </div>
 ```
 
-### 5. Gestures e Haptics
+### 2. `AddExamWizard.tsx` - Dialog Dinâmico
+
+**Problemas atuais:**
+- `min-h-[500px]` força altura fixa
+- `absolute inset-0` nos steps impede crescimento
+
+**Solução:**
 
 ```tsx
-// Vibração ao selecionar (se suportado)
-const triggerHaptic = () => {
-  if ('vibrate' in navigator) {
-    navigator.vibrate(10); // 10ms pulse
-  }
-};
-
-// Swipe para voltar
-<motion.div
-  drag="x"
-  dragConstraints={{ left: 0, right: 0 }}
-  onDragEnd={(_, info) => {
-    if (info.offset.x > 100) {
-      onBack();
-    }
-  }}
+<DialogContent 
+  className={cn(
+    "sm:max-w-lg overflow-visible p-0",
+    // SEM min-h fixo - deixa o conteúdo definir altura
+  )}
 >
-  {/* Step content */}
-</motion.div>
+  {/* Container relativo que cresce com conteúdo */}
+  <div className="p-6">
+    <AnimatePresence mode="wait">
+      {/* Steps com posição relativa, não absoluta */}
+      {state.step === 'calendar' && (
+        <motion.div key="calendar">
+          <ExamCalendarStep ... />
+        </motion.div>
+      )}
+      
+      {state.step === 'materia' && (
+        <motion.div key="materia">
+          <ExamMateriaStep ... />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+</DialogContent>
 ```
 
-### 6. Safe Area e Sticky Footer
+### 3. `ExamCalendarStep.tsx` - Garantir Botão Visível
+
+**Problema:** Botão "Próximo" cortado pelo container pai
+
+**Solução:**
+- Remover `flex-1` que força calendário a esticar
+- Adicionar espaçamento adequado antes do botão
+- Garantir que feedback de data não ocupe espaço excessivo
 
 ```tsx
-// Bottom safe area para iPhone X+
-<div className="pb-safe">
-  <Button className="w-full h-14 text-lg rounded-2xl">
+<div className="flex flex-col gap-5">
+  {/* Header */}
+  <div>...</div>
+  
+  {/* Calendário - tamanho natural */}
+  <div className="flex justify-center">
+    <Calendar ... />
+  </div>
+  
+  {/* Feedback de data - altura fixa pequena */}
+  <div className="h-14 flex items-center justify-center">
+    {selectedDate && <DateFeedback />}
+  </div>
+  
+  {/* Botão - SEMPRE visível */}
+  <Button className="w-full h-12">
     Próximo
   </Button>
 </div>
@@ -299,179 +149,215 @@ const triggerHaptic = () => {
 
 ---
 
-## Arquivos a Criar/Modificar
+## Mudanças Detalhadas por Arquivo
 
-### Novos Componentes
+### Arquivo 1: `src/components/progress-hub/AddExamWizard.tsx`
 
-| Arquivo | Responsabilidade |
-|---------|------------------|
-| `AddExamWizardMobile.tsx` | Wrapper com Drawer para mobile |
-| `ExamCalendarStepMobile.tsx` | Calendário com células grandes |
-| `ExamMateriaStepMobile.tsx` | Lista vertical de matérias |
-
-### Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `AddExamWizard.tsx` | Renderização condicional mobile/desktop |
-| `ExamCalendarStep.tsx` | Ajustar tamanhos de células via props |
-| `ExamMateriaStep.tsx` | Suportar layout vertical via props |
-| `ExamSuccessStep.tsx` | Ajustes menores de padding |
-
----
-
-## Detalhes de Implementação
-
-### AddExamWizard.tsx (Atualizado)
-
+**Linha 168**: Alterar DialogContent
 ```tsx
-import { useIsMobile } from '@/hooks/use-mobile';
-import { AddExamWizardMobile } from './AddExamWizardMobile';
+// ANTES
+<DialogContent className="sm:max-w-md md:max-w-lg overflow-hidden p-0">
 
-export const AddExamWizard: React.FC<AddExamWizardProps> = (props) => {
-  const isMobile = useIsMobile();
-  
-  // Mobile: usa Drawer bottom sheet
-  if (isMobile) {
-    return <AddExamWizardMobile {...props} />;
-  }
-  
-  // Desktop: mantém Dialog atual
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      {/* ...existing desktop implementation */}
-    </Dialog>
-  );
-};
+// DEPOIS  
+<DialogContent className="sm:max-w-lg overflow-visible p-0">
 ```
 
-### ExamCalendarStep (Com Props para Tamanhos)
-
+**Linha 175**: Remover altura fixa e posição absoluta
 ```tsx
-interface ExamCalendarStepProps {
-  // ...existing props
-  cellSize?: 'sm' | 'lg'; // 'lg' para mobile
-}
+// ANTES
+<div className="relative min-h-[500px] p-6">
+  ...
+  <motion.div className="absolute inset-0 p-6">
 
-// Inside component:
-const cellSizeClass = cellSize === 'lg' ? 'h-12 w-12' : 'h-10 w-10';
+// DEPOIS
+<div className="p-6">
+  ...
+  <motion.div>
 ```
 
-### ExamMateriaStep (Com Layout Vertical)
+### Arquivo 2: `src/components/progress-hub/ExamCalendarStep.tsx`
 
+**Linha 54**: Container principal sem flex-1
 ```tsx
-interface ExamMateriaStepProps {
-  // ...existing props
-  layout?: 'grid' | 'vertical'; // 'vertical' para mobile
-}
+// ANTES
+<div className="flex flex-col h-full space-y-5">
 
-// Inside component:
-<div className={cn(
-  layout === 'vertical' 
-    ? "flex flex-col gap-3" 
-    : "flex flex-wrap gap-2"
-)}>
+// DEPOIS
+<div className="flex flex-col gap-5">
 ```
 
-### Tailwind Safe Area Plugin
+**Linha 78**: Calendário centralizado sem esticar
+```tsx
+// ANTES
+<div className="flex-1 flex flex-col items-center justify-center">
 
-Adicionar ao `tailwind.config.ts`:
-
-```ts
-// Já pode usar pb-safe se tiver o plugin, senão usar fallback:
-// pb-[env(safe-area-inset-bottom,16px)]
+// DEPOIS
+<div className="flex justify-center py-2">
 ```
 
----
-
-## Transições e Animações Mobile
-
-### Swipe Gestures
-
+**Linha 134**: Feedback de data com altura controlada
 ```tsx
-// Step transitions com swipe horizontal
-const swipeVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? '100%' : '-100%',
-    opacity: 0,
-  }),
-  center: {
-    x: 0,
-    opacity: 1,
-  },
-  exit: (direction: number) => ({
-    x: direction < 0 ? '100%' : '-100%',
-    opacity: 0,
-  }),
-};
+// ANTES
+<div className="h-16 flex items-center justify-center mt-4">
 
-// Mais rápido no mobile
-const mobileTransition = {
-  x: { type: "spring", stiffness: 500, damping: 40 },
-  opacity: { duration: 0.15 },
-};
+// DEPOIS
+<div className="h-14 flex items-center justify-center">
 ```
 
-### Press States
+### Arquivo 3: `src/components/progress-hub/ExamMateriaStep.tsx`
 
+**REMOVER:**
+- Import de `ScrollArea` (linha 10)
+- Wrapper `ScrollArea` (linhas 89-176)
+
+**ALTERAR linha 51:**
 ```tsx
-// Feedback visual imediato
+// ANTES
+<div className="flex flex-col h-full space-y-5">
+
+// DEPOIS
+<div className="flex flex-col gap-5">
+```
+
+**ALTERAR grid de matérias (linha 90):**
+```tsx
+// ANTES (com ScrollArea)
+<ScrollArea className="flex-1 -mx-1 px-1">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2">
+
+// DEPOIS (sem scroll, layout melhor)
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+```
+
+**Cada botão de matéria - garantir nomes completos:**
+```tsx
 <motion.button
-  whileTap={{ scale: 0.95 }}
-  transition={{ duration: 0.1 }}
+  className={cn(
+    "w-full px-4 py-3 rounded-xl border-2 text-left",
+    "flex items-center gap-3 min-h-[56px]",
+    // Sem truncate!
+  )}
 >
+  {/* Radio circle */}
+  <div className="w-5 h-5 rounded-full border-2 shrink-0">
+    {isSelected && <Check />}
+  </div>
+  
+  {/* Conteúdo */}
+  <div className="flex-1 min-w-0">
+    <span className="font-medium text-sm break-words leading-tight">
+      {materia}
+    </span>
+    
+    {/* Progress quando selecionado */}
+    {isSelected && progress && (
+      <motion.div className="mt-2 space-y-1">
+        <Progress value={percentage} className="h-1.5" />
+        <span className="text-xs text-muted-foreground">
+          {percentage}% concluído
+        </span>
+      </motion.div>
+    )}
+  </div>
+  
+  {/* Badge de % quando não selecionado */}
+  {!isSelected && percentage > 0 && (
+    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
+      {percentage}%
+    </span>
+  )}
+</motion.button>
 ```
 
 ---
 
-## Checklist de QA Mobile
+## Comparação Visual Esperada
 
-### Touch & Gestures
-- [ ] Todas as áreas tocáveis têm pelo menos 44x44px
-- [ ] Calendário com células de 48x48px
-- [ ] Swipe para fechar drawer funciona
-- [ ] Press states visíveis (scale 0.95-0.98)
-- [ ] Sem atrasos perceptíveis no toque
+### ANTES (Problemas):
+```text
+┌────────────────────────────────────┐
+│ Voltar                  📅 19/02   │
+├────────────────────────────────────┤
+│ Qual matéria?                      │
+│                                    │
+│ ┌─────────────────────────────────┐│
+│ │ ┌──────────┐ ┌──────────────┐   ││
+│ │ │Anatomia  │ │Citologia e...│   ││  ← Scroll
+│ │ │do Apare..│ │              │   ││  ← Nomes truncados
+│ │ └──────────┘ └──────────────┘   ││
+│ │ ┌──────────┐ ┌──────────────┐   ││
+│ │ │Ciências  │ │Embriologia...│   ││
+│ │ │soci-ais..│ │              │   ││
+│ │ └──────────┘ └──────────────┘   ││
+│ └─────────────────────────────────┘│
+│                                    │
+│ Nome da prova (opcional)           │
+│ [                                ] │
+│                                    │
+│ [  Voltar  ]     [ Salvar Prova  ] │
+└────────────────────────────────────┘
+```
 
-### Layout
-- [ ] Drawer ocupa altura adequada (80-96vh)
-- [ ] Safe area respeitada no bottom (iPhone X+)
-- [ ] Sem scroll horizontal indesejado
-- [ ] Teclado não sobrepõe input de nome
-- [ ] Conteúdo visível em telas de 320px de largura
+### DEPOIS (Corrigido):
+```text
+┌────────────────────────────────────────────┐
+│ ← Voltar                      📅 19/02 • 11d│
+├────────────────────────────────────────────┤
+│                                            │
+│ 📚 Qual matéria?                           │
+│    Selecione a disciplina da prova         │
+│                                            │
+│ ┌────────────────────┐ ┌──────────────────┐│
+│ │ ○ Anatomia do      │ │ ✓ Citologia e    ││
+│ │   Aparelho         │ │   Histologia     ││  ← Nomes COMPLETOS
+│ │   Locomotor   33%  │ │   ────────────   ││  ← SEM scroll
+│ │                    │ │   33% concluído  ││  ← Progress inline
+│ └────────────────────┘ └──────────────────┘│
+│ ┌────────────────────┐ ┌──────────────────┐│
+│ │ ○ Ciências sociais,│ │ ○ Embriologia e  ││
+│ │   saúde e meio     │ │   Genética       ││
+│ │   ambiente    75%  │ │                  ││
+│ └────────────────────┘ └──────────────────┘│
+│                                            │
+│ Nome da prova (opcional)                   │
+│ ┌──────────────────────────────────────┐   │
+│ │ P1, P2, Prova Final...               │   │
+│ └──────────────────────────────────────┘   │
+│                                            │
+│ ┌──────────────────┐ ┌────────────────────┐│
+│ │     Voltar       │ │   ✓ Salvar Prova   ││
+│ └──────────────────┘ └────────────────────┘│
+└────────────────────────────────────────────┘
+```
+
+---
+
+## Checklist de Validação
+
+### Responsividade
+- [ ] Modal expande para acomodar todas as matérias (sem scroll interno)
+- [ ] Nomes de matérias longos aparecem completos
+- [ ] Botões sempre visíveis sem precisar rolar
+- [ ] Funciona bem em viewports 1024px, 1280px, 1920px
 
 ### Visual
-- [ ] Drag handle visível e funcional
-- [ ] Animações suaves (60fps)
-- [ ] Dark/light mode consistente
-- [ ] Confetti funciona no mobile
+- [ ] Chips de matéria com visual similar ao SubjectChips do "Seu Guia"
+- [ ] Radio buttons circulares com check animado
+- [ ] Progress bar inline quando matéria selecionada
+- [ ] Badge de % quando não selecionada
+- [ ] Bordas e sombras consistentes com theme
 
-### Acessibilidade
-- [ ] VoiceOver/TalkBack navegável
-- [ ] Focus trap dentro do drawer
-- [ ] Reduced motion respeitado
+### UX
+- [ ] Transições suaves entre steps
+- [ ] Hover states claros em cada chip
+- [ ] Focus visible para acessibilidade
+- [ ] prefers-reduced-motion respeitado
 
 ---
 
 ## Ordem de Implementação
 
-1. **Criar `AddExamWizardMobile.tsx`** com estrutura Drawer
-2. **Modificar `AddExamWizard.tsx`** para renderização condicional
-3. **Criar `ExamCalendarStepMobile.tsx`** com células grandes
-4. **Criar `ExamMateriaStepMobile.tsx`** com lista vertical
-5. **Ajustar `ExamSuccessStep.tsx`** para padding mobile
-6. **Testar em dispositivos reais** (iPhone SE, Pixel 5, etc.)
-
----
-
-## Resultado Esperado
-
-Após implementação:
-
-1. **Experiência nativa**: Bottom sheet desliza de baixo, como apps nativos iOS/Android
-2. **Touch-friendly**: Todas as áreas tocáveis adequadas para dedos
-3. **Fluidez**: Animações spring suaves, gestures responsivos
-4. **Safe areas**: Conteúdo nunca cortado pelo notch ou home indicator
-5. **Haptic feedback**: Vibração sutil ao selecionar data/matéria
-6. **Zero frustração**: Fácil navegar, voltar, e fechar com gestures
-
+1. **AddExamWizard.tsx**: Remover altura fixa e posição absoluta dos steps
+2. **ExamCalendarStep.tsx**: Ajustar layout para botão sempre visível
+3. **ExamMateriaStep.tsx**: Remover ScrollArea, melhorar grid de chips
+4. **Testar**: Verificar em diferentes tamanhos de tela
