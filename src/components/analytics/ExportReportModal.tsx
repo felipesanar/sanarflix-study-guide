@@ -22,7 +22,8 @@ import {
   HelpCircle,
   Target,
   Clock,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,13 +32,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   exportAnalyticsXLSX, 
   exportAnalyticsCSV, 
+  exportSimuladosFromAnalyticsData,
   calculatePreviewStats,
   estimateFileSizeKB,
   type AnalyticsExportData,
   type AnalyticsExportFilters,
   type ExportPreviewStats
 } from '@/utils/exportAnalyticsReport';
-import { exportToXLSX as exportSimuladosXLSX } from '@/utils/exportSimuladosAnalytics';
 
 type ExportFormat = 'xlsx-full' | 'csv' | 'xlsx-simulados';
 
@@ -50,7 +51,6 @@ interface ExportReportModalProps {
     excludedIES: string[];
   };
   data: AnalyticsExportData;
-  simuladosData?: any;
 }
 
 const formatOptions: { 
@@ -113,7 +113,6 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
   onOpenChange,
   filters,
   data,
-  simuladosData,
 }) => {
   const { user } = useAuth();
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('xlsx-full');
@@ -128,6 +127,7 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
         sessoesNoPeriodo: 0,
         simuladosAnalisados: 0,
         questoesMapeadas: 0,
+        questoesProblematicas: 0,
         registrosTotais: 0,
       };
     }
@@ -171,12 +171,9 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
         exportAnalyticsXLSX(data, exportFilters);
       } else if (selectedFormat === 'csv') {
         exportAnalyticsCSV(data, exportFilters);
-      } else if (selectedFormat === 'xlsx-simulados' && simuladosData) {
-        exportSimuladosXLSX(simuladosData, {
-          dateRange: filters.dateRange,
-          university: filters.university !== 'all' ? filters.university : null,
-          excludedIES: filters.excludedIES,
-        });
+      } else if (selectedFormat === 'xlsx-simulados') {
+        // Export simplificado de simulados usando os dados disponíveis
+        exportSimuladosFromAnalyticsData(data, exportFilters);
       }
 
       clearInterval(progressInterval);
@@ -202,7 +199,8 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
     }
   }, [open]);
 
-  const hasSimuladosData = !!simuladosData;
+  // Simulados data is always available from data.simulados
+  const hasSimuladosData = data?.simulados?.simuladosDisponiveis?.length > 0;
   const selectedOption = formatOptions.find(o => o.value === selectedFormat);
 
   return (
@@ -267,25 +265,27 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
                 Dados incluídos no relatório
               </h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
                 {[
                   { icon: Users, label: 'Usuários', value: previewStats.totalUsuarios, color: 'text-blue-500', bg: 'bg-blue-500/10' },
                   { icon: Activity, label: 'Sessões', value: previewStats.sessoesNoPeriodo, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
                   { icon: Target, label: 'Simulados', value: previewStats.simuladosAnalisados, color: 'text-violet-500', bg: 'bg-violet-500/10' },
-                  { icon: HelpCircle, label: 'Questões', value: previewStats.questoesMapeadas, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                  { icon: HelpCircle, label: 'Questões', value: previewStats.questoesMapeadas, color: 'text-sky-500', bg: 'bg-sky-500/10' },
+                  { icon: AlertTriangle, label: 'Problemáticas', value: previewStats.questoesProblematicas, color: 'text-rose-500', bg: 'bg-rose-500/10', tooltip: 'Taxa de erro ≥50%' },
                 ].map((stat, idx) => (
                   <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className={`p-2.5 sm:p-3 rounded-xl ${stat.bg} border border-border/30 text-center`}
+                    className={`p-2 sm:p-3 rounded-xl ${stat.bg} border border-border/30 text-center`}
+                    title={(stat as any).tooltip}
                   >
-                    <stat.icon className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${stat.color}`} />
-                    <p className="text-base sm:text-lg font-bold text-foreground font-mono">
+                    <stat.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 mx-auto mb-1 ${stat.color}`} />
+                    <p className="text-sm sm:text-base font-bold text-foreground font-mono">
                       {stat.value.toLocaleString('pt-BR')}
                     </p>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground leading-tight">
                       {stat.label}
                     </p>
                   </motion.div>
