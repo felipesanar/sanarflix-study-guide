@@ -1,197 +1,232 @@
 
-# Auditoria do Preview de Dados - Exportação Analytics
+# Plano de Correcao: Paginacao Completa e Exclusao de Admins no Analytics
 
 ## Problemas Identificados
 
-### 1. **Questões: Valor INCORRETO (10 questões)**
+### Problema 1: Total de Respostas Limitado a 1.000
 
-**Problema:** O preview mostra `questoesMapeadas` que está pegando `data.simulados.questoesProblematicas.length`
+**Localizacao:** `src/hooks/useAnalyticsData.ts` linhas 636-639
 
 ```typescript
-// exportAnalyticsReport.ts - linha 54
-const questoesMapeadas = data.simulados.questoesProblematicas.length;
+// ATUAL - SEM paginacao (limite padrao de 1000 linhas)
+useUserFilter && userIdsFromIES
+  ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
+  : supabase.from('answer_progress').select('question_id, correct, user_id')
 ```
 
-**Causa raiz:** O sistema busca apenas questões "problemáticas" (taxa erro >= 50%) e limita a **10 itens** (slice 0, 10):
+**Evidencia:** A tabela `answer_progress` possui **22.000+ registros**, mas a query retorna apenas 1.000 (limite padrao do Supabase).
+
+O hook `useSimuladosAnalytics.ts` JA implementa paginacao correta (linhas 273-309) com `fetchAllAnswerProgress`, mas o `useAnalyticsData.ts` NAO usa essa tecnica.
+
+---
+
+### Problema 2: Usuarios Admin NAO Excluidos
+
+**Evidencia:** Existem **8 usuarios admin** na tabela `user_roles`:
+- 86c38a5e-a43c-4e53-932e-bff888ac75b6
+- 7299f7c2-9bb1-47ae-804a-4199522c4fc3
+- c62a7e9a-0da5-4b5b-bf45-44f559ae5d46
+- bb23becf-1d21-46bd-8a48-357a9807bbb3
+- 70f1d617-0703-4e7b-a12a-88fce9c7ff36
+- dc435ead-062c-4277-ae61-9d161bd560f0
+- 6bbe275a-466c-48c6-a5dd-f307958145ed
+- b920c8b5-3ba9-4380-9834-fad0fa4bcda4
+
+**Impacto:** Todas as metricas (usuarios totais, sessoes, respostas de simulado, page views, etc.) incluem dados de admins, distorcendo os relatorios B2B.
+
+**Correcao necessaria:** Excluir os IDs de admins de TODAS as queries de analytics:
+- `fetchOverviewMetrics`
+- `fetchEngagementMetrics`
+- `fetchProgressMetrics`
+- `fetchDemographicsMetrics`
+- `fetchSimuladoMetrics`
+- `fetchTrackingHealth`
+
+E tambem no `useSimuladosAnalytics.ts`:
+- Fase 2 (fetch de users)
+- Filtro `allowedUserIds`
+
+---
+
+## Plano de Implementacao
+
+### FASE 1: Adicionar Helper para Buscar IDs de Admins
+
+**Arquivo:** `src/hooks/useAnalyticsData.ts`
+
+Adicionar funcao helper para buscar os user_ids de usuarios com role 'admin':
 
 ```typescript
-// useAnalyticsData.ts - linhas 700-708
-.slice(0, 10)  // <-- LIMITADOR FIXO!
-.map(([id]) => id);
-```
-
-**Isso NÃO representa o total de questões no sistema!** O label "Questões" sugere o total, mas mostra apenas as 10 piores.
-
-**Correção:** Alterar para contar o TOTAL de questões dos simulados analisados.
-
----
-
-### 2. **Sessões: Valor INCORRETO (1.000 sessões)**
-
-**Problema:** O Supabase tem limite padrão de **1000 linhas** por query. O fetch de sessões NÃO usa paginação:
-
-```typescript
-// useAnalyticsData.ts - linhas 370-376
-supabase.from('user_sessions')
-  .select('started_at, duration_seconds, is_mobile')
-  .gte('started_at', startDate)
-  .lte('started_at', endDate)
-  // SEM .limit() explícito = 1000 linhas padrão!
-```
-
-**Causa raiz:** O valor 1.000 exato indica truncamento pelo limite do Supabase.
-
-**Correção:** Usar `count: 'exact'` separadamente ou implementar paginação com `.range()`.
-
----
-
-### 3. **Ícones: Semanticamente incorretos**
-
-| Métrica | Ícone Atual | Problema |
-|---------|-------------|----------|
-| Usuários | `Users` | OK |
-| Sessões | `TrendingUp` | Incorreto - deveria ser algo como Clock ou Activity |
-| Simulados | `BarChart3` | Incorreto - deveria ser algo como Target ou ClipboardList |
-| Questões | `FileBarChart` | Incorreto - deveria ser algo como HelpCircle ou ListChecks |
-
----
-
-### 4. **Posicionamento: Preview no final do modal**
-
-O preview deveria aparecer ANTES da seleção de formato, dando contexto ao usuário sobre o que será exportado.
-
----
-
-## Plano de Correção
-
-### FASE 1: Corrigir Cálculo das Estatísticas
-
-**1.1. Alterar `calculatePreviewStats` em `exportAnalyticsReport.ts`:**
-
-```typescript
-export function calculatePreviewStats(data: AnalyticsExportData): ExportPreviewStats {
-  const totalUsuarios = data.overview.totalUsuarios;
-  
-  // Sessões: somar de sessoesPorDia (já é a soma processada)
-  const sessoesNoPeriodo = data.engagement.sessoesPorDia.reduce((acc, d) => acc + d.sessoes, 0);
-  
-  // Simulados: quantidade de simulados disponíveis
-  const simuladosAnalisados = data.simulados.simuladosDisponiveis.length;
-  
-  // CORREÇÃO: Total de questões de TODOS os simulados, não só problemáticas
-  const questoesMapeadas = data.simulados.simuladosDisponiveis.reduce(
-    (acc, s) => acc + s.total_questoes, 
-    0
-  );
-  
-  // Registros totais: soma de todas as métricas
-  const registrosTotais = 
-    totalUsuarios + 
-    sessoesNoPeriodo + 
-    data.engagement.pageViewsPorPagina.reduce((acc, p) => acc + p.views, 0) +
-    data.simulados.simuladosDisponiveis.reduce((acc, s) => acc + s.iniciados + s.finalizados, 0);
-
-  return {
-    totalUsuarios,
-    sessoesNoPeriodo,
-    simuladosAnalisados,
-    questoesMapeadas,
-    registrosTotais,
-  };
-}
+const fetchAdminUserIds = useCallback(async (): Promise<Set<string>> => {
+  const { data } = await supabase
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'admin');
+  return new Set(data?.map(r => r.user_id) || []);
+}, []);
 ```
 
 ---
 
-### FASE 2: Adicionar Contagem Precisa de Sessões via `count`
+### FASE 2: Excluir Admins em Todas as Queries de useAnalyticsData
 
-**2.1. Expor total real de sessões no hook:**
+**2.1. Modificar `fetchUserIdsByIES` e `fetchUserIdsExcludingIES`:**
 
-Adicionar uma query com `count: 'exact', head: true` para obter o número real de sessões sem o limite de 1000 linhas:
+Adicionar parametro `excludeAdmins: Set<string>` e filtrar na resposta:
 
 ```typescript
-// Em fetchEngagementMetrics ou overview
-const { count: totalSessoesPeriodo } = await supabase
-  .from('user_sessions')
-  .select('*', { count: 'exact', head: true })
-  .gte('started_at', startDate)
-  .lte('started_at', endDate);
+const fetchUserIdsByIES = useCallback(async (iesId: string, excludeAdmins: Set<string>): Promise<string[]> => {
+  const { data: users } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id_ies', iesId);
+  return (users?.map(u => u.id) || []).filter(id => !excludeAdmins.has(id));
+}, []);
 ```
 
-**2.2. Adicionar campo `totalSessoesPeriodo` em EngagementMetrics:**
+**2.2. Aplicar exclusao em TODAS as queries:**
+
+No inicio de `fetchOverviewMetrics`, `fetchEngagementMetrics`, etc:
 
 ```typescript
-export interface EngagementMetrics {
-  // ... existentes
-  totalSessoesPeriodo: number; // NOVO: contagem real
-}
-```
+const adminIds = await fetchAdminUserIds();
 
-**2.3. Atualizar `calculatePreviewStats` para usar o novo campo:**
-
-```typescript
-const sessoesNoPeriodo = data.engagement.totalSessoesPeriodo; // Usar count real
-```
-
----
-
-### FASE 3: Corrigir Ícones Semânticos
-
-Atualizar os ícones no `ExportReportModal.tsx` para serem semanticamente corretos:
-
-```typescript
-import { 
-  Users,           // Usuários - OK
-  Activity,        // Sessões - representa atividade/uso
-  Target,          // Simulados - representa provas/objetivos
-  HelpCircle       // Questões - representa perguntas
-} from 'lucide-react';
-
-// No array de stats:
-{[
-  { icon: Users, label: 'Usuários', value: previewStats.totalUsuarios, color: 'text-blue-500' },
-  { icon: Activity, label: 'Sessões', value: previewStats.sessoesNoPeriodo, color: 'text-emerald-500' },
-  { icon: Target, label: 'Simulados', value: previewStats.simuladosAnalisados, color: 'text-violet-500' },
-  { icon: HelpCircle, label: 'Questões', value: previewStats.questoesMapeadas, color: 'text-amber-500' },
-]}
+// Em queries com count
+const totalUsuariosQuery = iesFilter
+  ? supabase.from('users').select('*', { count: 'exact', head: true })
+      .eq('id_ies', iesFilter)
+      .not('id', 'in', `(${Array.from(adminIds).join(',')})`)
+  : // ...
 ```
 
 ---
 
-### FASE 4: Reposicionar Preview para o Topo
+### FASE 3: Implementar Paginacao para answer_progress em useAnalyticsData
 
-Mover a seção "Preview dos dados" para ANTES da seleção de formato no modal, dando contexto imediato ao usuário.
+**3.1. Criar helper de paginacao:**
 
-**Nova ordem:**
-1. Header (Exportar Relatório)
-2. **Preview dos dados** (movido para cima)
-3. Filtros aplicados (Período, IES)
-4. Seleção de formato
-5. Footer (botões)
+```typescript
+const fetchAllAnswerProgress = async (
+  userFilter: string[] | null,
+  adminIds: Set<string>
+): Promise<{ question_id: string; correct: boolean; user_id: string }[]> => {
+  const PAGE_SIZE = 1000;
+  const all: { question_id: string; correct: boolean; user_id: string }[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from('answer_progress')
+      .select('question_id, correct, user_id')
+      .order('answer_id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (userFilter && userFilter.length > 0) {
+      query = query.in('user_id', userFilter);
+    }
+
+    const { data: page, error } = await query;
+    if (error) throw error;
+    
+    const rows = (page || []).filter(r => !adminIds.has(r.user_id));
+    all.push(...rows);
+    
+    if ((page || []).length < PAGE_SIZE) {
+      hasMore = false;
+    } else {
+      from += PAGE_SIZE;
+    }
+  }
+
+  return all;
+};
+```
+
+**3.2. Substituir a query atual em `fetchSimuladoMetrics`:**
+
+```typescript
+// ANTES (linha 636-639)
+const respostasResult = useUserFilter && userIdsFromIES
+  ? supabase.from('answer_progress').select('question_id, correct, user_id').in('user_id', userIdsFromIES)
+  : supabase.from('answer_progress').select('question_id, correct, user_id')
+
+// DEPOIS
+const respostasData = await fetchAllAnswerProgress(
+  useUserFilter && userIdsFromIES ? userIdsFromIES : null,
+  adminIds
+);
+```
+
+---
+
+### FASE 4: Excluir Admins em useSimuladosAnalytics
+
+**Arquivo:** `src/hooks/useSimuladosAnalytics.ts`
+
+**4.1. Buscar admin IDs no inicio de `fetchData`:**
+
+```typescript
+const { data: adminRoles } = await supabase
+  .from('user_roles')
+  .select('user_id')
+  .eq('role', 'admin');
+const adminIds = new Set((adminRoles || []).map(r => r.user_id));
+```
+
+**4.2. Filtrar admins ao construir `allowedUserIds` (linha 381-390):**
+
+```typescript
+const allowedUserIds = new Set(
+  eventUserIds.filter(uid => {
+    if (adminIds.has(uid)) return false; // NOVA LINHA: excluir admins
+    const u = userById.get(uid);
+    if (!u) return false;
+    if (iesId && u.id_ies !== iesId) return false;
+    if (excludedIES?.length > 0 && u.id_ies && excludedIES.includes(u.id_ies)) return false;
+    if (semestre && u.semestre !== semestre) return false;
+    return true;
+  })
+);
+```
+
+---
+
+### FASE 5: Atualizar Exports para Refletir Dados Corretos
+
+Os arquivos de exportacao ja usam os dados processados pelos hooks, entao automaticamente refletirao os valores corretos apos as correcoes acima.
+
+Garantir que a label "Total de Respostas" no XLSX exiba o valor real (22.000+) em vez de 1.000.
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---------|---------|
-| `src/utils/exportAnalyticsReport.ts` | Corrigir `calculatePreviewStats` para usar `total_questoes` |
-| `src/hooks/useAnalyticsData.ts` | Adicionar `totalSessoesPeriodo` com count real |
-| `src/components/analytics/ExportReportModal.tsx` | Trocar ícones + reposicionar preview |
+| `src/hooks/useAnalyticsData.ts` | Adicionar `fetchAdminUserIds`, paginacao de respostas, excluir admins em todas as queries |
+| `src/hooks/useSimuladosAnalytics.ts` | Adicionar exclusao de admins em `allowedUserIds` |
 
 ---
 
 ## Resultado Esperado
 
 **Antes:**
-- Questões: 10 (limitado pelo slice de questões problemáticas)
-- Sessões: 1.000 (truncado pelo limite do Supabase)
-- Ícones genéricos e confusos
-- Preview escondido no final
+- Total de Respostas: 1.000 (truncado)
+- Usuarios incluem admins
+- Sessoes incluem admins
+- Desempenho de simulado inclui dados de teste de admins
 
 **Depois:**
-- Questões: ~1.200+ (soma real de todas as questões dos simulados)
-- Sessões: 5.000+ (contagem real via `count: 'exact'`)
-- Ícones semanticamente corretos (Activity, Target, HelpCircle)
-- Preview visível no topo do modal
+- Total de Respostas: 22.000+ (real)
+- Usuarios: somente alunos B2B (sem admins)
+- Sessoes: somente de alunos (sem admins)
+- Metricas pedagogicas limpas, sem distorcao de dados de teste
 
+---
+
+## Nota Tecnica: Performance
+
+A paginacao sequencial adicionara latencia (~100-200ms por pagina de 1000 registros). Para 22.000 registros, serao ~22 iteracoes = 2-4 segundos adicionais.
+
+Mitigacao: O hook `useSimuladosAnalytics` ja usa cache de 5 minutos (SWR pattern), e o `useAnalyticsData` mantem estado local. O impacto sera notado apenas no primeiro carregamento ou refresh manual.
