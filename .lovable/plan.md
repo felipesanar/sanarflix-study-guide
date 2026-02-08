@@ -1,160 +1,181 @@
 
 
-# Plano: Corrigir Indicação Visual de Dias Ativos na Consistência
+# Plano: Condensar DiagnosticsCard para Encaixar no Grid
 
-## Problema Identificado
+## Problema
 
-Os cards "Hero" e "Sua Consistência" não refletem corretamente os dias em que houve atividade de estudo. A lógica atual usa `i < streak.active_days_week` que marca os **primeiros N dias da semana** (D, S, T...) ao invés dos **dias específicos** com atividade.
+O card de Diagnóstico está ocupando ~280px de altura, e quando somado ao ConsistencyCard (~200px), ultrapassa a altura do NextActionsCard (~380px). A diferença é de ~100px que precisam ser economizados.
 
-**Exemplo do bug:**
-- Hoje é sábado (dia 6)
-- Usuário estudou na quarta (3) e hoje (6)
-- O card deveria marcar: ☐D ☐S ☐T ✓Q ☐Q ☐S ✓S
-- O card mostra atualmente: ✓D ✓S ☐T ☐Q ☐Q ☐S ☐S
-
-## Causa Raiz
-
-A edge function `get-progress-hub` retorna apenas um contador (`active_days_week: 2`), mas o frontend precisa saber **quais dias específicos** tiveram atividade.
-
-## Solução
-
-### 1. Atualizar Edge Function (`get-progress-hub/index.ts`)
-
-Modificar o cálculo de streak para retornar também um array com os dias ativos:
-
-```typescript
-// Linhas ~546-555 - Calcular dias ativos COM os índices
-const weekStart = new Date(today);
-weekStart.setDate(today.getDate() - today.getDay()); // Domingo como início
-
-let activeDaysThisWeek = 0;
-const activeDaysOfWeek: number[] = []; // NOVO: array com índices dos dias ativos
-
-for (let i = 0; i < 7; i++) {
-  const checkDate = new Date(weekStart.getTime() + i * 86400000);
-  if (activityDates.has(checkDate.toISOString().split('T')[0])) {
-    activeDaysThisWeek++;
-    activeDaysOfWeek.push(i); // NOVO: adicionar índice do dia (0=dom, 1=seg, etc)
-  }
-}
-
-// Na resposta (linha ~707):
-streak: {
-  current: currentStreak,
-  active_days_week: activeDaysThisWeek,
-  active_days_of_week: activeDaysOfWeek, // NOVO
-  goal: 3
-}
-```
-
-### 2. Atualizar Tipo `ProgressStreak` (`src/types/progressHub.ts`)
-
-```typescript
-export interface ProgressStreak {
-  current: number;
-  active_days_week: number;
-  active_days_of_week: number[]; // NOVO: [0,2,5] = domingo, terça, sexta
-  goal: number;
-  weeks_achieved?: number;
-}
-```
-
-### 3. Corrigir `ConsistencyCard.tsx` (linhas 67-68)
-
-```typescript
-// ANTES
-const isActive = i < streak.active_days_week;
-
-// DEPOIS
-const isActive = streak.active_days_of_week?.includes(i) ?? false;
-```
-
-### 4. Corrigir `ProgressHeroCard.tsx` (linhas 197-204)
-
-```typescript
-// ANTES
-{[...Array(7)].map((_, i) => (
-  <div 
-    key={i}
-    className={cn(
-      "w-3 h-3 rounded-sm transition-colors",
-      i < streak.active_days_week
-        ? "bg-primary"
-        : "bg-muted-foreground/20"
-    )}
-  />
-))}
-
-// DEPOIS
-{[...Array(7)].map((_, i) => (
-  <div 
-    key={i}
-    className={cn(
-      "w-3 h-3 rounded-sm transition-colors",
-      streak.active_days_of_week?.includes(i)
-        ? "bg-primary"
-        : "bg-muted-foreground/20"
-    )}
-  />
-))}
-```
-
-### 5. Atualizar `ProgressSummaryCard.tsx` (Home)
-
-Aplicar a mesma correção se houver visualização de dias ativos.
-
-### 6. Atualizar `useProgressHub.ts` - Fallback para compatibilidade
-
-Adicionar fallback no hook para garantir compatibilidade durante a transição:
-
-```typescript
-// No processamento da resposta
-const responseWithGoal = {
-  ...response,
-  streak: {
-    ...response.streak,
-    goal: streakGoal,
-    // Fallback: se API antiga não retornar active_days_of_week
-    active_days_of_week: response.streak.active_days_of_week ?? []
-  }
-};
-```
-
-## Visualização do Comportamento Esperado
+## Análise do Layout Atual
 
 ```text
-Semana: D=Domingo, S=Segunda, T=Terça, Q=Quarta, Q=Quinta, S=Sexta, S=Sábado
-
-Se hoje é Sábado (6) e houve atividade na Quarta (3) e Sábado (6):
-
-ANTES (bug):
-┌─────────────────────────────────────────┐
-│  ✓D  ✓S  ☐T  ☐Q  ☐Q  ☐S  ☐S           │
-│                            ↑ hoje       │
-└─────────────────────────────────────────┘
-
-DEPOIS (correto):
-┌─────────────────────────────────────────┐
-│  ☐D  ☐S  ☐T  ✓Q  ☐Q  ☐S  ✓S           │
-│              ↑estudou      ↑ hoje/estudou│
-└─────────────────────────────────────────┘
+NextActionsCard (~380px)     ConsistencyCard + DiagnosticsCard
+┌────────────────────────┐   ┌────────────────────────────────┐
+│ Header                 │   │ ConsistencyCard (~200px)       │
+│                        │   │ - Header + dots + progress     │
+│ Action 1               │   │ - Status message + streak      │
+│ - 2 badges, text       │   ├────────────────────────────────┤
+│ - 3 buttons            │   │ DiagnosticsCard (~280px) ❌    │
+│                        │   │ - Header                       │
+│ Action 2               │   │ - Item 1 (p-3, 2 linhas)       │
+│ - 2 badges, text       │   │ - Item 2 (p-3, 2 linhas)       │
+│ - 3 buttons            │   │ - Item 3 (p-3, 2 linhas)       │
+│                        │   │                                │
+│ Action 3               │   └────────────────────────────────┘
+│ - 2 badges, text       │   
+│ - 3 buttons            │   Meta: ~480px combinados → ~380px
+└────────────────────────┘
 ```
 
-## Arquivos a Modificar
+## Estratégia de Condensação
+
+Economizar ~100px no DiagnosticsCard através de:
+
+1. **Header mais compacto**: `pb-2` ao invés de `pb-3`
+2. **Padding interno menor**: `p-2` ao invés de `p-3` nos items
+3. **Layout em linha única**: Título, descrição e badge na mesma linha
+4. **Ícones menores**: `h-3.5 w-3.5` e wrapper `p-1.5`
+5. **Espaçamento entre items reduzido**: `space-y-2` ao invés de `space-y-3`
+6. **Remover CardContent padding extra**: `pt-0` otimizado
+
+## Design Compacto Proposto
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ ⊕ Diagnóstico                                        │
+├──────────────────────────────────────────────────────┤
+│ ⚠ MAIOR BACKLOG  Embriologia e Genét... 52 pend   > │
+│ ⏱ PRECISA ATENÇÃO Apresentação do cu... 999 dias  > │
+│ 🏆 QUASE LÁ!     Ciências sociais, sa... 75%     > │
+└──────────────────────────────────────────────────────┘
+```
+
+Cada item condensado em uma única linha:
+- Ícone (compact) | Título (uppercase, 9px) | Descrição (truncada) | Badge (inline) | Chevron
+
+## Mudanças Técnicas em `DiagnosticsCard.tsx`
+
+### 1. Header mais compacto (linha 170-175)
+```tsx
+// ANTES
+<CardHeader className="pb-3">
+  <CardTitle className="flex items-center gap-2 text-lg">
+
+// DEPOIS
+<CardHeader className="pb-2">
+  <CardTitle className="flex items-center gap-2 text-base">
+```
+
+### 2. CardContent com menos espaço (linha 176)
+```tsx
+// ANTES
+<CardContent className="space-y-3">
+
+// DEPOIS  
+<CardContent className="space-y-2">
+```
+
+### 3. Item container compacto (linhas 185-189)
+```tsx
+// ANTES
+className={cn(
+  "group flex items-start gap-3 p-3 rounded-lg",
+  ...
+)}
+
+// DEPOIS
+className={cn(
+  "group flex items-center gap-2 p-2 rounded-lg",
+  ...
+)}
+```
+
+### 4. Wrapper do ícone menor (linhas 196-204)
+```tsx
+// ANTES
+<div className={cn("p-2 rounded-lg shrink-0", ...)}>
+  <Icon className={cn("h-4 w-4", insight.iconColor)} />
+</div>
+
+// DEPOIS
+<div className={cn("p-1.5 rounded-md shrink-0", ...)}>
+  <Icon className={cn("h-3.5 w-3.5", insight.iconColor)} />
+</div>
+```
+
+### 5. Título e descrição em layout inline (linhas 205-217)
+```tsx
+// ANTES: Layout empilhado com 2 linhas
+<div className="flex-1 min-w-0">
+  <div className="flex items-center justify-between gap-2">
+    <p className="text-xs font-medium ...uppercase">{insight.title}</p>
+    <Badge ...>{insight.value} {insight.unit}</Badge>
+  </div>
+  <p className="font-medium text-sm truncate mt-0.5">{insight.description}</p>
+</div>
+
+// DEPOIS: Layout horizontal em 1 linha
+<div className="flex-1 min-w-0 flex items-center gap-2">
+  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+    {insight.title}
+  </p>
+  <p className="font-medium text-xs truncate flex-1">
+    {insight.description}
+  </p>
+  <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+    {insight.value} {insight.unit}
+  </span>
+</div>
+```
+
+### 6. Chevron menor e alinhado (linha 218)
+```tsx
+// ANTES
+<ChevronRight className="h-4 w-4 ... shrink-0 mt-1" />
+
+// DEPOIS
+<ChevronRight className="h-3.5 w-3.5 ... shrink-0" />
+```
+
+### 7. Empty state mais compacto (linhas 153-161)
+```tsx
+// ANTES: py-6, w-12 h-12, mb-3
+// DEPOIS: py-4, w-10 h-10, mb-2
+
+<div className="flex flex-col items-center justify-center py-4 text-center">
+  <div className="w-10 h-10 rounded-full ... flex items-center justify-center mb-2">
+    <Trophy className="h-5 w-5 text-emerald-500" />
+  </div>
+  <p className="font-medium text-sm text-foreground">Tudo em dia!</p>
+  <p className="text-xs text-muted-foreground">Continue no ritmo</p>
+</div>
+```
+
+## Comparativo de Economia
+
+| Elemento | Antes | Depois | Economia |
+|----------|-------|--------|----------|
+| Header padding | pb-3 (12px) | pb-2 (8px) | 4px |
+| Title size | text-lg | text-base | ~2px |
+| Items gap | space-y-3 (12px×2) | space-y-2 (8px×2) | 8px |
+| Item padding | p-3 (12px×2) | p-2 (8px×2) | 8px por item × 3 = 24px |
+| Item layout | 2 linhas | 1 linha | ~20px por item × 3 = 60px |
+| Icon wrapper | p-2 + h-4 | p-1.5 + h-3.5 | ~4px |
+
+**Total estimado: ~100px economizados**
+
+## Resultado Esperado
+
+```text
+ConsistencyCard (~200px) + DiagnosticsCard (~170px) = ~370px
+NextActionsCard (~380px)
+
+✅ Grid alinhado verticalmente
+```
+
+## Arquivo a Modificar
 
 | Arquivo | Mudança |
 |---------|---------|
-| `supabase/functions/get-progress-hub/index.ts` | Adicionar cálculo de `active_days_of_week` e incluir na resposta |
-| `src/types/progressHub.ts` | Adicionar campo `active_days_of_week: number[]` ao tipo |
-| `src/components/progress-hub/ConsistencyCard.tsx` | Usar `includes(i)` ao invés de `i <` |
-| `src/components/progress-hub/ProgressHeroCard.tsx` | Usar `includes(i)` ao invés de `i <` |
-| `src/hooks/useProgressHub.ts` | Adicionar fallback para compatibilidade |
-
-## Teste
-
-Após a implementação:
-1. Marcar uma aula como concluída no Guia de Estudos
-2. Navegar para o Dashboard
-3. Verificar que o dia de hoje (sábado) aparece marcado nos dois cards
-4. Verificar que outros dias da semana sem atividade aparecem desmarcados
+| `src/components/progress-hub/DiagnosticsCard.tsx` | Aplicar layout compacto conforme descrito |
 
