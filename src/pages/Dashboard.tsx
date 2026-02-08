@@ -453,7 +453,7 @@ export const Dashboard: React.FC = () => {
         {/* Main Grid Layout - 12 columns */}
         <motion.div 
           variants={containerVariants}
-          className="grid grid-cols-12 gap-4 lg:gap-5"
+          className="grid grid-cols-12 gap-5 lg:gap-6"
         >
           {/* === ROW 1: Hero (8-9 cols) + Suas Provas (4-3 cols) === */}
           <motion.div variants={itemVariants} className="col-span-12 lg:col-span-8 xl:col-span-9">
