@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -24,14 +24,15 @@ import {
   SimuladoDetailsDrawer
 } from './simulados';
 import { useSimuladosAnalytics, type SimuladoOverview } from '@/hooks/useSimuladosAnalytics';
-import { exportToCSV, exportToXLSX } from '@/utils/exportSimuladosAnalytics';
+import { exportToCSV, exportToXLSX, type SimuladosPremiumExportData } from '@/utils/exportSimuladosAnalytics';
 import type { AnalyticsFilters as FiltersType } from '@/pages/Analytics';
 
 interface RealSimuladosTabProps {
   filters: FiltersType;
+  onPremiumExportData?: (data: SimuladosPremiumExportData) => void;
 }
 
-export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) => {
+export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters, onPremiumExportData }) => {
   const [selectedSimulado, setSelectedSimulado] = useState<SimuladoOverview | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -89,6 +90,12 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
 
   // Check if we have any data
   const hasData = simulados.length > 0 || executive.totalRespostas > 0;
+
+  useEffect(() => {
+    if (!isLoading && hasData) {
+      onPremiumExportData?.(exportData);
+    }
+  }, [exportData, hasData, isLoading, onPremiumExportData]);
 
   if (error) {
     return (
