@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, X, Check } from 'lucide-react';
+import { Filter, X, Check, SortAsc } from 'lucide-react';
 import {
   Drawer,
   DrawerClose,
@@ -16,17 +16,23 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 export type FilterStatus = 'all' | 'pending' | 'completed';
+export type SortOption = 'alphabetical' | 'backlog' | 'percentage' | 'inactive';
 
 export interface ProgressFilters {
   status: FilterStatus;
   materia: string | null;
+  tema: string | null;
+  sortBy: SortOption;
 }
 
 interface FiltersDrawerMobileProps {
   filters: ProgressFilters;
   materias: string[];
+  temas?: string[];
   onFiltersChange: (filters: ProgressFilters) => void;
   activeCount: number;
+  totalCount?: number;
+  filteredCount?: number;
 }
 
 const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
@@ -35,11 +41,21 @@ const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'completed', label: 'Concluídos' },
 ];
 
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'alphabetical', label: 'A-Z' },
+  { value: 'backlog', label: 'Maior backlog' },
+  { value: 'percentage', label: 'Menor %' },
+  { value: 'inactive', label: 'Mais atrasado' },
+];
+
 export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
   filters,
   materias,
+  temas = [],
   onFiltersChange,
   activeCount,
+  totalCount,
+  filteredCount,
 }) => {
   const [open, setOpen] = React.useState(false);
   const [tempFilters, setTempFilters] = React.useState<ProgressFilters>(filters);
@@ -57,7 +73,7 @@ export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
   };
 
   const handleClear = () => {
-    const clearedFilters: ProgressFilters = { status: 'all', materia: null };
+    const clearedFilters: ProgressFilters = { status: 'all', materia: null, tema: null, sortBy: 'alphabetical' };
     setTempFilters(clearedFilters);
     onFiltersChange(clearedFilters);
     setOpen(false);
@@ -65,7 +81,9 @@ export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
 
   const hasChanges = 
     tempFilters.status !== filters.status || 
-    tempFilters.materia !== filters.materia;
+    tempFilters.materia !== filters.materia ||
+    tempFilters.tema !== filters.tema ||
+    tempFilters.sortBy !== filters.sortBy;
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
@@ -133,7 +151,7 @@ export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
             <h4 className="text-sm font-medium text-muted-foreground">Matéria</h4>
             <div className="space-y-2">
               <button
-                onClick={() => setTempFilters(prev => ({ ...prev, materia: null }))}
+                onClick={() => setTempFilters(prev => ({ ...prev, materia: null, tema: null }))}
                 className={cn(
                   "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -151,7 +169,7 @@ export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
               {materias.map((materia) => (
                 <button
                   key={materia}
-                  onClick={() => setTempFilters(prev => ({ ...prev, materia }))}
+                  onClick={() => setTempFilters(prev => ({ ...prev, materia, tema: null }))}
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -169,6 +187,90 @@ export const FiltersDrawerMobile: React.FC<FiltersDrawerMobileProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Tema filter (dependent on materia) */}
+          {tempFilters.materia && temas.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground">Tema</h4>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setTempFilters(prev => ({ ...prev, tema: null }))}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      tempFilters.tema === null
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-muted/80"
+                    )}
+                    aria-pressed={tempFilters.tema === null}
+                  >
+                    <span>Todos os temas</span>
+                    {tempFilters.tema === null && (
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                  {temas.map((tema) => (
+                    <button
+                      key={tema}
+                      onClick={() => setTempFilters(prev => ({ ...prev, tema }))}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors text-left",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        tempFilters.tema === tema
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                      aria-pressed={tempFilters.tema === tema}
+                    >
+                      <span className="truncate">{tema}</span>
+                      {tempFilters.tema === tema && (
+                        <Check className="h-4 w-4 flex-shrink-0 ml-2" aria-hidden="true" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <Separator className="my-4" />
+
+          {/* Sort options */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <SortAsc className="h-4 w-4" />
+              Ordenar por
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setTempFilters(prev => ({ ...prev, sortBy: option.value }))}
+                  className={cn(
+                    "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    tempFilters.sortBy === option.value
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted hover:bg-muted/80"
+                  )}
+                  aria-pressed={tempFilters.sortBy === option.value}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Results count */}
+          {totalCount !== undefined && filteredCount !== undefined && (
+            <div className="mt-4 pt-4 border-t text-center">
+              <Badge variant="secondary" className="font-normal">
+                {filteredCount} de {totalCount} itens
+              </Badge>
+            </div>
+          )}
         </ScrollArea>
 
         <DrawerFooter className="pt-2">

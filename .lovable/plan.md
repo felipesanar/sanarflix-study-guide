@@ -1,22 +1,25 @@
 
 # Plano de Evolução Premium da Central de Progresso
 
-## Fase 0 — Inventário Atual
+## ✅ Status: Implementado
 
-### Blocos Atuais da Página `/dashboard`
+### Componentes Criados
+- `FiltersDesktop.tsx` — Filtros inline premium para desktop com Combobox de busca
+- `DiagnosticsCard.tsx` — Insights objetivos (maior backlog, tema negligenciado, vitória rápida)
+- `CoverageRankingCard.tsx` — Ranking menos/mais estudado com barras de progresso
+- `WeekDetailSheet.tsx` — Detalhes ao clicar no gráfico semanal
 
-| Bloco | Componente | Propósito | Estados | Dados |
-|-------|------------|-----------|---------|-------|
-| 1. Header | Inline | Título + IES/semestre | Normal | `useAuth()` |
-| 2. Risk Alerts | `RiskAlertBanner` | Alertas de temas inativos >14 dias | Normal, Vazio, Dismissed | `data.risk_alerts` |
-| 3. Pre-Prova Mode | `PreProvaMode` | Modo revisão pré-prova | Ativo via URL, Inativo | `data.by_tema` |
-| 4. Hero Card | `ProgressHeroCard` | Overview circular + CTAs | Normal | `overview`, `streak`, `lastActivity` |
-| 5. Grid 3 colunas | `NextActionsCard`, `ConsistencyCard`, `WeeklyEvolutionCard` | Ações, Streak, Gráfico | Vazio, Normal | `next_actions`, `streak`, `weekly_evolution` |
-| 6. Grid auxiliar | `PreProvaMode`, `ExamCountdownCard`, `SpacedRevisionCard` | Ferramentas extras | Vazio, Normal | `by_tema`, `exam_date` |
-| 7. Filtros | `FiltersDrawerMobile`, `FilterChips` | Filtrar Mapa | Mobile Drawer, Desktop | `filters`, `materiasList` |
-| 8. Mapa do Semestre | `SemesterMapCard` + `TemaItem` | Drill-down hierárquico | Expandido, Busca, Vazio | `filteredData.byMateria/byTema/bySubtema` |
+### Componentes Refinados
+- `FiltersDrawerMobile.tsx` — Adicionado filtro por Tema + Ordenação + Contador
+- `FilterChips.tsx` — Suporte a Tema e Ordenação
+- `WeeklyEvolutionCard.tsx` — Toggle count/% + clique para drill-down
+- `Dashboard.tsx` — Novo layout com cards de diagnóstico e cobertura
 
-### O Que Está Bom (Manter)
+### Tipos Atualizados
+- `ProgressFilters`: Adicionado `tema: string | null` e `sortBy: SortOption`
+- `SortOption`: `'alphabetical' | 'backlog' | 'percentage' | 'inactive'`
+
+---
 
 1. **Arquitetura de componentes** — bem separados, cada um com responsabilidade clara
 2. **Hero Card** — visual premium com círculo de progresso animado
