@@ -84,6 +84,7 @@ export interface ValidationIssue {
   severity: ValidationSeverity;
   code: string;
   message: string;
+  invalidValue?: string;
 }
 
 export interface ValidationResult {
