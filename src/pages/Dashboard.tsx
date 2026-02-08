@@ -366,16 +366,6 @@ export const Dashboard: React.FC = () => {
     return null;
   }
 
-  // First access empty state
-  if (data.overview.completed === 0 && data.overview.total > 0) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          <EmptyState userName={data.user.nome} type="first_access" />
-        </div>
-      </div>
-    );
-  }
 
   const containerVariants = shouldReduceMotion ? {} : {
     hidden: { opacity: 0 },
@@ -552,10 +542,7 @@ export const Dashboard: React.FC = () => {
               syncing={syncing}
             />
           ) : (
-            <EmptyState 
-              type="no_filter_results" 
-              onClearFilters={handleClearFilters}
-            />
+            <EmptyState onClearFilters={handleClearFilters} />
           )}
         </motion.div>
       </motion.div>
