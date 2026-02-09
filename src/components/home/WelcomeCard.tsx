@@ -126,7 +126,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.4 }}
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight truncate max-w-[280px] sm:max-w-md lg:max-w-lg"
+                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight truncate max-w-[240px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-none"
               >
                 {user?.nome || 'Estudante'}
               </motion.h1>
@@ -160,10 +160,10 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 <Button 
                   onClick={handleContinueStudy}
                   size="lg"
-                  className="relative group h-auto min-h-[2.5rem] sm:min-h-[2.75rem] md:min-h-[3rem] px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-[11px] sm:text-sm md:text-base w-full sm:w-auto"
+                  className="relative group h-auto min-h-[2.25rem] sm:min-h-[2.5rem] md:min-h-[2.75rem] px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-[11px] sm:text-xs md:text-sm w-full sm:w-auto"
                 >
                   <span className="whitespace-normal sm:whitespace-nowrap">Continuar estudos</span>
-                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-200" />
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-200" />
                 </Button>
               </motion.div>
             </motion.div>
