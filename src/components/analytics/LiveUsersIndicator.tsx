@@ -48,7 +48,7 @@ export const LiveUsersIndicator: React.FC<LiveUsersIndicatorProps> = ({
       <TooltipContent side="bottom">
         <p className="text-xs">
           {isConnected 
-            ? 'Usuários ativos (últimos 15 min)' 
+            ? 'Usuários conectados agora (tempo real)' 
             : 'Conexão realtime perdida'}
         </p>
       </TooltipContent>

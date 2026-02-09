@@ -11,6 +11,7 @@ import { PasswordDialogProvider, usePasswordDialog } from '@/contexts/PasswordDi
 import { useLocation } from 'react-router-dom';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { useSessionTracker } from '@/hooks/useSessionTracker';
+import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
 
 interface LayoutProps {
@@ -26,6 +27,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   // Session tracking
   useSessionTracker();
+  
+  // Presence tracking for real-time online users
+  usePresenceTracker();
   
   if (!authContext) {
     return <>{children}</>;
