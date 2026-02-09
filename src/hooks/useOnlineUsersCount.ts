@@ -1,50 +1,26 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { PRESENCE_CHANNEL } from './usePresenceTracker';
+import { useSyncExternalStore } from 'react';
+import { presenceService } from '@/services/presenceService';
+
+// Initialize channel immediately on module load
+presenceService.getChannel();
 
 export const useOnlineUsersCount = () => {
-  const [count, setCount] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const subscribe = (onStoreChange: () => void) => {
+    return presenceService.subscribe(onStoreChange);
+  };
 
-  useEffect(() => {
-    const channel = supabase.channel(PRESENCE_CHANNEL, {
-      config: {
-        presence: {
-          key: 'analytics-observer',
-        },
-      },
-    });
-
-    const updateCount = () => {
-      const state = channel.presenceState();
-      // Count unique users (each key in presence state is a user)
-      const uniqueUsers = Object.keys(state).length;
-      setCount(uniqueUsers);
-      setIsLoading(false);
+  const getSnapshot = () => {
+    return {
+      count: presenceService.getCount(),
+      isConnected: presenceService.getIsConnected(),
     };
+  };
 
-    channel
-      .on('presence', { event: 'sync' }, () => {
-        updateCount();
-      })
-      .on('presence', { event: 'join' }, () => {
-        updateCount();
-      })
-      .on('presence', { event: 'leave' }, () => {
-        updateCount();
-      })
-      .subscribe((status) => {
-        setIsConnected(status === 'SUBSCRIBED');
-        if (status === 'SUBSCRIBED') {
-          updateCount();
-        }
-      });
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  return { count, isConnected, isLoading };
+  return {
+    count: state.count,
+    isConnected: state.isConnected,
+    isLoading: false, // Never loading - show 0 while connecting
+  };
 };
