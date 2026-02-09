@@ -121,7 +121,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
   const activationColor = metrics.activationRate >= 80 ? 'success' : metrics.activationRate >= 50 ? 'warning' : 'danger';
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       <MetricCard
         icon={<Users className="h-4 w-4 text-primary" />}
         label="DAU"
@@ -152,16 +152,6 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
       />
       
       <MetricCard
-        icon={<Target className="h-4 w-4 text-emerald-500" />}
-        label="Time to Value"
-        value={metrics.timeToFirstSimulado !== null ? `${metrics.timeToFirstSimulado}d` : 'N/A'}
-        subValue="até 1º simulado"
-        tooltip="Tempo médio entre primeiro acesso e conclusão do primeiro simulado"
-        color={metrics.timeToFirstSimulado !== null && metrics.timeToFirstSimulado <= 3 ? 'success' : 'default'}
-        delay={3}
-      />
-      
-      <MetricCard
         icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
         label="Ativação"
         value={`${metrics.activationRate}%`}
@@ -169,7 +159,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
         tooltip="Porcentagem de alunos matriculados que já acessaram a plataforma pelo menos uma vez"
         color={activationColor}
         trend={metrics.activationRate >= 70 ? 'up' : metrics.activationRate >= 50 ? 'neutral' : 'down'}
-        delay={4}
+        delay={3}
       />
       
       <MetricCard
@@ -179,7 +169,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
         subValue="alunos (1 visita/14d)"
         tooltip="Alunos que acessaram apenas 1 vez nas últimas 2 semanas - podem precisar de ações de ativação"
         color={metrics.lowEngagementCount <= 5 ? 'success' : metrics.lowEngagementCount <= 20 ? 'warning' : 'danger'}
-        delay={5}
+        delay={4}
       />
     </div>
   );
