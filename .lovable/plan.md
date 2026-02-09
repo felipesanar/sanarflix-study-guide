@@ -1,230 +1,293 @@
 
 
-# Plano: Correlacao Estudo vs Desempenho
+# Plano: Redesenho da Aba Progresso do Analytics
 
-## Contexto e Objetivo
+## Diagnóstico do Problema Atual
 
-O card atual de "Performance Pedagogica" mostra acuracia por grande area nos simulados - informacao redundante com a aba Simulados. A proposta e transformar este card em um **"Correlacao Estudo x Desempenho"** que cruze dados de:
-- **Aulas concluidas** (`study_progress`)
-- **Desempenho em questoes** (`answer_progress` + `questoes_simulado`)
+### Problemas Identificados
 
-## Insight Principal a Gerar
+1. **Taxa de Conclusão Enganosa**
+   - Atualmente calcula: `concluidos / registros em study_progress`
+   - Exemplo: Se um usuário marcou 5 aulas como concluídas de 354 disponíveis, e todas essas 5 estão como `completed=true`, a taxa mostra 100% - completamente errado
 
-**"Quem estuda mais, acerta mais?"** - Uma analise que mostre se existe correlacao positiva entre o volume de estudo e a acuracia nos simulados.
+2. **Sem Comparação com Conteúdo Total**
+   - Tabela `conteudos` tem 4.641 aulas cadastradas
+   - A lógica atual ignora completamente esse dado
+   - Deveria calcular: aulas concluídas pelo usuário / total de aulas disponíveis para o semestre/IES dele
 
-## Abordagem Tecnica
+3. **Filtro de Período Ignorado**
+   - A query atual não usa `dateRange` dos filtros
+   - Busca todos os registros de `study_progress` sem restrição de data
 
-### Desafio: Nomenclatura Diferente
+4. **Administradores Não Excluídos**
+   - Diferente das outras abas, a aba Progresso não filtra usuários admin
+   - Isso pode distorcer métricas
 
-| Tabela | Campo | Exemplos |
-|--------|-------|----------|
-| `questoes_simulado` | `grande_area` | Cirurgia, Clinica Medica, Pediatria |
-| `conteudos` / `study_progress` | `materia_id` | Cirurgia, Clinica Medica do adulto I, Saude da Crianca II |
+5. **Dados Escassos**
+   - Apenas 17 registros em `study_progress` de 2 usuários
+   - A aba precisa tratar melhor estados vazios e mostrar métricas alternativas
 
-**Solucao**: Criar um mapeamento fuzzy no frontend que agrupe materias por grande area:
-- "Clinica Medica*", "Fisiopatologia*" -> Clinica Medica
-- "Cirurgia*", "Tecnica Cirurgica*" -> Cirurgia
-- "Pediatria", "Saude da Crianca*" -> Pediatria
-- etc.
+## Nova Arquitetura de Métricas
 
-### Metricas de Correlacao
+### Métricas Principais (Corrigidas)
 
-1. **Por Usuario**:
-   - Agrupar usuarios em faixas de "aulas concluidas" (0, 1-5, 6-15, 16-30, 31+)
-   - Calcular acuracia media de cada faixa
-   - Mostrar se a acuracia sobe conforme o estudo aumenta
+| Métrica | Cálculo Atual (Errado) | Cálculo Proposto (Correto) |
+|---------|------------------------|----------------------------|
+| Taxa de Conclusão Geral | `completed / total em study_progress` | `SUM(aulas_concluídas por usuário) / SUM(aulas_disponíveis por semestre/IES)` |
+| Progresso por Matéria | `completed / total por matéria em study_progress` | `aulas_concluídas da matéria / total_aulas_da_matéria em conteudos` |
+| Usuários por Faixa | Baseado em registros `study_progress` | Baseado em aulas concluídas vs disponíveis |
 
-2. **Por Area** (Radar Chart reaproveitado):
-   - Para cada grande area: % de aulas concluidas vs % de acuracia
-   - Identificar "gaps pedagogicos": areas com muito estudo mas pouco acerto (problema de conteudo) ou pouco estudo e pouco acerto (oportunidade de ativacao)
+### Novas Métricas Propostas
 
-3. **Insights Inteligentes**:
-   - "Alunos que concluiram 10+ aulas tem 23% mais acuracia em media"
-   - "Cirurgia: alto estudo (72%) mas baixa acuracia (48%) - revisar conteudo"
-   - "Pediatria: baixo estudo (18%) e baixa acuracia (51%) - incentivar consumo"
+1. **Velocidade de Estudo**
+   - Aulas concluídas por dia/semana no período selecionado
+   - Gráfico de tendência temporal
 
-## Novo Design do Card
+2. **Matérias Mais/Menos Populares**
+   - Ranking de matérias por volume de estudo (usuários únicos que interagiram)
+   - Identificar matérias "esquecidas"
 
+3. **Top Usuários Mais Ativos**
+   - Usuários com maior volume de conclusão (anonimizado para LGPD)
+   - Útil para gamificação e benchmarks
+
+4. **Cobertura de Conteúdo**
+   - % das aulas que foram acessadas por pelo menos um usuário
+   - Identificar conteúdo "morto" que ninguém toca
+
+5. **Progressão por Semestre**
+   - Comparar progresso entre semestres diferentes
+   - Identificar gargalos no currículo
+
+## Fluxo de Dados Proposto
+
+```text
+ENTRADA:
+  - dateRange: { start, end }
+  - iesId: filtro de IES
+  - excludedIES: IES excluídas
+
+PROCESSAMENTO:
+
+  1. Buscar admin IDs (para exclusão)
+
+  2. Buscar usuários elegíveis:
+     - Filtrar por IES se aplicável
+     - Excluir admins
+     - Coletar semestres de cada usuário
+
+  3. Buscar conteúdos disponíveis:
+     - Agrupar por IES + semestre + matéria
+     - Contar total de aulas por grupo
+
+  4. Buscar study_progress:
+     - Filtrar por completed_at no dateRange
+     - Filtrar por usuários elegíveis
+     - Excluir admins
+
+  5. Calcular métricas:
+     - Para cada usuário: aulas_concluídas / aulas_disponíveis_semestre
+     - Agregar por matéria
+     - Calcular tendências temporais
+
+SAÍDA:
+  - taxaConclusaoReal: % correta
+  - progressoPorMateria: com denominador do conteudos
+  - velocidadeEstudo: aulas/semana
+  - materiasPopulares: ranking
+  - coberturaConteudo: % acessado
 ```
-+----------------------------------------------------------+
-|  Correlacao Estudo x Desempenho              Coef: 0.72  |
-|  O estudo impacta diretamente no desempenho              |
-+----------------------------------------------------------+
-|                          |  📚 Faixas de Estudo          |
-|     [Radar Chart]        |  0 aulas:      43% acuracia   |
-|     Estudo vs Acuracia   |  1-5 aulas:    51% acuracia   |
-|     por Grande Area      |  6-15 aulas:   58% acuracia   |
-|                          |  16-30 aulas:  67% acuracia   |
-|                          |  31+ aulas:    74% acuracia   |
-+----------------------------------------------------------+
-|  ⚡ Insights                                              |
-|  • Alunos com 16+ aulas concluidas tem +24% de acuracia  |
-|  • Gap: Clinica Medica (68% estudo, 52% acuracia)        |
-|  • Oportunidade: Pediatria (12% estudo, pode melhorar)   |
-+----------------------------------------------------------+
+
+## Novo Layout da Aba
+
+### Seção 1: Visão Geral (Métricas Corrigidas)
+
+```text
++------------------------------------------------------------------+
+| 📊 Visão Geral de Progresso                                      |
+| Taxa de conclusão real baseada no conteúdo disponível            |
++------------------------------------------------------------------+
+| ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐   |
+| │     12.5%        │ │      45         │ │     2.3/sem      │   |
+| │ Taxa de Conclusão│ │ Usuários Ativos │ │ Veloc. de Estudo │   |
+| │ ████░░░░░░░░░░░░ │ │  com progresso  │ │   aulas/semana   │   |
+| └──────────────────┘ └──────────────────┘ └──────────────────┘   |
++------------------------------------------------------------------+
 ```
 
-## Arquivos a Modificar
+### Seção 2: Tendência Temporal (NOVA)
 
-### 1. `types.ts`
-Atualizar `LearningVelocityData` para incluir:
+```text
++------------------------------------------------------------------+
+| 📈 Velocidade de Estudo                                          |
+| Conclusões de aulas ao longo do período selecionado              |
++------------------------------------------------------------------+
+|                                                                   |
+|   [Gráfico de Linha: conclusões por dia]                         |
+|   ▲                                                               |
+|   │     ⋅⋅⋅⋅⋅                                                    |
+|   │   ⋅⋅     ⋅⋅                                                  |
+|   │  ⋅        ⋅⋅⋅                                                |
+|   └────────────────────────▶                                      |
+|   Jan 01   Jan 07   Jan 14   Jan 21   Jan 28                     |
+|                                                                   |
++------------------------------------------------------------------+
+```
+
+### Seção 3: Progresso por Matéria (Grid lado a lado)
+
+```text
++---------------------------+  +----------------------------+
+| 📚 Progresso por Matéria |  | 🔥 Matérias Mais Populares |
+| vs conteúdo disponível   |  | Por volume de usuários     |
++---------------------------+  +----------------------------+
+|                           |  |                            |
+|  [BarChart horizontal]    |  | 1. Anatomia      45 users  |
+|  Anatomia     ██████  15% |  | 2. Fisiologia    38 users  |
+|  Fisiologia   ████    10% |  | 3. Cirurgia      32 users  |
+|  Cirurgia     ██      5%  |  | 4. Pediatria     28 users  |
+|  ...                      |  | 5. Clínica Méd.  25 users  |
+|                           |  |                            |
++---------------------------+  +----------------------------+
+```
+
+### Seção 4: Distribuição e Cobertura
+
+```text
++---------------------------+  +----------------------------+
+| 👥 Usuários por Faixa     |  | 🎯 Cobertura de Conteúdo   |
+| (Progresso Real)          |  | Aulas que foram acessadas  |
++---------------------------+  +----------------------------+
+|                           |  |                            |
+|  [PieChart Donut]         |  | 847 de 4.641 aulas         |
+|                           |  |                            |
+|  ● 0-25%:   120 users     |  |  ████████░░░░░░░ 18.2%    |
+|  ● 25-50%:   45 users     |  |                            |
+|  ● 50-75%:   12 users     |  | ⚠️ 82% do conteúdo nunca  |
+|  ● 75-100%:   3 users     |  |    foi acessado            |
+|                           |  |                            |
++---------------------------+  +----------------------------+
+```
+
+### Seção 5: Insights Inteligentes
+
+```text
++------------------------------------------------------------------+
+| ⚡ Insights de Progresso                                          |
+| Padrões identificados e recomendações                            |
++------------------------------------------------------------------+
+| ┌────────────────────────────────┐ ┌────────────────────────────┐ |
+| │ 🔴 3 matérias sem acessos      │ │ 🟢 Anatomia em alta        │ |
+| │ Embriologia, Bioquímica e      │ │ 15 conclusões na última    │ |
+| │ Direitos Humanos não foram     │ │ semana, +200% vs anterior  │ |
+| │ acessadas no período           │ │                            │ |
+| │ 💡 Revisar visibilidade        │ │                            │ |
+| └────────────────────────────────┘ └────────────────────────────┘ |
++------------------------------------------------------------------+
+```
+
+## Secao Tecnica
+
+### Arquivos a Modificar
+
+1. **`src/hooks/useAnalyticsData.ts`** - `fetchProgressMetrics`
+   - Adicionar filtro de dateRange
+   - Excluir admins
+   - Join com `conteudos` para calcular taxa real
+   - Novas métricas: velocidade, cobertura, popularidade
+
+2. **`src/hooks/useAnalyticsData.ts`** - `ProgressMetrics` interface
+   - Adicionar novos campos:
+   ```typescript
+   interface ProgressMetrics {
+     // Existentes (corrigidos)
+     progressoMedioPorMateria: { 
+       materia: string; 
+       progresso: number; 
+       aulasDisponiveis: number;
+       aulasConcluidas: number;
+     }[];
+     usuariosPorFaixaProgresso: { faixa: string; quantidade: number }[];
+     taxaConclusaoConteudo: number;
+     
+     // Novos
+     velocidadeEstudo: {
+       aulasUltimaSemana: number;
+       aulasSemanaAnterior: number;
+       tendencia: 'up' | 'down' | 'stable';
+       porDia: { data: string; conclusoes: number }[];
+     };
+     materiasPopulares: {
+       materia: string;
+       usuariosUnicos: number;
+       totalConclusoes: number;
+     }[];
+     coberturaConteudo: {
+       aulasAcessadas: number;
+       totalAulas: number;
+       percentual: number;
+     };
+     usuariosComProgresso: number;
+   }
+   ```
+
+3. **`src/components/analytics/RealProgressTab.tsx`**
+   - Redesenho completo da UI
+   - Novo gráfico de tendência temporal
+   - Seção de cobertura de conteúdo
+   - Seção de matérias populares
+   - Insights corrigidos
+
+### Lógica de Cálculo Correta
+
 ```typescript
-export interface StudyVsPerformanceData {
-  // Correlacao por faixa de estudo
-  studyBands: {
-    band: string;      // "0", "1-5", "6-15", "16-30", "31+"
-    avgAccuracy: number;
-    userCount: number;
-    lessonsCompleted: number;
-  }[];
-  
-  // Correlacao por area
-  areaCorrelation: {
-    area: string;
-    studyPercentage: number;    // % de aulas concluidas da area
-    accuracy: number;            // % de acertos nas questoes
-    gap: 'content' | 'activation' | 'balanced';
-    lessonsCompleted: number;
-    totalLessons: number;
-    answersCorrect: number;
-    totalAnswers: number;
-  }[];
-  
-  // Metricas gerais
-  correlationCoefficient: number;  // -1 a 1, quanto mais perto de 1, maior correlacao
-  topInsights: string[];
-}
-```
+// 1. Taxa de Conclusão Real
+// Para cada usuário:
+//   - Buscar semestre e IES do usuário
+//   - Contar aulas disponíveis em `conteudos` para esse semestre/IES
+//   - Contar aulas concluídas em `study_progress` para esse usuário
+//   - progresso_usuario = concluidas / disponiveis
 
-### 2. `useJourneyAnalytics.ts`
-Reescrever a query `learningQuery` para:
-1. Buscar `study_progress` agrupado por `user_id` e `materia_id`
-2. Buscar `answer_progress` com join em `questoes_simulado` para pegar `grande_area`
-3. Mapear `materia_id` para `grande_area` usando funcao de mapeamento
-4. Calcular correlacao por faixa de estudo e por area
-5. Gerar insights automaticos
+// 2. Taxa Geral
+const taxaGeral = soma(progressos_usuarios) / total_usuarios;
 
-### 3. `LearningVelocityCard.tsx` -> `StudyCorrelationCard.tsx`
-Transformar completamente o componente:
-- Novo titulo: "Correlacao Estudo x Desempenho"
-- Radar chart com duas series: Estudo (azul) e Desempenho (vermelho/laranja)
-- Lista de faixas de estudo com barras de progresso
-- Alertas de gaps pedagogicos
-- Coeficiente de correlacao em destaque
+// 3. Por Matéria
+// Para cada matéria:
+//   - Contar total de aulas em `conteudos` para essa matéria (filtrado por IES)
+//   - Contar conclusões em `study_progress` para essa matéria
+//   - progresso_materia = concluidas / disponiveis
 
-### 4. `index.ts`
-Atualizar export do componente renomeado
-
-## Mapeamento de Materias para Grandes Areas
-
-```typescript
-const AREA_MAPPING: Record<string, string[]> = {
-  'Clínica Médica': [
-    'clínica médica', 'fisiopatologia', 'semiologia', 
-    'farmacologia', 'medicina laboratorial', 'fisiologia'
-  ],
-  'Cirurgia': [
-    'cirurgia', 'técnica cirúrgica', 'clínica cirúrgica',
-    'urgência', 'emergência'
-  ],
-  'Pediatria': [
-    'pediatria', 'saúde da criança', 'adolescente'
-  ],
-  'Ginecologia e Obstetrícia': [
-    'ginecologia', 'obstetrícia', 'saúde da mulher', 'toco'
-  ],
-  'Saúde Mental': [
-    'saúde mental', 'psiquiatria', 'psicologia médica'
-  ],
-  'Medicina Preventiva/Saúde Coletiva': [
-    'saúde coletiva', 'epidemiologia', 'políticas públicas',
-    'bioestatística', 'ciências sociais', 'saúde do trabalhador'
-  ],
-  'Medicina de Família e Comunidade': [
-    'medicina da família', 'comunidade'
-  ],
-};
-```
-
-## Fluxo de Dados
-
-```
-study_progress (user_id, materia_id, completed)
-        |
-        v
-    Mapeamento materia -> grande_area
-        |
-        v
-    Agregacao por usuario: aulas por area
-        |
-        +----> Join com answer_progress por user_id
-        |
-        v
-    Calculo de correlacao por:
-      - Faixa de aulas (0, 1-5, 6-15, 16-30, 31+)
-      - Grande area (% estudo vs % acuracia)
-        |
-        v
-    Geracao de insights automaticos
-```
-
-## Insights Automaticos (Logica)
-
-1. **Correlacao Geral**:
-   - Se acuracia media da faixa 31+ for 20%+ maior que faixa 0: "Forte correlacao positiva"
-   - Se for similar: "Correlacao fraca - investigar qualidade do conteudo"
-
-2. **Gap de Conteudo** (area com alto estudo, baixa acuracia):
-   - `studyPercentage > 60% && accuracy < 55%`
-   - Insight: "Revisar conteudo de {area} - alto consumo mas baixa retenção"
-
-3. **Oportunidade de Ativacao** (area com baixo estudo, baixa acuracia):
-   - `studyPercentage < 30% && accuracy < 55%`
-   - Insight: "Incentivar estudo de {area} - potencial de melhoria"
-
-4. **Area Balanceada** (estudo proporcional ao desempenho):
-   - Diferenca < 15% entre studyPercentage e accuracy
-   - Insight: "{area} apresenta bom equilibrio entre consumo e resultado"
-
-## Secao Tecnica Adicional
-
-### Calculo do Coeficiente de Correlacao
-
-Usando correlacao de Pearson simplificada:
-```typescript
-function calculateCorrelation(data: { study: number; accuracy: number }[]): number {
-  const n = data.length;
-  const sumX = data.reduce((s, d) => s + d.study, 0);
-  const sumY = data.reduce((s, d) => s + d.accuracy, 0);
-  const sumXY = data.reduce((s, d) => s + d.study * d.accuracy, 0);
-  const sumX2 = data.reduce((s, d) => s + d.study * d.study, 0);
-  const sumY2 = data.reduce((s, d) => s + d.accuracy * d.accuracy, 0);
-  
-  const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-  
-  return denominator === 0 ? 0 : numerator / denominator;
-}
+// 4. Velocidade
+const aulasUltimaSemana = study_progress
+  .filter(p => p.completed_at >= 7diasAtras && p.completed)
+  .length;
 ```
 
 ### Performance
 
-- Cache de 10 minutos (staleTime)
-- Queries paralelas para study_progress e answer_progress
-- Mapeamento em memoria (O(n) para cada tabela)
+- Queries em paralelo (Promise.all)
+- Cache de conteúdos por IES (evitar rebuscar)
+- Paginação se `study_progress` crescer muito
 
-## Beneficios
+### Tratamento de Estados Vazios
 
-1. **Insight Unico**: Correlacao que nao existe em nenhuma outra aba
-2. **Acao Clara**: Gestores sabem onde investir em ativacao vs onde revisar conteudo
-3. **Visual Impactante**: Radar chart comparativo e coeficiente de correlacao em destaque
-4. **Contexto B2B**: Foco em oportunidades institucionais, nao metricas individuais
+Se não houver dados:
+- Mostrar métricas zeradas com contexto explicativo
+- Highlight de cobertura de conteúdo (mesmo sem conclusões, mostrar quanto conteúdo existe)
+- Call-to-action para incentivar uso do Guia de Estudos
 
-## Entregaveis
+## Entregáveis
 
-1. Tipos atualizados com `StudyVsPerformanceData`
-2. Hook `useJourneyAnalytics` com nova query de correlacao
-3. Novo componente `StudyCorrelationCard.tsx` com radar comparativo
-4. Mapeamento de materias para grandes areas
-5. Engine de insights automaticos de correlacao
+1. Atualizar interface `ProgressMetrics` com novos campos
+2. Reescrever `fetchProgressMetrics` com:
+   - Exclusão de admins
+   - Filtro de período
+   - Join com `conteudos`
+   - Novas métricas
+3. Redesenhar `RealProgressTab.tsx` com:
+   - Métricas corrigidas
+   - Gráfico de tendência temporal
+   - Seção de cobertura
+   - Seção de popularidade
+   - Insights inteligentes
 
