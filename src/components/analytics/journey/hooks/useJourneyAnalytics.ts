@@ -32,9 +32,25 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
   const startDate = startOfDay(dateRange.start);
   const endDate = endOfDay(dateRange.end);
 
+  // Query 0: Get admin user IDs to exclude from all metrics
+  const adminIdsQuery = useQuery({
+    queryKey: ['journey-admin-ids'],
+    queryFn: async (): Promise<Set<string>> => {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+      
+      return new Set((data || []).map(r => r.user_id));
+    },
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+  });
+
+  const adminIds = adminIdsQuery.data || new Set<string>();
+
   // Query 1: Executive Metrics (sessions, DAU/WAU/MAU, etc.)
   const executiveQuery = useQuery({
-    queryKey: ['journey-executive', iesId, excludedIES, startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['journey-executive', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
     queryFn: async (): Promise<ExecutiveMetrics> => {
       const now = new Date();
       const thirtyDaysAgo = subDays(now, 30);
@@ -51,6 +67,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       
       const { data: sessions } = await sessionsQuery;
       let filteredSessions = sessions || [];
+      
+      // Exclude admin users
+      filteredSessions = filteredSessions.filter(s => !adminIds.has(s.user_id));
+      
       if (excludedIES?.length) {
         filteredSessions = filteredSessions.filter(s => !excludedIES.includes(s.ies_id || ''));
       }
@@ -144,15 +164,17 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       const lowEngagementCount = Array.from(userSessionCounts.entries())
         .filter(([_, count]) => count === 1).length;
 
-      // Total users matriculados
+      // Total users matriculados (excluindo admins)
       let usersQuery = supabase
         .from('users')
-        .select('id', { count: 'exact', head: true });
+        .select('id');
       
       if (iesId) usersQuery = usersQuery.eq('id_ies', iesId);
       
-      const { count: totalUsers } = await usersQuery;
-      const totalUsersCount = totalUsers || 0;
+      const { data: allUsers } = await usersQuery;
+      // Exclude admin users from total count
+      const nonAdminUsers = (allUsers || []).filter(u => !adminIds.has(u.id));
+      const totalUsersCount = nonAdminUsers.length;
 
       // Usuarios que nunca acessaram (cadastrados mas sem sessao)
       const usersWithSessions = new Set(filteredSessions.map(s => s.user_id));
@@ -183,7 +205,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   // Query 2: Journey Funnel (6 stages)
   const funnelQuery = useQuery({
-    queryKey: ['journey-funnel', iesId, excludedIES, startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['journey-funnel', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
     queryFn: async (): Promise<JourneyFunnelData> => {
       // Stage 1: First Access (unique users with sessions)
       let sessionsQuery = supabase
@@ -196,6 +218,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       
       const { data: sessions } = await sessionsQuery;
       let filteredSessions = sessions || [];
+      
+      // Exclude admin users
+      filteredSessions = filteredSessions.filter(s => !adminIds.has(s.user_id));
+      
       if (excludedIES?.length) {
         filteredSessions = filteredSessions.filter(s => !excludedIES.includes(s.ies_id || ''));
       }
@@ -230,7 +256,8 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         .lte('created_at', endDate.toISOString())
         .or('page_path.ilike.%guia%,page_path.ilike.%sanarclass%,page_path.ilike.%study%');
       
-      const consumptionUsers = new Set((pageViews || []).map(p => p.user_id).filter(Boolean));
+      // Exclude admin users from consumption count
+      const consumptionUsers = new Set((pageViews || []).map(p => p.user_id).filter(id => id && !adminIds.has(id)));
       const consumptionCount = consumptionUsers.size;
 
       // Stage 5: Conversion (completed at least 1 simulado)
@@ -241,7 +268,8 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         .lte('finalizado_em', endDate.toISOString());
       
       const { data: simulados } = await simuladosQuery;
-      const conversionUsers = new Set((simulados || []).map(s => s.user_id));
+      // Exclude admin users from conversion count
+      const conversionUsers = new Set((simulados || []).map(s => s.user_id).filter(id => !adminIds.has(id)));
       const conversionCount = conversionUsers.size;
 
       // Stage 6: Retention (returned after completing simulado)
@@ -279,7 +307,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   // Query 3: Behavioral Segments
   const segmentsQuery = useQuery({
-    queryKey: ['journey-segments', iesId, excludedIES, startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['journey-segments', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
     queryFn: async (): Promise<BehavioralSegmentsData> => {
       let sessionsQuery = supabase
         .from('user_sessions')
@@ -291,6 +319,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       
       const { data: sessions } = await sessionsQuery;
       let filteredSessions = sessions || [];
+      
+      // Exclude admin users
+      filteredSessions = filteredSessions.filter(s => !adminIds.has(s.user_id));
+      
       if (excludedIES?.length) {
         filteredSessions = filteredSessions.filter(s => !excludedIES.includes(s.ies_id || ''));
       }
@@ -330,7 +362,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   // Query 4: Retention Cohort
   const retentionQuery = useQuery({
-    queryKey: ['journey-retention', iesId, excludedIES],
+    queryKey: ['journey-retention', iesId, excludedIES, Array.from(adminIds)],
     queryFn: async (): Promise<RetentionCohortData> => {
       const now = new Date();
       const fiveWeeksAgo = subDays(now, 35);
@@ -344,6 +376,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       
       const { data: sessions } = await sessionsQuery;
       let filteredSessions = sessions || [];
+      
+      // Exclude admin users
+      filteredSessions = filteredSessions.filter(s => !adminIds.has(s.user_id));
+      
       if (excludedIES?.length) {
         filteredSessions = filteredSessions.filter(s => !excludedIES.includes(s.ies_id || ''));
       }
@@ -437,7 +473,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   // Query 5: Learning Velocity
   const learningQuery = useQuery({
-    queryKey: ['journey-learning', iesId, excludedIES, startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['journey-learning', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
     queryFn: async (): Promise<LearningVelocityData> => {
       // Get answers with questions to get grande_area
       const { data: answers } = await supabase
@@ -450,10 +486,13 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         `)
         .order('answer_id');
 
-      // Group by grande_area
+      // Group by grande_area (excluding admin users)
       const areaStats = new Map<string, { correct: number; total: number; users: Set<string> }>();
       
       (answers || []).forEach((a: any) => {
+        // Exclude admin users
+        if (a.user_id && adminIds.has(a.user_id)) return;
+        
         const area = a.questoes_simulado?.grande_area || 'Não categorizado';
         if (!areaStats.has(area)) {
           areaStats.set(area, { correct: 0, total: 0, users: new Set() });
@@ -502,11 +541,11 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   // Query 6: Engagement Depth
   const engagementQuery = useQuery({
-    queryKey: ['journey-engagement', iesId, excludedIES, startDate.toISOString(), endDate.toISOString()],
+    queryKey: ['journey-engagement', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
     queryFn: async (): Promise<EngagementDepthData> => {
       let sessionsQuery = supabase
         .from('user_sessions')
-        .select('pages_visited, duration_seconds, started_at, ies_id')
+        .select('user_id, pages_visited, duration_seconds, started_at, ies_id')
         .gte('started_at', startDate.toISOString())
         .lte('started_at', endDate.toISOString());
       
@@ -514,6 +553,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       
       const { data: sessions } = await sessionsQuery;
       let filteredSessions = sessions || [];
+      
+      // Exclude admin users
+      filteredSessions = filteredSessions.filter(s => !adminIds.has(s.user_id));
+      
       if (excludedIES?.length) {
         filteredSessions = filteredSessions.filter(s => !excludedIES.includes(s.ies_id || ''));
       }
