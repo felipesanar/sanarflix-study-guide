@@ -36,12 +36,13 @@ export interface ProgressMetrics {
   usuariosPorFaixaProgresso: { faixa: string; quantidade: number }[];
   taxaConclusaoConteudo: number;
   
-  // Novas métricas
+  // Métricas de engajamento
   velocidadeEstudo: {
     aulasUltimaSemana: number;
     aulasSemanaAnterior: number;
     tendencia: 'up' | 'down' | 'stable';
     porDia: { data: string; conclusoes: number }[];
+    mediaMovel7Dias: number;
   };
   materiasPopulares: {
     materia: string;
@@ -52,9 +53,18 @@ export interface ProgressMetrics {
     aulasAcessadas: number;
     totalAulas: number;
     percentual: number;
+    materiasAcessadas: number;
+    totalMaterias: number;
   };
   usuariosComProgresso: number;
   totalUsuariosElegiveis: number;
+  
+  // Novas métricas avançadas
+  taxaAtivacao: number; // % usuarios que têm pelo menos 1 progresso
+  profundidadeMedia: number; // aulas por usuário ativo
+  materiasNuncaAcessadas: string[]; // Matérias sem nenhum acesso
+  diasComAtividade: number; // Dias distintos com conclusões no período
+  concentracaoTop3: number; // % de conclusões nas top 3 matérias
 }
 
 export interface DemographicsMetrics {
@@ -127,15 +137,23 @@ const defaultMetrics: AnalyticsData = {
       aulasSemanaAnterior: 0,
       tendencia: 'stable',
       porDia: [],
+      mediaMovel7Dias: 0,
     },
     materiasPopulares: [],
     coberturaConteudo: {
       aulasAcessadas: 0,
       totalAulas: 0,
       percentual: 0,
+      materiasAcessadas: 0,
+      totalMaterias: 0,
     },
     usuariosComProgresso: 0,
     totalUsuariosElegiveis: 0,
+    taxaAtivacao: 0,
+    profundidadeMedia: 0,
+    materiasNuncaAcessadas: [],
+    diasComAtividade: 0,
+    concentracaoTop3: 0,
   },
   demographics: {
     usuariosPorIES: [],
@@ -752,6 +770,13 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       .sort((a, b) => a.data.localeCompare(b.data))
       .slice(-30); // Últimos 30 dias
 
+    // Calcular média móvel de 7 dias
+    const mediaMovel7Dias = porDia.length >= 7 
+      ? Math.round(porDia.slice(-7).reduce((sum, d) => sum + d.conclusoes, 0) / 7 * 10) / 10
+      : porDia.length > 0 
+        ? Math.round(porDia.reduce((sum, d) => sum + d.conclusoes, 0) / porDia.length * 10) / 10
+        : 0;
+
     // 13. Matérias mais populares (por usuários únicos)
     const materiaUserCount = new Map<string, Set<string>>();
     progressData.forEach(p => {
@@ -770,16 +795,46 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       .sort((a, b) => b.usuariosUnicos - a.usuariosUnicos)
       .slice(0, 10);
 
-    // 14. Cobertura de conteúdo
+    // 14. Cobertura de conteúdo (CORRIGIDA: usar materia_id para cruzar corretamente)
+    const materiasComProgresso = new Set(progressData.map(p => p.materia_id));
+    const materiasDisponiveisSet = new Set(conteudosData.map(c => c.materia));
     const aulasAcessadas = materiasAcessadas.size;
+    
     const coberturaConteudo = {
       aulasAcessadas,
       totalAulas: totalAulasGlobal,
       percentual: totalAulasGlobal > 0 ? Math.round((aulasAcessadas / totalAulasGlobal) * 100) : 0,
+      materiasAcessadas: [...materiasComProgresso].filter(m => materiasDisponiveisSet.has(m)).length,
+      totalMaterias: materiasDisponiveisSet.size,
     };
 
     // 15. Contagem de usuários com progresso
     const usuariosComProgresso = userConclusoes.size;
+
+    // 16. Novas métricas avançadas
+    // Taxa de ativação: % de usuários que têm pelo menos 1 progresso
+    const taxaAtivacao = usersData.length > 0 
+      ? Math.round((usuariosComProgresso / usersData.length) * 100 * 10) / 10
+      : 0;
+
+    // Profundidade média: aulas por usuário ativo
+    const profundidadeMedia = usuariosComProgresso > 0
+      ? Math.round((progressData.length / usuariosComProgresso) * 10) / 10
+      : 0;
+
+    // Matérias nunca acessadas
+    const materiasNuncaAcessadas = [...materiasDisponiveisSet]
+      .filter(m => !materiasComProgresso.has(m))
+      .slice(0, 10);
+
+    // Dias com atividade no período
+    const diasComAtividade = conclusoesPorDia.size;
+
+    // Concentração nas top 3 matérias
+    const top3Conclusoes = materiasPopulares.slice(0, 3).reduce((sum, m) => sum + m.totalConclusoes, 0);
+    const concentracaoTop3 = progressData.length > 0 
+      ? Math.round((top3Conclusoes / progressData.length) * 100)
+      : 0;
 
     return {
       progressoMedioPorMateria,
@@ -790,11 +845,17 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         aulasSemanaAnterior,
         tendencia,
         porDia,
+        mediaMovel7Dias,
       },
       materiasPopulares,
       coberturaConteudo,
       usuariosComProgresso,
       totalUsuariosElegiveis: usersData.length,
+      taxaAtivacao,
+      profundidadeMedia,
+      materiasNuncaAcessadas,
+      diasComAtividade,
+      concentracaoTop3,
     };
   }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
