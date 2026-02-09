@@ -3,10 +3,13 @@ export { ExecutiveSummaryCards } from './ExecutiveSummaryCards';
 export { JourneyFunnelChart } from './JourneyFunnelChart';
 export { BehavioralSegments } from './BehavioralSegments';
 export { RetentionCohortGrid } from './RetentionCohortGrid';
-export { LearningVelocityCard } from './LearningVelocityCard';
+export { StudyCorrelationCard } from './StudyCorrelationCard';
 export { EngagementDepthCard } from './EngagementDepthCard';
 export { SmartInsightsEngine } from './SmartInsightsEngine';
 export { EngagementAlertBanner, RiskAlertBanner } from './RiskAlertBanner';
+
+// Legacy export for backward compatibility
+export { StudyCorrelationCard as LearningVelocityCard } from './StudyCorrelationCard';
 
 // Hooks
 export { useJourneyAnalytics } from './hooks/useJourneyAnalytics';

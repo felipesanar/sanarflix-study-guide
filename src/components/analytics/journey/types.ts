@@ -74,7 +74,36 @@ export interface RetentionCohortData {
   avgRetentionWeek4: number;
 }
 
-// Learning Velocity
+// Study vs Performance Correlation
+export interface StudyBand {
+  band: string;      // "0", "1-5", "6-15", "16-30", "31+"
+  avgAccuracy: number;
+  userCount: number;
+  lessonsCompleted: number;
+}
+
+export interface AreaCorrelation {
+  area: string;
+  studyPercentage: number;    // % de aulas concluídas da área
+  accuracy: number;            // % de acertos nas questões
+  gap: 'content' | 'activation' | 'balanced';
+  lessonsCompleted: number;
+  totalLessons: number;
+  answersCorrect: number;
+  totalAnswers: number;
+}
+
+export interface StudyVsPerformanceData {
+  studyBands: StudyBand[];
+  areaCorrelation: AreaCorrelation[];
+  correlationCoefficient: number;  // -1 a 1, quanto mais perto de 1, maior correlação
+  topInsights: string[];
+  totalLessonsCompleted: number;
+  totalAnswers: number;
+  hasEnoughData: boolean;
+}
+
+// Legacy types kept for compatibility
 export interface AreaPerformance {
   area: string;
   accuracy: number;
