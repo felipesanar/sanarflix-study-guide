@@ -1,170 +1,230 @@
 
-# Plano: Adaptar Jornada do Estudante ao Contexto B2B Institucional
 
-## Contexto do Negocio
+# Plano: Correlacao Estudo vs Desempenho
 
-A plataforma SanarFlix Academy e um produto B2B vendido para universidades parceiras. Os alunos nao escolhem usar a plataforma individualmente - eles sao inscritos pela instituicao. Isso significa:
+## Contexto e Objetivo
 
-1. **Nao existe churn do aluno**: O aluno nao cancela assinatura, ele simplesmente pode deixar de usar
-2. **O risco real e institucional**: Se o engajamento for baixo, o gestor da universidade pode nao ver valor e nao renovar o contrato
-3. **Foco em saude do engajamento**: Em vez de "risco de churn", devemos falar em "baixo engajamento" ou "alunos inativos"
+O card atual de "Performance Pedagogica" mostra acuracia por grande area nos simulados - informacao redundante com a aba Simulados. A proposta e transformar este card em um **"Correlacao Estudo x Desempenho"** que cruze dados de:
+- **Aulas concluidas** (`study_progress`)
+- **Desempenho em questoes** (`answer_progress` + `questoes_simulado`)
 
-## Mudancas Necessarias
+## Insight Principal a Gerar
 
-### 1. Renomear Metricas e Alertas
+**"Quem estuda mais, acerta mais?"** - Uma analise que mostre se existe correlacao positiva entre o volume de estudo e a acuracia nos simulados.
 
-| Termo Atual | Novo Termo |
-|-------------|------------|
-| "Risco de Churn" | "Baixo Engajamento" ou "Alunos Inativos" |
-| "X usuarios em risco de churn" | "X alunos com baixa atividade" |
-| "Churn Risk" | "Inatividade" |
-| "campanha de reengajamento" | "acoes de ativacao" |
+## Abordagem Tecnica
 
-### 2. Recontextualizar Alertas e Insights
+### Desafio: Nomenclatura Diferente
 
-**Alertas Atuais (problema):**
-- "X usuarios em risco de churn" - Implica que vao cancelar
+| Tabela | Campo | Exemplos |
+|--------|-------|----------|
+| `questoes_simulado` | `grande_area` | Cirurgia, Clinica Medica, Pediatria |
+| `conteudos` / `study_progress` | `materia_id` | Cirurgia, Clinica Medica do adulto I, Saude da Crianca II |
 
-**Novos Alertas (contexto B2B):**
-- "X alunos com baixa atividade" - Apenas 1 visita nos ultimos 14 dias
-- "X% da turma ainda nao acessou este mes" - Alunos que precisam de ativacao
-- "Engajamento abaixo do esperado" - Quando stickiness ou metricas estao baixas
+**Solucao**: Criar um mapeamento fuzzy no frontend que agrupe materias por grande area:
+- "Clinica Medica*", "Fisiopatologia*" -> Clinica Medica
+- "Cirurgia*", "Tecnica Cirurgica*" -> Cirurgia
+- "Pediatria", "Saude da Crianca*" -> Pediatria
+- etc.
 
-### 3. Reformular Insights Automaticos
+### Metricas de Correlacao
 
-**Insight Atual:**
+1. **Por Usuario**:
+   - Agrupar usuarios em faixas de "aulas concluidas" (0, 1-5, 6-15, 16-30, 31+)
+   - Calcular acuracia media de cada faixa
+   - Mostrar se a acuracia sobe conforme o estudo aumenta
+
+2. **Por Area** (Radar Chart reaproveitado):
+   - Para cada grande area: % de aulas concluidas vs % de acuracia
+   - Identificar "gaps pedagogicos": areas com muito estudo mas pouco acerto (problema de conteudo) ou pouco estudo e pouco acerto (oportunidade de ativacao)
+
+3. **Insights Inteligentes**:
+   - "Alunos que concluiram 10+ aulas tem 23% mais acuracia em media"
+   - "Cirurgia: alto estudo (72%) mas baixa acuracia (48%) - revisar conteudo"
+   - "Pediatria: baixo estudo (18%) e baixa acuracia (51%) - incentivar consumo"
+
+## Novo Design do Card
+
 ```
-"X usuarios em risco de churn - Usuarios com apenas 1 visita nos ultimos 14 dias precisam de reengajamento"
++----------------------------------------------------------+
+|  Correlacao Estudo x Desempenho              Coef: 0.72  |
+|  O estudo impacta diretamente no desempenho              |
++----------------------------------------------------------+
+|                          |  📚 Faixas de Estudo          |
+|     [Radar Chart]        |  0 aulas:      43% acuracia   |
+|     Estudo vs Acuracia   |  1-5 aulas:    51% acuracia   |
+|     por Grande Area      |  6-15 aulas:   58% acuracia   |
+|                          |  16-30 aulas:  67% acuracia   |
+|                          |  31+ aulas:    74% acuracia   |
++----------------------------------------------------------+
+|  ⚡ Insights                                              |
+|  • Alunos com 16+ aulas concluidas tem +24% de acuracia  |
+|  • Gap: Clinica Medica (68% estudo, 52% acuracia)        |
+|  • Oportunidade: Pediatria (12% estudo, pode melhorar)   |
++----------------------------------------------------------+
 ```
-
-**Novo Insight:**
-```
-"X alunos com baixa atividade - Estes alunos acessaram apenas 1 vez nas ultimas 2 semanas. Considere acoes de ativacao como lembretes ou comunicacao via coordenacao"
-```
-
-### 4. Adicionar Metricas Relevantes para B2B
-
-Novas metricas que fazem mais sentido no contexto institucional:
-
-- **Taxa de Ativacao**: % de alunos matriculados que acessaram pelo menos 1x
-- **Cobertura Mensal**: % de alunos ativos no mes vs total matriculados
-- **Alunos Nunca Ativos**: Usuarios cadastrados que nunca fizeram login
-- **Engajamento por Semestre/Curso**: Comparativo entre turmas
-
-### 5. Novo Card: Indicador de Saude Institucional
-
-Em vez de "Risco de Churn", criar um indicador de "Saude do Engajamento" que mostre ao gestor:
-- Verde: Engajamento saudavel (>60% ativos no mes)
-- Amarelo: Atencao necessaria (30-60% ativos)
-- Vermelho: Engajamento critico (<30% ativos)
 
 ## Arquivos a Modificar
 
 ### 1. `types.ts`
-- Renomear `churnRiskCount` para `lowEngagementCount`
-- Adicionar `neverActiveCount` e `activationRate`
-
-### 2. `useJourneyAnalytics.ts`
-- Atualizar calculo de `churnRiskCount` para `lowEngagementCount`
-- Calcular `neverActiveCount` (usuarios sem nenhuma sessao)
-- Calcular `activationRate` (% de usuarios com pelo menos 1 acesso)
-- Reescrever textos de insights e alertas
-
-### 3. `ExecutiveSummaryCards.tsx`
-- Renomear card "Risco Churn" para "Baixa Atividade"
-- Atualizar icone e cores para refletir contexto de ativacao (nao perda)
-- Adicionar tooltip explicativo
-
-### 4. `BehavioralSegments.tsx`
-- Renomear segmento "Em Risco" para "Inativos" ou "Baixa Frequencia"
-- Atualizar descricao e icone
-
-### 5. `RiskAlertBanner.tsx`
-- Renomear para `EngagementAlertBanner.tsx`
-- Atualizar textos para contexto B2B
-- Adicionar novos tipos de alerta focados em ativacao
-
-### 6. `SmartInsightsEngine.tsx`
-- Reescrever mensagens de insights
-- Mudar acoes sugeridas de "campanha de reengajamento" para "comunicacao via coordenacao" ou "lembretes institucionais"
-
-## Exemplos de Novos Textos
-
-### Alertas
-
-**Antes:**
-- "25 usuarios em risco de churn - Apenas 1 visita nos ultimos 14 dias"
-
-**Depois:**
-- "25 alunos com baixa atividade - Acessaram apenas 1 vez nas ultimas 2 semanas"
-- "15% da turma inativa este mes - Alunos matriculados que ainda nao acessaram"
-
-### Insights
-
-**Antes:**
-- "25 usuarios em risco de churn - Usuarios com apenas 1 visita nos ultimos 14 dias precisam de reengajamento. Acao: Enviar campanha de reengajamento"
-
-**Depois:**
-- "25 alunos com baixa atividade - Estes alunos podem nao estar aproveitando os recursos da plataforma. Acao: Notificar coordenacao para acompanhamento"
-
-### Segmentos
-
-**Antes:**
-- "Em Risco" com icone de alerta
-
-**Depois:**
-- "Baixa Frequencia" ou "Inativos" com icone neutro (nao alarmista)
-
-## Secao Tecnica
-
-### Estrutura de Tipos Atualizada
+Atualizar `LearningVelocityData` para incluir:
 ```typescript
-export interface ExecutiveMetrics {
-  dau: number;
-  wau: number;
-  mau: number;
-  stickiness: number;
-  avgSessionDepth: number;
-  avgSessionDuration: number;
-  timeToFirstSimulado: number | null;
-  calendarAdoption: number;
-  // Removido: churnRiskCount
-  lowEngagementCount: number;    // Novo: usuarios com apenas 1 visita em 14d
-  neverActiveCount: number;      // Novo: usuarios sem nenhum acesso
-  activationRate: number;        // Novo: % de usuarios que ja acessaram
-  totalUsers: number;
+export interface StudyVsPerformanceData {
+  // Correlacao por faixa de estudo
+  studyBands: {
+    band: string;      // "0", "1-5", "6-15", "16-30", "31+"
+    avgAccuracy: number;
+    userCount: number;
+    lessonsCompleted: number;
+  }[];
+  
+  // Correlacao por area
+  areaCorrelation: {
+    area: string;
+    studyPercentage: number;    // % de aulas concluidas da area
+    accuracy: number;            // % de acertos nas questoes
+    gap: 'content' | 'activation' | 'balanced';
+    lessonsCompleted: number;
+    totalLessons: number;
+    answersCorrect: number;
+    totalAnswers: number;
+  }[];
+  
+  // Metricas gerais
+  correlationCoefficient: number;  // -1 a 1, quanto mais perto de 1, maior correlacao
+  topInsights: string[];
 }
 ```
 
-### Logica de Calculo
+### 2. `useJourneyAnalytics.ts`
+Reescrever a query `learningQuery` para:
+1. Buscar `study_progress` agrupado por `user_id` e `materia_id`
+2. Buscar `answer_progress` com join em `questoes_simulado` para pegar `grande_area`
+3. Mapear `materia_id` para `grande_area` usando funcao de mapeamento
+4. Calcular correlacao por faixa de estudo e por area
+5. Gerar insights automaticos
+
+### 3. `LearningVelocityCard.tsx` -> `StudyCorrelationCard.tsx`
+Transformar completamente o componente:
+- Novo titulo: "Correlacao Estudo x Desempenho"
+- Radar chart com duas series: Estudo (azul) e Desempenho (vermelho/laranja)
+- Lista de faixas de estudo com barras de progresso
+- Alertas de gaps pedagogicos
+- Coeficiente de correlacao em destaque
+
+### 4. `index.ts`
+Atualizar export do componente renomeado
+
+## Mapeamento de Materias para Grandes Areas
+
 ```typescript
-// Low engagement (substitui churn risk)
-const lowEngagementCount = Array.from(userSessionCounts.entries())
-  .filter(([_, count]) => count === 1).length;
-
-// Never active (usuarios sem sessao alguma)
-const usersWithSessions = new Set(sessions.map(s => s.user_id));
-const neverActiveCount = totalUsers - usersWithSessions.size;
-
-// Activation rate
-const activationRate = totalUsers > 0 
-  ? Math.round((usersWithSessions.size / totalUsers) * 100) 
-  : 0;
+const AREA_MAPPING: Record<string, string[]> = {
+  'Clínica Médica': [
+    'clínica médica', 'fisiopatologia', 'semiologia', 
+    'farmacologia', 'medicina laboratorial', 'fisiologia'
+  ],
+  'Cirurgia': [
+    'cirurgia', 'técnica cirúrgica', 'clínica cirúrgica',
+    'urgência', 'emergência'
+  ],
+  'Pediatria': [
+    'pediatria', 'saúde da criança', 'adolescente'
+  ],
+  'Ginecologia e Obstetrícia': [
+    'ginecologia', 'obstetrícia', 'saúde da mulher', 'toco'
+  ],
+  'Saúde Mental': [
+    'saúde mental', 'psiquiatria', 'psicologia médica'
+  ],
+  'Medicina Preventiva/Saúde Coletiva': [
+    'saúde coletiva', 'epidemiologia', 'políticas públicas',
+    'bioestatística', 'ciências sociais', 'saúde do trabalhador'
+  ],
+  'Medicina de Família e Comunidade': [
+    'medicina da família', 'comunidade'
+  ],
+};
 ```
+
+## Fluxo de Dados
+
+```
+study_progress (user_id, materia_id, completed)
+        |
+        v
+    Mapeamento materia -> grande_area
+        |
+        v
+    Agregacao por usuario: aulas por area
+        |
+        +----> Join com answer_progress por user_id
+        |
+        v
+    Calculo de correlacao por:
+      - Faixa de aulas (0, 1-5, 6-15, 16-30, 31+)
+      - Grande area (% estudo vs % acuracia)
+        |
+        v
+    Geracao de insights automaticos
+```
+
+## Insights Automaticos (Logica)
+
+1. **Correlacao Geral**:
+   - Se acuracia media da faixa 31+ for 20%+ maior que faixa 0: "Forte correlacao positiva"
+   - Se for similar: "Correlacao fraca - investigar qualidade do conteudo"
+
+2. **Gap de Conteudo** (area com alto estudo, baixa acuracia):
+   - `studyPercentage > 60% && accuracy < 55%`
+   - Insight: "Revisar conteudo de {area} - alto consumo mas baixa retenção"
+
+3. **Oportunidade de Ativacao** (area com baixo estudo, baixa acuracia):
+   - `studyPercentage < 30% && accuracy < 55%`
+   - Insight: "Incentivar estudo de {area} - potencial de melhoria"
+
+4. **Area Balanceada** (estudo proporcional ao desempenho):
+   - Diferenca < 15% entre studyPercentage e accuracy
+   - Insight: "{area} apresenta bom equilibrio entre consumo e resultado"
+
+## Secao Tecnica Adicional
+
+### Calculo do Coeficiente de Correlacao
+
+Usando correlacao de Pearson simplificada:
+```typescript
+function calculateCorrelation(data: { study: number; accuracy: number }[]): number {
+  const n = data.length;
+  const sumX = data.reduce((s, d) => s + d.study, 0);
+  const sumY = data.reduce((s, d) => s + d.accuracy, 0);
+  const sumXY = data.reduce((s, d) => s + d.study * d.accuracy, 0);
+  const sumX2 = data.reduce((s, d) => s + d.study * d.study, 0);
+  const sumY2 = data.reduce((s, d) => s + d.accuracy * d.accuracy, 0);
+  
+  const numerator = n * sumXY - sumX * sumY;
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+  
+  return denominator === 0 ? 0 : numerator / denominator;
+}
+```
+
+### Performance
+
+- Cache de 10 minutos (staleTime)
+- Queries paralelas para study_progress e answer_progress
+- Mapeamento em memoria (O(n) para cada tabela)
 
 ## Beneficios
 
-1. **Contexto correto**: Metricas e alertas refletem a realidade B2B
-2. **Acoes relevantes**: Sugestoes fazem sentido para gestores de universidade
-3. **Menos alarme desnecessario**: "Baixa atividade" e menos alarmante que "risco de churn"
-4. **Novas metricas uteis**: Taxa de ativacao e cobertura sao mais relevantes para o cliente institucional
-5. **Comunicacao profissional**: Textos adequados para mostrar ao gestor da universidade
+1. **Insight Unico**: Correlacao que nao existe em nenhuma outra aba
+2. **Acao Clara**: Gestores sabem onde investir em ativacao vs onde revisar conteudo
+3. **Visual Impactante**: Radar chart comparativo e coeficiente de correlacao em destaque
+4. **Contexto B2B**: Foco em oportunidades institucionais, nao metricas individuais
 
 ## Entregaveis
 
-1. Types atualizados com novas metricas B2B
-2. Hook `useJourneyAnalytics` com calculos e textos revisados
-3. `ExecutiveSummaryCards` com card de "Baixa Atividade"
-4. `BehavioralSegments` com segmento "Inativos" em vez de "Em Risco"
-5. Alertas e insights reescritos para contexto institucional
-6. Possivel renomeacao de `RiskAlertBanner` para `EngagementAlertBanner`
+1. Tipos atualizados com `StudyVsPerformanceData`
+2. Hook `useJourneyAnalytics` com nova query de correlacao
+3. Novo componente `StudyCorrelationCard.tsx` com radar comparativo
+4. Mapeamento de materias para grandes areas
+5. Engine de insights automaticos de correlacao
+
