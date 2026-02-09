@@ -11,10 +11,11 @@ import { AnalyticsFilters } from '@/components/analytics/AnalyticsFilters';
 import { ExportReportModal } from '@/components/analytics/ExportReportModal';
 import { DataStatusIndicator } from '@/components/analytics/DataStatusIndicator';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
-import { RealtimeDashboard } from '@/components/admin/RealtimeDashboard';
+import { LiveUsersIndicator } from '@/components/analytics/LiveUsersIndicator';
 import { isB2BUser } from '@/utils/accessRules';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
-import { BarChart3, RefreshCw, Download, Radio } from 'lucide-react';
+import { useOnlineUsersCount } from '@/hooks/useOnlineUsersCount';
+import { BarChart3, RefreshCw, Download } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { getBrazilDate } from '@/utils/timezone';
 
@@ -62,6 +63,7 @@ const Analytics = () => {
   } = data;
 
   const hasAnalyticsAccess = isB2BUser(user);
+  const { count: onlineUsersCount, isConnected, isLoading: isLoadingOnline } = useOnlineUsersCount();
 
   const handleRefresh = async () => {
     await refetch();
@@ -92,6 +94,11 @@ const Analytics = () => {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              <LiveUsersIndicator 
+                sessionsCount={onlineUsersCount} 
+                isConnected={isConnected}
+                isLoading={isLoadingOnline}
+              />
               <Button
                 variant="outline"
                 size="sm"
@@ -121,16 +128,14 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* Filters - only show if not realtime tab */}
-        {activeTab !== 'realtime' && (
-          <div className="bg-card border rounded-lg p-4 mb-6">
-            <AnalyticsFilters filters={filters} onFilterChange={handleFilterChange} />
-          </div>
-        )}
+        {/* Filters */}
+        <div className="bg-card border rounded-lg p-4 mb-6">
+          <AnalyticsFilters filters={filters} onFilterChange={handleFilterChange} />
+        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6 bg-muted/50">
+          <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Visão Geral
             </TabsTrigger>
@@ -145,11 +150,6 @@ const Analytics = () => {
             </TabsTrigger>
             <TabsTrigger value="simulados" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Simulados
-            </TabsTrigger>
-            <TabsTrigger value="realtime" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm flex items-center gap-1">
-              <Radio className="w-3 h-3" />
-              <span className="hidden sm:inline">Tempo Real</span>
-              <span className="sm:hidden">Live</span>
             </TabsTrigger>
           </TabsList>
 
@@ -179,10 +179,6 @@ const Analytics = () => {
 
           <TabsContent value="simulados" className="space-y-6">
             <RealSimuladosTab filters={filters} />
-          </TabsContent>
-
-          <TabsContent value="realtime" className="space-y-6">
-            <RealtimeDashboard />
           </TabsContent>
         </Tabs>
 
