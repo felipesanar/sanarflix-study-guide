@@ -63,7 +63,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           )}
 
           {/* Mobile Header */}
-          {!isModoProva && <MobileHeader />}
+          {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
 
           {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
           <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">

@@ -16,7 +16,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function MobileHeader() {
+interface MobileHeaderProps {
+  hasScrolled?: boolean;
+}
+
+export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
   const { user, logout } = useAuth();
   const passwordDialog = usePasswordDialog();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -36,7 +40,11 @@ export function MobileHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-14 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg border-b border-border/30 md:hidden">
+    <header className={`sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:hidden transition-all duration-300 ${
+      hasScrolled 
+        ? 'bg-background/60 dark:bg-background/40 backdrop-blur-lg border-b border-border/20 dark:border-white/10' 
+        : 'bg-transparent border-b border-transparent'
+    }`}>
       {/* Logo */}
       <div className="flex items-center gap-2">
         <img
