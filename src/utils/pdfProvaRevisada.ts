@@ -147,47 +147,26 @@ const loadImageAsBase64 = async (url: string, timeoutMs = 5000): Promise<string 
 // TEXT SANITIZATION
 // ============================================================================
 
-/**
- * Sanitize text to remove problematic characters for PDF rendering
- * - Removes control characters
- * - Normalizes Unicode
- * - Replaces special characters with ASCII equivalents
- */
 const sanitizeText = (text: string): string => {
   if (!text) return '';
   
   return text
-    // Normalize Unicode to compatible form
     .normalize('NFKC')
-    // Remove control characters except space
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Replace tabs and line breaks with space
     .replace(/[\t\n\r]/g, ' ')
-    // Replace multiple spaces with single space
     .replace(/\s+/g, ' ')
-    // Replace smart quotes with regular quotes
     .replace(/[''‚]/g, "'")
     .replace(/[""„]/g, '"')
-    // Replace dashes
     .replace(/[–—−]/g, '-')
-    // Replace ellipsis
     .replace(/…/g, '...')
-    // Replace degree symbol
     .replace(/°/g, 'o')
-    // Replace superscripts
     .replace(/²/g, '2')
     .replace(/³/g, '3')
-    // Replace micro symbol
     .replace(/µ/g, 'u')
-    // Replace bullet
     .replace(/•/g, '-')
-    // Replace trademark symbols
     .replace(/[™®©]/g, '')
-    // Replace non-breaking space
     .replace(/\u00A0/g, ' ')
-    // Remove other non-printable characters but keep extended latin
     .replace(/[^\x20-\x7E\xA0-\xFF\u0100-\u017F]/g, ' ')
-    // Normalize spaces again after replacements
     .replace(/\s+/g, ' ')
     .trim();
 };
@@ -212,7 +191,7 @@ const drawRoundedRect = (
 
 const drawGradientHeader = (doc: jsPDF, height: number): void => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const steps = 20;
+  const steps = 40; // Smoother gradient (was 20)
   const stepHeight = height / steps;
   
   for (let i = 0; i < steps; i++) {
@@ -280,15 +259,12 @@ const wrapText = (doc: jsPDF, text: string, maxWidth: number): string[] => {
   let currentLine = '';
   
   for (const word of words) {
-    // Check if word alone exceeds maxWidth - break it if necessary
     if (doc.getTextWidth(word) > maxWidth) {
-      // Finalize current line if exists
       if (currentLine) {
         lines.push(currentLine.trim());
         currentLine = '';
       }
       
-      // Break long word into chunks
       let remaining = word;
       while (remaining.length > 0) {
         let chunk = '';
@@ -315,6 +291,72 @@ const wrapText = (doc: jsPDF, text: string, maxWidth: number): string[] => {
     if (doc.getTextWidth(testLine) > maxWidth) {
       if (currentLine) {
         lines.push(currentLine.trim());
+      }
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  
+  if (currentLine.trim()) {
+    lines.push(currentLine.trim());
+  }
+  
+  return lines;
+};
+
+/**
+ * Two-phase text wrapping: first line narrower (for label badge), rest full width
+ */
+const wrapTextTwoPhase = (doc: jsPDF, text: string, firstLineMaxWidth: number, restMaxWidth: number): string[] => {
+  const sanitized = sanitizeText(text);
+  if (!sanitized) return [];
+  
+  const words = sanitized.split(' ').filter(w => w.length > 0);
+  const lines: string[] = [];
+  let currentLine = '';
+  let isFirstLine = true;
+  
+  for (const word of words) {
+    const maxWidth = isFirstLine ? firstLineMaxWidth : restMaxWidth;
+    
+    if (doc.getTextWidth(word) > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine.trim());
+        currentLine = '';
+        isFirstLine = false;
+      }
+      
+      let remaining = word;
+      while (remaining.length > 0) {
+        const currentMaxW = isFirstLine ? firstLineMaxWidth : restMaxWidth;
+        let chunk = '';
+        for (let i = 1; i <= remaining.length; i++) {
+          const test = remaining.substring(0, i);
+          if (doc.getTextWidth(test) > currentMaxW - 3) {
+            chunk = remaining.substring(0, Math.max(1, i - 1));
+            break;
+          }
+          chunk = test;
+        }
+        if (chunk.length === remaining.length) {
+          lines.push(chunk);
+          isFirstLine = false;
+          break;
+        }
+        lines.push(chunk);
+        isFirstLine = false;
+        remaining = remaining.substring(chunk.length);
+      }
+      continue;
+    }
+    
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    
+    if (doc.getTextWidth(testLine) > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine.trim());
+        isFirstLine = false;
       }
       currentLine = word;
     } else {
@@ -401,64 +443,65 @@ const drawCoverPage = (
   doc.setFont('helvetica', 'bold');
   doc.text(alunoNome, 22, cardY + 22);
   
-  // Stats cards
-  const statsY = 115;
-  const cardWidth = (pageWidth - 56) / 3;
+  // Stats cards - dynamic Y based on previous content
+  let currentY = cardY + cardHeight + 15;
+  const statsCardWidth = (pageWidth - 56) / 3;
   const statsCardHeight = 50;
   
   // Acertos card
   doc.setFillColor(...COLORS.success.bg);
-  drawRoundedRect(doc, 14, statsY, cardWidth, statsCardHeight, 6, 'F');
+  drawRoundedRect(doc, 14, currentY, statsCardWidth, statsCardHeight, 6, 'F');
   doc.setTextColor(...COLORS.success.main);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text(String(stats.acertos), 14 + cardWidth / 2, statsY + 22, { align: 'center' });
+  doc.text(String(stats.acertos), 14 + statsCardWidth / 2, currentY + 22, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('ACERTOS', 14 + cardWidth / 2, statsY + 35, { align: 'center' });
+  doc.text('ACERTOS', 14 + statsCardWidth / 2, currentY + 35, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const acertosPerc = stats.total > 0 ? Math.round((stats.acertos / stats.total) * 100) : 0;
-  doc.text(`${acertosPerc}%`, 14 + cardWidth / 2, statsY + 44, { align: 'center' });
+  doc.text(`${acertosPerc}%`, 14 + statsCardWidth / 2, currentY + 44, { align: 'center' });
   
   // Erros card
-  const card2X = 14 + cardWidth + 14;
+  const card2X = 14 + statsCardWidth + 14;
   doc.setFillColor(...COLORS.error.bg);
-  drawRoundedRect(doc, card2X, statsY, cardWidth, statsCardHeight, 6, 'F');
+  drawRoundedRect(doc, card2X, currentY, statsCardWidth, statsCardHeight, 6, 'F');
   doc.setTextColor(...COLORS.error.main);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text(String(stats.erros), card2X + cardWidth / 2, statsY + 22, { align: 'center' });
+  doc.text(String(stats.erros), card2X + statsCardWidth / 2, currentY + 22, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('ERROS', card2X + cardWidth / 2, statsY + 35, { align: 'center' });
+  doc.text('ERROS', card2X + statsCardWidth / 2, currentY + 35, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const errosPerc = stats.total > 0 ? Math.round((stats.erros / stats.total) * 100) : 0;
-  doc.text(`${errosPerc}%`, card2X + cardWidth / 2, statsY + 44, { align: 'center' });
+  doc.text(`${errosPerc}%`, card2X + statsCardWidth / 2, currentY + 44, { align: 'center' });
   
   // Não respondidas card
-  const card3X = card2X + cardWidth + 14;
+  const card3X = card2X + statsCardWidth + 14;
   doc.setFillColor(...COLORS.neutral.bg);
-  drawRoundedRect(doc, card3X, statsY, cardWidth, statsCardHeight, 6, 'F');
+  drawRoundedRect(doc, card3X, currentY, statsCardWidth, statsCardHeight, 6, 'F');
   doc.setTextColor(...COLORS.neutral.main);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text(String(stats.naoRespondidas), card3X + cardWidth / 2, statsY + 22, { align: 'center' });
+  doc.text(String(stats.naoRespondidas), card3X + statsCardWidth / 2, currentY + 22, { align: 'center' });
   doc.setFontSize(10);
-  doc.text('N/RESPONDIDAS', card3X + cardWidth / 2, statsY + 35, { align: 'center' });
+  doc.text('N/RESPONDIDAS', card3X + statsCardWidth / 2, currentY + 35, { align: 'center' });
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const nrPerc = stats.total > 0 ? Math.round((stats.naoRespondidas / stats.total) * 100) : 0;
-  doc.text(`${nrPerc}%`, card3X + cardWidth / 2, statsY + 44, { align: 'center' });
+  doc.text(`${nrPerc}%`, card3X + statsCardWidth / 2, currentY + 44, { align: 'center' });
   
-  // Performance by area section
+  // Performance by area section - dynamic Y
+  currentY += statsCardHeight + 18;
+  
   if (stats.porArea.length > 0) {
-    const sectionY = 180;
     doc.setTextColor(...COLORS.text.dark);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('DESEMPENHO POR ÁREA', 14, sectionY);
+    doc.text('DESEMPENHO POR ÁREA', 14, currentY);
     
-    let areaY = sectionY + 12;
+    let areaY = currentY + 14;
     const barMaxWidth = pageWidth - 100;
     
     const sortedAreas = [...stats.porArea].sort((a, b) => b.percentual - a.percentual);
@@ -468,23 +511,20 @@ const drawCoverPage = (
       const area = sortedAreas[i];
       const barColor = getPercentageColor(area.percentual);
       
-      // Area name
       doc.setTextColor(...COLORS.text.dark);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       const truncatedArea = truncateText(doc, area.area, 60, 9);
       doc.text(truncatedArea, 14, areaY + 4);
       
-      // Progress bar
       drawProgressBar(doc, 75, areaY, barMaxWidth, 5, area.percentual, barColor);
       
-      // Percentage
       doc.setTextColor(...barColor);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.text(`${area.percentual}%`, 75 + barMaxWidth + 5, areaY + 4);
       
-      areaY += 12;
+      areaY += 13;
     }
   }
   
@@ -506,8 +546,8 @@ const drawStatusBadge = (
   y: number,
   status: 'acertou' | 'errou' | 'nao_respondeu' | 'anulada'
 ): void => {
-  const badgeWidth = 28;
-  const badgeHeight = 7;
+  const badgeWidth = 32; // Was 28
+  const badgeHeight = 8; // Was 7
   
   const config = {
     acertou: { bg: COLORS.success.bg, text: COLORS.success.text, label: 'ACERTOU' },
@@ -520,9 +560,11 @@ const drawStatusBadge = (
   doc.setFillColor(...c.bg);
   drawRoundedRect(doc, x, y, badgeWidth, badgeHeight, 2, 'F');
   doc.setTextColor(...c.text);
-  doc.setFontSize(7);
+  doc.setFontSize(7.5); // Was 7
   doc.setFont('helvetica', 'bold');
-  doc.text(c.label, x + badgeWidth / 2, y + 5, { align: 'center' });
+  // Vertically center text in badge: badgeHeight/2 + capHeight/2
+  const badgeTextY = y + badgeHeight / 2 + 7.5 * 0.35 * 0.7;
+  doc.text(c.label, x + badgeWidth / 2, badgeTextY, { align: 'center' });
 };
 
 const drawAlternative = (
@@ -534,8 +576,9 @@ const drawAlternative = (
   questaoAnulada: boolean
 ): number => {
   const lineHeight = 5.5;
-  const padding = 5;
-  const letterWidth = 14;
+  const padding = 6; // Was 5 - more breathing room
+  const letterWidth = 15; // Was 14
+  const circleRadius = 5.5; // Was 5
   
   // Determine style
   let bgColor: RGB = COLORS.neutral.white;
@@ -545,25 +588,21 @@ const drawAlternative = (
   let labelColor: RGB = COLORS.success.text;
   
   if (questaoAnulada) {
-    // All alternatives neutral when question is annulled
     bgColor = COLORS.neutral.bgLight;
     if (alt.isCorreta) {
       labelText = '(era a correta)';
     }
   } else if (alt.isCorreta && alt.isMarcadaPeloAluno) {
-    // Correct and student marked it
     bgColor = COLORS.success.bg;
     borderColor = COLORS.success.main;
     labelText = 'CORRETA - SUA RESPOSTA';
     labelColor = COLORS.success.text;
   } else if (alt.isCorreta && !alt.isMarcadaPeloAluno) {
-    // Correct but student didn't mark
-    bgColor = [220, 252, 231] as RGB; // Lighter green
+    bgColor = [220, 252, 231] as RGB;
     borderColor = COLORS.success.main;
     labelText = 'CORRETA';
     labelColor = COLORS.success.text;
   } else if (!alt.isCorreta && alt.isMarcadaPeloAluno) {
-    // Wrong and student marked it
     bgColor = COLORS.error.bg;
     borderColor = COLORS.error.main;
     textColor = COLORS.error.text;
@@ -576,18 +615,21 @@ const drawAlternative = (
   doc.setFont('helvetica', 'bold');
   const labelWidth = labelText ? doc.getTextWidth(labelText) + 8 : 0;
   
-  // Calculate available text width (reserve space for label on first line)
-  const textMaxWidth = width - padding * 2 - letterWidth - (labelText ? labelWidth + 5 : 0);
+  // Two-phase text width: first line narrower if label exists, rest full width
+  const fullTextMaxWidth = width - padding * 2 - letterWidth;
+  const firstLineMaxWidth = labelText ? fullTextMaxWidth - labelWidth - 5 : fullTextMaxWidth;
   
-  // Sanitize and wrap text
+  // Sanitize and wrap text with two-phase widths
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   const sanitizedTexto = sanitizeText(alt.texto);
-  const wrappedLines = wrapText(doc, sanitizedTexto, textMaxWidth);
+  const wrappedLines = labelText
+    ? wrapTextTwoPhase(doc, sanitizedTexto, firstLineMaxWidth, fullTextMaxWidth)
+    : wrapText(doc, sanitizedTexto, fullTextMaxWidth);
   
   // Calculate block height
   const textHeight = Math.max(wrappedLines.length, 1) * lineHeight;
-  const blockHeight = Math.max(textHeight + padding * 2, 16);
+  const blockHeight = Math.max(textHeight + padding * 2, 18); // Min 18 (was 16)
   
   // Draw background
   doc.setFillColor(...bgColor);
@@ -595,42 +637,56 @@ const drawAlternative = (
   doc.setLineWidth(0.3);
   drawRoundedRect(doc, x, y, width, blockHeight, 3, 'FD');
   
-  // Draw letter circle/badge
-  const letterCenterX = x + padding + 5;
-  const letterCenterY = y + padding + 5;
+  // Draw letter circle - perfectly centered
+  const letterCenterX = x + padding + circleRadius;
+  const letterCenterY = y + blockHeight / 2; // Vertically centered in block
   doc.setFillColor(...COLORS.wine.primary);
-  doc.circle(letterCenterX, letterCenterY, 5, 'F');
-  doc.setTextColor(...COLORS.neutral.white);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text(alt.letra, letterCenterX, letterCenterY + 3, { align: 'center' });
+  doc.circle(letterCenterX, letterCenterY, circleRadius, 'F');
   
-  // Draw text lines
+  // Draw letter - perfectly centered in circle using font metrics
+  doc.setTextColor(...COLORS.neutral.white);
+  const letterFontSize = 10; // Slightly larger for better visibility
+  doc.setFontSize(letterFontSize);
+  doc.setFont('helvetica', 'bold');
+  // jsPDF text Y = baseline. To center: circleCenter + capHeight * 0.35
+  const letterVerticalOffset = letterFontSize * 0.35 * 0.7; // ~2.45mm
+  doc.text(alt.letra, letterCenterX, letterCenterY + letterVerticalOffset, { align: 'center' });
+  
+  // Draw text lines - first line aligned with circle center
   doc.setTextColor(...textColor);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  wrappedLines.forEach((line, idx) => {
-    doc.text(line, x + padding + letterWidth, y + padding + 5 + idx * lineHeight);
-  });
+  const textX = x + padding + circleRadius * 2 + 4; // After circle with gap
   
-  // Draw label badge if present (positioned at top right, separate from text)
+  if (wrappedLines.length === 1) {
+    // Single line: align vertically with circle center
+    const singleLineY = letterCenterY + 9 * 0.35 * 0.7;
+    doc.text(wrappedLines[0], textX, singleLineY);
+  } else {
+    // Multiple lines: start from top padding, vertically distribute
+    const textStartY = y + padding + lineHeight * 0.8;
+    wrappedLines.forEach((line, idx) => {
+      doc.text(line, textX, textStartY + idx * lineHeight);
+    });
+  }
+  
+  // Draw label badge if present (positioned at top right)
   if (labelText) {
     const labelBadgeX = x + width - padding - labelWidth;
     const labelBadgeY = y + padding;
-    const labelBadgeHeight = 6;
+    const labelBadgeHeight = 7;
     
-    // Draw label background
     doc.setFillColor(...(alt.isMarcadaPeloAluno && !alt.isCorreta ? COLORS.error.bg : COLORS.success.bg));
     drawRoundedRect(doc, labelBadgeX, labelBadgeY, labelWidth, labelBadgeHeight, 2, 'F');
     
-    // Draw label text
     doc.setTextColor(...labelColor);
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.text(labelText, labelBadgeX + labelWidth / 2, labelBadgeY + 4.5, { align: 'center' });
+    const labelTextY = labelBadgeY + labelBadgeHeight / 2 + 7 * 0.35 * 0.7;
+    doc.text(labelText, labelBadgeX + labelWidth / 2, labelTextY, { align: 'center' });
   }
   
-  return blockHeight + 4;
+  return blockHeight + 5; // Was 4 - more gap between alternatives
 };
 
 const drawQuestionBlock = (
@@ -652,23 +708,24 @@ const drawQuestionBlock = (
     yPos = 20;
   }
   
-  // Question header bar
+  // Question header bar - slightly taller
+  const headerBarHeight = 14; // Was 12
   doc.setFillColor(...COLORS.wine.primary);
-  drawRoundedRect(doc, marginX, yPos, contentWidth, 12, 3, 'F');
+  drawRoundedRect(doc, marginX, yPos, contentWidth, headerBarHeight, 3, 'F');
   
   // Question number
   doc.setTextColor(...COLORS.neutral.white);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`QUESTÃO ${questao.numero}`, marginX + 6, yPos + 8);
+  doc.text(`QUESTÃO ${questao.numero}`, marginX + 6, yPos + headerBarHeight / 2 + 10 * 0.35 * 0.7);
   
-  // Difficulty and area
-  doc.setFontSize(8);
+  // Difficulty and area - slightly larger font
+  doc.setFontSize(8.5); // Was 8
   doc.setFont('helvetica', 'normal');
-  const metaText = `${questao.dificuldade || 'Médio'} • ${questao.grandeArea || 'Geral'}`;
-  doc.text(metaText, pageWidth / 2, yPos + 8, { align: 'center' });
+  const metaText = `${questao.dificuldade || 'Médio'} | ${questao.grandeArea || 'Geral'}`;
+  doc.text(metaText, pageWidth / 2, yPos + headerBarHeight / 2 + 8.5 * 0.35 * 0.7, { align: 'center' });
   
-  // Status badge
+  // Status badge - adjusted position for new header height
   let status: 'acertou' | 'errou' | 'nao_respondeu' | 'anulada' = 'nao_respondeu';
   if (questao.anulada) {
     status = 'anulada';
@@ -677,11 +734,11 @@ const drawQuestionBlock = (
   } else if (questao.acertou === false) {
     status = 'errou';
   }
-  drawStatusBadge(doc, pageWidth - marginX - 30, yPos + 2.5, status);
+  drawStatusBadge(doc, pageWidth - marginX - 34, yPos + (headerBarHeight - 8) / 2, status);
   
-  yPos += 18;
+  yPos += headerBarHeight + 8; // More gap after header (was +18 from 12)
   
-  // Enunciado - sanitized
+  // Enunciado
   doc.setTextColor(...COLORS.text.dark);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -697,21 +754,35 @@ const drawQuestionBlock = (
     yPos += 5.5;
   });
   
-  yPos += 6;
+  yPos += 8; // Was 6 - more gap after enunciado
   
-  // Image if present
+  // Image if present - with aspect ratio preservation
   if (imageBase64) {
     try {
-      const imgWidth = Math.min(contentWidth - 20, 120);
-      const imgHeight = 60;
+      const imgProps = doc.getImageProperties(imageBase64);
+      const naturalWidth = imgProps.width;
+      const naturalHeight = imgProps.height;
+      const maxImgWidth = Math.min(contentWidth - 20, 140);
+      const maxImgHeight = 100; // Max height limit
+      
+      let imgWidth = maxImgWidth;
+      let imgHeight = imgWidth * (naturalHeight / naturalWidth);
+      
+      // Constrain height
+      if (imgHeight > maxImgHeight) {
+        imgHeight = maxImgHeight;
+        imgWidth = imgHeight * (naturalWidth / naturalHeight);
+      }
       
       if (yPos + imgHeight > pageHeight - 40) {
         doc.addPage();
         yPos = 20;
       }
       
-      doc.addImage(imageBase64, 'PNG', marginX + 10, yPos, imgWidth, imgHeight);
-      yPos += imgHeight + 8;
+      // Center image
+      const imgX = marginX + (contentWidth - imgWidth) / 2;
+      doc.addImage(imageBase64, 'PNG', imgX, yPos, imgWidth, imgHeight);
+      yPos += imgHeight + 10;
     } catch {
       // Skip if image fails
     }
@@ -728,25 +799,23 @@ const drawQuestionBlock = (
     yPos += altHeight;
   }
   
-  // Comentário do professor - with proper sanitization and spacing
+  // Comentário do professor
   if (questao.comentario) {
-    yPos += 8;
+    yPos += 10; // Was 8 - more gap before comment
     
-    // Sanitize and wrap comment text with larger internal margin
     const sanitizedComment = sanitizeText(questao.comentario);
-    const commentMaxWidth = contentWidth - 24; // Larger internal margin
+    const commentMaxWidth = contentWidth - 24;
     
     doc.setFontSize(9);
     const commentLines = wrapText(doc, sanitizedComment, commentMaxWidth);
     
-    // Calculate height with proper padding
     const headerHeight = 14;
-    const textPadding = 10;
+    const textPadding = 12; // Was 10
     const lineSpacing = 5.5;
     const commentTextHeight = commentLines.length * lineSpacing;
     const commentHeight = headerHeight + commentTextHeight + textPadding;
     
-    // Check if we need new page for comment
+    // Check if comment fits - if not, move to new page
     if (yPos + commentHeight > pageHeight - 25) {
       doc.addPage();
       yPos = 20;
@@ -764,7 +833,7 @@ const drawQuestionBlock = (
     doc.setFont('helvetica', 'bold');
     doc.text('COMENTÁRIO DO PROFESSOR', marginX + 10, yPos + 10);
     
-    // Comment text with proper line spacing
+    // Comment text
     doc.setTextColor(...COLORS.text.dark);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
@@ -774,15 +843,15 @@ const drawQuestionBlock = (
       commentY += lineSpacing;
     });
     
-    yPos += commentHeight + 8;
+    yPos += commentHeight + 10; // Was 8
   }
   
-  // Separator
-  yPos += 8;
+  // Separator - more spacing
+  yPos += 10; // Was 8
   doc.setDrawColor(...COLORS.neutral.border);
   doc.setLineWidth(0.2);
   doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
-  yPos += 8;
+  yPos += 10; // Was 8
   
   return yPos;
 };
@@ -810,12 +879,10 @@ const drawAnalysisPage = (
   
   let yPos = 45;
   
-  // Sort areas by performance
   const sortedAreas = [...stats.porArea].sort((a, b) => b.percentual - a.percentual);
   const bestArea = sortedAreas[0];
   const worstArea = sortedAreas[sortedAreas.length - 1];
   
-  // Pontos Fortes section
   if (bestArea) {
     doc.setTextColor(...COLORS.success.main);
     doc.setFontSize(12);
@@ -835,7 +902,6 @@ const drawAnalysisPage = (
     yPos += 10;
   }
   
-  // Oportunidades de Melhoria section
   if (worstArea && sortedAreas.length > 1) {
     doc.setTextColor(...COLORS.error.main);
     doc.setFontSize(12);
@@ -855,7 +921,6 @@ const drawAnalysisPage = (
     yPos += 15;
   }
   
-  // Performance by difficulty
   if (stats.porDificuldade.length > 0) {
     doc.setTextColor(...COLORS.text.dark);
     doc.setFontSize(12);
@@ -868,16 +933,13 @@ const drawAnalysisPage = (
     stats.porDificuldade.forEach(diff => {
       const barColor = getPercentageColor(diff.percentual);
       
-      // Difficulty name
       doc.setTextColor(...COLORS.text.dark);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(diff.nivel, marginX, yPos + 4);
       
-      // Progress bar
       drawProgressBar(doc, marginX + 50, yPos, barWidth, 6, diff.percentual, barColor);
       
-      // Stats
       doc.setTextColor(...barColor);
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
@@ -887,7 +949,6 @@ const drawAnalysisPage = (
     });
   }
   
-  // Footer
   doc.setTextColor(...COLORS.text.muted);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -938,10 +999,8 @@ export const generateProvaRevisadaPDF = async (
   
   const doc = new jsPDF();
   
-  // Load logo
   const logoBase64 = await loadLogoAsBase64();
   
-  // Load question images in parallel (batch of 5)
   onProgress?.('loading_images', 0, questoes.filter(q => q.imagem).length);
   const imageMap = new Map<number, string | null>();
   const questoesComImagem = questoes.filter(q => q.imagem);
@@ -957,11 +1016,9 @@ export const generateProvaRevisadaPDF = async (
     onProgress?.('loading_images', Math.min(i + 5, questoesComImagem.length), questoesComImagem.length);
   }
   
-  // Generate cover page
   onProgress?.('generating', 0, questoes.length);
   drawCoverPage(doc, simuladoNome, alunoNome, stats, logoBase64);
   
-  // Generate question pages
   doc.addPage();
   let yPos = 20;
   
@@ -972,15 +1029,11 @@ export const generateProvaRevisadaPDF = async (
     onProgress?.('generating', i + 1, questoes.length);
   }
   
-  // Generate analysis page
   drawAnalysisPage(doc, stats);
-  
-  // Add footers to all pages
   addFootersToAllPages(doc);
   
   onProgress?.('complete');
   
-  // Generate safe filename
   const safeFileName = simuladoNome
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
