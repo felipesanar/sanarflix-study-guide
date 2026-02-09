@@ -119,9 +119,41 @@ const loadLogoAsBase64 = async (): Promise<string | null> => {
 };
 
 /**
- * Load question image as base64 with timeout
+ * Load question image as base64 with timeout.
+ * Uses an edge function proxy for S3 images to bypass CORS restrictions.
  */
-const loadImageAsBase64 = async (url: string, timeoutMs = 5000): Promise<string | null> => {
+const loadImageAsBase64 = async (url: string, timeoutMs = 10000): Promise<string | null> => {
+  const isS3 = url.startsWith('https://sanar-courses-platform-files.s3.');
+
+  if (isS3) {
+    // Use edge function proxy to bypass CORS
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? 'https://gvqvrmkizemwsasmupmo.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/image-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ url }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return null;
+      const { dataUrl } = await response.json();
+      return dataUrl || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Direct fetch for non-S3 images
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
