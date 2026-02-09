@@ -97,7 +97,6 @@ const Analytics = () => {
               <LiveUsersIndicator 
                 sessionsCount={onlineUsersCount} 
                 isConnected={isConnected}
-                isLoading={isLoadingOnline}
               />
               <Button
                 variant="outline"
