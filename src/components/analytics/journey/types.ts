@@ -16,7 +16,10 @@ export interface ExecutiveMetrics {
   avgSessionDuration: number;
   timeToFirstSimulado: number | null; // days
   calendarAdoption: number; // percentage
-  churnRiskCount: number;
+  // B2B metrics (substitui churnRiskCount)
+  lowEngagementCount: number; // usuarios com apenas 1 visita em 14d
+  neverActiveCount: number; // usuarios cadastrados sem nenhum acesso
+  activationRate: number; // % de usuarios que ja acessaram
   totalUsers: number;
 }
 
@@ -129,8 +132,8 @@ export interface SmartInsight {
   dataSource: string;
 }
 
-// Risk Alerts
-export interface RiskAlert {
+// Engagement Alerts (contexto B2B - substitui RiskAlerts)
+export interface EngagementAlert {
   id: string;
   level: 'critical' | 'warning' | 'positive';
   title: string;
@@ -139,6 +142,9 @@ export interface RiskAlert {
   percentage?: number;
   trend?: 'up' | 'down' | 'stable';
 }
+
+// Alias para compatibilidade
+export type RiskAlert = EngagementAlert;
 
 // Combined Journey Data
 export interface JourneyAnalyticsData {

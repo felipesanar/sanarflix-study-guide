@@ -53,7 +53,7 @@ const SEVERITY_STYLES = {
 const TYPE_LABELS = {
   anomaly: 'Anomalia',
   opportunity: 'Oportunidade',
-  risk: 'Risco',
+  risk: 'Atenção',
   correlation: 'Correlação',
   positive: 'Positivo',
 };

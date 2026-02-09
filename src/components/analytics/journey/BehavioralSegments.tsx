@@ -17,7 +17,7 @@ const SEGMENT_ICONS = {
   power: '🚀',
   regular: '📚',
   occasional: '👋',
-  at_risk: '⚠️',
+  low_frequency: '📉',
 };
 
 const TrendIcon: React.FC<{ trend: 'up' | 'down' | 'stable' }> = ({ trend }) => {
@@ -67,7 +67,7 @@ export const BehavioralSegments: React.FC<BehavioralSegmentsProps> = ({
         <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
           <p className="font-semibold">{data.name}</p>
           <p className="text-sm text-muted-foreground">
-            {data.value} usuários
+            {data.value} alunos
           </p>
         </div>
       );
