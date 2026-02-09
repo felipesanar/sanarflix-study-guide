@@ -686,7 +686,7 @@ const drawAlternative = (
     doc.text(labelText, labelBadgeX + labelWidth / 2, labelTextY, { align: 'center' });
   }
   
-  return blockHeight + 3; // Tighter gap between alternatives
+  return blockHeight + 2; // Tight gap between alternatives
 };
 
 const drawQuestionBlock = (
@@ -754,7 +754,7 @@ const drawQuestionBlock = (
     yPos += 5.5;
   });
   
-  yPos += 8; // Was 6 - more gap after enunciado
+  yPos += 6; // Compact gap after enunciado
   
   // Image if present - with aspect ratio preservation
   if (imageBase64) {
@@ -801,7 +801,7 @@ const drawQuestionBlock = (
   
   // Comentário do professor
   if (questao.comentario) {
-    yPos += 5; // Compact gap before comment
+    yPos += 3; // Tight gap before comment
     
     const sanitizedComment = sanitizeText(questao.comentario);
     const commentMaxWidth = contentWidth - 24;
@@ -815,10 +815,45 @@ const drawQuestionBlock = (
     const commentTextHeight = commentLines.length * lineSpacing;
     const commentHeight = headerHeight + commentTextHeight + textPadding;
     
-    // Check if comment fits - if not, move to new page
+    // Check if comment fits - if not, draw separator on current page then break
     if (yPos + commentHeight > pageHeight - 25) {
+      // Draw separator on current page to fill the gap
+      yPos += 6;
+      doc.setDrawColor(...COLORS.neutral.border);
+      doc.setLineWidth(0.2);
+      doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
+      
       doc.addPage();
       yPos = 20;
+      
+      // Draw comment on new page, then return early (separator already drawn)
+      doc.setFillColor(...COLORS.neutral.bgLight);
+      doc.setDrawColor(...COLORS.wine.primary);
+      doc.setLineWidth(0.5);
+      drawRoundedRect(doc, marginX, yPos, contentWidth, commentHeight, 4, 'FD');
+      
+      doc.setTextColor(...COLORS.wine.primary);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('COMENTÁRIO DO PROFESSOR', marginX + 10, yPos + 10);
+      
+      doc.setTextColor(...COLORS.text.dark);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      let cY = yPos + headerHeight + 4;
+      commentLines.forEach(line => {
+        doc.text(line, marginX + 12, cY);
+        cY += lineSpacing;
+      });
+      
+      yPos += commentHeight + 6;
+      // Add separator after comment
+      yPos += 6;
+      doc.setDrawColor(...COLORS.neutral.border);
+      doc.setLineWidth(0.2);
+      doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
+      yPos += 6;
+      return yPos;
     }
     
     // Comment box
@@ -843,15 +878,15 @@ const drawQuestionBlock = (
       commentY += lineSpacing;
     });
     
-    yPos += commentHeight + 10; // Was 8
+    yPos += commentHeight + 6;
   }
   
-  // Separator - more spacing
-  yPos += 10; // Was 8
+  // Separator between questions
+  yPos += 6;
   doc.setDrawColor(...COLORS.neutral.border);
   doc.setLineWidth(0.2);
   doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
-  yPos += 10; // Was 8
+  yPos += 6;
   
   return yPos;
 };
