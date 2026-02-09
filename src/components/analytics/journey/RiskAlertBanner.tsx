@@ -70,7 +70,7 @@ export const EngagementAlertBanner: React.FC<EngagementAlertBannerProps> = ({
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {sortedAlerts.map((alert, i) => {
         const styles = ALERT_STYLES[alert.level];
         const Icon = styles.icon;
@@ -82,27 +82,27 @@ export const EngagementAlertBanner: React.FC<EngagementAlertBannerProps> = ({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: i * 0.05 }}
             className={`
-              flex items-center gap-3 p-3 rounded-lg border
+              flex items-start gap-3 p-4 rounded-lg border
               ${styles.bg} ${styles.border}
             `}
           >
-            <Icon className={`h-5 w-5 ${styles.iconColor} flex-shrink-0`} />
+            <Icon className={`h-5 w-5 ${styles.iconColor} flex-shrink-0 mt-0.5`} />
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className={`font-medium text-sm ${styles.textColor}`}>
                   {alert.title}
                 </span>
                 <TrendIcon trend={alert.trend} level={alert.level} />
               </div>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-sm text-muted-foreground mt-1">
                 {alert.description}
               </p>
             </div>
             
             {(alert.count !== undefined || alert.percentage !== undefined) && (
               <div className="text-right flex-shrink-0">
-                <div className={`font-bold ${styles.textColor}`}>
+                <div className={`text-2xl font-bold ${styles.textColor}`}>
                   {alert.count !== undefined ? alert.count : `${alert.percentage}%`}
                 </div>
               </div>
