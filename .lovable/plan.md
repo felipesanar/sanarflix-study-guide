@@ -1,293 +1,325 @@
 
+# Plano: Auditoria e Melhorias da Aba Progresso do Analytics
 
-# Plano: Redesenho da Aba Progresso do Analytics
+## 1. Resumo Executivo
 
-## Diagnóstico do Problema Atual
+Este plano aborda uma auditoria completa e melhorias de UI/UX para a aba "Progresso" do dashboard de Analytics, corrigindo problemas de integridade de dados e elevando a experiência visual ao padrão premium das outras abas.
 
-### Problemas Identificados
+---
 
-1. **Taxa de Conclusão Enganosa**
-   - Atualmente calcula: `concluidos / registros em study_progress`
-   - Exemplo: Se um usuário marcou 5 aulas como concluídas de 354 disponíveis, e todas essas 5 estão como `completed=true`, a taxa mostra 100% - completamente errado
+## 2. Auditoria de Dados - Problemas Identificados
 
-2. **Sem Comparação com Conteúdo Total**
-   - Tabela `conteudos` tem 4.641 aulas cadastradas
-   - A lógica atual ignora completamente esse dado
-   - Deveria calcular: aulas concluídas pelo usuário / total de aulas disponíveis para o semestre/IES dele
+### 2.1 Problema Critico: Incompatibilidade de IDs
 
-3. **Filtro de Período Ignorado**
-   - A query atual não usa `dateRange` dos filtros
-   - Busca todos os registros de `study_progress` sem restrição de data
+| Tabela | Campo | Formato | Exemplo |
+|--------|-------|---------|---------|
+| `study_progress` | `content_id` | ID composto (string) | `"1-Anatomia do Aparelho locomotor-null-Sistema articular-Artrologia"` |
+| `conteudos` | `id` | UUID | `"7103fe69-1791-486e-b919-2f79938723dc"` |
 
-4. **Administradores Não Excluídos**
-   - Diferente das outras abas, a aba Progresso não filtra usuários admin
-   - Isso pode distorcer métricas
+**Impacto**: A metrica de "Cobertura de Conteudo" esta calculando `content_id` unicos de `study_progress` vs total de linhas em `conteudos`. Esses IDs NAO batem - sao formatos completamente diferentes.
 
-5. **Dados Escassos**
-   - Apenas 17 registros em `study_progress` de 2 usuários
-   - A aba precisa tratar melhor estados vazios e mostrar métricas alternativas
+**Solucao**: Recalcular cobertura usando JOIN por atributos (`materia_id` + `aula` ou normalizar os IDs).
 
-## Nova Arquitetura de Métricas
+### 2.2 Problema: Incompatibilidade de Tipos de Semestre
 
-### Métricas Principais (Corrigidas)
+| Tabela | Campo | Tipo | Valores |
+|--------|-------|------|---------|
+| `users` | `semestre` | INTEGER | 0, 1, 2, 3... 12, 13, 14 |
+| `conteudos` | `semestre` | TEXT | "1", "2", "INTERNATO", "0" |
 
-| Métrica | Cálculo Atual (Errado) | Cálculo Proposto (Correto) |
-|---------|------------------------|----------------------------|
-| Taxa de Conclusão Geral | `completed / total em study_progress` | `SUM(aulas_concluídas por usuário) / SUM(aulas_disponíveis por semestre/IES)` |
-| Progresso por Matéria | `completed / total por matéria em study_progress` | `aulas_concluídas da matéria / total_aulas_da_matéria em conteudos` |
-| Usuários por Faixa | Baseado em registros `study_progress` | Baseado em aulas concluídas vs disponíveis |
+**Impacto**: A comparacao `String(c.semestre) === String(userInfo.semestre)` pode falhar para valores como "INTERNATO" ou por diferencas de tipagem.
 
-### Novas Métricas Propostas
+**Solucao**: Normalizar semestres criando um mapeamento (ex: 11, 12 = "INTERNATO") ou usar funcao de normalizacao.
 
-1. **Velocidade de Estudo**
-   - Aulas concluídas por dia/semana no período selecionado
-   - Gráfico de tendência temporal
+### 2.3 Problema: Dados Escassos
 
-2. **Matérias Mais/Menos Populares**
-   - Ranking de matérias por volume de estudo (usuários únicos que interagiram)
-   - Identificar matérias "esquecidas"
+- `study_progress`: Apenas **17 registros** de **2 usuarios**
+- `conteudos`: **4.641 aulas** disponiveis
+- Usuarios nao-admin: **5.334**
 
-3. **Top Usuários Mais Ativos**
-   - Usuários com maior volume de conclusão (anonimizado para LGPD)
-   - Útil para gamificação e benchmarks
+**Impacto**: Metricas mostram valores muito baixos (0-1%) que parecem "quebrados" quando na verdade refletem baixo uso.
 
-4. **Cobertura de Conteúdo**
-   - % das aulas que foram acessadas por pelo menos um usuário
-   - Identificar conteúdo "morto" que ninguém toca
+**Solucao**: Adicionar contextualizacao e tratamento de estados com poucos dados.
 
-5. **Progressão por Semestre**
-   - Comparar progresso entre semestres diferentes
-   - Identificar gargalos no currículo
+### 2.4 Problema: Calculo de Taxa de Conclusao
 
-## Fluxo de Dados Proposto
+A taxa atual calcula `totalConclusoes / totalPossivel` onde `totalPossivel` e a soma de aulas disponiveis por usuario. Porem:
+- Usuarios com `semestre = 0` ou sem `id_ies` sao ignorados
+- Usuarios no semestre 11/12 podem nao ter match com "INTERNATO"
 
-```text
-ENTRADA:
-  - dateRange: { start, end }
-  - iesId: filtro de IES
-  - excludedIES: IES excluídas
+**Solucao**: Tratar semestre 0 como "todos os semestres" ou excluir explicitamente.
 
-PROCESSAMENTO:
+---
 
-  1. Buscar admin IDs (para exclusão)
+## 3. Melhorias de UI/UX
 
-  2. Buscar usuários elegíveis:
-     - Filtrar por IES se aplicável
-     - Excluir admins
-     - Coletar semestres de cada usuário
+### 3.1 Estrutura Atual vs Proposta
 
-  3. Buscar conteúdos disponíveis:
-     - Agrupar por IES + semestre + matéria
-     - Contar total de aulas por grupo
+**ATUAL (5 secoes):**
+1. KPIs em grid 4 colunas (sem MetricCard padrao)
+2. Grafico de area temporal
+3. BarChart horizontal + Lista ranking
+4. PieChart + Card de cobertura
+5. InsightBoxes
 
-  4. Buscar study_progress:
-     - Filtrar por completed_at no dateRange
-     - Filtrar por usuários elegíveis
-     - Excluir admins
+**PROPOSTO (6 secoes reorganizadas):**
+1. **Hero Metrics** - 4 MetricCards padrao com interpretacoes contextuais
+2. **Tendencia Temporal** - Area chart com granularidade ajustavel (dia/semana)
+3. **Progresso por Materia** - BarChart comparativo com indicadores visuais
+4. **Engajamento de Usuarios** - Distribuicao + Ranking em design unificado
+5. **Cobertura de Conteudo** - Card dedicado com drill-down por materia
+6. **Insights Inteligentes** - Engine de insights com priorizacao
 
-  5. Calcular métricas:
-     - Para cada usuário: aulas_concluídas / aulas_disponíveis_semestre
-     - Agregar por matéria
-     - Calcular tendências temporais
+### 3.2 Melhorias Especificas de UI
 
-SAÍDA:
-  - taxaConclusaoReal: % correta
-  - progressoPorMateria: com denominador do conteudos
-  - velocidadeEstudo: aulas/semana
-  - materiasPopulares: ranking
-  - coberturaConteudo: % acessado
+#### Cards KPI - Migrar para MetricCard
+
+Atualmente usa Cards simples. Proposta: usar `MetricCard` igual a aba Overview:
+
+```
++----------------------------------+
+| [icone]              +12% 7d    |
+|                                  |
+| Taxa de Conclusao                |
+| 2.3%                             |
+| vs conteudo disponivel           |
+|----------------------------------|
+| [status] Valor baixo esperado    |
+| para fase inicial. Benchmark: 15%|
++----------------------------------+
 ```
 
-## Novo Layout da Aba
+Beneficios:
+- Consistencia visual com Overview
+- Interpretacoes contextuais
+- Indicadores de tendencia
+- Estados de "dados indisponiveis"
 
-### Seção 1: Visão Geral (Métricas Corrigidas)
+#### Grafico Temporal - Melhorias
 
-```text
-+------------------------------------------------------------------+
-| 📊 Visão Geral de Progresso                                      |
-| Taxa de conclusão real baseada no conteúdo disponível            |
-+------------------------------------------------------------------+
-| ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐   |
-| │     12.5%        │ │      45         │ │     2.3/sem      │   |
-| │ Taxa de Conclusão│ │ Usuários Ativos │ │ Veloc. de Estudo │   |
-| │ ████░░░░░░░░░░░░ │ │  com progresso  │ │   aulas/semana   │   |
-| └──────────────────┘ └──────────────────┘ └──────────────────┘   |
-+------------------------------------------------------------------+
+- Adicionar toggle de granularidade (dia vs semana vs mes)
+- Adicionar linha de media movel
+- Mostrar tooltip com comparativo vs periodo anterior
+- Adicionar markers para picos/quedas significativas
+
+#### Progresso por Materia - Melhorias
+
+- Adicionar barra de "meta" (benchmark institucional)
+- Cores graduais por faixa de progresso (vermelho < 25%, amarelo 25-50%, verde > 50%)
+- Tooltip com numeros absolutos + contexto
+- Opcao de ordenar por: progresso, alfabetico, volume de usuarios
+
+#### Ranking de Materias - Melhorias
+
+- Adicionar sparkline de tendencia
+- Mostrar delta vs periodo anterior
+- Destacar materias "em alta" e "em queda"
+- Click para drill-down de detalhes
+
+#### Cobertura de Conteudo - Melhorias
+
+- Adicionar lista de "Materias nunca acessadas"
+- Ring chart ao inves de progress bar simples
+- Comparativo com benchmark
+
+---
+
+## 4. Novas Metricas Propostas
+
+### 4.1 Metricas de Engajamento Profundo
+
+| Metrica | Descricao | Calculo |
+|---------|-----------|---------|
+| Taxa de Ativacao | % usuarios que iniciaram progresso | `usuarios_com_progresso / total_usuarios` |
+| Profundidade Media | Aulas concluidas por usuario ativo | `total_conclusoes / usuarios_com_progresso` |
+| Taxa de Retorno | Usuarios com progresso em >1 dia | Distinct days per user |
+| Time-to-First-Completion | Dias entre primeiro acesso e primeira conclusao | Diff entre datas |
+
+### 4.2 Metricas de Conteudo
+
+| Metrica | Descricao | Calculo |
+|---------|-----------|---------|
+| Content Discovery Rate | % materias com pelo menos 1 acesso | Distinct materia_id / total materias |
+| Abandono por Materia | Materias iniciadas mas nao concluidas | Materias com progresso < 100% apos 30 dias |
+| Materias Mortas | Materias sem nenhum acesso | Zero em study_progress |
+
+---
+
+## 5. Tratamento de Estados Especiais
+
+### 5.1 Estado: Poucos Dados
+
+Quando `usuarios_com_progresso < 5`:
+
+```
++------------------------------------------+
+| [icone hourglass]                        |
+|                                          |
+| Coletando Dados de Progresso             |
+|                                          |
+| O tracking esta ativo. Atualmente temos  |
+| dados de 2 usuarios (0.04% da base).     |
+|                                          |
+| Os graficos serao populados conforme     |
+| mais usuarios interagem com o Guia.      |
+|                                          |
+| [Previsao: ~30 dias para amostra         |
+|  estatisticamente significativa]         |
++------------------------------------------+
 ```
 
-### Seção 2: Tendência Temporal (NOVA)
+### 5.2 Estado: Periodo Sem Atividade
 
-```text
-+------------------------------------------------------------------+
-| 📈 Velocidade de Estudo                                          |
-| Conclusões de aulas ao longo do período selecionado              |
-+------------------------------------------------------------------+
-|                                                                   |
-|   [Gráfico de Linha: conclusões por dia]                         |
-|   ▲                                                               |
-|   │     ⋅⋅⋅⋅⋅                                                    |
-|   │   ⋅⋅     ⋅⋅                                                  |
-|   │  ⋅        ⋅⋅⋅                                                |
-|   └────────────────────────▶                                      |
-|   Jan 01   Jan 07   Jan 14   Jan 21   Jan 28                     |
-|                                                                   |
-+------------------------------------------------------------------+
+Quando `porDia.length === 0` no periodo selecionado:
+
+```
++------------------------------------------+
+| [icone calendar-x]                       |
+|                                          |
+| Nenhuma conclusao no periodo             |
+|                                          |
+| Nao houve conclusoes de aulas entre      |
+| 01/01/2026 e 31/01/2026.                 |
+|                                          |
+| [Sugestao: Ampliar periodo]   [30d] [90d]|
++------------------------------------------+
 ```
 
-### Seção 3: Progresso por Matéria (Grid lado a lado)
+---
 
-```text
-+---------------------------+  +----------------------------+
-| 📚 Progresso por Matéria |  | 🔥 Matérias Mais Populares |
-| vs conteúdo disponível   |  | Por volume de usuários     |
-+---------------------------+  +----------------------------+
-|                           |  |                            |
-|  [BarChart horizontal]    |  | 1. Anatomia      45 users  |
-|  Anatomia     ██████  15% |  | 2. Fisiologia    38 users  |
-|  Fisiologia   ████    10% |  | 3. Cirurgia      32 users  |
-|  Cirurgia     ██      5%  |  | 4. Pediatria     28 users  |
-|  ...                      |  | 5. Clínica Méd.  25 users  |
-|                           |  |                            |
-+---------------------------+  +----------------------------+
-```
+## 6. Arquivos a Modificar
 
-### Seção 4: Distribuição e Cobertura
+### 6.1 `src/hooks/useAnalyticsData.ts`
 
-```text
-+---------------------------+  +----------------------------+
-| 👥 Usuários por Faixa     |  | 🎯 Cobertura de Conteúdo   |
-| (Progresso Real)          |  | Aulas que foram acessadas  |
-+---------------------------+  +----------------------------+
-|                           |  |                            |
-|  [PieChart Donut]         |  | 847 de 4.641 aulas         |
-|                           |  |                            |
-|  ● 0-25%:   120 users     |  |  ████████░░░░░░░ 18.2%    |
-|  ● 25-50%:   45 users     |  |                            |
-|  ● 50-75%:   12 users     |  | ⚠️ 82% do conteúdo nunca  |
-|  ● 75-100%:   3 users     |  |    foi acessado            |
-|                           |  |                            |
-+---------------------------+  +----------------------------+
-```
+**Mudancas na funcao `fetchProgressMetrics`:**
 
-### Seção 5: Insights Inteligentes
-
-```text
-+------------------------------------------------------------------+
-| ⚡ Insights de Progresso                                          |
-| Padrões identificados e recomendações                            |
-+------------------------------------------------------------------+
-| ┌────────────────────────────────┐ ┌────────────────────────────┐ |
-| │ 🔴 3 matérias sem acessos      │ │ 🟢 Anatomia em alta        │ |
-| │ Embriologia, Bioquímica e      │ │ 15 conclusões na última    │ |
-| │ Direitos Humanos não foram     │ │ semana, +200% vs anterior  │ |
-| │ acessadas no período           │ │                            │ |
-| │ 💡 Revisar visibilidade        │ │                            │ |
-| └────────────────────────────────┘ └────────────────────────────┘ |
-+------------------------------------------------------------------+
-```
-
-## Secao Tecnica
-
-### Arquivos a Modificar
-
-1. **`src/hooks/useAnalyticsData.ts`** - `fetchProgressMetrics`
-   - Adicionar filtro de dateRange
-   - Excluir admins
-   - Join com `conteudos` para calcular taxa real
-   - Novas métricas: velocidade, cobertura, popularidade
-
-2. **`src/hooks/useAnalyticsData.ts`** - `ProgressMetrics` interface
-   - Adicionar novos campos:
-   ```typescript
-   interface ProgressMetrics {
-     // Existentes (corrigidos)
-     progressoMedioPorMateria: { 
-       materia: string; 
-       progresso: number; 
-       aulasDisponiveis: number;
-       aulasConcluidas: number;
-     }[];
-     usuariosPorFaixaProgresso: { faixa: string; quantidade: number }[];
-     taxaConclusaoConteudo: number;
-     
-     // Novos
-     velocidadeEstudo: {
-       aulasUltimaSemana: number;
-       aulasSemanaAnterior: number;
-       tendencia: 'up' | 'down' | 'stable';
-       porDia: { data: string; conclusoes: number }[];
-     };
-     materiasPopulares: {
-       materia: string;
-       usuariosUnicos: number;
-       totalConclusoes: number;
-     }[];
-     coberturaConteudo: {
-       aulasAcessadas: number;
-       totalAulas: number;
-       percentual: number;
-     };
-     usuariosComProgresso: number;
-   }
-   ```
-
-3. **`src/components/analytics/RealProgressTab.tsx`**
-   - Redesenho completo da UI
-   - Novo gráfico de tendência temporal
-   - Seção de cobertura de conteúdo
-   - Seção de matérias populares
-   - Insights corrigidos
-
-### Lógica de Cálculo Correta
-
+1. Corrigir logica de cobertura de conteudo:
 ```typescript
-// 1. Taxa de Conclusão Real
-// Para cada usuário:
-//   - Buscar semestre e IES do usuário
-//   - Contar aulas disponíveis em `conteudos` para esse semestre/IES
-//   - Contar aulas concluídas em `study_progress` para esse usuário
-//   - progresso_usuario = concluidas / disponiveis
+// ANTES: Contava content_ids que nao casam com conteudos
+const aulasAcessadas = materiasAcessadas.size;
 
-// 2. Taxa Geral
-const taxaGeral = soma(progressos_usuarios) / total_usuarios;
+// DEPOIS: Contar por materia_id que existe em conteudos
+const materiasComProgresso = new Set(progressData.map(p => p.materia_id));
+const materiasDisponiveis = new Set(conteudosData.map(c => c.materia));
+const coberturaMateria = {
+  materiasAcessadas: [...materiasComProgresso].filter(m => materiasDisponiveis.has(m)).length,
+  totalMaterias: materiasDisponiveis.size,
+  percentual: Math.round((materiasComProgresso.size / materiasDisponiveis.size) * 100)
+};
+```
 
-// 3. Por Matéria
-// Para cada matéria:
-//   - Contar total de aulas em `conteudos` para essa matéria (filtrado por IES)
-//   - Contar conclusões em `study_progress` para essa matéria
-//   - progresso_materia = concluidas / disponiveis
+2. Normalizar semestres:
+```typescript
+const normalizeSemestre = (s: string | number | null): string => {
+  if (s === null || s === undefined) return 'unknown';
+  const sNum = typeof s === 'number' ? s : parseInt(String(s), 10);
+  if (isNaN(sNum)) return String(s).toUpperCase(); // "INTERNATO"
+  if (sNum >= 11 && sNum <= 12) return 'INTERNATO';
+  return String(sNum);
+};
+```
 
-// 4. Velocidade
-const aulasUltimaSemana = study_progress
-  .filter(p => p.completed_at >= 7diasAtras && p.completed)
-  .length;
+3. Adicionar novas metricas:
+```typescript
+interface ProgressMetrics {
+  // Existentes...
+  
+  // Novas
+  taxaAtivacao: number;
+  profundidadeMedia: number;
+  materiasNuncaAcessadas: string[];
+  diasComAtividade: number;
+  usuariosMaisAtivos: { id: string; conclusoes: number; email: string }[];
+}
+```
+
+### 6.2 `src/components/analytics/RealProgressTab.tsx`
+
+**Mudancas principais:**
+
+1. Substituir Cards simples por `MetricCard` com interpretacoes
+2. Adicionar toggle de granularidade no grafico temporal
+3. Melhorar BarChart com cores por faixa
+4. Adicionar lista de materias nunca acessadas
+5. Melhorar logica de insights com priorizacao
+6. Adicionar estados especiais para poucos dados
+
+### 6.3 Novos Componentes (opcionais)
+
+- `ProgressGranularityToggle.tsx` - Toggle dia/semana/mes
+- `MateriaDetailDrawer.tsx` - Drill-down de materia especifica
+- `CoverageRingChart.tsx` - Ring chart para cobertura
+
+---
+
+## 7. Ordem de Implementacao
+
+### Fase 1: Correcoes Criticas de Dados (Prioridade Alta)
+1. Corrigir calculo de cobertura de conteudo
+2. Normalizar comparacao de semestres
+3. Adicionar tratamento de estados vazios
+
+### Fase 2: Migracao para MetricCard (Prioridade Alta)
+1. Substituir os 4 KPIs por MetricCard
+2. Adicionar interpretacoes contextuais
+3. Adicionar indicadores de tendencia
+
+### Fase 3: Melhorias de Graficos (Prioridade Media)
+1. Toggle de granularidade temporal
+2. Cores por faixa no BarChart
+3. Melhorias em tooltips
+
+### Fase 4: Novas Metricas (Prioridade Media)
+1. Taxa de ativacao
+2. Materias nunca acessadas
+3. Usuarios mais ativos (anonimizado)
+
+### Fase 5: Insights Inteligentes (Prioridade Baixa)
+1. Engine de priorizacao
+2. Sugestoes de acao especificas
+3. Benchmarks institucionais
+
+---
+
+## 8. Secao Tecnica
+
+### Query de Cobertura Corrigida
+
+```sql
+-- Contar materias com progresso vs disponiveis
+SELECT 
+  (SELECT COUNT(DISTINCT materia_id) FROM study_progress WHERE completed = true) as materias_com_progresso,
+  (SELECT COUNT(DISTINCT materia) FROM conteudos) as total_materias;
+```
+
+### Normalizacao de Content ID
+
+O `content_id` em `study_progress` segue o padrao:
+`{semestre}-{materia}-{tema}-{subtema}-{aula}`
+
+Para cruzar com `conteudos`, extrair componentes:
+```typescript
+const parseContentId = (contentId: string) => {
+  const parts = contentId.split('-');
+  // Depende do formato exato, pode precisar de regex
+  return { semestre: parts[0], materia: parts[1], ... };
+};
 ```
 
 ### Performance
 
-- Queries em paralelo (Promise.all)
-- Cache de conteúdos por IES (evitar rebuscar)
-- Paginação se `study_progress` crescer muito
+- Manter queries paralelas (Promise.all)
+- Adicionar cache de materias disponiveis (staleTime: 5min)
+- Limitar lista de "materias nunca acessadas" a 10 itens
 
-### Tratamento de Estados Vazios
+---
 
-Se não houver dados:
-- Mostrar métricas zeradas com contexto explicativo
-- Highlight de cobertura de conteúdo (mesmo sem conclusões, mostrar quanto conteúdo existe)
-- Call-to-action para incentivar uso do Guia de Estudos
+## Entregaveis
 
-## Entregáveis
-
-1. Atualizar interface `ProgressMetrics` com novos campos
-2. Reescrever `fetchProgressMetrics` com:
-   - Exclusão de admins
-   - Filtro de período
-   - Join com `conteudos`
-   - Novas métricas
-3. Redesenhar `RealProgressTab.tsx` com:
-   - Métricas corrigidas
-   - Gráfico de tendência temporal
-   - Seção de cobertura
-   - Seção de popularidade
-   - Insights inteligentes
-
+1. Correcao de integridade nos calculos de cobertura e taxa
+2. Migracao dos KPIs para MetricCard padrao
+3. Estados especiais para baixo volume de dados
+4. Novas metricas de engajamento (ativacao, profundidade)
+5. Lista de materias nunca acessadas
+6. Melhorias visuais em graficos e rankings
+7. Engine de insights com priorizacao
