@@ -5,7 +5,7 @@ import {
   JourneyFunnelChart,
   BehavioralSegments,
   RetentionCohortGrid,
-  LearningVelocityCard,
+  StudyCorrelationCard,
   EngagementDepthCard,
   SmartInsightsEngine,
   RiskAlertBanner,
@@ -26,7 +26,7 @@ export const StudentJourneySection: React.FC<StudentJourneySectionProps> = ({ fi
     funnel,
     segments,
     retention,
-    learning,
+    studyCorrelation,
     engagement,
     insights,
     alerts,
@@ -64,7 +64,7 @@ export const StudentJourneySection: React.FC<StudentJourneySectionProps> = ({ fi
 
       {/* Learning Velocity & Engagement Depth */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LearningVelocityCard data={learning} isLoading={isLoading} />
+        <StudyCorrelationCard data={studyCorrelation} isLoading={isLoading} />
         <EngagementDepthCard data={engagement} isLoading={isLoading} />
       </section>
 

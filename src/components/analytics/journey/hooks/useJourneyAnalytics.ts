@@ -8,18 +8,24 @@ import type {
   FunnelStage,
   BehavioralSegmentsData,
   RetentionCohortData,
-  LearningVelocityData,
+  StudyVsPerformanceData,
   EngagementDepthData,
   SmartInsight,
   RiskAlert,
 } from '../types';
+import {
+  mapMateriaToArea,
+  calculatePearsonCorrelation,
+  determineGapType,
+  generateCorrelationInsights,
+} from '../utils/areaMapping';
 
 interface UseJourneyAnalyticsReturn {
   executive: ExecutiveMetrics | null;
   funnel: JourneyFunnelData | null;
   segments: BehavioralSegmentsData | null;
   retention: RetentionCohortData | null;
-  learning: LearningVelocityData | null;
+  studyCorrelation: StudyVsPerformanceData | null;
   engagement: EngagementDepthData | null;
   insights: SmartInsight[];
   alerts: RiskAlert[];
@@ -466,10 +472,16 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
     staleTime: 10 * 60 * 1000,
   });
 
-  // Query 5: Learning Velocity
-  const learningQuery = useQuery({
-    queryKey: ['journey-learning', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
-    queryFn: async (): Promise<LearningVelocityData> => {
+  // Query 5: Study vs Performance Correlation
+  const studyCorrelationQuery = useQuery({
+    queryKey: ['journey-study-correlation', iesId, excludedIES, startDate.toISOString(), endDate.toISOString(), Array.from(adminIds)],
+    queryFn: async (): Promise<StudyVsPerformanceData> => {
+      // Get study progress (lessons completed)
+      const { data: studyProgress } = await supabase
+        .from('study_progress')
+        .select('user_id, materia_id, completed')
+        .eq('completed', true);
+
       // Get answers with questions to get grande_area
       const { data: answers } = await supabase
         .from('answer_progress')
@@ -481,54 +493,175 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         `)
         .order('answer_id');
 
-      // Group by grande_area (excluding admin users)
-      const areaStats = new Map<string, { correct: number; total: number; users: Set<string> }>();
-      
-      (answers || []).forEach((a: any) => {
-        // Exclude admin users
-        if (a.user_id && adminIds.has(a.user_id)) return;
+      // Filter out admin users
+      const filteredStudy = (studyProgress || []).filter(s => s.user_id && !adminIds.has(s.user_id));
+      const filteredAnswers = (answers || []).filter((a: any) => a.user_id && !adminIds.has(a.user_id));
+
+      // Check if we have enough data
+      if (filteredStudy.length < 10 || filteredAnswers.length < 10) {
+        return {
+          studyBands: [],
+          areaCorrelation: [],
+          correlationCoefficient: 0,
+          topInsights: [],
+          totalLessonsCompleted: filteredStudy.length,
+          totalAnswers: filteredAnswers.length,
+          hasEnoughData: false,
+        };
+      }
+
+      // Map study progress to areas
+      const userAreaStudy = new Map<string, Map<string, number>>();
+      filteredStudy.forEach(s => {
+        const area = mapMateriaToArea(s.materia_id);
+        if (!area) return;
         
-        const area = a.questoes_simulado?.grande_area || 'Não categorizado';
-        if (!areaStats.has(area)) {
-          areaStats.set(area, { correct: 0, total: 0, users: new Set() });
+        if (!userAreaStudy.has(s.user_id)) {
+          userAreaStudy.set(s.user_id, new Map());
         }
-        const stats = areaStats.get(area)!;
-        stats.total++;
-        if (a.correct) stats.correct++;
-        if (a.user_id) stats.users.add(a.user_id);
+        const userMap = userAreaStudy.get(s.user_id)!;
+        userMap.set(area, (userMap.get(area) || 0) + 1);
       });
 
-      const areaPerformance = Array.from(areaStats.entries())
-        .map(([area, stats]) => ({
+      // Aggregate answers by user and area
+      const userAreaAnswers = new Map<string, Map<string, { correct: number; total: number }>>();
+      filteredAnswers.forEach((a: any) => {
+        const area = a.questoes_simulado?.grande_area;
+        if (!area || !a.user_id) return;
+        
+        if (!userAreaAnswers.has(a.user_id)) {
+          userAreaAnswers.set(a.user_id, new Map());
+        }
+        const userMap = userAreaAnswers.get(a.user_id)!;
+        if (!userMap.has(area)) {
+          userMap.set(area, { correct: 0, total: 0 });
+        }
+        const stats = userMap.get(area)!;
+        stats.total++;
+        if (a.correct) stats.correct++;
+      });
+
+      // Calculate user-level metrics for study bands
+      const userMetrics: { lessonsCompleted: number; accuracy: number }[] = [];
+      const allUserIds = new Set([...userAreaStudy.keys(), ...userAreaAnswers.keys()]);
+      
+      allUserIds.forEach(userId => {
+        const studyMap = userAreaStudy.get(userId);
+        const answerMap = userAreaAnswers.get(userId);
+        
+        const lessonsCompleted = studyMap 
+          ? Array.from(studyMap.values()).reduce((sum, v) => sum + v, 0) 
+          : 0;
+        
+        let totalCorrect = 0;
+        let totalAnswers = 0;
+        if (answerMap) {
+          answerMap.forEach(stats => {
+            totalCorrect += stats.correct;
+            totalAnswers += stats.total;
+          });
+        }
+        
+        if (totalAnswers > 0) {
+          const accuracy = Math.round((totalCorrect / totalAnswers) * 100);
+          userMetrics.push({ lessonsCompleted, accuracy });
+        }
+      });
+
+      // Create study bands
+      const bands = [
+        { band: '0', min: 0, max: 0 },
+        { band: '1-5', min: 1, max: 5 },
+        { band: '6-15', min: 6, max: 15 },
+        { band: '16-30', min: 16, max: 30 },
+        { band: '31+', min: 31, max: Infinity },
+      ];
+
+      const studyBands = bands.map(({ band, min, max }) => {
+        const usersInBand = userMetrics.filter(u => u.lessonsCompleted >= min && u.lessonsCompleted <= max);
+        const avgAccuracy = usersInBand.length > 0
+          ? Math.round(usersInBand.reduce((sum, u) => sum + u.accuracy, 0) / usersInBand.length)
+          : 0;
+        
+        return {
+          band,
+          avgAccuracy,
+          userCount: usersInBand.length,
+          lessonsCompleted: usersInBand.reduce((sum, u) => sum + u.lessonsCompleted, 0),
+        };
+      }).filter(b => b.userCount > 0);
+
+      // Calculate area correlation
+      const allAreas = new Set<string>();
+      userAreaStudy.forEach(map => map.forEach((_, area) => allAreas.add(area)));
+      userAreaAnswers.forEach(map => map.forEach((_, area) => allAreas.add(area)));
+
+      // Get total lessons per area for percentage calculation
+      const areaLessonTotals = new Map<string, number>();
+      filteredStudy.forEach(s => {
+        const area = mapMateriaToArea(s.materia_id);
+        if (area) {
+          areaLessonTotals.set(area, (areaLessonTotals.get(area) || 0) + 1);
+        }
+      });
+      const maxLessons = Math.max(...Array.from(areaLessonTotals.values()), 1);
+
+      const areaCorrelation = Array.from(allAreas).map(area => {
+        let totalStudy = 0;
+        let totalCorrect = 0;
+        let totalAnswersInArea = 0;
+        
+        userAreaStudy.forEach(map => {
+          totalStudy += map.get(area) || 0;
+        });
+        
+        userAreaAnswers.forEach(map => {
+          const stats = map.get(area);
+          if (stats) {
+            totalCorrect += stats.correct;
+            totalAnswersInArea += stats.total;
+          }
+        });
+
+        const studyPercentage = Math.round((totalStudy / maxLessons) * 100);
+        const accuracy = totalAnswersInArea > 0 
+          ? Math.round((totalCorrect / totalAnswersInArea) * 100) 
+          : 0;
+        
+        const gap = determineGapType(studyPercentage, accuracy);
+
+        return {
           area,
-          accuracy: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
-          totalResponses: stats.total,
-          uniqueUsers: stats.users.size,
-        }))
-        .filter(a => a.area !== 'Não categorizado')
-        .sort((a, b) => b.totalResponses - a.totalResponses);
+          studyPercentage,
+          accuracy,
+          gap,
+          lessonsCompleted: totalStudy,
+          totalLessons: areaLessonTotals.get(area) || 0,
+          answersCorrect: totalCorrect,
+          totalAnswers: totalAnswersInArea,
+        };
+      })
+      .filter(a => a.totalAnswers >= 5) // Need at least 5 answers for meaningful data
+      .sort((a, b) => b.totalAnswers - a.totalAnswers);
 
-      // Overall accuracy
-      const totalCorrect = Array.from(areaStats.values()).reduce((sum, s) => sum + s.correct, 0);
-      const totalAnswers = Array.from(areaStats.values()).reduce((sum, s) => sum + s.total, 0);
-      const overallAccuracy = totalAnswers > 0 ? Math.round((totalCorrect / totalAnswers) * 100) : 0;
+      // Calculate Pearson correlation
+      const correlationData = userMetrics
+        .filter(u => u.lessonsCompleted > 0)
+        .map(u => ({ study: u.lessonsCompleted, accuracy: u.accuracy }));
+      
+      const correlationCoefficient = calculatePearsonCorrelation(correlationData);
 
-      // Find gaps (lowest accuracy areas)
-      const gaps = areaPerformance
-        .filter(a => a.totalResponses >= 10)
-        .sort((a, b) => a.accuracy - b.accuracy)
-        .slice(0, 3)
-        .map(a => ({
-          area: a.area,
-          accuracy: a.accuracy,
-          improvement: a.accuracy < 50 ? 'Crítico' : a.accuracy < 60 ? 'Atenção' : 'Moderado',
-        }));
+      // Generate insights
+      const topInsights = generateCorrelationInsights(studyBands, areaCorrelation, correlationCoefficient);
 
       return {
-        areaPerformance,
-        overallAccuracy,
-        correlationData: [], // Would need study_progress join
-        gaps,
+        studyBands,
+        areaCorrelation,
+        correlationCoefficient,
+        topInsights,
+        totalLessonsCompleted: filteredStudy.length,
+        totalAnswers: filteredAnswers.length,
+        hasEnoughData: true,
       };
     },
     staleTime: 10 * 60 * 1000,
@@ -706,35 +839,64 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
     }
   }
 
-  if (learningQuery.data) {
-    const learning = learningQuery.data;
+  if (studyCorrelationQuery.data?.hasEnoughData) {
+    const correlation = studyCorrelationQuery.data;
     
-    learning.gaps.forEach((gap, i) => {
-      if (gap.accuracy < 50 && i === 0) {
-        insights.push({
-          id: `gap-${gap.area}`,
-          type: 'risk',
-          severity: 'warning',
-          title: `${gap.area} é gargalo pedagógico`,
-          description: `Apenas ${gap.accuracy}% de acerto. Esta área precisa de mais conteúdo ou revisão.`,
-          metric: 'Acurácia',
-          value: gap.accuracy,
-          action: 'Revisar material didático',
-          dataSource: 'answer_progress + questoes_simulado',
-        });
-      }
-    });
-
-    if (learning.overallAccuracy >= 60) {
+    // Insights based on correlation coefficient
+    if (correlation.correlationCoefficient > 0.5) {
       insights.push({
-        id: 'good-accuracy',
+        id: 'strong-correlation',
         type: 'positive',
         severity: 'success',
-        title: 'Performance pedagógica saudável',
-        description: `Acurácia geral de ${learning.overallAccuracy}% indica boa absorção do conteúdo.`,
-        metric: 'Acurácia Geral',
-        value: learning.overallAccuracy,
-        dataSource: 'answer_progress',
+        title: 'Forte correlação estudo-desempenho',
+        description: `Coeficiente de ${correlation.correlationCoefficient.toFixed(2)} indica que alunos que estudam mais têm melhor desempenho.`,
+        metric: 'Correlação',
+        value: correlation.correlationCoefficient,
+        dataSource: 'study_progress + answer_progress',
+      });
+    } else if (correlation.correlationCoefficient < 0.2) {
+      insights.push({
+        id: 'weak-correlation',
+        type: 'risk',
+        severity: 'warning',
+        title: 'Correlação estudo-desempenho fraca',
+        description: 'Estudar mais não está resultando em melhor desempenho. Investigar qualidade do conteúdo.',
+        metric: 'Correlação',
+        value: correlation.correlationCoefficient,
+        action: 'Revisar conteúdo didático',
+        dataSource: 'study_progress + answer_progress',
+      });
+    }
+
+    // Content gaps
+    const contentGaps = correlation.areaCorrelation.filter(a => a.gap === 'content');
+    if (contentGaps.length > 0) {
+      insights.push({
+        id: 'content-gap',
+        type: 'risk',
+        severity: 'warning',
+        title: `Gap de conteúdo: ${contentGaps[0].area}`,
+        description: `${contentGaps[0].studyPercentage}% estudo mas apenas ${contentGaps[0].accuracy}% acurácia. Revisar material.`,
+        metric: 'Gap Pedagógico',
+        value: contentGaps[0].accuracy,
+        action: 'Revisar material didático',
+        dataSource: 'study_progress + answer_progress',
+      });
+    }
+
+    // Activation opportunities
+    const activationGaps = correlation.areaCorrelation.filter(a => a.gap === 'activation');
+    if (activationGaps.length > 0) {
+      insights.push({
+        id: 'activation-opportunity',
+        type: 'opportunity',
+        severity: 'info',
+        title: `Oportunidade: ${activationGaps[0].area}`,
+        description: `Apenas ${activationGaps[0].studyPercentage}% de consumo. Incentivar estudo pode melhorar desempenho.`,
+        metric: 'Ativação',
+        value: activationGaps[0].studyPercentage,
+        action: 'Incentivar consumo de aulas',
+        dataSource: 'study_progress',
       });
     }
   }
@@ -792,8 +954,8 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
     }
   }
 
-  if (learningQuery.data) {
-    const gaps = learningQuery.data.gaps.filter(g => g.accuracy < 50);
+  if (studyCorrelationQuery.data?.hasEnoughData) {
+    const gaps = studyCorrelationQuery.data.areaCorrelation.filter(a => a.accuracy < 50);
     if (gaps.length > 0) {
       alerts.push({
         id: 'learning-gaps',
@@ -818,18 +980,18 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
 
   const isLoading = executiveQuery.isLoading || funnelQuery.isLoading || 
     segmentsQuery.isLoading || retentionQuery.isLoading || 
-    learningQuery.isLoading || engagementQuery.isLoading;
+    studyCorrelationQuery.isLoading || engagementQuery.isLoading;
 
   const error = executiveQuery.error || funnelQuery.error || 
     segmentsQuery.error || retentionQuery.error || 
-    learningQuery.error || engagementQuery.error;
+    studyCorrelationQuery.error || engagementQuery.error;
 
   return {
     executive: executiveQuery.data ?? null,
     funnel: funnelQuery.data ?? null,
     segments: segmentsQuery.data ?? null,
     retention: retentionQuery.data ?? null,
-    learning: learningQuery.data ?? null,
+    studyCorrelation: studyCorrelationQuery.data ?? null,
     engagement: engagementQuery.data ?? null,
     insights,
     alerts,
