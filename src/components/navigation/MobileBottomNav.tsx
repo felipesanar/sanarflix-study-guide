@@ -193,8 +193,8 @@ export function MobileBottomNav() {
       role="navigation"
       className="fixed bottom-0 inset-x-0 z-40 md:hidden"
     >
-      {/* Glass background */}
-      <div className="absolute inset-0 bg-background/90 backdrop-blur-xl border-t border-border/50 shadow-2xl dark:shadow-none" />
+      {/* Glass background - more subtle in dark mode */}
+      <div className="absolute inset-0 bg-background/70 dark:bg-background/40 backdrop-blur-xl dark:backdrop-blur-2xl border-t border-border/30 dark:border-white/[0.06] shadow-lg dark:shadow-none" />
 
       {/* Nav content */}
       <div className="relative px-1.5 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+0.375rem)]">
