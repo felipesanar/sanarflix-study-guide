@@ -1,24 +1,28 @@
-import { useSyncExternalStore, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { presenceService } from '@/services/presenceService';
 
-// Initialize channel immediately on module load
-presenceService.getChannel();
-
 export const useOnlineUsersCount = () => {
-  const subscribe = useCallback((onStoreChange: () => void) => {
-    return presenceService.subscribe(onStoreChange);
-  }, []);
+  const [count, setCount] = useState(0);
+  const [isConnected, setIsConnected] = useState(false);
+  const mountedRef = useRef(true);
 
-  const getCountSnapshot = useCallback(() => {
-    return presenceService.getCount();
-  }, []);
+  useEffect(() => {
+    mountedRef.current = true;
 
-  const getConnectedSnapshot = useCallback(() => {
-    return presenceService.getIsConnected();
-  }, []);
+    const handleUpdate = (newCount: number, connected: boolean) => {
+      if (mountedRef.current) {
+        setCount(newCount);
+        setIsConnected(connected);
+      }
+    };
 
-  const count = useSyncExternalStore(subscribe, getCountSnapshot, getCountSnapshot);
-  const isConnected = useSyncExternalStore(subscribe, getConnectedSnapshot, getConnectedSnapshot);
+    const unsubscribe = presenceService.subscribe(handleUpdate);
+
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, []);
 
   return {
     count,
