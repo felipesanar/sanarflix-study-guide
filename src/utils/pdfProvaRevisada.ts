@@ -801,36 +801,27 @@ const drawQuestionBlock = (
   
   // Comentário do professor
   if (questao.comentario) {
-    yPos += 3; // Tight gap before comment
+    yPos += 3;
     
     const sanitizedComment = sanitizeText(questao.comentario);
     const commentMaxWidth = contentWidth - 24;
+    const bottomLimit = pageHeight - 25; // above footer
     
     doc.setFontSize(9);
     const commentLines = wrapText(doc, sanitizedComment, commentMaxWidth);
     
     const headerHeight = 14;
-    const textPadding = 12; // Was 10
+    const textPadding = 12;
     const lineSpacing = 5.5;
     const commentTextHeight = commentLines.length * lineSpacing;
-    const commentHeight = headerHeight + commentTextHeight + textPadding;
+    const totalCommentHeight = headerHeight + commentTextHeight + textPadding;
     
-    // Check if comment fits - if not, draw separator on current page then break
-    if (yPos + commentHeight > pageHeight - 25) {
-      // Draw separator on current page to fill the gap
-      yPos += 6;
-      doc.setDrawColor(...COLORS.neutral.border);
-      doc.setLineWidth(0.2);
-      doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
-      
-      doc.addPage();
-      yPos = 20;
-      
-      // Draw comment on new page, then return early (separator already drawn)
+    // If entire comment fits on current page, draw as single box
+    if (yPos + totalCommentHeight <= bottomLimit) {
       doc.setFillColor(...COLORS.neutral.bgLight);
       doc.setDrawColor(...COLORS.wine.primary);
       doc.setLineWidth(0.5);
-      drawRoundedRect(doc, marginX, yPos, contentWidth, commentHeight, 4, 'FD');
+      drawRoundedRect(doc, marginX, yPos, contentWidth, totalCommentHeight, 4, 'FD');
       
       doc.setTextColor(...COLORS.wine.primary);
       doc.setFontSize(9);
@@ -846,43 +837,72 @@ const drawQuestionBlock = (
         cY += lineSpacing;
       });
       
-      yPos += commentHeight + 6;
-      // Add separator after comment
-      yPos += 6;
+      yPos += totalCommentHeight + 6;
+    } else {
+      // Comment doesn't fit — render line-by-line with page breaks
+      // First: can we fit at least the header + 2 lines? If not, break now
+      const minCommentStart = headerHeight + lineSpacing * 2 + textPadding;
+      if (yPos + minCommentStart > bottomLimit) {
+        // Draw separator on current page to fill gap, then break
+        yPos += 4;
+        doc.setDrawColor(...COLORS.neutral.border);
+        doc.setLineWidth(0.2);
+        doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      // Draw comment header with left border accent (no fixed-height box)
+      doc.setDrawColor(...COLORS.wine.primary);
+      doc.setLineWidth(1.5);
+      doc.line(marginX + 2, yPos, marginX + 2, yPos + headerHeight);
+      
+      doc.setFillColor(...COLORS.neutral.bgLight);
       doc.setDrawColor(...COLORS.neutral.border);
-      doc.setLineWidth(0.2);
-      doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
+      doc.setLineWidth(0.3);
+      
+      doc.setTextColor(...COLORS.wine.primary);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('COMENTÁRIO DO PROFESSOR', marginX + 10, yPos + 10);
+      yPos += headerHeight + 2;
+      
+      // Render comment lines with page-break awareness
+      doc.setTextColor(...COLORS.text.dark);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      
+      for (const line of commentLines) {
+        if (yPos > bottomLimit) {
+          doc.addPage();
+          yPos = 20;
+          // Continuation indicator
+          doc.setDrawColor(...COLORS.wine.primary);
+          doc.setLineWidth(1.5);
+          doc.line(marginX + 2, yPos, marginX + 2, yPos + 8);
+          doc.setTextColor(...COLORS.text.muted);
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.text('(continuação do comentário)', marginX + 10, yPos + 5);
+          yPos += 10;
+          doc.setTextColor(...COLORS.text.dark);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+        }
+        doc.text(line, marginX + 12, yPos);
+        yPos += lineSpacing;
+      }
+      
       yPos += 6;
-      return yPos;
     }
-    
-    // Comment box
-    doc.setFillColor(...COLORS.neutral.bgLight);
-    doc.setDrawColor(...COLORS.wine.primary);
-    doc.setLineWidth(0.5);
-    drawRoundedRect(doc, marginX, yPos, contentWidth, commentHeight, 4, 'FD');
-    
-    // Comment header
-    doc.setTextColor(...COLORS.wine.primary);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('COMENTÁRIO DO PROFESSOR', marginX + 10, yPos + 10);
-    
-    // Comment text
-    doc.setTextColor(...COLORS.text.dark);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    let commentY = yPos + headerHeight + 4;
-    commentLines.forEach(line => {
-      doc.text(line, marginX + 12, commentY);
-      commentY += lineSpacing;
-    });
-    
-    yPos += commentHeight + 6;
   }
   
   // Separator between questions
-  yPos += 6;
+  yPos += 4;
+  if (yPos > pageHeight - 25) {
+    doc.addPage();
+    yPos = 20;
+  }
   doc.setDrawColor(...COLORS.neutral.border);
   doc.setLineWidth(0.2);
   doc.line(marginX + 20, yPos, pageWidth - marginX - 20, yPos);
