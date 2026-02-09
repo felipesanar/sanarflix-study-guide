@@ -105,7 +105,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
         
         {/* Content - Fluid padding */}
         <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5 lg:gap-8">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 sm:gap-5 xl:gap-8">
             {/* Left content */}
             <div className="flex-1 space-y-3 sm:space-y-4 md:space-y-5">
               {/* Greeting badge */}
