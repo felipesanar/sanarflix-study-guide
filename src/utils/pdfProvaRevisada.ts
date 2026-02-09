@@ -144,6 +144,55 @@ const loadImageAsBase64 = async (url: string, timeoutMs = 5000): Promise<string 
 };
 
 // ============================================================================
+// TEXT SANITIZATION
+// ============================================================================
+
+/**
+ * Sanitize text to remove problematic characters for PDF rendering
+ * - Removes control characters
+ * - Normalizes Unicode
+ * - Replaces special characters with ASCII equivalents
+ */
+const sanitizeText = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Normalize Unicode to compatible form
+    .normalize('NFKC')
+    // Remove control characters except space
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Replace tabs and line breaks with space
+    .replace(/[\t\n\r]/g, ' ')
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    // Replace smart quotes with regular quotes
+    .replace(/[''‚]/g, "'")
+    .replace(/[""„]/g, '"')
+    // Replace dashes
+    .replace(/[–—−]/g, '-')
+    // Replace ellipsis
+    .replace(/…/g, '...')
+    // Replace degree symbol
+    .replace(/°/g, 'o')
+    // Replace superscripts
+    .replace(/²/g, '2')
+    .replace(/³/g, '3')
+    // Replace micro symbol
+    .replace(/µ/g, 'u')
+    // Replace bullet
+    .replace(/•/g, '-')
+    // Replace trademark symbols
+    .replace(/[™®©]/g, '')
+    // Replace non-breaking space
+    .replace(/\u00A0/g, ' ')
+    // Remove other non-printable characters but keep extended latin
+    .replace(/[^\x20-\x7E\xA0-\xFF\u0100-\u017F]/g, ' ')
+    // Normalize spaces again after replacements
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -204,39 +253,77 @@ const getPercentageColor = (percentage: number): RGB => {
 };
 
 const truncateText = (doc: jsPDF, text: string, maxWidth: number, fontSize: number): string => {
-  let truncated = text;
+  const sanitized = sanitizeText(text);
+  let truncated = sanitized;
   const ellipsis = '...';
   
   while (doc.getStringUnitWidth(truncated) * fontSize / doc.internal.scaleFactor > maxWidth && truncated.length > 0) {
     truncated = truncated.slice(0, -1);
   }
   
-  if (truncated.length < text.length) {
+  if (truncated.length < sanitized.length) {
     truncated = truncated.slice(0, -3) + ellipsis;
   }
   
   return truncated;
 };
 
+/**
+ * Robust text wrapping with sanitization and word-break for long words
+ */
 const wrapText = (doc: jsPDF, text: string, maxWidth: number): string[] => {
-  const words = text.split(' ');
+  const sanitized = sanitizeText(text);
+  if (!sanitized) return [];
+  
+  const words = sanitized.split(' ').filter(w => w.length > 0);
   const lines: string[] = [];
   let currentLine = '';
   
-  words.forEach(word => {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const testWidth = doc.getTextWidth(testLine);
+  for (const word of words) {
+    // Check if word alone exceeds maxWidth - break it if necessary
+    if (doc.getTextWidth(word) > maxWidth) {
+      // Finalize current line if exists
+      if (currentLine) {
+        lines.push(currentLine.trim());
+        currentLine = '';
+      }
+      
+      // Break long word into chunks
+      let remaining = word;
+      while (remaining.length > 0) {
+        let chunk = '';
+        for (let i = 1; i <= remaining.length; i++) {
+          const test = remaining.substring(0, i);
+          if (doc.getTextWidth(test) > maxWidth - 3) {
+            chunk = remaining.substring(0, Math.max(1, i - 1));
+            break;
+          }
+          chunk = test;
+        }
+        if (chunk.length === remaining.length) {
+          lines.push(chunk);
+          break;
+        }
+        lines.push(chunk);
+        remaining = remaining.substring(chunk.length);
+      }
+      continue;
+    }
     
-    if (testWidth > maxWidth && currentLine) {
-      lines.push(currentLine);
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    
+    if (doc.getTextWidth(testLine) > maxWidth) {
+      if (currentLine) {
+        lines.push(currentLine.trim());
+      }
       currentLine = word;
     } else {
       currentLine = testLine;
     }
-  });
+  }
   
-  if (currentLine) {
-    lines.push(currentLine);
+  if (currentLine.trim()) {
+    lines.push(currentLine.trim());
   }
   
   return lines;
@@ -446,14 +533,16 @@ const drawAlternative = (
   alt: AlternativaRevisada,
   questaoAnulada: boolean
 ): number => {
-  const lineHeight = 5;
-  const padding = 4;
+  const lineHeight = 5.5;
+  const padding = 5;
+  const letterWidth = 14;
   
   // Determine style
   let bgColor: RGB = COLORS.neutral.white;
   let borderColor: RGB = COLORS.neutral.border;
   let textColor: RGB = COLORS.text.dark;
   let labelText = '';
+  let labelColor: RGB = COLORS.success.text;
   
   if (questaoAnulada) {
     // All alternatives neutral when question is annulled
@@ -465,25 +554,40 @@ const drawAlternative = (
     // Correct and student marked it
     bgColor = COLORS.success.bg;
     borderColor = COLORS.success.main;
-    labelText = '✓ CORRETA • SUA RESPOSTA';
+    labelText = 'CORRETA - SUA RESPOSTA';
+    labelColor = COLORS.success.text;
   } else if (alt.isCorreta && !alt.isMarcadaPeloAluno) {
     // Correct but student didn't mark
     bgColor = [220, 252, 231] as RGB; // Lighter green
     borderColor = COLORS.success.main;
-    labelText = '✓ CORRETA';
+    labelText = 'CORRETA';
+    labelColor = COLORS.success.text;
   } else if (!alt.isCorreta && alt.isMarcadaPeloAluno) {
     // Wrong and student marked it
     bgColor = COLORS.error.bg;
     borderColor = COLORS.error.main;
     textColor = COLORS.error.text;
-    labelText = '✗ SUA RESPOSTA';
+    labelText = 'SUA RESPOSTA';
+    labelColor = COLORS.error.text;
   }
   
-  // Wrap text
+  // Calculate label width if present
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  const labelWidth = labelText ? doc.getTextWidth(labelText) + 8 : 0;
+  
+  // Calculate available text width (reserve space for label on first line)
+  const textMaxWidth = width - padding * 2 - letterWidth - (labelText ? labelWidth + 5 : 0);
+  
+  // Sanitize and wrap text
   doc.setFontSize(9);
-  const textMaxWidth = width - padding * 2 - 15;
-  const wrappedLines = wrapText(doc, alt.texto, textMaxWidth);
-  const blockHeight = Math.max(wrappedLines.length * lineHeight + padding * 2, 14);
+  doc.setFont('helvetica', 'normal');
+  const sanitizedTexto = sanitizeText(alt.texto);
+  const wrappedLines = wrapText(doc, sanitizedTexto, textMaxWidth);
+  
+  // Calculate block height
+  const textHeight = Math.max(wrappedLines.length, 1) * lineHeight;
+  const blockHeight = Math.max(textHeight + padding * 2, 16);
   
   // Draw background
   doc.setFillColor(...bgColor);
@@ -491,29 +595,42 @@ const drawAlternative = (
   doc.setLineWidth(0.3);
   drawRoundedRect(doc, x, y, width, blockHeight, 3, 'FD');
   
-  // Draw letter
-  doc.setTextColor(...COLORS.wine.primary);
-  doc.setFontSize(10);
+  // Draw letter circle/badge
+  const letterCenterX = x + padding + 5;
+  const letterCenterY = y + padding + 5;
+  doc.setFillColor(...COLORS.wine.primary);
+  doc.circle(letterCenterX, letterCenterY, 5, 'F');
+  doc.setTextColor(...COLORS.neutral.white);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${alt.letra})`, x + padding, y + padding + 4);
+  doc.text(alt.letra, letterCenterX, letterCenterY + 3, { align: 'center' });
   
-  // Draw text
+  // Draw text lines
   doc.setTextColor(...textColor);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   wrappedLines.forEach((line, idx) => {
-    doc.text(line, x + padding + 12, y + padding + 4 + idx * lineHeight);
+    doc.text(line, x + padding + letterWidth, y + padding + 5 + idx * lineHeight);
   });
   
-  // Draw label if any
+  // Draw label badge if present (positioned at top right, separate from text)
   if (labelText) {
-    doc.setTextColor(...(alt.isMarcadaPeloAluno && !alt.isCorreta ? COLORS.error.text : COLORS.success.text));
+    const labelBadgeX = x + width - padding - labelWidth;
+    const labelBadgeY = y + padding;
+    const labelBadgeHeight = 6;
+    
+    // Draw label background
+    doc.setFillColor(...(alt.isMarcadaPeloAluno && !alt.isCorreta ? COLORS.error.bg : COLORS.success.bg));
+    drawRoundedRect(doc, labelBadgeX, labelBadgeY, labelWidth, labelBadgeHeight, 2, 'F');
+    
+    // Draw label text
+    doc.setTextColor(...labelColor);
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.text(labelText, x + width - padding, y + padding + 3, { align: 'right' });
+    doc.text(labelText, labelBadgeX + labelWidth / 2, labelBadgeY + 4.5, { align: 'center' });
   }
   
-  return blockHeight + 3;
+  return blockHeight + 4;
 };
 
 const drawQuestionBlock = (
@@ -564,11 +681,12 @@ const drawQuestionBlock = (
   
   yPos += 18;
   
-  // Enunciado
+  // Enunciado - sanitized
   doc.setTextColor(...COLORS.text.dark);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  const enunciadoLines = wrapText(doc, questao.enunciado, contentWidth - 10);
+  const sanitizedEnunciado = sanitizeText(questao.enunciado);
+  const enunciadoLines = wrapText(doc, sanitizedEnunciado, contentWidth - 10);
   
   enunciadoLines.forEach(line => {
     if (yPos > pageHeight - 30) {
@@ -576,10 +694,10 @@ const drawQuestionBlock = (
       yPos = 20;
     }
     doc.text(line, marginX + 5, yPos);
-    yPos += 5;
+    yPos += 5.5;
   });
   
-  yPos += 5;
+  yPos += 6;
   
   // Image if present
   if (imageBase64) {
@@ -610,15 +728,26 @@ const drawQuestionBlock = (
     yPos += altHeight;
   }
   
-  // Comentário do professor
+  // Comentário do professor - with proper sanitization and spacing
   if (questao.comentario) {
-    yPos += 5;
+    yPos += 8;
+    
+    // Sanitize and wrap comment text with larger internal margin
+    const sanitizedComment = sanitizeText(questao.comentario);
+    const commentMaxWidth = contentWidth - 24; // Larger internal margin
+    
+    doc.setFontSize(9);
+    const commentLines = wrapText(doc, sanitizedComment, commentMaxWidth);
+    
+    // Calculate height with proper padding
+    const headerHeight = 14;
+    const textPadding = 10;
+    const lineSpacing = 5.5;
+    const commentTextHeight = commentLines.length * lineSpacing;
+    const commentHeight = headerHeight + commentTextHeight + textPadding;
     
     // Check if we need new page for comment
-    const commentLines = wrapText(doc, questao.comentario, contentWidth - 16);
-    const commentHeight = commentLines.length * 5 + 20;
-    
-    if (yPos + commentHeight > pageHeight - 20) {
+    if (yPos + commentHeight > pageHeight - 25) {
       doc.addPage();
       yPos = 20;
     }
@@ -633,19 +762,19 @@ const drawQuestionBlock = (
     doc.setTextColor(...COLORS.wine.primary);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('COMENTÁRIO DO PROFESSOR', marginX + 8, yPos + 10);
+    doc.text('COMENTÁRIO DO PROFESSOR', marginX + 10, yPos + 10);
     
-    // Comment text
+    // Comment text with proper line spacing
     doc.setTextColor(...COLORS.text.dark);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    let commentY = yPos + 18;
+    let commentY = yPos + headerHeight + 4;
     commentLines.forEach(line => {
-      doc.text(line, marginX + 8, commentY);
-      commentY += 5;
+      doc.text(line, marginX + 12, commentY);
+      commentY += lineSpacing;
     });
     
-    yPos += commentHeight + 5;
+    yPos += commentHeight + 8;
   }
   
   // Separator
