@@ -1,170 +1,278 @@
 
-# Plano de Melhoria Visual — Header e Navbar Mobile (Dark Mode)
+# Plano: Baixar Prova Revisada Completa
 
-## Problema Identificado
+## Visão Geral
 
-No modo escuro (dark mode) do mobile, tanto o **MobileHeader** quanto a **MobileBottomNav** utilizam fundos escuros opacos que:
-
-1. **Reduzem a sensação de tela maior** — o fundo escuro cria barreiras visuais
-2. **Header sempre com glassmorphism** — deveria ser transparente até o usuário rolar a página
-3. **Navbar muito opaca** — `bg-background/90` no dark resulta em preto sólido, bloqueando visualmente o conteúdo
+Criar uma nova funcionalidade **"Baixar Prova Revisada"** que gera um PDF completo e didático contendo:
+- Todas as questões com enunciado completo
+- Todas as alternativas com identificação visual clara
+- Qual era a resposta correta vs. qual o aluno marcou
+- Status de acerto/erro/não respondido
+- Comentário pedagógico do professor
+- Análise de desempenho geral
 
 ---
 
-## Solução Proposta
+## Estrutura do PDF
 
-### 1. Header Dinâmico (Transparente → Glassmorphism)
+### Página 1: Capa e Resumo Executivo
 
-O header mobile deve seguir o mesmo padrão já implementado no desktop:
-- **Sem scroll**: totalmente transparente, sem borda
-- **Com scroll (>10px)**: ativa glassmorphism sutil + borda leve
+```
+┌─────────────────────────────────────────────────────┐
+│  [LOGO]   SANARFLIX ACADEMY                    Data │
+│                                                     │
+│         PROVA REVISADA COMPLETA                     │
+│         Nome do Simulado                            │
+├─────────────────────────────────────────────────────┤
+│  ALUNO: Nome do Estudante                           │
+│                                                     │
+│  ┌───────────┐ ┌───────────┐ ┌───────────┐          │
+│  │  ACERTOS  │ │   ERROS   │ │ N/RESP    │          │
+│  │    15     │ │     8     │ │    2      │          │
+│  │   60%     │ │   32%     │ │   8%      │          │
+│  └───────────┘ └───────────┘ └───────────┘          │
+│                                                     │
+│  DESEMPENHO POR ÁREA                                │
+│  ├─ Clínica Médica ████████████ 75%                 │
+│  ├─ Cirurgia       █████████░░░ 60%                 │
+│  ├─ Pediatria      ██████░░░░░░ 45%                 │
+│  └─ ...                                             │
+└─────────────────────────────────────────────────────┘
+```
 
+### Páginas Seguintes: Questões Completas
+
+Cada questão ocupa aproximadamente 1/2 a 1 página dependendo do tamanho:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ QUESTÃO 1                              [ACERTOU ✓]  │
+│ Dificuldade: Médio    │    Área: Clínica Médica     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ Paciente de 45 anos, sexo masculino, apresenta      │
+│ dor torácica há 2 horas, com irradiação para membro │
+│ superior esquerdo. Refere sudorese e náuseas...     │
+│                                                     │
+│ [IMAGEM - se houver]                                │
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│   A) Realizar ECG imediatamente                     │ ← Alternativa normal
+│      └─ [CORRETA ✓] [SUA RESPOSTA ✓]                │
+│                                                     │
+│   B) Solicitar radiografia de tórax                 │ ← Alternativa normal
+│                                                     │
+│   C) Prescrever analgésico e observar               │ ← Você marcou (ERRADA)
+│      └─ [SUA RESPOSTA ✗]                            │
+│                                                     │
+│   D) Encaminhar para ambulatório                    │ ← Alternativa normal
+│                                                     │
+├─────────────────────────────────────────────────────┤
+│ COMENTÁRIO DO PROFESSOR                             │
+│                                                     │
+│ A dor torácica com irradiação para MSE associada    │
+│ a sudorese e náuseas é altamente sugestiva de...    │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### Página Final: Análise de Desempenho
+
+```
+┌─────────────────────────────────────────────────────┐
+│              ANÁLISE DE DESEMPENHO                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│ PONTOS FORTES                                       │
+│ ─────────────                                       │
+│ Sua principal fortaleza foi em Clínica Médica,      │
+│ com 75% de acertos. Continue fortalecendo...        │
+│                                                     │
+│ OPORTUNIDADES DE MELHORIA                           │
+│ ─────────────────────────                           │
+│ A área com maior oportunidade de crescimento é      │
+│ Pediatria (45%). Foque nos temas:                   │
+│ • Neonatologia (30%)                                │
+│ • Puericultura (40%)                                │
+│                                                     │
+│ ANÁLISE POR DIFICULDADE                             │
+│ ─────────────────────────                           │
+│ Fácil:   ████████████████ 80%                       │
+│ Médio:   ██████████░░░░░░ 55%                       │
+│ Difícil: ████░░░░░░░░░░░░ 30%                       │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Componentes Visuais das Alternativas
+
+### Legenda de Cores
+
+| Estado | Cor de Fundo | Ícone | Borda |
+|--------|--------------|-------|-------|
+| Correta (acertou) | Verde claro | ✓ Checkmark | Verde |
+| Correta (não marcou) | Verde claro sutil | ✓ Checkmark | Verde tracejado |
+| Errada (você marcou) | Vermelho claro | ✗ X | Vermelho |
+| Não respondida | Cinza | ○ Círculo | Cinza tracejado |
+| Questão anulada | Roxo claro | ⊘ Ban | Roxo |
+
+### Badges de Status (Canto Superior Direito da Questão)
+
+- **ACERTOU** — Badge verde com checkmark
+- **ERROU** — Badge vermelho com X
+- **NÃO RESPONDEU** — Badge amarelo/âmbar com círculo
+- **ANULADA** — Badge roxo com símbolo de anulação
+
+---
+
+## Arquitetura Técnica
+
+### Novo Arquivo: `src/utils/pdfProvaRevisada.ts`
+
+Interface expandida:
 ```typescript
-// MobileHeader.tsx - Receber prop hasScrolled
-interface MobileHeaderProps {
-  hasScrolled: boolean;
+interface QuestaoRevisada {
+  numero: number;
+  enunciado: string;
+  alternativas: {
+    letra: 'A' | 'B' | 'C' | 'D' | 'E';
+    texto: string;
+    isCorreta: boolean;
+    isMarcadaPeloAluno: boolean;
+  }[];
+  respostaAluno: string | null;
+  gabarito: string;
+  acertou: boolean | null; // null = não respondeu
+  comentario: string | null;
+  imagem: string | null;
+  grandeArea: string;
+  especialidade: string;
+  tema: string;
+  dificuldade: string;
+  anulada: boolean;
 }
 
-<header className={`sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:hidden transition-all duration-300 ${
-  hasScrolled 
-    ? 'bg-background/60 backdrop-blur-lg border-b border-border/20' 
-    : 'bg-transparent border-b border-transparent'
-}`}>
-```
-
-### 2. Navbar com Glassmorphism Sutil
-
-Reduzir opacidade do fundo e adicionar transparência especial para dark mode:
-
-```typescript
-// MobileBottomNav.tsx - Background mais sutil
-<div className="absolute inset-0 
-  bg-background/70 backdrop-blur-xl 
-  dark:bg-background/50 dark:backdrop-blur-2xl
-  border-t border-border/30 dark:border-white/5
-  shadow-lg dark:shadow-none" 
-/>
-```
-
-**Mudanças específicas:**
-- Light: `bg-background/70` (era 90%)
-- Dark: `bg-background/50` (mais transparente)
-- Border: `border-white/5` no dark (sutil, quase invisível)
-- Blur: `backdrop-blur-2xl` no dark (mais blur compensa transparência)
-
-### 3. Ajustar CSS Variables (Dark Mode)
-
-O dark mode tem `--background: 0 0% 0%` (preto puro). Isso é bom para o fundo geral, mas com transparência aplicada, precisamos garantir que o blur funcione bem:
-
-**Nenhuma mudança necessária no CSS** — a solução é usar classes condicionais `dark:` no Tailwind.
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/Layout.tsx` | Passar `hasScrolled` para MobileHeader |
-| `src/components/navigation/MobileHeader.tsx` | Receber prop e aplicar estilos condicionais |
-| `src/components/navigation/MobileBottomNav.tsx` | Reduzir opacidade, adicionar variantes dark |
-
----
-
-## Detalhamento Técnico
-
-### Layout.tsx (linha 66)
-
-```typescript
-// Passar hasScrolled para o MobileHeader
-{!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
-```
-
-### MobileHeader.tsx (linhas 19, 38-39)
-
-```typescript
-// Interface com prop
-interface MobileHeaderProps {
-  hasScrolled?: boolean;
+interface ProvaRevisadaStats {
+  acertos: number;
+  erros: number;
+  naoRespondidas: number;
+  total: number;
+  percentual: number;
+  porArea: { area: string; acertos: number; total: number; percentual: number }[];
+  porDificuldade: { nivel: string; acertos: number; total: number; percentual: number }[];
 }
-
-export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
-  // ...
-  
-  return (
-    <header className={`sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:hidden transition-all duration-300 ${
-      hasScrolled 
-        ? 'bg-background/60 dark:bg-background/40 backdrop-blur-lg border-b border-border/20 dark:border-white/10' 
-        : 'bg-transparent border-b border-transparent'
-    }`}>
 ```
 
-### MobileBottomNav.tsx (linha 197)
+### Funções Principais
+
+1. **`generateProvaRevisadaPDF`** — Orquestra a geração completa
+2. **`drawCoverPage`** — Capa com resumo executivo
+3. **`drawQuestionBlock`** — Renderiza uma questão completa
+4. **`drawAlternativeRow`** — Renderiza uma alternativa com estados visuais
+5. **`drawCommentSection`** — Renderiza o comentário do professor
+6. **`drawAnalysisPage`** — Página final com análise pedagógica
+7. **`loadImageAsBase64`** — Carrega imagens das questões (se houver)
+
+### Modificações em `SimuladoDesempenho.tsx`
+
+1. Adicionar novo botão **"Baixar Prova Revisada"** ao lado do botão existente
+2. Nova função `handleDownloadProvaRevisada` que:
+   - Busca questões completas com JOIN em `questoes_simulado`
+   - Busca respostas do aluno em `answer_progress`
+   - Calcula estatísticas por área e dificuldade
+   - Chama `generateProvaRevisadaPDF`
+
+---
+
+## Query de Dados
 
 ```typescript
-// Background mais transparente e sutil
-<div className="absolute inset-0 
-  bg-background/70 dark:bg-background/40 
-  backdrop-blur-xl dark:backdrop-blur-2xl 
-  border-t border-border/30 dark:border-white/[0.06]
-  shadow-lg dark:shadow-none" 
-/>
+const { data: questoesCompletas } = await supabase
+  .from('questoes_simulado')
+  .select(`
+    id, ordem, enunciado, 
+    alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e,
+    correta, comentario, imagem,
+    grande_area, especialidade, tema, grau_dificuldade, anulada
+  `)
+  .eq('simulado_id', selectedSimulado)
+  .order('ordem', { ascending: true });
+
+const { data: respostasAluno } = await supabase
+  .from('answer_progress')
+  .select('question_id, resposta_usuario, correct')
+  .eq('simulado', selectedSimulado)
+  .eq('user_id', user.id);
 ```
 
 ---
 
-## Comparação Visual
+## UI do Botão (Dropdown com Opções)
 
-### Antes (Dark Mode)
-```
-┌──────────────────────────────┐
-│ ███ HEADER OPACO ESCURO ███ │ ← Barreira visual
-├──────────────────────────────┤
-│                              │
-│      Conteúdo da página      │
-│                              │
-├──────────────────────────────┤
-│ ███ NAVBAR OPACA ESCURA ███ │ ← Barreira visual
-└──────────────────────────────┘
-```
+Substituir o botão único por um dropdown com duas opções:
 
-### Depois (Dark Mode)
 ```
-┌──────────────────────────────┐
-│     (transparente)           │ ← Header some no topo
-├──────────────────────────────┤
-│                              │
-│      Conteúdo da página      │
-│       (visualmente maior)    │
-│                              │
-├──────────────────────────────┤
-│ ░░░░ navbar translúcida ░░░░ │ ← Vê conteúdo por baixo
-└──────────────────────────────┘
+┌─────────────────────────────────────────┐
+│  [▼ Baixar PDF]                         │
+├─────────────────────────────────────────┤
+│  📄 Gabarito Resumido                   │
+│     Tabela simples com respostas        │
+├─────────────────────────────────────────┤
+│  📚 Prova Revisada Completa      ★ NOVO │
+│     Questões completas + comentários    │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## Especificações de Transparência
+## Considerações de Performance
 
-| Elemento | Light Mode | Dark Mode |
-|----------|------------|-----------|
-| Header (sem scroll) | `transparent` | `transparent` |
-| Header (com scroll) | `bg-background/60` | `bg-background/40` |
-| Navbar | `bg-background/70` | `bg-background/40` |
-| Blur header | `backdrop-blur-lg` | `backdrop-blur-lg` |
-| Blur navbar | `backdrop-blur-xl` | `backdrop-blur-2xl` |
-| Border header | `border-border/20` | `border-white/10` |
-| Border navbar | `border-border/30` | `border-white/[0.06]` |
+### Imagens nas Questões
+
+- Carregar imagens de forma assíncrona em paralelo
+- Converter para base64 antes de adicionar ao PDF
+- Fallback se imagem falhar (placeholder ou omitir)
+- Limite de 5 questões com imagem por vez para evitar travamento
+
+### Tamanho do PDF
+
+- Estimativa: 50 questões ≈ 30-50 páginas
+- Tempo de geração: 5-15 segundos dependendo de imagens
+- Mostrar progress bar durante geração
+
+### Feedback Visual
+
+```typescript
+// Estados durante geração
+'preparing' → 'loading_questions' → 'loading_images' → 'generating' → 'complete'
+
+// Toast com progresso
+toast({ title: 'Gerando PDF...', description: 'Carregando questões (12/50)' });
+```
+
+---
+
+## Arquivos a Criar/Modificar
+
+| Arquivo | Ação |
+|---------|------|
+| `src/utils/pdfProvaRevisada.ts` | CRIAR — Nova engine de PDF |
+| `src/pages/SimuladoDesempenho.tsx` | MODIFICAR — Adicionar dropdown e nova função |
 
 ---
 
 ## Checklist de Validação
 
-- [ ] Header transparente quando no topo da página
-- [ ] Header com glassmorphism sutil ao rolar
-- [ ] Transição suave (300ms) entre estados do header
-- [ ] Navbar com fundo translúcido no dark mode
-- [ ] Conteúdo visível "por baixo" da navbar (blur effect)
-- [ ] Bordas quase invisíveis no dark mode
-- [ ] Sensação de tela maior e mais fluida
-- [ ] Light mode mantém boa legibilidade
-- [ ] Zero erros no console
+- [ ] PDF gera corretamente com todas as questões
+- [ ] Alternativas mostram cores corretas (correta/errada/não marcada)
+- [ ] Comentários do professor aparecem formatados
+- [ ] Imagens das questões são incluídas (quando existem)
+- [ ] Questões anuladas mostram badge especial
+- [ ] Página de análise resume desempenho por área
+- [ ] Nomes de arquivo são seguros (sem caracteres especiais)
+- [ ] Progress feedback durante geração longa
+- [ ] Funciona em simulados grandes (50+ questões)
+- [ ] Light mode e dark mode do app não afetam o PDF (PDF sempre com cores fixas)
