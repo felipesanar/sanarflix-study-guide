@@ -1,208 +1,267 @@
 
-# Auditoria Completa Mobile — Central de Progresso + Guia de Estudos
+# Plano de Melhoria Premium — Navbar Mobile
 
-## Resumo Executivo
+## Objetivo
 
-Foi identificada uma série de problemas críticos na versão mobile das telas "Central de Progresso" (Dashboard) e "Guia de Estudos", incluindo:
-
-1. **Erro de Contexto AuthProvider** (CRÍTICO): O componente `ExamTrackerCard` está sendo renderizado no mobile em situações onde o `AuthProvider` não está corretamente encapsulando a árvore de componentes.
-2. **Scroll bloqueado**: Conflitos de `overflow` entre containers aninhados.
-3. **Sobreposição de elementos**: Falta de `min-w-0`, gaps inadequados e elementos flex sem constraints.
-4. **Responsividade inadequada**: Padding/margin inconsistentes, botões muito pequenos para touch.
+Transformar a navegação mobile em uma experiência de classe mundial, com microinterações fluidas, acesso rápido a mais páginas e design visual premium que reforce a identidade da plataforma.
 
 ---
 
-## Diagnóstico Detalhado
+## Diagnóstico Atual
 
-### 1. Erro: `useAuth must be used within an AuthProvider`
+### Pontos Fortes
+- Glassmorphism implementado corretamente
+- Safe area respeitada
+- Acessibilidade básica (aria-labels, touch targets ≥ 44px)
 
-**Localização**: `ExamTrackerCard.tsx → useUserExams.ts → useAuth()`
+### Problemas Identificados
 
-**Causa Raiz**:
-- O `ExamTrackerCard` chama `useUserExams()` que internamente usa `useAuth()`
-- No fluxo mobile, o componente `ProvasTab` (lazy-loaded via `Suspense`) renderiza o `ExamTrackerCard`
-- Durante a renderização lazy, se o componente tentar acessar o contexto antes da árvore estar completa, o erro ocorre
+| Problema | Impacto | Prioridade |
+|----------|---------|------------|
+| Apenas 3 itens + Menu na barra principal | Acesso indireto a páginas importantes | P0 |
+| Microinterações fracas (apenas scale no tap) | Experiência não-premium | P1 |
+| Item ativo com estilo básico (bg-primary) | Falta de dinamismo visual | P1 |
+| Sheet menu genérico | Não guia o usuário | P2 |
+| Ausência de feedback háptico visual | Menos responsivo | P2 |
 
-**Análise do Fluxo**:
+---
+
+## Arquitetura Proposta
+
+### Barra Principal Reformulada
+
+```text
+┌─────────────────────────────────────────────────────┐
+│  Início   Guia   Simulados   Progresso     ...Menu  │
+│    ●       ○        ○           ○             ○     │
+└─────────────────────────────────────────────────────┘
 ```
-Dashboard.tsx
-└── ProgressHubMobile (isMobile=true)
-    └── ProvasTab (lazy loaded)
-        └── ExamTrackerCard
-            └── useUserExams()
-                └── useAuth() ← ERRO: Contexto não encontrado
-```
 
-**Solução**: Adicionar verificação defensiva no `useUserExams` para retornar estado vazio se `useAuth` não estiver disponível, e garantir que o Suspense tenha fallback adequado.
+**Mudanças:**
+- **4 itens fixos** + botão Menu (era 3+Menu)
+- Adicionar "Progresso" (/dashboard) como item direto para alunos
+- Ocultar "Progresso" se usuário não tiver acesso
+- Ícone do Menu muda para "X" quando aberto com animação de morphing
 
-### 2. Scroll Bloqueado no Mobile
+### Indicador Ativo Animado
 
-**Causa Raiz**:
-- `ProgressHubMobile` tem `overflow-y-auto` no container interno
-- Layout.tsx tem `overflow-auto` no `<main>`
-- Conflito de overflow entre containers aninhados bloqueia scroll nativo
-
-**Localização**: 
-- `src/components/progress-hub/mobile/ProgressHubMobile.tsx` linha 217-220
-- `src/components/Layout.tsx` linha 69
-
-### 3. Sobreposição de Elementos
-
-**Áreas Afetadas**:
-- Cards no `MobileSummaryHeader`: Grid 2 colunas sem `min-w-0` causa overflow
-- `NextActionsCard` carousel: Items com largura fixa podem vazar
-- Tab bar: Botões muito pequenos se aproximando do mínimo
-
----
-
-## Plano de Correção por Prioridade
-
-### P0 — Crítico (Bloqueia uso)
-
-| ID | Problema | Arquivo | Correção |
-|----|----------|---------|----------|
-| P0-01 | Erro `useAuth` fora de contexto | `useUserExams.ts` | Adicionar try-catch defensivo ou verificação de contexto |
-| P0-02 | Scroll bloqueado no mobile | `ProgressHubMobile.tsx` + `Layout.tsx` | Remover conflito de overflow, usar `overscroll-contain` corretamente |
-
-### P1 — Responsividade e Layout
-
-| ID | Problema | Arquivo | Correção |
-|----|----------|---------|----------|
-| P1-01 | Grid 2 colunas sem `min-w-0` | `MobileSummaryHeader.tsx` | Adicionar `min-w-0` nas células do grid |
-| P1-02 | Carousel vazando largura | `AgoraTab.tsx` | Ajustar `overflow-x-clip` no container pai |
-| P1-03 | Botões touch targets pequenos | `MobileTabBar.tsx`, vários | Garantir `min-h-[44px]` em todos os botões interativos |
-| P1-04 | Padding inconsistente | `ProgressHubMobile.tsx`, tabs | Padronizar `px-4` e `py-4` em todas as tabs |
-
-### P2 — Polimento Visual
-
-| ID | Problema | Arquivo | Correção |
-|----|----------|---------|----------|
-| P2-01 | Cards sem sombra consistente | Diversos | Adicionar `shadow-sm` uniformemente |
-| P2-02 | Transições abruptas entre tabs | `ProgressHubMobile.tsx` | Suavizar `AnimatePresence` |
-| P2-03 | Exam badge cortado | `MobileSummaryHeader.tsx` | Ajustar `truncate` e `flex-shrink-0` |
-
----
-
-## Detalhamento Técnico
-
-### Correção P0-01: Erro AuthProvider
-
-O hook `useUserExams` precisa de proteção:
+Substituir o background estático por um "pill" animado que desliza entre os itens:
 
 ```typescript
-// src/hooks/useUserExams.ts
-export function useUserExams() {
-  // Tentar usar o contexto de autenticação de forma segura
-  let authContext;
-  try {
-    authContext = useAuth();
-  } catch {
-    // Fora do contexto - retornar estado vazio
-    return {
-      exams: [],
-      loading: false,
-      error: 'Auth context not available',
-      addExam: async () => ({ data: null, error: 'Not authenticated' }),
-      removeExam: async () => ({ error: 'Not authenticated' }),
-      updateExam: async () => ({ error: 'Not authenticated' }),
-      refresh: async () => {},
-    };
+// Framer Motion layoutId para pill animado
+<motion.div
+  layoutId="bottomNavActivePill"
+  className="absolute inset-0 bg-primary rounded-2xl shadow-lg"
+  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+/>
+```
+
+### Microinterações Premium
+
+1. **Press State**: `whileTap={{ scale: 0.92, y: 2 }}` — item afunda levemente
+2. **Ícone animado**: Ícone do item ativo faz micro-bounce ao entrar
+3. **Label fade**: Label aparece apenas no item ativo (economia de espaço)
+4. **Ripple visual**: Círculo expandindo do ponto de toque (opcional CSS)
+
+---
+
+## Componentes a Implementar
+
+### 1. NavItem Redesenhado
+
+```typescript
+interface BottomNavItem {
+  id: string;
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  show: boolean;
+}
+
+// Renderização com motion.div e pill animado
+<NavLink to={item.url}>
+  {isActive && (
+    <motion.div
+      layoutId="activeNavPill"
+      className="absolute inset-0 bg-primary rounded-2xl shadow-lg"
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+    />
+  )}
+  <motion.div
+    className="relative z-10 flex flex-col items-center"
+    whileTap={{ scale: 0.92, y: 1 }}
+  >
+    <motion.div
+      animate={isActive ? { scale: [1, 1.15, 1] } : {}}
+      transition={{ duration: 0.25 }}
+    >
+      <Icon className={isActive ? "text-primary-foreground" : "text-muted-foreground"} />
+    </motion.div>
+    <AnimatePresence>
+      {isActive && (
+        <motion.span
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          className="text-[10px] text-primary-foreground font-medium"
+        >
+          {title}
+        </motion.span>
+      )}
+    </AnimatePresence>
+  </motion.div>
+</NavLink>
+```
+
+### 2. Menu Button com Morphing
+
+O botão "Menu" terá animação de ícone:
+- Fechado: ☰ (hamburguer)
+- Aberto: ✕ (X) com rotação 45°
+
+```typescript
+<motion.div
+  animate={{ rotate: isMenuOpen ? 45 : 0 }}
+  transition={{ duration: 0.2 }}
+>
+  {isMenuOpen ? <X /> : <Menu />}
+</motion.div>
+```
+
+### 3. Sheet Menu Aprimorado
+
+- **Header visual**: Avatar do usuário + nome + semestre
+- **Seções agrupadas**: "Estudos", "Ferramentas", "Configurações"
+- **Quick actions**: Atalhos para ações frequentes (ex: Alterar Tema)
+- **Animação de entrada**: Items escalonam com delay progressivo
+
+```typescript
+// Stagger animation nos items do menu
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05, delayChildren: 0.1 }
   }
-  
-  const { user } = authContext;
-  // ... resto do código
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, x: -20 },
+  visible: { opacity: 1, x: 0 }
+};
+```
+
+---
+
+## Mapeamento de Páginas no Menu
+
+| Seção | Items | Condição |
+|-------|-------|----------|
+| **Estudos** | Guia de Estudos, Seu Progresso, SanarClass | accessRules |
+| **Ferramentas** | Simulados | Sempre visível |
+| **Admin** | Portal do Admin, Analytics | isAdmin |
+| **Conta** | Alterar Senha, Tema, Semestre Errado, Sair | Sempre |
+
+---
+
+## Especificações Técnicas
+
+### Cores e Estilos
+
+| Elemento | Light Mode | Dark Mode |
+|----------|------------|-----------|
+| Pill ativo | `bg-primary` | `bg-primary` |
+| Ícone ativo | `text-primary-foreground` | `text-primary-foreground` |
+| Ícone inativo | `text-muted-foreground` | `text-muted-foreground` |
+| Background bar | `bg-background/90 backdrop-blur-xl` | Igual |
+| Sombra | `shadow-2xl` | `shadow-none border-t` |
+
+### Animações Tailwind (novas keyframes)
+
+```typescript
+// tailwind.config.ts - adicionar
+'nav-bounce': {
+  '0%, 100%': { transform: 'scale(1)' },
+  '50%': { transform: 'scale(1.15)' }
+},
+'nav-pill-in': {
+  '0%': { opacity: '0', transform: 'scale(0.8)' },
+  '100%': { opacity: '1', transform: 'scale(1)' }
 }
 ```
 
-Alternativamente, criar um hook wrapper seguro:
+### Acessibilidade
 
-```typescript
-// src/hooks/useSafeAuth.ts
-export function useSafeAuth() {
-  try {
-    return useAuth();
-  } catch {
-    return { user: null, loading: false, logout: async () => {} };
-  }
-}
-```
+- `role="navigation"` na nav
+- `aria-current="page"` no item ativo
+- `aria-label` descritivo em cada botão
+- Touch targets mínimo 48px (aumentado de 44px)
+- `prefers-reduced-motion`: desabilitar animações de spring
 
-### Correção P0-02: Scroll Mobile
+---
 
-```typescript
-// ProgressHubMobile.tsx - linha 214-220
-<div className="min-h-screen bg-background flex flex-col">
-  <div 
-    ref={scrollContainerRef}
-    className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y pb-28"
-    // Removido: overflow-y-auto duplicado, adicionado touch-pan-y
-  >
-```
+## Fluxo de Implementação
 
-```typescript
-// Layout.tsx - linha 69
-<main className="flex-1 min-w-0 pb-24 md:pb-0">
-  {/* Removido overflow-auto para evitar conflito com scroll interno */}
-  {children}
-</main>
-```
+### Fase 1: Reestruturar Items (P0)
+1. Expandir `quickNavItems` para 4 items + Menu
+2. Adicionar "Progresso" condicionalmente
+3. Ajustar layout flex para acomodar 5 elementos
 
-### Correção P1-01: Grid com min-w-0
+### Fase 2: Pill Animado (P1)
+1. Implementar `layoutId="activeNavPill"` com Framer Motion
+2. Substituir bg-primary estático por motion.div animado
+3. Adicionar shadow dinâmico
 
-```typescript
-// MobileSummaryHeader.tsx - linha 96
-<div className="grid grid-cols-2 gap-3 mb-3">
-  <div className="min-w-0 bg-card/50 border border-border/50 rounded-xl p-3">
-    {/* Conteúdo */}
-  </div>
-  <div className="min-w-0 bg-card/50 border border-border/50 rounded-xl p-3">
-    {/* Conteúdo */}
-  </div>
-</div>
-```
+### Fase 3: Microinterações (P1)
+1. `whileTap` com scale + translateY
+2. Bounce no ícone ativo
+3. Label condicional com AnimatePresence
 
-### Correção P1-02: Carousel Container
+### Fase 4: Menu Aprimorado (P2)
+1. Redesenhar Sheet com seções
+2. Adicionar stagger animation
+3. Incluir quick actions (Tema, etc)
+4. Morphing icon no botão Menu
 
-```typescript
-// AgoraTab.tsx - linha 36-42
-<div className="relative overflow-x-clip">
-  <div 
-    className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4"
-    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-  >
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/navigation/MobileBottomNav.tsx` | Refatoração completa |
+| `tailwind.config.ts` | Novas keyframes (opcional) |
+
+---
+
+## Preview Visual Esperado
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│                        (Conteúdo da página)                   │
+└───────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────┐
+│   🏠      📖       📋        📊        ≡                       │
+│ Início          [SIMULADOS]                                   │
+│   ○       ○      ████████      ○        ○                     │
+│                  Simulados                                    │
+└───────────────────────────────────────────────────────────────┘
+          ▲ Pill animado desliza para o item ativo
 ```
 
 ---
 
-## Checklist de Arquivos a Modificar
+## Checklist de Validação
 
-| Arquivo | Tipo de Mudança |
-|---------|-----------------|
-| `src/hooks/useUserExams.ts` | Adicionar proteção de contexto |
-| `src/components/progress-hub/mobile/ProgressHubMobile.tsx` | Corrigir overflow e scroll |
-| `src/components/Layout.tsx` | Remover overflow conflitante do main |
-| `src/components/progress-hub/mobile/MobileSummaryHeader.tsx` | Adicionar `min-w-0`, ajustar grid |
-| `src/components/progress-hub/mobile/tabs/AgoraTab.tsx` | Ajustar container do carousel |
-| `src/components/progress-hub/mobile/MobileTabBar.tsx` | Verificar touch targets |
-
----
-
-## Testes de Validação
-
-Após implementação, validar:
-
-- [ ] Sem erros no console (`Error: useAuth must be used...`)
-- [ ] Scroll vertical funciona em todas as telas mobile
-- [ ] Não há overflow horizontal (`scrollWidth === clientWidth`)
-- [ ] Todos os botões têm área de toque ≥ 44px
-- [ ] Cards não sobrepõem uns aos outros
-- [ ] Transição entre tabs é suave
-- [ ] Breakpoints 360px, 390px, 430px, 768px funcionam
-
----
-
-## Notas Adicionais
-
-- O erro de `useAuth` é intermitente e depende do timing do lazy loading
-- A estrutura de providers em `App.tsx` está correta (`AuthProvider` envolve tudo)
-- O problema específico ocorre quando componentes lazy tentam acessar contexto durante o render inicial do Suspense
+- [ ] 5 elementos na barra (4 nav + Menu)
+- [ ] Pill animado desliza suavemente entre items
+- [ ] Ícone do item ativo faz micro-bounce
+- [ ] Label aparece apenas no item ativo
+- [ ] Menu morphing (hamburguer → X)
+- [ ] Sheet com seções organizadas
+- [ ] Stagger animation nos items do menu
+- [ ] Touch targets ≥ 48px
+- [ ] Zero erros no console
+- [ ] Funciona em 360px, 390px, 430px
+- [ ] Respects prefers-reduced-motion
