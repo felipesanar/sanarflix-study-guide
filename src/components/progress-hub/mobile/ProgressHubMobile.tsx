@@ -133,7 +133,7 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
 
   const handleOrganize = useCallback(() => {
     onCalendarClick();
-    navigate('/guia-estudos?view=calendar');
+    navigate('/guia-estudos?view=calendar&edit=true');
   }, [navigate, onCalendarClick]);
 
   // Tab content with AnimatePresence
