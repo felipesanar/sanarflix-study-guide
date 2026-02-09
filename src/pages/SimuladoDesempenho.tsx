@@ -698,28 +698,28 @@ export const SimuladoDesempenho: React.FC = () => {
                         )}
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem onClick={handleDownloadGabarito} className="flex flex-col items-start py-3 cursor-pointer">
-                        <div className="flex items-center gap-2 font-medium">
-                          <ClipboardList className="h-4 w-4" />
-                          Gabarito Resumido
+                    <DropdownMenuContent align="end" className="w-72 p-1.5 border border-border/60 bg-popover shadow-xl">
+                      <DropdownMenuItem onClick={handleDownloadGabarito} className="flex items-start gap-3 p-2.5 rounded-md cursor-pointer hover:bg-accent/80 focus:bg-accent/80">
+                        <div className="flex-shrink-0 mt-0.5 p-1.5 rounded-md bg-muted">
+                          <ClipboardList className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Tabela simples com respostas
-                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium leading-tight">Gabarito Resumido</span>
+                          <span className="text-xs text-muted-foreground leading-snug mt-0.5">Tabela simples com respostas</span>
+                        </div>
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleDownloadProvaRevisada} className="flex flex-col items-start py-3 cursor-pointer">
-                        <div className="flex items-center gap-2 font-medium">
-                          <BookOpen className="h-4 w-4" />
-                          Prova Revisada Completa
-                          <span className="ml-auto text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
-                            NOVO
-                          </span>
+                      <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuItem onClick={handleDownloadProvaRevisada} className="flex items-start gap-3 p-2.5 rounded-md cursor-pointer hover:bg-accent/80 focus:bg-accent/80">
+                        <div className="flex-shrink-0 mt-0.5 p-1.5 rounded-md bg-primary/10">
+                          <BookOpen className="h-4 w-4 text-primary" />
                         </div>
-                        <span className="text-xs text-muted-foreground ml-6">
-                          Questões completas + comentários
-                        </span>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium leading-tight">Prova Revisada</span>
+                            <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-px rounded font-bold leading-none">NOVO</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground leading-snug mt-0.5">Questões completas + comentários</span>
+                        </div>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
