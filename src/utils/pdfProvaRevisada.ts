@@ -510,10 +510,10 @@ const drawStatusBadge = (
   const badgeHeight = 7;
   
   const config = {
-    acertou: { bg: COLORS.success.bg, text: COLORS.success.text, label: 'ACERTOU ✓' },
-    errou: { bg: COLORS.error.bg, text: COLORS.error.text, label: 'ERROU ✗' },
-    nao_respondeu: { bg: COLORS.warning.bg, text: COLORS.warning.text, label: 'N/RESP ○' },
-    anulada: { bg: COLORS.purple.bg, text: COLORS.purple.text, label: 'ANULADA ⊘' },
+    acertou: { bg: COLORS.success.bg, text: COLORS.success.text, label: 'ACERTOU' },
+    errou: { bg: COLORS.error.bg, text: COLORS.error.text, label: 'ERROU' },
+    nao_respondeu: { bg: COLORS.warning.bg, text: COLORS.warning.text, label: 'N/RESP' },
+    anulada: { bg: COLORS.purple.bg, text: COLORS.purple.text, label: 'ANULADA' },
   };
   
   const c = config[status];
