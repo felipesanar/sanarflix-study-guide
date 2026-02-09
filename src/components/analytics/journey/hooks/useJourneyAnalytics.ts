@@ -133,7 +133,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         ? Math.round(timesToSimulado.reduce((a, b) => a + b, 0) / timesToSimulado.length * 10) / 10
         : null;
 
-      // Churn risk (users with only 1 session in last 14 days)
+      // Baixo engajamento (B2B: users com apenas 1 sessao em 14 dias)
       const fourteenDaysAgo = subDays(now, 14);
       const recentSessions = filteredSessions.filter(s => new Date(s.started_at) >= fourteenDaysAgo);
       const userSessionCounts = new Map<string, number>();
@@ -141,13 +141,27 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         userSessionCounts.set(s.user_id, (userSessionCounts.get(s.user_id) || 0) + 1);
       });
       
-      const churnRiskCount = Array.from(userSessionCounts.entries())
+      const lowEngagementCount = Array.from(userSessionCounts.entries())
         .filter(([_, count]) => count === 1).length;
 
-      // Total users
-      const { count: totalUsers } = await supabase
+      // Total users matriculados
+      let usersQuery = supabase
         .from('users')
         .select('id', { count: 'exact', head: true });
+      
+      if (iesId) usersQuery = usersQuery.eq('id_ies', iesId);
+      
+      const { count: totalUsers } = await usersQuery;
+      const totalUsersCount = totalUsers || 0;
+
+      // Usuarios que nunca acessaram (cadastrados mas sem sessao)
+      const usersWithSessions = new Set(filteredSessions.map(s => s.user_id));
+      const neverActiveCount = Math.max(0, totalUsersCount - usersWithSessions.size);
+      
+      // Taxa de ativacao (% de matriculados que ja acessaram)
+      const activationRate = totalUsersCount > 0 
+        ? Math.round((usersWithSessions.size / totalUsersCount) * 100) 
+        : 0;
 
       return {
         dau,
@@ -158,8 +172,10 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         avgSessionDuration,
         timeToFirstSimulado,
         calendarAdoption,
-        churnRiskCount,
-        totalUsers: totalUsers || 0,
+        lowEngagementCount,
+        neverActiveCount,
+        activationRate,
+        totalUsers: totalUsersCount,
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -287,14 +303,14 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         userDays.get(s.user_id)!.add(day);
       });
 
-      // Segment by day count
-      let powerUsers = 0, regulars = 0, ocasionais = 0, atRisk = 0;
+      // Segment by day count (B2B: foco em frequencia, nao risco de cancelamento)
+      let powerUsers = 0, regulars = 0, ocasionais = 0, baixaFrequencia = 0;
       userDays.forEach((days) => {
         const count = days.size;
         if (count >= 7) powerUsers++;
         else if (count >= 4) regulars++;
         else if (count >= 2) ocasionais++;
-        else atRisk++;
+        else baixaFrequencia++;
       });
 
       const totalUsers = userDays.size;
@@ -304,7 +320,7 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
           { id: 'power', name: 'Power Users', description: '7+ dias de acesso', count: powerUsers, percentage: totalUsers > 0 ? Math.round((powerUsers / totalUsers) * 100) : 0, trend: 'stable', color: 'hsl(var(--chart-1))' },
           { id: 'regular', name: 'Regulares', description: '4-6 dias', count: regulars, percentage: totalUsers > 0 ? Math.round((regulars / totalUsers) * 100) : 0, trend: 'stable', color: 'hsl(var(--chart-2))' },
           { id: 'occasional', name: 'Ocasionais', description: '2-3 dias', count: ocasionais, percentage: totalUsers > 0 ? Math.round((ocasionais / totalUsers) * 100) : 0, trend: 'stable', color: 'hsl(var(--chart-3))' },
-          { id: 'at_risk', name: 'Em Risco', description: '1 dia apenas', count: atRisk, percentage: totalUsers > 0 ? Math.round((atRisk / totalUsers) * 100) : 0, trend: 'down', color: 'hsl(var(--destructive))' },
+          { id: 'low_frequency', name: 'Baixa Frequência', description: '1 dia apenas', count: baixaFrequencia, percentage: totalUsers > 0 ? Math.round((baixaFrequencia / totalUsers) * 100) : 0, trend: 'stable', color: 'hsl(var(--muted-foreground))' },
         ],
         totalUsers,
       };
@@ -610,17 +626,44 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       });
     }
 
-    if (exec.churnRiskCount > 0) {
+    if (exec.lowEngagementCount > 0) {
       insights.push({
-        id: 'churn-risk',
-        type: 'risk',
-        severity: 'critical',
-        title: `${exec.churnRiskCount} usuários em risco de churn`,
-        description: 'Usuários com apenas 1 visita nos últimos 14 dias precisam de reengajamento.',
-        metric: 'Churn Risk',
-        value: exec.churnRiskCount,
-        action: 'Enviar campanha de reengajamento',
+        id: 'low-engagement',
+        type: 'opportunity',
+        severity: exec.lowEngagementCount > 20 ? 'warning' : 'info',
+        title: `${exec.lowEngagementCount} alunos com baixa atividade`,
+        description: 'Estes alunos acessaram apenas 1 vez nas últimas 2 semanas. Considere ações de ativação como lembretes ou comunicação via coordenação.',
+        metric: 'Baixa Atividade',
+        value: exec.lowEngagementCount,
+        action: 'Notificar coordenação',
         dataSource: 'user_sessions',
+      });
+    }
+
+    if (exec.neverActiveCount > 0 && exec.activationRate < 80) {
+      insights.push({
+        id: 'never-active',
+        type: 'opportunity',
+        severity: exec.activationRate < 50 ? 'warning' : 'info',
+        title: `${exec.neverActiveCount} alunos nunca acessaram`,
+        description: `Taxa de ativação de ${exec.activationRate}%. Alguns alunos matriculados ainda não conhecem a plataforma.`,
+        metric: 'Taxa de Ativação',
+        value: exec.activationRate,
+        action: 'Campanha de onboarding',
+        dataSource: 'users + user_sessions',
+      });
+    }
+
+    if (exec.activationRate >= 80) {
+      insights.push({
+        id: 'good-activation',
+        type: 'positive',
+        severity: 'success',
+        title: `Taxa de ativação de ${exec.activationRate}%`,
+        description: 'A maioria dos alunos matriculados já acessou a plataforma pelo menos uma vez.',
+        metric: 'Ativação',
+        value: exec.activationRate,
+        dataSource: 'users + user_sessions',
       });
     }
   }
@@ -658,20 +701,33 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
     }
   }
 
-  // Generate Risk Alerts
+  // Generate Engagement Alerts (B2B: foco em saude institucional)
   const alerts: RiskAlert[] = [];
   
   if (executiveQuery.data) {
     const exec = executiveQuery.data;
     
-    if (exec.churnRiskCount > 10) {
+    // Alerta de baixa atividade (substituiu churn)
+    if (exec.lowEngagementCount > 10) {
       alerts.push({
-        id: 'churn-alert',
-        level: 'critical',
-        title: `${exec.churnRiskCount} usuários em risco de churn`,
-        description: 'Apenas 1 visita nos últimos 14 dias',
-        count: exec.churnRiskCount,
-        trend: 'down',
+        id: 'low-engagement-alert',
+        level: 'warning',
+        title: `${exec.lowEngagementCount} alunos com baixa atividade`,
+        description: 'Acessaram apenas 1 vez nas últimas 2 semanas',
+        count: exec.lowEngagementCount,
+        trend: 'stable',
+      });
+    }
+
+    // Alerta de ativacao
+    if (exec.activationRate < 60) {
+      alerts.push({
+        id: 'activation-alert',
+        level: exec.activationRate < 40 ? 'critical' : 'warning',
+        title: `Taxa de ativação: ${exec.activationRate}%`,
+        description: `${exec.neverActiveCount} alunos matriculados nunca acessaram`,
+        percentage: exec.activationRate,
+        trend: 'stable',
       });
     }
 
@@ -680,8 +736,19 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         id: 'stickiness-positive',
         level: 'positive',
         title: `Stickiness de ${exec.stickiness}%`,
-        description: 'Usuários estão retornando regularmente',
+        description: 'Alunos estão retornando regularmente',
         percentage: exec.stickiness,
+        trend: 'up',
+      });
+    }
+
+    if (exec.activationRate >= 80) {
+      alerts.push({
+        id: 'activation-positive',
+        level: 'positive',
+        title: `${exec.activationRate}% dos alunos ativados`,
+        description: 'Excelente taxa de ativação da turma',
+        percentage: exec.activationRate,
         trend: 'up',
       });
     }

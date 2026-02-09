@@ -118,7 +118,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
   if (!metrics) return null;
 
   const stickinessColor = metrics.stickiness >= 30 ? 'success' : metrics.stickiness >= 15 ? 'warning' : 'danger';
-  const churnColor = metrics.churnRiskCount <= 5 ? 'success' : metrics.churnRiskCount <= 20 ? 'warning' : 'danger';
+  const activationColor = metrics.activationRate >= 80 ? 'success' : metrics.activationRate >= 50 ? 'warning' : 'danger';
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -127,7 +127,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
         label="DAU"
         value={metrics.dau}
         subValue={`WAU: ${metrics.wau} | MAU: ${metrics.mau}`}
-        tooltip="Daily Active Users - média de usuários únicos por dia nos últimos 30 dias"
+        tooltip="Daily Active Users - média de alunos únicos por dia nos últimos 30 dias"
         delay={0}
       />
       
@@ -136,7 +136,7 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
         label="Stickiness"
         value={`${metrics.stickiness}%`}
         subValue="DAU/MAU"
-        tooltip="Razão entre usuários diários e mensais. Quanto maior, mais engajado o produto."
+        tooltip="Razão entre alunos diários e mensais. Quanto maior, mais engajada a turma."
         color={stickinessColor}
         trend={metrics.stickiness >= 25 ? 'up' : metrics.stickiness >= 15 ? 'neutral' : 'down'}
         delay={1}
@@ -162,23 +162,23 @@ export const ExecutiveSummaryCards: React.FC<ExecutiveSummaryCardsProps> = ({
       />
       
       <MetricCard
-        icon={<Calendar className="h-4 w-4 text-purple-500" />}
-        label="Calendário"
-        value={`${metrics.calendarAdoption}%`}
-        subValue="adoção"
-        tooltip="Porcentagem de usuários ativos que usam o calendário de estudos"
-        color={metrics.calendarAdoption >= 30 ? 'success' : metrics.calendarAdoption >= 15 ? 'default' : 'warning'}
+        icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
+        label="Ativação"
+        value={`${metrics.activationRate}%`}
+        subValue={`${metrics.neverActiveCount} nunca acessaram`}
+        tooltip="Porcentagem de alunos matriculados que já acessaram a plataforma pelo menos uma vez"
+        color={activationColor}
+        trend={metrics.activationRate >= 70 ? 'up' : metrics.activationRate >= 50 ? 'neutral' : 'down'}
         delay={4}
       />
       
       <MetricCard
-        icon={<AlertTriangle className="h-4 w-4 text-red-500" />}
-        label="Risco Churn"
-        value={metrics.churnRiskCount}
-        subValue="usuários (1 visita/14d)"
-        tooltip="Usuários com apenas 1 visita nos últimos 14 dias"
-        color={churnColor}
-        trend={metrics.churnRiskCount <= 10 ? 'up' : 'down'}
+        icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+        label="Baixa Atividade"
+        value={metrics.lowEngagementCount}
+        subValue="alunos (1 visita/14d)"
+        tooltip="Alunos que acessaram apenas 1 vez nas últimas 2 semanas - podem precisar de ações de ativação"
+        color={metrics.lowEngagementCount <= 5 ? 'success' : metrics.lowEngagementCount <= 20 ? 'warning' : 'danger'}
         delay={5}
       />
     </div>

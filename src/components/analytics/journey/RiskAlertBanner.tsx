@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Minus, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { RiskAlert } from './types';
 
-interface RiskAlertBannerProps {
+interface EngagementAlertBannerProps {
   alerts: RiskAlert[];
   isLoading: boolean;
 }
@@ -44,7 +44,8 @@ const TrendIcon: React.FC<{ trend?: 'up' | 'down' | 'stable'; level: 'critical' 
   return <Minus className="h-4 w-4 text-muted-foreground" />;
 };
 
-export const RiskAlertBanner: React.FC<RiskAlertBannerProps> = ({
+// Componente renomeado mas mantém export antigo para compatibilidade
+export const EngagementAlertBanner: React.FC<EngagementAlertBannerProps> = ({
   alerts,
   isLoading,
 }) => {
@@ -112,3 +113,6 @@ export const RiskAlertBanner: React.FC<RiskAlertBannerProps> = ({
     </div>
   );
 };
+
+// Alias para compatibilidade com imports existentes
+export const RiskAlertBanner = EngagementAlertBanner;
