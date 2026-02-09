@@ -104,8 +104,8 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
         )}
         
         {/* Content - Fluid padding */}
-        <div className="relative p-4 sm:p-6 md:p-8 lg:p-10">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 sm:gap-5 xl:gap-8">
+        <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-5 lg:gap-8">
             {/* Left content */}
             <div className="flex-1 space-y-3 sm:space-y-4 md:space-y-5">
               {/* Greeting badge */}
@@ -126,7 +126,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.4 }}
-                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight truncate max-w-[280px] sm:max-w-md lg:max-w-none"
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight truncate max-w-[280px] sm:max-w-md lg:max-w-lg"
               >
                 {user?.nome || 'Estudante'}
               </motion.h1>
@@ -147,7 +147,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3, duration: 0.4 }}
-              className="flex-shrink-0 w-full sm:w-auto"
+              className="flex-shrink-0 min-w-fit w-full sm:w-auto"
             >
               <motion.div
                 whileHover={{ scale: 1.02, y: -1 }}
