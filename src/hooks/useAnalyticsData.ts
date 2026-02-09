@@ -900,21 +900,49 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     const adminIds = await fetchAdminUserIds();
     console.log('[Analytics] Excluding', adminIds.size, 'admin users from demographics');
 
-    // PARALLEL: Buscar usuários e IES em paralelo
-    let usuariosQuery;
-    if (iesFilter) {
-      usuariosQuery = supabase.from('users').select('id, id_ies, semestre').eq('id_ies', iesFilter);
-    } else {
-      // Buscar todos - incluindo usuários sem IES para contagem correta
-      usuariosQuery = supabase.from('users').select('id, id_ies, semestre');
-    }
-    
-    const [usuariosResult, iesResult] = await Promise.all([
-      usuariosQuery,
+    // PAGINAÇÃO: Buscar TODOS os usuários (Supabase limita a 1000 por padrão)
+    const fetchAllUsers = async () => {
+      const allUsers: { id: string; id_ies: string | null; semestre: number | null }[] = [];
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        let query = supabase
+          .from('users')
+          .select('id, id_ies, semestre')
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        
+        if (iesFilter) {
+          query = query.eq('id_ies', iesFilter);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('[Analytics] Error fetching users page', page, error);
+          break;
+        }
+        
+        if (data && data.length > 0) {
+          allUsers.push(...data);
+          hasMore = data.length === PAGE_SIZE;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      console.log('[Analytics] Total users fetched with pagination:', allUsers.length);
+      return allUsers;
+    };
+
+    const [allUsersData, iesResult] = await Promise.all([
+      fetchAllUsers(),
       supabase.from('ies').select('id, nome')
     ]);
 
-    let usuariosData = usuariosResult.data || [];
+    let usuariosData = allUsersData;
     
     // Filtrar admins primeiro
     usuariosData = usuariosData.filter(u => !adminIds.has(u.id));
