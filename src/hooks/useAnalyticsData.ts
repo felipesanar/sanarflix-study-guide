@@ -26,9 +26,35 @@ export interface EngagementMetrics {
 }
 
 export interface ProgressMetrics {
-  progressoMedioPorMateria: { materia: string; progresso: number; total_itens: number }[];
+  // Métricas corrigidas (comparando com conteúdo disponível)
+  progressoMedioPorMateria: { 
+    materia: string; 
+    progresso: number; 
+    aulasDisponiveis: number;
+    aulasConcluidas: number;
+  }[];
   usuariosPorFaixaProgresso: { faixa: string; quantidade: number }[];
   taxaConclusaoConteudo: number;
+  
+  // Novas métricas
+  velocidadeEstudo: {
+    aulasUltimaSemana: number;
+    aulasSemanaAnterior: number;
+    tendencia: 'up' | 'down' | 'stable';
+    porDia: { data: string; conclusoes: number }[];
+  };
+  materiasPopulares: {
+    materia: string;
+    usuariosUnicos: number;
+    totalConclusoes: number;
+  }[];
+  coberturaConteudo: {
+    aulasAcessadas: number;
+    totalAulas: number;
+    percentual: number;
+  };
+  usuariosComProgresso: number;
+  totalUsuariosElegiveis: number;
 }
 
 export interface DemographicsMetrics {
@@ -96,6 +122,20 @@ const defaultMetrics: AnalyticsData = {
     progressoMedioPorMateria: [],
     usuariosPorFaixaProgresso: [],
     taxaConclusaoConteudo: 0,
+    velocidadeEstudo: {
+      aulasUltimaSemana: 0,
+      aulasSemanaAnterior: 0,
+      tendencia: 'stable',
+      porDia: [],
+    },
+    materiasPopulares: [],
+    coberturaConteudo: {
+      aulasAcessadas: 0,
+      totalAulas: 0,
+      percentual: 0,
+    },
+    usuariosComProgresso: 0,
+    totalUsuariosElegiveis: 0,
   },
   demographics: {
     usuariosPorIES: [],
@@ -510,57 +550,144 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchProgressMetrics = useCallback(async (): Promise<ProgressMetrics> => {
-    const { iesFilter } = filterParams;
+    const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchProgressMetrics:', { iesFilter });
+    console.log('[Analytics] fetchProgressMetrics (NOVO):', { iesFilter, excludedIESIds, startDate, endDate });
 
-    // Se tiver filtro de IES, buscar nome para filtrar study_progress
-    let iesNome: string | null = null;
+    // 1. Buscar admin IDs para exclusão
+    const adminIds = await fetchAdminUserIds();
+    console.log('[Analytics Progress] Excluding', adminIds.size, 'admin users');
+
+    // 2. Buscar usuários elegíveis (não-admins, filtrados por IES se aplicável)
+    let userIdsFromIES: string[] | null = null;
+    let hasExclusions = false;
+    
     if (iesFilter) {
-      const { data: iesData } = await supabase.from('ies').select('nome').eq('id', iesFilter).maybeSingle();
-      iesNome = iesData?.nome || null;
+      userIdsFromIES = await fetchUserIdsByIES(iesFilter, adminIds);
+    } else if (excludedIESIds.length > 0) {
+      userIdsFromIES = await fetchUserIdsExcludingIES(excludedIESIds, adminIds);
+      hasExclusions = true;
     }
 
-    // Buscar progresso (com filtro de IES pelo ies_nome)
-    const progressoQuery = iesNome
-      ? supabase.from('study_progress').select('materia_id, completed, user_id, ies_nome').eq('ies_nome', iesNome)
-      : supabase.from('study_progress').select('materia_id, completed, user_id, ies_nome');
+    // 3. Buscar usuários com seus semestres e IES para calcular conteúdo disponível
+    const usersQuery = iesFilter
+      ? supabase.from('users').select('id, semestre, id_ies').eq('id_ies', iesFilter)
+      : hasExclusions && userIdsFromIES && userIdsFromIES.length > 0
+        ? supabase.from('users').select('id, semestre, id_ies').in('id', userIdsFromIES)
+        : supabase.from('users').select('id, semestre, id_ies');
 
-    const { data: progressoBruto } = await progressoQuery;
+    // 4. Buscar conteúdos disponíveis (agrupado por IES + semestre + matéria)
+    const conteudosQuery = iesFilter
+      ? supabase.from('conteudos').select('id, id_ies, semestre, materia')
+        .eq('id_ies', iesFilter)
+      : supabase.from('conteudos').select('id, id_ies, semestre, materia');
 
-    // Processar por matéria
-    const materiaMap = new Map<string, { completed: number; total: number }>();
-    const userProgressMap = new Map<string, { completed: number; total: number }>();
+    // 5. Buscar study_progress com filtro de período
+    const progressQuery = supabase
+      .from('study_progress')
+      .select('id, user_id, materia_id, completed, completed_at, content_id, semestre')
+      .eq('completed', true)
+      .gte('completed_at', startDate)
+      .lte('completed_at', endDate);
 
-    progressoBruto?.forEach((p) => {
-      // Por matéria
-      const materiaStats = materiaMap.get(p.materia_id) || { completed: 0, total: 0 };
-      materiaMap.set(p.materia_id, {
-        completed: materiaStats.completed + (p.completed ? 1 : 0),
-        total: materiaStats.total + 1,
-      });
+    // Executar queries em paralelo
+    const [usersResult, conteudosResult, progressResult] = await Promise.all([
+      usersQuery,
+      conteudosQuery,
+      progressQuery,
+    ]);
 
-      // Por usuário
-      const userStats = userProgressMap.get(p.user_id) || { completed: 0, total: 0 };
-      userProgressMap.set(p.user_id, {
-        completed: userStats.completed + (p.completed ? 1 : 0),
-        total: userStats.total + 1,
-      });
+    const usersData = (usersResult.data || []).filter(u => !adminIds.has(u.id));
+    const conteudosData = conteudosResult.data || [];
+    let progressData = (progressResult.data || []).filter(p => !adminIds.has(p.user_id));
+
+    // Filtrar progresso por IES se necessário
+    if (userIdsFromIES && userIdsFromIES.length > 0) {
+      const userIdSet = new Set(userIdsFromIES);
+      progressData = progressData.filter(p => userIdSet.has(p.user_id));
+    }
+
+    console.log('[Analytics Progress] Users:', usersData.length, 'Conteudos:', conteudosData.length, 'Progress:', progressData.length);
+
+    // 6. Criar mapas para cálculos eficientes
+    // Contar aulas por IES + semestre + matéria
+    const conteudosPorChave = new Map<string, number>();
+    const conteudosPorMateria = new Map<string, number>();
+    const totalAulasGlobal = conteudosData.length;
+
+    conteudosData.forEach(c => {
+      const chave = `${c.id_ies}|${c.semestre}|${c.materia}`;
+      conteudosPorChave.set(chave, (conteudosPorChave.get(chave) || 0) + 1);
+      conteudosPorMateria.set(c.materia, (conteudosPorMateria.get(c.materia) || 0) + 1);
     });
 
-    const progressoMedioPorMateria = Array.from(materiaMap.entries())
-      .map(([materia, vals]) => ({
-        materia,
-        progresso: vals.total > 0 ? Math.round((vals.completed / vals.total) * 100) : 0,
-        total_itens: vals.total,
-      }))
-      .sort((a, b) => b.progresso - a.progresso)
-      .slice(0, 10);
+    // Criar mapa de usuários para semestre/IES
+    const userInfoMap = new Map<string, { semestre: number | null; id_ies: string | null }>();
+    usersData.forEach(u => {
+      userInfoMap.set(u.id, { semestre: u.semestre, id_ies: u.id_ies });
+    });
 
-    // Faixas de progresso
+    // 7. Calcular progresso por matéria (comparando com total disponível)
+    const materiaStats = new Map<string, { concluidas: number; disponiveis: number }>();
+    const userConclusoes = new Map<string, Set<string>>(); // user_id -> Set<content_id>
+    const materiasAcessadas = new Set<string>(); // content_ids acessados
+
+    progressData.forEach(p => {
+      const materia = p.materia_id;
+      const stats = materiaStats.get(materia) || { concluidas: 0, disponiveis: 0 };
+      stats.concluidas++;
+      materiaStats.set(materia, stats);
+
+      // Track por usuário
+      if (!userConclusoes.has(p.user_id)) {
+        userConclusoes.set(p.user_id, new Set());
+      }
+      userConclusoes.get(p.user_id)!.add(p.content_id);
+      materiasAcessadas.add(p.content_id);
+    });
+
+    // Adicionar contagem de aulas disponíveis por matéria
+    conteudosPorMateria.forEach((count, materia) => {
+      const stats = materiaStats.get(materia) || { concluidas: 0, disponiveis: 0 };
+      stats.disponiveis = count;
+      materiaStats.set(materia, stats);
+    });
+
+    // 8. Montar progressoMedioPorMateria
+    const progressoMedioPorMateria = Array.from(materiaStats.entries())
+      .map(([materia, stats]) => ({
+        materia,
+        progresso: stats.disponiveis > 0 ? Math.round((stats.concluidas / stats.disponiveis) * 100) : 0,
+        aulasDisponiveis: stats.disponiveis,
+        aulasConcluidas: stats.concluidas,
+      }))
+      .filter(m => m.aulasDisponiveis > 0 || m.aulasConcluidas > 0)
+      .sort((a, b) => b.progresso - a.progresso)
+      .slice(0, 15);
+
+    // 9. Calcular progresso real por usuário (vs conteúdo disponível para seu semestre)
+    const userProgressReal = new Map<string, number>(); // user_id -> % real
+    
+    usersData.forEach(u => {
+      const userInfo = userInfoMap.get(u.id);
+      if (!userInfo || !userInfo.id_ies || !userInfo.semestre) return;
+
+      // Contar aulas disponíveis para este usuário (seu IES + semestre)
+      let aulasDisponiveis = 0;
+      conteudosData.forEach(c => {
+        if (c.id_ies === userInfo.id_ies && String(c.semestre) === String(userInfo.semestre)) {
+          aulasDisponiveis++;
+        }
+      });
+
+      const aulasConcluidas = userConclusoes.get(u.id)?.size || 0;
+      const progressoReal = aulasDisponiveis > 0 ? (aulasConcluidas / aulasDisponiveis) * 100 : 0;
+      userProgressReal.set(u.id, progressoReal);
+    });
+
+    // 10. Faixas de progresso (baseado em progresso REAL)
     const faixas = { '0-25%': 0, '25-50%': 0, '50-75%': 0, '75-100%': 0 };
-    userProgressMap.forEach((vals) => {
-      const pct = vals.total > 0 ? (vals.completed / vals.total) * 100 : 0;
+    userProgressReal.forEach((pct) => {
       if (pct <= 25) faixas['0-25%']++;
       else if (pct <= 50) faixas['25-50%']++;
       else if (pct <= 75) faixas['50-75%']++;
@@ -572,17 +699,104 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       quantidade,
     }));
 
-    // Taxa de conclusão geral
-    const totalItens = progressoBruto?.length || 0;
-    const totalConcluidos = progressoBruto?.filter(p => p.completed).length || 0;
-    const taxaConclusaoConteudo = totalItens > 0 ? Math.round((totalConcluidos / totalItens) * 100) : 0;
+    // 11. Taxa de conclusão geral (total de conclusões / total de conteúdo * usuários)
+    const totalConclusoes = progressData.length;
+    const totalPossivel = usersData.length > 0 && totalAulasGlobal > 0
+      ? usersData.reduce((acc, u) => {
+          const info = userInfoMap.get(u.id);
+          if (!info?.id_ies || !info.semestre) return acc;
+          let count = 0;
+          conteudosData.forEach(c => {
+            if (c.id_ies === info.id_ies && String(c.semestre) === String(info.semestre)) {
+              count++;
+            }
+          });
+          return acc + count;
+        }, 0)
+      : 0;
+    
+    const taxaConclusaoConteudo = totalPossivel > 0 
+      ? Math.round((totalConclusoes / totalPossivel) * 100) 
+      : 0;
+
+    // 12. Velocidade de estudo (conclusões por dia no período)
+    const hoje = getBrazilDate();
+    const seteDiasAtras = new Date(hoje);
+    seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+    const quatorzeDiasAtras = new Date(hoje);
+    quatorzeDiasAtras.setDate(quatorzeDiasAtras.getDate() - 14);
+
+    const conclusoesPorDia = new Map<string, number>();
+    let aulasUltimaSemana = 0;
+    let aulasSemanaAnterior = 0;
+
+    progressData.forEach(p => {
+      if (!p.completed_at) return;
+      const dataConc = toBrazilDate(new Date(p.completed_at));
+      const diaKey = dataConc.toISOString().split('T')[0];
+      conclusoesPorDia.set(diaKey, (conclusoesPorDia.get(diaKey) || 0) + 1);
+
+      if (dataConc >= seteDiasAtras) {
+        aulasUltimaSemana++;
+      } else if (dataConc >= quatorzeDiasAtras) {
+        aulasSemanaAnterior++;
+      }
+    });
+
+    const tendencia: 'up' | 'down' | 'stable' = 
+      aulasUltimaSemana > aulasSemanaAnterior * 1.2 ? 'up' :
+      aulasUltimaSemana < aulasSemanaAnterior * 0.8 ? 'down' : 'stable';
+
+    const porDia = Array.from(conclusoesPorDia.entries())
+      .map(([data, conclusoes]) => ({ data, conclusoes }))
+      .sort((a, b) => a.data.localeCompare(b.data))
+      .slice(-30); // Últimos 30 dias
+
+    // 13. Matérias mais populares (por usuários únicos)
+    const materiaUserCount = new Map<string, Set<string>>();
+    progressData.forEach(p => {
+      if (!materiaUserCount.has(p.materia_id)) {
+        materiaUserCount.set(p.materia_id, new Set());
+      }
+      materiaUserCount.get(p.materia_id)!.add(p.user_id);
+    });
+
+    const materiasPopulares = Array.from(materiaUserCount.entries())
+      .map(([materia, users]) => ({
+        materia,
+        usuariosUnicos: users.size,
+        totalConclusoes: progressData.filter(p => p.materia_id === materia).length,
+      }))
+      .sort((a, b) => b.usuariosUnicos - a.usuariosUnicos)
+      .slice(0, 10);
+
+    // 14. Cobertura de conteúdo
+    const aulasAcessadas = materiasAcessadas.size;
+    const coberturaConteudo = {
+      aulasAcessadas,
+      totalAulas: totalAulasGlobal,
+      percentual: totalAulasGlobal > 0 ? Math.round((aulasAcessadas / totalAulasGlobal) * 100) : 0,
+    };
+
+    // 15. Contagem de usuários com progresso
+    const usuariosComProgresso = userConclusoes.size;
 
     return {
       progressoMedioPorMateria,
       usuariosPorFaixaProgresso,
       taxaConclusaoConteudo,
+      velocidadeEstudo: {
+        aulasUltimaSemana,
+        aulasSemanaAnterior,
+        tendencia,
+        porDia,
+      },
+      materiasPopulares,
+      coberturaConteudo,
+      usuariosComProgresso,
+      totalUsuariosElegiveis: usersData.length,
     };
-  }, [filterParams]);
+  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchDemographicsMetrics = useCallback(async (): Promise<DemographicsMetrics> => {
     const { iesFilter, excludedIESIds } = filterParams;
