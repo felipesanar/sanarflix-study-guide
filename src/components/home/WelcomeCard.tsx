@@ -160,7 +160,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 <Button 
                   onClick={handleContinueStudy}
                   size="lg"
-                  className="relative group h-auto min-h-[2.5rem] sm:min-h-[2.75rem] md:min-h-[3rem] px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-xs sm:text-sm md:text-base w-full sm:w-auto"
+                  className="relative group h-auto min-h-[2.5rem] sm:min-h-[2.75rem] md:min-h-[3rem] px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 rounded-lg sm:rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-300 text-[11px] sm:text-sm md:text-base w-full sm:w-auto"
                 >
                   <span className="whitespace-normal sm:whitespace-nowrap">Continuar estudos</span>
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-200" />
