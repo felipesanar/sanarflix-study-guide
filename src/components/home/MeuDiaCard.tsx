@@ -214,8 +214,8 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
       </div>
       
       <div className="relative px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6">
-        {/* Upcoming Exam Banner - always show at top if handler exists */}
-        {onAddExamClick && (
+        {/* Upcoming Exam Banner - only for users with study guide access */}
+        {onAddExamClick && hasStudyGuide && (
           <UpcomingExamBanner
             exam={nextExam ?? null}
             loading={examLoading}
