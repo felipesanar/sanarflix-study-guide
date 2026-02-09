@@ -212,11 +212,11 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Scrollable content area */}
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
+      {/* Scrollable content area - touch-pan-y for smooth mobile scrolling */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto overscroll-contain pb-28"
+        className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y pb-28 -webkit-overflow-scrolling-touch"
       >
         {/* Above-the-fold: Summary Header */}
         <MobileSummaryHeader

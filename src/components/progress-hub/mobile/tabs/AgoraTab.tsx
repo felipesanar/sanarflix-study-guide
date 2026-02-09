@@ -34,11 +34,11 @@ const ActionsCarousel: React.FC<{
   }
 
   return (
-    <div className="relative">
+    <div className="relative overflow-x-clip">
       {/* Carousel container with scroll-snap */}
       <div 
-        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 touch-pan-x"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {actions.slice(0, 5).map((action, index) => (
           <div

@@ -95,27 +95,27 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
       {/* Metrics row: 2-column micro grid */}
       <div className="grid grid-cols-2 gap-3 mb-3">
         {/* Left: Progress percentage + bar */}
-        <div className="bg-card/50 border border-border/50 rounded-xl p-3">
-          <div className="flex items-baseline gap-1.5 mb-1.5">
+        <div className="min-w-0 bg-card/50 border border-border/50 rounded-xl p-3">
+          <div className="flex items-baseline gap-1.5 mb-1.5 flex-wrap">
             <span className="text-2xl font-bold text-foreground">{Math.round(overview.percentage)}%</span>
             <Badge 
               variant="outline" 
-              className={cn('text-[10px] px-1.5 py-0 h-4', statusConfig.color)}
+              className={cn('text-[10px] px-1.5 py-0 h-4 flex-shrink-0', statusConfig.color)}
             >
               {statusConfig.label}
             </Badge>
           </div>
           <Progress value={overview.percentage} className="h-1.5" />
-          <p className="text-[10px] text-muted-foreground mt-1.5">
+          <p className="text-[10px] text-muted-foreground mt-1.5 truncate">
             {overview.completed}/{overview.total} aulas
           </p>
         </div>
 
         {/* Right: Streak + weekly goal */}
-        <div className="bg-card/50 border border-border/50 rounded-xl p-3">
+        <div className="min-w-0 bg-card/50 border border-border/50 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-1">
-            <Flame className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-semibold text-foreground">
+            <Flame className="h-4 w-4 text-orange-500 flex-shrink-0" />
+            <span className="text-sm font-semibold text-foreground truncate">
               {streak.active_days_week}/{streak.goal} dias
             </span>
           </div>
@@ -133,7 +133,7 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
               );
             })}
           </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5">
+          <p className="text-[10px] text-muted-foreground mt-1.5 truncate">
             Sequência: {streak.current} {streak.current === 1 ? 'dia' : 'dias'}
           </p>
         </div>
