@@ -5,13 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban, FileDown } from 'lucide-react';
+import { Trophy, Target, TrendingUp, BarChart3, BarChart, Loader2, FileText, Star, TrendingDown, HelpCircle, ChevronsUpDown, ChevronLeft, ChevronRight, XCircle, CheckCircle, Ban, FileDown, ChevronDown, BookOpen, ClipboardList } from 'lucide-react';
 import { generateGabaritoPDF, GabaritoQuestao } from '@/utils/pdfGabarito';
+import { generateProvaRevisadaPDF, QuestaoRevisada, ProvaRevisadaStats } from '@/utils/pdfProvaRevisada';
 import { toast } from '@/hooks/use-toast';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, BarChart as RechartsBarChart, Bar } from 'recharts';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 // --- Interfaces ---
 interface Simulado { id: string; nome: string; }
@@ -266,6 +268,8 @@ export const SimuladoDesempenho: React.FC = () => {
   const [simulados, setSimulados] = useState<Simulado[]>(cachedData?.simulados || []);
   const [allPerformanceData, setAllPerformanceData] = useState<any[]>([]);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isDownloadingProvaRevisada, setIsDownloadingProvaRevisada] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<string>('');
   const CACHE_KEY_PREFIX = `performanceData_${user?.id}`;
 
   const fetchDataForView = async (simuladoId: string | null, forceRefresh = false) => {
@@ -436,6 +440,184 @@ export const SimuladoDesempenho: React.FC = () => {
     }
   };
 
+  const handleDownloadProvaRevisada = async () => {
+    if (!selectedSimulado || !user) return;
+    
+    setIsDownloadingProvaRevisada(true);
+    setDownloadProgress('Preparando...');
+    
+    try {
+      // Fetch complete questions with all fields
+      const { data: questoesCompletas, error: questoesError } = await supabase
+        .from('questoes_simulado')
+        .select(`
+          id, ordem, enunciado, 
+          alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e,
+          correta, comentario, imagem,
+          grande_area, especialidade, tema, grau_dificuldade, anulada
+        `)
+        .eq('simulado_id', selectedSimulado)
+        .order('ordem', { ascending: true });
+      
+      if (questoesError) throw questoesError;
+      if (!questoesCompletas || questoesCompletas.length === 0) {
+        throw new Error('Nenhuma questão encontrada para este simulado');
+      }
+      
+      setDownloadProgress(`Carregando respostas...`);
+      
+      // Fetch student answers
+      const { data: respostasAluno, error: respostasError } = await supabase
+        .from('answer_progress')
+        .select('question_id, resposta_usuario, correct')
+        .eq('simulado', selectedSimulado)
+        .eq('user_id', user.id);
+      
+      if (respostasError) throw respostasError;
+      
+      // Create a map of student answers
+      const respostasMap = new Map(
+        (respostasAluno || []).map(r => [r.question_id, r])
+      );
+      
+      // Build the QuestaoRevisada array
+      const questoesRevisadas: QuestaoRevisada[] = questoesCompletas.map((q, index) => {
+        const resposta = respostasMap.get(q.id);
+        const respostaUsuario = resposta?.resposta_usuario?.toUpperCase() || null;
+        const gabarito = q.correta?.toUpperCase() || 'A';
+        
+        // Determine acertou status
+        let acertou: boolean | null = null;
+        if (q.anulada) {
+          acertou = true; // Anuladas contam como acerto
+        } else if (respostaUsuario) {
+          acertou = respostaUsuario === gabarito;
+        }
+        
+        // Build alternativas array with explicit type
+        const alternativas: Array<{ letra: 'A' | 'B' | 'C' | 'D' | 'E'; texto: string; isCorreta: boolean; isMarcadaPeloAluno: boolean }> = [
+          { letra: 'A', texto: q.alternativa_a || '', isCorreta: gabarito === 'A', isMarcadaPeloAluno: respostaUsuario === 'A' },
+          { letra: 'B', texto: q.alternativa_b || '', isCorreta: gabarito === 'B', isMarcadaPeloAluno: respostaUsuario === 'B' },
+          { letra: 'C', texto: q.alternativa_c || '', isCorreta: gabarito === 'C', isMarcadaPeloAluno: respostaUsuario === 'C' },
+          { letra: 'D', texto: q.alternativa_d || '', isCorreta: gabarito === 'D', isMarcadaPeloAluno: respostaUsuario === 'D' },
+        ];
+        
+        // Add alternativa E if it exists
+        if (q.alternativa_e) {
+          alternativas.push({
+            letra: 'E',
+            texto: q.alternativa_e,
+            isCorreta: gabarito === 'E',
+            isMarcadaPeloAluno: respostaUsuario === 'E'
+          });
+        }
+        
+        return {
+          numero: index + 1,
+          enunciado: q.enunciado || '',
+          alternativas,
+          respostaAluno: respostaUsuario,
+          gabarito,
+          acertou,
+          comentario: q.comentario || null,
+          imagem: q.imagem || null,
+          grandeArea: q.grande_area || 'Geral',
+          especialidade: q.especialidade || '',
+          tema: q.tema || '',
+          dificuldade: q.grau_dificuldade || 'Médio',
+          anulada: q.anulada || false,
+        };
+      });
+      
+      // Calculate statistics
+      const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
+      const erros = questoesRevisadas.filter(q => q.acertou === false).length;
+      const naoRespondidas = questoesRevisadas.filter(q => q.acertou === null).length;
+      const total = questoesRevisadas.length;
+      
+      // Calculate stats by area
+      const areaMap = new Map<string, { acertos: number; total: number }>();
+      questoesRevisadas.forEach(q => {
+        const area = q.grandeArea || 'Outros';
+        const existing = areaMap.get(area) || { acertos: 0, total: 0 };
+        existing.total++;
+        if (q.acertou === true) existing.acertos++;
+        areaMap.set(area, existing);
+      });
+      const porArea = Array.from(areaMap.entries()).map(([area, data]) => ({
+        area,
+        acertos: data.acertos,
+        total: data.total,
+        percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0
+      }));
+      
+      // Calculate stats by difficulty
+      const diffMap = new Map<string, { acertos: number; total: number }>();
+      questoesRevisadas.forEach(q => {
+        const nivel = q.dificuldade || 'Médio';
+        const existing = diffMap.get(nivel) || { acertos: 0, total: 0 };
+        existing.total++;
+        if (q.acertou === true) existing.acertos++;
+        diffMap.set(nivel, existing);
+      });
+      const porDificuldade = Array.from(diffMap.entries()).map(([nivel, data]) => ({
+        nivel,
+        acertos: data.acertos,
+        total: data.total,
+        percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0
+      }));
+      
+      const provaStats: ProvaRevisadaStats = {
+        acertos,
+        erros,
+        naoRespondidas,
+        total,
+        percentual: total > 0 ? Math.round((acertos / total) * 100) : 0,
+        porArea,
+        porDificuldade,
+      };
+      
+      const simuladoInfo = simulados.find(s => s.id === selectedSimulado);
+      const simuladoNome = simuladoInfo?.nome || 'Simulado';
+      
+      // Generate PDF with progress callback
+      await generateProvaRevisadaPDF(
+        simuladoNome,
+        user.email || 'Aluno',
+        questoesRevisadas,
+        provaStats,
+        (stage, current, totalItems) => {
+          switch (stage) {
+            case 'preparing':
+              setDownloadProgress('Preparando...');
+              break;
+            case 'loading_images':
+              setDownloadProgress(`Carregando imagens (${current}/${totalItems})...`);
+              break;
+            case 'generating':
+              setDownloadProgress(`Gerando PDF (${current}/${totalItems} questões)...`);
+              break;
+            case 'complete':
+              setDownloadProgress('Concluído!');
+              break;
+          }
+        }
+      );
+      
+      toast({ title: 'Prova revisada gerada!', description: 'O PDF completo foi baixado com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao gerar prova revisada:', error);
+      toast({ 
+        title: 'Erro', 
+        description: error instanceof Error ? error.message : 'Não foi possível gerar a prova revisada.', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsDownloadingProvaRevisada(false);
+      setDownloadProgress('');
+    }
+  };
+
   // ATUALIZAÇÃO: A função agora aceita os 3 argumentos
   const handleSubspecialtyClick = async (subspecialtyName: string, areaName: string | null, specialtyName: string | null) => {
     setIsModalOpen(true); setIsLoadingQuestion(true); setSelectedQuestions([]);
@@ -495,20 +677,57 @@ export const SimuladoDesempenho: React.FC = () => {
             <UITooltip>
               <TooltipTrigger asChild>
                 <span className="w-full xs:w-auto">
-                  <Button
-                    onClick={handleDownloadGabarito}
-                    disabled={!selectedSimulado || isDownloadingPDF}
-                    variant="outline"
-                    className="gap-2 w-full"
-                  >
-                    {isDownloadingPDF ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                    Baixar Gabarito
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        disabled={!selectedSimulado || isDownloadingPDF || isDownloadingProvaRevisada}
+                        variant="outline"
+                        className="gap-2 w-full"
+                      >
+                        {(isDownloadingPDF || isDownloadingProvaRevisada) ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {downloadProgress || 'Gerando...'}
+                          </>
+                        ) : (
+                          <>
+                            <FileDown className="h-4 w-4" />
+                            Baixar PDF
+                            <ChevronDown className="h-4 w-4 ml-1" />
+                          </>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                      <DropdownMenuItem onClick={handleDownloadGabarito} className="flex flex-col items-start py-3 cursor-pointer">
+                        <div className="flex items-center gap-2 font-medium">
+                          <ClipboardList className="h-4 w-4" />
+                          Gabarito Resumido
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-6">
+                          Tabela simples com respostas
+                        </span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDownloadProvaRevisada} className="flex flex-col items-start py-3 cursor-pointer">
+                        <div className="flex items-center gap-2 font-medium">
+                          <BookOpen className="h-4 w-4" />
+                          Prova Revisada Completa
+                          <span className="ml-auto text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold">
+                            NOVO
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground ml-6">
+                          Questões completas + comentários
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </span>
               </TooltipTrigger>
               {!selectedSimulado && (
                 <TooltipContent>
-                  <p>Selecione um simulado específico para baixar o gabarito</p>
+                  <p>Selecione um simulado específico para baixar</p>
                 </TooltipContent>
               )}
             </UITooltip>
