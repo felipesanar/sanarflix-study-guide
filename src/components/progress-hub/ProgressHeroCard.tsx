@@ -81,109 +81,109 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
         <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,currentColor_1px,transparent_1px)] [background-size:24px_24px]" />
       </div>
 
-      <CardContent className="relative p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4 sm:gap-6">
-          {/* Left: Progress circle + status */}
-          <div className="flex items-center gap-4 lg:gap-6">
-            {/* Progress ring */}
-            <motion.div 
-              className="relative"
-              {...getAnimationProps({
-                initial: { scale: 0.8, opacity: 0 },
-                animate: { scale: 1, opacity: 1 },
-                transition: { duration: 0.5, ease: 'easeOut' }
-              })}
-            >
-              <svg 
-                className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 -rotate-90"
-                role="img"
-                aria-label={`Progresso: ${overview.percentage}% concluído`}
+      <CardContent className="relative p-4 sm:p-6">
+        <div className="flex flex-col gap-4 sm:gap-5">
+          {/* Top row: Progress circle + status + streak */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Left: Progress circle + status */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Progress ring */}
+              <motion.div 
+                className="relative shrink-0"
+                {...getAnimationProps({
+                  initial: { scale: 0.8, opacity: 0 },
+                  animate: { scale: 1, opacity: 1 },
+                  transition: { duration: 0.5, ease: 'easeOut' }
+                })}
               >
-                {/* Background circle */}
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r="45%"
-                  strokeWidth="8"
-                  fill="none"
-                  className="stroke-muted"
-                />
-                {/* Progress circle */}
-                <motion.circle
-                  cx="50%"
-                  cy="50%"
-                  r="45%"
-                  strokeWidth="8"
-                  fill="none"
-                  strokeLinecap="round"
-                  className="stroke-primary"
-                  initial={shouldReduceMotion ? { pathLength: overview.percentage / 100 } : { pathLength: 0 }}
-                  animate={{ pathLength: overview.percentage / 100 }}
-                  transition={shouldReduceMotion ? {} : { duration: 1, ease: 'easeOut', delay: 0.2 }}
-                  style={{
-                    strokeDasharray: '283',
-                    strokeDashoffset: `calc(283 - (283 * ${overview.percentage}) / 100)`
-                  }}
-                />
-              </svg>
-              {/* Center text */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <motion.span 
-                  className="text-2xl sm:text-3xl lg:text-4xl font-bold"
+                <svg 
+                  className="w-20 h-20 sm:w-24 sm:h-24 -rotate-90"
+                  role="img"
+                  aria-label={`Progresso: ${overview.percentage}% concluído`}
+                >
+                  {/* Background circle */}
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r="45%"
+                    strokeWidth="8"
+                    fill="none"
+                    className="stroke-muted"
+                  />
+                  {/* Progress circle */}
+                  <motion.circle
+                    cx="50%"
+                    cy="50%"
+                    r="45%"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    className="stroke-primary"
+                    initial={shouldReduceMotion ? { pathLength: overview.percentage / 100 } : { pathLength: 0 }}
+                    animate={{ pathLength: overview.percentage / 100 }}
+                    transition={shouldReduceMotion ? {} : { duration: 1, ease: 'easeOut', delay: 0.2 }}
+                    style={{
+                      strokeDasharray: '283',
+                      strokeDashoffset: `calc(283 - (283 * ${overview.percentage}) / 100)`
+                    }}
+                  />
+                </svg>
+                {/* Center text */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <motion.span 
+                    className="text-xl sm:text-2xl font-bold"
+                    {...getAnimationProps({
+                      initial: { opacity: 0 },
+                      animate: { opacity: 1 },
+                      transition: { delay: 0.5 }
+                    })}
+                  >
+                    {overview.percentage}%
+                  </motion.span>
+                  <span className="text-[10px] text-muted-foreground">concluído</span>
+                </div>
+              </motion.div>
+
+              {/* Status + numbers */}
+              <div className="flex flex-col gap-1.5 min-w-0">
+                {/* Status badge */}
+                <motion.div 
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium w-fit",
+                    statusConfig.color
+                  )}
+                  {...getAnimationProps({
+                    initial: { opacity: 0, x: -10 },
+                    animate: { opacity: 1, x: 0 },
+                    transition: { delay: 0.3 }
+                  })}
+                >
+                  <StatusIcon status={overview.status_level} />
+                  <span>{overview.status_message}</span>
+                </motion.div>
+
+                {/* Stats */}
+                <motion.div 
+                  className="space-y-0.5"
                   {...getAnimationProps({
                     initial: { opacity: 0 },
                     animate: { opacity: 1 },
-                    transition: { delay: 0.5 }
+                    transition: { delay: 0.4 }
                   })}
                 >
-                  {overview.percentage}%
-                </motion.span>
-                <span className="text-[10px] sm:text-xs text-muted-foreground">concluído</span>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">{overview.completed}</span> de {overview.total} aulas
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">{overview.total_materias}</span> matérias • <span className="font-medium text-foreground">{overview.total_temas}</span> temas
+                  </p>
+                </motion.div>
               </div>
-            </motion.div>
-
-            {/* Status + numbers */}
-            <div className="flex flex-col gap-2">
-              {/* Status badge */}
-              <motion.div 
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium w-fit",
-                  statusConfig.color
-                )}
-                {...getAnimationProps({
-                  initial: { opacity: 0, x: -10 },
-                  animate: { opacity: 1, x: 0 },
-                  transition: { delay: 0.3 }
-                })}
-              >
-                <StatusIcon status={overview.status_level} />
-                <span>{overview.status_message}</span>
-              </motion.div>
-
-              {/* Stats */}
-              <motion.div 
-                className="space-y-1"
-                {...getAnimationProps({
-                  initial: { opacity: 0 },
-                  animate: { opacity: 1 },
-                  transition: { delay: 0.4 }
-                })}
-              >
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{overview.completed}</span> de {overview.total} aulas
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{overview.total_materias}</span> matérias • <span className="font-semibold text-foreground">{overview.total_temas}</span> temas
-                </p>
-              </motion.div>
             </div>
-          </div>
 
-          {/* Right: Streak + CTAs */}
-          <div className="flex flex-col gap-3 lg:flex-1 lg:items-end">
-            {/* Streak mini card */}
+            {/* Streak mini card - moves to right on sm+ */}
             <motion.div 
-              className="flex items-center gap-3 bg-muted/50 rounded-xl px-4 py-3 w-fit"
+              className="flex items-center gap-2 sm:gap-3 bg-muted/50 rounded-lg px-3 py-2 w-fit shrink-0"
               role="status"
               aria-label={`Atividade semanal: ${streak.active_days_week} de ${streak.goal} dias`}
               {...getAnimationProps({
@@ -192,12 +192,12 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                 transition: { delay: 0.5 }
               })}
             >
-              <div className="flex items-center gap-1.5" aria-hidden="true">
+              <div className="flex items-center gap-1" aria-hidden="true">
                 {Array.from({ length: 7 }).map((_, i) => (
                   <div
                     key={i}
                     className={cn(
-                      "w-3 h-3 rounded-sm transition-colors",
+                      "w-2.5 h-2.5 rounded-sm transition-colors",
                       streak.active_days_of_week?.includes(i)
                         ? "bg-primary"
                         : "bg-muted-foreground/20"
@@ -210,45 +210,43 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
                 <span className="text-muted-foreground">/{streak.goal} dias</span>
               </div>
             </motion.div>
-
-            {/* CTAs - Stack vertically on tablet, row on large screens */}
-            <motion.div 
-              className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto"
-              {...getAnimationProps({
-                initial: { opacity: 0, y: 10 },
-                animate: { opacity: 1, y: 0 },
-                transition: { delay: 0.6 }
-              })}
-            >
-              <Button 
-                onClick={handleContinue}
-                size="default"
-                className={cn(
-                  "gap-2 justify-center whitespace-nowrap",
-                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  "transition-all duration-200 hover:shadow-md active:scale-[0.98]"
-                )}
-              >
-                <Play className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden xl:inline">Continuar de onde parei</span>
-                <span className="xl:hidden">Continuar</span>
-              </Button>
-              <Button 
-                onClick={handleOpenCalendar}
-                variant="outline"
-                size="default"
-                className={cn(
-                  "gap-2 justify-center whitespace-nowrap",
-                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  "transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
-                )}
-              >
-                <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span className="hidden xl:inline">Organizar semana</span>
-                <span className="xl:hidden">Organizar</span>
-              </Button>
-            </motion.div>
           </div>
+
+          {/* Bottom row: CTAs */}
+          <motion.div 
+            className="flex flex-row gap-2"
+            {...getAnimationProps({
+              initial: { opacity: 0, y: 10 },
+              animate: { opacity: 1, y: 0 },
+              transition: { delay: 0.6 }
+            })}
+          >
+            <Button 
+              onClick={handleContinue}
+              size="default"
+              className={cn(
+                "gap-2 justify-center flex-1 sm:flex-none",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+              )}
+            >
+              <Play className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Continuar</span>
+            </Button>
+            <Button 
+              onClick={handleOpenCalendar}
+              variant="outline"
+              size="default"
+              className={cn(
+                "gap-2 justify-center flex-1 sm:flex-none",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
+              )}
+            >
+              <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Organizar</span>
+            </Button>
+          </motion.div>
         </div>
       </CardContent>
     </Card>
