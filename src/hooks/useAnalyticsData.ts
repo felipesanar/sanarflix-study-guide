@@ -68,8 +68,25 @@ export interface ProgressMetrics {
 }
 
 export interface DemographicsMetrics {
-  usuariosPorIES: { ies_nome: string; ies_id: string; quantidade: number }[];
-  usuariosPorSemestre: { semestre: string; quantidade: number }[];
+  usuariosPorIES: { ies_nome: string; ies_id: string; quantidade: number; percentual: number }[];
+  usuariosPorSemestre: { semestre: string; quantidade: number; percentual: number }[];
+  
+  // Novas métricas
+  totalUsuarios: number; // Total real excluindo admins
+  usuariosComIES: number;
+  usuariosSemIES: number;
+  usuariosComSemestre: number;
+  usuariosSemSemestre: number;
+  cadastrosCompletos: number; // Com IES E semestre
+  taxaCompletude: number; // % com cadastro completo
+  indiceHHI: number; // Índice Herfindahl-Hirschman (concentração)
+  concentracaoTop3: number; // % nas top 3 IES
+  semestresPorGrupo: {
+    iniciais: number; // 1-4
+    intermediarios: number; // 5-8
+    avancados: number; // 9-12+
+    naoInformado: number; // 0 ou null
+  };
 }
 
 export interface SimuladoMetrics {
@@ -158,6 +175,21 @@ const defaultMetrics: AnalyticsData = {
   demographics: {
     usuariosPorIES: [],
     usuariosPorSemestre: [],
+    totalUsuarios: 0,
+    usuariosComIES: 0,
+    usuariosSemIES: 0,
+    usuariosComSemestre: 0,
+    usuariosSemSemestre: 0,
+    cadastrosCompletos: 0,
+    taxaCompletude: 0,
+    indiceHHI: 0,
+    concentracaoTop3: 0,
+    semestresPorGrupo: {
+      iniciais: 0,
+      intermediarios: 0,
+      avancados: 0,
+      naoInformado: 0,
+    },
   },
   simulados: {
     simuladosDisponiveis: [],
@@ -864,15 +896,17 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     console.log('[Analytics] fetchDemographicsMetrics:', { iesFilter, excludedIESIds });
 
+    // CRÍTICO: Excluir admins (alinhamento com outras abas)
+    const adminIds = await fetchAdminUserIds();
+    console.log('[Analytics] Excluding', adminIds.size, 'admin users from demographics');
+
     // PARALLEL: Buscar usuários e IES em paralelo
     let usuariosQuery;
     if (iesFilter) {
-      usuariosQuery = supabase.from('users').select('id_ies, semestre').eq('id_ies', iesFilter);
-    } else if (excludedIESIds.length > 0) {
-      // Buscar todos e filtrar no cliente (Supabase não suporta NOT IN diretamente com array)
-      usuariosQuery = supabase.from('users').select('id_ies, semestre');
+      usuariosQuery = supabase.from('users').select('id, id_ies, semestre').eq('id_ies', iesFilter);
     } else {
-      usuariosQuery = supabase.from('users').select('id_ies, semestre');
+      // Buscar todos - incluindo usuários sem IES para contagem correta
+      usuariosQuery = supabase.from('users').select('id, id_ies, semestre');
     }
     
     const [usuariosResult, iesResult] = await Promise.all([
@@ -882,38 +916,86 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     let usuariosData = usuariosResult.data || [];
     
+    // Filtrar admins primeiro
+    usuariosData = usuariosData.filter(u => !adminIds.has(u.id));
+    
     // Aplicar filtro de exclusão no cliente se necessário
     if (!iesFilter && excludedIESIds.length > 0) {
-      usuariosData = usuariosData.filter(u => u.id_ies && !excludedIESIds.includes(u.id_ies));
+      usuariosData = usuariosData.filter(u => !u.id_ies || !excludedIESIds.includes(u.id_ies));
     }
     
     const iesData = iesResult.data || [];
     const iesMap = new Map(iesData.map(i => [i.id, i.nome]));
 
+    // Contadores para novas métricas
+    const totalUsuarios = usuariosData.length;
+    let usuariosComIES = 0;
+    let usuariosComSemestre = 0;
+    let cadastrosCompletos = 0;
+    
     const usuariosPorIESMap = new Map<string, number>();
     const usuariosPorSemestreMap = new Map<number, number>();
+    
+    // Grupos de semestre
+    const semestresPorGrupo = { iniciais: 0, intermediarios: 0, avancados: 0, naoInformado: 0 };
 
     usuariosData.forEach((u) => {
+      const temIES = !!u.id_ies;
+      const temSemestre = u.semestre !== null && u.semestre !== undefined && u.semestre !== 0;
+      
+      if (temIES) usuariosComIES++;
+      if (temSemestre) usuariosComSemestre++;
+      if (temIES && temSemestre) cadastrosCompletos++;
+      
+      // Contagem por IES
       if (u.id_ies) {
         usuariosPorIESMap.set(u.id_ies, (usuariosPorIESMap.get(u.id_ies) || 0) + 1);
       }
+      
+      // Contagem por semestre
       const semestre = u.semestre ?? 0;
       usuariosPorSemestreMap.set(semestre, (usuariosPorSemestreMap.get(semestre) || 0) + 1);
+      
+      // Agrupamento de semestres
+      if (semestre === 0) {
+        semestresPorGrupo.naoInformado++;
+      } else if (semestre >= 1 && semestre <= 4) {
+        semestresPorGrupo.iniciais++;
+      } else if (semestre >= 5 && semestre <= 8) {
+        semestresPorGrupo.intermediarios++;
+      } else {
+        semestresPorGrupo.avancados++;
+      }
     });
 
+    // Construir array de IES com percentual
     const usuariosPorIES = Array.from(usuariosPorIESMap.entries())
       .map(([ies_id, quantidade]) => ({
         ies_id,
         ies_nome: iesMap.get(ies_id) || 'Desconhecida',
         quantidade,
+        percentual: totalUsuarios > 0 ? Math.round((quantidade / totalUsuarios) * 1000) / 10 : 0,
       }))
       .sort((a, b) => b.quantidade - a.quantidade);
 
-    // Tratar semestre 0 como "Não informado"
+    // Calcular HHI (Índice Herfindahl-Hirschman)
+    const indiceHHI = totalUsuarios > 0 
+      ? Math.round(usuariosPorIES.reduce((sum, ies) => {
+          const marketShare = (ies.quantidade / totalUsuarios) * 100;
+          return sum + (marketShare * marketShare);
+        }, 0))
+      : 0;
+    
+    // Concentração nas top 3 IES
+    const top3Total = usuariosPorIES.slice(0, 3).reduce((sum, ies) => sum + ies.quantidade, 0);
+    const concentracaoTop3 = totalUsuarios > 0 ? Math.round((top3Total / totalUsuarios) * 100) : 0;
+
+    // Construir array de semestres com percentual
     const usuariosPorSemestre = Array.from(usuariosPorSemestreMap.entries())
       .map(([semestre, quantidade]) => ({ 
         semestre: semestre === 0 ? 'Não informado' : `${semestre}º`,
-        quantidade 
+        quantidade,
+        percentual: totalUsuarios > 0 ? Math.round((quantidade / totalUsuarios) * 1000) / 10 : 0,
       }))
       .sort((a, b) => {
         if (a.semestre === 'Não informado') return 1;
@@ -921,11 +1003,25 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         return parseInt(a.semestre) - parseInt(b.semestre);
       });
 
+    const taxaCompletude = totalUsuarios > 0 
+      ? Math.round((cadastrosCompletos / totalUsuarios) * 1000) / 10 
+      : 0;
+
     return {
       usuariosPorIES,
       usuariosPorSemestre,
+      totalUsuarios,
+      usuariosComIES,
+      usuariosSemIES: totalUsuarios - usuariosComIES,
+      usuariosComSemestre,
+      usuariosSemSemestre: totalUsuarios - usuariosComSemestre,
+      cadastrosCompletos,
+      taxaCompletude,
+      indiceHHI,
+      concentracaoTop3,
+      semestresPorGrupo,
     };
-  }, [filterParams]);
+  }, [filterParams, fetchAdminUserIds]);
 
   const fetchSimuladoMetrics = useCallback(async (): Promise<SimuladoMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
