@@ -260,29 +260,23 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
       const consumptionUsers = new Set((pageViews || []).map(p => p.user_id).filter(id => id && !adminIds.has(id)));
       const consumptionCount = consumptionUsers.size;
 
-      // Stage 5: Conversion (completed at least 1 simulado)
-      let simuladosQuery = supabase
-        .from('simulados_finalizados')
-        .select('user_id')
-        .gte('finalizado_em', startDate.toISOString())
-        .lte('finalizado_em', endDate.toISOString());
-      
-      const { data: simulados } = await simuladosQuery;
-      // Exclude admin users from conversion count
-      const conversionUsers = new Set((simulados || []).map(s => s.user_id).filter(id => !adminIds.has(id)));
-      const conversionCount = conversionUsers.size;
-
-      // Stage 6: Retention (returned after completing simulado)
-      // Users who have sessions after their first simulado completion
-      const retentionCount = Math.round(conversionCount * 0.65); // Placeholder - would need complex query
+      // Stage 5: Retenção (retornou mais de uma semana depois)
+      // Users who have sessions in different weeks
+      const userWeeks = new Map<string, Set<string>>();
+      filteredSessions.forEach(s => {
+        const week = format(startOfWeek(new Date(s.started_at), { weekStartsOn: 1 }), 'yyyy-ww');
+        if (!userWeeks.has(s.user_id)) userWeeks.set(s.user_id, new Set());
+        userWeeks.get(s.user_id)!.add(week);
+      });
+      const retentionCount = Array.from(userWeeks.entries())
+        .filter(([_, weeks]) => weeks.size >= 2).length;
 
       const stages: FunnelStage[] = [
-        { id: 'first_access', name: 'Primeiro Acesso', shortName: 'Acesso', count: firstAccessCount, percentage: 100, dropoff: 0, description: 'Usuários que acessaram a plataforma' },
+        { id: 'first_access', name: 'Primeiro Acesso', shortName: 'Acesso', count: firstAccessCount, percentage: 100, dropoff: 0, description: 'Alunos que acessaram a plataforma' },
         { id: 'exploration', name: 'Exploração', shortName: 'Explorar', count: explorationCount, percentage: 0, dropoff: 0, description: 'Visitaram 2+ páginas na sessão' },
         { id: 'engagement', name: 'Engajamento', shortName: 'Engajar', count: engagementCount, percentage: 0, dropoff: 0, description: 'Retornaram em outro dia' },
         { id: 'consumption', name: 'Consumo', shortName: 'Consumir', count: consumptionCount, percentage: 0, dropoff: 0, description: 'Acessaram Guia ou SanarClass' },
-        { id: 'conversion', name: 'Conversão', shortName: 'Converter', count: conversionCount, percentage: 0, dropoff: 0, description: 'Completaram 1 simulado' },
-        { id: 'retention', name: 'Retenção', shortName: 'Reter', count: retentionCount, percentage: 0, dropoff: 0, description: 'Voltaram após completar' },
+        { id: 'retention', name: 'Retenção', shortName: 'Reter', count: retentionCount, percentage: 0, dropoff: 0, description: 'Ativos em múltiplas semanas' },
       ];
 
       // Calculate percentages and dropoffs
@@ -294,12 +288,13 @@ export function useJourneyAnalytics(filters: JourneyFilters): UseJourneyAnalytic
         }
       });
 
-      const conversionRate = firstAccessCount > 0 ? Math.round((conversionCount / firstAccessCount) * 100) : 0;
+      // Taxa de engajamento profundo (chegou até consumo)
+      const deepEngagementRate = firstAccessCount > 0 ? Math.round((consumptionCount / firstAccessCount) * 100) : 0;
 
       return {
         stages,
         totalUsers: firstAccessCount,
-        conversionRate,
+        conversionRate: deepEngagementRate,
       };
     },
     staleTime: 5 * 60 * 1000,
