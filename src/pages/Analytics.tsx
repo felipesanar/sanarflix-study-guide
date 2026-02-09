@@ -33,7 +33,7 @@ export interface AnalyticsFilters {
 const Analytics = () => {
   const { user } = useAuth();
   const [showExportModal, setShowExportModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('engagement');
   const [filters, setFilters] = useState<AnalyticsFilters>({
     dateRange: {
       start: new Date(getBrazilDate().getTime() - 30 * 24 * 60 * 60 * 1000),
@@ -134,10 +134,7 @@ const Analytics = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6 bg-muted/50">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
-              Visão Geral
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50">
             <TabsTrigger value="engagement" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs sm:text-sm">
               Engajamento
             </TabsTrigger>
@@ -151,10 +148,6 @@ const Analytics = () => {
               Simulados
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-6">
-            <RealOverviewTab overview={overview} engagement={engagement} simulados={simulados} trackingHealth={data.trackingHealth || []} isLoading={isLoading} />
-          </TabsContent>
 
           <TabsContent value="engagement" className="space-y-6">
             <RealEngagementTab 
