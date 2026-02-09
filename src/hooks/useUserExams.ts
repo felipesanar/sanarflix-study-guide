@@ -1,21 +1,30 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useContext, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { UserExam, ExamInsight, MateriaProgress } from '@/types/progressHub';
 
 const STORAGE_KEY = 'progress_hub_exam_date'; // Legacy key for migration
 
 export function useUserExams() {
-  const { user } = useAuth();
+  // Always call useContext (unconditional hook call)
+  const authContext = useContext(AuthContext);
+  
+  // Safely extract user - will be null if context is null
+  const user = authContext?.user ?? null;
+  const hasContext = authContext !== null;
+  
   const [exams, setExams] = useState<UserExam[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    hasContext ? null : 'Auth context not available'
+  );
   const migratedRef = useRef(false);
 
   // Fetch exams from database
   const fetchExams = useCallback(async () => {
-    if (!user?.id) {
+    // Guard: no context or no user
+    if (!hasContext || !user?.id) {
       setExams([]);
       setLoading(false);
       return;
@@ -45,7 +54,7 @@ export function useUserExams() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, hasContext]);
 
   // Migrate legacy localStorage data to database
   const migrateFromLocalStorage = useCallback(async () => {
