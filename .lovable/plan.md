@@ -1,132 +1,170 @@
 
-# Plano: Lista de Usuarios com Edicao Inline
+# Plano: Adaptar Jornada do Estudante ao Contexto B2B Institucional
 
-## Objetivo
-Adicionar uma nova secao na aba "Usuarios" do painel de administracao que exibe todos os usuarios cadastrados em uma tabela, permitindo visualizar e editar seus dados diretamente na linha (inline editing).
+## Contexto do Negocio
 
-## Funcionalidades
+A plataforma SanarFlix Academy e um produto B2B vendido para universidades parceiras. Os alunos nao escolhem usar a plataforma individualmente - eles sao inscritos pela instituicao. Isso significa:
 
-### 1. Listagem de Usuarios
-- Tabela com todas as colunas: Nome, Email, IES, Semestre
-- Busca/filtro por nome, email ou IES
-- Paginacao para performance (ex: 25 usuarios por pagina)
-- Indicador de loading durante carregamento
-- Badge indicando role (Admin, Professor, Aluno)
+1. **Nao existe churn do aluno**: O aluno nao cancela assinatura, ele simplesmente pode deixar de usar
+2. **O risco real e institucional**: Se o engajamento for baixo, o gestor da universidade pode nao ver valor e nao renovar o contrato
+3. **Foco em saude do engajamento**: Em vez de "risco de churn", devemos falar em "baixo engajamento" ou "alunos inativos"
 
-### 2. Edicao Inline
-- Clique duplo ou botao "Editar" transforma a linha em modo de edicao
-- Campos editaveis: Nome, IES (dropdown), Semestre (input numerico)
-- Email e aparece como read-only (nao editavel, pois e identificador unico)
-- Botoes "Salvar" e "Cancelar" aparecem durante edicao
-- Validacao em tempo real dos campos
+## Mudancas Necessarias
 
-### 3. Acoes Disponiveis
-- Editar inline (nome, IES, semestre)
-- Promover/remover role de admin
-- Reenviar email de convite
-- Sincronizar autenticacao (integra com funcao existente)
+### 1. Renomear Metricas e Alertas
 
-## Arquitetura Tecnica
+| Termo Atual | Novo Termo |
+|-------------|------------|
+| "Risco de Churn" | "Baixo Engajamento" ou "Alunos Inativos" |
+| "X usuarios em risco de churn" | "X alunos com baixa atividade" |
+| "Churn Risk" | "Inatividade" |
+| "campanha de reengajamento" | "acoes de ativacao" |
 
-### Novo Componente: `UsersListTable.tsx`
-Componente dedicado para a listagem e edicao de usuarios:
+### 2. Recontextualizar Alertas e Insights
 
-```text
-+------------------------------------------------------------------+
-| [Buscar usuarios...]                    [Filtrar por IES: Todas] |
-+------------------------------------------------------------------+
-| Nome           | Email              | IES       | Sem | Acoes    |
-+------------------------------------------------------------------+
-| Joao Silva     | joao@ex.com        | USCS      | 5   | [Edit]   |
-| Maria Santos   | maria@ex.com       | Claretiano| 7   | [Edit]   |
-|                                                                  |
-| [Em edicao - campos inline]                                      |
-| [Input Nome]   | maria@ex.com       | [Select]  |[7] | [✓] [✕]  |
-+------------------------------------------------------------------+
-| Mostrando 1-25 de 150                       [<] [1] [2] [3] [>]  |
-+------------------------------------------------------------------+
+**Alertas Atuais (problema):**
+- "X usuarios em risco de churn" - Implica que vao cancelar
+
+**Novos Alertas (contexto B2B):**
+- "X alunos com baixa atividade" - Apenas 1 visita nos ultimos 14 dias
+- "X% da turma ainda nao acessou este mes" - Alunos que precisam de ativacao
+- "Engajamento abaixo do esperado" - Quando stickiness ou metricas estao baixas
+
+### 3. Reformular Insights Automaticos
+
+**Insight Atual:**
+```
+"X usuarios em risco de churn - Usuarios com apenas 1 visita nos ultimos 14 dias precisam de reengajamento"
 ```
 
-### Fluxo de Dados
+**Novo Insight:**
+```
+"X alunos com baixa atividade - Estes alunos acessaram apenas 1 vez nas ultimas 2 semanas. Considere acoes de ativacao como lembretes ou comunicacao via coordenacao"
+```
 
-1. **Buscar usuarios**: Query ao Supabase com JOIN na tabela `ies` para obter nome da IES
-2. **Buscar roles**: Query separada na tabela `user_roles` para identificar admins
-3. **Atualizar usuario**: Reutiliza a edge function `b2b-create-user` (ja suporta UPDATE)
-4. **Gerenciar roles**: Query direta na `user_roles` (admin tem permissao via RLS)
+### 4. Adicionar Metricas Relevantes para B2B
 
-### Estado do Componente
+Novas metricas que fazem mais sentido no contexto institucional:
 
+- **Taxa de Ativacao**: % de alunos matriculados que acessaram pelo menos 1x
+- **Cobertura Mensal**: % de alunos ativos no mes vs total matriculados
+- **Alunos Nunca Ativos**: Usuarios cadastrados que nunca fizeram login
+- **Engajamento por Semestre/Curso**: Comparativo entre turmas
+
+### 5. Novo Card: Indicador de Saude Institucional
+
+Em vez de "Risco de Churn", criar um indicador de "Saude do Engajamento" que mostre ao gestor:
+- Verde: Engajamento saudavel (>60% ativos no mes)
+- Amarelo: Atencao necessaria (30-60% ativos)
+- Vermelho: Engajamento critico (<30% ativos)
+
+## Arquivos a Modificar
+
+### 1. `types.ts`
+- Renomear `churnRiskCount` para `lowEngagementCount`
+- Adicionar `neverActiveCount` e `activationRate`
+
+### 2. `useJourneyAnalytics.ts`
+- Atualizar calculo de `churnRiskCount` para `lowEngagementCount`
+- Calcular `neverActiveCount` (usuarios sem nenhuma sessao)
+- Calcular `activationRate` (% de usuarios com pelo menos 1 acesso)
+- Reescrever textos de insights e alertas
+
+### 3. `ExecutiveSummaryCards.tsx`
+- Renomear card "Risco Churn" para "Baixa Atividade"
+- Atualizar icone e cores para refletir contexto de ativacao (nao perda)
+- Adicionar tooltip explicativo
+
+### 4. `BehavioralSegments.tsx`
+- Renomear segmento "Em Risco" para "Inativos" ou "Baixa Frequencia"
+- Atualizar descricao e icone
+
+### 5. `RiskAlertBanner.tsx`
+- Renomear para `EngagementAlertBanner.tsx`
+- Atualizar textos para contexto B2B
+- Adicionar novos tipos de alerta focados em ativacao
+
+### 6. `SmartInsightsEngine.tsx`
+- Reescrever mensagens de insights
+- Mudar acoes sugeridas de "campanha de reengajamento" para "comunicacao via coordenacao" ou "lembretes institucionais"
+
+## Exemplos de Novos Textos
+
+### Alertas
+
+**Antes:**
+- "25 usuarios em risco de churn - Apenas 1 visita nos ultimos 14 dias"
+
+**Depois:**
+- "25 alunos com baixa atividade - Acessaram apenas 1 vez nas ultimas 2 semanas"
+- "15% da turma inativa este mes - Alunos matriculados que ainda nao acessaram"
+
+### Insights
+
+**Antes:**
+- "25 usuarios em risco de churn - Usuarios com apenas 1 visita nos ultimos 14 dias precisam de reengajamento. Acao: Enviar campanha de reengajamento"
+
+**Depois:**
+- "25 alunos com baixa atividade - Estes alunos podem nao estar aproveitando os recursos da plataforma. Acao: Notificar coordenacao para acompanhamento"
+
+### Segmentos
+
+**Antes:**
+- "Em Risco" com icone de alerta
+
+**Depois:**
+- "Baixa Frequencia" ou "Inativos" com icone neutro (nao alarmista)
+
+## Secao Tecnica
+
+### Estrutura de Tipos Atualizada
 ```typescript
-interface UserRow {
-  id: string;
-  nome: string;
-  email: string;
-  id_ies: string | null;
-  ies_nome: string | null;
-  semestre: number | null;
-  roles: string[];
+export interface ExecutiveMetrics {
+  dau: number;
+  wau: number;
+  mau: number;
+  stickiness: number;
+  avgSessionDepth: number;
+  avgSessionDuration: number;
+  timeToFirstSimulado: number | null;
+  calendarAdoption: number;
+  // Removido: churnRiskCount
+  lowEngagementCount: number;    // Novo: usuarios com apenas 1 visita em 14d
+  neverActiveCount: number;      // Novo: usuarios sem nenhum acesso
+  activationRate: number;        // Novo: % de usuarios que ja acessaram
+  totalUsers: number;
 }
-
-interface EditingState {
-  userId: string | null;
-  nome: string;
-  id_ies: string;
-  semestre: string;
-}
 ```
 
-### Validacoes
-- Nome: minimo 2 caracteres, apenas letras e espacos
-- Semestre: numero de 1 a 12
-- IES: deve existir na lista
+### Logica de Calculo
+```typescript
+// Low engagement (substitui churn risk)
+const lowEngagementCount = Array.from(userSessionCounts.entries())
+  .filter(([_, count]) => count === 1).length;
 
-## Arquivos a Criar/Modificar
+// Never active (usuarios sem sessao alguma)
+const usersWithSessions = new Set(sessions.map(s => s.user_id));
+const neverActiveCount = totalUsers - usersWithSessions.size;
 
-### 1. Criar: `src/components/admin/UsersListTable.tsx`
-Componente principal com:
-- Fetch de usuarios com paginacao
-- Busca e filtros
-- Modo de edicao inline
-- Acoes por usuario
-
-### 2. Modificar: `src/components/admin/UsersTab.tsx`
-- Adicionar estatisticas reais (total de usuarios, admins)
-- Integrar o novo `UsersListTable` acima dos cards existentes
-- Reorganizar layout para acomodar a nova secao
-
-## Interface Visual
-
-### Linha Normal
-```text
-| Nome Completo    | email@exemplo.com | IES Nome | 5  | [Editar] [⋮] |
+// Activation rate
+const activationRate = totalUsers > 0 
+  ? Math.round((usersWithSessions.size / totalUsers) * 100) 
+  : 0;
 ```
-
-### Linha em Edicao
-```text
-| [Input: Nome]    | email@exemplo.com | [Select] |[5] | [Salvar] [Cancelar] |
-```
-
-### Menu de Acoes (dropdown no botao ⋮)
-- Reenviar convite (se nunca confirmou email)
-- Sincronizar auth (chama funcao existente)
-- Promover a admin / Remover admin
-
-## Consideracoes de Segurança
-
-1. Todas as atualizacoes passam pela edge function `b2b-create-user` que:
-   - Verifica se o caller tem role 'admin' via RPC seguro
-   - Valida todos os campos com Zod
-   - Atualiza `auth.users` e `public.users` de forma atomica
-
-2. Gerenciamento de roles usa RLS da tabela `user_roles`:
-   - Apenas admins podem INSERT/UPDATE/DELETE
-
-3. Listagem respeita politica RLS:
-   - Admins podem ver todos os usuarios (`has_role(auth.uid(), 'admin')`)
 
 ## Beneficios
-- Visao completa de todos os usuarios do sistema
-- Edicao rapida sem precisar abrir formularios separados
-- Busca e filtros para localizar usuarios rapidamente
-- Gerenciamento de roles integrado
-- Reutiliza infraestrutura existente (edge functions, RLS)
+
+1. **Contexto correto**: Metricas e alertas refletem a realidade B2B
+2. **Acoes relevantes**: Sugestoes fazem sentido para gestores de universidade
+3. **Menos alarme desnecessario**: "Baixa atividade" e menos alarmante que "risco de churn"
+4. **Novas metricas uteis**: Taxa de ativacao e cobertura sao mais relevantes para o cliente institucional
+5. **Comunicacao profissional**: Textos adequados para mostrar ao gestor da universidade
+
+## Entregaveis
+
+1. Types atualizados com novas metricas B2B
+2. Hook `useJourneyAnalytics` com calculos e textos revisados
+3. `ExecutiveSummaryCards` com card de "Baixa Atividade"
+4. `BehavioralSegments` com segmento "Inativos" em vez de "Em Risco"
+5. Alertas e insights reescritos para contexto institucional
+6. Possivel renomeacao de `RiskAlertBanner` para `EngagementAlertBanner`
