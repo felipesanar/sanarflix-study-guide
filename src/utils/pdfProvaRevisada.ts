@@ -686,7 +686,7 @@ const drawAlternative = (
     doc.text(labelText, labelBadgeX + labelWidth / 2, labelTextY, { align: 'center' });
   }
   
-  return blockHeight + 5; // Was 4 - more gap between alternatives
+  return blockHeight + 3; // Tighter gap between alternatives
 };
 
 const drawQuestionBlock = (
@@ -801,7 +801,7 @@ const drawQuestionBlock = (
   
   // Comentário do professor
   if (questao.comentario) {
-    yPos += 10; // Was 8 - more gap before comment
+    yPos += 5; // Compact gap before comment
     
     const sanitizedComment = sanitizeText(questao.comentario);
     const commentMaxWidth = contentWidth - 24;
