@@ -588,7 +588,7 @@ const addPageFooter = (doc: jsPDF): void => {
   doc.setFont('helvetica', 'normal');
   
   doc.text('Gerado por SanarFlix Academy', 14, footerY);
-  doc.text('sanarflix-study-guide.lovable.app', pageWidth / 2, footerY, { align: 'center' });
+  doc.text('academy.sanar.com.br', pageWidth / 2, footerY, { align: 'center' });
   
   const pageCount = doc.getNumberOfPages();
   const currentPage = doc.getCurrentPageInfo().pageNumber;

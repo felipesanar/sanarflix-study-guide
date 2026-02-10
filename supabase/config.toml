@@ -9,7 +9,7 @@ max_rows = 1000
 
 [auth]
 enabled = true
-site_url = "https://sanarflix-study-guide.lovable.app"
+site_url = "https://academy.sanar.com.br"
 
 [db]
 port = 54322
