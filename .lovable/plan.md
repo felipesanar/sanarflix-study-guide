@@ -1,68 +1,79 @@
 
-# Plano: Atualizar todas as referencias de URL para academy.sanar.com.br
 
-## Resumo
+# Plano: Painel de Dados do Guia de Estudos no Admin
 
-A mudanca do dominio live para `https://academy.sanar.com.br` impacta **10 arquivos** em 4 categorias. Todas as URLs hardcoded que apontam para `sanarflix-study-guide.lovable.app` (ou `guiadeestudos.sanar.com.br`) precisam ser atualizadas para o novo dominio de producao.
+## Objetivo
 
-## Arquivos impactados
+Adicionar um card de resumo/overview acima do wizard de importacao na aba "Guia", mostrando estatisticas do banco de dados sobre os guias de estudos ja cadastrados. Isso permite ao admin ter visibilidade completa antes de subir novos dados.
 
-### 1. CORS — Adicionar `academy.sanar.com.br` (2 funcoes que tem listas proprias)
+## O que sera exibido
 
-| Arquivo | Problema |
-|---------|----------|
-| `supabase/functions/study-guide-proxy/index.ts` | Lista ALLOWED_ORIGINS nao inclui `academy.sanar.com.br` |
-| `supabase/functions/enamed-proxy/index.ts` | Lista ALLOWED_ORIGINS nao inclui `academy.sanar.com.br` |
+### Resumo Geral (linha de KPIs)
+- Total de registros no banco (ex: 4.641)
+- Total de IES com guia cadastrado (ex: 2)
+- Total de semestres cobertos
+- Total de materias distintas
 
-**Acao:** Adicionar `'https://academy.sanar.com.br'` ao Set de cada arquivo.
+### Tabela detalhada por IES
+Para cada IES que possui dados na tabela `conteudos`:
+- Nome da IES
+- Quantidade de semestres
+- Quantidade de materias
+- Quantidade de temas
+- Quantidade de aulas
+- Total de registros
 
-### 2. URLs de redirecionamento em e-mails e convites (5 arquivos)
+### Detalhamento expandivel por IES
+Ao clicar em uma IES, abre um accordion mostrando a distribuicao por semestre:
+- Semestre (1, 2, ..., INTERNATO)
+- Qtd materias naquele semestre
+- Qtd temas
+- Qtd registros
 
-| Arquivo | URL atual | Nova URL |
-|---------|-----------|----------|
-| `supabase/functions/b2b-create-user/index.ts` (linha 262) | `sanarflix-study-guide.lovable.app/auth/update-password` | `academy.sanar.com.br/auth/update-password` |
-| `supabase/functions/custom-email-templates/index.ts` (linhas 94, 105, 116) | `preview--sanarflix-study-guide.lovable.app/reset-password`, `.../auth/update-password`, `sanarflix-study-guide.lovable.app/` | `academy.sanar.com.br/reset-password`, `.../auth/update-password`, `academy.sanar.com.br/` |
-| `supabase/functions/custom-email-templates/_templates/reset-password.tsx` (linhas 38, 58) | Logo e redirect com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
-| `supabase/functions/custom-email-templates/_templates/invite-user.tsx` (linhas 31, 41) | Redirect e logo com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
-| `supabase/functions/custom-email-templates/_templates/magic-link.tsx` (linhas 38, 58) | Logo e redirect com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
+### Cobertura de links
+Percentual de registros que possuem:
+- Link de aula (video)
+- Link de PDF
+- Link de quiz
 
-### 3. Links em e-mails de notificacao (1 arquivo)
+## Secao Tecnica
 
-| Arquivo | URL atual | Nova URL |
-|---------|-----------|----------|
-| `supabase/functions/notify-performance-released/index.ts` (linha 181) | `sanarflix-study-guide.lovable.app/simulados?aba=desempenho` | `academy.sanar.com.br/simulados?aba=desempenho` |
+### Arquivos a criar
 
-### 4. Configuracao do Supabase Auth (1 arquivo)
+**`src/components/admin/study-guide-import/components/StudyGuideOverview.tsx`**
+- Componente React que consulta a tabela `conteudos` com JOINs na tabela `ies` para nomes
+- Usa 3 queries via Supabase client:
+  1. Totais gerais (COUNT, COUNT DISTINCT)
+  2. Agrupamento por IES (usando RPC ou query direta)
+  3. Agrupamento por IES + semestre (para o accordion)
+- Como o Supabase JS client nao suporta GROUP BY nativamente, as queries de agregacao serao feitas via `.from('conteudos').select('*')` com processamento client-side, ou preferencialmente via uma chamada RPC se houver funcao SQL. Dado o volume atual (~4.600 registros), o processamento client-side e viavel e simples.
+- Exibe cards de KPI no topo (usando o padrao de MetricCard ja existente no projeto)
+- Tabela com dados por IES usando o componente `Table` do shadcn
+- Accordion para detalhamento por semestre
+- Indicadores de cobertura de links com barras de progresso
 
-| Arquivo | URL atual | Nova URL |
-|---------|-----------|----------|
-| `supabase/config.toml` (linha 12) | `site_url = "https://sanarflix-study-guide.lovable.app"` | `site_url = "https://academy.sanar.com.br"` |
+### Arquivo a editar
 
-### 5. PDF (1 arquivo frontend)
+**`src/components/admin/StudyGuideImportTab.tsx`**
+- Importar e renderizar `StudyGuideOverview` acima do `StudyGuideImportWizard`
+- Separar visualmente com um `Separator`
 
-| Arquivo | URL atual | Nova URL |
-|---------|-----------|----------|
-| `src/utils/pdfGabarito.ts` (linha 591) | `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
+### Logica de dados (client-side)
 
----
+```text
+1. Buscar todos os registros: supabase.from('conteudos').select('id_ies, semestre, materia, tema, aula, link_aula, link_pdf, link_quiz')
+2. Buscar lista de IES: supabase.from('ies').select('id, nome')
+3. Agrupar no frontend:
+   - Por IES: contar semestres, materias, temas, aulas unicos
+   - Por IES+Semestre: contar materias, temas, registros
+   - Cobertura: % de registros com link_aula != null, link_pdf != null, link_quiz != null
+```
 
-## Nota sobre imagens nos e-mails
+### Componentes UI utilizados
+- `Card`, `CardHeader`, `CardTitle`, `CardContent` (shadcn)
+- `Table`, `TableHeader`, `TableRow`, `TableCell` (shadcn)
+- `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` (shadcn)
+- `Progress` (shadcn) para barras de cobertura
+- `Skeleton` para loading state
+- Icones do lucide-react: `Database`, `Building2`, `BookOpen`, `GraduationCap`, `Link`, `FileText`, `Video`
 
-Os templates de e-mail referenciam logos hospedados em `https://sanarflix-study-guide.lovable.app/lovable-uploads/...`. Essas URLs de imagem tambem serao atualizadas para `https://academy.sanar.com.br/lovable-uploads/...`, pois o novo dominio deve servir os mesmos arquivos estaticos.
-
-## Secao tecnica
-
-### Resumo das alteracoes por arquivo:
-
-1. **`supabase/functions/study-guide-proxy/index.ts`** — adicionar `'https://academy.sanar.com.br'` ao Set (linha 8)
-2. **`supabase/functions/enamed-proxy/index.ts`** — adicionar `'https://academy.sanar.com.br'` ao Set (linha 7)
-3. **`supabase/functions/b2b-create-user/index.ts`** — substituir URL de redirect (linha 262)
-4. **`supabase/functions/custom-email-templates/index.ts`** — substituir 3 URLs de redirect (linhas 94, 105, 116)
-5. **`supabase/functions/custom-email-templates/_templates/reset-password.tsx`** — substituir URL do logo e redirect (linhas 38, 58)
-6. **`supabase/functions/custom-email-templates/_templates/invite-user.tsx`** — substituir URL do logo e redirect (linhas 31, 41)
-7. **`supabase/functions/custom-email-templates/_templates/magic-link.tsx`** — substituir URL do logo e redirect (linhas 38, 58)
-8. **`supabase/functions/notify-performance-released/index.ts`** — substituir URL do botao (linha 181)
-9. **`supabase/config.toml`** — atualizar `site_url` (linha 12)
-10. **`src/utils/pdfGabarito.ts`** — atualizar URL no rodape do PDF (linha 591)
-
-Apos as edicoes, todas as edge functions impactadas serao redeployadas automaticamente.
