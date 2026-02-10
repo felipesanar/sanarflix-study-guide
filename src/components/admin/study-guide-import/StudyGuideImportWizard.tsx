@@ -79,6 +79,7 @@ export const StudyGuideImportWizard: React.FC = () => {
     emptyBehavior: 'ignore',
     strictMode: false,
     dryRun: false,
+    duplicateStrategy: 'keep_first',
   });
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [changePlan, setChangePlan] = useState<ChangePlan | null>(null);
@@ -283,6 +284,55 @@ export const StudyGuideImportWizard: React.FC = () => {
 
     const startTime = Date.now();
 
+    // Apply duplicate strategy to filter rows
+    let rowsToImport = [...validation.normalizedData];
+    if (config.duplicateStrategy !== 'keep_first') {
+      const duplicateRowNumbers = new Set(
+        validation.warnings
+          .filter(w => w.code === 'DUPLICATE_ROW')
+          .map(w => w.rowNumber)
+      );
+
+      if (duplicateRowNumbers.size > 0) {
+        if (config.duplicateStrategy === 'remove_all') {
+          // Find all keys that have duplicates, then remove ALL rows with those keys
+          const keyCounts = new Map<string, number[]>();
+          rowsToImport.forEach((row) => {
+            const key = `${row.id_ies}|${row.semestre}|${row.materia}|${row.tema}|${row.subtema}|${row.aula}`;
+            const rows = keyCounts.get(key) || [];
+            rows.push(row.rowNumber);
+            keyCounts.set(key, rows);
+          });
+          const duplicateKeys = new Set<string>();
+          keyCounts.forEach((rows, key) => {
+            if (rows.length > 1) duplicateKeys.add(key);
+          });
+          rowsToImport = rowsToImport.filter((row) => {
+            const key = `${row.id_ies}|${row.semestre}|${row.materia}|${row.tema}|${row.subtema}|${row.aula}`;
+            return !duplicateKeys.has(key);
+          });
+        } else if (config.duplicateStrategy === 'keep_last') {
+          // Keep only the last occurrence of each key
+          const lastByKey = new Map<string, NormalizedRow>();
+          rowsToImport.forEach((row) => {
+            const key = `${row.id_ies}|${row.semestre}|${row.materia}|${row.tema}|${row.subtema}|${row.aula}`;
+            lastByKey.set(key, row);
+          });
+          rowsToImport = Array.from(lastByKey.values());
+        }
+      }
+    } else {
+      // keep_first: remove duplicate rows (those flagged as duplicates)
+      const duplicateRowNumbers = new Set(
+        validation.warnings
+          .filter(w => w.code === 'DUPLICATE_ROW')
+          .map(w => w.rowNumber)
+      );
+      rowsToImport = rowsToImport.filter(r => !duplicateRowNumbers.has(r.rowNumber));
+    }
+
+    console.log(LOG_PREFIX, `Rows after duplicate strategy (${config.duplicateStrategy}): ${rowsToImport.length}`);
+
     try {
       // Simulate progress stages
       const updateProgress = (stage: ImportProgress['stage'], stageProgress: number, message: string) => {
@@ -309,7 +359,7 @@ export const StudyGuideImportWizard: React.FC = () => {
         body: {
           config,
           institutionMappings: sheetMappings,
-          rows: validation.normalizedData,
+          rows: rowsToImport,
         },
       });
 
@@ -387,6 +437,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       emptyBehavior: 'ignore',
       strictMode: false,
       dryRun: false,
+      duplicateStrategy: 'keep_first',
     });
     setValidation(null);
     setChangePlan(null);
@@ -582,7 +633,12 @@ export const StudyGuideImportWizard: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Validando dados...</p>
                 </div>
               ) : validation ? (
-                <ValidationSummary validation={validation} changePlan={changePlan} />
+                <ValidationSummary
+                  validation={validation}
+                  changePlan={changePlan}
+                  duplicateStrategy={config.duplicateStrategy}
+                  onDuplicateStrategyChange={(strategy) => setConfig(prev => ({ ...prev, duplicateStrategy: strategy }))}
+                />
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4">
                   <AlertCircle className="h-8 w-8 text-destructive" />

@@ -7,6 +7,8 @@
 
 export type ImportMode = 'MERGE' | 'REPLACE' | 'APPEND';
 
+export type DuplicateStrategy = 'keep_first' | 'keep_last' | 'remove_all';
+
 export type FileType = 'csv' | 'xlsx';
 
 export type ImportStep = 
@@ -109,6 +111,7 @@ export interface ImportConfig {
   emptyBehavior: 'ignore' | 'null';
   strictMode: boolean;
   dryRun: boolean;
+  duplicateStrategy: DuplicateStrategy;
 }
 
 export interface SheetMapping {
@@ -194,4 +197,5 @@ export const DEFAULT_CONFIG: ImportConfig = {
   emptyBehavior: 'ignore',
   strictMode: false,
   dryRun: false,
+  duplicateStrategy: 'keep_first',
 };
