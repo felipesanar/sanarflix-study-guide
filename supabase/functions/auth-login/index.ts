@@ -9,6 +9,7 @@ const isAllowedOrigin = (origin?: string | null): boolean => {
     origin.endsWith('.lovable.app') ||
     origin.endsWith('.app.github.dev') ||
     origin === 'https://guiadeestudos.sanar.com.br' ||
+    origin === 'https://academy.sanar.com.br' ||
     origin === 'https://sanarflix-study-guide.lovable.app' ||
     origin === 'https://preview--sanarflix-study-guide.lovable.app'
   );
