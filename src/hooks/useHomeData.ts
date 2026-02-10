@@ -587,50 +587,64 @@ export const useHomeData = () => {
     if (!user?.id) return;
 
     try {
+      // 1. Find the LAST finalized simulado by actual timestamp
+      const { data: lastFinalization } = await supabase
+        .from('simulados_finalizados')
+        .select('simulado_id, tempo_total_segundos, finalizado_em')
+        .eq('user_id', user.id)
+        .order('finalizado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!lastFinalization) return null;
+
+      const latestSimulado = lastFinalization.simulado_id;
+
+      // 2. Get answers for this specific simulado
       const { data: answerData } = await supabase
         .from('answer_progress')
-        .select('simulado, correct, question_id')
+        .select('correct')
         .eq('user_id', user.id)
-        .order('simulado', { ascending: false });
+        .eq('simulado', latestSimulado);
 
-      if (answerData && answerData.length > 0) {
-        // Get latest simulado
-        const latestSimulado = answerData[0].simulado;
-        const simuladoAnswers = answerData.filter((a) => a.simulado === latestSimulado);
-        const corrects = simuladoAnswers.filter((a) => a.correct).length;
-        const total = simuladoAnswers.length;
-        const nota = total > 0 ? Math.round((corrects / total) * 100) : 0;
+      const total = answerData?.length || 0;
+      const corrects = answerData?.filter((a) => a.correct).length || 0;
+      const nota = total > 0 ? Math.round((corrects / total) * 100) : 0;
 
-        // Get simulado name
-        const { data: simuladoInfo } = await supabase
-          .from('simulados_admin')
-          .select('nome')
-          .eq('id', latestSimulado)
-          .maybeSingle();
+      // 3. Format actual time from seconds
+      const totalSeconds = lastFinalization.tempo_total_segundos || 0;
+      const minutes = Math.round(totalSeconds / 60);
+      const tempoFormatado = minutes > 0 ? `${minutes}` : '<1';
 
-        // Get ranking
-        const { data: rankingData } = await supabase
-          .rpc('get_user_rankings', { p_simulado_id: latestSimulado });
+      // 4. Get simulado name
+      const { data: simuladoInfo } = await supabase
+        .from('simulados_admin')
+        .select('nome')
+        .eq('id', latestSimulado)
+        .maybeSingle();
 
-        let ranking = 0;
-        let totalAlunos = 0;
+      // 5. Get ranking for THIS specific simulado
+      const { data: rankingData } = await supabase
+        .rpc('get_user_rankings', { p_simulado_id: latestSimulado });
 
-        if (rankingData && typeof rankingData === 'object') {
-          const rankingObj = rankingData as any;
-          ranking = rankingObj.rankingIES?.rank || 0;
-          totalAlunos = rankingObj.rankingIES?.total || 0;
-        }
+      let ranking = 0;
+      let totalAlunos = 0;
 
-        const next: SimuladoPerformance = {
-          nota,
-          tempoGasto: '45min',
-          ranking,
-          totalAlunos,
-          simuladoNome: simuladoInfo?.nome || 'Simulado',
-        };
-        setSimuladoData(next);
-        return next;
+      if (rankingData && typeof rankingData === 'object') {
+        const rankingObj = rankingData as any;
+        ranking = rankingObj.rankingIES?.rank || 0;
+        totalAlunos = rankingObj.rankingIES?.total || 0;
       }
+
+      const next: SimuladoPerformance = {
+        nota,
+        tempoGasto: tempoFormatado,
+        ranking,
+        totalAlunos,
+        simuladoNome: simuladoInfo?.nome || 'Simulado',
+      };
+      setSimuladoData(next);
+      return next;
     } catch (error) {
       console.error('Error fetching simulado data:', error);
     }
