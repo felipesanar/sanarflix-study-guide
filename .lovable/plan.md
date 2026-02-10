@@ -1,85 +1,52 @@
 
 
-# Plano: Suporte a "INTERNATO" no Semestre do Guia de Estudos
+# Plano: Corrigir CORS para o dominio academy.sanar.com.br
 
-## Contexto
+## Problema
 
-Atualmente, o importador de Guia de Estudos **rejeita** qualquer valor de semestre que nao seja um numero de 1 a 12. Porem, o banco de dados (`conteudos.semestre`, tipo `text`) ja armazena valores como `"INTERNATO"`, e o frontend do Guia de Estudos ja faz tratamento parcial para exibi-lo. O problema esta apenas na **validacao do importador**.
+Apos a mudanca da URL live para `https://academy.sanar.com.br/`, nenhum usuario consegue fazer login. O navegador bloqueia a requisicao para a Edge Function `auth-login` porque o dominio `academy.sanar.com.br` nao esta na lista de origens CORS permitidas.
 
-## O que sera feito
+## Causa raiz
 
-### 1. Atualizar a validacao de semestre no importador
+Existem **3 arquivos** com listas de origens permitidas, e nenhum inclui `https://academy.sanar.com.br`:
 
-**Arquivo:** `src/components/admin/study-guide-import/utils/parseFile.ts` (funcao `validateAndNormalize`, linhas ~408-422)
+1. `supabase/functions/_shared/cors.ts` — configuracao compartilhada (usada por varias funcoes)
+2. `supabase/functions/auth-login/index.ts` — CORS inline (funcao de login)
+3. `supabase/functions/update-password/index.ts` — CORS inline (funcao de troca de senha)
 
-- Antes de tentar `parseInt`, verificar se o valor e uma variacao de "internato" (case-insensitive: `internato`, `Internato`, `INTERNATO`)
-- Se for internato, **padronizar para `"INTERNATO"`** (maiusculo)
-- Se for numerico, manter a validacao atual (1-12)
-- Se nao for nenhum dos dois, continuar rejeitando como erro
+## Correcoes
 
-Logica:
+### 1. `supabase/functions/_shared/cors.ts`
 
-```text
-semestreRaw (trimmed, uppercase)
-  |
-  +-- matches /^INTERNATO$/i ? --> semestre = "INTERNATO" (valido)
-  +-- parseInt valido 1-12?    --> semestre = "3" (valido)
-  +-- outro                    --> INVALID_SEMESTRE (erro)
-```
+Adicionar `'https://academy.sanar.com.br'` ao Set `ALLOWED_ORIGINS`.
 
-### 2. Atualizar metadados de erro
+### 2. `supabase/functions/auth-login/index.ts`
 
-**Arquivo:** `src/components/admin/study-guide-import/utils/errorMetadata.ts`
+Adicionar `origin === 'https://academy.sanar.com.br'` a funcao `isAllowedOrigin` inline.
 
-- Atualizar a `description` e o `tip` do erro `INVALID_SEMESTRE` para refletir que "INTERNATO" agora e aceito
-- Remover a sugestao de "substituir INTERNATO por numero"
+### 3. `supabase/functions/update-password/index.ts`
 
-### 3. Atualizar mensagem de erro
-
-**Arquivo:** `src/components/admin/study-guide-import/utils/parseFile.ts`
-
-- Ajustar a mensagem de erro para: `Semestre invalido: "X". Deve ser um numero de 1 a 12 ou "INTERNATO".`
+Adicionar `origin === 'https://academy.sanar.com.br'` a funcao `isAllowedOrigin` inline.
 
 ---
 
 ## Secao Tecnica
 
-### Alteracoes especificas
+Cada arquivo recebe apenas **1 linha adicional**:
 
-**`parseFile.ts` - funcao `validateAndNormalize` (~linha 408):**
-
-Substituir:
-```typescript
-const semestreNum = parseInt(String(semestreRaw), 10);
-if (!semestreRaw || isNaN(semestreNum) || semestreNum < 1 || semestreNum > 12) {
-  // erro INVALID_SEMESTRE
-}
-// ...
-semestre: String(semestreNum),
+**`_shared/cors.ts`** — adicionar na linha 7 do Set:
+```
+'https://academy.sanar.com.br',
 ```
 
-Por:
-```typescript
-const semestreStr = String(semestreRaw).trim();
-const isInternato = /^internato$/i.test(semestreStr);
-const semestreNum = parseInt(semestreStr, 10);
-const isValidNumeric = !isNaN(semestreNum) && semestreNum >= 1 && semestreNum <= 12;
-
-if (!semestreRaw || (!isInternato && !isValidNumeric)) {
-  // erro INVALID_SEMESTRE com mensagem atualizada
-}
-// ...
-semestre: isInternato ? 'INTERNATO' : String(semestreNum),
+**`auth-login/index.ts`** — adicionar na condicao (apos linha 11):
+```
+origin === 'https://academy.sanar.com.br' ||
 ```
 
-**`errorMetadata.ts` - entrada `INVALID_SEMESTRE`:**
+**`update-password/index.ts`** — adicionar na condicao (apos linha 23):
+```
+origin === 'https://academy.sanar.com.br' ||
+```
 
-- `description`: `'O campo semestre deve conter um numero de 1 a 12 ou "INTERNATO".'`
-- `tip`: `'Valores aceitos: numeros de 1 a 12 e "INTERNATO" (para semestres 9-12). Outros textos como "N/A" ou "INTEGRAL" nao sao aceitos.'`
-
-### Nenhuma alteracao necessaria em:
-- **Edge Function** (`admin-upload-study-guide`): ja recebe `semestre` como string, sem validacao de tipo
-- **Tabela `conteudos`**: coluna `semestre` ja e `text`, ja contem `"INTERNATO"`
-- **Frontend do Guia** (`StudyGuide.tsx`): ja trata `internato` -> `"INTERNATO"` na exibicao
-- **`get-study-contents`**: busca todos os conteudos da IES sem filtro de semestre
-
+Apos as alteracoes, as edge functions serao redeployadas automaticamente, e o login voltara a funcionar em `https://academy.sanar.com.br`.
