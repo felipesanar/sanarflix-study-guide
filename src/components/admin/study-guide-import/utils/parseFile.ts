@@ -406,16 +406,19 @@ export function validateAndNormalize(
     
     // Required: semestre
     const semestreRaw = row.semestre || row.semester;
-    const semestreNum = parseInt(String(semestreRaw), 10);
+    const semestreStr = String(semestreRaw || '').trim();
+    const isInternato = /^internato$/i.test(semestreStr);
+    const semestreNum = parseInt(semestreStr, 10);
+    const isValidNumeric = !isNaN(semestreNum) && semestreNum >= 1 && semestreNum <= 12;
     
-    if (!semestreRaw || isNaN(semestreNum) || semestreNum < 1 || semestreNum > 12) {
+    if (!semestreRaw || (!isInternato && !isValidNumeric)) {
       errors.push({
         rowNumber,
         sheetName,
         field: 'semestre',
         severity: 'error',
         code: 'INVALID_SEMESTRE',
-        message: `Semestre inválido: "${semestreRaw}". Deve ser um número entre 1 e 12.`,
+        message: `Semestre inválido: "${semestreRaw}". Deve ser um número de 1 a 12 ou "INTERNATO".`,
         invalidValue: String(semestreRaw || ''),
       });
       return; // Skip this row
@@ -477,7 +480,7 @@ export function validateAndNormalize(
       rowNumber,
       sheetName,
       id_ies: iesId,
-      semestre: String(semestreNum),
+      semestre: isInternato ? 'INTERNATO' : String(semestreNum),
       materia,
       tema,
       subtema,

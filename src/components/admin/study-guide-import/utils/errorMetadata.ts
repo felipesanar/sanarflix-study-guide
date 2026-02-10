@@ -42,13 +42,13 @@ export const ERROR_METADATA: Record<string, ErrorMetadata> = {
     title: 'Semestre Inválido',
     icon: Calendar,
     severity: 'critical',
-    description: 'O campo semestre deve conter um número de 1 a 12.',
+    description: 'O campo semestre deve conter um número de 1 a 12 ou "INTERNATO".',
     detailedDescription:
-      'O sistema espera que o campo "semestre" contenha um número inteiro entre 1 e 12, representando o semestre do curso. Valores como texto, decimais ou números fora dessa faixa são considerados inválidos.',
+      'O sistema espera que o campo "semestre" contenha um número inteiro entre 1 e 12 ou o texto "INTERNATO" (aceito em qualquer capitalização). Valores como decimais, números fora dessa faixa ou outros textos são considerados inválidos.',
     actions: [
       { label: 'Baixar linhas afetadas', type: 'download' },
     ],
-    tip: 'Se o arquivo usa nomes como "INTERNATO", substitua pelo número do semestre correspondente (ex: 11 ou 12). Valores como "N/A" ou "INTEGRAL" também precisam ser convertidos.',
+    tip: 'Valores aceitos: números de 1 a 12 e "INTERNATO" (para semestres 9-12). Outros textos como "N/A" ou "INTEGRAL" não são aceitos.',
   },
 
   MISSING_MATERIA: {
