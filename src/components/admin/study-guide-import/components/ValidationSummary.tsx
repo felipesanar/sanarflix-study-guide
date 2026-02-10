@@ -4,23 +4,29 @@
  */
 
 import * as React from 'react';
-import { CheckCircle2, AlertCircle, AlertTriangle, Download } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Download, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { generateErrorReport, downloadAsFile } from '../utils/parseFile';
 import { ErrorGroupCard } from './ErrorGroupCard';
-import type { ValidationResult, ValidationIssue, ChangePlan } from '../types';
+import type { ValidationResult, ValidationIssue, ChangePlan, DuplicateStrategy } from '../types';
 
 interface ValidationSummaryProps {
   validation: ValidationResult;
   changePlan?: ChangePlan | null;
+  duplicateStrategy: DuplicateStrategy;
+  onDuplicateStrategyChange: (strategy: DuplicateStrategy) => void;
   onNavigateBack?: () => void;
 }
 
 export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
   validation,
   changePlan,
+  duplicateStrategy,
+  onDuplicateStrategyChange,
   onNavigateBack,
 }) => {
   // Group errors by code
@@ -46,6 +52,14 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
     });
     return grouped;
   }, [validation.warnings]);
+
+  // Check for duplicates
+  const duplicateWarnings = React.useMemo(
+    () => validation.warnings.filter(w => w.code === 'DUPLICATE_ROW'),
+    [validation.warnings]
+  );
+  const hasDuplicates = duplicateWarnings.length > 0;
+  const duplicateCount = duplicateWarnings.length;
 
   // Download full report
   const handleDownloadFullReport = () => {
@@ -158,6 +172,45 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
               />
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Duplicate Strategy Selector */}
+      {hasDuplicates && (
+        <section className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Copy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <h4 className="font-semibold text-amber-600 dark:text-amber-400">
+              O que fazer com as {duplicateCount} linha{duplicateCount !== 1 && 's'} duplicada{duplicateCount !== 1 && 's'}?
+            </h4>
+          </div>
+          <RadioGroup
+            value={duplicateStrategy}
+            onValueChange={(val) => onDuplicateStrategyChange(val as DuplicateStrategy)}
+            className="space-y-2"
+          >
+            <div className="flex items-center space-x-3 rounded-lg border bg-card p-3">
+              <RadioGroupItem value="keep_first" id="dup-keep-first" />
+              <Label htmlFor="dup-keep-first" className="flex-1 cursor-pointer">
+                <span className="font-medium">Manter a primeira ocorrência</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Ignora duplicatas subsequentes (recomendado)</p>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 rounded-lg border bg-card p-3">
+              <RadioGroupItem value="keep_last" id="dup-keep-last" />
+              <Label htmlFor="dup-keep-last" className="flex-1 cursor-pointer">
+                <span className="font-medium">Manter a última ocorrência</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Substitui registros anteriores pela última versão</p>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-3 rounded-lg border bg-card p-3">
+              <RadioGroupItem value="remove_all" id="dup-remove-all" />
+              <Label htmlFor="dup-remove-all" className="flex-1 cursor-pointer">
+                <span className="font-medium">Remover todas as duplicatas</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Exclui todas as linhas que possuem duplicatas</p>
+              </Label>
+            </div>
+          </RadioGroup>
         </section>
       )}
 
