@@ -178,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
                             <table role="presentation" style="width: 100%;">
                               <tr>
                                 <td style="text-align: center;">
-                                  <a href="https://sanarflix-study-guide.lovable.app/simulados?aba=desempenho" 
+                                  <a href="https://academy.sanar.com.br/simulados?aba=desempenho" 
                                      style="display: inline-block; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600;">
                                     Ver Meu Desempenho
                                   </a>

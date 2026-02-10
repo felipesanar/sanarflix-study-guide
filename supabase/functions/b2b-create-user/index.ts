@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
       console.log(`[Create] User ${email} does not exist, creating via invite...`);
       
       const redirectUrl = Deno.env.get("INVITE_REDIRECT_URL") ?? 
-        "https://sanarflix-study-guide.lovable.app/auth/update-password";
+        "https://academy.sanar.com.br/auth/update-password";
 
       // Create user via invite (sends email automatically)
       const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(

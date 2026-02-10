@@ -5,6 +5,7 @@ const ALLOWED_ORIGINS = new Set<string>([
   'https://gvqvrmkizemwsasmupmo.lovableproject.com',
   'https://preview--sanarflix-study-guide.lovable.app',
   'https://guiadeestudos.sanar.com.br',
+  'https://academy.sanar.com.br',
   'http://localhost:5173',
   'http://localhost:8080',
 ]);

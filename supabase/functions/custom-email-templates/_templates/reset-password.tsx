@@ -35,7 +35,7 @@ export const ResetPasswordEmail = ({
       <Container style={container}>
         <Section style={logoSection}>
           <Img
-            src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+            src="https://academy.sanar.com.br/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
             width="48"
             height="48"
             alt="Sanarflix"
@@ -55,7 +55,7 @@ export const ResetPasswordEmail = ({
 
         <Section style={buttonContainer}>
           <Link
-            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://sanarflix-study-guide.lovable.app/reset-password'}`}
+            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://academy.sanar.com.br/reset-password'}`}
             style={button}
           >
             Redefinir Senha
