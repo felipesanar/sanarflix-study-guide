@@ -1,52 +1,68 @@
 
+# Plano: Atualizar todas as referencias de URL para academy.sanar.com.br
 
-# Plano: Corrigir CORS para o dominio academy.sanar.com.br
+## Resumo
 
-## Problema
+A mudanca do dominio live para `https://academy.sanar.com.br` impacta **10 arquivos** em 4 categorias. Todas as URLs hardcoded que apontam para `sanarflix-study-guide.lovable.app` (ou `guiadeestudos.sanar.com.br`) precisam ser atualizadas para o novo dominio de producao.
 
-Apos a mudanca da URL live para `https://academy.sanar.com.br/`, nenhum usuario consegue fazer login. O navegador bloqueia a requisicao para a Edge Function `auth-login` porque o dominio `academy.sanar.com.br` nao esta na lista de origens CORS permitidas.
+## Arquivos impactados
 
-## Causa raiz
+### 1. CORS — Adicionar `academy.sanar.com.br` (2 funcoes que tem listas proprias)
 
-Existem **3 arquivos** com listas de origens permitidas, e nenhum inclui `https://academy.sanar.com.br`:
+| Arquivo | Problema |
+|---------|----------|
+| `supabase/functions/study-guide-proxy/index.ts` | Lista ALLOWED_ORIGINS nao inclui `academy.sanar.com.br` |
+| `supabase/functions/enamed-proxy/index.ts` | Lista ALLOWED_ORIGINS nao inclui `academy.sanar.com.br` |
 
-1. `supabase/functions/_shared/cors.ts` — configuracao compartilhada (usada por varias funcoes)
-2. `supabase/functions/auth-login/index.ts` — CORS inline (funcao de login)
-3. `supabase/functions/update-password/index.ts` — CORS inline (funcao de troca de senha)
+**Acao:** Adicionar `'https://academy.sanar.com.br'` ao Set de cada arquivo.
 
-## Correcoes
+### 2. URLs de redirecionamento em e-mails e convites (5 arquivos)
 
-### 1. `supabase/functions/_shared/cors.ts`
+| Arquivo | URL atual | Nova URL |
+|---------|-----------|----------|
+| `supabase/functions/b2b-create-user/index.ts` (linha 262) | `sanarflix-study-guide.lovable.app/auth/update-password` | `academy.sanar.com.br/auth/update-password` |
+| `supabase/functions/custom-email-templates/index.ts` (linhas 94, 105, 116) | `preview--sanarflix-study-guide.lovable.app/reset-password`, `.../auth/update-password`, `sanarflix-study-guide.lovable.app/` | `academy.sanar.com.br/reset-password`, `.../auth/update-password`, `academy.sanar.com.br/` |
+| `supabase/functions/custom-email-templates/_templates/reset-password.tsx` (linhas 38, 58) | Logo e redirect com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
+| `supabase/functions/custom-email-templates/_templates/invite-user.tsx` (linhas 31, 41) | Redirect e logo com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
+| `supabase/functions/custom-email-templates/_templates/magic-link.tsx` (linhas 38, 58) | Logo e redirect com `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
 
-Adicionar `'https://academy.sanar.com.br'` ao Set `ALLOWED_ORIGINS`.
+### 3. Links em e-mails de notificacao (1 arquivo)
 
-### 2. `supabase/functions/auth-login/index.ts`
+| Arquivo | URL atual | Nova URL |
+|---------|-----------|----------|
+| `supabase/functions/notify-performance-released/index.ts` (linha 181) | `sanarflix-study-guide.lovable.app/simulados?aba=desempenho` | `academy.sanar.com.br/simulados?aba=desempenho` |
 
-Adicionar `origin === 'https://academy.sanar.com.br'` a funcao `isAllowedOrigin` inline.
+### 4. Configuracao do Supabase Auth (1 arquivo)
 
-### 3. `supabase/functions/update-password/index.ts`
+| Arquivo | URL atual | Nova URL |
+|---------|-----------|----------|
+| `supabase/config.toml` (linha 12) | `site_url = "https://sanarflix-study-guide.lovable.app"` | `site_url = "https://academy.sanar.com.br"` |
 
-Adicionar `origin === 'https://academy.sanar.com.br'` a funcao `isAllowedOrigin` inline.
+### 5. PDF (1 arquivo frontend)
+
+| Arquivo | URL atual | Nova URL |
+|---------|-----------|----------|
+| `src/utils/pdfGabarito.ts` (linha 591) | `sanarflix-study-guide.lovable.app` | `academy.sanar.com.br` |
 
 ---
 
-## Secao Tecnica
+## Nota sobre imagens nos e-mails
 
-Cada arquivo recebe apenas **1 linha adicional**:
+Os templates de e-mail referenciam logos hospedados em `https://sanarflix-study-guide.lovable.app/lovable-uploads/...`. Essas URLs de imagem tambem serao atualizadas para `https://academy.sanar.com.br/lovable-uploads/...`, pois o novo dominio deve servir os mesmos arquivos estaticos.
 
-**`_shared/cors.ts`** — adicionar na linha 7 do Set:
-```
-'https://academy.sanar.com.br',
-```
+## Secao tecnica
 
-**`auth-login/index.ts`** — adicionar na condicao (apos linha 11):
-```
-origin === 'https://academy.sanar.com.br' ||
-```
+### Resumo das alteracoes por arquivo:
 
-**`update-password/index.ts`** — adicionar na condicao (apos linha 23):
-```
-origin === 'https://academy.sanar.com.br' ||
-```
+1. **`supabase/functions/study-guide-proxy/index.ts`** — adicionar `'https://academy.sanar.com.br'` ao Set (linha 8)
+2. **`supabase/functions/enamed-proxy/index.ts`** — adicionar `'https://academy.sanar.com.br'` ao Set (linha 7)
+3. **`supabase/functions/b2b-create-user/index.ts`** — substituir URL de redirect (linha 262)
+4. **`supabase/functions/custom-email-templates/index.ts`** — substituir 3 URLs de redirect (linhas 94, 105, 116)
+5. **`supabase/functions/custom-email-templates/_templates/reset-password.tsx`** — substituir URL do logo e redirect (linhas 38, 58)
+6. **`supabase/functions/custom-email-templates/_templates/invite-user.tsx`** — substituir URL do logo e redirect (linhas 31, 41)
+7. **`supabase/functions/custom-email-templates/_templates/magic-link.tsx`** — substituir URL do logo e redirect (linhas 38, 58)
+8. **`supabase/functions/notify-performance-released/index.ts`** — substituir URL do botao (linha 181)
+9. **`supabase/config.toml`** — atualizar `site_url` (linha 12)
+10. **`src/utils/pdfGabarito.ts`** — atualizar URL no rodape do PDF (linha 591)
 
-Apos as alteracoes, as edge functions serao redeployadas automaticamente, e o login voltara a funcionar em `https://academy.sanar.com.br`.
+Apos as edicoes, todas as edge functions impactadas serao redeployadas automaticamente.
