@@ -354,7 +354,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       }
 
       // Send rows in batches to avoid Edge Function timeout
-      const BATCH_SIZE = 1000;
+      const BATCH_SIZE = 500;
       const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
       const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0 };
       const aggregatedErrors: ImportResultRow[] = [];
@@ -365,12 +365,9 @@ export const StudyGuideImportWizard: React.FC = () => {
         const batchProgress = Math.round(((i) / totalBatches) * 100);
         updateProgress('uploading', batchProgress, `Enviando lote ${i + 1}/${totalBatches} (${batchRows.length} linhas)...`);
 
-        // For REPLACE mode, only send the config on the first batch; subsequent batches use MERGE to avoid re-deleting
-        const batchConfig = i === 0 ? config : { ...config, mode: config.mode === 'REPLACE' ? 'MERGE' : config.mode };
-
         const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
           body: {
-            config: batchConfig,
+            config,
             institutionMappings: sheetMappings,
             rows: batchRows,
           },
