@@ -406,8 +406,15 @@ export function validateAndNormalize(
     
     // Required: semestre
     const semestreRaw = row.semestre || row.semester;
-    const semestreStr = String(semestreRaw || '').trim();
-    const isInternato = /^internato$/i.test(semestreStr);
+    const semestreStr = String(semestreRaw || '')
+      .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const semestreNormalized = semestreStr
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const isInternato = semestreNormalized === 'internato';
     const semestreNum = parseInt(semestreStr, 10);
     const isValidNumeric = !isNaN(semestreNum) && semestreNum >= 1 && semestreNum <= 12;
     
