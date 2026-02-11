@@ -1,60 +1,61 @@
 
 
-# Fix: Opção INTERNATO não aparece no dropdown do Guia de Estudos
+# Fix: "INTERNATO" rejeitado como valor invalido no importador
 
 ## Causa Raiz
 
-A Edge Function `get-study-contents` busca todos os registros da tabela `conteudos` para a IES do aluno, mas **sem paginação**. O Supabase tem um limite padrão de **1.000 linhas** por query. Como cada IES tem ~2.300 registros, a resposta é silenciosamente truncada, retornando apenas os primeiros 1.000 registros (semestres 1 a ~5), e o INTERNATO (753 registros ao final) nunca chega ao frontend.
+A validacao no arquivo `parseFile.ts` (linha 409-410) faz:
+
+```text
+const semestreStr = String(semestreRaw || '').trim();
+const isInternato = /^internato$/i.test(semestreStr);
+```
+
+O `.trim()` do JavaScript so remove espacos ASCII comuns. Planilhas Excel/Google Sheets frequentemente inserem caracteres invisives como:
+- Non-breaking space (`\u00A0`)
+- BOM (Byte Order Mark `\uFEFF`)
+- Zero-width spaces (`\u200B`)
+- Outros whitespace Unicode
+
+Esses caracteres fazem com que "INTERNATO" no arquivo nao case exatamente com a regex `^internato$`, resultando na rejeicao.
+
+Alem disso, o valor "ESTAGIO OPTATIVO I-II" tambem aparece como invalido -- esse e um caso real de valor nao suportado. Porem, o "INTERNATO" deveria ser aceito e nao esta sendo.
 
 ## Solucao
 
-Modificar a Edge Function `get-study-contents` para buscar **todos os registros** usando paginacao interna (loop de fetches com `.range()`), garantindo que nenhum dado seja perdido.
+Aplicar normalizacao robusta ao valor do semestre antes da validacao:
+1. Remover todos os caracteres Unicode invisives (non-breaking spaces, BOM, zero-width chars)
+2. Normalizar acentos (NFD + strip diacritics) para cobrir variacoes como "Internató"
+3. Colapsar espacos multiplos
 
-## Detalhes Tecnicos
+## Secao Tecnica
 
 ### Arquivo a editar
 
-**`supabase/functions/get-study-contents/index.ts`** (linhas 91-95)
+**`src/components/admin/study-guide-import/utils/parseFile.ts`** (linhas 408-410)
 
-Substituir a query unica:
-
+Substituir:
 ```typescript
-const { data: conteudos } = await supabaseAdmin
-  .from('conteudos')
-  .select('...')
-  .eq('id_ies', userData.id_ies);
+const semestreRaw = row.semestre || row.semester;
+const semestreStr = String(semestreRaw || '').trim();
+const isInternato = /^internato$/i.test(semestreStr);
 ```
 
-Por um loop de paginacao:
-
+Por:
 ```typescript
-const PAGE_SIZE = 1000;
-let allConteudos: any[] = [];
-let from = 0;
-let hasMore = true;
-
-while (hasMore) {
-  const { data, error } = await supabaseAdmin
-    .from('conteudos')
-    .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-    .eq('id_ies', userData.id_ies)
-    .range(from, from + PAGE_SIZE - 1);
-
-  if (error) throw error;
-
-  if (data && data.length > 0) {
-    allConteudos = allConteudos.concat(data);
-    from += PAGE_SIZE;
-    hasMore = data.length === PAGE_SIZE;
-  } else {
-    hasMore = false;
-  }
-}
+const semestreRaw = row.semestre || row.semester;
+const semestreStr = String(semestreRaw || '')
+  .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+const semestreNormalized = semestreStr
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase();
+const isInternato = semestreNormalized === 'internato';
 ```
 
-Em seguida, retornar `allConteudos` no lugar de `conteudos`.
+Isso garante que qualquer variacao de "INTERNATO" vinda de planilhas (com caracteres invisives, acentos, espacos extras) seja corretamente reconhecida.
 
-### Nenhuma alteracao no frontend
-
-O frontend (`StudyGuide.tsx`) ja trata corretamente o valor "INTERNATO" na logica de `semestres` (linha 558) e no `GuideToolbar` via `formatSemestreName`.
+Nenhum outro arquivo precisa ser alterado.
 
