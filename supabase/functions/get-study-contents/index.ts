@@ -88,22 +88,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch conteudos for the user's IES
-    const { data: conteudos, error: conteudosError } = await supabaseAdmin
-      .from('conteudos')
-      .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-      .eq('id_ies', userData.id_ies);
+    // Fetch ALL conteudos using pagination to bypass 1000-row limit
+    const PAGE_SIZE = 1000;
+    let allConteudos: any[] = [];
+    let from = 0;
+    let hasMore = true;
 
-    if (conteudosError) {
-      console.error('get-study-contents: Error fetching conteudos:', conteudosError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch conteudos', details: conteudosError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    while (hasMore) {
+      const { data, error: pageError } = await supabaseAdmin
+        .from('conteudos')
+        .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+        .eq('id_ies', userData.id_ies)
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (pageError) {
+        console.error('get-study-contents: Error fetching conteudos page:', pageError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch conteudos', details: pageError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (data && data.length > 0) {
+        allConteudos = allConteudos.concat(data);
+        from += PAGE_SIZE;
+        hasMore = data.length === PAGE_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
 
+    console.log(`get-study-contents: Fetched ${allConteudos.length} total records for IES ${userData.id_ies}`);
+
     return new Response(
-      JSON.stringify({ data: conteudos || [] }),
+      JSON.stringify({ data: allConteudos }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

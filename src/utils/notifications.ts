@@ -101,11 +101,11 @@ export const subscribeToPush = async (): Promise<boolean> => {
     const registration = await navigator.serviceWorker.ready;
     
     // Verifica se já existe uma subscription
-    let subscription = await registration.pushManager.getSubscription();
+    let subscription = await (registration as any).pushManager.getSubscription();
     
     if (!subscription) {
       // Cria nova subscription
-      subscription = await registration.pushManager.subscribe({
+      subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
@@ -141,7 +141,7 @@ export const unsubscribeFromPush = async (): Promise<boolean> => {
 
   try {
     const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    const subscription = await (registration as any).pushManager.getSubscription();
 
     if (subscription) {
       // Remove do servidor
