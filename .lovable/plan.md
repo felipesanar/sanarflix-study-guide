@@ -1,61 +1,72 @@
 
 
-# Fix: "INTERNATO" rejeitado como valor invalido no importador
+# Fix: Import do Guia de Estudos falhando com erro 546 (CPU Time Exceeded)
 
 ## Causa Raiz
 
-A validacao no arquivo `parseFile.ts` (linha 409-410) faz:
+Sao dois problemas encadeados:
 
+1. **Sem constraint UNIQUE na tabela `conteudos`**: A tabela so tem uma primary key (`id` UUID). Nao existe constraint unique em `(id_ies, semestre, materia, tema, subtema, aula)`.
+2. **Fallback lento na Edge Function**: Quando o `upsert` com `onConflict` falha (erro `42P10` -- sem constraint compativel), a funcao cai num fallback que tenta inserir/atualizar **cada linha individualmente** (ate 1000 queries separadas por lote), esgotando o CPU time limit.
+
+Os logs confirmam:
 ```text
-const semestreStr = String(semestreRaw || '').trim();
-const isInternato = /^internato$/i.test(semestreStr);
+Upsert error: "there is no unique or exclusion constraint matching the ON CONFLICT specification"
+CPU Time exceeded
 ```
-
-O `.trim()` do JavaScript so remove espacos ASCII comuns. Planilhas Excel/Google Sheets frequentemente inserem caracteres invisives como:
-- Non-breaking space (`\u00A0`)
-- BOM (Byte Order Mark `\uFEFF`)
-- Zero-width spaces (`\u200B`)
-- Outros whitespace Unicode
-
-Esses caracteres fazem com que "INTERNATO" no arquivo nao case exatamente com a regex `^internato$`, resultando na rejeicao.
-
-Alem disso, o valor "ESTAGIO OPTATIVO I-II" tambem aparece como invalido -- esse e um caso real de valor nao suportado. Porem, o "INTERNATO" deveria ser aceito e nao esta sendo.
 
 ## Solucao
 
-Aplicar normalizacao robusta ao valor do semestre antes da validacao:
-1. Remover todos os caracteres Unicode invisives (non-breaking spaces, BOM, zero-width chars)
-2. Normalizar acentos (NFD + strip diacritics) para cobrir variacoes como "Internató"
-3. Colapsar espacos multiplos
+Simplificar a logica de MERGE na Edge Function para usar **DELETE por escopo + INSERT em massa**, eliminando a dependencia do upsert e do fallback individual. Como o cliente ja deduplica as linhas (estrategia `keep_last`), nao ha risco de duplicatas.
 
-## Secao Tecnica
+## Detalhes Tecnicos
 
-### Arquivo a editar
+### 1. Edge Function `admin-upload-study-guide/index.ts`
 
-**`src/components/admin/study-guide-import/utils/parseFile.ts`** (linhas 408-410)
+Substituir toda a logica de MERGE/upsert (linhas ~240-300) por uma abordagem simples:
 
-Substituir:
+- **MERGE e REPLACE**: Deletar registros existentes para cada combinacao IES+semestre presente no lote, depois fazer `INSERT` em massa.
+- **APPEND**: Manter o `INSERT` simples atual (sem delete previo).
+
 ```typescript
-const semestreRaw = row.semestre || row.semester;
-const semestreStr = String(semestreRaw || '').trim();
-const isInternato = /^internato$/i.test(semestreStr);
+// Para MERGE e REPLACE: delete scoped + bulk insert
+if (config.mode === "MERGE" || config.mode === "REPLACE") {
+  // Agrupar por IES+semestre para deletar apenas o escopo relevante
+  const iesSemestres = new Map<string, Set<string>>();
+  rows.forEach((row) => {
+    if (!iesSemestres.has(row.id_ies)) {
+      iesSemestres.set(row.id_ies, new Set());
+    }
+    iesSemestres.get(row.id_ies)!.add(row.semestre);
+  });
+
+  // Delete escopo
+  for (const [iesId, semestres] of iesSemestres.entries()) {
+    await supabaseAdmin
+      .from("conteudos")
+      .delete()
+      .eq("id_ies", iesId)
+      .in("semestre", Array.from(semestres));
+  }
+
+  // Bulk insert em sub-batches de 200
+  for (let i = 0; i < records.length; i += 200) {
+    const chunk = records.slice(i, i + 200);
+    const { error } = await supabaseAdmin.from("conteudos").insert(chunk);
+    if (error) throw error;
+  }
+}
 ```
 
-Por:
-```typescript
-const semestreRaw = row.semestre || row.semester;
-const semestreStr = String(semestreRaw || '')
-  .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
-const semestreNormalized = semestreStr
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .toLowerCase();
-const isInternato = semestreNormalized === 'internato';
-```
+### 2. Cliente `StudyGuideImportWizard.tsx`
 
-Isso garante que qualquer variacao de "INTERNATO" vinda de planilhas (com caracteres invisives, acentos, espacos extras) seja corretamente reconhecida.
+- Reduzir `BATCH_SIZE` de 1000 para **500** como margem de seguranca adicional.
+- Remover a logica especial que altera o modo para MERGE nos lotes subsequentes (ja que o delete agora e escopado por IES+semestre dentro de cada lote e nao conflita).
 
-Nenhum outro arquivo precisa ser alterado.
+### Resumo das mudancas
+
+| Arquivo | Mudanca |
+|---|---|
+| `supabase/functions/admin-upload-study-guide/index.ts` | Substituir upsert+fallback por delete-escopo+insert para modos MERGE/REPLACE |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Reduzir BATCH_SIZE para 500 |
 
