@@ -32,6 +32,7 @@ import type {
   ChangePlan,
   ImportProgress,
   ImportResponse,
+  ImportResultRow,
   NormalizedRow,
   WizardState,
   DEFAULT_CONFIG,
@@ -352,34 +353,53 @@ export const StudyGuideImportWizard: React.FC = () => {
         throw new Error('Sessão expirada. Por favor, faça login novamente.');
       }
 
-      updateProgress('uploading', 50, 'Conectando ao servidor...');
+      // Send rows in batches to avoid Edge Function timeout
+      const BATCH_SIZE = 1000;
+      const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
+      const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0 };
+      const aggregatedErrors: ImportResultRow[] = [];
+      let lastRequestId = '';
 
-      // Call edge function
-      const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
-        body: {
-          config,
-          institutionMappings: sheetMappings,
-          rows: rowsToImport,
-        },
-      });
+      for (let i = 0; i < totalBatches; i++) {
+        const batchRows = rowsToImport.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+        const batchProgress = Math.round(((i) / totalBatches) * 100);
+        updateProgress('uploading', batchProgress, `Enviando lote ${i + 1}/${totalBatches} (${batchRows.length} linhas)...`);
 
-      if (fnError) {
-        throw new Error(fnError.message || 'Erro na função de importação');
+        // For REPLACE mode, only send the config on the first batch; subsequent batches use MERGE to avoid re-deleting
+        const batchConfig = i === 0 ? config : { ...config, mode: config.mode === 'REPLACE' ? 'MERGE' : config.mode };
+
+        const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
+          body: {
+            config: batchConfig,
+            institutionMappings: sheetMappings,
+            rows: batchRows,
+          },
+        });
+
+        if (fnError) {
+          throw new Error(fnError.message || `Erro no lote ${i + 1}/${totalBatches}`);
+        }
+
+        if (data.counts) {
+          aggregatedCounts.inserted += data.counts.inserted || 0;
+          aggregatedCounts.updated += data.counts.updated || 0;
+          aggregatedCounts.deleted += data.counts.deleted || 0;
+          aggregatedCounts.ignored += data.counts.ignored || 0;
+          aggregatedCounts.errors += data.counts.errors || 0;
+        }
+        if (data.errors?.length) {
+          aggregatedErrors.push(...data.errors);
+        }
+        lastRequestId = data.requestId || lastRequestId;
       }
 
       updateProgress('verifying', 100, 'Importação concluída!');
 
       const importResult: ImportResponse = {
-        success: data.success ?? true,
-        requestId: data.requestId || crypto.randomUUID(),
-        counts: data.counts || {
-          inserted: validation.normalizedData.length,
-          updated: 0,
-          deleted: 0,
-          ignored: 0,
-          errors: 0,
-        },
-        errors: data.errors || [],
+        success: aggregatedCounts.errors === 0,
+        requestId: lastRequestId || crypto.randomUUID(),
+        counts: aggregatedCounts,
+        errors: aggregatedErrors,
         durationMs: Date.now() - startTime,
       };
 
