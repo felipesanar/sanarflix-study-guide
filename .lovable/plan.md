@@ -1,58 +1,69 @@
 
 
-# Correção: Edição de usuários não reflete na plataforma
+# Correcao: Celulas Mescladas no Excel Causam Perda de Dados na Importacao
 
 ## Problema Identificado
 
-A edição de usuários pelo admin **funciona corretamente no banco de dados** (confirmado: Jéssica já está com IES "Claretiano" no banco). O problema é que **o frontend nunca atualiza os dados do usuário após o login**.
+A planilha Excel utiliza **celulas mescladas** (merged cells) nas colunas `semestre`, `id_ies` e possivelmente `materia`. Visualmente no Excel, voce ve "INTERNATO" em todas as linhas, mas internamente a celula mesclada so guarda o valor na primeira celula do grupo -- todas as outras celulas ficam vazias.
 
-O fluxo atual:
-1. Usuário faz login --> dados são salvos em `localStorage` como `sanarflix-user`
-2. Em todas as sessões subsequentes, o app carrega os dados do `localStorage` sem nunca consultar o banco novamente
-3. Admin edita semestre/IES --> banco atualiza corretamente
-4. Usuário abre o app --> carrega dados antigos do `localStorage`
-5. Resultado: mudanças feitas pelo admin nunca aparecem para o usuário
+Quando a biblioteca XLSX.js le o arquivo com a configuracao atual (`defval: ''`), ela retorna:
 
-## Solucao
+```text
+Linha 1647: semestre = "INTERNATO"  (primeira celula da mesclagem)
+Linha 1648: semestre = ""           (celula vazia - parte da mesclagem)
+Linha 1649: semestre = ""           (celula vazia)
+Linha 1650: semestre = ""           (celula vazia)
+...
+```
 
-Adicionar uma rotina de **refresh do perfil** no `AuthContext` que busca dados frescos do banco (`public.users`) toda vez que o app inicializa ou ganha foco, atualizando o estado e o cache local.
+Na etapa de validacao, linhas com `semestre` vazio sao rejeitadas como erro (`INVALID_SEMESTRE`). Resultado: a grande maioria das linhas de INTERNATO (e possivelmente de outros semestres com celulas mescladas) simplesmente **nao e importada**.
+
+## Solucao: "Fill Down" apos o parsing do XLSX
+
+Adicionar uma etapa de **preenchimento para baixo** (fill-down) logo apos o parsing das linhas de cada aba. Essa tecnica replica o valor da celula anterior para celulas vazias em colunas-chave, simulando o comportamento visual do Excel.
+
+```text
+Antes do fill-down:
+  Linha 1: semestre="INTERNATO", materia="Clinica Medica I", ...
+  Linha 2: semestre="",          materia="Clinica Medica I", ...
+  Linha 3: semestre="",          materia="",                 ...
+
+Depois do fill-down:
+  Linha 1: semestre="INTERNATO", materia="Clinica Medica I", ...
+  Linha 2: semestre="INTERNATO", materia="Clinica Medica I", ...
+  Linha 3: semestre="INTERNATO", materia="Clinica Medica I", ...
+```
 
 ## Detalhes Tecnicos
 
-### 1. Criar funcao `refreshUserProfile` no AuthContext (`src/contexts/AuthContext.tsx`)
+### Arquivo a editar: `src/components/admin/study-guide-import/utils/parseFile.ts`
 
-Nova funcao que:
-- Busca dados atualizados de `public.users` (com JOIN na tabela `ies` para o `ies_nome`)
-- Busca roles atualizadas via `get_user_roles`
-- Atualiza o state `user` e o `localStorage`
+**1. Criar funcao `fillDownMergedCells`**
 
-Essa funcao sera chamada:
-- Na inicializacao do app (apos restaurar do localStorage)
-- Quando a janela ganha foco (`window.addEventListener('focus', ...)`)
+Nova funcao que recebe o array de linhas ja parseadas e preenche valores vazios com o ultimo valor nao-vazio para colunas especificas:
 
-```text
-Fluxo corrigido:
-1. App inicializa --> restaura user do localStorage (instantaneo)
-2. Em paralelo, chama refreshUserProfile()
-3. refreshUserProfile busca dados frescos do banco
-4. Atualiza state + localStorage com dados novos
-5. Resultado: mudancas do admin refletem automaticamente
-```
+- Colunas-alvo: `semestre`, `id_ies` / `idies`, `materia`
+- Logica: iterar sequencialmente pelas linhas; se a coluna estiver vazia (`''`), copiar o valor da linha anterior
+- Seguro: so preenche colunas que existem no header (nao inventa colunas)
 
-### 2. Mudancas especificas no AuthContext
+**2. Chamar a funcao dentro de `parseXLSX`**
 
-- Extrair a logica de refresh para uma funcao reutilizavel `refreshUserProfile(userId: string)`
-- Chamar essa funcao no `useEffect` de inicializacao (substituindo o refresh parcial de roles que ja existe)
-- Adicionar listener de `visibilitychange`/`focus` para re-buscar quando o usuario volta ao app
-- Debounce de ~30 segundos para nao fazer queries excessivas
+Apos o loop que cria as `rows` de cada aba (apos linha 299 do codigo atual, antes de adicionar ao array `sheets`), chamar `fillDownMergedCells(rows)`.
 
-### 3. Nenhuma mudanca na Edge Function
+**3. Log de diagnostico**
 
-A Edge Function `b2b-create-user` ja atualiza corretamente o banco. O problema e exclusivamente no frontend.
+Adicionar log indicando quantas celulas foram preenchidas para facilitar depuracao futura.
 
-### Resumo
+### Impacto
+
+- Resolve o problema de "Clinica Medica I" e qualquer outra materia/semestre que use celulas mescladas
+- Nao afeta arquivos CSV (que nao possuem mesclagem)
+- Nao afeta planilhas XLSX que nao usam celulas mescladas (valores ja preenchidos ficam inalterados)
+- Retrocompativel: nenhuma mudanca na validacao ou na Edge Function
+
+### Resumo de Mudancas
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/contexts/AuthContext.tsx` | Adicionar `refreshUserProfile()` que busca dados frescos de `public.users` + `ies` + roles na inicializacao e ao ganhar foco |
+| `src/components/admin/study-guide-import/utils/parseFile.ts` | Adicionar funcao `fillDownMergedCells()` e chama-la dentro de `parseXLSX` apos o parsing de cada aba |
 
