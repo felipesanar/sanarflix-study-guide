@@ -88,37 +88,79 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch ALL conteudos using pagination to bypass 1000-row limit
-    const PAGE_SIZE = 1000;
-    let allConteudos: any[] = [];
-    let from = 0;
-    let hasMore = true;
+    // Read optional semestre filter from body or query string
+    let semestreFilter: string | null = null;
+    try {
+      const url = new URL(req.url);
+      semestreFilter = url.searchParams.get('semestre');
+      if (!semestreFilter && req.method === 'POST') {
+        const body = await req.json().catch(() => null);
+        if (body?.semestre) semestreFilter = String(body.semestre);
+      }
+    } catch (_) { /* ignore parse errors */ }
 
-    while (hasMore) {
-      const { data, error: pageError } = await supabaseAdmin
+    // Build query
+    let allConteudos: any[] = [];
+
+    if (semestreFilter) {
+      // Semester-filtered query — typically < 1000 rows, no pagination needed
+      // Try multiple formats: raw value, "Xº Semestre", "INTERNATO"
+      const normalizedSem = semestreFilter.trim();
+      const semNum = parseInt(normalizedSem);
+      const possibleValues = [normalizedSem];
+      if (!isNaN(semNum)) {
+        possibleValues.push(`${semNum}º Semestre`, `${semNum}º semestre`, String(semNum));
+      }
+      if (normalizedSem.toUpperCase() === 'INTERNATO') {
+        possibleValues.push('INTERNATO', 'internato', 'Internato');
+      }
+
+      const { data, error: queryError } = await supabaseAdmin
         .from('conteudos')
         .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
         .eq('id_ies', userData.id_ies)
-        .range(from, from + PAGE_SIZE - 1);
+        .in('semestre', [...new Set(possibleValues)]);
 
-      if (pageError) {
-        console.error('get-study-contents: Error fetching conteudos page:', pageError);
+      if (queryError) {
+        console.error('get-study-contents: Error fetching filtered conteudos:', queryError);
         return new Response(
-          JSON.stringify({ error: 'Failed to fetch conteudos', details: pageError.message }),
+          JSON.stringify({ error: 'Failed to fetch conteudos', details: queryError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      allConteudos = data || [];
+      console.log(`get-study-contents: Fetched ${allConteudos.length} records for IES ${userData.id_ies}, semestre filter: ${normalizedSem}`);
+    } else {
+      // No filter — fetch ALL using pagination (backwards compatible)
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (data && data.length > 0) {
-        allConteudos = allConteudos.concat(data);
-        from += PAGE_SIZE;
-        hasMore = data.length === PAGE_SIZE;
-      } else {
-        hasMore = false;
+      while (hasMore) {
+        const { data, error: pageError } = await supabaseAdmin
+          .from('conteudos')
+          .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+          .eq('id_ies', userData.id_ies)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (pageError) {
+          console.error('get-study-contents: Error fetching conteudos page:', pageError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch conteudos', details: pageError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (data && data.length > 0) {
+          allConteudos = allConteudos.concat(data);
+          from += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
       }
+      console.log(`get-study-contents: Fetched ${allConteudos.length} total records for IES ${userData.id_ies} (no filter)`);
     }
-
-    console.log(`get-study-contents: Fetched ${allConteudos.length} total records for IES ${userData.id_ies}`);
 
     return new Response(
       JSON.stringify({ data: allConteudos }),
