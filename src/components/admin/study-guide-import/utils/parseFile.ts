@@ -237,6 +237,37 @@ export function findBestIesMatch(
 }
 
 /**
+ * Fill down empty cells in key columns to handle merged cells in Excel.
+ * When Excel has merged cells, only the first cell holds the value;
+ * subsequent cells are empty. This replicates the visual behavior.
+ */
+function fillDownMergedCells(rows: Record<string, string>[], headers: string[]): void {
+  const FILL_DOWN_COLUMNS = ['semestre', 'id_ies', 'idies', 'materia'];
+  const columnsToFill = FILL_DOWN_COLUMNS.filter(col => headers.includes(col));
+  
+  if (columnsToFill.length === 0) return;
+  
+  const lastValues: Record<string, string> = {};
+  let filledCount = 0;
+  
+  for (const row of rows) {
+    for (const col of columnsToFill) {
+      const val = row[col];
+      if (val && val.trim() !== '') {
+        lastValues[col] = val;
+      } else if (lastValues[col]) {
+        row[col] = lastValues[col];
+        filledCount++;
+      }
+    }
+  }
+  
+  if (filledCount > 0) {
+    console.log(LOG_PREFIX, `Fill-down: ${filledCount} empty cells filled across columns [${columnsToFill.join(', ')}]`);
+  }
+}
+
+/**
  * Parse XLSX file with multiple sheets
  */
 export async function parseXLSX(
@@ -298,6 +329,9 @@ export async function parseXLSX(
               rows.push(row);
             }
           }
+          
+          // Fill down merged cells for key columns
+          fillDownMergedCells(rows, headers);
           
           // Try to auto-match IES from first row's id_ies (UUID)
           let mappedIesId: string | null = rows[0]?.id_ies || rows[0]?.idies || null;
