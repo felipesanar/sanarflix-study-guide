@@ -293,18 +293,22 @@ export const StudyGuide: React.FC = () => {
             onUpdate: (fresh) => {
               setConteudos(fresh);
               hasLoadedData.current = true;
-              if (fresh.length > 0) {
-                const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
-                if (typeof user.semestre === 'number') {
-                  const userSem = user.semestre.toString();
-                  const hasIt = fresh.some(c => 
-                    c.semestre === userSem || c.semestre === `${userSem}º Semestre`
-                  );
-                  setSelectedSemestre(hasIt ? userSem : firstSemestre);
-                } else {
-                  setSelectedSemestre(firstSemestre);
+              // Only set semester on initial load, not on background refresh
+              setSelectedSemestre(prev => {
+                if (prev) return prev; // Keep user's manual selection
+                if (fresh.length > 0) {
+                  const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
+                  if (typeof user.semestre === 'number') {
+                    const userSem = user.semestre.toString();
+                    const hasIt = fresh.some(c => 
+                      c.semestre === userSem || c.semestre === `${userSem}º Semestre`
+                    );
+                    return hasIt ? userSem : firstSemestre;
+                  }
+                  return firstSemestre;
                 }
-              }
+                return prev;
+              });
             }
           }
         );
@@ -312,16 +316,19 @@ export const StudyGuide: React.FC = () => {
         if (cached && cached.length > 0) {
           setConteudos(cached);
           hasLoadedData.current = true;
-          const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
-          if (typeof user.semestre === 'number') {
-            const userSem = user.semestre.toString();
-            const hasIt = cached.some(c => 
-              c.semestre === userSem || c.semestre === `${userSem}º Semestre`
-            );
-            setSelectedSemestre(hasIt ? userSem : firstSemestre);
-          } else {
-            setSelectedSemestre(firstSemestre);
-          }
+          // Only set semester on initial load
+          setSelectedSemestre(prev => {
+            if (prev) return prev; // Keep user's manual selection
+            const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
+            if (typeof user.semestre === 'number') {
+              const userSem = user.semestre.toString();
+              const hasIt = cached.some(c => 
+                c.semestre === userSem || c.semestre === `${userSem}º Semestre`
+              );
+              return hasIt ? userSem : firstSemestre;
+            }
+            return firstSemestre;
+          });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
