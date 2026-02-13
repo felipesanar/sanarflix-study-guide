@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { AuthContextType, User } from '@/types';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,10 +8,64 @@ import { useTabSync } from '@/hooks/useTabSync';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
+const REFRESH_THROTTLE_MS = 30_000; // 30 seconds
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
+  const lastRefreshRef = useRef<number>(0);
+
+  /**
+   * Fetches fresh user profile from public.users + ies + roles,
+   * updating state and localStorage cache.
+   */
+  const refreshUserProfile = useCallback(async (userId: string) => {
+    const now = Date.now();
+    if (now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
+    lastRefreshRef.current = now;
+
+    try {
+      const [profileResult, rolesResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, email, nome, id_ies, semestre, ies:id_ies(nome)')
+          .eq('id', userId)
+          .maybeSingle(),
+        supabase.rpc('get_user_roles', { _user_id: userId }),
+      ]);
+
+      if (profileResult.error) {
+        Logger.warn('refreshUserProfile: query error', profileResult.error);
+        return;
+      }
+
+      if (!profileResult.data) {
+        Logger.warn('refreshUserProfile: user not found', { userId });
+        return;
+      }
+
+      const row = profileResult.data as any;
+      const iesNome = row.ies?.nome ?? '';
+      const roles = rolesResult.data ?? [];
+
+      const updated: User = {
+        id: row.id,
+        email: row.email,
+        nome: row.nome,
+        id_ies: row.id_ies ?? '',
+        ies_nome: iesNome,
+        semestre: row.semestre ?? undefined,
+        roles,
+      };
+
+      setUser(updated);
+      localStorage.setItem('sanarflix-user', JSON.stringify(updated));
+      Logger.debug('refreshUserProfile: updated', { userId, ies_nome: iesNome, semestre: row.semestre });
+    } catch (e) {
+      Logger.warn('refreshUserProfile: unexpected error', e);
+    }
+  }, []);
 
   // Tab sync handler
   const handleTabSync = useCallback((message: { type: string; data?: any }) => {
@@ -32,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
 
       if (event === 'SIGNED_IN') {
-        // SECURITY: Only cache minimal data, fetch full profile from server
         const cached = localStorage.getItem('sanarflix-user');
         if (cached) {
           try {
@@ -41,20 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (validation.success) {
               setUser(parsed);
-              // Password change flag will be verified server-side
               setNeedsPasswordChange(false);
-              (async () => {
-                try {
-                  const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: parsed.id });
-                  if (rolesData) {
-                    const updated = { ...parsed, roles: rolesData };
-                    setUser(updated);
-                    localStorage.setItem('sanarflix-user', JSON.stringify(updated));
-                  }
-                } catch (e) {
-                  Logger.warn('Failed to refresh roles on SIGNED_IN', e);
-                }
-              })();
+              // Refresh profile in background to get fresh data
+              refreshUserProfile(parsed.id);
             } else {
               Logger.warn('Invalid cached user data', validation.error);
               localStorage.removeItem('sanarflix-user');
@@ -73,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // 2) SECURITY: Initialize from session, minimize localStorage reliance
+    // 2) Initialize from session
     supabase.auth.getSession()
       .then(({ data }) => {
         const storedUser = localStorage.getItem('sanarflix-user');
@@ -82,20 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const parsed = JSON.parse(storedUser);
             setUser(parsed);
-            // Password change requirement is verified during login
             setNeedsPasswordChange(false);
-            (async () => {
-              try {
-                const { data: rolesData } = await supabase.rpc('get_user_roles', { _user_id: parsed.id });
-                if (rolesData) {
-                  const updated = { ...parsed, roles: rolesData };
-                  setUser(updated);
-                  localStorage.setItem('sanarflix-user', JSON.stringify(updated));
-                }
-              } catch (e) {
-                Logger.warn('Failed to refresh roles on reload', e);
-              }
-            })();
+            // Refresh profile in background to get fresh data
+            refreshUserProfile(parsed.id);
           } catch (error) {
             localStorage.removeItem('sanarflix-user');
           }
@@ -105,7 +136,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .catch((error) => {
         console.error('Erro ao obter sessão:', error);
         
-        // Handle invalid refresh token error
         const isRefreshTokenError = 
           error?.message?.includes('Invalid Refresh Token') || 
           error?.message?.includes('Refresh Token Not Found') ||
@@ -115,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           Logger.warn('Refresh token inválido detectado. Limpando sessão.');
           localStorage.removeItem('sanarflix-user');
           localStorage.removeItem('study-progress');
-          // Forçamos signOut mas ignoramos erros pois o token já é inválido
           supabase.auth.signOut().catch(() => {});
           setUser(null);
         }
@@ -124,13 +153,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [refreshUserProfile]);
+
+  // Refresh profile when window gains focus (visibility change)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user?.id) {
+        refreshUserProfile(user.id);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user?.id, refreshUserProfile]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const startTime = performance.now();
     setIsLoading(true);
     
-    // Preload recursos em paralelo com autenticação
     import('../utils/preload').then(({ preloadPostLoginResources }) => {
       preloadPostLoginResources();
     });
@@ -144,8 +184,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       Logger.debug('login_edge_function_response', { hasData: !!data, hasError: !!error, status: (error as any)?.context?.status });
 
-      // Handle both SDK errors and response errors (4xx/5xx)
-      // Supabase Functions may return the JSON body inside `error.context.body` when status is non-2xx.
       let contextualMessage: string | undefined;
       const maybeBody = (error as any)?.context?.body;
       if (!data?.error && typeof maybeBody === 'string') {
@@ -160,7 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const errorMessage = data?.error || contextualMessage || error?.message;
       
       if (error && !data) {
-        // True communication error (network failure, etc.)
         Logger.error('Login communication error', error);
         Logger.debug('login_error_context', { status: (error as any)?.context?.status, body: (error as any)?.context?.body });
         toast({
@@ -174,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (errorMessage) {
-        // Server returned an error message (invalid credentials, etc.)
         Logger.warn('Login failed', { message: errorMessage });
         toast({
           title: "Erro no login",
@@ -200,7 +236,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const userData = data.user;
 
-      // Estabelece sessão do Supabase no cliente para permitir RLS nas consultas
       if (data.session?.access_token && data.session?.refresh_token) {
         try {
           await supabase.auth.setSession({
@@ -208,7 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             refresh_token: data.session.refresh_token,
           });
           
-          // Fetch user roles after session is established
           try {
             const { data: rolesData } = await supabase.rpc('get_user_roles', { 
               _user_id: userData.id 
@@ -222,7 +256,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userData.roles = [];
           }
         } catch (e) {
-          // Failed to set session
           userData.roles = [];
         }
       } else {
@@ -232,19 +265,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       setNeedsPasswordChange(data.needsPasswordChange || false);
       
-      // SECURITY: Store minimal user data in localStorage, roles fetched from server
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
       
-      // Broadcast login para outras abas
       broadcast({ type: 'LOGIN', data: userData });
       
-      // Cache otimizado de dados do usuário
       import('../utils/performanceCache').then(({ performanceCache }) => {
         performanceCache.setUserData(userData);
       });
       
-      // Métricas de performance do login
       const loginDuration = performance.now() - startTime;
       Logger.performance('login', loginDuration, { user_id: userData.id });
       if (loginDuration > 2000) {
@@ -301,10 +330,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
 
-      // SECURITY: Password change flag managed in memory only
       setNeedsPasswordChange(false);
       
-      // Security enhancement: Invalidate all sessions after password change
       try {
         await supabase.functions.invoke('session-security', {
           body: { 
@@ -319,17 +346,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           duration: 4000,
         });
         
-        // Force logout after password change for security
         setTimeout(() => logout(), 3000);
         
       } catch (sessionError) {
         console.warn('Failed to invalidate sessions:', sessionError);
         
-        // Fallback: at least refresh current session
         try {
           await supabase.auth.refreshSession();
         } catch (e) {
-          // If refresh fails, force logout for security
           setTimeout(() => logout(), 1000);
         }
         
@@ -355,19 +379,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    // Broadcast logout para outras abas
     broadcast({ type: 'LOGOUT' });
     
-    // Encerra sessão do Supabase (dispara SIGNED_OUT)
-    // Usamos catch para evitar erros de Promise não tratados (ex: ERR_ABORTED se a página recarregar)
     supabase.auth.signOut().catch((err) => {
-      // Ignorar erros de rede durante logout, pois estamos limpando localmente de qualquer forma
       if (import.meta.env.DEV) {
         console.debug('Supabase signOut failed (safe to ignore):', err);
       }
     });
 
-    // SECURITY: Clear all auth-related data
     setUser(null);
     setNeedsPasswordChange(false);
     localStorage.removeItem('sanarflix-user');
