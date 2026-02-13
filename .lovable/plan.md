@@ -1,72 +1,58 @@
 
 
-# Fix: Import do Guia de Estudos falhando com erro 546 (CPU Time Exceeded)
+# Correção: Edição de usuários não reflete na plataforma
 
-## Causa Raiz
+## Problema Identificado
 
-Sao dois problemas encadeados:
+A edição de usuários pelo admin **funciona corretamente no banco de dados** (confirmado: Jéssica já está com IES "Claretiano" no banco). O problema é que **o frontend nunca atualiza os dados do usuário após o login**.
 
-1. **Sem constraint UNIQUE na tabela `conteudos`**: A tabela so tem uma primary key (`id` UUID). Nao existe constraint unique em `(id_ies, semestre, materia, tema, subtema, aula)`.
-2. **Fallback lento na Edge Function**: Quando o `upsert` com `onConflict` falha (erro `42P10` -- sem constraint compativel), a funcao cai num fallback que tenta inserir/atualizar **cada linha individualmente** (ate 1000 queries separadas por lote), esgotando o CPU time limit.
-
-Os logs confirmam:
-```text
-Upsert error: "there is no unique or exclusion constraint matching the ON CONFLICT specification"
-CPU Time exceeded
-```
+O fluxo atual:
+1. Usuário faz login --> dados são salvos em `localStorage` como `sanarflix-user`
+2. Em todas as sessões subsequentes, o app carrega os dados do `localStorage` sem nunca consultar o banco novamente
+3. Admin edita semestre/IES --> banco atualiza corretamente
+4. Usuário abre o app --> carrega dados antigos do `localStorage`
+5. Resultado: mudanças feitas pelo admin nunca aparecem para o usuário
 
 ## Solucao
 
-Simplificar a logica de MERGE na Edge Function para usar **DELETE por escopo + INSERT em massa**, eliminando a dependencia do upsert e do fallback individual. Como o cliente ja deduplica as linhas (estrategia `keep_last`), nao ha risco de duplicatas.
+Adicionar uma rotina de **refresh do perfil** no `AuthContext` que busca dados frescos do banco (`public.users`) toda vez que o app inicializa ou ganha foco, atualizando o estado e o cache local.
 
 ## Detalhes Tecnicos
 
-### 1. Edge Function `admin-upload-study-guide/index.ts`
+### 1. Criar funcao `refreshUserProfile` no AuthContext (`src/contexts/AuthContext.tsx`)
 
-Substituir toda a logica de MERGE/upsert (linhas ~240-300) por uma abordagem simples:
+Nova funcao que:
+- Busca dados atualizados de `public.users` (com JOIN na tabela `ies` para o `ies_nome`)
+- Busca roles atualizadas via `get_user_roles`
+- Atualiza o state `user` e o `localStorage`
 
-- **MERGE e REPLACE**: Deletar registros existentes para cada combinacao IES+semestre presente no lote, depois fazer `INSERT` em massa.
-- **APPEND**: Manter o `INSERT` simples atual (sem delete previo).
+Essa funcao sera chamada:
+- Na inicializacao do app (apos restaurar do localStorage)
+- Quando a janela ganha foco (`window.addEventListener('focus', ...)`)
 
-```typescript
-// Para MERGE e REPLACE: delete scoped + bulk insert
-if (config.mode === "MERGE" || config.mode === "REPLACE") {
-  // Agrupar por IES+semestre para deletar apenas o escopo relevante
-  const iesSemestres = new Map<string, Set<string>>();
-  rows.forEach((row) => {
-    if (!iesSemestres.has(row.id_ies)) {
-      iesSemestres.set(row.id_ies, new Set());
-    }
-    iesSemestres.get(row.id_ies)!.add(row.semestre);
-  });
-
-  // Delete escopo
-  for (const [iesId, semestres] of iesSemestres.entries()) {
-    await supabaseAdmin
-      .from("conteudos")
-      .delete()
-      .eq("id_ies", iesId)
-      .in("semestre", Array.from(semestres));
-  }
-
-  // Bulk insert em sub-batches de 200
-  for (let i = 0; i < records.length; i += 200) {
-    const chunk = records.slice(i, i + 200);
-    const { error } = await supabaseAdmin.from("conteudos").insert(chunk);
-    if (error) throw error;
-  }
-}
+```text
+Fluxo corrigido:
+1. App inicializa --> restaura user do localStorage (instantaneo)
+2. Em paralelo, chama refreshUserProfile()
+3. refreshUserProfile busca dados frescos do banco
+4. Atualiza state + localStorage com dados novos
+5. Resultado: mudancas do admin refletem automaticamente
 ```
 
-### 2. Cliente `StudyGuideImportWizard.tsx`
+### 2. Mudancas especificas no AuthContext
 
-- Reduzir `BATCH_SIZE` de 1000 para **500** como margem de seguranca adicional.
-- Remover a logica especial que altera o modo para MERGE nos lotes subsequentes (ja que o delete agora e escopado por IES+semestre dentro de cada lote e nao conflita).
+- Extrair a logica de refresh para uma funcao reutilizavel `refreshUserProfile(userId: string)`
+- Chamar essa funcao no `useEffect` de inicializacao (substituindo o refresh parcial de roles que ja existe)
+- Adicionar listener de `visibilitychange`/`focus` para re-buscar quando o usuario volta ao app
+- Debounce de ~30 segundos para nao fazer queries excessivas
 
-### Resumo das mudancas
+### 3. Nenhuma mudanca na Edge Function
+
+A Edge Function `b2b-create-user` ja atualiza corretamente o banco. O problema e exclusivamente no frontend.
+
+### Resumo
 
 | Arquivo | Mudanca |
 |---|---|
-| `supabase/functions/admin-upload-study-guide/index.ts` | Substituir upsert+fallback por delete-escopo+insert para modos MERGE/REPLACE |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Reduzir BATCH_SIZE para 500 |
+| `src/contexts/AuthContext.tsx` | Adicionar `refreshUserProfile()` que busca dados frescos de `public.users` + `ies` + roles na inicializacao e ao ganhar foco |
 
