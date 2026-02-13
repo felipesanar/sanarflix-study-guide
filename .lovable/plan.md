@@ -1,69 +1,108 @@
 
 
-# Correcao: Celulas Mescladas no Excel Causam Perda de Dados na Importacao
+# Correcao: Skeleton Desaparece + Otimizacao de Performance do Guia de Estudos
 
-## Problema Identificado
+## Problemas Identificados
 
-A planilha Excel utiliza **celulas mescladas** (merged cells) nas colunas `semestre`, `id_ies` e possivelmente `materia`. Visualmente no Excel, voce ve "INTERNATO" em todas as linhas, mas internamente a celula mesclada so guarda o valor na primeira celula do grupo -- todas as outras celulas ficam vazias.
+### 1. Tela preta durante carregamento (bug critico)
 
-Quando a biblioteca XLSX.js le o arquivo com a configuracao atual (`defval: ''`), ela retorna:
-
-```text
-Linha 1647: semestre = "INTERNATO"  (primeira celula da mesclagem)
-Linha 1648: semestre = ""           (celula vazia - parte da mesclagem)
-Linha 1649: semestre = ""           (celula vazia)
-Linha 1650: semestre = ""           (celula vazia)
-...
-```
-
-Na etapa de validacao, linhas com `semestre` vazio sao rejeitadas como erro (`INVALID_SEMESTRE`). Resultado: a grande maioria das linhas de INTERNATO (e possivelmente de outros semestres com celulas mescladas) simplesmente **nao e importada**.
-
-## Solucao: "Fill Down" apos o parsing do XLSX
-
-Adicionar uma etapa de **preenchimento para baixo** (fill-down) logo apos o parsing das linhas de cada aba. Essa tecnica replica o valor da celula anterior para celulas vazias em colunas-chave, simulando o comportamento visual do Excel.
+O fluxo atual na primeira visita (sem cache):
 
 ```text
-Antes do fill-down:
-  Linha 1: semestre="INTERNATO", materia="Clinica Medica I", ...
-  Linha 2: semestre="",          materia="Clinica Medica I", ...
-  Linha 3: semestre="",          materia="",                 ...
-
-Depois do fill-down:
-  Linha 1: semestre="INTERNATO", materia="Clinica Medica I", ...
-  Linha 2: semestre="INTERNATO", materia="Clinica Medica I", ...
-  Linha 3: semestre="INTERNATO", materia="Clinica Medica I", ...
+1. isLoading = true          --> Skeleton aparece
+2. swrFetch() retorna null   --> Sem cache disponivel
+3. finally { isLoading = false }  --> Skeleton SOME
+4. ... aguardando resposta da Edge Function ...
+5. onUpdate(data) chega      --> Dados aparecem, mas tela ficou preta no intervalo
 ```
+
+O `swrFetch` retorna `null` imediatamente quando nao ha cache. O bloco `finally` desliga o loading antes dos dados chegarem. Resultado: tela preta sem nenhum indicador de progresso.
+
+### 2. Edge Function carrega TODOS os registros (3853 linhas)
+
+A Edge Function `get-study-contents` busca todos os conteudos da IES sem filtrar por semestre. Para o Claretiano, sao 3853 registros em 4 queries sequenciais de 1000 linhas cada. O aluno tipicamente precisa de apenas 1 semestre (~200-400 linhas).
+
+### 3. Paginacao sequencial na Edge Function
+
+As 4 paginas de 1000 registros sao buscadas uma apos a outra (while loop). Isso pode ser paralelizado.
+
+---
+
+## Solucao
+
+### Parte 1: Corrigir o skeleton que desaparece prematuramente
+
+**Arquivo**: `src/pages/StudyGuide.tsx`
+
+Ajustar a logica de loading para que `isLoading` so seja desligado quando os dados realmente chegam:
+
+- Mover `setIsLoading(false)` para dentro do callback `onUpdate` do `swrFetch` e para dentro do bloco `if (cached)`.
+- Remover o `setIsLoading(false)` do bloco `finally` e substitui-lo por uma logica condicional: so desliga se ja tem dados (`hasLoadedData.current === true`) ou se ocorreu erro.
+- Adicionar um **timeout de seguranca** (15s) para evitar loading infinito caso a Edge Function falhe silenciosamente.
+
+Fluxo corrigido:
+
+```text
+1. isLoading = true          --> Skeleton aparece
+2. swrFetch() retorna null   --> Sem cache, skeleton CONTINUA
+3. ... aguardando resposta ...
+4. onUpdate(data) chega      --> setIsLoading(false), conteudo aparece
+```
+
+### Parte 2: Filtrar por semestre na Edge Function
+
+**Arquivo**: `supabase/functions/get-study-contents/index.ts`
+
+- Aceitar um parametro opcional `semestre` via query string ou body JSON.
+- Quando fornecido, adicionar `.eq('semestre', semestre)` a query, reduzindo de ~3853 para ~200-400 registros.
+- Quando nao fornecido, manter o comportamento atual (buscar tudo) para retrocompatibilidade.
+
+**Arquivo**: `src/pages/StudyGuide.tsx`
+
+- Na primeira carga, buscar apenas o semestre do usuario (rapido).
+- Ao trocar de semestre, buscar os dados daquele semestre especifico se nao estiverem em cache.
+- Manter cache por semestre com chave `study_contents_{iesId}_{semestre}`.
+
+### Parte 3: Skeleton persistente com indicador de progresso
+
+**Arquivo**: `src/components/guia-estudos/GuideSkeletons.tsx`
+
+- Adicionar uma mensagem de texto animada ao `GuidePageSkeleton` ("Carregando seu guia de estudos...") para dar feedback visual claro de que a pagina esta ativa.
+
+---
 
 ## Detalhes Tecnicos
 
-### Arquivo a editar: `src/components/admin/study-guide-import/utils/parseFile.ts`
+### Mudancas no `StudyGuide.tsx`
 
-**1. Criar funcao `fillDownMergedCells`**
+O efeito `fetchConteudos` sera reestruturado:
 
-Nova funcao que recebe o array de linhas ja parseadas e preenche valores vazios com o ultimo valor nao-vazio para colunas especificas:
+```text
+fetchConteudos:
+  1. Se tem cache local (readStudyGuideCache), usar imediatamente e setar isLoading=false
+  2. Chamar Edge Function com semestre do usuario
+  3. Ao receber resposta: setar dados, setar isLoading=false
+  4. Timeout de 15s: se nao recebeu resposta, setar isLoading=false e mostrar erro
+  5. Bloco catch: setar isLoading=false e mostrar toast de erro
+```
 
-- Colunas-alvo: `semestre`, `id_ies` / `idies`, `materia`
-- Logica: iterar sequencialmente pelas linhas; se a coluna estiver vazia (`''`), copiar o valor da linha anterior
-- Seguro: so preenche colunas que existem no header (nao inventa colunas)
+### Mudancas na Edge Function `get-study-contents`
 
-**2. Chamar a funcao dentro de `parseXLSX`**
+- Ler `semestre` de `URL.searchParams` ou do corpo JSON
+- Se presente: `query.eq('semestre', semestre)` -- elimina paginacao (resultado < 1000 linhas)
+- Se ausente: manter loop de paginacao atual
 
-Apos o loop que cria as `rows` de cada aba (apos linha 299 do codigo atual, antes de adicionar ao array `sheets`), chamar `fillDownMergedCells(rows)`.
+### Mudancas no `GuidePageSkeleton`
 
-**3. Log de diagnostico**
+- Adicionar texto "Carregando seu guia..." com animacao de pulso abaixo dos skeletons de cards
 
-Adicionar log indicando quantas celulas foram preenchidas para facilitar depuracao futura.
+---
 
-### Impacto
-
-- Resolve o problema de "Clinica Medica I" e qualquer outra materia/semestre que use celulas mescladas
-- Nao afeta arquivos CSV (que nao possuem mesclagem)
-- Nao afeta planilhas XLSX que nao usam celulas mescladas (valores ja preenchidos ficam inalterados)
-- Retrocompativel: nenhuma mudanca na validacao ou na Edge Function
-
-### Resumo de Mudancas
+## Resumo de Arquivos
 
 | Arquivo | Mudanca |
 |---|---|
-| `src/components/admin/study-guide-import/utils/parseFile.ts` | Adicionar funcao `fillDownMergedCells()` e chama-la dentro de `parseXLSX` apos o parsing de cada aba |
+| `src/pages/StudyGuide.tsx` | Corrigir timing do isLoading; passar semestre para Edge Function; timeout de seguranca |
+| `supabase/functions/get-study-contents/index.ts` | Aceitar filtro opcional de semestre na query |
+| `src/components/guia-estudos/GuideSkeletons.tsx` | Adicionar mensagem de carregamento visivel |
 
