@@ -260,15 +260,45 @@ export const StudyGuide: React.FC = () => {
       if (hasLoadedData.current && conteudos.length > 0) return;
 
       const startTime = Date.now();
+      setIsLoading(true);
+
+      // Safety timeout to prevent infinite loading
+      const safetyTimeout = setTimeout(() => {
+        if (!hasLoadedData.current) {
+          setIsLoading(false);
+          if (import.meta.env.DEV) {
+            console.warn('[StudyGuide] Safety timeout reached (15s)');
+          }
+        }
+      }, 15000);
+
+      const setSemestreFromData = (data: ConteudoData[]) => {
+        setSelectedSemestre(prev => {
+          if (prev) return prev;
+          if (data.length > 0) {
+            const firstSemestre = data[0].semestre.replace('º Semestre', '').trim();
+            if (typeof user.semestre === 'number') {
+              const userSem = user.semestre.toString();
+              const hasIt = data.some(c => 
+                c.semestre === userSem || c.semestre === `${userSem}º Semestre`
+              );
+              return hasIt ? userSem : firstSemestre;
+            }
+            return firstSemestre;
+          }
+          return prev;
+        });
+      };
 
       try {
-        setIsLoading(true);
         const cacheKey = `study_contents_${user.id_ies}_${user.semestre}`;
 
         const cached = await swrFetch<ConteudoData[]>(
           cacheKey,
           async () => {
-            const { data: response, error } = await supabase.functions.invoke('get-study-contents');
+            const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
+              body: { semestre: user.semestre?.toString() }
+            });
             
             const latency = Date.now() - startTime;
             analytics.trackEdgeLatency('get-study-contents', latency, !error);
@@ -291,46 +321,25 @@ export const StudyGuide: React.FC = () => {
           {
             ttl: 2 * 60 * 60 * 1000,
             onUpdate: (fresh) => {
+              clearTimeout(safetyTimeout);
               setConteudos(fresh);
               hasLoadedData.current = true;
-              // Only set semester on initial load, not on background refresh
-              setSelectedSemestre(prev => {
-                if (prev) return prev; // Keep user's manual selection
-                if (fresh.length > 0) {
-                  const firstSemestre = fresh[0].semestre.replace('º Semestre', '').trim();
-                  if (typeof user.semestre === 'number') {
-                    const userSem = user.semestre.toString();
-                    const hasIt = fresh.some(c => 
-                      c.semestre === userSem || c.semestre === `${userSem}º Semestre`
-                    );
-                    return hasIt ? userSem : firstSemestre;
-                  }
-                  return firstSemestre;
-                }
-                return prev;
-              });
+              setIsLoading(false);
+              setSemestreFromData(fresh);
             }
           }
         );
 
         if (cached && cached.length > 0) {
+          clearTimeout(safetyTimeout);
           setConteudos(cached);
           hasLoadedData.current = true;
-          // Only set semester on initial load
-          setSelectedSemestre(prev => {
-            if (prev) return prev; // Keep user's manual selection
-            const firstSemestre = cached[0].semestre.replace('º Semestre', '').trim();
-            if (typeof user.semestre === 'number') {
-              const userSem = user.semestre.toString();
-              const hasIt = cached.some(c => 
-                c.semestre === userSem || c.semestre === `${userSem}º Semestre`
-              );
-              return hasIt ? userSem : firstSemestre;
-            }
-            return firstSemestre;
-          });
+          setIsLoading(false);
+          setSemestreFromData(cached);
         }
+        // If no cache, loading stays true until onUpdate fires
       } catch (error) {
+        clearTimeout(safetyTimeout);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         analytics.trackStudyGuideError({
           errorType: 'edge_invoke',
@@ -347,7 +356,6 @@ export const StudyGuide: React.FC = () => {
           description: 'Não foi possível carregar os conteúdos',
           variant: 'destructive',
         });
-      } finally {
         setIsLoading(false);
       }
     };

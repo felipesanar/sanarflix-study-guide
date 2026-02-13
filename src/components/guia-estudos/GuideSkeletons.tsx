@@ -36,6 +36,13 @@ export const GuidePageSkeleton: React.FC<GuideSkeletonsProps> = ({ className }) 
         <SubjectCardSkeleton />
         <SubjectCardSkeleton />
       </div>
+
+      {/* Loading message */}
+      <div className="flex items-center justify-center py-4">
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Carregando seu guia de estudos...
+        </p>
+      </div>
     </div>
   );
 };
