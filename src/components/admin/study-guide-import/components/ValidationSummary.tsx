@@ -210,6 +210,13 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
                 <p className="text-xs text-muted-foreground mt-0.5">Exclui todas as linhas que possuem duplicatas</p>
               </Label>
             </div>
+            <div className="flex items-center space-x-3 rounded-lg border bg-card p-3">
+              <RadioGroupItem value="keep_all" id="dup-keep-all" />
+              <Label htmlFor="dup-keep-all" className="flex-1 cursor-pointer">
+                <span className="font-medium">Manter todas</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Importa todas as linhas sem nenhuma filtragem de duplicatas</p>
+              </Label>
+            </div>
           </RadioGroup>
         </section>
       )}
