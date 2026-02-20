@@ -7,7 +7,7 @@
 
 export type ImportMode = 'MERGE' | 'REPLACE' | 'APPEND';
 
-export type DuplicateStrategy = 'keep_first' | 'keep_last' | 'remove_all';
+export type DuplicateStrategy = 'keep_first' | 'keep_last' | 'remove_all' | 'keep_all';
 
 export type FileType = 'csv' | 'xlsx';
 

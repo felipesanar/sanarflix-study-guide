@@ -287,7 +287,17 @@ export const StudyGuideImportWizard: React.FC = () => {
 
     // Apply duplicate strategy to filter rows
     let rowsToImport = [...validation.normalizedData];
-    if (config.duplicateStrategy !== 'keep_first') {
+    if (config.duplicateStrategy === 'keep_all') {
+      // keep_all: no filtering — send every row including duplicates
+    } else if (config.duplicateStrategy === 'keep_first') {
+      // keep_first: remove duplicate rows (those flagged as duplicates)
+      const duplicateRowNumbers = new Set(
+        validation.warnings
+          .filter(w => w.code === 'DUPLICATE_ROW')
+          .map(w => w.rowNumber)
+      );
+      rowsToImport = rowsToImport.filter(r => !duplicateRowNumbers.has(r.rowNumber));
+    } else {
       const duplicateRowNumbers = new Set(
         validation.warnings
           .filter(w => w.code === 'DUPLICATE_ROW')
@@ -322,14 +332,6 @@ export const StudyGuideImportWizard: React.FC = () => {
           rowsToImport = Array.from(lastByKey.values());
         }
       }
-    } else {
-      // keep_first: remove duplicate rows (those flagged as duplicates)
-      const duplicateRowNumbers = new Set(
-        validation.warnings
-          .filter(w => w.code === 'DUPLICATE_ROW')
-          .map(w => w.rowNumber)
-      );
-      rowsToImport = rowsToImport.filter(r => !duplicateRowNumbers.has(r.rowNumber));
     }
 
     console.log(LOG_PREFIX, `Rows after duplicate strategy (${config.duplicateStrategy}): ${rowsToImport.length}`);

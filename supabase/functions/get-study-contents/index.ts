@@ -88,16 +88,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Read optional semestre filter from body or query string
+    // Read optional parameters from body or query string
     let semestreFilter: string | null = null;
+    let listSemestresOnly = false;
     try {
       const url = new URL(req.url);
       semestreFilter = url.searchParams.get('semestre');
-      if (!semestreFilter && req.method === 'POST') {
+      listSemestresOnly = url.searchParams.get('listSemestresOnly') === 'true';
+      if (req.method === 'POST') {
         const body = await req.json().catch(() => null);
-        if (body?.semestre) semestreFilter = String(body.semestre);
+        if (body?.semestre && !semestreFilter) semestreFilter = String(body.semestre);
+        if (body?.listSemestresOnly) listSemestresOnly = true;
       }
     } catch (_) { /* ignore parse errors */ }
+
+    // ── Fast path: return only distinct semestres ──
+    if (listSemestresOnly) {
+      const { data: semData, error: semError } = await supabaseAdmin
+        .from('conteudos')
+        .select('semestre')
+        .eq('id_ies', userData.id_ies);
+
+      if (semError) {
+        console.error('get-study-contents: Error fetching semestres:', semError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch semestres', details: semError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const distinctSemestres = [...new Set((semData || []).map((r: any) => r.semestre))];
+      console.log(`get-study-contents: Returning ${distinctSemestres.length} distinct semestres for IES ${userData.id_ies}`);
+      return new Response(
+        JSON.stringify({ semestres: distinctSemestres }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Build query
     let allConteudos: any[] = [];
