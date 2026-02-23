@@ -108,9 +108,10 @@ Deno.serve(async (req) => {
 
     // Send welcome email via Novu (fail-soft)
     const firstName = nome.split(' ')[0];
+    const confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
     const novuResult = await triggerNovuEvent({
       name: 'welcome-academy-email',
-      payload: { name: nome, email },
+      payload: { name: nome, email, confirmationUrl },
       to: [{ firstName, email }],
     });
 
