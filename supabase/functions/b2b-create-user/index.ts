@@ -152,22 +152,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUser = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller using getClaims (works with signing-keys)
-    const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      console.error('[Auth] Failed to verify token:', claimsErr);
+    // Verify caller using admin client (service role can validate any JWT without session)
+    const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    if (authErr || !callerUser) {
+      console.error('[Auth] Failed to verify token:', authErr);
       return new Response(
         JSON.stringify({ success: false, error: "Não autorizado", code: "UNAUTHORIZED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const callerUserId = claimsData.claims.sub;
+    const callerUserId = callerUser.id;
 
     // Verify admin role
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {

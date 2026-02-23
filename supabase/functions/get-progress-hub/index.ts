@@ -55,18 +55,16 @@ Deno.serve(async (req) => {
     const token = authHeader.replace('Bearer ', '');
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // Client with user auth for JWT validation
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Admin client (service role can validate any JWT without session)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Validate JWT using getClaims (compatible with signing-keys)
-    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
+    // Validate JWT using admin client
+    const { data: { user: authUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (authError || !claimsData?.claims) {
+    if (authError || !authUser) {
       console.error('get-progress-hub: Auth error:', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
@@ -74,12 +72,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const user = { id: claimsData.claims.sub };
-
-    // Admin client for DB operations
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    });
+    const user = { id: authUser.id };
 
     console.log('get-progress-hub: Fetching data for user:', user.id);
 
