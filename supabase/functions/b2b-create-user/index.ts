@@ -81,9 +81,10 @@ function generateTempPassword(): string {
 
 async function sendWelcomeEmail(nome: string, email: string): Promise<boolean> {
   const firstName = nome.split(' ')[0];
+  const confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
   const result = await triggerNovuEvent({
     name: 'welcome-academy-email',
-    payload: { name: nome, email },
+    payload: { name: nome, email, confirmationUrl },
     to: [{ firstName, email }],
   });
   if (!result.ok) {
