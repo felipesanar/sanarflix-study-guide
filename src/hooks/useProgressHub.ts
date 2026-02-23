@@ -54,6 +54,12 @@ export function useProgressHub() {
     if (!user?.id) return;
 
     try {
+      // Verificar sessão antes de chamar a edge function
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        return;
+      }
+
       if (showLoading && !cachedData) {
         setLoading(true);
       } else {
