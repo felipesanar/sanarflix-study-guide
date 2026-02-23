@@ -27,37 +27,22 @@ Deno.serve(async (req) => {
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // Create client with auth header for JWT validation
-    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+    // Create admin client (service role can validate any JWT without session)
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Validate JWT using getClaims (compatible with signing-keys)
-    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
+    // Validate JWT using admin client
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-    if (authError || !claimsData?.claims) {
+    if (authError || !user) {
       console.error('get-study-contents: Auth error:', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid token', details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const user = { id: claimsData.claims.sub };
-
-    // Create admin client for database operations (bypasses RLS)
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
 
     // Get user's IES ID from users table
     const { data: userData, error: userError } = await supabaseAdmin
