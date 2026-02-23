@@ -79,13 +79,13 @@ function generateTempPassword(): string {
   return pw.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-async function sendWelcomeEmail(nome: string, email: string): Promise<boolean> {
+async function sendWelcomeEmail(userId: string, nome: string, email: string): Promise<boolean> {
   const firstName = nome.split(' ')[0];
   const confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
   const result = await triggerNovuEvent({
     name: 'welcome-academy-email',
     payload: { name: nome, email, confirmationUrl },
-    to: [{ firstName, email }],
+    to: [{ subscriberId: userId, firstName, email }],
   });
   if (!result.ok) {
     console.log('[CreateUser] Novu welcome email failed for', email, ':', result.error);
@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
 
       // Send welcome email via Novu in background (fail-soft)
       EdgeRuntime.waitUntil(
-        sendWelcomeEmail(nome, email)
+        sendWelcomeEmail(userId, nome, email)
           .then(ok => console.log(`[CreateUser] Welcome email for ${email}: ${ok ? 'sent' : 'FAILED'}`))
           .catch(err => console.error(`[CreateUser] Welcome email error for ${email}:`, err))
       );

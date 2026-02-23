@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     const novuResult = await triggerNovuEvent({
       name: 'welcome-academy-email',
       payload: { name: nome, email, confirmationUrl },
-      to: [{ firstName, email }],
+      to: [{ subscriberId: authData.user.id, firstName, email }],
     });
 
     if (!novuResult.ok) {

@@ -4,7 +4,7 @@ const NOVU_TRIGGER_URL = 'https://kong-manager.app-prod.sanar.cloud/novu/v1/even
 
 export interface TriggerNovuEventInput {
   name: string;
-  to: Array<{ firstName?: string; email: string }>;
+  to: Array<{ subscriberId: string; firstName?: string; email: string }>;
   payload: Record<string, any>;
 }
 
