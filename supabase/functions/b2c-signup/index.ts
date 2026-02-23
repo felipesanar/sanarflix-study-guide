@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { triggerNovuEvent } from "../_shared/novu.ts";
+import { buildCanonicalLink } from "../_shared/auth-links.ts";
 
 const signupSchema = z.object({
   nome: z.string()
@@ -114,9 +115,10 @@ Deno.serve(async (req) => {
         email,
         options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
       });
-      if (linkData?.properties?.action_link) {
-        confirmationUrl = linkData.properties.action_link;
-      }
+      confirmationUrl = buildCanonicalLink({
+        properties: linkData?.properties ?? {},
+        redirectPath: '/auth/update-password',
+      });
     } catch (err) {
       console.log('[CreateUser] Failed to generate dynamic link for B2C, using static fallback:', err);
     }

@@ -1,25 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
+import { buildCanonicalLink } from "../_shared/auth-links.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const CANONICAL_ORIGIN = 'https://academy.sanar.com.br';
-
-function normalizeActionLink(actionLink: string): string {
-  try {
-    const parsed = new URL(actionLink);
-    if (parsed.hostname === 'guiadeestudos.sanar.com.br') {
-      return `${CANONICAL_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-    return actionLink;
-  } catch {
-    return actionLink;
-  }
-}
 
 
 serve(async (req) => {
@@ -177,15 +165,15 @@ serve(async (req) => {
     // 5. Generate recovery link and send welcome email via Novu
     let emailSent = false;
     try {
-      let confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
       const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
         type: 'recovery',
         email: normalizedEmail,
         options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
       });
-      if (linkData?.properties?.action_link) {
-        confirmationUrl = normalizeActionLink(linkData.properties.action_link);
-      }
+      const confirmationUrl = buildCanonicalLink({
+        properties: linkData?.properties ?? {},
+        redirectPath: '/auth/update-password',
+      });
 
       const firstName = publicUser.nome.split(' ')[0];
       const novuResult = await triggerNovuEvent({

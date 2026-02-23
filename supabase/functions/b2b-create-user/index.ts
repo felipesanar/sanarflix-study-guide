@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
 import { triggerNovuEvent } from "../_shared/novu.ts";
+import { buildCanonicalLink } from "../_shared/auth-links.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,18 +19,6 @@ type ErrorCode =
 
 const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
 const CANONICAL_ORIGIN = 'https://academy.sanar.com.br';
-
-function normalizeActionLink(actionLink: string): string {
-  try {
-    const parsed = new URL(actionLink);
-    if (parsed.hostname === 'guiadeestudos.sanar.com.br') {
-      return `${CANONICAL_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-    return actionLink;
-  } catch {
-    return actionLink;
-  }
-}
 
 const createUserSchema = z.object({
   nome: z.string()
@@ -107,15 +96,12 @@ async function generateRecoveryLink(supabaseAdmin: any, email: string): Promise<
       return null;
     }
 
-    const actionLink = linkData?.properties?.action_link;
-    if (!actionLink) {
-      console.error('[CreateUser] No action_link in generateLink response');
-      return null;
-    }
-
-    const normalizedLink = normalizeActionLink(actionLink);
+    const confirmationUrl = buildCanonicalLink({
+      properties: linkData?.properties ?? {},
+      redirectPath: '/auth/update-password',
+    });
     console.log('[CreateUser] Recovery link generated successfully for:', email);
-    return normalizedLink;
+    return confirmationUrl;
   } catch (err) {
     console.error('[CreateUser] Exception generating recovery link:', err);
     return null;
