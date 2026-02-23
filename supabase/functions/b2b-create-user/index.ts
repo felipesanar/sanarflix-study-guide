@@ -1,12 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
+import { triggerNovuEvent } from "../_shared/novu.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Error codes for detailed error handling
 type ErrorCode = 
   | 'VALIDATION_ERROR'
   | 'IES_NOT_FOUND'
@@ -16,10 +16,8 @@ type ErrorCode =
   | 'RATE_LIMITED'
   | 'INTERNAL_ERROR';
 
-// B2B internal IES - users from this IES get admin role automatically
 const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
 
-// Input validation schema
 const createUserSchema = z.object({
   nome: z.string()
     .trim()
@@ -39,15 +37,9 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
 });
 
-// Helper function to create error response
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
-    JSON.stringify({
-      success: false,
-      error: message,
-      code,
-      details
-    }),
+    JSON.stringify({ success: false, error: message, code, details }),
     { 
       status: code === 'VALIDATION_ERROR' ? 400 : 
               code === 'IES_NOT_FOUND' ? 404 :
@@ -57,38 +49,55 @@ function errorResponse(code: ErrorCode, message: string, details?: string) {
   );
 }
 
-// Helper function to create success response
 function successResponse(
   action: 'created' | 'updated',
   userId: string,
   email: string,
   message: string,
-  details?: {
-    emailSent?: boolean;
-    fieldsUpdated?: string[];
-  }
+  details?: { emailSent?: boolean; fieldsUpdated?: string[] }
 ) {
   return new Response(
-    JSON.stringify({
-      success: true,
-      action,
-      userId,
-      email,
-      message,
-      details
-    }),
+    JSON.stringify({ success: true, action, userId, email, message, details }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
+/** Generate a random temporary password */
+function generateTempPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const all = upper + lower + digits;
+  // Ensure at least 1 upper, 1 lower, 1 digit
+  let pw = upper[Math.floor(Math.random() * upper.length)]
+         + lower[Math.floor(Math.random() * lower.length)]
+         + digits[Math.floor(Math.random() * digits.length)];
+  for (let i = 3; i < 10; i++) {
+    pw += all[Math.floor(Math.random() * all.length)];
+  }
+  // Shuffle
+  return pw.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+async function sendWelcomeEmail(nome: string, email: string): Promise<boolean> {
+  const firstName = nome.split(' ')[0];
+  const result = await triggerNovuEvent({
+    name: 'welcome-academy-email',
+    payload: { name: nome, email },
+    to: [{ firstName, email }],
+  });
+  if (!result.ok) {
+    console.log('[CreateUser] Novu welcome email failed for', email, ':', result.error);
+  }
+  return result.ok;
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // 1. Setup & Environment Check
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
@@ -98,18 +107,13 @@ Deno.serve(async (req) => {
       return errorResponse('INTERNAL_ERROR', 'Configuração do servidor incompleta');
     }
 
-    // 2. Auth Clients
     const authHeader = req.headers.get("Authorization") ?? "";
-
-    // Client for the caller (to verify identity)
     const supabaseUser = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-
-    // Admin client (Service Role) for privileged operations
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // 3. Verify Caller Identity
+    // Verify caller
     const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
     if (getUserErr || !userData?.user) {
       console.error('[Auth] Failed to get user:', getUserErr);
@@ -121,7 +125,7 @@ Deno.serve(async (req) => {
 
     const callerUserId = userData.user.id;
 
-    // 4. Verify Admin Role (Secure RPC check)
+    // Verify admin role
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
       _user_id: callerUserId,
       _role: 'admin'
@@ -135,7 +139,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 5. Parse & Validate Body
+    // Parse & validate body
     let body;
     try {
       body = await req.json();
@@ -144,7 +148,6 @@ Deno.serve(async (req) => {
     }
 
     const validationResult = createUserSchema.safeParse(body);
-
     if (!validationResult.success) {
       const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
@@ -152,7 +155,7 @@ Deno.serve(async (req) => {
 
     const { nome, email, id_ies, semestre } = validationResult.data;
 
-    // 6. Validate IES exists
+    // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
       .from('ies')
       .select('id, nome')
@@ -164,9 +167,9 @@ Deno.serve(async (req) => {
       return errorResponse('IES_NOT_FOUND', `IES não encontrada: ${id_ies}`);
     }
 
-    console.log(`[Process] Processing user: ${email} for IES: ${iesData.nome}`);
+    console.log(`[CreateUser] Processing: ${email} for IES: ${iesData.nome}`);
 
-    // 7. Check if user already exists
+    // Check if user already exists
     const { data: existingUser, error: checkError } = await supabaseAdmin
       .from('users')
       .select('id, nome, semestre, id_ies')
@@ -185,43 +188,28 @@ Deno.serve(async (req) => {
       must_change_password: true 
     };
 
-    // 8. Process based on whether user exists
     if (existingUser) {
       // ========== UPDATE FLOW ==========
-      console.log(`[Update] User ${email} exists (ID: ${existingUser.id}), updating...`);
+      console.log(`[CreateUser] User ${email} exists (ID: ${existingUser.id}), updating...`);
       
       const fieldsUpdated: string[] = [];
-      
-      // Track what's being updated
-      if (existingUser.semestre !== semestre) {
-        fieldsUpdated.push('semestre');
-      }
-      if (existingUser.nome !== nome) {
-        fieldsUpdated.push('nome');
-      }
-      if (existingUser.id_ies !== id_ies) {
-        fieldsUpdated.push('id_ies');
-      }
+      if (existingUser.semestre !== semestre) fieldsUpdated.push('semestre');
+      if (existingUser.nome !== nome) fieldsUpdated.push('nome');
+      if (existingUser.id_ies !== id_ies) fieldsUpdated.push('id_ies');
 
-      // Update auth.users metadata
+      // Update auth metadata
       const { error: authUpdateErr } = await supabaseAdmin.auth.admin.updateUserById(
         existingUser.id,
         { user_metadata: userMetadata }
       );
-
       if (authUpdateErr) {
         console.error('[Auth] Failed to update auth metadata:', authUpdateErr);
-        // Non-fatal: continue with public.users update
       }
 
       // Update public.users
       const { error: updateErr } = await supabaseAdmin
         .from('users')
-        .update({
-          nome,
-          id_ies,
-          semestre
-        })
+        .update({ nome, id_ies, semestre })
         .eq('id', existingUser.id);
 
       if (updateErr) {
@@ -229,122 +217,83 @@ Deno.serve(async (req) => {
         return errorResponse('UPDATE_FAILED', 'Falha ao atualizar usuário', updateErr.message);
       }
 
-      // Check and update admin role if needed (for B2B IES)
+      // B2B admin role
       if (id_ies === B2B_IES_ID) {
-        const { error: roleErr } = await supabaseAdmin
+        const { error: rErr } = await supabaseAdmin
           .from('user_roles')
-          .upsert({
-            user_id: existingUser.id,
-            role: 'admin',
-            granted_by: callerUserId
-          }, { onConflict: 'user_id,role' });
-        
-        if (roleErr) {
-          console.error('[RBAC] Failed to ensure admin role:', roleErr);
-        } else {
-          console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
-        }
+          .upsert({ user_id: existingUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
+        if (rErr) console.error('[RBAC] Failed to ensure admin role:', rErr);
+        else console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
       }
 
       const message = fieldsUpdated.length > 0 
         ? `Usuário atualizado: ${fieldsUpdated.join(', ')}`
         : 'Usuário já estava atualizado';
 
-      console.log(`[Success] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}`);
-      
+      console.log(`[CreateUser] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}`);
       return successResponse('updated', existingUser.id, email, message, { fieldsUpdated });
 
     } else {
-      // ========== CREATE FLOW ==========
-      console.log(`[Create] User ${email} does not exist, creating via invite...`);
-      
-      const redirectUrl = Deno.env.get("INVITE_REDIRECT_URL") ?? 
-        "https://academy.sanar.com.br/auth/update-password";
+      // ========== CREATE FLOW (using createUser + Novu instead of inviteUserByEmail) ==========
+      console.log(`[CreateUser] User ${email} does not exist, creating...`);
 
-      // Create user via invite (sends email automatically)
-      const { data: inviteData, error: inviteErr } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      const tempPassword = generateTempPassword();
+
+      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email,
-        {
-          data: userMetadata,
-          redirectTo: redirectUrl
-        }
-      );
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: userMetadata,
+      });
 
-      if (inviteErr) {
-        console.error('[Auth] Failed to invite user:', inviteErr);
-        
-        // Check for specific error types
-        if (inviteErr.message?.includes('rate limit')) {
+      if (createErr) {
+        console.error('[Auth] Failed to create user:', createErr);
+        if (createErr.message?.includes('rate limit')) {
           return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
         }
-        
-        // If hook authorization fails, it's usually a hook/provider configuration issue
-        // (e.g. SEND_EMAIL_HOOK_SECRET mismatch OR Resend still in test mode / domain not verified)
-        if (inviteErr.message?.includes('Hook requires authorization')) {
-          console.error('[Auth] Hook error while inviting user - check email hook + provider configuration');
-          return errorResponse(
-            'AUTH_CREATE_FAILED',
-            'Falha ao enviar email de convite (Auth Hook).',
-            'Verifique: (1) Authentication > Hooks (token/secret) no Supabase; (2) RESEND domínio verificado e remetente (RESEND_FROM). Veja os logs da função custom-email-templates.'
-          );
-        }
-        
-        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', inviteErr.message);
+        return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', createErr.message);
       }
 
-      if (!inviteData?.user) {
-        console.error('[Auth] Invite succeeded but no user returned');
+      if (!createData?.user) {
+        console.error('[Auth] Create succeeded but no user returned');
         return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário: resposta inesperada');
       }
 
-      const userId = inviteData.user.id;
-      console.log(`[Auth] User created in auth.users with ID: ${userId}`);
+      const userId = createData.user.id;
+      console.log(`[CreateUser] User created in auth.users with ID: ${userId}`);
 
       // Sync to public.users
       const { error: upsertErr } = await supabaseAdmin
         .from('users')
-        .upsert({
-          id: userId,
-          email,
-          nome,
-          id_ies,
-          semestre
-        }, { onConflict: 'id' });
+        .upsert({ id: userId, email, nome, id_ies, semestre }, { onConflict: 'id' });
 
       if (upsertErr) {
         console.error('[Database] Failed to sync user profile:', upsertErr);
-        return errorResponse(
-          'PROFILE_SYNC_FAILED', 
-          'Usuário criado no auth mas falhou ao sincronizar perfil',
-          upsertErr.message
-        );
+        return errorResponse('PROFILE_SYNC_FAILED', 'Usuário criado no auth mas falhou ao sincronizar perfil', upsertErr.message);
       }
 
-      // Auto-grant admin role for B2B IES users
+      // B2B admin role
       if (id_ies === B2B_IES_ID) {
-        const { error: roleErr } = await supabaseAdmin
+        const { error: rErr } = await supabaseAdmin
           .from('user_roles')
-          .upsert({
-            user_id: userId,
-            role: 'admin',
-            granted_by: callerUserId
-          }, { onConflict: 'user_id,role' });
-        
-        if (roleErr) {
-          console.error('[RBAC] Failed to grant admin role:', roleErr);
-        } else {
-          console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
-        }
+          .upsert({ user_id: userId, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
+        if (rErr) console.error('[RBAC] Failed to grant admin role:', rErr);
+        else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
 
-      console.log(`[Success] User ${email} created and invited`);
-      
+      // Send welcome email via Novu (fail-soft)
+      const emailSent = await sendWelcomeEmail(nome, email);
+
+      console.log(`[CreateUser] User ${email} created. Welcome email: ${emailSent ? 'sent' : 'FAILED'}`);
+
       return successResponse(
         'created', 
         userId, 
         email, 
-        'Usuário criado e email de convite enviado',
-        { emailSent: true }
+        emailSent 
+          ? 'Usuário criado e email de boas-vindas enviado'
+          : 'Usuário criado, mas falha ao enviar email de boas-vindas',
+        { emailSent }
       );
     }
 
