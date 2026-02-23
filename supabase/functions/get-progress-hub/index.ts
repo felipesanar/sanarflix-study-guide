@@ -63,16 +63,18 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Validate JWT
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    // Validate JWT using getClaims (compatible with signing-keys)
+    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
 
-    if (authError || !user) {
+    if (authError || !claimsData?.claims) {
       console.error('get-progress-hub: Auth error:', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const user = { id: claimsData.claims.sub };
 
     // Admin client for DB operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
