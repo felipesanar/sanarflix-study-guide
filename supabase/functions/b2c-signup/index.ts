@@ -106,9 +106,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Generate dynamic confirmation URL (B2C already has password, this is informational)
+    let confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
+    try {
+      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
+      });
+      if (linkData?.properties?.action_link) {
+        confirmationUrl = linkData.properties.action_link;
+      }
+    } catch (err) {
+      console.log('[CreateUser] Failed to generate dynamic link for B2C, using static fallback:', err);
+    }
+
     // Send welcome email via Novu (fail-soft)
     const firstName = nome.split(' ')[0];
-    const confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
     const novuResult = await triggerNovuEvent({
       name: 'welcome-academy-email',
       payload: { name: nome, email, confirmationUrl },
