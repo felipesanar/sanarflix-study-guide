@@ -1,6 +1,6 @@
 // Novu event trigger — uses Kong gateway (no API key needed)
 
-const NOVU_TRIGGER_URL = 'https://kong-manager.app-prod.sanar.cloud/novu/v1/events/trigger';
+const NOVU_TRIGGER_URL = 'https://kong.app-prod.sanar.cloud/novu/v1/events/trigger';
 
 export interface TriggerNovuEventInput {
   name: string;
