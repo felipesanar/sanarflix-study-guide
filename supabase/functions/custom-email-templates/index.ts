@@ -31,6 +31,25 @@ function jsonResponse(body: unknown, status = 200) {
   })
 }
 
+const CANONICAL_ORIGIN = 'https://academy.sanar.com.br'
+
+function normalizeRedirectTo(redirectTo?: string, fallbackPath = '/'): string {
+  const fallback = `${CANONICAL_ORIGIN}${fallbackPath}`
+  if (!redirectTo) return fallback
+
+  try {
+    const parsed = new URL(redirectTo)
+
+    if (parsed.hostname === 'guiadeestudos.sanar.com.br') {
+      return `${CANONICAL_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`
+    }
+
+    return redirectTo
+  } catch {
+    return fallback
+  }
+}
+
 function isWebhookAuthError(error: unknown) {
   const name = String((error as any)?.name ?? '').toLowerCase()
   const message = String((error as any)?.message ?? '').toLowerCase()
@@ -91,7 +110,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://academy.sanar.com.br/reset-password',
+          redirect_to: normalizeRedirectTo(redirect_to, '/reset-password'),
           email_action_type,
         })
       )
@@ -102,7 +121,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://academy.sanar.com.br/auth/update-password',
+          redirect_to: normalizeRedirectTo(redirect_to, '/auth/update-password'),
           email_action_type,
         })
       )
@@ -113,7 +132,7 @@ Deno.serve(async (req) => {
           supabase_url: Deno.env.get('SUPABASE_URL') ?? '',
           token,
           token_hash,
-          redirect_to: redirect_to || 'https://academy.sanar.com.br/',
+          redirect_to: normalizeRedirectTo(redirect_to, '/'),
           email_action_type,
         })
       )

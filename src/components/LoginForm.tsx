@@ -55,14 +55,14 @@ export const LoginForm: React.FC = () => {
     }
 
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
+      const redirectTo = `https://academy.sanar.com.br/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
         redirectTo,
       });
       if (error) throw error;
       toast({
         title: "Verifique seu e-mail",
-        description: "Enviamos um link para redefinir sua senha.",
+        description: "Enviamos um link para redefinir sua senha em academy.sanar.com.br.",
         duration: 4000,
       });
     } catch (err: any) {
