@@ -34,7 +34,8 @@ const createUserSchema = z.object({
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
     .min(1, 'Semestre mínimo: 1')
-    .max(12, 'Semestre máximo: 12')
+    .max(12, 'Semestre máximo: 12'),
+  resend_email: z.boolean().optional(),
 });
 
 function errorResponse(code: ErrorCode, message: string, details?: string) {
@@ -68,20 +69,52 @@ function generateTempPassword(): string {
   const lower = 'abcdefghijkmnpqrstuvwxyz';
   const digits = '23456789';
   const all = upper + lower + digits;
-  // Ensure at least 1 upper, 1 lower, 1 digit
   let pw = upper[Math.floor(Math.random() * upper.length)]
          + lower[Math.floor(Math.random() * lower.length)]
          + digits[Math.floor(Math.random() * digits.length)];
   for (let i = 3; i < 10; i++) {
     pw += all[Math.floor(Math.random() * all.length)];
   }
-  // Shuffle
   return pw.split('').sort(() => Math.random() - 0.5).join('');
 }
 
-async function sendWelcomeEmail(userId: string, nome: string, email: string): Promise<boolean> {
+/** Generate a dynamic recovery link with embedded tokens */
+async function generateRecoveryLink(supabaseAdmin: any, email: string): Promise<string | null> {
+  try {
+    const { data: linkData, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: 'https://academy.sanar.com.br/auth/update-password'
+      }
+    });
+
+    if (error) {
+      console.error('[CreateUser] Failed to generate recovery link:', error);
+      return null;
+    }
+
+    const actionLink = linkData?.properties?.action_link;
+    if (!actionLink) {
+      console.error('[CreateUser] No action_link in generateLink response');
+      return null;
+    }
+
+    console.log('[CreateUser] Recovery link generated successfully for:', email);
+    return actionLink;
+  } catch (err) {
+    console.error('[CreateUser] Exception generating recovery link:', err);
+    return null;
+  }
+}
+
+async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string, email: string): Promise<boolean> {
   const firstName = nome.split(' ')[0];
-  const confirmationUrl = 'https://academy.sanar.com.br/auth/update-password';
+  
+  // Generate dynamic recovery link with tokens
+  const confirmationUrl = await generateRecoveryLink(supabaseAdmin, email) 
+    || 'https://academy.sanar.com.br/auth/update-password';
+
   const result = await triggerNovuEvent({
     name: 'welcome-academy-email',
     payload: { name: nome, email, confirmationUrl },
@@ -154,7 +187,7 @@ Deno.serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
-    const { nome, email, id_ies, semestre } = validationResult.data;
+    const { nome, email, id_ies, semestre, resend_email } = validationResult.data;
 
     // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
@@ -168,7 +201,7 @@ Deno.serve(async (req) => {
       return errorResponse('IES_NOT_FOUND', `IES não encontrada: ${id_ies}`);
     }
 
-    console.log(`[CreateUser] Processing: ${email} for IES: ${iesData.nome}`);
+    console.log(`[CreateUser] Processing: ${email} for IES: ${iesData.nome} (resend_email: ${!!resend_email})`);
 
     // Check if user already exists
     const { data: existingUser, error: checkError } = await supabaseAdmin
@@ -227,15 +260,24 @@ Deno.serve(async (req) => {
         else console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
       }
 
-      const message = fieldsUpdated.length > 0 
-        ? `Usuário atualizado: ${fieldsUpdated.join(', ')}`
-        : 'Usuário já estava atualizado';
+      // Resend welcome email if requested
+      let emailSent = false;
+      if (resend_email) {
+        console.log(`[CreateUser] Resending welcome email for existing user: ${email}`);
+        emailSent = await sendWelcomeEmail(supabaseAdmin, existingUser.id, nome, email);
+      }
 
-      console.log(`[CreateUser] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}`);
-      return successResponse('updated', existingUser.id, email, message, { fieldsUpdated });
+      const message = resend_email 
+        ? (emailSent ? 'Email de acesso reenviado com sucesso' : 'Usuário atualizado, mas falha ao enviar email')
+        : fieldsUpdated.length > 0 
+          ? `Usuário atualizado: ${fieldsUpdated.join(', ')}`
+          : 'Usuário já estava atualizado';
+
+      console.log(`[CreateUser] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}. Email resent: ${emailSent}`);
+      return successResponse('updated', existingUser.id, email, message, { fieldsUpdated, emailSent });
 
     } else {
-      // ========== CREATE FLOW (using createUser + Novu instead of inviteUserByEmail) ==========
+      // ========== CREATE FLOW ==========
       console.log(`[CreateUser] User ${email} does not exist, creating...`);
 
       const tempPassword = generateTempPassword();
@@ -284,7 +326,7 @@ Deno.serve(async (req) => {
 
       // Send welcome email via Novu in background (fail-soft)
       EdgeRuntime.waitUntil(
-        sendWelcomeEmail(userId, nome, email)
+        sendWelcomeEmail(supabaseAdmin, userId, nome, email)
           .then(ok => console.log(`[CreateUser] Welcome email for ${email}: ${ok ? 'sent' : 'FAILED'}`))
           .catch(err => console.error(`[CreateUser] Welcome email error for ${email}:`, err))
       );

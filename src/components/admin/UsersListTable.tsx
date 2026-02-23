@@ -299,6 +299,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           email: user.email,
           id_ies: user.id_ies,
           semestre: user.semestre || 1,
+          resend_email: true,
         },
       });
 
