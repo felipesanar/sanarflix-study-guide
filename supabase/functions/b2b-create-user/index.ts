@@ -157,17 +157,17 @@ Deno.serve(async (req) => {
     });
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller using explicit token
-    const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser(token);
-    if (getUserErr || !userData?.user) {
-      console.error('[Auth] Failed to get user:', getUserErr);
+    // Verify caller using getClaims (works with signing-keys)
+    const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims) {
+      console.error('[Auth] Failed to verify token:', claimsErr);
       return new Response(
         JSON.stringify({ success: false, error: "Não autorizado", code: "UNAUTHORIZED" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const callerUserId = userData.user.id;
+    const callerUserId = claimsData.claims.sub;
 
     // Verify admin role
     const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
