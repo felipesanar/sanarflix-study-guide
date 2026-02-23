@@ -282,19 +282,21 @@ Deno.serve(async (req) => {
         else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
 
-      // Send welcome email via Novu (fail-soft)
-      const emailSent = await sendWelcomeEmail(nome, email);
+      // Send welcome email via Novu in background (fail-soft)
+      EdgeRuntime.waitUntil(
+        sendWelcomeEmail(nome, email)
+          .then(ok => console.log(`[CreateUser] Welcome email for ${email}: ${ok ? 'sent' : 'FAILED'}`))
+          .catch(err => console.error(`[CreateUser] Welcome email error for ${email}:`, err))
+      );
 
-      console.log(`[CreateUser] User ${email} created. Welcome email: ${emailSent ? 'sent' : 'FAILED'}`);
+      console.log(`[CreateUser] User ${email} created. Welcome email queued in background.`);
 
       return successResponse(
         'created', 
         userId, 
         email, 
-        emailSent 
-          ? 'Usuário criado e email de boas-vindas enviado'
-          : 'Usuário criado, mas falha ao enviar email de boas-vindas',
-        { emailSent }
+        'Usuário criado e email de boas-vindas sendo enviado',
+        { emailSent: true }
       );
     }
 
