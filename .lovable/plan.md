@@ -1,138 +1,43 @@
 
-# Auditoria Completa: Fluxo de Email e Cadastro de Usuarios
 
-## Problema Principal: confirmationUrl Estatica (Causa do "Link invalido")
+# Fix: b2b-create-user 401 "Auth session missing"
 
-A `confirmationUrl` enviada no email do Novu e uma URL fixa:
-```
-https://academy.sanar.com.br/auth/update-password
-```
+## Root Cause
 
-Mas a pagina `UpdatePassword.tsx` espera receber tokens na URL (via hash ou query params):
-- `access_token` + `refresh_token`, ou
-- `token` + `type`
+`getClaims(token)` internally calls `getUser()`, which expects a persistent session. In Edge Functions there is no session, so it fails with "Auth session missing!". This happens on the anon-key client (`supabaseUser`).
 
-Sem esses parametros, a pagina mostra "Link invalido" -- exatamente o que aparece no screenshot.
+## Solution
 
-### Solucao
+Use the **admin/service-role client** (`supabaseAdmin`) to call `auth.getUser(token)`. The service role client can verify any JWT token directly without needing a session.
 
-No `b2b-create-user`, apos criar o usuario, usar `supabase.auth.admin.generateLink()` para gerar um link de recuperacao com tokens reais:
+## Changes
+
+### File: `supabase/functions/b2b-create-user/index.ts`
+
+Replace lines 155-170:
 
 ```typescript
-const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
-  type: 'recovery',
-  email,
-  options: {
-    redirectTo: 'https://academy.sanar.com.br/auth/update-password'
-  }
-});
-```
+// Remove the anon client entirely - not needed
+const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-Isso retorna um `action_link` com os tokens embutidos. Esse link completo sera passado como `confirmationUrl` no payload do Novu.
-
----
-
-## Problema 2: "Reenviar Convite" nao reenvia email
-
-A funcao `resendInvite` no `UsersListTable.tsx` chama `b2b-create-user` novamente, mas para usuarios existentes o fluxo entra no branch de UPDATE, que apenas atualiza campos e NAO envia email.
-
-### Solucao
-
-Criar um endpoint dedicado ou adicionar um parametro `resend_email: true` ao `b2b-create-user` para que, no fluxo de update, tambem gere um novo link e dispare o email Novu.
-
----
-
-## Problema 3: B2C Signup tem o mesmo bug da URL estatica
-
-O `b2c-signup` tambem envia `confirmationUrl` estatica. Porem, como o usuario B2C ja define a propria senha no cadastro, esse email de boas-vindas e apenas informativo -- a URL nao e critica nesse caso. Mesmo assim, deve ser corrigido para consistencia.
-
----
-
-## Problema 4: sync-user-auth retorna senha temporaria na response
-
-A Edge Function `sync-user-auth` retorna a `temporary_password` no JSON de resposta (linha 172). Isso e uma exposicao desnecessaria. Alem disso, ela nao envia nenhum email ao usuario.
-
-### Solucao
-
-Remover `temporary_password` da response. Apos criar o usuario no auth, gerar um link de recuperacao e enviar o email via Novu (mesmo padrao do b2b-create-user).
-
----
-
-## Plano de Implementacao
-
-### 1. Corrigir `b2b-create-user` -- URL dinamica com token
-
-- Usar `generateLink({ type: 'recovery', email })` apos criar o usuario
-- Extrair o `action_link` e passa-lo como `confirmationUrl` no payload Novu
-- Funciona porque o link gerado contem tokens que o Supabase valida
-
-### 2. Adicionar suporte a reenvio de email no `b2b-create-user`
-
-- Aceitar campo opcional `resend_email: boolean` no body
-- No fluxo de usuario existente, se `resend_email === true`:
-  - Gerar novo link via `generateLink({ type: 'recovery', email })`
-  - Disparar email Novu com o link atualizado
-  - Retornar `{ emailSent: true }` na response
-
-### 3. Atualizar `resendInvite` no frontend
-
-- Passar `resend_email: true` no body ao chamar `b2b-create-user` para reenvio
-
-### 4. Corrigir `b2c-signup` -- consistencia
-
-- Mesmo ajuste: gerar link dinamico com `generateLink` apos criacao
-
-### 5. Corrigir `sync-user-auth` -- seguranca e email
-
-- Remover `temporary_password` da response
-- Apos criar usuario no auth, gerar link e enviar email Novu
-
-### 6. Reimplantar Edge Functions
-
-- `b2b-create-user`
-- `b2c-signup`
-- `sync-user-auth`
-
----
-
-## Detalhes Tecnicos
-
-### generateLink retorna:
-
-```typescript
-const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-  type: 'recovery',
-  email: 'user@example.com',
-  options: {
-    redirectTo: 'https://academy.sanar.com.br/auth/update-password'
-  }
-});
-// data.properties.action_link contém a URL completa com tokens
-```
-
-### Payload Novu corrigido:
-
-```json
-{
-  "name": "welcome-academy-email",
-  "payload": {
-    "name": "Joao Silva",
-    "email": "joao@example.com",
-    "confirmationUrl": "https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=abc123&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password"
-  },
-  "to": [{
-    "subscriberId": "user-uuid",
-    "firstName": "Joao",
-    "email": "joao@example.com"
-  }]
+// Verify caller using admin client's getUser (service role can validate any token)
+const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+if (authErr || !callerUser) {
+  console.error('[Auth] Failed to verify token:', authErr);
+  return new Response(
+    JSON.stringify({ success: false, error: "Nao autorizado", code: "UNAUTHORIZED" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 }
+
+const callerUserId = callerUser.id;
 ```
 
-### Arquivos modificados:
+### Same fix needed in: `get-study-contents` and `get-progress-hub`
 
-| Arquivo | Alteracao |
-|---------|-----------|
-| `supabase/functions/b2b-create-user/index.ts` | generateLink + resend_email support |
-| `supabase/functions/b2c-signup/index.ts` | generateLink para URL dinamica |
-| `supabase/functions/sync-user-auth/index.ts` | Remover temp password, adicionar email Novu |
-| `src/components/admin/UsersListTable.tsx` | Passar `resend_email: true` no resendInvite |
+These functions also use `getClaims()` (changed in the last edit) and will have the same issue. They should also switch to `supabaseAdmin.auth.getUser(token)`.
+
+### Redeploy
+
+All three functions: `b2b-create-user`, `get-study-contents`, `get-progress-hub`.
+
