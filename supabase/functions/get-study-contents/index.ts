@@ -38,24 +38,18 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Validate JWT using getUser with the token (as per Lovable Cloud requirements)
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    // Validate JWT using getClaims (compatible with signing-keys)
+    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
 
-    if (authError) {
-      console.error('get-study-contents: Auth error:', authError.message);
+    if (authError || !claimsData?.claims) {
+      console.error('get-study-contents: Auth error:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid token', details: authError.message }),
+        JSON.stringify({ error: 'Invalid token', details: authError?.message }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!user) {
-      console.error('get-study-contents: No user found');
-      return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const user = { id: claimsData.claims.sub };
 
     // Create admin client for database operations (bypasses RLS)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
