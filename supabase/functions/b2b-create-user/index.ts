@@ -152,7 +152,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceKey);
+    const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     // Verify caller using admin client (service role can validate any JWT without session)
     const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
