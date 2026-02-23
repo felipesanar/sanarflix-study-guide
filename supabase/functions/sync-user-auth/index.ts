@@ -7,6 +7,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const CANONICAL_ORIGIN = 'https://academy.sanar.com.br';
+
+function normalizeActionLink(actionLink: string): string {
+  try {
+    const parsed = new URL(actionLink);
+    if (parsed.hostname === 'guiadeestudos.sanar.com.br') {
+      return `${CANONICAL_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return actionLink;
+  } catch {
+    return actionLink;
+  }
+}
+
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -169,7 +184,7 @@ serve(async (req) => {
         options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
       });
       if (linkData?.properties?.action_link) {
-        confirmationUrl = linkData.properties.action_link;
+        confirmationUrl = normalizeActionLink(linkData.properties.action_link);
       }
 
       const firstName = publicUser.nome.split(' ')[0];

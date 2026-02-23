@@ -17,6 +17,19 @@ type ErrorCode =
   | 'INTERNAL_ERROR';
 
 const B2B_IES_ID = '9f21b138-0027-44c8-9660-dc6706d57bc0';
+const CANONICAL_ORIGIN = 'https://academy.sanar.com.br';
+
+function normalizeActionLink(actionLink: string): string {
+  try {
+    const parsed = new URL(actionLink);
+    if (parsed.hostname === 'guiadeestudos.sanar.com.br') {
+      return `${CANONICAL_ORIGIN}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return actionLink;
+  } catch {
+    return actionLink;
+  }
+}
 
 const createUserSchema = z.object({
   nome: z.string()
@@ -100,8 +113,9 @@ async function generateRecoveryLink(supabaseAdmin: any, email: string): Promise<
       return null;
     }
 
+    const normalizedLink = normalizeActionLink(actionLink);
     console.log('[CreateUser] Recovery link generated successfully for:', email);
-    return actionLink;
+    return normalizedLink;
   } catch (err) {
     console.error('[CreateUser] Exception generating recovery link:', err);
     return null;
