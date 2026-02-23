@@ -29,6 +29,7 @@ export interface BatchResult {
     message: string;
   };
   fieldsUpdated?: string[];
+  emailSent?: boolean;
 }
 
 export interface BatchReport {
@@ -196,7 +197,9 @@ export const BatchProcessingReport: React.FC<BatchProcessingReportProps> = ({
                       <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm truncate">{result.email}</div>
-                        <div className="text-xs text-muted-foreground">Email de convite enviado</div>
+                        <div className="text-xs text-muted-foreground">
+                          {result.emailSent ? 'E-mail de boas-vindas enviado' : '⚠️ E-mail não enviado'}
+                        </div>
                       </div>
                       <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-500/30">
                         Criado

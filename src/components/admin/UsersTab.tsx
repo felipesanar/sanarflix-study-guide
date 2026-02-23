@@ -136,9 +136,14 @@ export const UsersTab: React.FC = () => {
         return;
       }
 
-      const actionMsg = data.action === 'created' 
-        ? '✅ Usuário criado! Email de convite enviado.'
-        : `🔄 Usuário atualizado: ${data.details?.fieldsUpdated?.join(', ') || 'nenhuma alteração'}`;
+      let actionMsg: string;
+      if (data.action === 'created') {
+        actionMsg = data.details?.emailSent 
+          ? '✅ Usuário cadastrado. E-mail de boas-vindas enviado.'
+          : '⚠️ Usuário cadastrado, mas não foi possível enviar o e-mail.';
+      } else {
+        actionMsg = `🔄 Usuário atualizado: ${data.details?.fieldsUpdated?.join(', ') || 'nenhuma alteração'}`;
+      }
       
       toast.success(actionMsg);
       addLog(`${singleUser.email}: ${actionMsg}`);
@@ -274,7 +279,8 @@ export const UsersTab: React.FC = () => {
               success: true,
               action: data.action,
               message: data.message,
-              fieldsUpdated: data.details?.fieldsUpdated
+              fieldsUpdated: data.details?.fieldsUpdated,
+              emailSent: data.details?.emailSent
             });
             
             const icon = data.action === 'created' ? '✅' : '🔄';
@@ -308,10 +314,13 @@ export const UsersTab: React.FC = () => {
         finishedAt
       };
 
+      const emailsSent = results.filter(r => r.success && r.action === 'created' && r.emailSent).length;
+      const emailsFailed = results.filter(r => r.success && r.action === 'created' && !r.emailSent).length;
+
       setBatchReport(report);
-      addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros`);
+      addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros. Emails: ${emailsSent} enviados, ${emailsFailed} falharam.`);
       
-      toast.success(`Processamento concluído! ${report.created} criados, ${report.updated} atualizados`);
+      toast.success(`Importação concluída. ${report.created} criados, ${report.updated} atualizados, ${emailsSent} e-mails enviados${emailsFailed > 0 ? `, ${emailsFailed} falharam` : ''}.`);
     } catch (err) {
       console.error('CSV processing error:', err);
       toast.error('Erro ao processar arquivo CSV');
@@ -399,14 +408,14 @@ export const UsersTab: React.FC = () => {
         'Linha': r.linha,
         'Email': r.email,
         'Nome': r.nome,
-        'Status': 'Email de convite enviado'
+        'Email Boas-Vindas': r.emailSent ? '✅ Enviado' : '❌ Falhou'
       }));
       const createdSheet = XLSX.utils.json_to_sheet(createdData);
       createdSheet['!cols'] = [
         { wch: 8 },
         { wch: 35 },
         { wch: 30 },
-        { wch: 30 },
+        { wch: 20 },
       ];
       XLSX.utils.book_append_sheet(workbook, createdSheet, 'Criados');
     }

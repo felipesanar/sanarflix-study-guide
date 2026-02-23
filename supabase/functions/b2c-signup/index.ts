@@ -1,9 +1,8 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { triggerNovuEvent } from "../_shared/novu.ts";
 
-// Input validation schema
 const signupSchema = z.object({
   nome: z.string()
     .trim()
@@ -26,17 +25,7 @@ const signupSchema = z.object({
     .max(12, 'Semestre máximo: 12')
 });
 
-const generatePassword = (): string => {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  let password = '';
-  for (let i = 0; i < 8; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-};
-
-serve(async (req) => {
-  // Handle CORS preflight requests
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -46,15 +35,11 @@ serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
     const body = await req.json();
     
-    // Validate input with zod schema
     let validatedData;
     try {
       validatedData = signupSchema.parse(body);
@@ -70,31 +55,24 @@ serve(async (req) => {
     }
 
     const { nome, email, password, semestre } = validatedData;
-
-    // B2C IES ID (from the query result)
     const B2C_IES_ID = "abec7c7d-ef07-4871-9e19-090f4d951e5e";
 
     // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      user_metadata: {
-        full_name: nome,
-      },
-      email_confirm: true, // Auto-confirm email for B2C users
+      user_metadata: { full_name: nome },
+      email_confirm: true,
     });
 
     if (authError) {
-      console.error("Error creating auth user:", authError);
-      
-      // Check if user already exists
+      console.error("[CreateUser] Error creating auth user:", authError);
       if (authError.message.includes('already registered')) {
         return new Response(
           JSON.stringify({ error: "E-mail já cadastrado na plataforma" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      
       return new Response(
         JSON.stringify({ error: authError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -108,27 +86,36 @@ serve(async (req) => {
       );
     }
 
-    // Insert user profile into users table
+    // Insert user profile
     const { error: profileError } = await supabaseAdmin
       .from("users")
       .upsert({
         id: authData.user.id,
-        email: email,
-        nome: nome,
-        semestre: semestre,
+        email,
+        nome,
+        semestre,
         id_ies: B2C_IES_ID,
       });
 
     if (profileError) {
-      console.error("Error creating user profile:", profileError);
-      
-      // If profile creation fails, we should clean up the auth user
+      console.error("[CreateUser] Error creating user profile:", profileError);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      
       return new Response(
         JSON.stringify({ error: "Failed to create user profile" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Send welcome email via Novu (fail-soft)
+    const firstName = nome.split(' ')[0];
+    const novuResult = await triggerNovuEvent({
+      name: 'welcome-academy-email',
+      payload: { name: nome, email },
+      to: [{ firstName, email }],
+    });
+
+    if (!novuResult.ok) {
+      console.log('[CreateUser] Novu welcome email failed for B2C user:', email, novuResult.error);
     }
 
     return new Response(
@@ -137,16 +124,14 @@ serve(async (req) => {
         user: {
           id: authData.user.id,
           email: authData.user.email,
-        }
+        },
+        emailSent: novuResult.ok,
       }),
-      { 
-        status: 200, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("[CreateUser] Unexpected error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
