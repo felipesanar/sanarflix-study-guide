@@ -142,13 +142,23 @@ Deno.serve(async (req) => {
     }
 
     const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+    
+    if (!authHeader || !authHeader.startsWith("Bearer ") || !token) {
+      console.error('[Auth] Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: "Não autorizado: token ausente", code: "UNAUTHORIZED" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUser = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const supabaseAdmin = createClient(supabaseUrl, serviceKey);
 
-    // Verify caller
-    const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser();
+    // Verify caller using explicit token
+    const { data: userData, error: getUserErr } = await supabaseUser.auth.getUser(token);
     if (getUserErr || !userData?.user) {
       console.error('[Auth] Failed to get user:', getUserErr);
       return new Response(
