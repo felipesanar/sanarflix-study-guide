@@ -119,6 +119,10 @@ Deno.serve(async (req) => {
       if (normalizedSem.toUpperCase() === 'INTERNATO') {
         possibleValues.push('INTERNATO', 'internato', 'Internato');
       }
+      // Map high numeric semesters (>=9) or 0 to also search for INTERNATO
+      if (!isNaN(semNum) && (semNum >= 9 || semNum === 0)) {
+        possibleValues.push('INTERNATO', 'internato', 'Internato');
+      }
 
       const { data, error: queryError } = await supabaseAdmin
         .from('conteudos')

@@ -242,7 +242,8 @@ export const StudyGuide: React.FC = () => {
   // Load progress from Supabase when semester changes
   useEffect(() => {
     if (user?.ies_nome && selectedSemestre) {
-      const semestre = parseInt(selectedSemestre) || user.semestre || 1;
+      // For non-numeric semesters like "INTERNATO", use 0 as fallback for the integer column
+      const semestre = isNaN(parseInt(selectedSemestre)) ? (user.semestre || 0) : (parseInt(selectedSemestre) || user.semestre || 1);
       loadAllProgress(semestre, user.ies_nome);
     }
   }, [selectedSemestre, user?.ies_nome, user?.semestre, loadAllProgress]);
@@ -804,11 +805,49 @@ export const StudyGuide: React.FC = () => {
       }));
   }, [calendarEvents]);
 
-  // Selected materia contents for sheet
+  // Selected materia contents for sheet — search across ALL loaded content, not just current semester
   const selectedMateriaContents = useMemo(() => {
     if (!selectedEventMateria) return null;
-    return groupedData.find(m => m.materia === selectedEventMateria);
-  }, [selectedEventMateria, groupedData]);
+    // First try current semester
+    const inCurrentSem = groupedData.find(m => m.materia === selectedEventMateria);
+    if (inCurrentSem) return inCurrentSem;
+
+    // If not found, search ALL loaded conteudos for this materia
+    const allForMateria = conteudos.filter(c => c.materia === selectedEventMateria);
+    if (allForMateria.length === 0) return null;
+
+    // Find which semester has this materia and auto-switch
+    const otherSem = allForMateria[0]?.semestre?.toString().replace(/º\s*Semestre/i, '').trim();
+    if (otherSem && otherSem !== selectedSemestre) {
+      // Schedule semester switch (can't setState in useMemo directly)
+      setTimeout(() => {
+        handleSemestreChange(otherSem);
+      }, 0);
+    }
+
+    // Build a temporary Materia object from raw data
+    const materiaMap = new Map<string, Tema>();
+    allForMateria.forEach(item => {
+      const temaKey = item.tema || 'Sem tema';
+      if (!materiaMap.has(temaKey)) {
+        materiaMap.set(temaKey, { tema: temaKey, subtemas: [] });
+      }
+      const temaObj = materiaMap.get(temaKey)!;
+      const subtemaKey = item.subtema || 'Sem subtema';
+      let subtemaObj = temaObj.subtemas.find(st => st.subtema === subtemaKey);
+      if (!subtemaObj) {
+        subtemaObj = { subtema: subtemaKey, aulas: [] };
+        temaObj.subtemas.push(subtemaObj);
+      }
+      subtemaObj.aulas.push({
+        aula: item.aula,
+        link_aula: item.link_aula,
+        link_pdf: item.link_pdf,
+        link_quiz: item.link_quiz,
+      });
+    });
+    return { materia: selectedEventMateria, temas: Array.from(materiaMap.values()) } as Materia;
+  }, [selectedEventMateria, groupedData, conteudos, selectedSemestre, handleSemestreChange]);
 
   // Subject chips data
   const subjectChipsData = useMemo(() => {
