@@ -1,84 +1,88 @@
 
-Objetivo
-- Corrigir definitivamente o domínio dos links de convite/reset para que sempre usem `https://academy.sanar.com.br` (e nunca `https://guiadeestudos.sanar.com.br`), identificando exatamente onde o parâmetro é criado e repassado.
 
-Diagnóstico confirmado (onde o link é definido e passado)
-1. Geração do link
-- `supabase/functions/b2b-create-user/index.ts`
-  - `generateLink({ type: 'recovery', options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' } })`
-  - lê `linkData.properties.action_link`
-- `supabase/functions/sync-user-auth/index.ts`
-  - mesmo padrão (`generateLink` + `action_link`)
-- `supabase/functions/b2c-signup/index.ts`
-  - também usa `generateLink` + `action_link`
+## Auditoria: Remoção de Usuário
 
-2. Passagem do link para e-mail
-- Nos 3 fluxos acima, o valor vai para:
-  - `payload.confirmationUrl` em `triggerNovuEvent(...)`
-  - evento `welcome-academy-email` no Novu
-- Ou seja: o link que o usuário recebe no botão e no “link direto” vem de `confirmationUrl` enviado por essas Edge Functions.
+### Problemas Identificados
 
-3. Motivo de continuar errado mesmo com replace simples
-- A normalização atual troca hostname apenas em casos específicos, mas o problema pode vir de formatos diferentes do `action_link` retornado pelo Supabase.
-- Além disso, o fluxo está dependente de `action_link` pronto (que pode refletir configuração de Auth legada), em vez de construir URL canônica de forma determinística.
-- `b2c-signup` ainda não normaliza `action_link`, criando inconsistência entre fluxos.
+**1. Ordem de deleção incorreta (causa raiz do erro)**
+A Edge Function tenta deletar `public.users` ANTES de `user_roles`. Porém, a tabela `user_roles` possui uma foreign key `granted_by_fkey` que referencia `public.users`. Isso causa o erro:
+```
+violates foreign key constraint "user_roles_granted_by_fkey" on table "user_roles"
+```
+Resultado: o delete de `public.users` falha, mas o código continua e tenta deletar de `auth.users`, que tambem falha porque `auth.users` tem dependencias com `public.users` (trigger `handle_new_user` ou FKs internas).
 
-Plano de correção (implementação)
-1) Tornar a geração do link canônica e determinística
-- Criar helper compartilhado (ex.: `supabase/functions/_shared/auth-links.ts`) para:
-  - receber `linkData.properties` do `generateLink`
-  - priorizar construção de URL via `token_hash/hashed_token`:
-    - formato: `${SUPABASE_URL}/auth/v1/verify?token=<token_hash>&type=recovery&redirect_to=<academy_url_encoded>`
-  - fallback para `action_link` somente se token_hash não vier
-  - normalizar:
-    - hostname legado no topo da URL
-    - `redirect_to` dentro da querystring (inclusive URL-encoded)
-    - origem final sempre `https://academy.sanar.com.br`
-- Resultado: independente de como o Supabase devolver `action_link`, o `confirmationUrl` final enviado ao Novu ficará correto.
+**2. Falta de limpeza de tabelas dependentes**
+Alem de `user_roles`, existem outras tabelas com FK para o usuario que precisam ser limpas antes:
+- `user_progress` (user_id)
+- `user_progress_nodes` (user_id)
+- `answer_progress` (user_id)
+- Possivelmente `push_subscriptions`, `reminder_settings`, `calendar_subjects`, etc.
 
-2) Aplicar helper nos 3 fluxos que enviam `welcome-academy-email`
-- `supabase/functions/b2b-create-user/index.ts`
-- `supabase/functions/sync-user-auth/index.ts`
-- `supabase/functions/b2c-signup/index.ts`
-- Remover duplicação de `normalizeActionLink` local e usar helper único para evitar regressão.
+**3. Tela trava / sem atualização imediata (frontend)**
+- O `fetchUsers()` apos delete recarrega TODA a lista, causando flash de loading
+- Nao ha remoção otimista do usuario da lista local
+- O dialog de confirmação nao fecha imediatamente apos sucesso
+- Console cheio de logs porque o erro 500 dispara retentativas e logs excessivos
 
-3) Hardening da normalização
-- Aceitar variações de domínio legado:
-  - `guiadeestudos.sanar.com.br`
-  - com/sem `www`
-  - com protocolo diferente
-- Forçar path de destino por fluxo:
-  - convite/primeiro acesso: `/auth/update-password`
-  - reset de senha: `/reset-password` (onde aplicável)
+**4. CORS headers incompletos**
+Os headers estao sem os headers extras do Supabase client (`x-supabase-client-platform`, etc.), podendo causar problemas em alguns browsers.
 
-4) Observabilidade para depuração rápida
-- Logar (sem expor tokens):
-  - origem do link (`action_link` vs `token_hash`)
-  - hostname final de `confirmationUrl`
-  - redirect_to final
-- Isso permite provar em produção que o link enviado está canônico.
+---
 
-5) Verificação de configuração no Supabase Auth (complementar e necessária)
-- Validar no Dashboard:
-  - Site URL: `https://academy.sanar.com.br`
-  - Redirect URLs: incluir `https://academy.sanar.com.br/**`
-  - remover legado `guiadeestudos.sanar.com.br` das allowlists (se existir)
-- Mesmo com código robusto, configuração legada pode reintroduzir comportamento inesperado em outros fluxos nativos.
+### Plano de Correção
 
-Validação (E2E)
-1. Reenviar convite por `b2b-create-user` (resend_email=true)
-- Confirmar no e-mail:
-  - botão abre fluxo em `academy.sanar.com.br`
-  - “link direto” também resolve para `academy.sanar.com.br`
-2. Testar `sync-user-auth` com usuário novo
-- mesmo comportamento esperado
-3. Testar `b2c-signup`
-- validar consistência entre todos os cadastros
-4. Testar fluxo “Esqueci a senha” no Login
-- confirmar domínio final correto
-5. Testar link expirado
-- erro (`otp_expired`) deve aparecer em `academy.sanar.com.br`, não no legado
+#### 1. Edge Function `delete-user` -- corrigir ordem e completude
 
-Observações importantes
-- Links antigos já enviados continuarão apontando para o domínio antigo; é necessário gerar novos convites após a correção.
-- Não há necessidade de migração de banco/RLS para este ajuste; escopo é Edge Functions + configuração Auth.
+Reescrever a logica de deleção na ordem correta:
+1. Deletar `user_roles` (remove a FK `granted_by` que bloqueia)
+2. Deletar `user_progress`
+3. Deletar `user_progress_nodes`
+4. Deletar `answer_progress` (e `answer_progress_enamed` se existir)
+5. Deletar outras tabelas dependentes (push_subscriptions, reminder_settings, calendar_subjects, etc.)
+6. Deletar `public.users`
+7. Deletar `auth.users`
+
+Atualizar CORS headers para incluir os headers do Supabase client.
+Reduzir logs desnecessários -- logar apenas inicio e resultado final.
+
+#### 2. Frontend `UsersListTable` -- atualização otimista
+
+- Apos confirmação de sucesso:
+  - Remover o usuario da lista local (`setUsers(prev => prev.filter(...))`) ANTES de fazer refetch
+  - Fechar o dialog imediatamente
+  - Atualizar `totalCount` localmente
+- Envolver o `deleteUser` em try/catch robusto para evitar crash
+- Desabilitar interação durante deleção (ja existe, mas reforçar)
+
+#### 3. Arquivos afetados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/delete-user/index.ts` | Corrigir ordem de deleção, limpar todas as tabelas dependentes, atualizar CORS |
+| `src/components/admin/UsersListTable.tsx` | Atualização otimista, fechar dialog, reduzir re-renders |
+
+### Detalhes Técnicos
+
+**Edge Function -- nova ordem de deleção:**
+```text
+user_roles (WHERE user_id = X OR granted_by = X)
+  -> user_progress
+  -> user_progress_nodes
+  -> answer_progress
+  -> [outras tabelas com FK]
+  -> public.users
+  -> auth.users (admin.deleteUser)
+```
+
+**Frontend -- atualização otimista:**
+```text
+deleteUser()
+  -> invoke edge function
+  -> se sucesso:
+     -> setUsers(prev => prev.filter(u => u.id !== deletedId))
+     -> setTotalCount(prev => prev - 1)
+     -> setDeleteConfirm(null)
+     -> toast.success()
+  -> refetch em background (silencioso, sem loading)
+```
+
