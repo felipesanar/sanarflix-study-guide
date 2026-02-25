@@ -1328,6 +1328,12 @@ export type Database = {
       get_current_user_faculty: { Args: never; Returns: string }
       get_current_user_ies_id: { Args: never; Returns: string }
       get_current_user_semester: { Args: never; Returns: number }
+      get_distinct_semestres: {
+        Args: { p_ies_id: string }
+        Returns: {
+          semestre: string
+        }[]
+      }
       get_ies_features: {
         Args: { p_ies_id: string }
         Returns: {
