@@ -24,6 +24,16 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Search,
   MoreHorizontal,
   Pencil,
@@ -38,6 +48,7 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 
 interface IES {
@@ -85,6 +96,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<UserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -315,6 +328,29 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       toast.error('Erro ao reenviar convite');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const deleteUser = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteConfirm.id },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Erro ao remover usuário');
+      }
+
+      toast.success(`${deleteConfirm.nome} foi removido com sucesso`);
+      setDeleteConfirm(null);
+      fetchUsers();
+    } catch (err) {
+      console.error('Delete user error:', err);
+      toast.error(err instanceof Error ? err.message : 'Erro ao remover usuário');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -551,6 +587,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                     </>
                                   )}
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setDeleteConfirm(user)}>
+                                  <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                                  <span className="text-destructive">Remover Usuário</span>
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -593,6 +634,30 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remover Usuário</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja remover <strong>{deleteConfirm?.nome}</strong> ({deleteConfirm?.email})?
+                Esta ação é irreversível e removerá o usuário tanto do sistema de autenticação quanto da base de dados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={deleteUser}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Remover
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );
