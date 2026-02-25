@@ -86,7 +86,8 @@ Deno.serve(async (req) => {
       const { data: semData, error: semError } = await supabaseAdmin
         .from('conteudos')
         .select('semestre')
-        .eq('id_ies', userData.id_ies);
+        .eq('id_ies', userData.id_ies)
+        .limit(10000);
 
       if (semError) {
         console.error('get-study-contents: Error fetching semestres:', semError);
