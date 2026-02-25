@@ -1,88 +1,34 @@
 
 
-## Auditoria: Remoção de Usuário
+## Objetivo
+Remover a coluna `id_ies` do CSV/XLSX de cadastro em lote. O admin seleciona a IES em um dropdown **antes** do upload, e essa IES e aplicada a todos os usuarios do lote.
 
-### Problemas Identificados
+## Mudancas
 
-**1. Ordem de deleção incorreta (causa raiz do erro)**
-A Edge Function tenta deletar `public.users` ANTES de `user_roles`. Porém, a tabela `user_roles` possui uma foreign key `granted_by_fkey` que referencia `public.users`. Isso causa o erro:
-```
-violates foreign key constraint "user_roles_granted_by_fkey" on table "user_roles"
-```
-Resultado: o delete de `public.users` falha, mas o código continua e tenta deletar de `auth.users`, que tambem falha porque `auth.users` tem dependencias com `public.users` (trigger `handle_new_user` ou FKs internas).
+### 1. Estado e UI -- adicionar seletor de IES no card de lote
+- Novo estado `batchIesId` para armazenar a IES selecionada para o lote
+- Adicionar um `Select` (dropdown de IES) acima do input de arquivo
+- O botao "Processar Arquivo" so fica habilitado se `batchIesId` E `csvFile` estiverem preenchidos
 
-**2. Falta de limpeza de tabelas dependentes**
-Alem de `user_roles`, existem outras tabelas com FK para o usuario que precisam ser limpas antes:
-- `user_progress` (user_id)
-- `user_progress_nodes` (user_id)
-- `answer_progress` (user_id)
-- Possivelmente `push_subscriptions`, `reminder_settings`, `calendar_subjects`, etc.
+### 2. Processamento do CSV -- remover exigencia de `id_ies`
+- Remover `id_ies` da lista `requiredColumns` (passa a ser apenas `nome`, `email`, `semestre`)
+- No loop de processamento, usar `batchIesId` no lugar de `user.id_ies` ao chamar `b2b-create-user`
+- Se o CSV ainda contiver uma coluna `id_ies`, ela sera ignorada (o valor do dropdown prevalece)
 
-**3. Tela trava / sem atualização imediata (frontend)**
-- O `fetchUsers()` apos delete recarrega TODA a lista, causando flash de loading
-- Nao ha remoção otimista do usuario da lista local
-- O dialog de confirmação nao fecha imediatamente apos sucesso
-- Console cheio de logs porque o erro 500 dispara retentativas e logs excessivos
+### 3. Template de exemplo (XLSX) -- simplificar
+- Remover coluna `id_ies` da aba "Usuarios" (fica: `nome`, `email`, `semestre`)
+- Remover a aba "IES (Referencia)" (nao e mais necessaria, pois a IES e selecionada na UI)
+- Ajustar larguras de coluna
 
-**4. CORS headers incompletos**
-Os headers estao sem os headers extras do Supabase client (`x-supabase-client-platform`, etc.), podendo causar problemas em alguns browsers.
+### 4. Validacao
+- Validacao de linha: exigir apenas `nome`, `email`, `semestre`
+- Validacao pre-processamento: exigir `batchIesId` selecionado
 
----
+## Arquivo afetado
+`src/components/admin/UsersTab.tsx` -- unico arquivo modificado
 
-### Plano de Correção
-
-#### 1. Edge Function `delete-user` -- corrigir ordem e completude
-
-Reescrever a logica de deleção na ordem correta:
-1. Deletar `user_roles` (remove a FK `granted_by` que bloqueia)
-2. Deletar `user_progress`
-3. Deletar `user_progress_nodes`
-4. Deletar `answer_progress` (e `answer_progress_enamed` se existir)
-5. Deletar outras tabelas dependentes (push_subscriptions, reminder_settings, calendar_subjects, etc.)
-6. Deletar `public.users`
-7. Deletar `auth.users`
-
-Atualizar CORS headers para incluir os headers do Supabase client.
-Reduzir logs desnecessários -- logar apenas inicio e resultado final.
-
-#### 2. Frontend `UsersListTable` -- atualização otimista
-
-- Apos confirmação de sucesso:
-  - Remover o usuario da lista local (`setUsers(prev => prev.filter(...))`) ANTES de fazer refetch
-  - Fechar o dialog imediatamente
-  - Atualizar `totalCount` localmente
-- Envolver o `deleteUser` em try/catch robusto para evitar crash
-- Desabilitar interação durante deleção (ja existe, mas reforçar)
-
-#### 3. Arquivos afetados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/delete-user/index.ts` | Corrigir ordem de deleção, limpar todas as tabelas dependentes, atualizar CORS |
-| `src/components/admin/UsersListTable.tsx` | Atualização otimista, fechar dialog, reduzir re-renders |
-
-### Detalhes Técnicos
-
-**Edge Function -- nova ordem de deleção:**
-```text
-user_roles (WHERE user_id = X OR granted_by = X)
-  -> user_progress
-  -> user_progress_nodes
-  -> answer_progress
-  -> [outras tabelas com FK]
-  -> public.users
-  -> auth.users (admin.deleteUser)
-```
-
-**Frontend -- atualização otimista:**
-```text
-deleteUser()
-  -> invoke edge function
-  -> se sucesso:
-     -> setUsers(prev => prev.filter(u => u.id !== deletedId))
-     -> setTotalCount(prev => prev - 1)
-     -> setDeleteConfirm(null)
-     -> toast.success()
-  -> refetch em background (silencioso, sem loading)
-```
-
+## Resumo da UX final
+1. Admin seleciona a IES no dropdown
+2. Admin faz upload do CSV/XLSX (apenas nome, email, semestre)
+3. Clica em "Processar Arquivo"
+4. Todos os usuarios sao cadastrados na IES selecionada
