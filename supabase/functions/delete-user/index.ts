@@ -1,12 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,13 +24,15 @@ serve(async (req) => {
       });
     }
 
-    const supabaseCaller = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: { user: caller } } = await supabaseCaller.auth.getUser();
-    if (!caller) {
+    // Extract token and validate caller
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (authError || !caller) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -38,7 +40,7 @@ serve(async (req) => {
     }
 
     // Check admin role
-    const { data: roles } = await supabaseCaller.rpc('get_user_roles', { _user_id: caller.id });
+    const { data: roles } = await supabaseAdmin.rpc('get_user_roles', { _user_id: caller.id });
     if (!roles?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Permissão negada' }), {
         status: 403,
@@ -62,44 +64,71 @@ serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    console.log(`[delete-user] Admin ${caller.email} removing user ${user_id}`);
 
-    console.log(`[delete-user] Admin ${caller.email} deleting user ${user_id}`);
+    // Delete dependent tables in correct order (FK constraints)
+    const dependentTables = [
+      { table: 'user_roles', filters: [{ col: 'user_id', val: user_id }, { col: 'granted_by', val: user_id }] },
+      { table: 'answer_progress_historico', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'answer_progress', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'simulados_finalizados', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'simulados_iniciados', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'user_progress_nodes', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'user_progress', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'study_progress', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'user_exams', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'user_sessions', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'page_views', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'analytics_events', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'aula_views', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'push_subscriptions', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'study_reminders', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'calendar_subjects', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'calendar_arrangements', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'announcements_viewed', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'sanarclass_views', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'performance_notifications_sent', filters: [{ col: 'user_id', val: user_id }] },
+      { table: 'supabase_to_metabase', filters: [{ col: 'id', val: user_id }] },
+    ];
 
-    // 1. Delete from public.users (cascades to related tables via app logic)
-    const { error: publicError } = await supabaseAdmin
-      .from('users')
-      .delete()
-      .eq('id', user_id);
+    const errors: string[] = [];
 
-    if (publicError) {
-      console.error('[delete-user] Error deleting from public.users:', publicError);
-      // Continue to try auth deletion anyway
+    for (const { table, filters } of dependentTables) {
+      for (const { col, val } of filters) {
+        const { error } = await supabaseAdmin.from(table).delete().eq(col, val);
+        if (error && !error.message.includes('0 rows')) {
+          errors.push(`${table}.${col}: ${error.message}`);
+        }
+      }
     }
 
-    // 2. Delete user roles
-    await supabaseAdmin
-      .from('user_roles')
-      .delete()
-      .eq('user_id', user_id);
-
-    // 3. Delete from auth.users
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
-
-    if (authError) {
-      console.error('[delete-user] Error deleting from auth.users:', authError);
-      return new Response(JSON.stringify({
-        error: `Erro ao remover do auth: ${authError.message}`,
-        partial: !publicError,
+    // Delete from public.users
+    const { error: publicError } = await supabaseAdmin.from('users').delete().eq('id', user_id);
+    if (publicError) {
+      console.error('[delete-user] public.users error:', publicError.message);
+      return new Response(JSON.stringify({ 
+        error: `Erro ao remover dados do usuário: ${publicError.message}`,
+        cleanup_errors: errors.length > 0 ? errors : undefined,
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[delete-user] User ${user_id} deleted successfully`);
+    // Delete from auth.users
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+    if (authDeleteError) {
+      console.error('[delete-user] auth.users error:', authDeleteError.message);
+      return new Response(JSON.stringify({
+        error: `Erro ao remover autenticação: ${authDeleteError.message}`,
+        partial: true,
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[delete-user] User ${user_id} removed successfully`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
