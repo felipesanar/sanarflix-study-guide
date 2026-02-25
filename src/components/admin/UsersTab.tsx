@@ -22,6 +22,7 @@ export const UsersTab: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [batchIesId, setBatchIesId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -126,7 +127,7 @@ export const UsersTab: React.FC = () => {
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       
       // Validate required columns
-      const requiredColumns = ['nome', 'email', 'id_ies', 'semestre'];
+      const requiredColumns = ['nome', 'email', 'semestre'];
       const missingColumns = requiredColumns.filter(col => !headers.includes(col));
       
       if (missingColumns.length > 0) {
@@ -151,7 +152,6 @@ export const UsersTab: React.FC = () => {
 
         const email = user.email?.toLowerCase().trim();
         const nome = user.nome?.trim();
-        const id_ies = user.id_ies?.trim();
         const semestreStr = user.semestre?.trim();
 
         // Skip empty lines
@@ -176,7 +176,7 @@ export const UsersTab: React.FC = () => {
         }
 
         // Basic validation
-        if (!nome || !email || !id_ies || !semestreStr) {
+        if (!nome || !email || !semestreStr) {
           results.push({
             email: email || 'N/A',
             nome: nome || 'N/A',
@@ -184,7 +184,7 @@ export const UsersTab: React.FC = () => {
             success: false,
             error: {
               code: 'VALIDATION_ERROR',
-              message: 'Dados incompletos (nome, email, id_ies, semestre obrigatórios)'
+              message: 'Dados incompletos (nome, email, semestre obrigatórios)'
             }
           });
           addLog(`Linha ${i + 1}: dados incompletos`);
@@ -198,7 +198,7 @@ export const UsersTab: React.FC = () => {
             body: {
               nome,
               email,
-              id_ies,
+              id_ies: batchIesId,
               semestre: parseInt(semestreStr),
             },
           });
@@ -400,38 +400,22 @@ export const UsersTab: React.FC = () => {
   };
 
   const downloadExampleXlsx = () => {
-    
-    const header = ['nome', 'email', 'id_ies', 'semestre'];
-    const exampleRows = iesList.length > 0
-      ? [
-          ['João Silva', 'joao@exemplo.com', iesList[0].id, 5],
-          ['Maria Souza', 'maria@exemplo.com', iesList[0].id, 3],
-        ]
-      : [
-          ['João Silva', 'joao@exemplo.com', 'cole-o-id-da-ies-aqui', 5],
-          ['Maria Souza', 'maria@exemplo.com', 'cole-o-id-da-ies-aqui', 3],
-        ];
+    const header = ['nome', 'email', 'semestre'];
+    const exampleRows = [
+      ['João Silva', 'joao@exemplo.com', 5],
+      ['Maria Souza', 'maria@exemplo.com', 3],
+    ];
 
     const wsData = [header, ...exampleRows];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Column widths
     ws['!cols'] = [
       { wch: 25 }, // nome
       { wch: 30 }, // email
-      { wch: 40 }, // id_ies
       { wch: 10 }, // semestre
     ];
 
-    // Add IES reference sheet
-    const iesData = [['id_ies', 'nome'], ...iesList.map(i => [i.id, i.nome])];
-    const wsIes = XLSX.utils.aoa_to_sheet(iesData);
-    wsIes['!cols'] = [{ wch: 40 }, { wch: 30 }];
-
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
-    XLSX.utils.book_append_sheet(wb, wsIes, 'IES (Referência)');
-
     XLSX.writeFile(wb, 'exemplo_cadastro_usuarios.xlsx');
   };
 
@@ -554,6 +538,22 @@ export const UsersTab: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Instituição (IES)</Label>
+            <Select value={batchIesId} onValueChange={setBatchIesId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a IES para este lote" />
+              </SelectTrigger>
+              <SelectContent>
+                {iesList.map((ies) => (
+                  <SelectItem key={ies.id} value={ies.id}>
+                    {ies.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex gap-2">
             <Input
               type="file"
@@ -570,7 +570,7 @@ export const UsersTab: React.FC = () => {
             </Button>
           </div>
 
-          <Button onClick={processCsvFile} disabled={!csvFile || isProcessing} className="w-full">
+          <Button onClick={processCsvFile} disabled={!csvFile || !batchIesId || isProcessing} className="w-full">
             {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
