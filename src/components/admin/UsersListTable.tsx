@@ -333,24 +333,26 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
   const deleteUser = async () => {
     if (!deleteConfirm) return;
+    const userToDelete = deleteConfirm;
     setDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: deleteConfirm.id },
+        body: { user_id: userToDelete.id },
       });
 
       if (error || !data?.success) {
         throw new Error(data?.error || error?.message || 'Erro ao remover usuário');
       }
 
-      toast.success(`${deleteConfirm.nome} foi removido com sucesso`);
+      // Optimistic update: remove from local state immediately
+      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+      setTotalCount(prev => Math.max(0, prev - 1));
       setDeleteConfirm(null);
-      fetchUsers();
-    } catch (err) {
-      console.error('Delete user error:', err);
-      toast.error(err instanceof Error ? err.message : 'Erro ao remover usuário');
-    } finally {
       setDeleting(false);
+      toast.success(`${userToDelete.nome} foi removido com sucesso`);
+    } catch (err) {
+      setDeleting(false);
+      toast.error(err instanceof Error ? err.message : 'Erro ao remover usuário');
     }
   };
 
