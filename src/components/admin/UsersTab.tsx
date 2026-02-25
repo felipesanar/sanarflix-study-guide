@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, Download, Users, Shield, Loader2, Mail } from 'lucide-react';
+import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 import { UsersListTable } from './UsersListTable';
@@ -423,70 +423,88 @@ export const UsersTab: React.FC = () => {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total de Usuários</CardTitle>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold tracking-tight">
               {totalUsers !== null ? totalUsers.toLocaleString('pt-BR') : '-'}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Administradores</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Administradores</CardTitle>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold tracking-tight">
               {totalAdmins !== null ? totalAdmins : '-'}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Users List Table - NEW */}
+      {/* Users List Table */}
       <UsersListTable iesList={iesList} onStatsUpdate={handleStatsUpdate} />
 
-
       {/* Single User Creation */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Criar Usuário Individual
-          </CardTitle>
-          <CardDescription>
-            Adicione um novo usuário. Um email de convite será enviado automaticamente.
-          </CardDescription>
+      <Card className="border-border/50 overflow-hidden shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <UserPlus className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Criar Usuário Individual</CardTitle>
+              <CardDescription className="mt-0.5">
+                Adicione um novo usuário. Um email de convite será enviado automaticamente.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5 pt-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome Completo</Label>
+              <Label htmlFor="nome" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Nome Completo
+              </Label>
               <Input
                 id="nome"
                 value={singleUser.nome}
                 onChange={(e) => setSingleUser({ ...singleUser, nome: e.target.value })}
                 placeholder="João Silva"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <AtSign className="h-3.5 w-3.5" />
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={singleUser.email}
                 onChange={(e) => setSingleUser({ ...singleUser, email: e.target.value })}
                 placeholder="joao@example.com"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ies">Instituição</Label>
+              <Label htmlFor="ies" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Instituição
+              </Label>
               <Select value={singleUser.id_ies} onValueChange={(v) => setSingleUser({ ...singleUser, id_ies: v })}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
                   <SelectValue placeholder="Selecione a IES" />
                 </SelectTrigger>
                 <SelectContent>
@@ -499,7 +517,10 @@ export const UsersTab: React.FC = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="semestre">Semestre</Label>
+              <Label htmlFor="semestre" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5" />
+                Semestre
+              </Label>
               <Input
                 id="semestre"
                 type="number"
@@ -508,11 +529,16 @@ export const UsersTab: React.FC = () => {
                 placeholder="5"
                 min="1"
                 max="12"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
           </div>
 
-          <Button onClick={createSingleUser} disabled={isCreating} className="w-full">
+          <Button
+            onClick={createSingleUser}
+            disabled={isCreating}
+            className="w-full h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+          >
             {isCreating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -529,19 +555,29 @@ export const UsersTab: React.FC = () => {
       </Card>
 
       {/* Batch User Creation */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cadastro/Atualização em Lote via CSV</CardTitle>
-          <CardDescription>
-            Importe múltiplos usuários. Novos usuários receberão email de convite. 
-            Usuários existentes terão seus dados atualizados.
-          </CardDescription>
+      <Card className="border-border/50 overflow-hidden shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Cadastro/Atualização em Lote</CardTitle>
+              <CardDescription className="mt-0.5">
+                Importe múltiplos usuários via CSV. Novos receberão convite por email.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5 pt-5">
+          {/* Step 1: IES Selection */}
           <div className="space-y-2">
-            <Label>Instituição (IES)</Label>
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              Instituição (IES)
+            </Label>
             <Select value={batchIesId} onValueChange={setBatchIesId}>
-              <SelectTrigger>
+              <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
                 <SelectValue placeholder="Selecione a IES para este lote" />
               </SelectTrigger>
               <SelectContent>
@@ -554,23 +590,42 @@ export const UsersTab: React.FC = () => {
             </Select>
           </div>
 
-          <div className="flex gap-2">
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                setCsvFile(e.target.files?.[0] || null);
-                setBatchReport(null);
-              }}
-              disabled={isProcessing}
-            />
-            <Button variant="outline" onClick={downloadExampleXlsx}>
-              <Download className="h-4 w-4 mr-2" />
-              Exemplo
-            </Button>
+          {/* Step 2: File Upload */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Upload className="h-3.5 w-3.5" />
+              Arquivo CSV
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  setCsvFile(e.target.files?.[0] || null);
+                  setBatchReport(null);
+                }}
+                disabled={isProcessing}
+                className="h-11 bg-secondary/50 border-border/60 file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:font-medium file:text-sm hover:file:bg-primary/20 file:transition-colors cursor-pointer"
+              />
+              <Button
+                variant="outline"
+                onClick={downloadExampleXlsx}
+                className="h-11 shrink-0 border-border/60 hover:bg-secondary/80 transition-all active:scale-[0.98]"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exemplo
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span>, <span className="font-medium text-foreground/70">semestre</span>
+            </p>
           </div>
 
-          <Button onClick={processCsvFile} disabled={!csvFile || !batchIesId || isProcessing} className="w-full">
+          <Button
+            onClick={processCsvFile}
+            disabled={!csvFile || !batchIesId || isProcessing}
+            className="w-full h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+          >
             {isProcessing ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -595,11 +650,13 @@ export const UsersTab: React.FC = () => {
 
           {/* Processing Logs */}
           {logs.length > 0 && !batchReport && (
-            <div className="bg-muted rounded-lg p-4 max-h-64 overflow-y-auto">
-              <Label className="mb-2 block">Logs de Processamento</Label>
-              <div className="font-mono text-xs space-y-1">
+            <div className="bg-secondary/50 border border-border/50 rounded-xl p-4 max-h-64 overflow-y-auto">
+              <Label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Logs de Processamento
+              </Label>
+              <div className="font-mono text-xs space-y-1 text-muted-foreground">
                 {logs.map((log, i) => (
-                  <div key={i}>{log}</div>
+                  <div key={i} className="py-0.5">{log}</div>
                 ))}
               </div>
             </div>
