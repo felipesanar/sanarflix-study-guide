@@ -399,15 +399,40 @@ export const UsersTab: React.FC = () => {
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const downloadExampleCsv = () => {
-    const example = 'nome,email,id_ies,semestre\nJoão Silva,joao@example.com,UUID-DA-IES,5';
-    const blob = new Blob([example], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'exemplo_usuarios.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const downloadExampleXlsx = () => {
+    
+    const header = ['nome', 'email', 'id_ies', 'semestre'];
+    const exampleRows = iesList.length > 0
+      ? [
+          ['João Silva', 'joao@exemplo.com', iesList[0].id, 5],
+          ['Maria Souza', 'maria@exemplo.com', iesList[0].id, 3],
+        ]
+      : [
+          ['João Silva', 'joao@exemplo.com', 'cole-o-id-da-ies-aqui', 5],
+          ['Maria Souza', 'maria@exemplo.com', 'cole-o-id-da-ies-aqui', 3],
+        ];
+
+    const wsData = [header, ...exampleRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 25 }, // nome
+      { wch: 30 }, // email
+      { wch: 40 }, // id_ies
+      { wch: 10 }, // semestre
+    ];
+
+    // Add IES reference sheet
+    const iesData = [['id_ies', 'nome'], ...iesList.map(i => [i.id, i.nome])];
+    const wsIes = XLSX.utils.aoa_to_sheet(iesData);
+    wsIes['!cols'] = [{ wch: 40 }, { wch: 30 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+    XLSX.utils.book_append_sheet(wb, wsIes, 'IES (Referência)');
+
+    XLSX.writeFile(wb, 'exemplo_cadastro_usuarios.xlsx');
   };
 
   return (
@@ -539,7 +564,7 @@ export const UsersTab: React.FC = () => {
               }}
               disabled={isProcessing}
             />
-            <Button variant="outline" onClick={downloadExampleCsv}>
+            <Button variant="outline" onClick={downloadExampleXlsx}>
               <Download className="h-4 w-4 mr-2" />
               Exemplo
             </Button>
