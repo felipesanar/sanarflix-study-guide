@@ -303,6 +303,35 @@ Deno.serve(async (req) => {
         if (createErr.message?.includes('rate limit')) {
           return errorResponse('RATE_LIMITED', 'Limite de requisições excedido, aguarde alguns minutos');
         }
+
+        // Handle case where user exists in auth.users but not in public.users
+        if ((createErr as any).code === 'email_exists') {
+          console.log(`[CreateUser] User exists in auth but not in public.users, recovering...`);
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ filter: email });
+          const authUser = listData?.users?.find(u => u.email === email);
+          if (authUser) {
+            // Update auth metadata
+            await supabaseAdmin.auth.admin.updateUserById(authUser.id, { user_metadata: userMetadata });
+            // Upsert into public.users
+            const { error: upsertErr } = await supabaseAdmin
+              .from('users')
+              .upsert({ id: authUser.id, email, nome, id_ies, semestre }, { onConflict: 'id' });
+            if (upsertErr) {
+              return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
+            }
+            // B2B admin role
+            if (id_ies === B2B_IES_ID) {
+              await supabaseAdmin.from('user_roles')
+                .upsert({ user_id: authUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
+            }
+            // Send welcome email
+            EdgeRuntime.waitUntil(
+              sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => {})
+            );
+            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: true });
+          }
+        }
+
         return errorResponse('AUTH_CREATE_FAILED', 'Falha ao criar usuário', createErr.message);
       }
 
