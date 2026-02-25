@@ -1,34 +1,62 @@
 
 
-## Objetivo
-Remover a coluna `id_ies` do CSV/XLSX de cadastro em lote. O admin seleciona a IES em um dropdown **antes** do upload, e essa IES e aplicada a todos os usuarios do lote.
+## Diagnostico: 3 Bugs no Guia de Estudos (Claretiano)
 
-## Mudancas
+### Bug 1: Dropdown de semestres so mostra ate o 3o
+**Causa raiz**: A coluna `users.semestre` e INTEGER, mas `conteudos.semestre` e TEXT. Claretiano tem 9 semestres no banco (1-8 + INTERNATO) e 3853 registros. O endpoint `listSemestresOnly` retorna todos, mas o Select do Radix pode estar cortando visualmente. Alem disso, se o usuario de teste esta numa IES diferente de Claretiano, so vera os semestres dessa IES.
 
-### 1. Estado e UI -- adicionar seletor de IES no card de lote
-- Novo estado `batchIesId` para armazenar a IES selecionada para o lote
-- Adicionar um `Select` (dropdown de IES) acima do input de arquivo
-- O botao "Processar Arquivo" so fica habilitado se `batchIesId` E `csvFile` estiverem preenchidos
+**Correcao**: Adicionar `max-h-[300px] overflow-y-auto` ao `SelectContent` no `GuideToolbar` para garantir scroll. Tambem adicionar logs no console para debug.
 
-### 2. Processamento do CSV -- remover exigencia de `id_ies`
-- Remover `id_ies` da lista `requiredColumns` (passa a ser apenas `nome`, `email`, `semestre`)
-- No loop de processamento, usar `batchIesId` no lugar de `user.id_ies` ao chamar `b2b-create-user`
-- Se o CSV ainda contiver uma coluna `id_ies`, ela sera ignorada (o valor do dropdown prevalece)
+---
 
-### 3. Template de exemplo (XLSX) -- simplificar
-- Remover coluna `id_ies` da aba "Usuarios" (fica: `nome`, `email`, `semestre`)
-- Remover a aba "IES (Referencia)" (nao e mais necessaria, pois a IES e selecionada na UI)
-- Ajustar larguras de coluna
+### Bug 2: Sheet lateral vazia ao clicar em "O Que Estudar Hoje"
+**Causa raiz**: `selectedMateriaContents` busca em `groupedData`, que so contem conteudos do semestre selecionado. Se a materia do calendario nao existir naquele semestre especifico, o `find()` retorna `undefined` e a sheet fica vazia.
 
-### 4. Validacao
-- Validacao de linha: exigir apenas `nome`, `email`, `semestre`
-- Validacao pre-processamento: exigir `batchIesId` selecionado
+**Correcao**: Buscar a materia em TODOS os `conteudos` carregados (nao apenas os filtrados por semestre). Se encontrar em outro semestre, trocar automaticamente para ele.
 
-## Arquivo afetado
-`src/components/admin/UsersTab.tsx` -- unico arquivo modificado
+---
 
-## Resumo da UX final
-1. Admin seleciona a IES no dropdown
-2. Admin faz upload do CSV/XLSX (apenas nome, email, semestre)
-3. Clica em "Processar Arquivo"
-4. Todos os usuarios sao cadastrados na IES selecionada
+### Bug 3: Tela piscando para usuarios do INTERNATO
+**Causa raiz**: Usuarios do INTERNATO no Claretiano tem `semestre = 9` (ou 0, 12) na tabela `users` (INTEGER). Porem, na tabela `conteudos`, o semestre e `"INTERNATO"` (TEXT). Quando o frontend faz `user.semestre.toString()` = `"9"`, a Edge Function busca conteudos com `semestre IN ('9', '9o Semestre')` -- nenhum resultado. A pagina recebe dados vazios, entra em estado vazio, re-renderiza, tenta novamente, e fica em loop de flicker.
+
+Alem disso, `loadAllProgress(parseInt("INTERNATO"))` resulta em `NaN`, causando queries invalidas na tabela `study_progress`.
+
+**Correcao**:
+1. Na Edge Function `get-study-contents`: adicionar mapeamento `semestre >= 9 OR semestre = 0` -> buscar tambem "INTERNATO"
+2. No frontend `StudyGuide.tsx`: tratar `selectedSemestre = "INTERNATO"` sem `parseInt` para progresso
+3. No frontend: se o semestre do usuario nao retorna resultados, verificar se existe "INTERNATO" disponivel e usar como fallback
+
+---
+
+### Arquivos afetados
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/get-study-contents/index.ts` | Mapeamento semestre numerico alto -> INTERNATO |
+| `src/pages/StudyGuide.tsx` | Fix sheet lateral, fix progresso para INTERNATO, fallback de semestre |
+| `src/components/guia-estudos/GuideToolbar.tsx` | Garantir scroll no SelectContent |
+
+### Detalhes tecnicos
+
+**Edge Function -- mapeamento INTERNATO:**
+```text
+se semestreFilter e numerico E >= 9 (ou == 0):
+  adicionar "INTERNATO" aos possibleValues
+```
+
+**Frontend -- sheet lateral:**
+```text
+selectedMateriaContents:
+  1. buscar em groupedData (semestre atual)
+  2. se nao encontrar, buscar em TODOS os conteudos carregados
+  3. se encontrar em outro semestre, trocar selectedSemestre
+```
+
+**Frontend -- progresso INTERNATO:**
+```text
+loadAllProgress:
+  se selectedSemestre nao e numerico (ex: "INTERNATO"):
+    usar 0 como semestre para query de progresso
+    OU usar string matching no content_id
+```
+
