@@ -81,13 +81,10 @@ Deno.serve(async (req) => {
       }
     } catch (_) { /* ignore parse errors */ }
 
-    // ── Fast path: return only distinct semestres ──
+    // ── Fast path: return only distinct semestres via RPC ──
     if (listSemestresOnly) {
       const { data: semData, error: semError } = await supabaseAdmin
-        .from('conteudos')
-        .select('semestre')
-        .eq('id_ies', userData.id_ies)
-        .limit(10000);
+        .rpc('get_distinct_semestres', { p_ies_id: userData.id_ies });
 
       if (semError) {
         console.error('get-study-contents: Error fetching semestres:', semError);
@@ -97,7 +94,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      const distinctSemestres = [...new Set((semData || []).map((r: any) => r.semestre))];
+      const distinctSemestres = (semData || []).map((r: any) => r.semestre);
       console.log(`get-study-contents: Returning ${distinctSemestres.length} distinct semestres for IES ${userData.id_ies}`);
       return new Response(
         JSON.stringify({ semestres: distinctSemestres }),
