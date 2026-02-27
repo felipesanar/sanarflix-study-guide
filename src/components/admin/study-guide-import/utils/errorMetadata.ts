@@ -39,16 +39,29 @@ export interface ErrorMetadata {
  */
 export const ERROR_METADATA: Record<string, ErrorMetadata> = {
   INVALID_SEMESTRE: {
-    title: 'Semestre Inválido',
+    title: 'Semestre Vazio ou Inválido',
     icon: Calendar,
     severity: 'critical',
-    description: 'O campo semestre deve conter um número de 1 a 12 ou "INTERNATO".',
+    description: 'O campo semestre é obrigatório e não pode estar vazio.',
     detailedDescription:
-      'O sistema espera que o campo "semestre" contenha um número inteiro entre 1 e 12 ou o texto "INTERNATO" (aceito em qualquer capitalização). Valores como decimais, números fora dessa faixa ou outros textos são considerados inválidos.',
+      'O campo "semestre" deve conter um número inteiro positivo (ex: 1, 2, 10) ou um texto descritivo (ex: "INTERNATO", "TUTORIA"). Valores vazios não são aceitos.',
     actions: [
       { label: 'Baixar linhas afetadas', type: 'download' },
     ],
-    tip: 'Valores aceitos: números de 1 a 12 e "INTERNATO" (para semestres 9-12). Outros textos como "N/A" ou "INTEGRAL" não são aceitos.',
+    tip: 'Preencha o campo semestre com um número ou um nome descritivo. Semestres textuais serão normalizados para maiúsculas.',
+  },
+
+  NEW_SEMESTRE: {
+    title: 'Semestre Novo Detectado',
+    icon: Calendar,
+    severity: 'info',
+    description: 'Um semestre que ainda não existe no banco foi encontrado no arquivo.',
+    detailedDescription:
+      'O semestre informado não existe na base de dados para a IES correspondente. Ele será criado automaticamente durante a importação se aprovado pelo usuário.',
+    actions: [
+      { label: 'Ver detalhes', type: 'info' },
+    ],
+    tip: 'Revise se o nome do semestre está correto antes de aprovar a criação.',
   },
 
   MISSING_MATERIA: {

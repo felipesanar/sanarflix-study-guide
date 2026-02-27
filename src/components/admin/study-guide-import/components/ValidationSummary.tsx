@@ -4,10 +4,11 @@
  */
 
 import * as React from 'react';
-import { CheckCircle2, AlertCircle, AlertTriangle, Download, Copy } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle, Download, Copy, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { generateErrorReport, downloadAsFile } from '../utils/parseFile';
@@ -20,6 +21,9 @@ interface ValidationSummaryProps {
   duplicateStrategy: DuplicateStrategy;
   onDuplicateStrategyChange: (strategy: DuplicateStrategy) => void;
   onNavigateBack?: () => void;
+  approvedNewSemestres?: Set<string>;
+  onApproveNewSemestre?: (key: string) => void;
+  onRejectNewSemestre?: (key: string) => void;
 }
 
 export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
@@ -28,6 +32,9 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
   duplicateStrategy,
   onDuplicateStrategyChange,
   onNavigateBack,
+  approvedNewSemestres,
+  onApproveNewSemestre,
+  onRejectNewSemestre,
 }) => {
   // Group errors by code
   const groupedErrors = React.useMemo(() => {
@@ -218,6 +225,67 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
               </Label>
             </div>
           </RadioGroup>
+        </section>
+      )}
+
+      {/* New Semesters Approval Section */}
+      {validation.newSemestres && validation.newSemestres.length > 0 && approvedNewSemestres && onApproveNewSemestre && onRejectNewSemestre && (
+        <section className="rounded-xl border-2 border-blue-500/30 bg-blue-500/5 p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <PlusCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <h4 className="font-semibold text-blue-600 dark:text-blue-400">
+              {validation.newSemestres.length} semestre{validation.newSemestres.length !== 1 && 's'} novo{validation.newSemestres.length !== 1 && 's'} detectado{validation.newSemestres.length !== 1 && 's'}
+            </h4>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Os semestres abaixo não existem no banco para as IES correspondentes. Marque os que deseja criar durante a importação.
+          </p>
+          <div className="space-y-2">
+            {validation.newSemestres.map((ns) => {
+              const key = `${ns.iesId}|${ns.semestre}`;
+              const isApproved = approvedNewSemestres.has(key);
+              return (
+                <div key={key} className="flex items-center space-x-3 rounded-lg border bg-card p-3">
+                  <Checkbox
+                    id={`ns-${key}`}
+                    checked={isApproved}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        onApproveNewSemestre(key);
+                      } else {
+                        onRejectNewSemestre(key);
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`ns-${key}`} className="flex-1 cursor-pointer">
+                    <span className="font-medium">{ns.semestre}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Será criado na IES: {ns.iesNome}
+                    </p>
+                  </Label>
+                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
+                    Novo
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+          {/* Quick approve all */}
+          {validation.newSemestres.length > 1 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                validation.newSemestres?.forEach(ns => {
+                  onApproveNewSemestre(`${ns.iesId}|${ns.semestre}`);
+                });
+              }}
+              className="w-full"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Aprovar todos os semestres novos
+            </Button>
+          )}
         </section>
       )}
 

@@ -422,18 +422,59 @@ function isValidUrl(url: string | null): boolean {
 }
 
 /**
+ * Normalize a semester value for comparison purposes.
+ * Removes accents, extra spaces, converts to uppercase.
+ */
+export function normalizeSemestreForCompare(value: string): string {
+  return value
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Normalize a semester value for storage.
+ * Numeric semesters are stored as their number string.
+ * Text semesters are stored in UPPERCASE without extra spaces.
+ */
+function normalizeSemestreForStorage(value: string): string {
+  const cleaned = value
+    .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  const num = parseInt(cleaned, 10);
+  if (!isNaN(num) && num >= 1 && String(num) === cleaned) {
+    return String(num);
+  }
+  
+  // Text-based semester: store in UPPERCASE, trimmed
+  return cleaned.toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Validate and normalize raw rows
  */
 export function validateAndNormalize(
   rawRows: Record<string, string>[],
   iesId: string,
-  sheetName?: string
+  sheetName?: string,
+  existingSemestres?: string[]
 ): ValidationResult {
   console.log(LOG_PREFIX, `Validating ${rawRows.length} rows for IES ${iesId}`);
   
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
   const normalizedData: NormalizedRow[] = [];
+  
+  // Build a set of existing semesters (normalized for comparison)
+  const existingNormalized = new Set(
+    (existingSemestres || []).map(s => normalizeSemestreForCompare(s))
+  );
+  const newSemestresSet = new Set<string>();
   
   rawRows.forEach((row, index) => {
     const rowNumber = index + 2; // +2 for header + 1-indexed
@@ -444,25 +485,26 @@ export function validateAndNormalize(
       .replace(/[\u00A0\u200B\u200C\u200D\uFEFF\u2060\u2028\u2029]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-    const semestreNormalized = semestreStr
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-    const isInternato = semestreNormalized === 'internato';
-    const semestreNum = parseInt(semestreStr, 10);
-    const isValidNumeric = !isNaN(semestreNum) && semestreNum >= 1 && semestreNum <= 12;
     
-    if (!semestreRaw || (!isInternato && !isValidNumeric)) {
+    if (!semestreStr) {
       errors.push({
         rowNumber,
         sheetName,
         field: 'semestre',
         severity: 'error',
         code: 'INVALID_SEMESTRE',
-        message: `Semestre inválido: "${semestreRaw}". Deve ser um número de 1 a 12 ou "INTERNATO".`,
+        message: `Semestre vazio na linha ${rowNumber}. O campo é obrigatório.`,
         invalidValue: String(semestreRaw || ''),
       });
       return; // Skip this row
+    }
+    
+    const semestreStorage = normalizeSemestreForStorage(semestreStr);
+    const semestreCompare = normalizeSemestreForCompare(semestreStr);
+    
+    // Check if this is a new semester (only when existingSemestres is provided)
+    if (existingSemestres && !existingNormalized.has(semestreCompare)) {
+      newSemestresSet.add(semestreStorage);
     }
     
     // Required: materia
@@ -521,7 +563,7 @@ export function validateAndNormalize(
       rowNumber,
       sheetName,
       id_ies: iesId,
-      semestre: isInternato ? 'INTERNATO' : String(semestreNum),
+      semestre: semestreStorage,
       materia,
       tema,
       subtema,
@@ -564,6 +606,11 @@ export function validateAndNormalize(
     errors,
     warnings,
     normalizedData,
+    newSemestres: Array.from(newSemestresSet).map(s => ({
+      semestre: s,
+      iesId,
+      iesNome: '',
+    })),
   };
   
   console.log(LOG_PREFIX, `Validation complete: ${result.validRows} valid, ${errors.length} errors, ${warnings.length} warnings`);
