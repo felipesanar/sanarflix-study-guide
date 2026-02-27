@@ -34,6 +34,7 @@ import type {
   ImportResponse,
   ImportResultRow,
   NormalizedRow,
+  NewSemestreInfo,
   WizardState,
   DEFAULT_CONFIG,
 } from './types';
@@ -88,6 +89,7 @@ export const StudyGuideImportWizard: React.FC = () => {
   const [result, setResult] = useState<ImportResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
+  const [approvedNewSemestres, setApprovedNewSemestres] = useState<Set<string>>(new Set());
 
   // Load IES list on mount
   useEffect(() => {
@@ -194,11 +196,31 @@ export const StudyGuideImportWizard: React.FC = () => {
     console.log(LOG_PREFIX, 'Running validation...');
     setStatus('validating');
     setError(null);
+    setApprovedNewSemestres(new Set());
 
     try {
+      // Fetch existing semesters for each mapped IES
+      const uniqueIesIds = [...new Set(sheetMappings.map(m => m.iesId).filter(Boolean))];
+      const existingSemestresMap = new Map<string, string[]>();
+      
+      for (const iesId of uniqueIesIds) {
+        const { data, error: rpcError } = await supabase
+          .rpc('get_distinct_semestres', { p_ies_id: iesId });
+        
+        if (!rpcError && data) {
+          existingSemestresMap.set(iesId, data.map((r: { semestre: string }) => r.semestre));
+        } else {
+          console.warn(LOG_PREFIX, `Failed to fetch semesters for IES ${iesId}:`, rpcError);
+          existingSemestresMap.set(iesId, []);
+        }
+      }
+      
+      console.log(LOG_PREFIX, `Fetched existing semesters for ${uniqueIesIds.length} IES`);
+
       const allNormalized: NormalizedRow[] = [];
       const allErrors: ValidationResult['errors'] = [];
       const allWarnings: ValidationResult['warnings'] = [];
+      const allNewSemestres: NewSemestreInfo[] = [];
       let totalRows = 0;
 
       if (fileType === 'csv') {
@@ -210,12 +232,19 @@ export const StudyGuideImportWizard: React.FC = () => {
 
         const sheetName = sheets[0]?.name || 'CSV';
         const rows = rawData.get(sheetName) || [];
-        const result = validateAndNormalize(rows, selectedIesId, sheetName);
+        const existingSem = existingSemestresMap.get(selectedIesId) || [];
+        const result = validateAndNormalize(rows, selectedIesId, sheetName, existingSem);
         
         allNormalized.push(...result.normalizedData);
         allErrors.push(...result.errors);
         allWarnings.push(...result.warnings);
         totalRows += result.totalRows;
+        
+        // Enrich new semesters with IES name
+        if (result.newSemestres?.length) {
+          const iesNome = iesList.find(i => i.id === selectedIesId)?.nome || 'IES';
+          allNewSemestres.push(...result.newSemestres.map(s => ({ ...s, iesNome })));
+        }
       } else {
         // For XLSX, validate each sheet
         for (const sheet of sheets) {
@@ -233,12 +262,29 @@ export const StudyGuideImportWizard: React.FC = () => {
           }
 
           const rows = rawData.get(sheet.name) || [];
-          const result = validateAndNormalize(rows, mapping.iesId, sheet.name);
+          const existingSem = existingSemestresMap.get(mapping.iesId) || [];
+          const result = validateAndNormalize(rows, mapping.iesId, sheet.name, existingSem);
           
           allNormalized.push(...result.normalizedData);
           allErrors.push(...result.errors);
           allWarnings.push(...result.warnings);
           totalRows += result.totalRows;
+          
+          if (result.newSemestres?.length) {
+            const iesNome = mapping.iesNome || iesList.find(i => i.id === mapping.iesId)?.nome || 'IES';
+            allNewSemestres.push(...result.newSemestres.map(s => ({ ...s, iesNome })));
+          }
+        }
+      }
+
+      // Deduplicate new semesters
+      const uniqueNewSemestres: NewSemestreInfo[] = [];
+      const seenKeys = new Set<string>();
+      for (const ns of allNewSemestres) {
+        const key = `${ns.iesId}|${ns.semestre}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueNewSemestres.push(ns);
         }
       }
 
@@ -249,12 +295,12 @@ export const StudyGuideImportWizard: React.FC = () => {
         errors: allErrors,
         warnings: allWarnings,
         normalizedData: allNormalized,
+        newSemestres: uniqueNewSemestres,
       };
 
       setValidation(validationResult);
 
       // Calculate change plan
-      // For now, assume all rows are inserts/updates (would need DB query for actual)
       setChangePlan({
         inserts: allNormalized.length,
         updates: 0,
@@ -269,7 +315,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Erro na validação');
       setStatus('error');
     }
-  }, [fileType, sheets, sheetMappings, rawData]);
+  }, [fileType, sheets, sheetMappings, rawData, iesList]);
 
   // Run import
   const runImport = useCallback(async () => {
@@ -463,6 +509,7 @@ export const StudyGuideImportWizard: React.FC = () => {
     setProgress(null);
     setResult(null);
     setError(null);
+    setApprovedNewSemestres(new Set());
   }, []);
 
   // Navigation
@@ -476,12 +523,19 @@ export const StudyGuideImportWizard: React.FC = () => {
         }
         // For XLSX, all sheets must be mapped
         return sheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
-      case 'validate':
-        return validation?.isValid && status === 'ready_to_import';
+      case 'validate': {
+        if (!validation?.isValid || status !== 'ready_to_import') return false;
+        // If there are new semesters, all must be approved
+        const newSem = validation.newSemestres || [];
+        if (newSem.length > 0) {
+          return newSem.every(ns => approvedNewSemestres.has(`${ns.iesId}|${ns.semestre}`));
+        }
+        return true;
+      }
       default:
         return false;
     }
-  }, [step, file, sheets, status, fileType, sheetMappings, validation]);
+  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres]);
 
   const handleNext = useCallback(() => {
     const currentIndex = STEPS.indexOf(step);
@@ -657,6 +711,13 @@ export const StudyGuideImportWizard: React.FC = () => {
                   changePlan={changePlan}
                   duplicateStrategy={config.duplicateStrategy}
                   onDuplicateStrategyChange={(strategy) => setConfig(prev => ({ ...prev, duplicateStrategy: strategy }))}
+                  approvedNewSemestres={approvedNewSemestres}
+                  onApproveNewSemestre={(key) => setApprovedNewSemestres(prev => new Set([...prev, key]))}
+                  onRejectNewSemestre={(key) => setApprovedNewSemestres(prev => {
+                    const next = new Set(prev);
+                    next.delete(key);
+                    return next;
+                  })}
                 />
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4">

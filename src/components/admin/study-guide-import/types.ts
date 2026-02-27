@@ -89,6 +89,12 @@ export interface ValidationIssue {
   invalidValue?: string;
 }
 
+export interface NewSemestreInfo {
+  semestre: string;
+  iesId: string;
+  iesNome: string;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   totalRows: number;
@@ -96,6 +102,7 @@ export interface ValidationResult {
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
   normalizedData: NormalizedRow[];
+  newSemestres?: NewSemestreInfo[];
 }
 
 export interface ChangePlan {
