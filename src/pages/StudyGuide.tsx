@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { swrFetch } from '@/utils/performanceCache';
+// performanceCache replaced by local cache helpers (readStudyGuideCache / writeStudyGuideCache)
 import { toast } from '@/hooks/use-toast';
 import { useCalendarSync } from '@/hooks/useCalendarSync';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -156,8 +156,10 @@ export const StudyGuide: React.FC = () => {
   const { theme } = useTheme();
   const location = useLocation();
   
-  // Analytics
+  // Analytics — stabilize via ref to avoid re-triggering effects
   const analytics = useAnalyticsTracker();
+  const analyticsRef = useRef(analytics);
+  analyticsRef.current = analytics;
   const hasTrackedViewRef = useRef(false);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -307,83 +309,76 @@ export const StudyGuide: React.FC = () => {
     fetchSemestres();
   }, [user?.id_ies]);
 
-  // Fetch contents for the user's active semester on mount
+  // Fetch contents for the user's active semester on mount — cache-first, no SWR double-apply
   useEffect(() => {
-    const fetchConteudos = async () => {
-      if (!user?.id_ies) {
+    if (!user?.id_ies) {
+      setIsLoading(false);
+      return;
+    }
+
+    if (hasLoadedData.current) return;
+
+    const userSemStr = user.semestre?.toString() || '';
+    const iesId = user.id_ies;
+
+    // 1. Try localStorage cache first — instant display, no flicker
+    const cached = readStudyGuideCache(iesId, userSemStr);
+    if (cached && cached.length > 0) {
+      setConteudos(cached);
+      setLoadedSemestres(prev => new Set([...prev, userSemStr]));
+      setSelectedSemestre(prev => prev || userSemStr);
+      hasLoadedData.current = true;
+      setIsLoading(false);
+    }
+
+    // 2. Background fetch — updates silently without re-setting isLoading
+    const startTime = Date.now();
+    const safetyTimeout = setTimeout(() => {
+      if (!hasLoadedData.current) {
         setIsLoading(false);
-        return;
+        if (import.meta.env.DEV) console.warn('[StudyGuide] Safety timeout reached (15s)');
       }
+    }, 15000);
 
-      if (hasLoadedData.current && conteudos.length > 0) return;
-
-      const startTime = Date.now();
-      setIsLoading(true);
-
-      const userSemStr = user.semestre?.toString() || '';
-
-      // Safety timeout to prevent infinite loading
-      const safetyTimeout = setTimeout(() => {
-        if (!hasLoadedData.current) {
-          setIsLoading(false);
-          if (import.meta.env.DEV) console.warn('[StudyGuide] Safety timeout reached (15s)');
-        }
-      }, 15000);
-
-      const applyData = (data: ConteudoData[]) => {
+    (async () => {
+      try {
+        const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
+          body: { semestre: userSemStr }
+        });
         clearTimeout(safetyTimeout);
+        const latency = Date.now() - startTime;
+        analyticsRef.current.trackEdgeLatency('get-study-contents', latency, !error);
+        if (error) throw error;
+        if (!response?.data) throw new Error('Invalid response');
+
+        const freshData: ConteudoData[] = (response.data || []).map(normalizeConteudo);
+        writeStudyGuideCache(iesId, userSemStr, freshData);
+
         setConteudos(prev => {
-          // Merge: remove old entries for this semester, add new ones
           const otherSem = prev.filter(c => {
             const val = c.semestre.replace(/º\s*Semestre/i, '').trim();
             return val !== userSemStr;
           });
-          return [...otherSem, ...data];
+          return [...otherSem, ...freshData];
         });
         setLoadedSemestres(prev => new Set([...prev, userSemStr]));
+        setSelectedSemestre(prev => prev || userSemStr);
         hasLoadedData.current = true;
         setIsLoading(false);
-        setSelectedSemestre(prev => prev || userSemStr);
-        writeStudyGuideCache(user.id_ies!, userSemStr, data);
-      };
-
-      try {
-        const cacheKey = `study_contents_${user.id_ies}_${userSemStr}`;
-
-        const cached = await swrFetch<ConteudoData[]>(
-          cacheKey,
-          async () => {
-            const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
-              body: { semestre: userSemStr }
-            });
-            const latency = Date.now() - startTime;
-            analytics.trackEdgeLatency('get-study-contents', latency, !error);
-            if (error) throw error;
-            if (!response?.data) throw new Error('Invalid response');
-            return (response.data || []).map(normalizeConteudo);
-          },
-          {
-            ttl: CACHE_TTL,
-            onUpdate: (fresh) => applyData(fresh)
-          }
-        );
-
-        if (cached && cached.length > 0) {
-          applyData(cached);
-        }
-        // If no cache, loading stays true until onUpdate fires
       } catch (error) {
         clearTimeout(safetyTimeout);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        analytics.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
+        analyticsRef.current.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
         if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching contents:', error);
-        toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
+        if (!hasLoadedData.current) {
+          toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
+        }
         setIsLoading(false);
       }
-    };
+    })();
 
-    fetchConteudos();
-  }, [user?.id_ies, user?.semestre, analytics, conteudos.length]);
+    return () => clearTimeout(safetyTimeout);
+  }, [user?.id_ies, user?.semestre]);
 
   // Fetch contents for a specific semester when the user navigates to it
   const fetchSemestreData = useCallback(async (semestre: string) => {
@@ -805,25 +800,27 @@ export const StudyGuide: React.FC = () => {
       }));
   }, [calendarEvents]);
 
-  // Selected materia contents for sheet — search across ALL loaded content, not just current semester
+  // Auto-switch semester when sheet materia is in a different semester (extracted from useMemo)
+  useEffect(() => {
+    if (!selectedEventMateria) return;
+    const inCurrentSem = groupedData.find(m => m.materia === selectedEventMateria);
+    if (inCurrentSem) return; // already in current semester
+    const allForMateria = conteudos.filter(c => c.materia === selectedEventMateria);
+    if (allForMateria.length === 0) return;
+    const otherSem = allForMateria[0]?.semestre?.toString().replace(/º\s*Semestre/i, '').trim();
+    if (otherSem && otherSem !== selectedSemestre) {
+      handleSemestreChange(otherSem);
+    }
+  }, [selectedEventMateria, groupedData, conteudos, selectedSemestre, handleSemestreChange]);
+
+  // Selected materia contents for sheet — pure computation, no side effects
   const selectedMateriaContents = useMemo(() => {
     if (!selectedEventMateria) return null;
-    // First try current semester
     const inCurrentSem = groupedData.find(m => m.materia === selectedEventMateria);
     if (inCurrentSem) return inCurrentSem;
 
-    // If not found, search ALL loaded conteudos for this materia
     const allForMateria = conteudos.filter(c => c.materia === selectedEventMateria);
     if (allForMateria.length === 0) return null;
-
-    // Find which semester has this materia and auto-switch
-    const otherSem = allForMateria[0]?.semestre?.toString().replace(/º\s*Semestre/i, '').trim();
-    if (otherSem && otherSem !== selectedSemestre) {
-      // Schedule semester switch (can't setState in useMemo directly)
-      setTimeout(() => {
-        handleSemestreChange(otherSem);
-      }, 0);
-    }
 
     // Build a temporary Materia object from raw data
     const materiaMap = new Map<string, Tema>();
@@ -847,7 +844,7 @@ export const StudyGuide: React.FC = () => {
       });
     });
     return { materia: selectedEventMateria, temas: Array.from(materiaMap.values()) } as Materia;
-  }, [selectedEventMateria, groupedData, conteudos, selectedSemestre, handleSemestreChange]);
+  }, [selectedEventMateria, groupedData, conteudos]);
 
   // Subject chips data
   const subjectChipsData = useMemo(() => {
