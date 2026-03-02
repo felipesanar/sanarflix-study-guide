@@ -125,9 +125,9 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
                 {changePlan.ignored.toLocaleString('pt-BR')} ignorados
               </Badge>
             )}
-            {(changePlan as any).unchanged > 0 && (
+            {changePlan.unchanged > 0 && (
               <Badge variant="secondary" className="bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/30">
-                ={(changePlan as any).unchanged.toLocaleString('pt-BR')} inalteradas
+                ={changePlan.unchanged.toLocaleString('pt-BR')} inalteradas
               </Badge>
             )}
           </div>

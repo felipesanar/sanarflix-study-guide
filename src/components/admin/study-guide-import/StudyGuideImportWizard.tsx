@@ -359,7 +359,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Erro na validação');
       setStatus('error');
     }
-  }, [fileType, sheets, sheetMappings, rawData, iesList]);
+  }, [fileType, sheets, sheetMappings, rawData, iesList, config]);
 
   // Run import
   const runImport = useCallback(async () => {
@@ -454,45 +454,42 @@ export const StudyGuideImportWizard: React.FC = () => {
         // ── Smart Import: server-side field-by-field comparison ──
         updateProgress('uploading', 0, 'Enviando dados para comparação inteligente...');
 
-        // Send all rows in batches of 5000 for smart_import
-        const SMART_BATCH = 5000;
-        const totalSmartBatches = Math.ceil(rowsToImport.length / SMART_BATCH);
-
-        for (let i = 0; i < totalSmartBatches; i++) {
-          const batchRows = rowsToImport.slice(i * SMART_BATCH, (i + 1) * SMART_BATCH);
-          const batchProgress = Math.round((i / totalSmartBatches) * 100);
-          updateProgress('uploading', batchProgress, `Processando lote ${i + 1}/${totalSmartBatches} (${batchRows.length} linhas) — comparação campo-a-campo...`);
-
-          console.log(LOG_PREFIX, `Sending smart_import batch ${i + 1}/${totalSmartBatches}: ${batchRows.length} rows`);
-
-          const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
-            body: {
-              action: 'smart_import',
-              config,
-              rows: batchRows,
-            },
-          });
-
-          if (fnError) {
-            throw new Error(fnError.message || `Erro no lote ${i + 1}/${totalSmartBatches}`);
-          }
-
-          if (data.counts) {
-            aggregatedCounts.inserted += data.counts.inserted || 0;
-            aggregatedCounts.updated += data.counts.updated || 0;
-            aggregatedCounts.deleted += data.counts.deleted || 0;
-            aggregatedCounts.ignored += data.counts.ignored || 0;
-            aggregatedCounts.errors += data.counts.errors || 0;
-            aggregatedCounts.unchanged += data.counts.unchanged || 0;
-          }
-          if (data.verification) {
-            verificationResult = data.verification;
-          }
-          if (data.errors?.length) {
-            aggregatedErrors.push(...data.errors);
-          }
-          lastRequestId = data.requestId || lastRequestId;
+        // Send ALL rows in a single request to avoid batching race conditions.
+        // The server handles up to 10000 rows. If we exceed that, we must warn the user.
+        if (rowsToImport.length > 10000) {
+          throw new Error(`Número de linhas (${rowsToImport.length}) excede o limite de 10.000. Reduza o arquivo e tente novamente.`);
         }
+
+        updateProgress('uploading', 30, `Enviando ${rowsToImport.length} linhas para comparação inteligente...`);
+        console.log(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows (single request)`);
+
+        const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
+          body: {
+            action: 'smart_import',
+            config,
+            rows: rowsToImport,
+          },
+        });
+
+        if (fnError) {
+          throw new Error(fnError.message || 'Erro na importação inteligente');
+        }
+
+        if (data.counts) {
+          aggregatedCounts.inserted += data.counts.inserted || 0;
+          aggregatedCounts.updated += data.counts.updated || 0;
+          aggregatedCounts.deleted += data.counts.deleted || 0;
+          aggregatedCounts.ignored += data.counts.ignored || 0;
+          aggregatedCounts.errors += data.counts.errors || 0;
+          aggregatedCounts.unchanged += data.counts.unchanged || 0;
+        }
+        if (data.verification) {
+          verificationResult = data.verification;
+        }
+        if (data.errors?.length) {
+          aggregatedErrors.push(...data.errors);
+        }
+        lastRequestId = data.requestId || lastRequestId;
 
         if (verificationResult && !verificationResult.match) {
           console.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
