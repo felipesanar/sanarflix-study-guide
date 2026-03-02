@@ -1,104 +1,88 @@
 
 
-## Correcao do Cache e Carregamento do Guia de Estudos
+## Corrigir Fluxo "Esqueci a Senha" - Problema de Envio de Email
 
-### Problemas Identificados
+### Diagnostico
 
-**1. Cache localStorage de 2 HORAS bloqueia atualizacoes (PRINCIPAL)**
+O erro "Failed to reach hook within maximum time of 5.000000 seconds" / 422 / 500 acontece porque:
 
-Linha 83 do `StudyGuide.tsx`:
+1. A Edge Function `custom-email-templates` usa **Resend** para enviar emails
+2. A API key do Resend esta vinculada a uma conta sandbox (free tier) do usuario `diegoquadros1806@gmail.com`
+3. O Resend **bloqueia** envios para qualquer email que nao seja o do dono da conta sandbox
+4. Quando alguem como `felipe.souza@sanar.com` tenta redefinir senha, Resend retorna 403
+5. A Edge Function retorna 500, e o Supabase Auth interpreta como "hook failed"
+
+**Evidencia dos logs:**
 ```
-const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+"You can only send testing emails to your own email address
+(diegoquadros1806@gmail.com). To send emails to other recipients,
+please verify a domain at resend.com/domains"
 ```
-Ctrl+Shift+R limpa o cache do NAVEGADOR, mas NAO limpa localStorage. Entao o usuario ve dados de ate 2 horas atras, mesmo com hard reload.
 
-**2. `loadedSemestres` impede re-fetch**
+### Solucao
 
-Linha 386: `if (loadedSemestres.has(semestre)) return;`
-Uma vez que um semestre e carregado (mesmo do cache stale), ele nunca mais e buscado novamente durante a sessao. Se o admin atualiza o guia, o usuario so vera os dados novos se fechar e reabrir o navegador E esperar o TTL de 2 horas expirar.
+Migrar para o sistema gerenciado de emails do Lovable (`auth-email-hook`), que provisiona credenciais automaticamente sem depender de uma conta Resend externa com dominio verificado.
 
-**3. `hasLoadedData.current` bloqueia re-fetches**
+### Passos
 
-Linha 319: `if (hasLoadedData.current) return;`
-O efeito principal so roda UMA vez. Se o cache foi encontrado, `hasLoadedData.current = true` e setado imediatamente (linha 330), e o background fetch roda uma unica vez. Porem, se o usuario navega para outra pagina e volta, nada e re-buscado.
+#### 1. Configurar dominio de email
 
-**4. Cache-first mostra dados stale sem indicacao visual**
+Antes de criar os templates, e necessario configurar um dominio de envio. O dominio ideal seria um subdominio como `notify.sanar.com.br` ou `mail.academy.sanar.com.br`.
 
-O usuario nao tem como saber se os dados que esta vendo sao do cache ou do servidor. Nao ha botao de atualizar nem indicacao de "ultima atualizacao".
+Sera exibido o dialogo de configuracao de dominio de email para o usuario completar a verificacao DNS.
 
----
+#### 2. Scaffold dos templates de email gerenciados
 
-### Plano de Correcao
+Usar a ferramenta `scaffold_auth_email_templates` para criar os templates padrao do Lovable que:
+- Nao dependem de `RESEND_API_KEY` externa
+- Nao dependem de `SEND_EMAIL_HOOK_SECRET`
+- Usam `LOVABLE_API_KEY` (ja provisionada automaticamente)
+- Sao compatíveis com o sistema de email do Lovable Cloud
 
-#### 1. Reduzir TTL do cache para 15 minutos
+#### 3. Aplicar branding dos templates
 
-**Arquivo: `src/pages/StudyGuide.tsx`**
+Adaptar os templates gerados para manter a identidade visual atual:
+- Cores primarias do app (vermelho Sanar `#8B1538`)
+- Logo do SanarFlix Academy
+- Textos em portugues
+- Mesmo tom e linguagem ja usados nos templates atuais
 
-Mudar de 2 horas para 15 minutos:
-```
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutos
-```
-Cache continua util para carregamento instantaneo, mas dados stale expiram muito mais rapido.
+Os templates a serem estilizados:
+- **recovery** (redefinicao de senha) - manter o visual atual do `reset-password.tsx`
+- **invite** (convite de usuario) - manter o visual do `invite-user.tsx`
+- **magic-link** (link magico) - manter o visual do `magic-link.tsx`
+- **signup** (confirmacao de cadastro)
+- **email-change** (alteracao de email)
 
-#### 2. SEMPRE fazer background fetch, mesmo com cache valido
+#### 4. Deploy da Edge Function `auth-email-hook`
 
-**Arquivo: `src/pages/StudyGuide.tsx`**
+Fazer deploy da nova Edge Function gerenciada. Isso substitui o hook `custom-email-templates` que esta falhando.
 
-Refatorar o efeito principal (linhas 313-381) para:
-- Mostrar cache imediatamente (mantendo experiencia instantanea)
-- SEMPRE buscar dados frescos do servidor em background
-- Quando dados frescos chegam, comparar com o cache: se forem diferentes, atualizar a UI e o cache
-- Remover o guard `hasLoadedData.current` que bloqueia re-fetches
-- Usar um ref `isMounted` para evitar atualizacoes apos desmontagem
+#### 5. Verificar fluxo completo
 
-#### 3. Permitir re-fetch ao trocar de semestre
+O fluxo de "Esqueci a senha" no `LoginForm.tsx` ja esta correto:
+- Chama `supabase.auth.resetPasswordForEmail` com `redirectTo: https://academy.sanar.com.br/reset-password`
+- A pagina `/reset-password` (`ResetPassword.tsx`) ja existe e funciona corretamente
+- Valida tokens da URL (access_token/refresh_token ou token/type)
+- Valida complexidade da senha
+- Chama `supabase.auth.updateUser({ password })`
 
-**Arquivo: `src/pages/StudyGuide.tsx`**
+Nenhuma alteracao no codigo do frontend e necessaria.
 
-Refatorar `fetchSemestreData` (linhas 384-426) para:
-- Remover o guard `if (loadedSemestres.has(semestre)) return;`
-- Se dados do cache existem, mostrar imediatamente
-- SEMPRE buscar dados frescos do servidor em background (mesmo se o semestre ja foi "carregado")
-- Atualizar silenciosamente quando dados frescos chegam
+### Resultado
 
-#### 4. Adicionar botao de refresh manual + indicador de atualizacao
-
-**Arquivo: `src/pages/StudyGuide.tsx`**
-
-Adicionar:
-- Um botao "Atualizar" no header do guia (icone RefreshCw) que limpa o cache do semestre atual e forca um re-fetch
-- Estado `lastUpdated` que mostra quando os dados foram buscados pela ultima vez
-- Indicador discreto "Atualizando..." durante background fetches (sem bloquear a UI)
-
-#### 5. Invalidar cache apos import do admin
-
-**Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
-
-Apos importacao bem-sucedida, limpar todos os caches do study guide no localStorage:
-```
-// Limpar todos os caches de study guide
-Object.keys(localStorage).forEach(key => {
-  if (key.startsWith('perf_study_contents_')) {
-    localStorage.removeItem(key);
-  }
-});
-```
-Isso garante que se o admin importar dados e depois acessar o guia, vera os dados novos imediatamente.
-
----
+- Emails de redefinicao de senha serao enviados de um dominio verificado gerenciado pelo Lovable
+- Nenhuma dependencia de conta Resend externa
+- Todos os tipos de email de autenticacao funcionarao (recovery, invite, magic-link, signup)
+- O visual e linguagem dos emails serao mantidos
 
 ### Resumo das Mudancas
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/pages/StudyGuide.tsx` | TTL de 2h para 15min; sempre fazer background fetch; botao refresh; indicador de atualizacao |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Limpar cache localStorage apos import bem-sucedido |
-
-### Resultado Esperado
-
-- Ao carregar a pagina: dados do cache aparecem instantaneamente, background fetch atualiza silenciosamente em ~1-2s
-- Apos admin importar novos dados: cache antigo invalidado; proxima visita mostra dados frescos
-- Botao "Atualizar" permite refresh manual a qualquer momento
-- Troca de semestre sempre busca dados frescos (sem ficar preso a dados stale)
-- Ctrl+Shift+R + esperar 1-2s = dados atualizados (background fetch roda automaticamente)
+| Acao | Detalhe |
+|------|---------|
+| Configurar dominio de email | Via dialogo de setup do Lovable Cloud |
+| Scaffold templates gerenciados | `scaffold_auth_email_templates` |
+| Estilizar templates | Aplicar branding Sanar (cores, logo, portugues) |
+| Deploy `auth-email-hook` | Substituir o hook `custom-email-templates` que falha |
+| Codigo frontend | Nenhuma alteracao necessaria |
 
