@@ -1,103 +1,104 @@
 
-## Remover Limites de Linhas e Implementar Batching Ilimitado
 
-### Problema
+## Correcao do Cache e Carregamento do Guia de Estudos
 
-Existem 4 pontos no codigo que impoe um limite rigido de 10.000 linhas:
+### Problemas Identificados
 
-1. **Frontend** (`StudyGuideImportWizard.tsx`, linha 459): `if (rowsToImport.length > 10000)` — bloqueia o envio antes mesmo de chamar o servidor
-2. **Edge Function `handleSmartImport`** (linha 328): rejeita com erro 400
-3. **Edge Function `handleInsertOnly`** (linha 571): rejeita com erro 400
-4. **Edge Function main handler** (linha 748): rejeita no path legado
+**1. Cache localStorage de 2 HORAS bloqueia atualizacoes (PRINCIPAL)**
 
-Mesmo a validacao (preview_changes) funcionando corretamente e mostrando ~2.000 insercoes, o frontend envia TODAS as 10.225 linhas do arquivo para o servidor fazer a comparacao — e o servidor rejeita por exceder 10.000.
+Linha 83 do `StudyGuide.tsx`:
+```
+const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+```
+Ctrl+Shift+R limpa o cache do NAVEGADOR, mas NAO limpa localStorage. Entao o usuario ve dados de ate 2 horas atras, mesmo com hard reload.
 
-### Solucao
+**2. `loadedSemestres` impede re-fetch**
 
-Implementar batching no frontend para dividir automaticamente os dados em lotes menores e processar sequencialmente, sem nenhum limite artificial.
+Linha 386: `if (loadedSemestres.has(semestre)) return;`
+Uma vez que um semestre e carregado (mesmo do cache stale), ele nunca mais e buscado novamente durante a sessao. Se o admin atualiza o guia, o usuario so vera os dados novos se fechar e reabrir o navegador E esperar o TTL de 2 horas expirar.
+
+**3. `hasLoadedData.current` bloqueia re-fetches**
+
+Linha 319: `if (hasLoadedData.current) return;`
+O efeito principal so roda UMA vez. Se o cache foi encontrado, `hasLoadedData.current = true` e setado imediatamente (linha 330), e o background fetch roda uma unica vez. Porem, se o usuario navega para outra pagina e volta, nada e re-buscado.
+
+**4. Cache-first mostra dados stale sem indicacao visual**
+
+O usuario nao tem como saber se os dados que esta vendo sao do cache ou do servidor. Nao ha botao de atualizar nem indicacao de "ultima atualizacao".
 
 ---
 
-### Mudancas
+### Plano de Correcao
 
-#### 1. Frontend: Remover limite e implementar batching para smart_import
+#### 1. Reduzir TTL do cache para 15 minutos
+
+**Arquivo: `src/pages/StudyGuide.tsx`**
+
+Mudar de 2 horas para 15 minutos:
+```
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutos
+```
+Cache continua util para carregamento instantaneo, mas dados stale expiram muito mais rapido.
+
+#### 2. SEMPRE fazer background fetch, mesmo com cache valido
+
+**Arquivo: `src/pages/StudyGuide.tsx`**
+
+Refatorar o efeito principal (linhas 313-381) para:
+- Mostrar cache imediatamente (mantendo experiencia instantanea)
+- SEMPRE buscar dados frescos do servidor em background
+- Quando dados frescos chegam, comparar com o cache: se forem diferentes, atualizar a UI e o cache
+- Remover o guard `hasLoadedData.current` que bloqueia re-fetches
+- Usar um ref `isMounted` para evitar atualizacoes apos desmontagem
+
+#### 3. Permitir re-fetch ao trocar de semestre
+
+**Arquivo: `src/pages/StudyGuide.tsx`**
+
+Refatorar `fetchSemestreData` (linhas 384-426) para:
+- Remover o guard `if (loadedSemestres.has(semestre)) return;`
+- Se dados do cache existem, mostrar imediatamente
+- SEMPRE buscar dados frescos do servidor em background (mesmo se o semestre ja foi "carregado")
+- Atualizar silenciosamente quando dados frescos chegam
+
+#### 4. Adicionar botao de refresh manual + indicador de atualizacao
+
+**Arquivo: `src/pages/StudyGuide.tsx`**
+
+Adicionar:
+- Um botao "Atualizar" no header do guia (icone RefreshCw) que limpa o cache do semestre atual e forca um re-fetch
+- Estado `lastUpdated` que mostra quando os dados foram buscados pela ultima vez
+- Indicador discreto "Atualizando..." durante background fetches (sem bloquear a UI)
+
+#### 5. Invalidar cache apos import do admin
 
 **Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
 
-- Remover o bloco `if (rowsToImport.length > 10000) throw new Error(...)` (linhas 459-461)
-- Implementar envio em lotes de 5.000 linhas para smart_import:
-  - Dividir `rowsToImport` em chunks de 5.000
-  - Enviar cada chunk como uma requisicao separada com `action: 'smart_import'`
-  - Agregar os resultados (inserted, updated, deleted, unchanged, errors) de cada lote
-  - Atualizar progresso visual entre cada lote
-  - Se um lote falhar, registrar o erro mas continuar com os proximos lotes
-- Para APPEND, manter batching atual de 500 linhas (ja funciona)
-
-#### 2. Edge Function: Remover limites artificiais
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-- Remover `if (rows.length > 10000)` de `handleSmartImport` (linha 328-330)
-- Remover `if (rows.length > 10000)` de `handleInsertOnly` (linha 571-573)
-- Remover `if (rows.length > 10000)` do main handler legado (linha 748-749)
-- Manter os sub-batches internos de 200 linhas para inserts/deletes (ja existem e funcionam bem)
-
-#### 3. Frontend: Batching para preview_changes tambem
-
-**Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
-
-O preview_changes envia todas as linhas em um unico request. Para arquivos muito grandes (>10k linhas), o payload pode exceder limites do Edge Function.
-- Se totalLinhas > 5.000, dividir o preview em lotes por IES (cada IES em um request separado)
-- Agregar os changePlans de cada IES
+Apos importacao bem-sucedida, limpar todos os caches do study guide no localStorage:
+```
+// Limpar todos os caches de study guide
+Object.keys(localStorage).forEach(key => {
+  if (key.startsWith('perf_study_contents_')) {
+    localStorage.removeItem(key);
+  }
+});
+```
+Isso garante que se o admin importar dados e depois acessar o guia, vera os dados novos imediatamente.
 
 ---
 
-### Fluxo Resultante
-
-```text
-Arquivo com 10.225 linhas
-  |
-  v
-Validacao local (sem limite)
-  |
-  v
-preview_changes: enviado por IES se > 5.000 linhas
-  → Retorna: 2.000 inserts, 50 updates, 8.175 unchanged
-  |
-  v
-smart_import: dividido em lotes de 5.000
-  Lote 1: linhas 1-5.000 → servidor compara e opera
-  Lote 2: linhas 5.001-10.000 → servidor compara e opera
-  Lote 3: linhas 10.001-10.225 → servidor compara e opera
-  → Resultados agregados no frontend
-```
-
-### Detalhes Tecnicos
-
-**Batching do smart_import no frontend:**
-```text
-const SMART_BATCH_SIZE = 5000;
-const batches = dividir(rowsToImport, SMART_BATCH_SIZE);
-
-for (let i = 0; i < batches.length; i++) {
-  updateProgress('uploading', (i/batches.length)*100, `Lote ${i+1}/${batches.length}...`);
-  
-  const { data } = await supabase.functions.invoke('admin-upload-study-guide', {
-    body: { action: 'smart_import', config, rows: batches[i] }
-  });
-  
-  // Agregar contagens
-  aggregatedCounts.inserted += data.counts.inserted;
-  aggregatedCounts.updated += data.counts.updated;
-  // ... etc
-}
-```
-
-**Importante:** O batching do smart_import funciona corretamente porque cada lote e independente — o servidor busca os dados existentes do banco, compara com as linhas do lote, e faz as operacoes necessarias. Linhas inalteradas sao simplesmente ignoradas pelo servidor.
-
-### Resumo
+### Resumo das Mudancas
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/admin-upload-study-guide/index.ts` | Remover 3 limites de 10.000 linhas |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Remover limite de 10.000; implementar batching de 5.000 para smart_import e preview_changes |
+| `src/pages/StudyGuide.tsx` | TTL de 2h para 15min; sempre fazer background fetch; botao refresh; indicador de atualizacao |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Limpar cache localStorage apos import bem-sucedido |
+
+### Resultado Esperado
+
+- Ao carregar a pagina: dados do cache aparecem instantaneamente, background fetch atualiza silenciosamente em ~1-2s
+- Apos admin importar novos dados: cache antigo invalidado; proxima visita mostra dados frescos
+- Botao "Atualizar" permite refresh manual a qualquer momento
+- Troca de semestre sempre busca dados frescos (sem ficar preso a dados stale)
+- Ctrl+Shift+R + esperar 1-2s = dados atualizados (background fetch roda automaticamente)
+
