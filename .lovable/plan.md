@@ -1,131 +1,103 @@
 
+## Remover Limites de Linhas e Implementar Batching Ilimitado
 
-## Correcao da Validacao e Logica de Upsert no Import de Guia de Estudos
+### Problema
 
-### Problemas Identificados
+Existem 4 pontos no codigo que impoe um limite rigido de 10.000 linhas:
 
-**Problema 1: Validacao nao compara com o banco de dados**
+1. **Frontend** (`StudyGuideImportWizard.tsx`, linha 459): `if (rowsToImport.length > 10000)` — bloqueia o envio antes mesmo de chamar o servidor
+2. **Edge Function `handleSmartImport`** (linha 328): rejeita com erro 400
+3. **Edge Function `handleInsertOnly`** (linha 571): rejeita com erro 400
+4. **Edge Function main handler** (linha 748): rejeita no path legado
 
-Na etapa de validacao (linhas 303-309 do `StudyGuideImportWizard.tsx`), o `changePlan` e calculado estaticamente:
-```
-inserts: allNormalized.length  // sempre = total de linhas validas
-updates: 0                     // sempre zero
-```
-Nenhuma consulta ao banco e feita durante a validacao. Por isso, ao subir 2.846 linhas para a FAME (que ja tem dados), todas aparecem como "insercoes", quando muitas sao identicas ao que ja existe.
+Mesmo a validacao (preview_changes) funcionando corretamente e mostrando ~2.000 insercoes, o frontend envia TODAS as 10.225 linhas do arquivo para o servidor fazer a comparacao — e o servidor rejeita por exceder 10.000.
 
-**Problema 2: Fingerprint nao distingue "identidade" de "dados"**
+### Solucao
 
-O `rowFingerprint` atual (linha 72 da Edge Function) inclui TODOS os campos:
-```
-semestre|materia|tema|subtema|aula|link_aula|link_pdf|link_quiz
-```
-
-Isso significa que se uma linha tem a mesma materia/tema/subtema/aula mas um link diferente, ela e tratada como "nova" (e a antiga e deletada). Funciona, mas:
-- Nao reporta como "atualizacao" — reporta como delete + insert
-- Nao identifica corretamente o que e "a mesma linha com dados diferentes" vs "linha totalmente nova"
-
-A definicao correta (conforme o usuario especificou):
-- **Chave de identidade**: `semestre + materia + tema + subtema + aula` — define "a mesma linha"
-- **Campos de dados**: `link_aula + link_pdf + link_quiz` — se diferem, e uma atualizacao
-- Mesma identidade + mesmos dados = INALTERADA (pular)
-- Mesma identidade + dados diferentes = ATUALIZACAO
-- Identidade nova = INSERCAO
-- Identidade no banco que nao existe no arquivo = REMOCAO
+Implementar batching no frontend para dividir automaticamente os dados em lotes menores e processar sequencialmente, sem nenhum limite artificial.
 
 ---
 
-### Plano de Correcao
+### Mudancas
 
-#### 1. Nova action `preview_changes` na Edge Function
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-Adicionar uma action que faz a mesma comparacao do `smart_import` mas SEM executar nenhuma operacao no banco. Retorna apenas contagens:
-- `unchanged`: linhas identicas (mesma identidade + mesmos dados)
-- `updates`: linhas com mesma identidade mas dados diferentes
-- `inserts`: linhas novas (identidade nao existe no banco)
-- `deletes`: linhas no banco cuja identidade nao existe no arquivo
-
-Usa as mesmas funcoes `fetchAllExisting` e fingerprints ja existentes.
-
-#### 2. Separar fingerprint em identityKey e dataFingerprint
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-Criar duas funcoes:
-
-```text
-identityKey(r) = [semestre, materia, tema, subtema, aula]
-                  .map(v => (v||'').trim().toLowerCase()).join('|')
-
-dataFingerprint(r) = [link_aula, link_pdf, link_quiz]
-                      .map(v => (v||'').trim().toLowerCase()).join('|')
-```
-
-Logica de comparacao:
-- Construir mapa do banco: `identityKey -> { id, dataFingerprint }`
-- Para cada linha do arquivo:
-  - Se identityKey nao existe no mapa: NOVA (insert)
-  - Se existe e dataFingerprint igual: INALTERADA (skip)
-  - Se existe e dataFingerprint diferente: ATUALIZACAO (delete old + insert new)
-- Identidades no mapa que nao existem no arquivo: REMOCAO (delete)
-
-#### 3. Atualizar smart_import para usar identityKey
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-Refatorar `handleSmartImport` para usar a logica de identity/data separadas. A operacao continua sendo delete + insert (nao ha UPDATE SQL), mas agora as contagens reportam corretamente:
-- `unchanged` para linhas identicas
-- `updated` para linhas com mesma identidade mas dados diferentes (em vez de contar como delete+insert)
-- `inserted` apenas para linhas genuinamente novas
-- `deleted` apenas para linhas que existem no banco mas nao no arquivo
-
-#### 4. Frontend chama preview_changes durante validacao
+#### 1. Frontend: Remover limite e implementar batching para smart_import
 
 **Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
 
-Na funcao `runValidation`, apos validar o arquivo localmente, se o modo for MERGE ou REPLACE:
-- Chamar a Edge Function com `action: 'preview_changes'`
-- Enviar todas as linhas normalizadas + config
-- Usar a resposta para definir o `changePlan` com valores reais
+- Remover o bloco `if (rowsToImport.length > 10000) throw new Error(...)` (linhas 459-461)
+- Implementar envio em lotes de 5.000 linhas para smart_import:
+  - Dividir `rowsToImport` em chunks de 5.000
+  - Enviar cada chunk como uma requisicao separada com `action: 'smart_import'`
+  - Agregar os resultados (inserted, updated, deleted, unchanged, errors) de cada lote
+  - Atualizar progresso visual entre cada lote
+  - Se um lote falhar, registrar o erro mas continuar com os proximos lotes
+- Para APPEND, manter batching atual de 500 linhas (ja funciona)
 
-Para APPEND, manter o comportamento atual (todas as linhas sao insercoes).
+#### 2. Edge Function: Remover limites artificiais
 
-#### 5. Atualizar tipo ChangePlan
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
 
-**Arquivo: `src/components/admin/study-guide-import/types.ts`**
+- Remover `if (rows.length > 10000)` de `handleSmartImport` (linha 328-330)
+- Remover `if (rows.length > 10000)` de `handleInsertOnly` (linha 571-573)
+- Remover `if (rows.length > 10000)` do main handler legado (linha 748-749)
+- Manter os sub-batches internos de 200 linhas para inserts/deletes (ja existem e funcionam bem)
 
-Adicionar campo `unchanged` ao `ChangePlan`:
-```text
-interface ChangePlan {
-  inserts: number;
-  updates: number;
-  deletes: number;
-  ignored: number;
-  unchanged: number;  // NOVO
-}
-```
+#### 3. Frontend: Batching para preview_changes tambem
 
-#### 6. Atualizar UI de validacao para mostrar unchanged
+**Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
 
-**Arquivo: `src/components/admin/study-guide-import/components/ValidationSummary.tsx`**
-
-Exibir badge adicional no "Plano de Mudancas" mostrando linhas inalteradas (ex: "=1.500 inalteradas").
+O preview_changes envia todas as linhas em um unico request. Para arquivos muito grandes (>10k linhas), o payload pode exceder limites do Edge Function.
+- Se totalLinhas > 5.000, dividir o preview em lotes por IES (cada IES em um request separado)
+- Agregar os changePlans de cada IES
 
 ---
 
-### Resumo das Mudancas
+### Fluxo Resultante
+
+```text
+Arquivo com 10.225 linhas
+  |
+  v
+Validacao local (sem limite)
+  |
+  v
+preview_changes: enviado por IES se > 5.000 linhas
+  → Retorna: 2.000 inserts, 50 updates, 8.175 unchanged
+  |
+  v
+smart_import: dividido em lotes de 5.000
+  Lote 1: linhas 1-5.000 → servidor compara e opera
+  Lote 2: linhas 5.001-10.000 → servidor compara e opera
+  Lote 3: linhas 10.001-10.225 → servidor compara e opera
+  → Resultados agregados no frontend
+```
+
+### Detalhes Tecnicos
+
+**Batching do smart_import no frontend:**
+```text
+const SMART_BATCH_SIZE = 5000;
+const batches = dividir(rowsToImport, SMART_BATCH_SIZE);
+
+for (let i = 0; i < batches.length; i++) {
+  updateProgress('uploading', (i/batches.length)*100, `Lote ${i+1}/${batches.length}...`);
+  
+  const { data } = await supabase.functions.invoke('admin-upload-study-guide', {
+    body: { action: 'smart_import', config, rows: batches[i] }
+  });
+  
+  // Agregar contagens
+  aggregatedCounts.inserted += data.counts.inserted;
+  aggregatedCounts.updated += data.counts.updated;
+  // ... etc
+}
+```
+
+**Importante:** O batching do smart_import funciona corretamente porque cada lote e independente — o servidor busca os dados existentes do banco, compara com as linhas do lote, e faz as operacoes necessarias. Linhas inalteradas sao simplesmente ignoradas pelo servidor.
+
+### Resumo
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/admin-upload-study-guide/index.ts` | Nova action `preview_changes`; separar `identityKey`/`dataFingerprint`; refatorar `smart_import` |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Chamar `preview_changes` durante validacao para MERGE/REPLACE |
-| `src/components/admin/study-guide-import/types.ts` | Adicionar `unchanged` ao `ChangePlan` |
-| `src/components/admin/study-guide-import/components/ValidationSummary.tsx` | Exibir contagem de linhas inalteradas no plano de mudancas |
-
-### Resultado Esperado
-
-- Na validacao, o usuario vera: "+300 insercoes, ~50 atualizacoes, =2.496 inalteradas" em vez de "+2.846 insercoes"
-- O modo MERGE faz upsert real: identifica linhas existentes pela chave de identidade (semestre+materia+tema+subtema+aula) e atualiza apenas os links que mudaram
-- Linhas identicas ao banco nao sao tocadas
-
+| `supabase/functions/admin-upload-study-guide/index.ts` | Remover 3 limites de 10.000 linhas |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Remover limite de 10.000; implementar batching de 5.000 para smart_import e preview_changes |
