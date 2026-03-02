@@ -1,166 +1,116 @@
 
 
-## Auditoria e Upgrade do Pipeline de Importacao para Comparacao de Alto Nivel
+## Correcao da Validacao e Logica de Upsert no Import de Guia de Estudos
 
 ### Problemas Identificados
 
-**1. Nenhuma comparacao campo-a-campo com o banco de dados**
-O fluxo atual para MERGE/REPLACE faz apenas `DELETE escopo + INSERT tudo`. Nao ha verificacao se uma linha do arquivo ja existe identica no banco. Isso significa:
-- Nao sabemos quantas linhas realmente mudaram vs estao iguais
-- Deletamos e reinserimos dados identicos desnecessariamente
-- Nao ha confianca de que os dados foram inseridos corretamente
+**Problema 1: Validacao nao compara com o banco de dados**
 
-**2. Limite de 1000 linhas do Supabase nao e tratado na busca para comparacao**
-A query filtrada por semestre no `get-study-contents` (linha 125) nao usa paginacao. Se um semestre tiver mais de 1000 conteudos, os excedentes sao silenciosamente ignorados.
+Na etapa de validacao (linhas 303-309 do `StudyGuideImportWizard.tsx`), o `changePlan` e calculado estaticamente:
+```
+inserts: allNormalized.length  // sempre = total de linhas validas
+updates: 0                     // sempre zero
+```
+Nenhuma consulta ao banco e feita durante a validacao. Por isso, ao subir 2.846 linhas para a FAME (que ja tem dados), todas aparecem como "insercoes", quando muitas sao identicas ao que ja existe.
 
-**3. Sem verificacao pos-insercao**
-Apos inserir os dados, o sistema nao verifica se a contagem no banco bate com o esperado. Se uma insercao falhar silenciosamente, ninguem sabe.
+**Problema 2: Fingerprint nao distingue "identidade" de "dados"**
 
-**4. Sem hash/fingerprint de linha para comparacao eficiente**
-Cada linha precisa ser comparada por todos os campos (semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz). Sem uma funcao de fingerprint, a comparacao e fragil.
+O `rowFingerprint` atual (linha 72 da Edge Function) inclui TODOS os campos:
+```
+semestre|materia|tema|subtema|aula|link_aula|link_pdf|link_quiz
+```
+
+Isso significa que se uma linha tem a mesma materia/tema/subtema/aula mas um link diferente, ela e tratada como "nova" (e a antiga e deletada). Funciona, mas:
+- Nao reporta como "atualizacao" — reporta como delete + insert
+- Nao identifica corretamente o que e "a mesma linha com dados diferentes" vs "linha totalmente nova"
+
+A definicao correta (conforme o usuario especificou):
+- **Chave de identidade**: `semestre + materia + tema + subtema + aula` — define "a mesma linha"
+- **Campos de dados**: `link_aula + link_pdf + link_quiz` — se diferem, e uma atualizacao
+- Mesma identidade + mesmos dados = INALTERADA (pular)
+- Mesma identidade + dados diferentes = ATUALIZACAO
+- Identidade nova = INSERCAO
+- Identidade no banco que nao existe no arquivo = REMOCAO
 
 ---
 
 ### Plano de Correcao
 
-#### 1. Nova action `smart_import` na Edge Function
+#### 1. Nova action `preview_changes` na Edge Function
 
 **Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
 
-Criar uma nova action que faz tudo server-side com acesso total ao banco:
+Adicionar uma action que faz a mesma comparacao do `smart_import` mas SEM executar nenhuma operacao no banco. Retorna apenas contagens:
+- `unchanged`: linhas identicas (mesma identidade + mesmos dados)
+- `updates`: linhas com mesma identidade mas dados diferentes
+- `inserts`: linhas novas (identidade nao existe no banco)
+- `deletes`: linhas no banco cuja identidade nao existe no arquivo
 
-```text
-action: 'smart_import'
-Entrada: { config, scopes, rows[] }
+Usa as mesmas funcoes `fetchAllExisting` e fingerprints ja existentes.
 
-Fluxo:
-1. Buscar TODOS os registros existentes no escopo (IES + semestres) com paginacao
-   - Usar .range(from, from+999) em loop ate nao haver mais dados
-   - Isso ignora o limite de 1000 do Supabase
-
-2. Criar fingerprint de cada registro existente:
-   fingerprint = JSON.stringify([semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz])
-
-3. Criar fingerprint de cada linha do arquivo
-
-4. Comparar:
-   - Se fingerprint do arquivo existe nos existentes: IDENTICA (pular)
-   - Se nao existe: NOVA ou ALTERADA (precisa inserir)
-
-5. Para MERGE/REPLACE:
-   - Deletar registros do escopo que NAO existem no arquivo (foram removidos)
-   - Inserir registros do arquivo que NAO existem no banco (novos/alterados)
-   - Manter registros identicos intactos
-
-6. Verificacao pos-insercao:
-   - Contar registros no banco apos operacao
-   - Comparar com contagem esperada
-   - Reportar discrepancias
-
-7. Retornar contagens detalhadas:
-   { inserted, deleted, unchanged, errors, verified_total }
-```
-
-Este approach e superior porque:
-- O service_role nao tem limite de 1000 linhas
-- A comparacao acontece no servidor, perto do banco, sem latencia
-- Nao depende do frontend para orquestrar delete + insert separados
-- Verifica o resultado final
-
-#### 2. Funcao de fingerprint para comparacao deterministica
+#### 2. Separar fingerprint em identityKey e dataFingerprint
 
 **Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
 
+Criar duas funcoes:
+
 ```text
-function rowFingerprint(r):
-  valores = [r.semestre, r.materia, r.tema, r.subtema, r.aula, r.link_aula, r.link_pdf, r.link_quiz]
-  valores_normalizados = valores.map(v => (v || '').trim().toLowerCase())
-  return valores_normalizados.join('|')
+identityKey(r) = [semestre, materia, tema, subtema, aula]
+                  .map(v => (v||'').trim().toLowerCase()).join('|')
+
+dataFingerprint(r) = [link_aula, link_pdf, link_quiz]
+                      .map(v => (v||'').trim().toLowerCase()).join('|')
 ```
 
-A normalizacao garante que diferencas de espacos, case, ou nulls nao causem falsos positivos.
+Logica de comparacao:
+- Construir mapa do banco: `identityKey -> { id, dataFingerprint }`
+- Para cada linha do arquivo:
+  - Se identityKey nao existe no mapa: NOVA (insert)
+  - Se existe e dataFingerprint igual: INALTERADA (skip)
+  - Se existe e dataFingerprint diferente: ATUALIZACAO (delete old + insert new)
+- Identidades no mapa que nao existem no arquivo: REMOCAO (delete)
 
-#### 3. Busca paginada de TODOS os registros existentes
+#### 3. Atualizar smart_import para usar identityKey
 
 **Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
 
-```text
-async function fetchAllExisting(supabaseAdmin, iesId, semestres?):
-  allRows = []
-  PAGE = 1000
-  from = 0
-  loop:
-    query = supabaseAdmin.from('conteudos')
-      .select('id, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-      .eq('id_ies', iesId)
-    if semestres:
-      query = query.in('semestre', semestres)
-    query = query.range(from, from + PAGE - 1)
-    
-    { data } = await query
-    if data.length == 0: break
-    allRows.push(...data)
-    from += PAGE
-    if data.length < PAGE: break
-  
-  return allRows
-```
+Refatorar `handleSmartImport` para usar a logica de identity/data separadas. A operacao continua sendo delete + insert (nao ha UPDATE SQL), mas agora as contagens reportam corretamente:
+- `unchanged` para linhas identicas
+- `updated` para linhas com mesma identidade mas dados diferentes (em vez de contar como delete+insert)
+- `inserted` apenas para linhas genuinamente novas
+- `deleted` apenas para linhas que existem no banco mas nao no arquivo
 
-#### 4. Verificacao pos-insercao
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-Apos todas as insercoes, o sistema faz uma contagem final:
-
-```text
-// Contar registros finais no escopo
-const { count } = await supabaseAdmin
-  .from('conteudos')
-  .select('*', { count: 'exact', head: true })
-  .eq('id_ies', iesId)
-  .in('semestre', semestres);
-
-// Comparar com esperado
-const expected = rowsToImport.length;
-if (count !== expected) {
-  // Reportar discrepancia
-}
-```
-
-#### 5. Atualizar o frontend para usar smart_import
+#### 4. Frontend chama preview_changes durante validacao
 
 **Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
 
-Para MERGE e REPLACE:
-- Enviar TODAS as linhas em um unico request com `action: 'smart_import'`
-- Se o total de linhas exceder 5000, enviar em lotes de 5000 mas com flag `batch_index` e `total_batches` para o servidor saber quando verificar
-- O servidor faz o delete e insert inteligente
-- O frontend recebe contagens detalhadas: inseridas, removidas, inalteradas, erros
+Na funcao `runValidation`, apos validar o arquivo localmente, se o modo for MERGE ou REPLACE:
+- Chamar a Edge Function com `action: 'preview_changes'`
+- Enviar todas as linhas normalizadas + config
+- Usar a resposta para definir o `changePlan` com valores reais
 
-Para APPEND:
-- Manter comportamento atual (insert_only sem delete)
+Para APPEND, manter o comportamento atual (todas as linhas sao insercoes).
 
-#### 6. Corrigir paginacao no get-study-contents
+#### 5. Atualizar tipo ChangePlan
 
-**Arquivo: `supabase/functions/get-study-contents/index.ts`**
+**Arquivo: `src/components/admin/study-guide-import/types.ts`**
 
-A query filtrada por semestre (linha 125) atualmente nao pagina. Adicionar paginacao igual a query sem filtro:
-
+Adicionar campo `unchanged` ao `ChangePlan`:
 ```text
-// Antes (sem paginacao):
-const { data } = await supabaseAdmin.from('conteudos').select(...).eq(...).in(...)
-
-// Depois (com paginacao):
-let allConteudos = [];
-let from = 0;
-const PAGE_SIZE = 1000;
-while (true) {
-  const { data } = await query.range(from, from + PAGE_SIZE - 1);
-  allConteudos.push(...data);
-  if (data.length < PAGE_SIZE) break;
-  from += PAGE_SIZE;
+interface ChangePlan {
+  inserts: number;
+  updates: number;
+  deletes: number;
+  ignored: number;
+  unchanged: number;  // NOVO
 }
 ```
+
+#### 6. Atualizar UI de validacao para mostrar unchanged
+
+**Arquivo: `src/components/admin/study-guide-import/components/ValidationSummary.tsx`**
+
+Exibir badge adicional no "Plano de Mudancas" mostrando linhas inalteradas (ex: "=1.500 inalteradas").
 
 ---
 
@@ -168,18 +118,14 @@ while (true) {
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/admin-upload-study-guide/index.ts` | Nova action `smart_import` com comparacao campo-a-campo, busca paginada, verificacao pos-insercao |
-| `supabase/functions/admin-upload-study-guide/index.ts` | Funcao `rowFingerprint` para comparacao deterministica |
-| `supabase/functions/admin-upload-study-guide/index.ts` | Funcao `fetchAllExisting` com paginacao sem limite de 1000 |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Usar `smart_import` para MERGE/REPLACE em vez de delete_scope + insert_only separados |
-| `supabase/functions/get-study-contents/index.ts` | Adicionar paginacao na query filtrada por semestre |
+| `supabase/functions/admin-upload-study-guide/index.ts` | Nova action `preview_changes`; separar `identityKey`/`dataFingerprint`; refatorar `smart_import` |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Chamar `preview_changes` durante validacao para MERGE/REPLACE |
+| `src/components/admin/study-guide-import/types.ts` | Adicionar `unchanged` ao `ChangePlan` |
+| `src/components/admin/study-guide-import/components/ValidationSummary.tsx` | Exibir contagem de linhas inalteradas no plano de mudancas |
 
 ### Resultado Esperado
 
-- Cada linha do arquivo e comparada campo-a-campo com TODOS os registros existentes no banco
-- Nenhum limite de 1000 linhas -- busca paginada garante acesso a base completa
-- Registros identicos nao sao deletados e reinseridos desnecessariamente
-- Contagens precisas: inseridos, removidos, inalterados, erros
-- Verificacao pos-insercao confirma integridade dos dados
-- Logs detalhados para rastreabilidade de cada operacao
+- Na validacao, o usuario vera: "+300 insercoes, ~50 atualizacoes, =2.496 inalteradas" em vez de "+2.846 insercoes"
+- O modo MERGE faz upsert real: identifica linhas existentes pela chave de identidade (semestre+materia+tema+subtema+aula) e atualiza apenas os links que mudaram
+- Linhas identicas ao banco nao sao tocadas
 
