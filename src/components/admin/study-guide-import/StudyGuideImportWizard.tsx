@@ -300,13 +300,57 @@ export const StudyGuideImportWizard: React.FC = () => {
 
       setValidation(validationResult);
 
-      // Calculate change plan
-      setChangePlan({
-        inserts: allNormalized.length,
-        updates: 0,
-        deletes: 0,
-        ignored: 0,
-      });
+      // Calculate change plan — for MERGE/REPLACE, call preview_changes to compare with DB
+      if ((config.mode === 'MERGE' || config.mode === 'REPLACE') && validationResult.isValid && allNormalized.length > 0) {
+        console.log(LOG_PREFIX, 'Calling preview_changes to compare with database...');
+        try {
+          const { data: previewData, error: previewError } = await supabase.functions.invoke('admin-upload-study-guide', {
+            body: {
+              action: 'preview_changes',
+              config,
+              rows: allNormalized,
+            },
+          });
+
+          if (previewError) {
+            console.warn(LOG_PREFIX, 'preview_changes failed, falling back to static plan:', previewError);
+            setChangePlan({
+              inserts: allNormalized.length,
+              updates: 0,
+              deletes: 0,
+              ignored: 0,
+              unchanged: 0,
+            });
+          } else if (previewData?.changePlan) {
+            console.log(LOG_PREFIX, 'preview_changes result:', previewData.changePlan);
+            setChangePlan({
+              inserts: previewData.changePlan.inserts || 0,
+              updates: previewData.changePlan.updates || 0,
+              deletes: previewData.changePlan.deletes || 0,
+              ignored: 0,
+              unchanged: previewData.changePlan.unchanged || 0,
+            });
+          }
+        } catch (previewErr) {
+          console.warn(LOG_PREFIX, 'preview_changes exception, falling back:', previewErr);
+          setChangePlan({
+            inserts: allNormalized.length,
+            updates: 0,
+            deletes: 0,
+            ignored: 0,
+            unchanged: 0,
+          });
+        }
+      } else {
+        // APPEND mode or validation failed — all rows are inserts
+        setChangePlan({
+          inserts: allNormalized.length,
+          updates: 0,
+          deletes: 0,
+          ignored: 0,
+          unchanged: 0,
+        });
+      }
 
       setStatus(validationResult.isValid ? 'ready_to_import' : 'idle');
       console.log(LOG_PREFIX, 'Validation complete:', validationResult);
