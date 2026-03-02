@@ -42,7 +42,7 @@ import {
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Brain, CheckCircle2, Play, FileText } from 'lucide-react';
+import { ChevronRight, Brain, CheckCircle2, Play, FileText, RefreshCw } from 'lucide-react';
 
 // Types
 interface Aula {
@@ -80,7 +80,7 @@ interface ConteudoData {
   link_quiz?: string | null;
 }
 
-const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 // Cache reader for a specific semester
 const readStudyGuideCache = (iesId: string, semestre: number | string | undefined): ConteudoData[] | null => {
@@ -194,11 +194,13 @@ export const StudyGuide: React.FC = () => {
   const [selectedEventMateria, setSelectedEventMateria] = useState<string | null>(null);
   const [calendarSyncStatus, setCalendarSyncStatus] = useState<SyncStatus>('idle');
   const [undoStack, setUndoStack] = useState<CalendarEventType[][]>([]);
+  const [isBackgroundFetching, setIsBackgroundFetching] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Refs
   const aulaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const materiaRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const hasLoadedData = useRef(false);
+  // hasLoadedData ref removed — background fetch always runs now
 
   const calendarVariant = theme === 'dark' ? 'dark' : 'light';
 
@@ -309,14 +311,52 @@ export const StudyGuide: React.FC = () => {
     fetchSemestres();
   }, [user?.id_ies]);
 
-  // Fetch contents for the user's active semester on mount — cache-first, no SWR double-apply
+  // Background fetch helper — always fetches fresh data from server
+  const fetchFreshData = useCallback(async (semestre: string, iesId: string, isInitial: boolean) => {
+    const startTime = Date.now();
+    try {
+      setIsBackgroundFetching(true);
+      const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
+        body: { semestre }
+      });
+      const latency = Date.now() - startTime;
+      analyticsRef.current.trackEdgeLatency('get-study-contents', latency, !error);
+      if (error) throw error;
+      if (!response?.data) throw new Error('Invalid response');
+
+      const freshData: ConteudoData[] = (response.data || []).map(normalizeConteudo);
+      writeStudyGuideCache(iesId, semestre, freshData);
+
+      setConteudos(prev => {
+        const otherSem = prev.filter(c => {
+          const val = c.semestre.replace(/º\s*Semestre/i, '').trim();
+          return val !== semestre;
+        });
+        return [...otherSem, ...freshData];
+      });
+      setLoadedSemestres(prev => new Set([...prev, semestre]));
+      setLastUpdated(new Date());
+      if (import.meta.env.DEV) console.log('[StudyGuide] Fresh data loaded for semester', semestre, `(${freshData.length} items)`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      analyticsRef.current.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
+      if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching contents:', err);
+      if (isInitial) {
+        toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
+      }
+    } finally {
+      setIsBackgroundFetching(false);
+      setIsLoading(false);
+      setIsSemestreLoading(false);
+    }
+  }, []);
+
+  // Fetch contents for the user's active semester on mount — cache-first + always background refresh
   useEffect(() => {
     if (!user?.id_ies) {
       setIsLoading(false);
       return;
     }
-
-    if (hasLoadedData.current) return;
 
     const userSemStr = user.semestre?.toString() || '';
     const iesId = user.id_ies;
@@ -327,67 +367,21 @@ export const StudyGuide: React.FC = () => {
       setConteudos(cached);
       setLoadedSemestres(prev => new Set([...prev, userSemStr]));
       setSelectedSemestre(prev => prev || userSemStr);
-      hasLoadedData.current = true;
       setIsLoading(false);
     }
 
-    // 2. Background fetch — updates silently without re-setting isLoading
-    const startTime = Date.now();
-    const safetyTimeout = setTimeout(() => {
-      if (!hasLoadedData.current) {
-        setIsLoading(false);
-        if (import.meta.env.DEV) console.warn('[StudyGuide] Safety timeout reached (15s)');
-      }
-    }, 15000);
-
-    (async () => {
-      try {
-        const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
-          body: { semestre: userSemStr }
-        });
-        clearTimeout(safetyTimeout);
-        const latency = Date.now() - startTime;
-        analyticsRef.current.trackEdgeLatency('get-study-contents', latency, !error);
-        if (error) throw error;
-        if (!response?.data) throw new Error('Invalid response');
-
-        const freshData: ConteudoData[] = (response.data || []).map(normalizeConteudo);
-        writeStudyGuideCache(iesId, userSemStr, freshData);
-
-        setConteudos(prev => {
-          const otherSem = prev.filter(c => {
-            const val = c.semestre.replace(/º\s*Semestre/i, '').trim();
-            return val !== userSemStr;
-          });
-          return [...otherSem, ...freshData];
-        });
-        setLoadedSemestres(prev => new Set([...prev, userSemStr]));
-        setSelectedSemestre(prev => prev || userSemStr);
-        hasLoadedData.current = true;
-        setIsLoading(false);
-      } catch (error) {
-        clearTimeout(safetyTimeout);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        analyticsRef.current.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
-        if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching contents:', error);
-        if (!hasLoadedData.current) {
-          toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
-        }
-        setIsLoading(false);
-      }
-    })();
-
-    return () => clearTimeout(safetyTimeout);
-  }, [user?.id_ies, user?.semestre]);
+    // 2. ALWAYS fetch fresh data in background
+    setSelectedSemestre(prev => prev || userSemStr);
+    fetchFreshData(userSemStr, iesId, !cached);
+  }, [user?.id_ies, user?.semestre, fetchFreshData]);
 
   // Fetch contents for a specific semester when the user navigates to it
   const fetchSemestreData = useCallback(async (semestre: string) => {
     if (!user?.id_ies) return;
-    if (loadedSemestres.has(semestre)) return; // already loaded
 
     const normalizedSem = semestre.replace(/º\s*Semestre/i, '').trim();
 
-    // Check localStorage cache first
+    // Show cache instantly if available
     const cachedData = readStudyGuideCache(user.id_ies, normalizedSem);
     if (cachedData && cachedData.length > 0) {
       setConteudos(prev => {
@@ -398,32 +392,26 @@ export const StudyGuide: React.FC = () => {
         return [...otherSem, ...cachedData];
       });
       setLoadedSemestres(prev => new Set([...prev, normalizedSem]));
-      return;
+    } else {
+      setIsSemestreLoading(true);
     }
 
-    setIsSemestreLoading(true);
+    // ALWAYS fetch fresh data in background
+    fetchFreshData(normalizedSem, user.id_ies, !cachedData);
+  }, [user?.id_ies, fetchFreshData]);
+
+  // Manual refresh handler
+  const handleManualRefresh = useCallback(async () => {
+    if (!user?.id_ies || !selectedSemestre) return;
+    const normalizedSem = selectedSemestre.replace(/º\s*Semestre/i, '').trim();
+    // Clear cache for current semester
     try {
-      const { data: response, error } = await supabase.functions.invoke('get-study-contents', {
-        body: { semestre: normalizedSem }
-      });
-      if (error) throw error;
-      const data: ConteudoData[] = (response?.data || []).map(normalizeConteudo);
-      setConteudos(prev => {
-        const otherSem = prev.filter(c => {
-          const val = c.semestre.replace(/º\s*Semestre/i, '').trim();
-          return val !== normalizedSem;
-        });
-        return [...otherSem, ...data];
-      });
-      setLoadedSemestres(prev => new Set([...prev, normalizedSem]));
-      writeStudyGuideCache(user.id_ies!, normalizedSem, data);
-    } catch (e) {
-      if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching semester data:', e);
-      toast({ title: 'Erro', description: `Não foi possível carregar o semestre ${normalizedSem}`, variant: 'destructive' });
-    } finally {
-      setIsSemestreLoading(false);
-    }
-  }, [user?.id_ies, loadedSemestres]);
+      localStorage.removeItem(`perf_study_contents_${user.id_ies}_${normalizedSem}`);
+    } catch {}
+    setIsBackgroundFetching(true);
+    await fetchFreshData(normalizedSem, user.id_ies, false);
+    toast({ title: 'Atualizado', description: 'Guia de estudos atualizado com sucesso' });
+  }, [user?.id_ies, selectedSemestre, fetchFreshData]);
 
 
 
@@ -889,7 +877,27 @@ export const StudyGuide: React.FC = () => {
         
         {/* Header with Search */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <GuideHeader />
+          <div className="flex items-center gap-2">
+            <GuideHeader />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleManualRefresh}
+              disabled={isBackgroundFetching}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              title="Atualizar guia"
+            >
+              <RefreshCw className={cn("h-4 w-4", isBackgroundFetching && "animate-spin")} />
+            </Button>
+            {isBackgroundFetching && (
+              <span className="text-xs text-muted-foreground animate-pulse">Atualizando...</span>
+            )}
+            {lastUpdated && !isBackgroundFetching && (
+              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                Atualizado {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </div>
           <div className="w-full lg:w-96 xl:w-[28rem]">
             <GuideSearchBar
               value={searchQuery}
