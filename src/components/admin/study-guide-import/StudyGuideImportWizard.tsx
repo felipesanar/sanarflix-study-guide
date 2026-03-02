@@ -555,6 +555,16 @@ export const StudyGuideImportWizard: React.FC = () => {
       setStatus('success');
       setStep('result');
 
+      // Invalidate study guide localStorage cache so users see fresh data
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('perf_study_contents_')) {
+            localStorage.removeItem(key);
+          }
+        });
+        console.log(LOG_PREFIX, 'Study guide cache invalidated');
+      } catch {}
+
       if (importResult.success) {
         toast.success('Importação concluída com sucesso!');
       } else {
