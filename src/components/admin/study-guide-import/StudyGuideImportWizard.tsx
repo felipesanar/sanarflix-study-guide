@@ -401,88 +401,92 @@ export const StudyGuideImportWizard: React.FC = () => {
         throw new Error('Sessão expirada. Por favor, faça login novamente.');
       }
 
-      const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0 };
+      const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0, unchanged: 0 };
       const aggregatedErrors: ImportResultRow[] = [];
       let lastRequestId = '';
+      let verificationResult: { expected: number; actual: number; match: boolean } | null = null;
 
-      // ── Step 1: For MERGE/REPLACE, send a single delete_scope request first ──
       if (config.mode === 'MERGE' || config.mode === 'REPLACE') {
-        updateProgress('uploading', 0, 'Limpando dados existentes...');
+        // ── Smart Import: server-side field-by-field comparison ──
+        updateProgress('uploading', 0, 'Enviando dados para comparação inteligente...');
 
-        // Build scopes: group by IES, collect unique semestres per IES
-        const scopeMap = new Map<string, Set<string>>();
-        for (const row of rowsToImport) {
-          if (!scopeMap.has(row.id_ies)) {
-            scopeMap.set(row.id_ies, new Set());
+        // Send all rows in batches of 5000 for smart_import
+        const SMART_BATCH = 5000;
+        const totalSmartBatches = Math.ceil(rowsToImport.length / SMART_BATCH);
+
+        for (let i = 0; i < totalSmartBatches; i++) {
+          const batchRows = rowsToImport.slice(i * SMART_BATCH, (i + 1) * SMART_BATCH);
+          const batchProgress = Math.round((i / totalSmartBatches) * 100);
+          updateProgress('uploading', batchProgress, `Processando lote ${i + 1}/${totalSmartBatches} (${batchRows.length} linhas) — comparação campo-a-campo...`);
+
+          console.log(LOG_PREFIX, `Sending smart_import batch ${i + 1}/${totalSmartBatches}: ${batchRows.length} rows`);
+
+          const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
+            body: {
+              action: 'smart_import',
+              config,
+              rows: batchRows,
+            },
+          });
+
+          if (fnError) {
+            throw new Error(fnError.message || `Erro no lote ${i + 1}/${totalSmartBatches}`);
           }
-          scopeMap.get(row.id_ies)!.add(row.semestre);
+
+          if (data.counts) {
+            aggregatedCounts.inserted += data.counts.inserted || 0;
+            aggregatedCounts.updated += data.counts.updated || 0;
+            aggregatedCounts.deleted += data.counts.deleted || 0;
+            aggregatedCounts.ignored += data.counts.ignored || 0;
+            aggregatedCounts.errors += data.counts.errors || 0;
+            aggregatedCounts.unchanged += data.counts.unchanged || 0;
+          }
+          if (data.verification) {
+            verificationResult = data.verification;
+          }
+          if (data.errors?.length) {
+            aggregatedErrors.push(...data.errors);
+          }
+          lastRequestId = data.requestId || lastRequestId;
         }
 
-        const scopes = Array.from(scopeMap.entries()).map(([iesId, semSet]) => ({
-          iesId,
-          semestres: Array.from(semSet),
-        }));
-
-        console.log(LOG_PREFIX, `Sending delete_scope for ${scopes.length} IES, mode=${config.mode}`);
-
-        const { data: deleteData, error: deleteError } = await supabase.functions.invoke('admin-upload-study-guide', {
-          body: {
-            action: 'delete_scope',
-            config,
-            scopes,
-          },
-        });
-
-        if (deleteError) {
-          throw new Error(deleteError.message || 'Erro ao limpar dados existentes');
+        if (verificationResult && !verificationResult.match) {
+          console.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
         }
+      } else {
+        // ── APPEND mode: simple insert_only batches ──
+        const BATCH_SIZE = 500;
+        const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
 
-        if (deleteData?.counts) {
-          aggregatedCounts.deleted += deleteData.counts.deleted || 0;
+        for (let i = 0; i < totalBatches; i++) {
+          const batchRows = rowsToImport.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+          const batchProgress = Math.round((i / totalBatches) * 100);
+          updateProgress('uploading', batchProgress, `Enviando lote ${i + 1}/${totalBatches} (${batchRows.length} linhas)...`);
+
+          const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
+            body: {
+              config,
+              institutionMappings: sheetMappings,
+              rows: batchRows,
+            },
+          });
+
+          if (fnError) {
+            throw new Error(fnError.message || `Erro no lote ${i + 1}/${totalBatches}`);
+          }
+
+          if (data.counts) {
+            aggregatedCounts.inserted += data.counts.inserted || 0;
+            aggregatedCounts.updated += data.counts.updated || 0;
+            aggregatedCounts.deleted += data.counts.deleted || 0;
+            aggregatedCounts.ignored += data.counts.ignored || 0;
+            aggregatedCounts.errors += data.counts.errors || 0;
+          }
+          if (data.errors?.length) {
+            aggregatedErrors.push(...data.errors);
+          }
+          lastRequestId = data.requestId || lastRequestId;
         }
-        lastRequestId = deleteData?.requestId || lastRequestId;
-
-        console.log(LOG_PREFIX, `delete_scope completed: deleted=${aggregatedCounts.deleted}`);
-      }
-
-      // ── Step 2: Send rows in insert_only batches ──
-      const BATCH_SIZE = 500;
-      const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
-      const actionType = config.mode === 'APPEND' ? undefined : 'insert_only';
-
-      for (let i = 0; i < totalBatches; i++) {
-        const batchRows = rowsToImport.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
-        const batchProgress = Math.round(((i) / totalBatches) * 100);
-        updateProgress('uploading', batchProgress, `Enviando lote ${i + 1}/${totalBatches} (${batchRows.length} linhas)...`);
-
-        const requestBody: Record<string, unknown> = {
-          config,
-          institutionMappings: sheetMappings,
-          rows: batchRows,
-        };
-        if (actionType) {
-          requestBody.action = actionType;
-        }
-
-        const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
-          body: requestBody,
-        });
-
-        if (fnError) {
-          throw new Error(fnError.message || `Erro no lote ${i + 1}/${totalBatches}`);
-        }
-
-        if (data.counts) {
-          aggregatedCounts.inserted += data.counts.inserted || 0;
-          aggregatedCounts.updated += data.counts.updated || 0;
-          aggregatedCounts.deleted += data.counts.deleted || 0;
-          aggregatedCounts.ignored += data.counts.ignored || 0;
-          aggregatedCounts.errors += data.counts.errors || 0;
-        }
-        if (data.errors?.length) {
-          aggregatedErrors.push(...data.errors);
-        }
-        lastRequestId = data.requestId || lastRequestId;
       }
 
       updateProgress('verifying', 100, 'Importação concluída!');

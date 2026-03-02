@@ -2,7 +2,8 @@
  * Admin Study Guide Upload Edge Function
  * Handles bulk import of study guide content with MERGE/APPEND/REPLACE modes
  * 
- * Supports two action types to prevent data loss from batching:
+ * Supports action types:
+ * - action: 'smart_import' — Server-side field-by-field comparison with paginated fetch, selective delete/insert, and post-verification
  * - action: 'delete_scope' — Deletes existing records for the given scope (IES + semestres)
  * - action: 'insert_only' — Inserts rows without any deletion
  * - (legacy) No action field — behaves as before for APPEND mode
@@ -54,6 +55,66 @@ interface DeleteScopeEntry {
   semestres: string[];
 }
 
+interface ExistingRecord {
+  id: string;
+  semestre: string;
+  materia: string;
+  tema: string | null;
+  subtema: string | null;
+  aula: string | null;
+  link_aula: string | null;
+  link_pdf: string | null;
+  link_quiz: string | null;
+}
+
+// ─── Fingerprint ─────────────────────────────────────────────────────────────
+
+function rowFingerprint(r: { semestre: string; materia: string; tema: string | null; subtema: string | null; aula: string | null; link_aula: string | null; link_pdf: string | null; link_quiz: string | null }): string {
+  const values = [r.semestre, r.materia, r.tema, r.subtema, r.aula, r.link_aula, r.link_pdf, r.link_quiz];
+  return values.map(v => (v || '').trim().toLowerCase()).join('|');
+}
+
+// ─── Paginated fetch ─────────────────────────────────────────────────────────
+
+async function fetchAllExisting(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  iesId: string,
+  semestres?: string[]
+): Promise<ExistingRecord[]> {
+  const allRows: ExistingRecord[] = [];
+  const PAGE = 1000;
+  let from = 0;
+
+  while (true) {
+    let query = supabaseAdmin
+      .from('conteudos')
+      .select('id, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+      .eq('id_ies', iesId);
+
+    if (semestres && semestres.length > 0) {
+      query = query.in('semestre', semestres);
+    }
+
+    query = query.range(from, from + PAGE - 1);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error(LOG_PREFIX, `fetchAllExisting error at offset ${from}:`, error);
+      throw new Error(`Failed to fetch existing records: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) break;
+
+    allRows.push(...(data as ExistingRecord[]));
+    from += PAGE;
+
+    if (data.length < PAGE) break;
+  }
+
+  return allRows;
+}
+
 // ─── Auth helper ─────────────────────────────────────────────────────────────
 
 async function authenticateAdmin(req: Request, requestId: string) {
@@ -99,6 +160,217 @@ async function authenticateAdmin(req: Request, requestId: string) {
   return { supabaseAdmin, userId };
 }
 
+// ─── Action: smart_import ────────────────────────────────────────────────────
+
+async function handleSmartImport(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  body: { config: ImportConfig; rows: NormalizedRow[] },
+  requestId: string
+) {
+  const { config, rows } = body;
+
+  if (!rows || rows.length === 0) {
+    return jsonResponse({ error: "No rows to import", requestId }, 400);
+  }
+
+  if (rows.length > 10000) {
+    return jsonResponse({ error: "Too many rows. Maximum 10000 per request.", requestId }, 400);
+  }
+
+  // Log sample
+  const sample = rows.slice(0, 3).map(r => ({
+    row: r.rowNumber, ies: r.id_ies, sem: r.semestre, mat: r.materia,
+  }));
+  console.log(LOG_PREFIX, `Request ${requestId}: smart_import ${rows.length} rows, mode=${config.mode}. Sample:`, JSON.stringify(sample));
+
+  // Group rows by IES
+  const rowsByIes = new Map<string, NormalizedRow[]>();
+  for (const row of rows) {
+    if (!rowsByIes.has(row.id_ies)) {
+      rowsByIes.set(row.id_ies, []);
+    }
+    rowsByIes.get(row.id_ies)!.push(row);
+  }
+
+  let totalInserted = 0;
+  let totalDeleted = 0;
+  let totalUnchanged = 0;
+  let totalErrors = 0;
+  const errorRows: ImportResultRow[] = [];
+  let verifiedTotal = 0;
+  let expectedTotal = 0;
+
+  for (const [iesId, iesRows] of rowsByIes.entries()) {
+    // Determine semestres in this batch
+    const semestresInFile = [...new Set(iesRows.map(r => r.semestre))];
+
+    // For MERGE, scope is always ies_semestre (only touch semestres in file)
+    // For REPLACE with ies_full scope, fetch ALL semestres
+    const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
+    const fetchSemestres = effectiveScope === "ies_semestre" ? semestresInFile : undefined;
+
+    console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — ${iesRows.length} file rows, semestres=[${semestresInFile.join(',')}], effectiveScope=${effectiveScope}`);
+
+    // 1. Fetch ALL existing records with pagination
+    let existingRecords: ExistingRecord[];
+    try {
+      existingRecords = await fetchAllExisting(supabaseAdmin, iesId, fetchSemestres);
+    } catch (err) {
+      console.error(LOG_PREFIX, `Request ${requestId}: Failed to fetch existing for IES ${iesId}:`, err);
+      totalErrors += iesRows.length;
+      iesRows.forEach(r => errorRows.push({
+        rowNumber: r.rowNumber, sheetName: r.sheetName, status: "error",
+        error: `Failed to fetch existing records: ${err instanceof Error ? err.message : String(err)}`,
+      }));
+      continue;
+    }
+
+    console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — ${existingRecords.length} existing records fetched`);
+
+    // 2. Build fingerprint sets
+    const existingFpMap = new Map<string, string[]>(); // fingerprint -> [id, id, ...]
+    for (const rec of existingRecords) {
+      const fp = rowFingerprint(rec);
+      if (!existingFpMap.has(fp)) {
+        existingFpMap.set(fp, []);
+      }
+      existingFpMap.get(fp)!.push(rec.id);
+    }
+
+    const fileFpSet = new Set<string>();
+    const rowsToInsert: NormalizedRow[] = [];
+    let unchanged = 0;
+
+    for (const row of iesRows) {
+      const fp = rowFingerprint(row);
+      fileFpSet.add(fp);
+
+      if (existingFpMap.has(fp)) {
+        // Identical row exists — skip
+        unchanged++;
+      } else {
+        // New or altered — needs insertion
+        rowsToInsert.push(row);
+      }
+    }
+
+    // 3. Find records to delete (in DB but NOT in file)
+    const idsToDelete: string[] = [];
+    for (const [fp, ids] of existingFpMap.entries()) {
+      if (!fileFpSet.has(fp)) {
+        idsToDelete.push(...ids);
+      }
+    }
+
+    console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — unchanged=${unchanged}, toInsert=${rowsToInsert.length}, toDelete=${idsToDelete.length}`);
+
+    // 4. Delete records not in file
+    if (idsToDelete.length > 0) {
+      const DELETE_BATCH = 200;
+      for (let i = 0; i < idsToDelete.length; i += DELETE_BATCH) {
+        const chunk = idsToDelete.slice(i, i + DELETE_BATCH);
+        const { error: delErr } = await supabaseAdmin
+          .from('conteudos')
+          .delete()
+          .in('id', chunk);
+
+        if (delErr) {
+          console.error(LOG_PREFIX, `Request ${requestId}: Delete error for IES ${iesId} chunk ${i}:`, delErr);
+          // Non-fatal: continue but log
+        }
+      }
+      totalDeleted += idsToDelete.length;
+    }
+
+    // 5. Insert new/altered rows
+    if (rowsToInsert.length > 0) {
+      const records = rowsToInsert.map(row => ({
+        id_ies: row.id_ies,
+        semestre: row.semestre,
+        materia: row.materia,
+        tema: row.tema,
+        subtema: row.subtema,
+        aula: row.aula,
+        link_aula: row.link_aula,
+        link_pdf: row.link_pdf,
+        link_quiz: row.link_quiz,
+      }));
+
+      const SUB_BATCH = 200;
+      for (let i = 0; i < records.length; i += SUB_BATCH) {
+        const chunk = records.slice(i, i + SUB_BATCH);
+        const { error: insertError } = await supabaseAdmin.from("conteudos").insert(chunk);
+        if (insertError) {
+          console.error(LOG_PREFIX, `Request ${requestId}: Insert error at chunk ${i} for IES ${iesId}:`, insertError);
+          totalErrors += chunk.length;
+          chunk.forEach((_, idx) => {
+            const row = rowsToInsert[i + idx];
+            errorRows.push({
+              rowNumber: row?.rowNumber || 0,
+              sheetName: row?.sheetName,
+              status: "error",
+              error: insertError.message,
+            });
+          });
+        } else {
+          totalInserted += chunk.length;
+        }
+      }
+    }
+
+    totalUnchanged += unchanged;
+
+    // 6. Post-insertion verification
+    const expectedForIes = iesRows.length; // file rows = what should exist for these semestres
+    // Count records now in DB for this scope
+    let verifyQuery = supabaseAdmin
+      .from('conteudos')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_ies', iesId);
+
+    if (effectiveScope === "ies_semestre" && semestresInFile.length > 0) {
+      verifyQuery = verifyQuery.in('semestre', semestresInFile);
+    }
+
+    const { count: finalCount, error: countErr } = await verifyQuery;
+    const actualCount = finalCount || 0;
+
+    if (countErr) {
+      console.warn(LOG_PREFIX, `Request ${requestId}: Verification count error for IES ${iesId}:`, countErr);
+    } else {
+      verifiedTotal += actualCount;
+      expectedTotal += expectedForIes;
+
+      if (actualCount !== expectedForIes) {
+        console.warn(LOG_PREFIX, `Request ${requestId}: VERIFICATION MISMATCH for IES ${iesId}: expected=${expectedForIes}, actual=${actualCount}`);
+      } else {
+        console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} verified OK: ${actualCount} records`);
+      }
+    }
+  }
+
+  console.log(LOG_PREFIX, `Request ${requestId}: smart_import done — inserted=${totalInserted}, deleted=${totalDeleted}, unchanged=${totalUnchanged}, errors=${totalErrors}, verified=${verifiedTotal}/${expectedTotal}`);
+
+  return jsonResponse({
+    success: totalErrors === 0,
+    requestId,
+    counts: {
+      inserted: totalInserted,
+      updated: 0,
+      deleted: totalDeleted,
+      unchanged: totalUnchanged,
+      ignored: 0,
+      errors: totalErrors,
+    },
+    verification: {
+      expected: expectedTotal,
+      actual: verifiedTotal,
+      match: verifiedTotal === expectedTotal,
+    },
+    errors: errorRows.filter(r => r.status === "error"),
+  });
+}
+
 // ─── Action: delete_scope ────────────────────────────────────────────────────
 
 async function handleDeleteScope(
@@ -115,8 +387,6 @@ async function handleDeleteScope(
   let totalDeleted = 0;
 
   for (const scope of scopes) {
-    // MERGE forces ies_semestre scope (only delete semesters present in file)
-    // REPLACE respects the configured scope
     const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
 
     let deleteQuery = supabaseAdmin
@@ -127,7 +397,6 @@ async function handleDeleteScope(
     if (effectiveScope === "ies_semestre" && scope.semestres.length > 0) {
       deleteQuery = deleteQuery.in("semestre", scope.semestres);
     }
-    // ies_full: no semestre filter, deletes ALL content for this IES
 
     const { error: deleteError, count } = await deleteQuery;
     if (deleteError) {
@@ -171,12 +440,8 @@ async function handleInsertOnly(
     return jsonResponse({ error: "Too many rows. Maximum 10000 per request.", requestId }, 400);
   }
 
-  // Log sample for debugging
   const sample = rows.slice(0, 3).map((r) => ({
-    row: r.rowNumber,
-    ies: r.id_ies,
-    sem: r.semestre,
-    mat: r.materia,
+    row: r.rowNumber, ies: r.id_ies, sem: r.semestre, mat: r.materia,
   }));
   console.log(LOG_PREFIX, `Request ${requestId}: insert_only ${rows.length} rows. Sample:`, JSON.stringify(sample));
 
@@ -227,7 +492,7 @@ async function handleInsertOnly(
   });
 }
 
-// ─── Legacy: APPEND (no delete needed) ───────────────────────────────────────
+// ─── Legacy: APPEND ──────────────────────────────────────────────────────────
 
 async function handleLegacyAppend(
   supabaseAdmin: ReturnType<typeof createClient>,
@@ -324,6 +589,10 @@ Deno.serve(async (req: Request) => {
     console.log(LOG_PREFIX, `Request ${requestId}: action="${action}", mode="${body.config?.mode}"`);
 
     // ── Route by action ──
+    if (action === "smart_import") {
+      return await handleSmartImport(supabaseAdmin, body, requestId);
+    }
+
     if (action === "delete_scope") {
       return await handleDeleteScope(supabaseAdmin, body, requestId);
     }
@@ -348,82 +617,10 @@ Deno.serve(async (req: Request) => {
       return await handleLegacyAppend(supabaseAdmin, rows, requestId);
     }
 
-    // Legacy MERGE/REPLACE — kept for backward compatibility but frontend should use delete_scope + insert_only
-    console.warn(LOG_PREFIX, `Request ${requestId}: Legacy MERGE/REPLACE path used. Frontend should be updated.`);
+    // Legacy MERGE/REPLACE — redirect to smart_import
+    console.warn(LOG_PREFIX, `Request ${requestId}: Legacy MERGE/REPLACE redirected to smart_import`);
+    return await handleSmartImport(supabaseAdmin, body, requestId);
 
-    const records = rows.map((row) => ({
-      id_ies: row.id_ies,
-      semestre: row.semestre,
-      materia: row.materia,
-      tema: row.tema,
-      subtema: row.subtema,
-      aula: row.aula,
-      link_aula: row.link_aula,
-      link_pdf: row.link_pdf,
-      link_quiz: row.link_quiz,
-    }));
-
-    let inserted = 0;
-    let deleted = 0;
-    let errors = 0;
-    const errorRows: ImportResultRow[] = [];
-
-    // Group by IES+semestre
-    const iesSemestres = new Map<string, Set<string>>();
-    rows.forEach((row) => {
-      if (!iesSemestres.has(row.id_ies)) {
-        iesSemestres.set(row.id_ies, new Set());
-      }
-      iesSemestres.get(row.id_ies)!.add(row.semestre);
-    });
-
-    for (const [iesId, semestres] of iesSemestres.entries()) {
-      const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
-      let deleteQuery = supabaseAdmin.from("conteudos").delete({ count: "exact" }).eq("id_ies", iesId);
-      if (effectiveScope === "ies_semestre") {
-        deleteQuery = deleteQuery.in("semestre", Array.from(semestres));
-      }
-
-      const { error: deleteError, count } = await deleteQuery;
-      if (deleteError) {
-        console.error(LOG_PREFIX, `Request ${requestId}: Delete error for IES ${iesId}`, deleteError);
-        return jsonResponse(
-          { error: `Failed to delete existing records for IES ${iesId}`, requestId },
-          500
-        );
-      }
-      deleted += count || 0;
-    }
-
-    const SUB_BATCH = 200;
-    for (let i = 0; i < records.length; i += SUB_BATCH) {
-      const chunk = records.slice(i, i + SUB_BATCH);
-      const { error: insertError } = await supabaseAdmin.from("conteudos").insert(chunk);
-      if (insertError) {
-        console.error(LOG_PREFIX, `Request ${requestId}: Insert error at chunk ${i}`, insertError);
-        errors += chunk.length;
-        chunk.forEach((_, idx) => {
-          const row = rows[i + idx];
-          errorRows.push({
-            rowNumber: row?.rowNumber || 0,
-            sheetName: row?.sheetName,
-            status: "error",
-            error: insertError.message,
-          });
-        });
-      } else {
-        inserted += chunk.length;
-      }
-    }
-
-    console.log(LOG_PREFIX, `Request ${requestId}: Done — inserted=${inserted}, deleted=${deleted}, errors=${errors}`);
-
-    return jsonResponse({
-      success: errors === 0,
-      requestId,
-      counts: { inserted, updated: 0, deleted, ignored: 0, errors },
-      errors: errorRows.filter((r) => r.status === "error"),
-    });
   } catch (error) {
     console.error(LOG_PREFIX, `Request ${requestId}: Unexpected error`, error);
     return jsonResponse(
