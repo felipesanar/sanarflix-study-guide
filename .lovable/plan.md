@@ -1,67 +1,137 @@
 
 
-## Correcao Sistematica do Flickering na Pagina "Seu Guia"
+## Auditoria e Correcao do Pipeline de Upload de Guia de Estudos
 
-### Problema
-Apos upload de novo guia e reload, a pagina pisca, mostra skeleton, some, e nao exibe conteudo. O problema e causado por multiplos ciclos de re-render e race conditions no carregamento de dados.
+### Bugs Criticos Encontrados
 
-### Causas Raiz Identificadas
+#### BUG 1 (CRITICO): Batching no frontend destroi dados em MERGE/REPLACE
 
-**1. `conteudos.length` na dependency array do useEffect principal (linha 386)**
-O efeito que busca conteudos depende de `conteudos.length`. Quando `swrFetch` dispara a revalidacao em background e chama `onUpdate -> applyData -> setConteudos`, o tamanho muda, re-disparando o efeito. Isso cria um loop:
-- Efeito roda -> busca dados -> `setConteudos` -> `conteudos.length` muda -> efeito roda de novo
-- O guard `hasLoadedData.current` deveria impedir, mas combinado com a logica de merge em `applyData`, ha momentos onde o estado fica instavel
+Este e o bug principal causando perda e mistura de dados entre semestres.
 
-**2. `swrFetch` retorna `null` na primeira carga sem cache**
-Quando nao ha cache, `swrFetch` retorna `null` imediatamente. O `if (cached && cached.length > 0)` falha, e `applyData` so e chamado quando o `onUpdate` do background fetch dispara. Mas ate la, o efeito pode re-executar por mudanca de dependencias, chamando `setIsLoading(true)` novamente (linha 321), causando flash do skeleton.
+O frontend envia dados em lotes de 500 linhas (arquivo `StudyGuideImportWizard.tsx`, linha 405). Para cada lote, a Edge Function `admin-upload-study-guide` executa DELETE escopado + INSERT. O problema:
 
-**3. `setTimeout` dentro de `useMemo` (linhas 822-825)**
-O `selectedMateriaContents` usa `setTimeout(() => handleSemestreChange(...))` dentro de um `useMemo`, causando side effects em uma funcao pura e re-renders em cascata.
+```text
+Arquivo com 1200 linhas, modo MERGE, semestre 3:
 
-**4. Efeito de progresso reativo ao `selectedSemestre` (linhas 243-249)**
-Quando `applyData` define `selectedSemestre`, o efeito de progresso dispara `loadAllProgress` que seta `loading = true`, adicionando mais flicker.
+Lote 1 (linhas 1-500):
+  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
+  -> INSERT linhas 1-500  (OK ate aqui)
 
-### Correcoes Planejadas
+Lote 2 (linhas 501-1000):
+  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
+  -> APAGA as 500 linhas do lote 1!
+  -> INSERT linhas 501-1000
 
-**Arquivo: `src/pages/StudyGuide.tsx`**
+Lote 3 (linhas 1001-1200):
+  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
+  -> APAGA as 500 linhas do lote 2!
+  -> INSERT linhas 1001-1200
 
-1. **Remover `conteudos.length` da dependency array do fetchConteudos** (linha 386)
-   - Antes: `[user?.id_ies, user?.semestre, analytics, conteudos.length]`
-   - Depois: `[user?.id_ies, user?.semestre]`
-   - O `analytics` tambem e removido pois muda a cada render (nao e estavel)
-   - Usar `analytics` via ref para evitar dependencia
+Resultado: apenas as ultimas 200 linhas sobrevivem.
+```
 
-2. **Substituir `swrFetch` por fetch direto com cache manual**
-   - O padrao SWR com `onUpdate` e problematico aqui porque causa double-apply
-   - Novo fluxo: tentar cache local -> se encontrar, aplicar e parar loading -> fazer fetch em background sem re-setar `isLoading(true)` -> quando chegar, atualizar silenciosamente
+Se o arquivo tem multiplos semestres misturados nos lotes, semestres inteiros podem ser apagados e substituidos por dados parciais.
 
-3. **Remover `setTimeout` do `useMemo` `selectedMateriaContents`** (linhas 822-825)
-   - Substituir por um `useEffect` separado que reage a mudanca de `selectedEventMateria`
-   - O `useMemo` deve ser puro (sem side effects)
+#### BUG 2: MERGE e REPLACE fazem exatamente a mesma coisa
 
-4. **Estabilizar referencia de `analytics`**
-   - Armazenar em ref para nao causar re-execucao de effects
+No codigo da Edge Function (linha 158), ambos os modos executam a mesma logica: delete + insert. Nao ha diferenciacao real entre eles.
 
-5. **Proteger `isLoading` contra re-set desnecessario**
-   - Adicionar guard: so setar `setIsLoading(true)` se realmente nao temos dados ainda
-   - Usar `conteudos` via ref funcional (`setConteudos(prev => ...)`) em vez de depender do valor externo
+#### BUG 3: Fill-down de celulas mescladas pode propagar semestre errado
 
-6. **Desacoplar `loadAllProgress` do flicker**
-   - O `loadAllProgress` nao deve setar `loading` no hook principal se ja temos dados visiveis
-   - Ou: nao usar o `loading` do progress para condicionar a UI principal
+A funcao `fillDownMergedCells` (parseFile.ts, linha 244) propaga o valor do semestre para baixo em celulas vazias. Se uma planilha tem semestres diferentes separados por linhas vazias, o fill-down vai atribuir o semestre anterior a linhas que pertencem a outro semestre.
+
+#### BUG 4: Contagem de deletes sempre zero
+
+A Edge Function usa `.delete()` sem `{ count: 'exact' }`, entao `count` retorna `null/undefined`, e o total de deletes reportado e sempre 0.
+
+---
+
+### Plano de Correcao
+
+#### 1. Corrigir a logica de batching (BUG CRITICO)
+
+**Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
+
+A solucao e separar o DELETE do INSERT:
+- Enviar um primeiro request com `action: 'delete'` contendo apenas os escopos (IES + semestres) a serem limpos
+- Depois enviar os lotes de INSERT com `action: 'insert_only'`
+- Assim o DELETE acontece apenas UMA VEZ, e todos os lotes subsequentes fazem apenas INSERT
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+Adicionar suporte a dois tipos de request:
+- `action: 'delete_scope'` -- executa apenas o DELETE escopado, retorna contagem
+- `action: 'insert_only'` -- executa apenas INSERT (sem delete)
+- Manter compatibilidade com o fluxo atual para APPEND (que nao deleta nada)
+
+Fluxo corrigido:
+```text
+Arquivo com 1200 linhas, modo MERGE:
+
+Request 1 (delete_scope):
+  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
+  -> Retorna: deleted = 850
+
+Request 2 (insert_only, lote 1):
+  -> INSERT linhas 1-500
+
+Request 3 (insert_only, lote 2):
+  -> INSERT linhas 501-1000
+
+Request 4 (insert_only, lote 3):
+  -> INSERT linhas 1001-1200
+
+Resultado: todas as 1200 linhas inseridas corretamente.
+```
+
+#### 2. Diferenciar MERGE de REPLACE
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+- REPLACE: deleta TUDO do escopo (IES inteira ou IES+semestres) e reinsere -- comportamento atual
+- MERGE: deleta apenas os semestres que aparecem no arquivo, mantendo semestres nao mencionados intactos
+
+Na pratica, com `scope: 'ies_semestre'`, ambos tem o mesmo efeito. Mas com `scope: 'ies_full'`:
+- REPLACE: apaga TODOS os semestres da IES
+- MERGE: apaga apenas os semestres presentes no arquivo
+
+Implementacao: no modo MERGE, forcar `scope = 'ies_semestre'` independente da configuracao.
+
+#### 3. Proteger fill-down contra propagacao incorreta
+
+**Arquivo: `src/components/admin/study-guide-import/utils/parseFile.ts`**
+
+- Resetar `lastValues` quando uma linha completamente vazia for encontrada (possivel separador entre secoes)
+- Limitar fill-down a no maximo 50 linhas consecutivas sem valor original
+- Adicionar warning quando fill-down for aplicado para que o usuario saiba
+
+#### 4. Corrigir contagem de deletes
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+Adicionar `{ count: 'exact' }` nas queries de delete para obter contagens reais.
+
+#### 5. Adicionar logs detalhados para rastreabilidade
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+- Logar IES, semestres, e contagens por semestre em cada operacao
+- Logar amostra das primeiras 3 linhas do payload para debugging
+
+---
 
 ### Resumo das Mudancas
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/StudyGuide.tsx` | Remover `conteudos.length` e `analytics` das deps do fetch effect |
-| `src/pages/StudyGuide.tsx` | Substituir `swrFetch` por fetch direto com cache-first sem double-apply |
-| `src/pages/StudyGuide.tsx` | Extrair side effect do `useMemo` `selectedMateriaContents` para `useEffect` |
-| `src/pages/StudyGuide.tsx` | Proteger `setIsLoading(true)` com guard de dados existentes |
-| `src/pages/StudyGuide.tsx` | Estabilizar `analytics` via ref |
+| `supabase/functions/admin-upload-study-guide/index.ts` | Separar DELETE e INSERT em actions distintas; diferenciar MERGE/REPLACE; fix count; logs |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Enviar delete_scope primeiro, depois lotes insert_only; atualizar progresso |
+| `src/components/admin/study-guide-import/utils/parseFile.ts` | Proteger fill-down; adicionar warning de fill-down |
 
 ### Resultado Esperado
-- Sem flicker ao carregar a pagina (cache-first instantaneo ou skeleton unico)
-- Dados novos atualizam silenciosamente em background sem piscar tela
-- Side effects removidos de funcoes puras (useMemo)
-- Ciclos de re-render eliminados por deps estabilizadas
+
+- Todas as linhas do arquivo serao inseridas corretamente, independente do tamanho
+- Dados de um semestre nunca serao sobrescritos por dados de outro
+- Modos MERGE, REPLACE e APPEND terao comportamentos distintos e corretos
+- Celulas mescladas serao tratadas com seguranca
+
