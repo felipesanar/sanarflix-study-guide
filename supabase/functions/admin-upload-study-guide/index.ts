@@ -135,18 +135,17 @@ interface ComparisonResult {
 }
 
 function compareRows(existingRecords: ExistingRecord[], fileRows: NormalizedRow[]): ComparisonResult {
-  // Build map: identityKey -> { id, dataFingerprint }
-  // Note: multiple DB rows could share the same identity key (duplicates in DB)
-  // We store all ids for each identity key
-  const dbMap = new Map<string, { ids: string[]; dataFp: string }>();
+  // Build map: identityKey -> array of { id, dataFp }
+  // Multiple DB rows can share the same identity key (duplicates in DB)
+  const dbMap = new Map<string, Array<{ id: string; dataFp: string }>>();
   for (const rec of existingRecords) {
     const ik = identityKey(rec);
     const dfp = dataFingerprint(rec);
     const existing = dbMap.get(ik);
     if (existing) {
-      existing.ids.push(rec.id);
+      existing.push({ id: rec.id, dataFp: dfp });
     } else {
-      dbMap.set(ik, { ids: [rec.id], dataFp: dfp });
+      dbMap.set(ik, [{ id: rec.id, dataFp: dfp }]);
     }
   }
 
@@ -160,20 +159,27 @@ function compareRows(existingRecords: ExistingRecord[], fileRows: NormalizedRow[
   for (const row of fileRows) {
     const ik = identityKey(row);
     const fileDfp = dataFingerprint(row);
-    const dbEntry = dbMap.get(ik);
+    const dbEntries = dbMap.get(ik);
 
-    if (!dbEntry) {
+    if (!dbEntries || dbEntries.length === 0) {
       // Identity doesn't exist in DB → NEW
       rowsToInsert.push(row);
     } else {
       consumedKeys.add(ik);
-      if (dbEntry.dataFp === fileDfp) {
-        // Same identity + same data → UNCHANGED
+      // Check if ANY of the DB duplicates match the file data
+      const hasExactMatch = dbEntries.some(e => e.dataFp === fileDfp);
+      if (hasExactMatch) {
+        // Same identity + same data (at least one match) → UNCHANGED
         unchanged++;
+        // Delete extra DB duplicates (keep only one)
+        if (dbEntries.length > 1) {
+          const extraIds = dbEntries.slice(1).map(e => e.id);
+          idsToDelete.push(...extraIds);
+        }
       } else {
-        // Same identity + different data → UPDATE (delete old + insert new)
+        // Same identity + ALL data differs → UPDATE (delete all old + insert new)
         updates++;
-        idsToDelete.push(...dbEntry.ids);
+        idsToDelete.push(...dbEntries.map(e => e.id));
         rowsToInsert.push(row);
       }
     }
@@ -181,10 +187,10 @@ function compareRows(existingRecords: ExistingRecord[], fileRows: NormalizedRow[
 
   // DB entries whose identity is NOT in the file → DELETE
   let deletes = 0;
-  for (const [ik, entry] of dbMap.entries()) {
+  for (const [ik, entries] of dbMap.entries()) {
     if (!consumedKeys.has(ik)) {
-      idsToDelete.push(...entry.ids);
-      deletes += entry.ids.length;
+      idsToDelete.push(...entries.map(e => e.id));
+      deletes += entries.length;
     }
   }
 
@@ -373,6 +379,7 @@ async function handleSmartImport(
     console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — unchanged=${comparison.unchanged}, updates=${comparison.updates}, inserts=${comparison.inserts}, deletes=${comparison.deletes}, toDelete=${comparison.idsToDelete.length}, toInsert=${comparison.rowsToInsert.length}`);
 
     // 3. Delete records (updated + removed from DB)
+    let deletesFailed = false;
     if (comparison.idsToDelete.length > 0) {
       const DELETE_BATCH = 200;
       for (let i = 0; i < comparison.idsToDelete.length; i += DELETE_BATCH) {
@@ -383,14 +390,25 @@ async function handleSmartImport(
           .in('id', chunk);
 
         if (delErr) {
-          console.error(LOG_PREFIX, `Request ${requestId}: Delete error for IES ${iesId} chunk ${i}:`, delErr);
+          console.error(LOG_PREFIX, `Request ${requestId}: CRITICAL delete error for IES ${iesId} chunk ${i}:`, delErr);
+          deletesFailed = true;
+          totalErrors += chunk.length;
+          // Stop processing this IES — partial deletes without inserts = data loss risk
+          errorRows.push({
+            rowNumber: 0,
+            status: "error",
+            error: `Delete failed for IES ${iesId}: ${delErr.message}. Import aborted for this IES to prevent data loss.`,
+          });
+          break;
         }
       }
-      totalDeleted += comparison.deletes;
+      if (!deletesFailed) {
+        totalDeleted += comparison.deletes;
+      }
     }
 
-    // 4. Insert new/updated rows
-    if (comparison.rowsToInsert.length > 0) {
+    // 4. Insert new/updated rows (only if deletes succeeded)
+    if (!deletesFailed && comparison.rowsToInsert.length > 0) {
       const records = comparison.rowsToInsert.map(row => ({
         id_ies: row.id_ies,
         semestre: row.semestre,
@@ -404,12 +422,14 @@ async function handleSmartImport(
       }));
 
       const SUB_BATCH = 200;
+      let insertFailed = false;
       for (let i = 0; i < records.length; i += SUB_BATCH) {
         const chunk = records.slice(i, i + SUB_BATCH);
         const { error: insertError } = await supabaseAdmin.from("conteudos").insert(chunk);
         if (insertError) {
           console.error(LOG_PREFIX, `Request ${requestId}: Insert error at chunk ${i} for IES ${iesId}:`, insertError);
           totalErrors += chunk.length;
+          insertFailed = true;
           chunk.forEach((_, idx) => {
             const row = comparison.rowsToInsert[i + idx];
             errorRows.push({
@@ -419,9 +439,14 @@ async function handleSmartImport(
               error: insertError.message,
             });
           });
+          // Continue trying remaining chunks — partial inserts are better than none
         } else {
           totalInserted += chunk.length;
         }
+      }
+
+      if (insertFailed) {
+        console.warn(LOG_PREFIX, `Request ${requestId}: Some inserts failed for IES ${iesId}. Inserted ${totalInserted}, errors ${totalErrors}.`);
       }
     }
 
