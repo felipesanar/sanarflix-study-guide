@@ -82,7 +82,7 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <SummaryCard
           value={validation.totalRows}
-          label="Total de linhas"
+          label="Total de linhas no arquivo"
         />
         <SummaryCard
           value={validation.validRows}
@@ -104,35 +104,48 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
         />
       </div>
 
-      {/* Change Plan */}
+      {/* Impact Cards — what will actually happen */}
       {changePlan && (
-        <div className="rounded-xl border bg-muted/50 p-4">
-          <h4 className="text-sm font-medium mb-3">Plano de Mudanças</h4>
-          <div className="flex flex-wrap gap-3">
-            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-              +{changePlan.inserts.toLocaleString('pt-BR')} inserções
-            </Badge>
-            <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30">
-              ~{changePlan.updates.toLocaleString('pt-BR')} atualizações
-            </Badge>
+        <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-5 space-y-4">
+          <h4 className="text-sm font-semibold text-primary flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            O que vai acontecer no banco de dados
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <SummaryCard
+              value={changePlan.inserts}
+              label="Serão inseridas"
+              variant="success"
+              icon={PlusCircle}
+            />
+            <SummaryCard
+              value={changePlan.updates}
+              label="Serão atualizadas"
+              variant="warning"
+            />
+            <SummaryCard
+              value={changePlan.unchanged}
+              label="Já estão iguais"
+              variant="default"
+            />
             {changePlan.deletes > 0 && (
-              <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/30">
-                -{changePlan.deletes.toLocaleString('pt-BR')} remoções
-              </Badge>
-            )}
-            {changePlan.ignored > 0 && (
-              <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                {changePlan.ignored.toLocaleString('pt-BR')} ignorados
-              </Badge>
-            )}
-            {changePlan.unchanged > 0 && (
-              <Badge variant="secondary" className="bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/30">
-                ={changePlan.unchanged.toLocaleString('pt-BR')} inalteradas
-              </Badge>
+              <SummaryCard
+                value={changePlan.deletes}
+                label="Serão removidas"
+                variant="error"
+                icon={AlertCircle}
+              />
             )}
           </div>
+          {changePlan.inserts === 0 && changePlan.updates === 0 && changePlan.deletes === 0 && (
+            <p className="text-sm text-muted-foreground text-center">
+              Nenhuma alteração será feita — todas as linhas já estão idênticas no banco.
+            </p>
+          )}
         </div>
       )}
+
+      {/* Legacy Change Plan badges removed — replaced by Impact Cards above */}
 
       {/* Errors Section */}
       {validation.errors.length > 0 && (
@@ -296,14 +309,28 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
 
       {/* Success State */}
       {validation.isValid && validation.errors.length === 0 && (
-        <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-6 text-center">
-          <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-3" />
-          <h3 className="font-semibold text-emerald-600 dark:text-emerald-400 mb-1">
+        <div className="rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-6 text-center space-y-3">
+          <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-1" />
+          <h3 className="font-semibold text-emerald-600 dark:text-emerald-400">
             Validação concluída com sucesso!
           </h3>
-          <p className="text-sm text-muted-foreground">
-            Todas as {validation.validRows.toLocaleString('pt-BR')} linhas estão prontas para importação.
-          </p>
+          {changePlan ? (
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>
+                Das <strong className="text-foreground">{validation.validRows.toLocaleString('pt-BR')}</strong> linhas válidas:
+              </p>
+              <p>
+                <strong className="text-emerald-600 dark:text-emerald-400">{changePlan.inserts.toLocaleString('pt-BR')}</strong> serão inseridas
+                {changePlan.updates > 0 && (<>, <strong className="text-amber-600 dark:text-amber-400">{changePlan.updates.toLocaleString('pt-BR')}</strong> atualizadas</>)}
+                {changePlan.unchanged > 0 && (<>, <strong className="text-foreground">{changePlan.unchanged.toLocaleString('pt-BR')}</strong> já estão iguais</>)}
+                {changePlan.deletes > 0 && (<>, <strong className="text-destructive">{changePlan.deletes.toLocaleString('pt-BR')}</strong> removidas do banco</>)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Todas as {validation.validRows.toLocaleString('pt-BR')} linhas estão prontas para importação.
+            </p>
+          )}
         </div>
       )}
 
