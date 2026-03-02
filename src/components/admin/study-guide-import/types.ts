@@ -110,6 +110,7 @@ export interface ChangePlan {
   updates: number;
   deletes: number;
   ignored: number;
+  unchanged: number;
 }
 
 export interface ImportConfig {

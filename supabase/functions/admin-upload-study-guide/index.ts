@@ -4,6 +4,7 @@
  * 
  * Supports action types:
  * - action: 'smart_import' — Server-side field-by-field comparison with paginated fetch, selective delete/insert, and post-verification
+ * - action: 'preview_changes' — Dry-run comparison returning counts without modifying the database
  * - action: 'delete_scope' — Deletes existing records for the given scope (IES + semestres)
  * - action: 'insert_only' — Inserts rows without any deletion
  * - (legacy) No action field — behaves as before for APPEND mode
@@ -67,10 +68,17 @@ interface ExistingRecord {
   link_quiz: string | null;
 }
 
-// ─── Fingerprint ─────────────────────────────────────────────────────────────
+// ─── Fingerprint: identity + data separation ─────────────────────────────────
 
-function rowFingerprint(r: { semestre: string; materia: string; tema: string | null; subtema: string | null; aula: string | null; link_aula: string | null; link_pdf: string | null; link_quiz: string | null }): string {
-  const values = [r.semestre, r.materia, r.tema, r.subtema, r.aula, r.link_aula, r.link_pdf, r.link_quiz];
+/** Identity key: defines "the same row" by its structural position */
+function identityKey(r: { semestre: string; materia: string; tema: string | null; subtema: string | null; aula: string | null }): string {
+  const values = [r.semestre, r.materia, r.tema, r.subtema, r.aula];
+  return values.map(v => (v || '').trim().toLowerCase()).join('|');
+}
+
+/** Data fingerprint: the mutable data fields (links) */
+function dataFingerprint(r: { link_aula: string | null; link_pdf: string | null; link_quiz: string | null }): string {
+  const values = [r.link_aula, r.link_pdf, r.link_quiz];
   return values.map(v => (v || '').trim().toLowerCase()).join('|');
 }
 
@@ -113,6 +121,81 @@ async function fetchAllExisting(
   }
 
   return allRows;
+}
+
+// ─── Comparison logic ────────────────────────────────────────────────────────
+
+interface ComparisonResult {
+  unchanged: number;
+  updates: number;
+  inserts: number;
+  deletes: number;
+  idsToDelete: string[];
+  rowsToInsert: NormalizedRow[];
+}
+
+function compareRows(existingRecords: ExistingRecord[], fileRows: NormalizedRow[]): ComparisonResult {
+  // Build map: identityKey -> { id, dataFingerprint }
+  // Note: multiple DB rows could share the same identity key (duplicates in DB)
+  // We store all ids for each identity key
+  const dbMap = new Map<string, { ids: string[]; dataFp: string }>();
+  for (const rec of existingRecords) {
+    const ik = identityKey(rec);
+    const dfp = dataFingerprint(rec);
+    const existing = dbMap.get(ik);
+    if (existing) {
+      existing.ids.push(rec.id);
+    } else {
+      dbMap.set(ik, { ids: [rec.id], dataFp: dfp });
+    }
+  }
+
+  // Track which DB identity keys are "consumed" by file rows
+  const consumedKeys = new Set<string>();
+  let unchanged = 0;
+  let updates = 0;
+  const rowsToInsert: NormalizedRow[] = [];
+  const idsToDelete: string[] = [];
+
+  for (const row of fileRows) {
+    const ik = identityKey(row);
+    const fileDfp = dataFingerprint(row);
+    const dbEntry = dbMap.get(ik);
+
+    if (!dbEntry) {
+      // Identity doesn't exist in DB → NEW
+      rowsToInsert.push(row);
+    } else {
+      consumedKeys.add(ik);
+      if (dbEntry.dataFp === fileDfp) {
+        // Same identity + same data → UNCHANGED
+        unchanged++;
+      } else {
+        // Same identity + different data → UPDATE (delete old + insert new)
+        updates++;
+        idsToDelete.push(...dbEntry.ids);
+        rowsToInsert.push(row);
+      }
+    }
+  }
+
+  // DB entries whose identity is NOT in the file → DELETE
+  let deletes = 0;
+  for (const [ik, entry] of dbMap.entries()) {
+    if (!consumedKeys.has(ik)) {
+      idsToDelete.push(...entry.ids);
+      deletes += entry.ids.length;
+    }
+  }
+
+  return {
+    unchanged,
+    updates,
+    inserts: rowsToInsert.length - updates, // only genuinely new rows
+    deletes,
+    idsToDelete,
+    rowsToInsert,
+  };
 }
 
 // ─── Auth helper ─────────────────────────────────────────────────────────────
@@ -160,6 +243,69 @@ async function authenticateAdmin(req: Request, requestId: string) {
   return { supabaseAdmin, userId };
 }
 
+// ─── Action: preview_changes ─────────────────────────────────────────────────
+
+async function handlePreviewChanges(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  body: { config: ImportConfig; rows: NormalizedRow[] },
+  requestId: string
+) {
+  const { config, rows } = body;
+
+  if (!rows || rows.length === 0) {
+    return jsonResponse({ error: "No rows to preview", requestId }, 400);
+  }
+
+  console.log(LOG_PREFIX, `Request ${requestId}: preview_changes ${rows.length} rows, mode=${config.mode}`);
+
+  // Group rows by IES
+  const rowsByIes = new Map<string, NormalizedRow[]>();
+  for (const row of rows) {
+    if (!rowsByIes.has(row.id_ies)) rowsByIes.set(row.id_ies, []);
+    rowsByIes.get(row.id_ies)!.push(row);
+  }
+
+  let totalUnchanged = 0;
+  let totalUpdates = 0;
+  let totalInserts = 0;
+  let totalDeletes = 0;
+
+  for (const [iesId, iesRows] of rowsByIes.entries()) {
+    const semestresInFile = [...new Set(iesRows.map(r => r.semestre))];
+    const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
+    const fetchSemestres = effectiveScope === "ies_semestre" ? semestresInFile : undefined;
+
+    let existingRecords: ExistingRecord[];
+    try {
+      existingRecords = await fetchAllExisting(supabaseAdmin, iesId, fetchSemestres);
+    } catch (err) {
+      console.error(LOG_PREFIX, `Request ${requestId}: preview fetch error for IES ${iesId}:`, err);
+      return jsonResponse({ error: `Failed to fetch existing records for IES ${iesId}`, requestId }, 500);
+    }
+
+    console.log(LOG_PREFIX, `Request ${requestId}: preview IES ${iesId} — ${iesRows.length} file rows, ${existingRecords.length} DB rows`);
+
+    const comparison = compareRows(existingRecords, iesRows);
+    totalUnchanged += comparison.unchanged;
+    totalUpdates += comparison.updates;
+    totalInserts += comparison.inserts;
+    totalDeletes += comparison.deletes;
+  }
+
+  console.log(LOG_PREFIX, `Request ${requestId}: preview_changes done — unchanged=${totalUnchanged}, updates=${totalUpdates}, inserts=${totalInserts}, deletes=${totalDeletes}`);
+
+  return jsonResponse({
+    success: true,
+    requestId,
+    changePlan: {
+      unchanged: totalUnchanged,
+      updates: totalUpdates,
+      inserts: totalInserts,
+      deletes: totalDeletes,
+    },
+  });
+}
+
 // ─── Action: smart_import ────────────────────────────────────────────────────
 
 async function handleSmartImport(
@@ -177,7 +323,6 @@ async function handleSmartImport(
     return jsonResponse({ error: "Too many rows. Maximum 10000 per request.", requestId }, 400);
   }
 
-  // Log sample
   const sample = rows.slice(0, 3).map(r => ({
     row: r.rowNumber, ies: r.id_ies, sem: r.semestre, mat: r.materia,
   }));
@@ -186,13 +331,12 @@ async function handleSmartImport(
   // Group rows by IES
   const rowsByIes = new Map<string, NormalizedRow[]>();
   for (const row of rows) {
-    if (!rowsByIes.has(row.id_ies)) {
-      rowsByIes.set(row.id_ies, []);
-    }
+    if (!rowsByIes.has(row.id_ies)) rowsByIes.set(row.id_ies, []);
     rowsByIes.get(row.id_ies)!.push(row);
   }
 
   let totalInserted = 0;
+  let totalUpdated = 0;
   let totalDeleted = 0;
   let totalUnchanged = 0;
   let totalErrors = 0;
@@ -201,11 +345,7 @@ async function handleSmartImport(
   let expectedTotal = 0;
 
   for (const [iesId, iesRows] of rowsByIes.entries()) {
-    // Determine semestres in this batch
     const semestresInFile = [...new Set(iesRows.map(r => r.semestre))];
-
-    // For MERGE, scope is always ies_semestre (only touch semestres in file)
-    // For REPLACE with ies_full scope, fetch ALL semestres
     const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
     const fetchSemestres = effectiveScope === "ies_semestre" ? semestresInFile : undefined;
 
@@ -227,48 +367,16 @@ async function handleSmartImport(
 
     console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — ${existingRecords.length} existing records fetched`);
 
-    // 2. Build fingerprint sets
-    const existingFpMap = new Map<string, string[]>(); // fingerprint -> [id, id, ...]
-    for (const rec of existingRecords) {
-      const fp = rowFingerprint(rec);
-      if (!existingFpMap.has(fp)) {
-        existingFpMap.set(fp, []);
-      }
-      existingFpMap.get(fp)!.push(rec.id);
-    }
+    // 2. Compare using identity key + data fingerprint
+    const comparison = compareRows(existingRecords, iesRows);
 
-    const fileFpSet = new Set<string>();
-    const rowsToInsert: NormalizedRow[] = [];
-    let unchanged = 0;
+    console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — unchanged=${comparison.unchanged}, updates=${comparison.updates}, inserts=${comparison.inserts}, deletes=${comparison.deletes}, toDelete=${comparison.idsToDelete.length}, toInsert=${comparison.rowsToInsert.length}`);
 
-    for (const row of iesRows) {
-      const fp = rowFingerprint(row);
-      fileFpSet.add(fp);
-
-      if (existingFpMap.has(fp)) {
-        // Identical row exists — skip
-        unchanged++;
-      } else {
-        // New or altered — needs insertion
-        rowsToInsert.push(row);
-      }
-    }
-
-    // 3. Find records to delete (in DB but NOT in file)
-    const idsToDelete: string[] = [];
-    for (const [fp, ids] of existingFpMap.entries()) {
-      if (!fileFpSet.has(fp)) {
-        idsToDelete.push(...ids);
-      }
-    }
-
-    console.log(LOG_PREFIX, `Request ${requestId}: IES ${iesId} — unchanged=${unchanged}, toInsert=${rowsToInsert.length}, toDelete=${idsToDelete.length}`);
-
-    // 4. Delete records not in file
-    if (idsToDelete.length > 0) {
+    // 3. Delete records (updated + removed from DB)
+    if (comparison.idsToDelete.length > 0) {
       const DELETE_BATCH = 200;
-      for (let i = 0; i < idsToDelete.length; i += DELETE_BATCH) {
-        const chunk = idsToDelete.slice(i, i + DELETE_BATCH);
+      for (let i = 0; i < comparison.idsToDelete.length; i += DELETE_BATCH) {
+        const chunk = comparison.idsToDelete.slice(i, i + DELETE_BATCH);
         const { error: delErr } = await supabaseAdmin
           .from('conteudos')
           .delete()
@@ -276,15 +384,14 @@ async function handleSmartImport(
 
         if (delErr) {
           console.error(LOG_PREFIX, `Request ${requestId}: Delete error for IES ${iesId} chunk ${i}:`, delErr);
-          // Non-fatal: continue but log
         }
       }
-      totalDeleted += idsToDelete.length;
+      totalDeleted += comparison.deletes;
     }
 
-    // 5. Insert new/altered rows
-    if (rowsToInsert.length > 0) {
-      const records = rowsToInsert.map(row => ({
+    // 4. Insert new/updated rows
+    if (comparison.rowsToInsert.length > 0) {
+      const records = comparison.rowsToInsert.map(row => ({
         id_ies: row.id_ies,
         semestre: row.semestre,
         materia: row.materia,
@@ -304,7 +411,7 @@ async function handleSmartImport(
           console.error(LOG_PREFIX, `Request ${requestId}: Insert error at chunk ${i} for IES ${iesId}:`, insertError);
           totalErrors += chunk.length;
           chunk.forEach((_, idx) => {
-            const row = rowsToInsert[i + idx];
+            const row = comparison.rowsToInsert[i + idx];
             errorRows.push({
               rowNumber: row?.rowNumber || 0,
               sheetName: row?.sheetName,
@@ -318,11 +425,11 @@ async function handleSmartImport(
       }
     }
 
-    totalUnchanged += unchanged;
+    totalUnchanged += comparison.unchanged;
+    totalUpdated += comparison.updates;
 
-    // 6. Post-insertion verification
-    const expectedForIes = iesRows.length; // file rows = what should exist for these semestres
-    // Count records now in DB for this scope
+    // 5. Post-insertion verification
+    const expectedForIes = iesRows.length;
     let verifyQuery = supabaseAdmin
       .from('conteudos')
       .select('*', { count: 'exact', head: true })
@@ -349,14 +456,14 @@ async function handleSmartImport(
     }
   }
 
-  console.log(LOG_PREFIX, `Request ${requestId}: smart_import done — inserted=${totalInserted}, deleted=${totalDeleted}, unchanged=${totalUnchanged}, errors=${totalErrors}, verified=${verifiedTotal}/${expectedTotal}`);
+  console.log(LOG_PREFIX, `Request ${requestId}: smart_import done — inserted=${totalInserted}, updated=${totalUpdated}, deleted=${totalDeleted}, unchanged=${totalUnchanged}, errors=${totalErrors}, verified=${verifiedTotal}/${expectedTotal}`);
 
   return jsonResponse({
     success: totalErrors === 0,
     requestId,
     counts: {
       inserted: totalInserted,
-      updated: 0,
+      updated: totalUpdated,
       deleted: totalDeleted,
       unchanged: totalUnchanged,
       ignored: 0,
@@ -589,6 +696,10 @@ Deno.serve(async (req: Request) => {
     console.log(LOG_PREFIX, `Request ${requestId}: action="${action}", mode="${body.config?.mode}"`);
 
     // ── Route by action ──
+    if (action === "preview_changes") {
+      return await handlePreviewChanges(supabaseAdmin, body, requestId);
+    }
+
     if (action === "smart_import") {
       return await handleSmartImport(supabaseAdmin, body, requestId);
     }
