@@ -122,20 +122,36 @@ Deno.serve(async (req) => {
         possibleValues.push('INTERNATO', 'internato', 'Internato');
       }
 
-      const { data, error: queryError } = await supabaseAdmin
-        .from('conteudos')
-        .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
-        .eq('id_ies', userData.id_ies)
-        .in('semestre', [...new Set(possibleValues)]);
+      // Paginated fetch for semester-filtered query
+      const uniqueValues = [...new Set(possibleValues)];
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
 
-      if (queryError) {
-        console.error('get-study-contents: Error fetching filtered conteudos:', queryError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch conteudos', details: queryError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      while (hasMore) {
+        const { data, error: queryError } = await supabaseAdmin
+          .from('conteudos')
+          .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+          .eq('id_ies', userData.id_ies)
+          .in('semestre', uniqueValues)
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (queryError) {
+          console.error('get-study-contents: Error fetching filtered conteudos:', queryError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch conteudos', details: queryError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        if (data && data.length > 0) {
+          allConteudos = allConteudos.concat(data);
+          from += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
       }
-      allConteudos = data || [];
       console.log(`get-study-contents: Fetched ${allConteudos.length} records for IES ${userData.id_ies}, semestre filter: ${normalizedSem}`);
     } else {
       // No filter — fetch ALL using pagination (backwards compatible)
