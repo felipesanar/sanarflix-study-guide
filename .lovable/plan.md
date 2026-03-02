@@ -1,122 +1,166 @@
 
 
-## Auditoria e Correcao do Pipeline de Upload de Guia de Estudos
+## Auditoria e Upgrade do Pipeline de Importacao para Comparacao de Alto Nivel
 
-### Bugs Criticos Encontrados
+### Problemas Identificados
 
-#### BUG 1 (CRITICO): Batching no frontend destroi dados em MERGE/REPLACE
+**1. Nenhuma comparacao campo-a-campo com o banco de dados**
+O fluxo atual para MERGE/REPLACE faz apenas `DELETE escopo + INSERT tudo`. Nao ha verificacao se uma linha do arquivo ja existe identica no banco. Isso significa:
+- Nao sabemos quantas linhas realmente mudaram vs estao iguais
+- Deletamos e reinserimos dados identicos desnecessariamente
+- Nao ha confianca de que os dados foram inseridos corretamente
 
-Este e o bug principal causando perda e mistura de dados entre semestres.
+**2. Limite de 1000 linhas do Supabase nao e tratado na busca para comparacao**
+A query filtrada por semestre no `get-study-contents` (linha 125) nao usa paginacao. Se um semestre tiver mais de 1000 conteudos, os excedentes sao silenciosamente ignorados.
 
-O frontend envia dados em lotes de 500 linhas (arquivo `StudyGuideImportWizard.tsx`, linha 405). Para cada lote, a Edge Function `admin-upload-study-guide` executa DELETE escopado + INSERT. O problema:
+**3. Sem verificacao pos-insercao**
+Apos inserir os dados, o sistema nao verifica se a contagem no banco bate com o esperado. Se uma insercao falhar silenciosamente, ninguem sabe.
 
-```text
-Arquivo com 1200 linhas, modo MERGE, semestre 3:
-
-Lote 1 (linhas 1-500):
-  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
-  -> INSERT linhas 1-500  (OK ate aqui)
-
-Lote 2 (linhas 501-1000):
-  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
-  -> APAGA as 500 linhas do lote 1!
-  -> INSERT linhas 501-1000
-
-Lote 3 (linhas 1001-1200):
-  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
-  -> APAGA as 500 linhas do lote 2!
-  -> INSERT linhas 1001-1200
-
-Resultado: apenas as ultimas 200 linhas sobrevivem.
-```
-
-Se o arquivo tem multiplos semestres misturados nos lotes, semestres inteiros podem ser apagados e substituidos por dados parciais.
-
-#### BUG 2: MERGE e REPLACE fazem exatamente a mesma coisa
-
-No codigo da Edge Function (linha 158), ambos os modos executam a mesma logica: delete + insert. Nao ha diferenciacao real entre eles.
-
-#### BUG 3: Fill-down de celulas mescladas pode propagar semestre errado
-
-A funcao `fillDownMergedCells` (parseFile.ts, linha 244) propaga o valor do semestre para baixo em celulas vazias. Se uma planilha tem semestres diferentes separados por linhas vazias, o fill-down vai atribuir o semestre anterior a linhas que pertencem a outro semestre.
-
-#### BUG 4: Contagem de deletes sempre zero
-
-A Edge Function usa `.delete()` sem `{ count: 'exact' }`, entao `count` retorna `null/undefined`, e o total de deletes reportado e sempre 0.
+**4. Sem hash/fingerprint de linha para comparacao eficiente**
+Cada linha precisa ser comparada por todos os campos (semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz). Sem uma funcao de fingerprint, a comparacao e fragil.
 
 ---
 
 ### Plano de Correcao
 
-#### 1. Corrigir a logica de batching (BUG CRITICO)
+#### 1. Nova action `smart_import` na Edge Function
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+Criar uma nova action que faz tudo server-side com acesso total ao banco:
+
+```text
+action: 'smart_import'
+Entrada: { config, scopes, rows[] }
+
+Fluxo:
+1. Buscar TODOS os registros existentes no escopo (IES + semestres) com paginacao
+   - Usar .range(from, from+999) em loop ate nao haver mais dados
+   - Isso ignora o limite de 1000 do Supabase
+
+2. Criar fingerprint de cada registro existente:
+   fingerprint = JSON.stringify([semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz])
+
+3. Criar fingerprint de cada linha do arquivo
+
+4. Comparar:
+   - Se fingerprint do arquivo existe nos existentes: IDENTICA (pular)
+   - Se nao existe: NOVA ou ALTERADA (precisa inserir)
+
+5. Para MERGE/REPLACE:
+   - Deletar registros do escopo que NAO existem no arquivo (foram removidos)
+   - Inserir registros do arquivo que NAO existem no banco (novos/alterados)
+   - Manter registros identicos intactos
+
+6. Verificacao pos-insercao:
+   - Contar registros no banco apos operacao
+   - Comparar com contagem esperada
+   - Reportar discrepancias
+
+7. Retornar contagens detalhadas:
+   { inserted, deleted, unchanged, errors, verified_total }
+```
+
+Este approach e superior porque:
+- O service_role nao tem limite de 1000 linhas
+- A comparacao acontece no servidor, perto do banco, sem latencia
+- Nao depende do frontend para orquestrar delete + insert separados
+- Verifica o resultado final
+
+#### 2. Funcao de fingerprint para comparacao deterministica
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+```text
+function rowFingerprint(r):
+  valores = [r.semestre, r.materia, r.tema, r.subtema, r.aula, r.link_aula, r.link_pdf, r.link_quiz]
+  valores_normalizados = valores.map(v => (v || '').trim().toLowerCase())
+  return valores_normalizados.join('|')
+```
+
+A normalizacao garante que diferencas de espacos, case, ou nulls nao causem falsos positivos.
+
+#### 3. Busca paginada de TODOS os registros existentes
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+```text
+async function fetchAllExisting(supabaseAdmin, iesId, semestres?):
+  allRows = []
+  PAGE = 1000
+  from = 0
+  loop:
+    query = supabaseAdmin.from('conteudos')
+      .select('id, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
+      .eq('id_ies', iesId)
+    if semestres:
+      query = query.in('semestre', semestres)
+    query = query.range(from, from + PAGE - 1)
+    
+    { data } = await query
+    if data.length == 0: break
+    allRows.push(...data)
+    from += PAGE
+    if data.length < PAGE: break
+  
+  return allRows
+```
+
+#### 4. Verificacao pos-insercao
+
+**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+
+Apos todas as insercoes, o sistema faz uma contagem final:
+
+```text
+// Contar registros finais no escopo
+const { count } = await supabaseAdmin
+  .from('conteudos')
+  .select('*', { count: 'exact', head: true })
+  .eq('id_ies', iesId)
+  .in('semestre', semestres);
+
+// Comparar com esperado
+const expected = rowsToImport.length;
+if (count !== expected) {
+  // Reportar discrepancia
+}
+```
+
+#### 5. Atualizar o frontend para usar smart_import
 
 **Arquivo: `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx`**
 
-A solucao e separar o DELETE do INSERT:
-- Enviar um primeiro request com `action: 'delete'` contendo apenas os escopos (IES + semestres) a serem limpos
-- Depois enviar os lotes de INSERT com `action: 'insert_only'`
-- Assim o DELETE acontece apenas UMA VEZ, e todos os lotes subsequentes fazem apenas INSERT
+Para MERGE e REPLACE:
+- Enviar TODAS as linhas em um unico request com `action: 'smart_import'`
+- Se o total de linhas exceder 5000, enviar em lotes de 5000 mas com flag `batch_index` e `total_batches` para o servidor saber quando verificar
+- O servidor faz o delete e insert inteligente
+- O frontend recebe contagens detalhadas: inseridas, removidas, inalteradas, erros
 
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
+Para APPEND:
+- Manter comportamento atual (insert_only sem delete)
 
-Adicionar suporte a dois tipos de request:
-- `action: 'delete_scope'` -- executa apenas o DELETE escopado, retorna contagem
-- `action: 'insert_only'` -- executa apenas INSERT (sem delete)
-- Manter compatibilidade com o fluxo atual para APPEND (que nao deleta nada)
+#### 6. Corrigir paginacao no get-study-contents
 
-Fluxo corrigido:
+**Arquivo: `supabase/functions/get-study-contents/index.ts`**
+
+A query filtrada por semestre (linha 125) atualmente nao pagina. Adicionar paginacao igual a query sem filtro:
+
 ```text
-Arquivo com 1200 linhas, modo MERGE:
+// Antes (sem paginacao):
+const { data } = await supabaseAdmin.from('conteudos').select(...).eq(...).in(...)
 
-Request 1 (delete_scope):
-  -> DELETE FROM conteudos WHERE id_ies = X AND semestre IN ('3')
-  -> Retorna: deleted = 850
-
-Request 2 (insert_only, lote 1):
-  -> INSERT linhas 1-500
-
-Request 3 (insert_only, lote 2):
-  -> INSERT linhas 501-1000
-
-Request 4 (insert_only, lote 3):
-  -> INSERT linhas 1001-1200
-
-Resultado: todas as 1200 linhas inseridas corretamente.
+// Depois (com paginacao):
+let allConteudos = [];
+let from = 0;
+const PAGE_SIZE = 1000;
+while (true) {
+  const { data } = await query.range(from, from + PAGE_SIZE - 1);
+  allConteudos.push(...data);
+  if (data.length < PAGE_SIZE) break;
+  from += PAGE_SIZE;
+}
 ```
-
-#### 2. Diferenciar MERGE de REPLACE
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-- REPLACE: deleta TUDO do escopo (IES inteira ou IES+semestres) e reinsere -- comportamento atual
-- MERGE: deleta apenas os semestres que aparecem no arquivo, mantendo semestres nao mencionados intactos
-
-Na pratica, com `scope: 'ies_semestre'`, ambos tem o mesmo efeito. Mas com `scope: 'ies_full'`:
-- REPLACE: apaga TODOS os semestres da IES
-- MERGE: apaga apenas os semestres presentes no arquivo
-
-Implementacao: no modo MERGE, forcar `scope = 'ies_semestre'` independente da configuracao.
-
-#### 3. Proteger fill-down contra propagacao incorreta
-
-**Arquivo: `src/components/admin/study-guide-import/utils/parseFile.ts`**
-
-- Resetar `lastValues` quando uma linha completamente vazia for encontrada (possivel separador entre secoes)
-- Limitar fill-down a no maximo 50 linhas consecutivas sem valor original
-- Adicionar warning quando fill-down for aplicado para que o usuario saiba
-
-#### 4. Corrigir contagem de deletes
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-Adicionar `{ count: 'exact' }` nas queries de delete para obter contagens reais.
-
-#### 5. Adicionar logs detalhados para rastreabilidade
-
-**Arquivo: `supabase/functions/admin-upload-study-guide/index.ts`**
-
-- Logar IES, semestres, e contagens por semestre em cada operacao
-- Logar amostra das primeiras 3 linhas do payload para debugging
 
 ---
 
@@ -124,14 +168,18 @@ Adicionar `{ count: 'exact' }` nas queries de delete para obter contagens reais.
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `supabase/functions/admin-upload-study-guide/index.ts` | Separar DELETE e INSERT em actions distintas; diferenciar MERGE/REPLACE; fix count; logs |
-| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Enviar delete_scope primeiro, depois lotes insert_only; atualizar progresso |
-| `src/components/admin/study-guide-import/utils/parseFile.ts` | Proteger fill-down; adicionar warning de fill-down |
+| `supabase/functions/admin-upload-study-guide/index.ts` | Nova action `smart_import` com comparacao campo-a-campo, busca paginada, verificacao pos-insercao |
+| `supabase/functions/admin-upload-study-guide/index.ts` | Funcao `rowFingerprint` para comparacao deterministica |
+| `supabase/functions/admin-upload-study-guide/index.ts` | Funcao `fetchAllExisting` com paginacao sem limite de 1000 |
+| `src/components/admin/study-guide-import/StudyGuideImportWizard.tsx` | Usar `smart_import` para MERGE/REPLACE em vez de delete_scope + insert_only separados |
+| `supabase/functions/get-study-contents/index.ts` | Adicionar paginacao na query filtrada por semestre |
 
 ### Resultado Esperado
 
-- Todas as linhas do arquivo serao inseridas corretamente, independente do tamanho
-- Dados de um semestre nunca serao sobrescritos por dados de outro
-- Modos MERGE, REPLACE e APPEND terao comportamentos distintos e corretos
-- Celulas mescladas serao tratadas com seguranca
+- Cada linha do arquivo e comparada campo-a-campo com TODOS os registros existentes no banco
+- Nenhum limite de 1000 linhas -- busca paginada garante acesso a base completa
+- Registros identicos nao sao deletados e reinseridos desnecessariamente
+- Contagens precisas: inseridos, removidos, inalterados, erros
+- Verificacao pos-insercao confirma integridade dos dados
+- Logs detalhados para rastreabilidade de cada operacao
 
