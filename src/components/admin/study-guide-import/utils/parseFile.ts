@@ -248,16 +248,37 @@ function fillDownMergedCells(rows: Record<string, string>[], headers: string[]):
   if (columnsToFill.length === 0) return;
   
   const lastValues: Record<string, string> = {};
+  const consecutiveEmpty: Record<string, number> = {};
+  const MAX_CONSECUTIVE_FILL = 50;
   let filledCount = 0;
   
   for (const row of rows) {
+    // Check if entire row is empty — reset fill-down state (section separator)
+    const allEmpty = Object.values(row).every(v => !v || v.trim() === '');
+    if (allEmpty) {
+      // Reset all tracked values — this row is a separator between sections
+      for (const col of columnsToFill) {
+        delete lastValues[col];
+        consecutiveEmpty[col] = 0;
+      }
+      continue;
+    }
+    
     for (const col of columnsToFill) {
       const val = row[col];
       if (val && val.trim() !== '') {
         lastValues[col] = val;
+        consecutiveEmpty[col] = 0;
       } else if (lastValues[col]) {
-        row[col] = lastValues[col];
-        filledCount++;
+        consecutiveEmpty[col] = (consecutiveEmpty[col] || 0) + 1;
+        if (consecutiveEmpty[col] <= MAX_CONSECUTIVE_FILL) {
+          row[col] = lastValues[col];
+          filledCount++;
+        } else {
+          // Exceeded limit — stop propagating this column
+          console.warn(LOG_PREFIX, `Fill-down limit reached for column "${col}" after ${MAX_CONSECUTIVE_FILL} consecutive empty rows`);
+          delete lastValues[col];
+        }
       }
     }
   }

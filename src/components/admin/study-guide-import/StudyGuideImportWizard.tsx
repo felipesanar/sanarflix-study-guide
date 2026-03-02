@@ -391,7 +391,7 @@ export const StudyGuideImportWizard: React.FC = () => {
         setProgress({ stage, stageProgress, totalProgress, message });
       };
 
-      updateProgress('uploading', 0, 'Enviando dados...');
+      updateProgress('uploading', 0, 'Preparando importação...');
 
       // Get auth token
       const { data: sessionData } = await supabase.auth.getSession();
@@ -401,24 +401,71 @@ export const StudyGuideImportWizard: React.FC = () => {
         throw new Error('Sessão expirada. Por favor, faça login novamente.');
       }
 
-      // Send rows in batches to avoid Edge Function timeout
-      const BATCH_SIZE = 500;
-      const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
       const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0 };
       const aggregatedErrors: ImportResultRow[] = [];
       let lastRequestId = '';
+
+      // ── Step 1: For MERGE/REPLACE, send a single delete_scope request first ──
+      if (config.mode === 'MERGE' || config.mode === 'REPLACE') {
+        updateProgress('uploading', 0, 'Limpando dados existentes...');
+
+        // Build scopes: group by IES, collect unique semestres per IES
+        const scopeMap = new Map<string, Set<string>>();
+        for (const row of rowsToImport) {
+          if (!scopeMap.has(row.id_ies)) {
+            scopeMap.set(row.id_ies, new Set());
+          }
+          scopeMap.get(row.id_ies)!.add(row.semestre);
+        }
+
+        const scopes = Array.from(scopeMap.entries()).map(([iesId, semSet]) => ({
+          iesId,
+          semestres: Array.from(semSet),
+        }));
+
+        console.log(LOG_PREFIX, `Sending delete_scope for ${scopes.length} IES, mode=${config.mode}`);
+
+        const { data: deleteData, error: deleteError } = await supabase.functions.invoke('admin-upload-study-guide', {
+          body: {
+            action: 'delete_scope',
+            config,
+            scopes,
+          },
+        });
+
+        if (deleteError) {
+          throw new Error(deleteError.message || 'Erro ao limpar dados existentes');
+        }
+
+        if (deleteData?.counts) {
+          aggregatedCounts.deleted += deleteData.counts.deleted || 0;
+        }
+        lastRequestId = deleteData?.requestId || lastRequestId;
+
+        console.log(LOG_PREFIX, `delete_scope completed: deleted=${aggregatedCounts.deleted}`);
+      }
+
+      // ── Step 2: Send rows in insert_only batches ──
+      const BATCH_SIZE = 500;
+      const totalBatches = Math.ceil(rowsToImport.length / BATCH_SIZE);
+      const actionType = config.mode === 'APPEND' ? undefined : 'insert_only';
 
       for (let i = 0; i < totalBatches; i++) {
         const batchRows = rowsToImport.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
         const batchProgress = Math.round(((i) / totalBatches) * 100);
         updateProgress('uploading', batchProgress, `Enviando lote ${i + 1}/${totalBatches} (${batchRows.length} linhas)...`);
 
+        const requestBody: Record<string, unknown> = {
+          config,
+          institutionMappings: sheetMappings,
+          rows: batchRows,
+        };
+        if (actionType) {
+          requestBody.action = actionType;
+        }
+
         const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
-          body: {
-            config,
-            institutionMappings: sheetMappings,
-            rows: batchRows,
-          },
+          body: requestBody,
         });
 
         if (fnError) {
