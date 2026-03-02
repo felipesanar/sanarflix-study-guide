@@ -325,10 +325,6 @@ async function handleSmartImport(
     return jsonResponse({ error: "No rows to import", requestId }, 400);
   }
 
-  if (rows.length > 10000) {
-    return jsonResponse({ error: "Too many rows. Maximum 10000 per request.", requestId }, 400);
-  }
-
   const sample = rows.slice(0, 3).map(r => ({
     row: r.rowNumber, ies: r.id_ies, sem: r.semestre, mat: r.materia,
   }));
@@ -568,10 +564,6 @@ async function handleInsertOnly(
     return jsonResponse({ error: "No rows to insert", requestId }, 400);
   }
 
-  if (rows.length > 10000) {
-    return jsonResponse({ error: "Too many rows. Maximum 10000 per request.", requestId }, 400);
-  }
-
   const sample = rows.slice(0, 3).map((r) => ({
     row: r.rowNumber, ies: r.id_ies, sem: r.semestre, mat: r.materia,
   }));
@@ -743,10 +735,6 @@ Deno.serve(async (req: Request) => {
 
     if (!rows || rows.length === 0) {
       return jsonResponse({ error: "No rows to import", requestId }, 400);
-    }
-
-    if (rows.length > 10000) {
-      return jsonResponse({ error: "Too many rows. Maximum 10000 per import.", requestId }, 400);
     }
 
     if (config.mode === "APPEND") {

@@ -451,45 +451,56 @@ export const StudyGuideImportWizard: React.FC = () => {
       let verificationResult: { expected: number; actual: number; match: boolean } | null = null;
 
       if (config.mode === 'MERGE' || config.mode === 'REPLACE') {
-        // ── Smart Import: server-side field-by-field comparison ──
-        updateProgress('uploading', 0, 'Enviando dados para comparação inteligente...');
+        // ── Smart Import: server-side field-by-field comparison with batching ──
+        const SMART_BATCH_SIZE = 5000;
+        const totalBatchesSmart = Math.ceil(rowsToImport.length / SMART_BATCH_SIZE);
 
-        // Send ALL rows in a single request to avoid batching race conditions.
-        // The server handles up to 10000 rows. If we exceed that, we must warn the user.
-        if (rowsToImport.length > 10000) {
-          throw new Error(`Número de linhas (${rowsToImport.length}) excede o limite de 10.000. Reduza o arquivo e tente novamente.`);
-        }
+        console.log(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows in ${totalBatchesSmart} batch(es)`);
 
-        updateProgress('uploading', 30, `Enviando ${rowsToImport.length} linhas para comparação inteligente...`);
-        console.log(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows (single request)`);
+        for (let i = 0; i < totalBatchesSmart; i++) {
+          const batchRows = rowsToImport.slice(i * SMART_BATCH_SIZE, (i + 1) * SMART_BATCH_SIZE);
+          const batchProgress = Math.round((i / totalBatchesSmart) * 100);
+          const batchLabel = totalBatchesSmart > 1
+            ? `Lote ${i + 1}/${totalBatchesSmart} (${batchRows.length} linhas)...`
+            : `Enviando ${batchRows.length} linhas para comparação inteligente...`;
+          updateProgress('uploading', batchProgress, batchLabel);
 
-        const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
-          body: {
-            action: 'smart_import',
-            config,
-            rows: rowsToImport,
-          },
-        });
+          const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
+            body: {
+              action: 'smart_import',
+              config,
+              rows: batchRows,
+            },
+          });
 
-        if (fnError) {
-          throw new Error(fnError.message || 'Erro na importação inteligente');
-        }
+          if (fnError) {
+            console.error(LOG_PREFIX, `Smart import batch ${i + 1} failed:`, fnError);
+            // Register error but continue with next batches
+            aggregatedCounts.errors += batchRows.length;
+            aggregatedErrors.push({
+              rowNumber: batchRows[0]?.rowNumber || 0,
+              status: 'error' as const,
+              error: `Lote ${i + 1} falhou: ${fnError.message || 'Erro desconhecido'}`,
+            });
+            continue;
+          }
 
-        if (data.counts) {
-          aggregatedCounts.inserted += data.counts.inserted || 0;
-          aggregatedCounts.updated += data.counts.updated || 0;
-          aggregatedCounts.deleted += data.counts.deleted || 0;
-          aggregatedCounts.ignored += data.counts.ignored || 0;
-          aggregatedCounts.errors += data.counts.errors || 0;
-          aggregatedCounts.unchanged += data.counts.unchanged || 0;
+          if (data.counts) {
+            aggregatedCounts.inserted += data.counts.inserted || 0;
+            aggregatedCounts.updated += data.counts.updated || 0;
+            aggregatedCounts.deleted += data.counts.deleted || 0;
+            aggregatedCounts.ignored += data.counts.ignored || 0;
+            aggregatedCounts.errors += data.counts.errors || 0;
+            aggregatedCounts.unchanged += data.counts.unchanged || 0;
+          }
+          if (data.verification) {
+            verificationResult = data.verification;
+          }
+          if (data.errors?.length) {
+            aggregatedErrors.push(...data.errors);
+          }
+          lastRequestId = data.requestId || lastRequestId;
         }
-        if (data.verification) {
-          verificationResult = data.verification;
-        }
-        if (data.errors?.length) {
-          aggregatedErrors.push(...data.errors);
-        }
-        lastRequestId = data.requestId || lastRequestId;
 
         if (verificationResult && !verificationResult.match) {
           console.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
