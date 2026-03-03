@@ -1,88 +1,81 @@
 
 
-## Corrigir Fluxo "Esqueci a Senha" - Problema de Envio de Email
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### Diagnostico
+### Causa Raiz Identificada
 
-O erro "Failed to reach hook within maximum time of 5.000000 seconds" / 422 / 500 acontece porque:
+Analisando os logs de autenticacao, o problema fica evidente:
 
-1. A Edge Function `custom-email-templates` usa **Resend** para enviar emails
-2. A API key do Resend esta vinculada a uma conta sandbox (free tier) do usuario `diegoquadros1806@gmail.com`
-3. O Resend **bloqueia** envios para qualquer email que nao seja o do dono da conta sandbox
-4. Quando alguem como `felipe.souza@sanar.com` tenta redefinir senha, Resend retorna 403
-5. A Edge Function retorna 500, e o Supabase Auth interpreta como "hook failed"
-
-**Evidencia dos logs:**
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
-"You can only send testing emails to your own email address
-(diegoquadros1806@gmail.com). To send emails to other recipients,
-please verify a domain at resend.com/domains"
+
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+
 ```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
+
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
 ### Solucao
 
-Migrar para o sistema gerenciado de emails do Lovable (`auth-email-hook`), que provisiona credenciais automaticamente sem depender de uma conta Resend externa com dominio verificado.
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
 
-### Passos
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
 
-#### 1. Configurar dominio de email
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
 
-Antes de criar os templates, e necessario configurar um dominio de envio. O dominio ideal seria um subdominio como `notify.sanar.com.br` ou `mail.academy.sanar.com.br`.
+---
 
-Sera exibido o dialogo de configuracao de dominio de email para o usuario completar a verificacao DNS.
+### Mudancas
 
-#### 2. Scaffold dos templates de email gerenciados
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
 
-Usar a ferramenta `scaffold_auth_email_templates` para criar os templates padrao do Lovable que:
-- Nao dependem de `RESEND_API_KEY` externa
-- Nao dependem de `SEND_EMAIL_HOOK_SECRET`
-- Usam `LOVABLE_API_KEY` (ja provisionada automaticamente)
-- Sao compatíveis com o sistema de email do Lovable Cloud
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
 
-#### 3. Aplicar branding dos templates
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
 
-Adaptar os templates gerados para manter a identidade visual atual:
-- Cores primarias do app (vermelho Sanar `#8B1538`)
-- Logo do SanarFlix Academy
-- Textos em portugues
-- Mesmo tom e linguagem ja usados nos templates atuais
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
 
-Os templates a serem estilizados:
-- **recovery** (redefinicao de senha) - manter o visual atual do `reset-password.tsx`
-- **invite** (convite de usuario) - manter o visual do `invite-user.tsx`
-- **magic-link** (link magico) - manter o visual do `magic-link.tsx`
-- **signup** (confirmacao de cadastro)
-- **email-change** (alteracao de email)
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
 
-#### 4. Deploy da Edge Function `auth-email-hook`
+**Arquivo: `src/pages/UpdatePassword.tsx`**
 
-Fazer deploy da nova Edge Function gerenciada. Isso substitui o hook `custom-email-templates` que esta falhando.
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
 
-#### 5. Verificar fluxo completo
+#### 3. Deploy da Edge Function
 
-O fluxo de "Esqueci a senha" no `LoginForm.tsx` ja esta correto:
-- Chama `supabase.auth.resetPasswordForEmail` com `redirectTo: https://academy.sanar.com.br/reset-password`
-- A pagina `/reset-password` (`ResetPassword.tsx`) ja existe e funciona corretamente
-- Valida tokens da URL (access_token/refresh_token ou token/type)
-- Valida complexidade da senha
-- Chama `supabase.auth.updateUser({ password })`
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
 
-Nenhuma alteracao no codigo do frontend e necessaria.
+---
 
-### Resultado
+### Resumo
 
-- Emails de redefinicao de senha serao enviados de um dominio verificado gerenciado pelo Lovable
-- Nenhuma dependencia de conta Resend externa
-- Todos os tipos de email de autenticacao funcionarao (recovery, invite, magic-link, signup)
-- O visual e linguagem dos emails serao mantidos
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
 
-### Resumo das Mudancas
+### Por que isso resolve
 
-| Acao | Detalhe |
-|------|---------|
-| Configurar dominio de email | Via dialogo de setup do Lovable Cloud |
-| Scaffold templates gerenciados | `scaffold_auth_email_templates` |
-| Estilizar templates | Aplicar branding Sanar (cores, logo, portugues) |
-| Deploy `auth-email-hook` | Substituir o hook `custom-email-templates` que falha |
-| Codigo frontend | Nenhuma alteracao necessaria |
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 
