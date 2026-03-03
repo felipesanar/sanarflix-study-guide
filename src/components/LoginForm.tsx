@@ -161,11 +161,12 @@ export const LoginForm: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end -mt-2">
+                {/* Botão "Esqueci a senha" ocultado temporariamente enquanto o domínio de email é configurado */}
+                {/* <div className="flex items-center justify-end -mt-2">
                   <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword}>
                     Esqueci a senha
                   </Button>
-                </div>
+                </div> */}
 
                 <Button
                   type="submit"
