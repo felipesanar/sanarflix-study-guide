@@ -32,6 +32,12 @@ export default function UpdatePassword() {
                 const hashParams = new URLSearchParams(hash || '');
                 const getParam = (key: string) => searchParams.get(key) || hashParams.get(key);
 
+                // Priority 1: Query params token_hash + type (new frontend-direct format)
+                // These links go directly to the SPA, so bots can't consume the token
+                const tokenHash = searchParams.get('token_hash');
+                const tokenType = searchParams.get('type');
+
+                // Priority 2-3: Hash params (legacy Supabase redirect format)
                 const accessToken = getParam('access_token');
                 const refreshToken = getParam('refresh_token');
                 const token = getParam('token');
@@ -41,7 +47,17 @@ export default function UpdatePassword() {
                 const errorCode = getParam('error_code');
                 const errorDesc = getParam('error_description');
 
-                if (accessToken && refreshToken) {
+                if (tokenHash && tokenType) {
+                    // New format: frontend-direct link with token_hash in query params
+                    console.log('[UpdatePassword] Verifying via query params token_hash');
+                    const { error } = await supabase.auth.verifyOtp({
+                        token_hash: tokenHash,
+                        type: tokenType as any,
+                    });
+                    if (error) throw error;
+                    setCanUpdate(true);
+                } else if (accessToken && refreshToken) {
+                    // Legacy format: Supabase redirect with access_token in hash
                     const { error } = await supabase.auth.setSession({
                         access_token: accessToken,
                         refresh_token: refreshToken,
@@ -49,15 +65,19 @@ export default function UpdatePassword() {
                     if (error) throw error;
                     setCanUpdate(true);
                 } else if (token && type) {
+                    // Legacy format: token in hash params
                     const { error } = await supabase.auth.verifyOtp({
                         token_hash: token,
                         type: type as any,
                     });
                     if (error) throw error;
                     setCanUpdate(true);
-                } else {
+                } else if (errorGeneral || errorCode || errorDesc) {
+                    // Error params from Supabase redirect
                     const msg = errorDesc || errorCode || errorGeneral;
                     throw new Error(msg || 'Link inválido ou expirado');
+                } else {
+                    throw new Error('Link inválido ou expirado');
                 }
             } catch (e: any) {
                 setError(e?.message || 'Não foi possível validar o link.');

@@ -43,12 +43,14 @@ export function buildCanonicalLink(opts: BuildCanonicalLinkOptions): string {
 
   let finalUrl: string;
 
-  // Strategy 1: Build deterministic URL from token_hash
-  if (tokenHash && supabaseUrl) {
-    const redirectTo = encodeURIComponent(`${CANONICAL_ORIGIN}${redirectPath}`);
+  // Strategy 1: Build frontend-direct URL from token_hash
+  // Links point directly to the SPA page with token_hash as query param.
+  // This prevents email security scanners (bots) from consuming the OTP,
+  // since they don't execute JavaScript — only real browsers will call verifyOtp().
+  if (tokenHash) {
     const type = props.verification_type ?? 'recovery';
-    finalUrl = `${supabaseUrl}/auth/v1/verify?token=${tokenHash}&type=${type}&redirect_to=${redirectTo}`;
-    console.log('[auth-links] Built URL from token_hash. Source: token_hash');
+    finalUrl = `${CANONICAL_ORIGIN}${redirectPath}?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(type)}`;
+    console.log('[auth-links] Built frontend-direct URL from token_hash. Source: token_hash');
   }
   // Strategy 2: Normalize action_link
   else if (props.action_link) {
