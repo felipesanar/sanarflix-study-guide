@@ -239,16 +239,16 @@ Deno.serve(async (req) => {
       if (validContentIds.has(contentId)) return true;
       
       // Method 2: Extract semester from composite content_id
-      if (userSemestre) {
+      if (effectiveSemestre) {
         const extractedSemestre = extractSemestreFromContentId(contentId);
         if (extractedSemestre !== null) {
-          return extractedSemestre === userSemestre;
+          return extractedSemestre === String(effectiveSemestre);
         }
       }
       
       // Method 3: If content_id matches composite format for any semester content
       for (const content of conteudos) {
-        const compositeId = getCompositeId(content, userSemestre || 1);
+        const compositeId = getCompositeId(content, effectiveSemestre || 1);
         if (compositeId === contentId) return true;
       }
       
