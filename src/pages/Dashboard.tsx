@@ -34,6 +34,7 @@ import {
 } from '@/components/progress-hub';
 import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
 import { AiTutorCard } from '@/components/progress-hub/mobile/AiTutorCard';
+import { isAdmin } from '@/utils/accessRules';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
