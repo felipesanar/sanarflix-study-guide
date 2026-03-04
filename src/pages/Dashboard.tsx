@@ -34,6 +34,7 @@ import {
 } from '@/components/progress-hub';
 import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
 import { AiTutorCard } from '@/components/progress-hub/mobile/AiTutorCard';
+import { isAdmin } from '@/utils/accessRules';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
@@ -711,7 +712,7 @@ export const Dashboard: React.FC = () => {
           </motion.div>
           
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
-            <AiTutorCard />
+            {isAdmin(user) && <AiTutorCard />}
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}
