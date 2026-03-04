@@ -667,7 +667,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       default:
         return false;
     }
-  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres]);
+  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres, excludedSheets]);
 
   const handleNext = useCallback(() => {
     const currentIndex = STEPS.indexOf(step);
