@@ -152,8 +152,8 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
               size="icon"
               aria-label="Mais opções"
               className={cn(
-                "h-10 w-10 text-zinc-500 rounded-full",
-                variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
+                "h-10 w-10 rounded-full",
+                variant === 'dark' ? "text-foreground hover:bg-white/10" : "text-foreground hover:bg-black/5"
               )}
             >
               <MoreVertical className="h-5 w-5" />
