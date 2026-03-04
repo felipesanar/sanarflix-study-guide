@@ -228,28 +228,27 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
                 </div>
               </>
             ) : (
-              <AnimatePresence>
-                {selectedDayEvents.map((event, idx) => (
-                  <React.Fragment key={event.id}>
-                    {/* Event card */}
+              <>
+                <AnimatePresence>
+                  {selectedDayEvents.map((event) => (
                     <MobileEventCard
+                      key={event.id}
                       event={event}
                       onRemove={onRemoveEvent}
                       onClick={() => onEventClick?.(event)}
                       variant={variant}
                     />
-
-                    {/* Add slot between cards */}
-                    <DropZone
-                      isActive={false}
-                      variant={variant}
-                      size="sm"
-                      showAddButton
-                      onAddClick={() => setDrawerExpanded(true)}
-                    />
-                  </React.Fragment>
-                ))}
-              </AnimatePresence>
+                  ))}
+                </AnimatePresence>
+                {/* Single add slot at the end */}
+                <DropZone
+                  isActive={false}
+                  variant={variant}
+                  size="sm"
+                  showAddButton
+                  onAddClick={() => setDrawerExpanded(true)}
+                />
+              </>
             )}
           </div>
         </div>
