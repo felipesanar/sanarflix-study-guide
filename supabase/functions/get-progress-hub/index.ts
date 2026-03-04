@@ -745,6 +745,7 @@ Deno.serve(async (req) => {
       user: {
         nome: userData.nome,
         semestre: userSemestre,
+        effective_semestre: String(effectiveSemestre || userSemestre),
         semestre_warning: !userSemestre ? 'Semestre não definido para o usuário' : null,
         streak_goal: 3 // Default, can be stored in user preferences
       }
