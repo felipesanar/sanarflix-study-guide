@@ -262,8 +262,9 @@ export const StudyGuideImportWizard: React.FC = () => {
           allNewSemestres.push(...result.newSemestres.map(s => ({ ...s, iesNome })));
         }
       } else {
-        // For XLSX, validate each sheet
-        for (const sheet of sheets) {
+        // For XLSX, validate each enabled sheet (skip excluded)
+        const enabledSheets = sheets.filter(s => !excludedSheets.has(s.name));
+        for (const sheet of enabledSheets) {
           const mapping = sheetMappings.find(m => m.sheetName === sheet.name);
           if (!mapping?.iesId) {
             allErrors.push({
