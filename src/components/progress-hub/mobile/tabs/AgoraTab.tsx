@@ -34,7 +34,7 @@ const ActionsCarousel: React.FC<{
   }
 
   return (
-    <div className="relative overflow-x-clip">
+    <div className="relative overflow-x-hidden">
       {/* Carousel container with scroll-snap */}
       <div 
         className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 touch-pan-x"

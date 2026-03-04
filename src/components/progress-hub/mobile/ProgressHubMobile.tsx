@@ -241,7 +241,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
 
         {/* Tab content */}
         {renderTabContent()}
-      </div>
 
       {/* Sticky CTA bar - appears on scroll */}
       <MobileStickyCtaBar
