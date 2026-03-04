@@ -1,81 +1,86 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Correção do Parser CSV do Importador de Guia de Estudos
 
-### Causa Raiz Identificada
+### Problemas Identificados
 
-Analisando os logs de autenticacao, o problema fica evidente:
+A partir dos screenshots e análise do código, o parser CSV tem múltiplas fragilidades que causam os sintomas observados:
+
+**Sintoma 1**: 190 linhas com "matéria vazia" → A coluna `materia` não está sendo mapeada corretamente
+**Sintoma 2**: 171 "semestres novos" contendo URLs → Dados de URL estão caindo na coluna `semestre`
+**Sintoma 3**: Valores de "semestre" começam com `,` (vírgula) → Indica desalinhamento de colunas
+
+### Causa Raiz Provável
+
+O desalinhamento de colunas acontece quando:
+1. O `detectDelimiter` escolhe o delimitador errado (só testa `,` e `;`, ignora TAB)
+2. OU o CSV tem encoding/BOM que corrompe a primeira linha
+3. OU o CSV tem mais campos de dados que cabeçalhos (URLs com vírgulas sem aspas)
+
+Independente da causa específica, o parser não tem **nenhuma defesa** contra esses cenários — nenhum log de headers detectados, nenhuma validação pós-parse, nenhuma detecção de dados anômalos em campos obrigatórios.
+
+### Plano de Correção
+
+Todas as mudanças são no arquivo `src/components/admin/study-guide-import/utils/parseFile.ts`.
+
+#### 1. Remover BOM e normalizar texto antes de parsear
+
+Adicionar `text = text.replace(/^\uFEFF/, '')` no início do parse CSV para remover UTF-8 BOM que pode corromper a primeira coluna.
+
+#### 2. Melhorar detecção de delimitador
+
+Expandir `detectDelimiter` para:
+- Suportar TAB como delimitador
+- Analisar MÚLTIPLAS linhas (header + primeiras linhas de dados), não só a primeira
+- Usar votação por maioria: o delimitador que produz o mesmo número de campos consistentemente vence
 
 ```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+Linha 1 (header): semestre;materia;tema → 2 semicolons → 3 campos
+Linha 2 (dados):  10;Anatomia;Tema1   → 2 semicolons → 3 campos
+→ Semicolon consistente = delimitador correto
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+#### 3. Adicionar matching flexível de colunas (aliases)
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+Após normalizar os headers, usar um sistema de aliases para mapear nomes de coluna:
+- `semestre` ← `semestre`, `semester`, `periodo`, `período`, `sem`
+- `materia` ← `materia`, `matéria`, `disciplina`, `discipline`, `subject`
+- `tema` ← `tema`, `theme`, `topic`, `modulo`, `módulo`
+- `link_aula` ← `link_aula`, `linkaula`, `link_video`, `video`, `url_aula`
+- etc.
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+Se os headers parseados não contêm nenhum dos aliases esperados, mostrar erro claro com os headers detectados.
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+#### 4. Validar headers após o parse
 
-### Solucao
+Depois de parsear o CSV, verificar se as colunas obrigatórias (`semestre`, `materia`) foram encontradas:
+- Se não: lançar erro descritivo listando os headers detectados: "Colunas detectadas: [x, y, z]. Colunas obrigatórias não encontradas: materia"
+- Isso dá ao admin visibilidade imediata sobre o problema
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+#### 5. Validar conteúdo do campo semestre
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+Em `validateAndNormalize`, adicionar detecção de URL no campo semestre:
+- Se `semestreStr` contém `http://` ou `https://` → erro com código `URL_IN_SEMESTRE` e mensagem clara: "O campo semestre contém uma URL. Verifique se as colunas do arquivo estão corretas."
+- Isso impede que dados malformados sejam aceitos silenciosamente
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+#### 6. Adicionar logs diagnósticos
 
----
+Após parse do CSV, logar:
+- Delimitador detectado
+- Headers encontrados (antes e depois da normalização)
+- Número de campos no header vs número de campos na primeira linha de dados
+- Alertar se houver mismatch de contagem de campos
 
-### Mudancas
+### Resumo de Mudanças
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+| `parseFile.ts` | BOM removal, delimiter detection multi-linha com TAB, aliases de colunas, validação de headers pós-parse, detecção de URL em semestre, logs diagnósticos |
 
-### Por que isso resolve
+### Resultado Esperado
 
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- CSVs com qualquer delimitador (vírgula, ponto-e-vírgula, tab) são parseados corretamente
+- Se colunas obrigatórias não são encontradas, o admin recebe erro claro com os headers detectados
+- URLs no campo semestre são rejeitadas com mensagem explicativa
+- Logs no console permitem diagnóstico rápido de problemas de formato
 
