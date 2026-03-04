@@ -139,20 +139,12 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col items-center">
-          <h1 className={cn(
-            "text-base font-bold",
-            variant === 'dark' ? "text-white" : "text-foreground"
-          )}>
-            Editar Agenda
-          </h1>
-          <span className={cn(
-            "text-[10px] font-medium opacity-60",
-            variant === 'dark' ? "text-zinc-400" : "text-zinc-500"
-          )}>
-            Modo Premium
-          </span>
-        </div>
+        <h1 className={cn(
+          "text-base font-bold",
+          variant === 'dark' ? "text-white" : "text-foreground"
+        )}>
+          Editar Agenda
+        </h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -160,14 +152,14 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
               size="icon"
               aria-label="Mais opções"
               className={cn(
-                "h-10 w-10 text-zinc-500 rounded-full",
-                variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
+                "h-10 w-10 rounded-full",
+                variant === 'dark' ? "text-foreground hover:bg-white/10" : "text-foreground hover:bg-black/5"
               )}
             >
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={8}>
+          <DropdownMenuContent align="end" sideOffset={8} className="z-[99999]">
             {onReset && (
               <DropdownMenuItem
                 onClick={onReset}
@@ -232,32 +224,31 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
                   variant === 'dark' ? "text-muted-foreground" : "text-muted-foreground"
                 )}>
                   <p className="text-sm">Nenhuma matéria agendada</p>
-                  <p className="text-xs mt-1">Toque no + ou arraste da gaveta abaixo</p>
+                  <p className="text-xs mt-1">Toque no + para adicionar matérias</p>
                 </div>
               </>
             ) : (
-              <AnimatePresence>
-                {selectedDayEvents.map((event, idx) => (
-                  <React.Fragment key={event.id}>
-                    {/* Event card */}
+              <>
+                <AnimatePresence>
+                  {selectedDayEvents.map((event) => (
                     <MobileEventCard
+                      key={event.id}
                       event={event}
                       onRemove={onRemoveEvent}
                       onClick={() => onEventClick?.(event)}
                       variant={variant}
                     />
-
-                    {/* Add slot between cards */}
-                    <DropZone
-                      isActive={false}
-                      variant={variant}
-                      size="sm"
-                      showAddButton
-                      onAddClick={() => setDrawerExpanded(true)}
-                    />
-                  </React.Fragment>
-                ))}
-              </AnimatePresence>
+                  ))}
+                </AnimatePresence>
+                {/* Single add slot at the end */}
+                <DropZone
+                  isActive={false}
+                  variant={variant}
+                  size="sm"
+                  showAddButton
+                  onAddClick={() => setDrawerExpanded(true)}
+                />
+              </>
             )}
           </div>
         </div>
@@ -358,16 +349,14 @@ const MobileEventCard: React.FC<MobileEventCardProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 opacity-60 flex-shrink-0"
+          className="h-8 w-8 opacity-60 flex-shrink-0 text-destructive hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(event.id);
           }}
           aria-label="Remover matéria do dia"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </motion.div>

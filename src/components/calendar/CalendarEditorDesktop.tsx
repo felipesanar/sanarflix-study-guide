@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Save, Search, Sparkles, ChevronLeft, ChevronRight, MoreHorizontal
+  ArrowLeft, Save, Search, Sparkles, MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -336,25 +336,6 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
               ))}
             </div>
 
-            {/* Scroll arrows for light theme */}
-            {variant === 'light' && (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 rounded-full shadow-lg bg-white border-border/50 hover:bg-muted z-10"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 rounded-full shadow-lg bg-white border-border/50 hover:bg-muted z-10"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </>
-            )}
           </div>
         </div>
       </div>
