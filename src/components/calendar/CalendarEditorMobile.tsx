@@ -139,20 +139,12 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col items-center">
-          <h1 className={cn(
-            "text-base font-bold",
-            variant === 'dark' ? "text-white" : "text-foreground"
-          )}>
-            Editar Agenda
-          </h1>
-          <span className={cn(
-            "text-[10px] font-medium opacity-60",
-            variant === 'dark' ? "text-zinc-400" : "text-zinc-500"
-          )}>
-            Modo Premium
-          </span>
-        </div>
+        <h1 className={cn(
+          "text-base font-bold",
+          variant === 'dark' ? "text-white" : "text-foreground"
+        )}>
+          Editar Agenda
+        </h1>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
