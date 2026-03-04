@@ -1133,6 +1133,7 @@ export const StudyGuide: React.FC = () => {
                           onSave={confirmEditMode}
                           onClose={() => setIsEditMode(false)}
                           onUndo={handleCalendarUndo}
+                          onReset={handleCalendarReset}
                           onEventClick={(event) => openMateriaSheet(event.materia)}
                           syncStatus={calendarSyncStatus}
                           isSaving={syncLoading}
