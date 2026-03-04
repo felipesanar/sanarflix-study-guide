@@ -431,7 +431,7 @@ Deno.serve(async (req) => {
       // If not found, try matching by composite ID
       if (!content) {
         content = allContents.find(c => {
-          const compositeId = getCompositeId(c, userData.semestre || 1);
+          const compositeId = getCompositeId(c, effectiveSemestre || 1);
           return compositeId === p.content_id;
         });
       }
