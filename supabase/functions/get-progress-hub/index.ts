@@ -336,7 +336,7 @@ Deno.serve(async (req) => {
       if (byUUID) return byUUID.completed_at;
       
       // Check by composite ID
-      const compositeId = getCompositeId(content, userData.semestre || 1);
+      const compositeId = getCompositeId(content, effectiveSemestre || 1);
       const byComposite = progressData.find(p => p.content_id === compositeId);
       if (byComposite) return byComposite.completed_at;
       
