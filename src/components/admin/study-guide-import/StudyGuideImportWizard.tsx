@@ -181,6 +181,19 @@ export const StudyGuideImportWizard: React.FC = () => {
     });
   }, []);
 
+  // Toggle sheet inclusion for XLSX import
+  const handleToggleSheet = useCallback((sheetName: string) => {
+    setExcludedSheets(prev => {
+      const next = new Set(prev);
+      if (next.has(sheetName)) {
+        next.delete(sheetName);
+      } else {
+        next.add(sheetName);
+      }
+      return next;
+    });
+  }, []);
+
   // Check for duplicate IES mappings
   const duplicateIesIds = React.useMemo(() => {
     const counts = new Map<string, number>();
