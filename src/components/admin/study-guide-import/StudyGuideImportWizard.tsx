@@ -159,7 +159,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       }
 
       setStatus('idle');
-      toast.success(`Arquivo processado: ${selectedFile.name}`);
+      // Visual feedback is already provided by the green file-selected state in the dropzone
     } catch (err) {
       console.error(LOG_PREFIX, 'Parse error:', err);
       setError(err instanceof Error ? err.message : 'Erro ao processar arquivo');
