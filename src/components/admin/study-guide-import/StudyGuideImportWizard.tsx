@@ -194,16 +194,18 @@ export const StudyGuideImportWizard: React.FC = () => {
     });
   }, []);
 
-  // Check for duplicate IES mappings
+  // Check for duplicate IES mappings (only among enabled sheets)
   const duplicateIesIds = React.useMemo(() => {
     const counts = new Map<string, number>();
-    sheetMappings.forEach(m => {
-      counts.set(m.iesId, (counts.get(m.iesId) || 0) + 1);
-    });
+    sheetMappings
+      .filter(m => !excludedSheets.has(m.sheetName))
+      .forEach(m => {
+        counts.set(m.iesId, (counts.get(m.iesId) || 0) + 1);
+      });
     return Array.from(counts.entries())
       .filter(([_, count]) => count > 1)
       .map(([id]) => id);
-  }, [sheetMappings]);
+  }, [sheetMappings, excludedSheets]);
 
   // Run validation
   const runValidation = useCallback(async () => {
