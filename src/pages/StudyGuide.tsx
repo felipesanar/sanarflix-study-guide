@@ -775,9 +775,10 @@ export const StudyGuide: React.FC = () => {
     }
   }, [undoStack]);
 
-  const handleCalendarReset = useCallback(() => {
+  const handleCalendarReset = useCallback(async () => {
+    await clearAllSubjects();
     toast({ title: "Semana resetada", description: "Todas as matérias foram removidas" });
-  }, []);
+  }, [clearAllSubjects]);
 
   // Handle view mode change with analytics
   const handleViewModeChange = useCallback((mode: 'list' | 'calendar') => {
