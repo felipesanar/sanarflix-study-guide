@@ -25,6 +25,7 @@ interface CalendarEditorMobileProps {
   onSave: () => void;
   onClose: () => void;
   onUndo: () => void;
+  onReset?: () => void;
   onEventClick?: (event: CalendarEvent) => void;
   syncStatus: SyncStatus;
   isSaving?: boolean;
