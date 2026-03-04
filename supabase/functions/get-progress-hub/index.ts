@@ -207,9 +207,9 @@ Deno.serve(async (req) => {
     
     // Helper function to generate composite ID matching the Study Guide format
     // Defined early so it can be used in progress filtering
-    const getCompositeId = (content: { materia?: string; tema?: string | null; subtema?: string | null; aula?: string | null }, semestre: number): string => {
+    const getCompositeId = (content: { materia?: string; tema?: string | null; subtema?: string | null; aula?: string | null }, semestre: number | string): string => {
       const parts = [
-        semestre.toString(),
+        String(semestre),
         content.materia || '',
         content.tema || '',
         content.subtema || '',
@@ -217,13 +217,17 @@ Deno.serve(async (req) => {
       ];
       return parts.join('-');
     };
-    const extractSemestreFromContentId = (contentId: string): number | null => {
+    const extractSemestreFromContentId = (contentId: string): string | null => {
       if (!contentId) return null;
+      // Check for INTERNATO prefix
+      if (contentId.startsWith('INTERNATO-')) {
+        return 'INTERNATO';
+      }
       const parts = contentId.split('-');
       if (parts.length >= 1) {
         const firstPart = parseInt(parts[0], 10);
         if (!isNaN(firstPart) && firstPart >= 1 && firstPart <= 12) {
-          return firstPart;
+          return String(firstPart);
         }
       }
       return null;
