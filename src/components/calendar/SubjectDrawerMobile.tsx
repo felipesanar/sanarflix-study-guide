@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Layers, ChevronUp } from 'lucide-react';
+import { Layers, ChevronUp, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getMateriaColor, getMateriaIcon, getMateriaCategory } from './types';
