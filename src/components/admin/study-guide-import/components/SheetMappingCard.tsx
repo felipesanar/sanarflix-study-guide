@@ -47,13 +47,23 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
     <div
       className={cn(
         'rounded-lg border p-4 transition-all',
-        isDuplicate && 'border-amber-500 bg-amber-500/5',
-        isMapped && !isDuplicate && 'border-emerald-500/50 bg-emerald-500/5',
-        !isMapped && 'border-muted-foreground/25'
+        !enabled && 'opacity-50',
+        enabled && isDuplicate && 'border-amber-500 bg-amber-500/5',
+        enabled && isMapped && !isDuplicate && 'border-emerald-500/50 bg-emerald-500/5',
+        enabled && !isMapped && 'border-muted-foreground/25',
+        !enabled && 'border-muted-foreground/15 bg-muted/30'
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
+          {showToggle && (
+            <Checkbox
+              checked={enabled}
+              onCheckedChange={() => onToggleEnabled?.(sheet.name)}
+              aria-label={`Incluir aba ${sheet.name} na importação`}
+              className="shrink-0"
+            />
+          )}
           <div className={cn(
             'rounded-lg p-2.5 shrink-0',
             isMapped && !isDuplicate && 'bg-emerald-500/10 text-emerald-600',
