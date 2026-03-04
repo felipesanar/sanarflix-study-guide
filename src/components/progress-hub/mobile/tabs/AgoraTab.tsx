@@ -159,6 +159,9 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
   onRiskDismiss,
   onGoalChange,
 }) => {
+  const { user } = useAuth();
+  const userIsAdmin = isAdmin(user);
+
   return (
     <div className="px-4 py-4 space-y-6">
       {/* Section: O que fazer agora */}
