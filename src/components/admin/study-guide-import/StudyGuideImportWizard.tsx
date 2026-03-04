@@ -817,6 +817,9 @@ export const StudyGuideImportWizard: React.FC = () => {
                         currentMapping={sheetMappings.find(m => m.sheetName === sheet.name) || null}
                         duplicateIesIds={duplicateIesIds}
                         onMappingChange={handleMappingChange}
+                        showToggle
+                        enabled={!excludedSheets.has(sheet.name)}
+                        onToggleEnabled={handleToggleSheet}
                       />
                     ))}
                   </div>
