@@ -651,8 +651,10 @@ export const StudyGuideImportWizard: React.FC = () => {
         if (fileType === 'csv') {
           return sheetMappings.length > 0 && sheetMappings[0]?.iesId;
         }
-        // For XLSX, all sheets must be mapped
-        return sheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
+        // For XLSX, all enabled sheets must be mapped, and at least 1 must be enabled
+        const enabledSheets = sheets.filter(s => !excludedSheets.has(s.name));
+        if (enabledSheets.length === 0) return false;
+        return enabledSheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
       case 'validate': {
         if (!validation?.isValid || status !== 'ready_to_import') return false;
         // If there are new semesters, all must be approved
