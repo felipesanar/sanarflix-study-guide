@@ -150,7 +150,7 @@ const getMateriaColor = (materia: string) => {
 export const StudyGuide: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
+  const { subjects, addSubject, removeSubject, clearAllSubjects, loading: syncLoading } = useCalendarSync();
   const { progress, loading: progressLoading, toggleContentCompletion, loadAllProgress, isCompleted: isProgressCompleted } = useStudyProgress();
   const isMobile = useIsMobile();
   const { theme } = useTheme();
