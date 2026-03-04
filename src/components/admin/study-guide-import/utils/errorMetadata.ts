@@ -51,6 +51,19 @@ export const ERROR_METADATA: Record<string, ErrorMetadata> = {
     tip: 'Preencha o campo semestre com um número ou um nome descritivo. Semestres textuais serão normalizados para maiúsculas.',
   },
 
+  URL_IN_SEMESTRE: {
+    title: 'URL no Campo Semestre',
+    icon: AlertTriangle,
+    severity: 'critical',
+    description: 'O campo semestre contém uma URL, indicando desalinhamento de colunas.',
+    detailedDescription:
+      'Foi detectada uma URL no campo "semestre". Isso geralmente indica que as colunas do arquivo CSV estão desalinhadas — os dados de link caíram no campo errado. Verifique o delimitador (vírgula, ponto-e-vírgula ou tab) e a ordem das colunas no arquivo.',
+    actions: [
+      { label: 'Baixar linhas afetadas', type: 'download' },
+    ],
+    tip: 'Abra o arquivo CSV num editor de texto e verifique se o cabeçalho e os dados usam o mesmo delimitador. Se houver URLs com vírgulas, elas devem estar entre aspas.',
+  },
+
   NEW_SEMESTRE: {
     title: 'Semestre Novo Detectado',
     icon: Calendar,
