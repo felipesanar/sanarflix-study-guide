@@ -594,7 +594,7 @@ Deno.serve(async (req) => {
       let lastContent = allContents.find(c => c.id === lastContentId);
       if (!lastContent) {
         lastContent = allContents.find(c => {
-          const compositeId = getCompositeId(c, userData.semestre || 1);
+          const compositeId = getCompositeId(c, effectiveSemestre || 1);
           return compositeId === lastContentId;
         });
       }
