@@ -90,8 +90,8 @@ export function MobileBottomNav() {
   const quickNavItems: BottomNavItem[] = useMemo(() => [
     { id: "home", title: "Início", url: "/home", icon: Home, show: accessRules.home },
     { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
-    { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: true },
     { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
+    { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: true },
   ].filter((item) => item.show), [accessRules]);
 
   // User info for menu header
