@@ -1,81 +1,51 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Diagnóstico: Scroll e Interação Quebrados no Mobile
 
-### Causa Raiz Identificada
+### Causa Raiz
 
-Analisando os logs de autenticacao, o problema fica evidente:
+O `ProgressHubMobile` cria um **scroll container interno** (`overflow-y-auto` na div wrapper, linha 219) que conflita com o scroll nativo da página gerenciado pelo `Layout.tsx`. No mobile, o Layout **não** aplica `overflow-auto` ao `<main>` (só no desktop via `md:overflow-auto`), então o scroll depende do scroll nativo do documento (`window.scrollY`).
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
+O problema é duplo:
+1. **Scroll preso**: O container interno com `overflow-y-auto` + `min-h-screen` captura todos os eventos de toque, mas não tem altura correta definida (o parent não restringe), criando um scroll fantasma
+2. **Interação ruim**: O `touch-pan-y` no container interno compete com os gestos do `AnimatePresence`/`motion.div`, exigindo múltiplos toques para registrar cliques
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+### Plano de Correção
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+#### 1. `ProgressHubMobile.tsx` — Remover scroll container interno
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+- Remover `overflow-y-auto`, `overscroll-y-contain`, `touch-pan-y` da div wrapper
+- Remover `min-h-screen` (o Layout já cuida disso)
+- Remover `scrollContainerRef` e o `useEffect` que escuta scroll nele
+- Trocar para escutar `window.scroll` para o sticky CTA bar
+- Manter a estrutura do conteúdo intacta (header, tabs, content)
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+#### 2. `ProgressHubMobile.tsx` — Sticky tab bar via CSS nativo
 
-### Solucao
+- A tab bar já é `sticky top-0` — funciona corretamente com scroll nativo do documento
+- Nenhuma mudança necessária na tab bar em si
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+#### 3. `ProgressHubMobile.tsx` — Sticky CTA via window scroll
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+- O `useEffect` que controla `showStickyBar` passa a escutar `window.addEventListener('scroll')` em vez de `container.scrollTop`
+- Remover o `ref` do container
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+#### 4. `AgoraTab.tsx` — Melhorar touch no carousel
 
----
+- Trocar `overflow-x-clip` no container pai por `overflow-x-hidden` (clip pode bloquear eventos de toque em alguns browsers)
+- Garantir que os botões de ação têm `min-h-[44px]` (target de toque acessível)
 
-### Mudancas
+### Resumo de Mudanças
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+| `ProgressHubMobile.tsx` | Remover scroll container interno, usar window scroll para sticky CTA |
+| `AgoraTab.tsx` | Trocar `overflow-x-clip` por `overflow-x-hidden` no carousel |
 
-### Por que isso resolve
+### Resultado
 
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- Scroll nativo do documento funciona sem conflito
+- Toques registram no primeiro toque
+- Tab bar fica sticky corretamente
+- CTA flutuante aparece/desaparece baseado no scroll real da página
 
