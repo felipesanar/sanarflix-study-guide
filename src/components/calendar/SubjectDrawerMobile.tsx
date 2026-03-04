@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Layers, ChevronUp } from 'lucide-react';
+import { Layers, ChevronUp, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { getMateriaColor, getMateriaIcon, getMateriaCategory } from './types';
@@ -50,7 +50,7 @@ export const SubjectDrawerMobile: React.FC<SubjectDrawerMobileProps> = ({
               variant === 'dark' ? "border-border/50" : "border-border/30"
             )}
           >
-            Arraste ou toque
+            Toque para adicionar
           </Badge>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
@@ -108,9 +108,12 @@ export const SubjectDrawerMobile: React.FC<SubjectDrawerMobileProps> = ({
                   )}>
                     {name}
                   </h5>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    60m • {category.charAt(0) + category.slice(1).toLowerCase()}
-                  </p>
+                   <div className="flex items-center justify-between mt-1">
+                    <p className="text-[10px] text-muted-foreground">
+                      {category.charAt(0) + category.slice(1).toLowerCase()}
+                    </p>
+                    <Plus className="h-3 w-3 text-muted-foreground" />
+                  </div>
                 </motion.button>
               );
             })}
