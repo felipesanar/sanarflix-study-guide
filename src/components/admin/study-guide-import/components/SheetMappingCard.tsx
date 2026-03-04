@@ -6,6 +6,7 @@
 import * as React from 'react';
 import { Check, ChevronsUpDown, FileSpreadsheet, Link2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,12 @@ interface SheetMappingCardProps {
   currentMapping: SheetMapping | null;
   duplicateIesIds: string[];
   onMappingChange: (sheetName: string, iesId: string, iesNome: string) => void;
+  /** Whether this sheet is enabled for import (XLSX only) */
+  enabled?: boolean;
+  /** Toggle enabled state (XLSX only) */
+  onToggleEnabled?: (sheetName: string) => void;
+  /** Whether to show the enable/disable checkbox */
+  showToggle?: boolean;
 }
 
 export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
@@ -26,6 +33,9 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
   currentMapping,
   duplicateIesIds,
   onMappingChange,
+  enabled = true,
+  onToggleEnabled,
+  showToggle = false,
 }) => {
   const [open, setOpen] = React.useState(false);
   
@@ -37,13 +47,23 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
     <div
       className={cn(
         'rounded-lg border p-4 transition-all',
-        isDuplicate && 'border-amber-500 bg-amber-500/5',
-        isMapped && !isDuplicate && 'border-emerald-500/50 bg-emerald-500/5',
-        !isMapped && 'border-muted-foreground/25'
+        !enabled && 'opacity-50',
+        enabled && isDuplicate && 'border-amber-500 bg-amber-500/5',
+        enabled && isMapped && !isDuplicate && 'border-emerald-500/50 bg-emerald-500/5',
+        enabled && !isMapped && 'border-muted-foreground/25',
+        !enabled && 'border-muted-foreground/15 bg-muted/30'
       )}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
+          {showToggle && (
+            <Checkbox
+              checked={enabled}
+              onCheckedChange={() => onToggleEnabled?.(sheet.name)}
+              aria-label={`Incluir aba ${sheet.name} na importação`}
+              className="shrink-0"
+            />
+          )}
           <div className={cn(
             'rounded-lg p-2.5 shrink-0',
             isMapped && !isDuplicate && 'bg-emerald-500/10 text-emerald-600',
@@ -74,6 +94,7 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
               <Button
                 variant="outline"
                 role="combobox"
+                disabled={!enabled}
                 aria-expanded={open}
                 className={cn(
                   'w-full sm:w-[280px] justify-between',

@@ -1,31 +1,81 @@
 
 
-## Add Sheet Selection (Enable/Disable) for XLSX Import
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### Problem
-When uploading an XLSX with multiple sheets/IES, all sheets must be mapped to proceed. There's no way to skip/exclude specific sheets from the import.
+### Causa Raiz Identificada
 
-### Solution
-Add a checkbox to each `SheetMappingCard` that controls whether that sheet is included in the import. Unchecked sheets are excluded from validation and import.
+Analisando os logs de autenticacao, o problema fica evidente:
 
-### Changes
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+```
 
-#### 1. `SheetMappingCard.tsx` — Add enabled/disabled toggle
-- Add new props: `enabled: boolean` and `onToggleEnabled: (sheetName: string) => void`
-- Add a `Checkbox` to the left of the sheet icon
-- When unchecked, dim the entire card and disable the IES selector
-- Visual: `opacity-50` + muted styling when disabled
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-#### 2. `StudyGuideImportWizard.tsx` — Track excluded sheets
-- Add state: `excludedSheets: Set<string>` (starts empty — all included by default)
-- Pass `enabled` and `onToggleEnabled` to each `SheetMappingCard`
-- **`canProceed` for configure step**: Only require mappings for *enabled* sheets (filter out excluded)
-- **`runValidation`**: Skip excluded sheets (don't generate `UNMAPPED_SHEET` errors for them)
-- **`runImport`**: Only send rows from enabled sheets
-- **`duplicateIesIds`**: Only consider enabled sheets
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-#### 3. Interaction Details
-- Checkbox is only shown for XLSX (CSV always has 1 sheet)
-- Unchecking a sheet removes its mapping from `sheetMappings` (or just ignores it in logic)
-- At least 1 sheet must remain enabled to proceed (disable "Continuar" otherwise)
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
+
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+
+### Solucao
+
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
+
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
+
+---
+
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

@@ -90,6 +90,7 @@ export const StudyGuideImportWizard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
   const [approvedNewSemestres, setApprovedNewSemestres] = useState<Set<string>>(new Set());
+  const [excludedSheets, setExcludedSheets] = useState<Set<string>>(new Set());
 
   // Load IES list on mount
   useEffect(() => {
@@ -180,16 +181,31 @@ export const StudyGuideImportWizard: React.FC = () => {
     });
   }, []);
 
-  // Check for duplicate IES mappings
+  // Toggle sheet inclusion for XLSX import
+  const handleToggleSheet = useCallback((sheetName: string) => {
+    setExcludedSheets(prev => {
+      const next = new Set(prev);
+      if (next.has(sheetName)) {
+        next.delete(sheetName);
+      } else {
+        next.add(sheetName);
+      }
+      return next;
+    });
+  }, []);
+
+  // Check for duplicate IES mappings (only among enabled sheets)
   const duplicateIesIds = React.useMemo(() => {
     const counts = new Map<string, number>();
-    sheetMappings.forEach(m => {
-      counts.set(m.iesId, (counts.get(m.iesId) || 0) + 1);
-    });
+    sheetMappings
+      .filter(m => !excludedSheets.has(m.sheetName))
+      .forEach(m => {
+        counts.set(m.iesId, (counts.get(m.iesId) || 0) + 1);
+      });
     return Array.from(counts.entries())
       .filter(([_, count]) => count > 1)
       .map(([id]) => id);
-  }, [sheetMappings]);
+  }, [sheetMappings, excludedSheets]);
 
   // Run validation
   const runValidation = useCallback(async () => {
@@ -246,8 +262,9 @@ export const StudyGuideImportWizard: React.FC = () => {
           allNewSemestres.push(...result.newSemestres.map(s => ({ ...s, iesNome })));
         }
       } else {
-        // For XLSX, validate each sheet
-        for (const sheet of sheets) {
+        // For XLSX, validate each enabled sheet (skip excluded)
+        const enabledSheets = sheets.filter(s => !excludedSheets.has(s.name));
+        for (const sheet of enabledSheets) {
           const mapping = sheetMappings.find(m => m.sheetName === sheet.name);
           if (!mapping?.iesId) {
             allErrors.push({
@@ -359,7 +376,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Erro na validação');
       setStatus('error');
     }
-  }, [fileType, sheets, sheetMappings, rawData, iesList, config]);
+  }, [fileType, sheets, sheetMappings, rawData, iesList, config, excludedSheets]);
 
   // Run import
   const runImport = useCallback(async () => {
@@ -623,6 +640,7 @@ export const StudyGuideImportWizard: React.FC = () => {
     setResult(null);
     setError(null);
     setApprovedNewSemestres(new Set());
+    setExcludedSheets(new Set());
   }, []);
 
   // Navigation
@@ -634,8 +652,10 @@ export const StudyGuideImportWizard: React.FC = () => {
         if (fileType === 'csv') {
           return sheetMappings.length > 0 && sheetMappings[0]?.iesId;
         }
-        // For XLSX, all sheets must be mapped
-        return sheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
+        // For XLSX, all enabled sheets must be mapped, and at least 1 must be enabled
+        const enabledSheets = sheets.filter(s => !excludedSheets.has(s.name));
+        if (enabledSheets.length === 0) return false;
+        return enabledSheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
       case 'validate': {
         if (!validation?.isValid || status !== 'ready_to_import') return false;
         // If there are new semesters, all must be approved
@@ -648,7 +668,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       default:
         return false;
     }
-  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres]);
+  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres, excludedSheets]);
 
   const handleNext = useCallback(() => {
     const currentIndex = STEPS.indexOf(step);
@@ -797,6 +817,9 @@ export const StudyGuideImportWizard: React.FC = () => {
                         currentMapping={sheetMappings.find(m => m.sheetName === sheet.name) || null}
                         duplicateIesIds={duplicateIesIds}
                         onMappingChange={handleMappingChange}
+                        showToggle
+                        enabled={!excludedSheets.has(sheet.name)}
+                        onToggleEnabled={handleToggleSheet}
                       />
                     ))}
                   </div>
