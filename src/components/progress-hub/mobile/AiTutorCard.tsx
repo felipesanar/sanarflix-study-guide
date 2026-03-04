@@ -215,8 +215,8 @@ export const AiTutorCard: React.FC = () => {
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleCopy}>
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => fetchPlan(true)} disabled={state === 'loading'}>
-            <RefreshCw className={cn('h-3 w-3', state === 'loading' && 'animate-spin')} />
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => fetchPlan(true)}>
+            <RefreshCw className="h-3 w-3" />
           </Button>
         </div>
       </div>
