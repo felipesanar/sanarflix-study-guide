@@ -736,13 +736,15 @@ export const StudyGuide: React.FC = () => {
 
   // Calendar handlers with analytics
   const addEventToCalendar = useCallback(async (materia: string, day: number) => {
+    // Snapshot for undo before adding
+    setUndoStack(prev => [...prev, calendarEvents]);
     await addSubject({
       name: materia,
       dayOfWeek: day,
       color: getMateriaColor(materia)
     });
     analytics.trackStudyGuideCalendarSubjectAdded(materia, day);
-  }, [addSubject, analytics]);
+  }, [addSubject, analytics, calendarEvents]);
 
   const removeEventFromCalendar = useCallback(async (id: string) => {
     const event = calendarEvents.find(e => e.id === id);
