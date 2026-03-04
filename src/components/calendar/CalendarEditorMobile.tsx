@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, MoreVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,12 @@ import { SubjectDrawerMobile } from './SubjectDrawerMobile';
 import { MobileFooterActions } from './FloatingActionBar';
 import { DropZone } from './DropZone';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CalendarEditorMobileProps {
   events: CalendarEvent[];
