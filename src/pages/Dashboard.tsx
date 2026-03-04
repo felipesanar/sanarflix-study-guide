@@ -711,7 +711,7 @@ export const Dashboard: React.FC = () => {
           </motion.div>
           
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
-            <AiTutorCard />
+            {isAdmin(user) && <AiTutorCard />}
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}

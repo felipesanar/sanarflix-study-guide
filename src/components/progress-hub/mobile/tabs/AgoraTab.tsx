@@ -170,8 +170,8 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
         <ActionsCarousel actions={nextActions} onActionClick={onActionClick} />
       </div>
 
-      {/* AI Coach */}
-      <AiTutorCard />
+      {/* AI Coach — admin only */}
+      {userIsAdmin && <AiTutorCard />}
 
       {/* Consistency */}
       <div className="space-y-2">
