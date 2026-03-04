@@ -108,9 +108,12 @@ export const SubjectDrawerMobile: React.FC<SubjectDrawerMobileProps> = ({
                   )}>
                     {name}
                   </h5>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    60m • {category.charAt(0) + category.slice(1).toLowerCase()}
-                  </p>
+                   <div className="flex items-center justify-between mt-1">
+                    <p className="text-[10px] text-muted-foreground">
+                      {category.charAt(0) + category.slice(1).toLowerCase()}
+                    </p>
+                    <Plus className="h-3 w-3 text-muted-foreground" />
+                  </div>
                 </motion.button>
               );
             })}
