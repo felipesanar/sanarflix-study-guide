@@ -1,81 +1,67 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## INTERNATO Fallback for Progress Hub (Semesters 9-12)
 
-### Causa Raiz Identificada
+### Problem
 
-Analisando os logs de autenticacao, o problema fica evidente:
+The "Seu Progresso" page shows "0 de 0 aulas / 0 matérias / 0 temas" for students in semesters 9-12 because the edge function `get-progress-hub` queries `conteudos` with `semestre = '10'` (for example), but the actual content is stored under `semestre = 'INTERNATO'`. The Study Guide already handles this fallback — the Progress Hub does not.
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+### Root Cause
+
+In `get-progress-hub/index.ts` (lines 108-111), the query filters strictly by `eq('semestre', String(userSemestre))`. When no rows match, it returns the empty state. There is no fallback to try `INTERNATO`.
+
+### Fix
+
+**Single file change**: `supabase/functions/get-progress-hub/index.ts`
+
+After the initial `conteudos` query returns empty results for semesters 9-12, retry with `semestre = 'INTERNATO'`:
+
+```
+// Lines 96-157 — replace the semester query + empty state block
+
+const userSemestre = userData.semestre;
+const INTERNATO_FALLBACK_SEMESTERS = [9, 10, 11, 12];
+const shouldTryInternato = userSemestre && INTERNATO_FALLBACK_SEMESTERS.includes(userSemestre);
+
+// First attempt: query by user's numeric semester
+let conteudosQuery = supabaseAdmin
+  .from('conteudos')
+  .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
+  .eq('id_ies', userData.id_ies);
+
+if (userSemestre) {
+  conteudosQuery = conteudosQuery.eq('semestre', String(userSemestre));
+}
+
+let { data: conteudos, error: conteudosError } = await conteudosQuery;
+
+// INTERNATO FALLBACK: If semesters 9-12 returned no content, try INTERNATO
+let effectiveSemestre = userSemestre;
+if (!conteudosError && (!conteudos || conteudos.length === 0) && shouldTryInternato) {
+  console.log(`get-progress-hub: No content for semester ${userSemestre}, falling back to INTERNATO`);
+  
+  const { data: internatoConteudos, error: internatoError } = await supabaseAdmin
+    .from('conteudos')
+    .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
+    .eq('id_ies', userData.id_ies)
+    .eq('semestre', 'INTERNATO');
+  
+  if (!internatoError && internatoConteudos && internatoConteudos.length > 0) {
+    conteudos = internatoConteudos;
+    effectiveSemestre = 'INTERNATO'; // Used for composite ID generation
+  }
+}
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+Then replace all downstream references to `userSemestre` (used for composite ID generation, progress filtering, and response payload) with `effectiveSemestre` where the semester value determines content scope. The `user.semestre` in the response still returns the original numeric value for display purposes, but adds a field `effective_semestre` so the frontend knows which semester was actually used.
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+The `extractSemestreFromContentId` function also needs to handle non-numeric semester prefixes (like `INTERNATO-Materia-...`) — add a check for the `INTERNATO` prefix in composite IDs.
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+### Changes Summary
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+| File | Change |
+|------|--------|
+| `supabase/functions/get-progress-hub/index.ts` | Add INTERNATO fallback query for semesters 9-12; use `effectiveSemestre` for content scoping; handle `INTERNATO` prefix in composite ID extraction |
 
-### Solucao
-
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
-
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
-
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
-
----
-
-### Mudancas
-
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+After editing, the function must be redeployed via `supabase--deploy_edge_functions`.
 
