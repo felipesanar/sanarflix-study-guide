@@ -94,6 +94,7 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
               <Button
                 variant="outline"
                 role="combobox"
+                disabled={!enabled}
                 aria-expanded={open}
                 className={cn(
                   'w-full sm:w-[280px] justify-between',
