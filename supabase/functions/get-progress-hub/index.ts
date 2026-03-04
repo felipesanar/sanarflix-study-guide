@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
       if (completedIdsSet.has(content.id)) return true;
       
       // Check by composite ID (study_progress format)
-      const compositeId = getCompositeId(content, userData.semestre || 1);
+      const compositeId = getCompositeId(content, effectiveSemestre || 1);
       if (completedIdsSet.has(compositeId)) return true;
       
       return false;
