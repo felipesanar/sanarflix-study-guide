@@ -351,6 +351,9 @@ export const StudyGuide: React.FC = () => {
     }
   }, []);
 
+  // Helper: semesters 9-12 should fallback to INTERNATO when no content exists
+  const INTERNATO_FALLBACK_SEMESTERS = [9, 10, 11, 12];
+
   // Fetch contents for the user's active semester on mount — cache-first + always background refresh
   useEffect(() => {
     if (!user?.id_ies) {
@@ -358,8 +361,10 @@ export const StudyGuide: React.FC = () => {
       return;
     }
 
+    const userSemNum = user.semestre ? Number(user.semestre) : NaN;
     const userSemStr = user.semestre?.toString() || '';
     const iesId = user.id_ies;
+    const shouldTryInternato = INTERNATO_FALLBACK_SEMESTERS.includes(userSemNum);
 
     // 1. Try localStorage cache first — instant display, no flicker
     const cached = readStudyGuideCache(iesId, userSemStr);
@@ -368,11 +373,40 @@ export const StudyGuide: React.FC = () => {
       setLoadedSemestres(prev => new Set([...prev, userSemStr]));
       setSelectedSemestre(prev => prev || userSemStr);
       setIsLoading(false);
+    } else if (shouldTryInternato) {
+      // For semesters 9-12 with no numeric cache, try INTERNATO cache
+      const internatoCache = readStudyGuideCache(iesId, 'INTERNATO');
+      if (internatoCache && internatoCache.length > 0) {
+        setConteudos(internatoCache);
+        setLoadedSemestres(prev => new Set([...prev, 'INTERNATO']));
+        setSelectedSemestre(prev => prev || 'INTERNATO');
+        setIsLoading(false);
+      }
     }
 
-    // 2. ALWAYS fetch fresh data in background
-    setSelectedSemestre(prev => prev || userSemStr);
-    fetchFreshData(userSemStr, iesId, !cached);
+    // 2. Fetch fresh data — with INTERNATO fallback for semesters 9-12
+    const initFetch = async () => {
+      setSelectedSemestre(prev => prev || userSemStr);
+      await fetchFreshData(userSemStr, iesId, !cached);
+
+      // After fetching, if no content was loaded for this semester and it's 9-12, try INTERNATO
+      if (shouldTryInternato) {
+        // Check if we actually got data for the numeric semester
+        setConteudos(current => {
+          const hasNumericData = current.some(c => {
+            const val = c.semestre.toString().replace(/º\s*Semestre/i, '').trim();
+            return val === userSemStr;
+          });
+          if (!hasNumericData && current.length === 0) {
+            // No data at all — trigger INTERNATO fetch
+            setSelectedSemestre('INTERNATO');
+            fetchFreshData('INTERNATO', iesId, true);
+          }
+          return current;
+        });
+      }
+    };
+    initFetch();
   }, [user?.id_ies, user?.semestre, fetchFreshData]);
 
   // Fetch contents for a specific semester when the user navigates to it
