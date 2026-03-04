@@ -1,63 +1,81 @@
 
 
-## Progress Hub Mobile — 4 Changes
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### 1. Move ConsistencyCard from Insights to Agora tab
+### Causa Raiz Identificada
 
-**InsightsTab.tsx**: Remove the ConsistencyCard section (keep only DiagnosticsCard).
+Analisando os logs de autenticacao, o problema fica evidente:
 
-**AgoraTab.tsx**: Add ConsistencyCard after the actions carousel and before risk alerts. Pass `streak`, `syncing`, and `onGoalChange` as new props.
-
-**ProgressHubMobile.tsx**: Pass `streak`, `syncing`, and `onGoalChange` to AgoraTab.
-
-### 2. Semester Map open by default
-
-**ProgressoTab.tsx** line 67: Change `useState(false)` to `useState(true)`.
-
-### 3. Better CTA labels + no navbar overlap
-
-**MobileSummaryHeader.tsx** (lines 215-231): Replace button labels:
-- "Continuar" → "Continuar estudando" with subtitle hint
-- "Organizar" → "Vamos organizar" 
-
-**MobileStickyCtaBar.tsx**: Same label updates. Fix `paddingBottom` to properly account for bottom nav (~70px) so it doesn't overlap.
-
-### 4. Replace "Hoje no seu calendário" with AI recommendation
-
-Replace the `TodaySubjectsSection` in AgoraTab with a new `AiRecommendationCard` component that:
-- Calls a new edge function `ai-study-recommendation` on mount
-- Sends a compact context payload: `{ exams, progress_overview, risk_alerts, by_materia_top5 }`
-- The edge function uses Lovable AI (gemini-3-flash-preview) with a system prompt in Portuguese instructing it to give a short (2-3 sentence) study recommendation based on the student's upcoming exams, simulado performance, and progress gaps
-- Displays the AI response in a compact card with a sparkle/brain icon
-- Shows a skeleton while loading, caches the result in sessionStorage for 30 min
-- Has a "refresh" button to regenerate
-
-**New files:**
-- `supabase/functions/ai-study-recommendation/index.ts` — Edge function that receives student context, calls Lovable AI gateway, returns a short recommendation
-- `src/components/progress-hub/mobile/AiRecommendationCard.tsx` — UI component
-
-**Data flow:**
 ```text
-AgoraTab → AiRecommendationCard
-  → fetch(`/functions/v1/ai-study-recommendation`, { progress, exams, risks })
-  → Edge Function → Lovable AI Gateway (gemini-3-flash-preview)
-  → Short recommendation text (2-3 sentences)
-  → Display in card with ✨ icon
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
 
-The edge function system prompt will be something like:
-> "Você é um tutor de medicina. Com base no progresso, provas e alertas do aluno, dê uma recomendação curta (2-3 frases) do que ele deveria estudar agora e por quê. Seja direto e motivador."
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-### Files to change
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-| File | Change |
-|------|--------|
-| `src/components/progress-hub/mobile/tabs/AgoraTab.tsx` | Remove TodaySubjectsSection, add ConsistencyCard + AiRecommendationCard |
-| `src/components/progress-hub/mobile/tabs/InsightsTab.tsx` | Remove ConsistencyCard section |
-| `src/components/progress-hub/mobile/ProgressHubMobile.tsx` | Pass streak/syncing/onGoalChange to AgoraTab |
-| `src/components/progress-hub/mobile/tabs/ProgressoTab.tsx` | `mapOpen` default to `true` |
-| `src/components/progress-hub/mobile/MobileSummaryHeader.tsx` | Better CTA labels |
-| `src/components/progress-hub/mobile/MobileStickyCtaBar.tsx` | Better labels + fix navbar overlap |
-| `src/components/progress-hub/mobile/AiRecommendationCard.tsx` | New — AI recommendation UI |
-| `supabase/functions/ai-study-recommendation/index.ts` | New — Edge function calling Lovable AI |
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
+
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+
+### Solucao
+
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
+
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
+
+---
+
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

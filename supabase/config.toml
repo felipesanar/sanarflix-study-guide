@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.migrate_users]
 verify_jwt = false
+
+[functions.ai-study-recommendation]
+verify_jwt = false

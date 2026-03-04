@@ -215,18 +215,24 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
       <div className="flex gap-3">
         <Button
           onClick={onContinue}
-          className="flex-1 h-11 gap-2 text-sm font-semibold rounded-xl shadow-lg shadow-primary/20"
+          className="flex-1 h-12 gap-2 rounded-xl shadow-lg shadow-primary/20 flex-col items-center py-1"
         >
-          <Play className="h-4 w-4" fill="currentColor" />
-          Continuar
+          <span className="flex items-center gap-1.5 text-sm font-semibold">
+            <Play className="h-3.5 w-3.5" fill="currentColor" />
+            Continuar estudando
+          </span>
+          <span className="text-[10px] font-normal opacity-80">Siga seu roteiro</span>
         </Button>
         <Button
           onClick={onOrganize}
           variant="outline"
-          className="h-11 px-4 gap-2 text-sm font-medium rounded-xl"
+          className="h-12 px-4 gap-2 rounded-xl flex-col items-center py-1"
         >
-          <Calendar className="h-4 w-4" />
-          Organizar
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <Calendar className="h-3.5 w-3.5" />
+            Vamos organizar
+          </span>
+          <span className="text-[10px] font-normal text-muted-foreground">Ajuste seu cronograma</span>
         </Button>
       </div>
     </motion.div>

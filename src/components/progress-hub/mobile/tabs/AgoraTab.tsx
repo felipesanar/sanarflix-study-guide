@@ -1,18 +1,25 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { AlertTriangle, Play, FileText, HelpCircle, ChevronRight, Zap, CalendarDays } from 'lucide-react';
+import { AlertTriangle, Play, FileText, HelpCircle, ChevronRight, Zap, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { NextAction, RiskAlert } from '@/types/progressHub';
+import { ConsistencyCard } from '@/components/progress-hub/ConsistencyCard';
+import { AiRecommendationCard } from '../AiRecommendationCard';
+import type { NextAction, RiskAlert, ProgressStreak, ProgressOverview, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 interface AgoraTabProps {
   nextActions: NextAction[];
-  todaySubjects: string[];
   riskAlerts: RiskAlert[];
+  streak: ProgressStreak;
+  syncing: boolean;
+  overview: ProgressOverview;
+  byMateria: MateriaProgress[];
+  nextExam?: ExamInsight | null;
   onActionClick: (action: NextAction, type: 'view' | 'video' | 'pdf' | 'quiz') => void;
   onRiskNavigate: (materia: string, tema: string) => void;
   onRiskDismiss: (alertId: string) => void;
+  onGoalChange: (goal: number) => void;
 }
 
 // Swipeable carousel for actions
@@ -35,18 +42,13 @@ const ActionsCarousel: React.FC<{
 
   return (
     <div className="relative overflow-x-hidden">
-      {/* Carousel container with scroll-snap */}
       <div 
         className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 -mx-4 px-4 touch-pan-x"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
-        {actions.slice(0, 5).map((action, index) => (
-          <div
-            key={action.id}
-            className="flex-shrink-0 w-[280px] snap-start"
-          >
+        {actions.slice(0, 5).map((action) => (
+          <div key={action.id} className="flex-shrink-0 w-[280px] snap-start">
             <div className="bg-card border border-border/50 rounded-xl p-4 h-full">
-              {/* Header */}
               <div className="flex items-start gap-3 mb-3">
                 <div className={cn(
                   'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
@@ -65,41 +67,23 @@ const ActionsCarousel: React.FC<{
                   </p>
                 </div>
               </div>
-
-              {/* Reason badge */}
               <Badge variant="outline" className="text-[10px] mb-3 h-5">
                 {action.reason}
               </Badge>
-
-              {/* Action buttons */}
               <div className="flex gap-2">
                 {action.link_aula && (
-                  <Button
-                    size="sm"
-                    className="flex-1 h-9 text-xs gap-1.5"
-                    onClick={() => onActionClick(action, 'video')}
-                  >
+                  <Button size="sm" className="flex-1 h-9 text-xs gap-1.5" onClick={() => onActionClick(action, 'video')}>
                     <Play className="h-3.5 w-3.5" fill="currentColor" />
                     Assistir
                   </Button>
                 )}
                 {action.link_pdf && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 px-3 text-xs gap-1"
-                    onClick={() => onActionClick(action, 'pdf')}
-                  >
+                  <Button size="sm" variant="outline" className="h-9 px-3 text-xs gap-1" onClick={() => onActionClick(action, 'pdf')}>
                     <FileText className="h-3.5 w-3.5" />
                   </Button>
                 )}
                 {action.link_quiz && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-9 px-3 text-xs gap-1"
-                    onClick={() => onActionClick(action, 'quiz')}
-                  >
+                  <Button size="sm" variant="outline" className="h-9 px-3 text-xs gap-1" onClick={() => onActionClick(action, 'quiz')}>
                     <HelpCircle className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -108,8 +92,6 @@ const ActionsCarousel: React.FC<{
           </div>
         ))}
       </div>
-
-      {/* Pagination dots */}
       {actions.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-3">
           {actions.slice(0, 5).map((_, index) => (
@@ -127,33 +109,12 @@ const ActionsCarousel: React.FC<{
   );
 };
 
-// Today subjects section
-const TodaySubjectsSection: React.FC<{ subjects: string[] }> = ({ subjects }) => {
-  if (subjects.length === 0) return null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <CalendarDays className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Hoje no seu calendário</span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {subjects.map((subject, index) => (
-          <Badge key={index} variant="secondary" className="text-xs">
-            {subject}
-          </Badge>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // Compact risk alerts
 const RiskAlertsSection: React.FC<{
   alerts: RiskAlert[];
   onNavigate: (materia: string, tema: string) => void;
   onDismiss: (alertId: string) => void;
-}> = ({ alerts, onNavigate, onDismiss }) => {
+}> = ({ alerts, onNavigate }) => {
   if (alerts.length === 0) return null;
 
   return (
@@ -185,14 +146,17 @@ const RiskAlertsSection: React.FC<{
 
 export const AgoraTab: React.FC<AgoraTabProps> = ({
   nextActions,
-  todaySubjects,
   riskAlerts,
+  streak,
+  syncing,
+  overview,
+  byMateria,
+  nextExam,
   onActionClick,
   onRiskNavigate,
   onRiskDismiss,
+  onGoalChange,
 }) => {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
     <div className="px-4 py-4 space-y-6">
       {/* Section: O que fazer agora */}
@@ -204,10 +168,28 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
         <ActionsCarousel actions={nextActions} onActionClick={onActionClick} />
       </div>
 
-      {/* Section: Today's subjects */}
-      <TodaySubjectsSection subjects={todaySubjects} />
+      {/* AI Recommendation */}
+      <AiRecommendationCard
+        overview={overview}
+        byMateria={byMateria}
+        riskAlerts={riskAlerts}
+        nextExam={nextExam}
+      />
 
-      {/* Section: Risk alerts */}
+      {/* Consistency */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Flame className="h-4 w-4 text-orange-500" />
+          Sua Consistência
+        </h3>
+        <ConsistencyCard
+          streak={streak}
+          onGoalChange={onGoalChange}
+          syncing={syncing}
+        />
+      </div>
+
+      {/* Risk alerts */}
       <RiskAlertsSection 
         alerts={riskAlerts} 
         onNavigate={onRiskNavigate} 

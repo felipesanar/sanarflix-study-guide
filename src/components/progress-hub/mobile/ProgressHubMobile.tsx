@@ -146,11 +146,16 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
           {activeTab === 'agora' && (
             <AgoraTab
               nextActions={data.next_actions}
-              todaySubjects={data.today_subjects}
               riskAlerts={data.risk_alerts || []}
+              streak={data.streak}
+              syncing={syncing}
+              overview={data.overview}
+              byMateria={data.by_materia}
+              nextExam={nextExam}
               onActionClick={onActionClick}
               onRiskNavigate={onRiskNavigate}
               onRiskDismiss={onRiskDismiss}
+              onGoalChange={onGoalChange}
             />
           )}
           
@@ -183,9 +188,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
               <InsightsTab
                 byMateria={data.by_materia}
                 byTema={data.by_tema}
-                streak={data.streak}
-                syncing={syncing}
-                onGoalChange={onGoalChange}
                 onDiagnosticClick={onDiagnosticClick}
               />
             </Suspense>
