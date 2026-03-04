@@ -159,7 +159,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={8}>
+          <DropdownMenuContent align="end" sideOffset={8} className="z-[99999]">
             {onReset && (
               <DropdownMenuItem
                 onClick={onReset}
