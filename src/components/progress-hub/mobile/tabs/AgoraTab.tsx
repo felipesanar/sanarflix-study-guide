@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ConsistencyCard } from '@/components/progress-hub/ConsistencyCard';
 import { AiTutorCard } from '../AiTutorCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdmin } from '@/utils/accessRules';
 import type { NextAction, RiskAlert, ProgressStreak, ProgressOverview, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 interface AgoraTabProps {
