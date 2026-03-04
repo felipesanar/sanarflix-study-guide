@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ConsistencyCard } from '@/components/progress-hub/ConsistencyCard';
-import { AiRecommendationCard } from '../AiRecommendationCard';
+import { AiTutorCard } from '../AiTutorCard';
 import type { NextAction, RiskAlert, ProgressStreak, ProgressOverview, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 interface AgoraTabProps {
