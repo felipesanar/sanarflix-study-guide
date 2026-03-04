@@ -1,102 +1,81 @@
 
 
-## Holistic AI Tutor — Full Plan
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### Current State
-- A simple `AiRecommendationCard` exists in the "Agora" tab showing 2-3 sentence tips
-- The `ai-study-recommendation` edge function sends basic progress/risk data to Gemini and returns a short string
-- Simulado performance data, user exams, and streak data exist in separate tables but are NOT aggregated into the AI prompt
-- The UI is a single paragraph in a small card
+### Causa Raiz Identificada
 
-### What We're Building
-A comprehensive AI study coach that:
-1. **Aggregates all student data** (progress, simulados, exams, streak, consistency) into a `StudentSnapshot` on the backend
-2. **Returns structured JSON** (headline, todayPlan, weekPlan, priorities, risks, studyMethods) instead of a plain string
-3. **Shows a premium expandable UI** with sections for today's plan, weekly plan, priorities, risks, and methods
-4. Uses a **Context Pack** (Brazilian med school knowledge) baked into the system prompt
-
-### Architecture
+Analisando os logs de autenticacao, o problema fica evidente:
 
 ```text
-AgoraTab → AiTutorCard (new component)
-  → supabase.functions.invoke('ai-study-recommendation', { body: { mode: 'full' } })
-  → Edge Function aggregates StudentSnapshot from DB tables:
-      - users (semester, streak)
-      - conteudos + user_progress (study progress)
-      - user_exams (upcoming exams)
-      - answer_progress + questoes_simulado (simulado performance)
-  → Sends snapshot + context pack to Lovable AI Gateway
-  → Returns TutorPlanResponse JSON
-  → Component renders structured plan with expandable sections
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
 
-### Changes
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-#### 1. Types — `src/types/aiTutor.ts` (new)
-Define `StudentSnapshot`, `TutorPlanResponse`, and sub-types:
-- `headline`, `whyThisMatters`
-- `todayPlan: { durationMin, steps[] }` 
-- `weekPlan[]`, `priorities[]`, `risks[]`, `studyMethods[]`
-- `meta: { model, latencyMs }`
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-#### 2. Edge Function — `supabase/functions/ai-study-recommendation/index.ts` (rewrite)
-- Support two modes: `mode: 'quick'` (existing behavior) and `mode: 'full'` (new holistic)
-- For `mode: 'full'`:
-  - Accept only the auth token; aggregate data server-side (no client-sent snapshot)
-  - Query `users` → semester, name
-  - Query `conteudos` + `user_progress` → progress overview, by_materia top gaps
-  - Query `user_exams` → upcoming exams with days_remaining
-  - Query `answer_progress` + `questoes_simulado` → simulado scores by area/tema, top 5 weaknesses
-  - Query `user_progress` recent activity → streak/consistency calculation
-  - Build `StudentSnapshot` JSON
-  - Include a fixed **Context Pack** string about Brazilian med education
-  - Call Lovable AI Gateway with structured output via **tool calling** (function `generate_study_plan` with the `TutorPlanResponse` schema)
-  - Parse tool call result, validate, return JSON
-  - Handle 429/402 errors, 15s timeout, logging with `[AITutorEngine]` prefix
-- For `mode: 'quick'` (or missing mode): keep existing behavior for backwards compatibility
-- Cache key per user in response headers for client-side caching
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
 
-#### 3. UI Component — `src/components/progress-hub/mobile/AiTutorCard.tsx` (new)
-Replace `AiRecommendationCard` in `AgoraTab` with this new component:
-- **States**: loading (skeleton), error (retry + last cached), success (fade-in)
-- **Sections** (collapsible on mobile):
-  - **Header**: Sparkles icon + "Seu Coach de Estudos" + refresh button
-  - **Headline**: Bold 1-line focus + "Por que agora" subtext
-  - **Plano de Hoje**: Checklist with steps (title, detail, visual checkmark) — duration badge
-  - **Plano da Semana**: Compact list with day labels + focus + outcome
-  - **Prioridades**: Badges with impact level (high/med/low color coding)
-  - **Riscos**: Collapsible section with risk + mitigation pairs
-  - **Métodos de Estudo**: Small tips section
-- **Actions**: Refresh, Copy plan (clipboard)
-- **Cache**: `sessionStorage` with 30min TTL (same key pattern, new format)
-- **Mobile-first**: All sections work at 375px, no text walls, collapsible sections
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
-#### 4. Integration — `src/components/progress-hub/mobile/tabs/AgoraTab.tsx`
-- Replace `<AiRecommendationCard>` import with `<AiTutorCard>`
-- Remove old props (overview, byMateria, riskAlerts, nextExam) since the new component fetches server-side
-- Keep the component position between "O que fazer agora" and "Sua Consistência"
+### Solucao
 
-#### 5. Desktop integration — `src/pages/Dashboard.tsx`
-- Add `AiTutorCard` to the desktop layout grid (new card in the right column)
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
 
-#### 6. Config — `supabase/config.toml`
-- `ai-study-recommendation` already has `verify_jwt = false` — no change needed
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
 
-### Files Summary
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
 
-| File | Action |
-|------|--------|
-| `src/types/aiTutor.ts` | New — TypeScript types |
-| `supabase/functions/ai-study-recommendation/index.ts` | Rewrite — add `mode: 'full'` with server-side aggregation + tool calling |
-| `src/components/progress-hub/mobile/AiTutorCard.tsx` | New — premium coach UI |
-| `src/components/progress-hub/mobile/tabs/AgoraTab.tsx` | Edit — swap component |
-| `src/pages/Dashboard.tsx` | Edit — add AiTutorCard to desktop layout |
-| `src/components/progress-hub/mobile/AiRecommendationCard.tsx` | Keep for now (backwards compat), eventually remove |
+---
 
-### Key Design Decisions
-- **Server-side aggregation** (not client-side) to avoid sending too much data from the client and to keep the logic centralized
-- **Tool calling** for structured output instead of asking model to return raw JSON (more reliable)
-- **Backwards compatible** with `mode: 'quick'` keeping the existing simple recommendation working
-- **No web browsing** — Context Pack is static knowledge baked into the prompt
-- **No new DB tables** — reads existing tables only
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

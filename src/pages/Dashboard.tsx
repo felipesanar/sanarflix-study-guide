@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BarChart3, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -33,6 +33,7 @@ import {
   type MilestoneType,
 } from '@/components/progress-hub';
 import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
+import { AiTutorCard } from '@/components/progress-hub/mobile/AiTutorCard';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
@@ -701,7 +702,7 @@ export const Dashboard: React.FC = () => {
             />
           </motion.div>
 
-          {/* === ROW 2: Next Actions (6 cols) + [Consistency + Diagnostics stacked] (6 cols) === */}
+          {/* === ROW 2: Next Actions (6 cols) + [AI Coach + Consistency stacked] (6 cols) === */}
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6">
             <NextActionsCard 
               actions={data.next_actions} 
@@ -710,6 +711,7 @@ export const Dashboard: React.FC = () => {
           </motion.div>
           
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
+            <AiTutorCard />
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}

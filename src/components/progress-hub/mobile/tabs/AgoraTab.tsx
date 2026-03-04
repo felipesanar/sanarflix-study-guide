@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ConsistencyCard } from '@/components/progress-hub/ConsistencyCard';
-import { AiRecommendationCard } from '../AiRecommendationCard';
+import { AiTutorCard } from '../AiTutorCard';
 import type { NextAction, RiskAlert, ProgressStreak, ProgressOverview, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 interface AgoraTabProps {
@@ -168,13 +168,8 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
         <ActionsCarousel actions={nextActions} onActionClick={onActionClick} />
       </div>
 
-      {/* AI Recommendation */}
-      <AiRecommendationCard
-        overview={overview}
-        byMateria={byMateria}
-        riskAlerts={riskAlerts}
-        nextExam={nextExam}
-      />
+      {/* AI Coach */}
+      <AiTutorCard />
 
       {/* Consistency */}
       <div className="space-y-2">
