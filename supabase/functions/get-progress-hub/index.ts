@@ -270,8 +270,13 @@ Deno.serve(async (req) => {
       if (!p.completed_at) continue;
       
       // First check explicit semester field
-      if (userSemestre && p.semestre && p.semestre !== userSemestre) {
-        continue; // Skip progress from other semesters
+      // For INTERNATO fallback, accept progress from semesters 9-12 as well as INTERNATO composite IDs
+      const numericSemestre = typeof effectiveSemestre === 'number' ? effectiveSemestre : userSemestre;
+      if (numericSemestre && p.semestre && p.semestre !== numericSemestre) {
+        // If using INTERNATO fallback, also accept progress from the user's original numeric semester
+        if (effectiveSemestre !== 'INTERNATO' || !INTERNATO_FALLBACK_SEMESTERS.includes(p.semestre)) {
+          continue; // Skip progress from other semesters
+        }
       }
       
       // Then check content_id
