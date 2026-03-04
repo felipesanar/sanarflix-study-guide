@@ -60,7 +60,7 @@ export const FloatingActionBar: React.FC<FloatingActionBarProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-max"
     >
       <div className={cn(
         "flex items-center gap-1 px-2 py-2 rounded-full shadow-2xl border backdrop-blur-xl",

@@ -349,16 +349,14 @@ const MobileEventCard: React.FC<MobileEventCardProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 opacity-60 flex-shrink-0"
+          className="h-8 w-8 opacity-60 flex-shrink-0 text-destructive hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(event.id);
           }}
           aria-label="Remover matéria do dia"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </motion.div>

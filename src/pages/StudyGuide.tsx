@@ -772,12 +772,20 @@ export const StudyGuide: React.FC = () => {
     toast({ title: "Alterações salvas", description: "Seu calendário foi atualizado" });
   }, []);
 
-  const handleCalendarUndo = useCallback(() => {
-    if (undoStack.length > 0) {
-      setUndoStack(prev => prev.slice(0, -1));
-      toast({ title: "Desfeito", description: "Última alteração desfeita" });
-    }
-  }, [undoStack]);
+  const handleCalendarUndo = useCallback(async () => {
+    if (undoStack.length === 0) return;
+    const previousState = undoStack[undoStack.length - 1];
+    setUndoStack(prev => prev.slice(0, -1));
+    // Convert CalendarEvents back to CalendarSubjects and save
+    const restoredSubjects = previousState.map(e => ({
+      id: e.id.startsWith('temp-') ? undefined : e.id,
+      name: e.materia,
+      dayOfWeek: e.day,
+      color: e.color,
+    }));
+    await saveSubjects(restoredSubjects);
+    toast({ title: "Desfeito", description: "Última alteração desfeita" });
+  }, [undoStack, saveSubjects]);
 
   const handleCalendarReset = useCallback(async () => {
     await clearAllSubjects();
