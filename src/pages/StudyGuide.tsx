@@ -749,6 +749,8 @@ export const StudyGuide: React.FC = () => {
   const removeEventFromCalendar = useCallback(async (id: string) => {
     const event = calendarEvents.find(e => e.id === id);
     if (!event) return;
+    // Snapshot for undo before removing
+    setUndoStack(prev => [...prev, calendarEvents]);
     await removeSubject(event.day, event.materia);
     analytics.trackStudyGuideCalendarSubjectRemoved(event.materia, event.day);
     toast({ title: "Matéria removida", description: "Matéria removida do calendário" });
