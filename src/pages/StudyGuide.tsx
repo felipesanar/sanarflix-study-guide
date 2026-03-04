@@ -150,7 +150,7 @@ const getMateriaColor = (materia: string) => {
 export const StudyGuide: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { subjects, addSubject, removeSubject, loading: syncLoading } = useCalendarSync();
+  const { subjects, addSubject, removeSubject, clearAllSubjects, loading: syncLoading } = useCalendarSync();
   const { progress, loading: progressLoading, toggleContentCompletion, loadAllProgress, isCompleted: isProgressCompleted } = useStudyProgress();
   const isMobile = useIsMobile();
   const { theme } = useTheme();
@@ -775,9 +775,10 @@ export const StudyGuide: React.FC = () => {
     }
   }, [undoStack]);
 
-  const handleCalendarReset = useCallback(() => {
+  const handleCalendarReset = useCallback(async () => {
+    await clearAllSubjects();
     toast({ title: "Semana resetada", description: "Todas as matérias foram removidas" });
-  }, []);
+  }, [clearAllSubjects]);
 
   // Handle view mode change with analytics
   const handleViewModeChange = useCallback((mode: 'list' | 'calendar') => {
@@ -1132,6 +1133,7 @@ export const StudyGuide: React.FC = () => {
                           onSave={confirmEditMode}
                           onClose={() => setIsEditMode(false)}
                           onUndo={handleCalendarUndo}
+                          onReset={handleCalendarReset}
                           onEventClick={(event) => openMateriaSheet(event.materia)}
                           syncStatus={calendarSyncStatus}
                           isSaving={syncLoading}

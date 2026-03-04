@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, MoreVertical, Plus } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Plus, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,12 @@ import { SubjectDrawerMobile } from './SubjectDrawerMobile';
 import { MobileFooterActions } from './FloatingActionBar';
 import { DropZone } from './DropZone';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CalendarEditorMobileProps {
   events: CalendarEvent[];
@@ -19,6 +25,7 @@ interface CalendarEditorMobileProps {
   onSave: () => void;
   onClose: () => void;
   onUndo: () => void;
+  onReset?: () => void;
   onEventClick?: (event: CalendarEvent) => void;
   syncStatus: SyncStatus;
   isSaving?: boolean;
@@ -35,6 +42,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   onSave,
   onClose,
   onUndo,
+  onReset,
   onEventClick,
   syncStatus,
   isSaving = false,
@@ -145,17 +153,36 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
             Modo Premium
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Mais opções"
-          className={cn(
-            "h-10 w-10 text-zinc-500 rounded-full",
-            variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
-          )}
-        >
-          <MoreVertical className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Mais opções"
+              className={cn(
+                "h-10 w-10 text-zinc-500 rounded-full",
+                variant === 'dark' ? "hover:bg-white/10" : "hover:bg-black/5"
+              )}
+            >
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8}>
+            {onReset && (
+              <DropdownMenuItem
+                onClick={onReset}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Resetar semana
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={onClose}>
+              <X className="h-4 w-4 mr-2" />
+              Fechar editor
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
       {/* Day Selector */}
