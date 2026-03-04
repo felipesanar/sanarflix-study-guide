@@ -1,81 +1,40 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Calendar Editor Fixes (Mobile + Desktop)
 
-### Causa Raiz Identificada
+### Issues to Fix
 
-Analisando os logs de autenticacao, o problema fica evidente:
+1. **Mobile: "+" add slots between subjects cause confusion** — Move the single add slot to the end of the list only
+2. **Mobile: ⋮ menu not working** — The DropdownMenu is implemented but may be blocked by the `fixed` overlay z-index; increase contrast on the trigger button
+3. **Mobile: Remove icon is 3 bars (hamburger)** — Replace with `Trash2` icon from lucide
+4. **Mobile: "Modo Premium" subtitle** — Remove it
+5. **Mobile: Drag vs scroll conflict** — Remove drag-and-drop on mobile entirely; use tap-to-add via the drawer only, with clearer "Toque para adicionar" text
+6. **Undo button doesn't work** — The undo stack is never populated; implement snapshot-based undo in `StudyGuide.tsx`
+7. **Desktop: Floating bar not centered** — Already uses `left-1/2 -translate-x-1/2` but may be offset; verify and fix
+8. **Desktop: Remove side arrows** — Delete the `ChevronLeft`/`ChevronRight` buttons in `CalendarEditorDesktop.tsx`
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
+### Changes by File
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+#### 1. `src/components/calendar/CalendarEditorMobile.tsx`
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+- **Remove "Modo Premium" subtitle** (lines 149-154)
+- **Replace hamburger icon with Trash2** in `MobileEventCard` (lines 368-370): use `<Trash2 className="h-4 w-4" />` instead of the SVG
+- **Remove DropZone slots between cards** — Only render a single add slot after all events (not inside the `.map()` loop)
+- **Improve empty state text**: Change "Toque no + ou arraste da gaveta abaixo" to "Toque no + para adicionar matérias"
+- **Increase ⋮ button contrast**: Change `text-zinc-500` to `text-foreground` so it's more visible and clickable
+- **Ensure DropdownMenuContent has high z-index**: Add `className="z-[99999]"` to ensure it renders above the fixed overlay
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+#### 2. `src/pages/StudyGuide.tsx`
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+- **Implement working undo**: Before each `addSubject` and `removeSubject` call, snapshot the current `calendarEvents` into `undoStack`
+- **In `handleCalendarUndo`**: Pop the last snapshot and call `saveSubjects()` with it to restore previous state (using the hook's save function to sync back to DB)
 
-### Solucao
+#### 3. `src/components/calendar/CalendarEditorDesktop.tsx`
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+- **Remove side arrows** (lines 340-357): Delete the entire `variant === 'light'` block with `ChevronLeft`/`ChevronRight`
+- **Verify floating bar centering**: The current CSS (`fixed bottom-6 left-1/2 -translate-x-1/2`) is correct; ensure no parent `transform` is interfering — add explicit `w-max` to the floating bar container
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+#### 4. `src/components/calendar/FloatingActionBar.tsx`
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
-
----
-
-### Mudancas
-
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- Add `w-max` to the inner container to ensure proper centering with `translate-x-1/2`
 
