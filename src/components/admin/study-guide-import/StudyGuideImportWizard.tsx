@@ -640,6 +640,7 @@ export const StudyGuideImportWizard: React.FC = () => {
     setResult(null);
     setError(null);
     setApprovedNewSemestres(new Set());
+    setExcludedSheets(new Set());
   }, []);
 
   // Navigation
