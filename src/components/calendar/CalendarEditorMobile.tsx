@@ -224,7 +224,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
                   variant === 'dark' ? "text-muted-foreground" : "text-muted-foreground"
                 )}>
                   <p className="text-sm">Nenhuma matéria agendada</p>
-                  <p className="text-xs mt-1">Toque no + ou arraste da gaveta abaixo</p>
+                  <p className="text-xs mt-1">Toque no + para adicionar matérias</p>
                 </div>
               </>
             ) : (
