@@ -64,7 +64,7 @@ export const ProgressoTab: React.FC<ProgressoTabProps> = ({
   onThemeClick,
   onCoverageClick,
 }) => {
-  const [mapOpen, setMapOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(true);
   const [mapSearchQuery, setMapSearchQuery] = useState('');
 
   const hasFilteredResults = byMateria.length > 0 || byTema.length > 0;

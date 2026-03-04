@@ -30,27 +30,26 @@ export const MobileStickyCtaBar: React.FC<MobileStickyCtaBarProps> = ({
           animate="visible"
           exit="exit"
           variants={variants}
-          className="fixed bottom-0 left-0 right-0 z-50 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4 bg-background/95 backdrop-blur-lg border-t border-border/50"
+          className="fixed left-0 right-0 z-40 pt-3 px-4 bg-background/95 backdrop-blur-lg border-t border-border/50"
           style={{ 
-            // Avoid conflict with bottom nav (add extra padding if needed)
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 4.5rem)' 
+            bottom: '70px', // Above the mobile bottom nav
           }}
         >
-          <div className="flex gap-3 max-w-md mx-auto">
+          <div className="flex gap-3 max-w-md mx-auto pb-3">
             <Button
               onClick={onContinue}
-              className="flex-1 h-12 gap-2 text-sm font-semibold rounded-xl shadow-lg shadow-primary/20"
+              className="flex-1 h-11 gap-2 text-sm font-semibold rounded-xl shadow-lg shadow-primary/20"
             >
               <Play className="h-4 w-4" fill="currentColor" />
-              Continuar
+              Continuar estudando
             </Button>
             <Button
               onClick={onOrganize}
               variant="outline"
-              className="h-12 px-5 gap-2 text-sm font-medium rounded-xl"
+              className="h-11 px-4 gap-2 text-sm font-medium rounded-xl"
             >
               <Calendar className="h-4 w-4" />
-              Organizar
+              Vamos organizar
             </Button>
           </div>
         </motion.div>
