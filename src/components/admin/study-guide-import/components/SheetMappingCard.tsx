@@ -6,6 +6,7 @@
 import * as React from 'react';
 import { Check, ChevronsUpDown, FileSpreadsheet, Link2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,12 @@ interface SheetMappingCardProps {
   currentMapping: SheetMapping | null;
   duplicateIesIds: string[];
   onMappingChange: (sheetName: string, iesId: string, iesNome: string) => void;
+  /** Whether this sheet is enabled for import (XLSX only) */
+  enabled?: boolean;
+  /** Toggle enabled state (XLSX only) */
+  onToggleEnabled?: (sheetName: string) => void;
+  /** Whether to show the enable/disable checkbox */
+  showToggle?: boolean;
 }
 
 export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
@@ -26,6 +33,9 @@ export const SheetMappingCard: React.FC<SheetMappingCardProps> = ({
   currentMapping,
   duplicateIesIds,
   onMappingChange,
+  enabled = true,
+  onToggleEnabled,
+  showToggle = false,
 }) => {
   const [open, setOpen] = React.useState(false);
   
