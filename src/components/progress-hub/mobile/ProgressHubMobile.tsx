@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Zap, TrendingUp, Target, BookOpen, AlertTriangle } from 'lucide-react';
@@ -104,7 +104,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<MobileTab>('agora');
   const [showStickyBar, setShowStickyBar] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleExamClick = useCallback(() => {
     if (nextExam?.exam?.id) {
@@ -113,17 +112,14 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
     }
   }, [nextExam, onExamClicked]);
 
-  // Track scroll for sticky CTA
+  // Track window scroll for sticky CTA
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
     const handleScroll = () => {
-      setShowStickyBar(container.scrollTop > 120);
+      setShowStickyBar(window.scrollY > 300);
     };
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleContinue = useCallback(() => {
@@ -212,12 +208,7 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
-      {/* Scrollable content area - touch-pan-y for smooth mobile scrolling */}
-      <div 
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y pb-28 -webkit-overflow-scrolling-touch"
-      >
+    <div className="bg-background pb-28">
         {/* Above-the-fold: Summary Header */}
         <MobileSummaryHeader
           overview={data.overview}
@@ -250,7 +241,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
 
         {/* Tab content */}
         {renderTabContent()}
-      </div>
 
       {/* Sticky CTA bar - appears on scroll */}
       <MobileStickyCtaBar
