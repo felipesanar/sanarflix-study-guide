@@ -94,6 +94,8 @@ Deno.serve(async (req) => {
     // 2. Get contents for user's IES - SEMESTER SCOPED
     // CRITICAL: The Progress Dashboard must only consider content from the student's current semester
     const userSemestre = userData.semestre;
+    const INTERNATO_FALLBACK_SEMESTERS = [9, 10, 11, 12];
+    const shouldTryInternato = userSemestre && INTERNATO_FALLBACK_SEMESTERS.includes(userSemestre);
     
     if (!userSemestre) {
       console.warn('get-progress-hub: User has no semester defined, using fallback');
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
       conteudosQuery = conteudosQuery.eq('semestre', String(userSemestre));
     }
     
-    const { data: conteudos, error: conteudosError } = await conteudosQuery;
+    let { data: conteudos, error: conteudosError } = await conteudosQuery;
 
     if (conteudosError) {
       console.error('get-progress-hub: Contents error:', conteudosError);
@@ -119,8 +121,26 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // INTERNATO FALLBACK: If semesters 9-12 returned no content, try INTERNATO
+    let effectiveSemestre: number | string | null = userSemestre;
+    if (!conteudosError && (!conteudos || conteudos.length === 0) && shouldTryInternato) {
+      console.log(`get-progress-hub: No content for semester ${userSemestre}, falling back to INTERNATO`);
+      
+      const { data: internatoConteudos, error: internatoError } = await supabaseAdmin
+        .from('conteudos')
+        .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
+        .eq('id_ies', userData.id_ies)
+        .eq('semestre', 'INTERNATO');
+      
+      if (!internatoError && internatoConteudos && internatoConteudos.length > 0) {
+        conteudos = internatoConteudos;
+        effectiveSemestre = 'INTERNATO';
+        console.log(`get-progress-hub: INTERNATO fallback found ${internatoConteudos.length} contents`);
+      }
+    }
     
-    console.log(`get-progress-hub: Fetched ${conteudos?.length || 0} contents for semester ${userSemestre || 'ALL'}`);
+    console.log(`get-progress-hub: Fetched ${conteudos?.length || 0} contents for semester ${effectiveSemestre || 'ALL'}`);
     
     // Handle empty state - no contents for semester
     if (!conteudos || conteudos.length === 0) {
@@ -148,6 +168,7 @@ Deno.serve(async (req) => {
           user: {
             nome: userData.nome,
             semestre: userSemestre,
+            effective_semestre: String(effectiveSemestre || userSemestre),
             semestre_warning: !userSemestre ? 'Semestre não definido' : null,
             streak_goal: 3
           }
