@@ -42,6 +42,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   onSave,
   onClose,
   onUndo,
+  onReset,
   onEventClick,
   syncStatus,
   isSaving = false,
