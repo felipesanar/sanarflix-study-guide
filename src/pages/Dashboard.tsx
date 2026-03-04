@@ -33,6 +33,7 @@ import {
   type MilestoneType,
 } from '@/components/progress-hub';
 import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
+import { AiTutorCard } from '@/components/progress-hub/mobile/AiTutorCard';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
