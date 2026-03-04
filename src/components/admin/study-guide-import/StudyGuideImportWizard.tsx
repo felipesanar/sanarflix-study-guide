@@ -376,7 +376,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Erro na validação');
       setStatus('error');
     }
-  }, [fileType, sheets, sheetMappings, rawData, iesList, config]);
+  }, [fileType, sheets, sheetMappings, rawData, iesList, config, excludedSheets]);
 
   // Run import
   const runImport = useCallback(async () => {
