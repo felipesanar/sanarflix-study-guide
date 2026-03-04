@@ -50,7 +50,7 @@ export const SubjectDrawerMobile: React.FC<SubjectDrawerMobileProps> = ({
               variant === 'dark' ? "border-border/50" : "border-border/30"
             )}
           >
-            Arraste ou toque
+            Toque para adicionar
           </Badge>
           <motion.div
             animate={{ rotate: isExpanded ? 180 : 0 }}
