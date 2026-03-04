@@ -303,6 +303,21 @@ export const StudyGuide: React.FC = () => {
             return a.localeCompare(b);
           });
           setAllSemestres(sorted);
+
+          // Auto-fallback to INTERNATO for semesters 9-12 if their numeric semester doesn't exist
+          const userSemNum = user?.semestre ? Number(user.semestre) : NaN;
+          if (INTERNATO_FALLBACK_SEMESTERS.includes(userSemNum)) {
+            const userSemStr = user.semestre?.toString() || '';
+            const hasNumeric = sorted.includes(userSemStr);
+            const hasInternato = sorted.some(s => s.toUpperCase() === 'INTERNATO');
+            if (!hasNumeric && hasInternato) {
+              setSelectedSemestre(prev => {
+                // Only switch if still on the numeric semester (user hasn't manually changed)
+                if (prev === userSemStr || prev === '') return 'INTERNATO';
+                return prev;
+              });
+            }
+          }
         }
       } catch (e) {
         if (import.meta.env.DEV) console.warn('[StudyGuide] Failed to fetch semestres list:', e);
