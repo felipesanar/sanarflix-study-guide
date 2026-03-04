@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Zap, TrendingUp, Target, BookOpen, AlertTriangle } from 'lucide-react';
