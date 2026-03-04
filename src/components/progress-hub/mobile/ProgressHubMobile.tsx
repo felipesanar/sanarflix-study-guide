@@ -104,7 +104,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
   const shouldReduceMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<MobileTab>('agora');
   const [showStickyBar, setShowStickyBar] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleExamClick = useCallback(() => {
     if (nextExam?.exam?.id) {
@@ -113,17 +112,14 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
     }
   }, [nextExam, onExamClicked]);
 
-  // Track scroll for sticky CTA
+  // Track window scroll for sticky CTA
   useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-
     const handleScroll = () => {
-      setShowStickyBar(container.scrollTop > 120);
+      setShowStickyBar(window.scrollY > 300);
     };
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleContinue = useCallback(() => {
