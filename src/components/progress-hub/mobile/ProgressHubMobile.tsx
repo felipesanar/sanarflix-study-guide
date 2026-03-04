@@ -183,9 +183,6 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
               <InsightsTab
                 byMateria={data.by_materia}
                 byTema={data.by_tema}
-                streak={data.streak}
-                syncing={syncing}
-                onGoalChange={onGoalChange}
                 onDiagnosticClick={onDiagnosticClick}
               />
             </Suspense>
