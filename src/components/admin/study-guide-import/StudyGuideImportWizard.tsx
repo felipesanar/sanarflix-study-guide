@@ -90,6 +90,7 @@ export const StudyGuideImportWizard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
   const [approvedNewSemestres, setApprovedNewSemestres] = useState<Set<string>>(new Set());
+  const [excludedSheets, setExcludedSheets] = useState<Set<string>>(new Set());
 
   // Load IES list on mount
   useEffect(() => {
