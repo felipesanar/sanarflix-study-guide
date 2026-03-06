@@ -137,9 +137,24 @@ export const UsersTab: React.FC = () => {
     abortRef.current = abortController;
 
     try {
-      // Fix #1: Use XLSX to parse CSV/XLSX robustly instead of split(',')
+      // Fix #1: Use XLSX to parse CSV/XLSX robustly with encoding detection
       const arrayBuffer = await csvFile.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const isCsv = csvFile.name.toLowerCase().endsWith('.csv');
+      let workbook: XLSX.WorkBook;
+
+      if (isCsv) {
+        // Detect encoding: try UTF-8 first, check for mojibake patterns
+        let text = new TextDecoder('utf-8').decode(arrayBuffer);
+        const mojibakePatterns = /Ã£|Ã©|Ãª|Ã´|Ã§|Ã¡|Ãº|Ã³|Ã­|Ã¢|Ãã|Ã\u00a0/;
+        if (mojibakePatterns.test(text)) {
+          addLog('⚠️ Encoding Latin-1 detectado, convertendo para UTF-8...');
+          text = new TextDecoder('windows-1252').decode(arrayBuffer);
+        }
+        workbook = XLSX.read(text, { type: 'string' });
+      } else {
+        workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      }
+
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
 
