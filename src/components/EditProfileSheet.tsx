@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, Check, Lock, Pencil, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Lock, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -176,9 +176,6 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
                 .join("")
                 .toUpperCase()}
             </span>
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
-            <Pencil className="h-3 w-3 text-primary-foreground" />
           </div>
         </motion.div>
       </div>
