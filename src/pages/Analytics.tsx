@@ -62,7 +62,7 @@ const Analytics = () => {
     refetch 
   } = data;
 
-  const hasAnalyticsAccess = isB2BUser(user);
+  const hasAnalyticsAccess = isAdmin(user);
   const { count: onlineUsersCount, isConnected, isLoading: isLoadingOnline } = useOnlineUsersCount();
 
   const handleRefresh = async () => {
