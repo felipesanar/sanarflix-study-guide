@@ -547,7 +547,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: false })}
+                    onClick={() => setBatchProgress(EMPTY_PROGRESS)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
