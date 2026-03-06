@@ -329,11 +329,9 @@ Deno.serve(async (req) => {
               await supabaseAdmin.from('user_roles')
                 .upsert({ user_id: authUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
             }
-            // Send welcome email
-            EdgeRuntime.waitUntil(
-              sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => {})
-            );
-            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: true });
+            // Send welcome email (awaited for accurate status)
+            const emailOk = await sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => false);
+            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           }
         }
 
