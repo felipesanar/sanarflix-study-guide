@@ -381,7 +381,7 @@ const DesempenhoInstitucional: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       const { data, error } = await supabase.rpc('get_institutional_evolution');
-      if (!error && data) setEvolution(data as EvolutionData[]);
+      if (!error && data) setEvolution(data as unknown as EvolutionData[]);
     };
     load();
   }, []);
