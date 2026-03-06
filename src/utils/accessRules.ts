@@ -40,6 +40,7 @@ const ADMIN_RULES: AccessRules = {
   sanarclass: true,
   simulados: true,
   analytics: true,
+  desempenhoInstitucional: true,
 };
 
 /**
