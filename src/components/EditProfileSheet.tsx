@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label";
 interface EditProfileSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  source?: 'profile_edit' | 'onboarding_banner';
 }
 
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s\-'.]+$/;
