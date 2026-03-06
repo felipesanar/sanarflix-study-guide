@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
@@ -78,7 +79,16 @@ interface UsersListTableProps {
   onStatsUpdate?: (totalUsers: number, totalAdmins: number) => void;
 }
 
+interface BatchProgress {
+  total: number;
+  completed: number;
+  deleted: number;
+  failed: number;
+  active: boolean;
+}
+
 const ITEMS_PER_PAGE = 25;
+const BATCH_CHUNK_SIZE = 10; // Must match edge function MAX_BATCH_SIZE
 
 export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStatsUpdate }) => {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -104,7 +114,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [iesDeleteOpen, setIesDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  // Batch progress state
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
+    total: 0, completed: 0, deleted: 0, failed: 0, active: false,
+  });
+  const cancelRef = useRef(false);
 
   // Clear selection on page/filter change
   useEffect(() => {
@@ -221,6 +236,115 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     setPage(0);
   }, [searchTerm, filterIes]);
 
+  // ──── Chunked batch deletion with progress ────
+  const executeChunkedDelete = async (idsToDelete: string[]) => {
+    cancelRef.current = false;
+    const total = idsToDelete.length;
+
+    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true });
+    setBatchDeleteOpen(false);
+    setIesDeleteOpen(false);
+    setConfirmText('');
+
+    let totalDeleted = 0;
+    let totalFailed = 0;
+
+    for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
+      if (cancelRef.current) {
+        toast.info('Exclusão cancelada pelo usuário');
+        break;
+      }
+
+      const chunk = idsToDelete.slice(i, i + BATCH_CHUNK_SIZE);
+
+      try {
+        const { data, error } = await supabase.functions.invoke('delete-user', {
+          body: { user_ids: chunk },
+        });
+
+        if (error) throw error;
+
+        const chunkDeleted = data?.results?.deleted?.length || 0;
+        const chunkFailed = data?.results?.failed?.length || 0;
+        totalDeleted += chunkDeleted;
+        totalFailed += chunkFailed;
+
+        // Remove deleted users from local state immediately
+        if (chunkDeleted > 0) {
+          const deletedSet = new Set(data.results.deleted as string[]);
+          setUsers(prev => prev.filter(u => !deletedSet.has(u.id)));
+          setSelectedIds(prev => {
+            const next = new Set(prev);
+            deletedSet.forEach(id => next.delete(id));
+            return next;
+          });
+        }
+      } catch (err) {
+        console.error('[BatchDelete] Chunk error:', err);
+        totalFailed += chunk.length;
+      }
+
+      const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
+      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true });
+    }
+
+    // Final state
+    setBatchProgress(prev => ({ ...prev, active: false }));
+    setTotalCount(prev => Math.max(0, prev - totalDeleted));
+
+    if (totalFailed > 0) {
+      toast.warning(`${totalDeleted} removidos, ${totalFailed} falharam`);
+    } else if (totalDeleted > 0) {
+      toast.success(`${totalDeleted} usuários removidos com sucesso`);
+    } else {
+      toast.info('Nenhum usuário foi removido');
+    }
+
+    fetchUsers();
+  };
+
+  // ──── Batch delete selected ────
+  const handleBatchDelete = () => {
+    executeChunkedDelete(Array.from(selectedIds));
+  };
+
+  // ──── Delete all from IES ────
+  const handleIesDelete = async () => {
+    if (filterIes === 'all') return;
+
+    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true });
+    setIesDeleteOpen(false);
+    setConfirmText('');
+
+    try {
+      // Step 1: Resolve all deletable IDs from the IES
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { ies_id: filterIes, resolve_only: true },
+      });
+
+      if (error) throw error;
+
+      const idsToDelete: string[] = data?.user_ids || [];
+
+      if (idsToDelete.length === 0) {
+        setBatchProgress(prev => ({ ...prev, active: false }));
+        toast.info('Nenhum usuário encontrado para remoção nesta IES');
+        return;
+      }
+
+      // Step 2: Delete in chunks
+      await executeChunkedDelete(idsToDelete);
+    } catch (err) {
+      setBatchProgress(prev => ({ ...prev, active: false }));
+      toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
+    }
+  };
+
+  const cancelBatchDelete = () => {
+    cancelRef.current = true;
+  };
+
+  // ──── Existing single-user actions (unchanged) ────
   const startEditing = (user: UserRow) => {
     setEditing({
       userId: user.id,
@@ -236,7 +360,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
   const saveEditing = async () => {
     if (!editing.userId) return;
-
     const user = users.find(u => u.id === editing.userId);
     if (!user) return;
 
@@ -244,12 +367,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       toast.error('Nome deve ter pelo menos 2 caracteres');
       return;
     }
-
     if (!editing.id_ies) {
       toast.error('Selecione uma IES');
       return;
     }
-
     const semestre = parseInt(editing.semestre);
     if (isNaN(semestre) || semestre < 1 || semestre > 12) {
       toast.error('Semestre deve ser um número entre 1 e 12');
@@ -259,23 +380,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: {
-          nome: editing.nome.trim(),
-          email: user.email,
-          id_ies: editing.id_ies,
-          semestre,
-        },
+        body: { nome: editing.nome.trim(), email: user.email, id_ies: editing.id_ies, semestre },
       });
-
-      if (error || !data?.success) {
-        throw new Error(data?.error || error?.message || 'Erro ao atualizar');
-      }
-
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
       toast.success('Usuário atualizado com sucesso');
       cancelEditing();
       fetchUsers();
     } catch (err) {
-      console.error('Save error:', err);
       toast.error(err instanceof Error ? err.message : 'Erro ao salvar');
     } finally {
       setSaving(false);
@@ -285,28 +396,18 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const toggleAdminRole = async (user: UserRow) => {
     const isAdmin = user.roles.includes('admin');
     setActionLoading(user.id);
-
     try {
       if (isAdmin) {
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('role', 'admin');
-
+        const { error } = await supabase.from('user_roles').delete().eq('user_id', user.id).eq('role', 'admin');
         if (error) throw error;
         toast.success(`${user.nome} não é mais administrador`);
       } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({ user_id: user.id, role: 'admin' });
-
+        const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role: 'admin' });
         if (error) throw error;
         toast.success(`${user.nome} agora é administrador`);
       }
       fetchUsers();
-    } catch (err) {
-      console.error('Toggle admin error:', err);
+    } catch {
       toast.error('Erro ao alterar permissão');
     } finally {
       setActionLoading(null);
@@ -316,19 +417,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const syncUserAuth = async (email: string) => {
     setActionLoading(email);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-user-auth', {
-        body: { email },
-      });
-
+      const { data, error } = await supabase.functions.invoke('sync-user-auth', { body: { email } });
       if (error) throw error;
-
-      if (data?.success) {
-        toast.success(data.message || 'Autenticação sincronizada');
-      } else {
-        toast.info(data?.error || 'Nenhuma ação necessária');
-      }
-    } catch (err) {
-      console.error('Sync error:', err);
+      if (data?.success) toast.success(data.message || 'Autenticação sincronizada');
+      else toast.info(data?.error || 'Nenhuma ação necessária');
+    } catch {
       toast.error('Erro ao sincronizar');
     } finally {
       setActionLoading(null);
@@ -339,24 +432,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     setActionLoading(user.id);
     try {
       const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: {
-          nome: user.nome,
-          email: user.email,
-          id_ies: user.id_ies,
-          semestre: user.semestre || 1,
-          resend_email: true,
-        },
+        body: { nome: user.nome, email: user.email, id_ies: user.id_ies, semestre: user.semestre || 1, resend_email: true },
       });
-
       if (error) throw error;
-
-      if (data?.success) {
-        toast.success('Email de convite reenviado');
-      } else {
-        toast.info(data?.message || 'Usuário já confirmado');
-      }
-    } catch (err) {
-      console.error('Resend invite error:', err);
+      if (data?.success) toast.success('Email de convite reenviado');
+      else toast.info(data?.message || 'Usuário já confirmado');
+    } catch {
       toast.error('Erro ao reenviar convite');
     } finally {
       setActionLoading(null);
@@ -371,93 +452,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       const { data, error } = await supabase.functions.invoke('delete-user', {
         body: { user_id: userToDelete.id },
       });
-
-      if (error || !data?.success) {
-        throw new Error(data?.error || error?.message || 'Erro ao remover usuário');
-      }
-
+      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao remover usuário');
       setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       setTotalCount(prev => Math.max(0, prev - 1));
       setDeleteConfirm(null);
-      setDeleting(false);
       toast.success(`${userToDelete.nome} foi removido com sucesso`);
     } catch (err) {
-      setDeleting(false);
       toast.error(err instanceof Error ? err.message : 'Erro ao remover usuário');
-    }
-  };
-
-  // ──── Batch delete selected users ────
-  const executeBatchDelete = async () => {
-    if (selectedIds.size === 0) return;
-    setBatchDeleting(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { user_ids: Array.from(selectedIds) },
-      });
-
-      if (error) throw new Error(error.message);
-
-      const results = data?.results;
-      const deletedCount = results?.deleted?.length || 0;
-      const failedCount = results?.failed?.length || 0;
-
-      if (deletedCount > 0) {
-        const deletedSet = new Set(results.deleted);
-        setUsers(prev => prev.filter(u => !deletedSet.has(u.id)));
-        setTotalCount(prev => Math.max(0, prev - deletedCount));
-        setSelectedIds(new Set());
-      }
-
-      setBatchDeleteOpen(false);
-      setConfirmText('');
-      setBatchDeleting(false);
-
-      if (failedCount > 0) {
-        toast.warning(`${deletedCount} removidos, ${failedCount} falharam`);
-      } else {
-        toast.success(`${deletedCount} usuários removidos com sucesso`);
-      }
-
-      if (deletedCount > 0) fetchUsers();
-    } catch (err) {
-      setBatchDeleting(false);
-      toast.error(err instanceof Error ? err.message : 'Erro na exclusão em lote');
-    }
-  };
-
-  // ──── Delete all users from IES ────
-  const executeIesDelete = async () => {
-    if (filterIes === 'all') return;
-    setBatchDeleting(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { ies_id: filterIes },
-      });
-
-      if (error) throw new Error(error.message);
-
-      const results = data?.results;
-      const deletedCount = results?.deleted?.length || 0;
-      const failedCount = results?.failed?.length || 0;
-
-      setIesDeleteOpen(false);
-      setConfirmText('');
-      setBatchDeleting(false);
-      setSelectedIds(new Set());
-
-      if (failedCount > 0) {
-        toast.warning(`${deletedCount} removidos, ${failedCount} falharam`);
-      } else {
-        toast.success(`${deletedCount} usuários da IES removidos com sucesso`);
-      }
-
-      fetchUsers();
-    } catch (err) {
-      setBatchDeleting(false);
-      toast.error(err instanceof Error ? err.message : 'Erro na exclusão da IES');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -469,6 +472,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
   const showingFrom = page * ITEMS_PER_PAGE + 1;
   const showingTo = Math.min((page + 1) * ITEMS_PER_PAGE, totalCount);
+  const progressPercent = batchProgress.total > 0
+    ? Math.round((batchProgress.completed / batchProgress.total) * 100)
+    : 0;
 
   return (
     <Card>
@@ -482,6 +488,51 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Batch progress overlay */}
+        {(batchProgress.active || batchProgress.completed > 0) && batchProgress.total > 0 && (
+          <div className="rounded-lg border bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {batchProgress.active ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Check className="h-4 w-4 text-green-600" />
+                )}
+                <span className="text-sm font-medium">
+                  {batchProgress.active
+                    ? `Excluindo usuários... ${batchProgress.completed}/${batchProgress.total}`
+                    : `Exclusão concluída: ${batchProgress.deleted} removidos`
+                  }
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {batchProgress.failed > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    {batchProgress.failed} falha{batchProgress.failed > 1 ? 's' : ''}
+                  </Badge>
+                )}
+                {batchProgress.active ? (
+                  <Button variant="outline" size="sm" onClick={cancelBatchDelete}>
+                    Cancelar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: false })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {batchProgress.deleted} removidos • {batchProgress.failed} falhas • {progressPercent}% concluído
+            </p>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -491,9 +542,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
+              disabled={batchProgress.active}
             />
           </div>
-          <Select value={filterIes} onValueChange={setFilterIes}>
+          <Select value={filterIes} onValueChange={setFilterIes} disabled={batchProgress.active}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por IES" />
             </SelectTrigger>
@@ -512,18 +564,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               size="sm"
               onClick={() => { setConfirmText(''); setIesDeleteOpen(true); }}
               className="whitespace-nowrap"
+              disabled={batchProgress.active}
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Excluir todos da IES
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}>
+          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || batchProgress.active}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
         {/* Batch action bar */}
-        {selectedIds.size > 0 && (
+        {selectedIds.size > 0 && !batchProgress.active && (
           <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
             <span className="text-sm font-medium">
               {selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''}
@@ -556,6 +609,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                     checked={allPageSelected && selectableUsers.length > 0}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Selecionar todos"
+                    disabled={batchProgress.active}
                   />
                 </TableHead>
                 <TableHead className="min-w-[200px]">Nome</TableHead>
@@ -597,7 +651,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
                   return (
                     <TableRow key={user.id} className={isEditing ? 'bg-muted/50' : isSelected ? 'bg-primary/5' : ''}>
-                      {/* Checkbox */}
                       <TableCell>
                         {isAdmin ? (
                           <Checkbox disabled checked={false} aria-label="Admin não selecionável" />
@@ -606,11 +659,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                             checked={isSelected}
                             onCheckedChange={() => toggleSelect(user.id)}
                             aria-label={`Selecionar ${user.nome}`}
+                            disabled={batchProgress.active}
                           />
                         )}
                       </TableCell>
 
-                      {/* Nome */}
                       <TableCell>
                         {isEditing ? (
                           <Input
@@ -624,12 +677,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                         )}
                       </TableCell>
 
-                      {/* Email */}
                       <TableCell className="text-muted-foreground">
                         {user.email}
                       </TableCell>
 
-                      {/* IES */}
                       <TableCell>
                         {isEditing ? (
                           <Select
@@ -652,7 +703,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                         )}
                       </TableCell>
 
-                      {/* Semestre */}
                       <TableCell className="text-center">
                         {isEditing ? (
                           <Input
@@ -668,7 +718,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                         )}
                       </TableCell>
 
-                      {/* Papel */}
                       <TableCell>
                         {isAdmin ? (
                           <Badge variant="default" className="bg-primary">
@@ -680,56 +729,25 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                         )}
                       </TableCell>
 
-                      {/* Ações */}
                       <TableCell className="text-right">
                         {isEditing ? (
                           <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={saveEditing}
-                              disabled={saving}
-                              className="h-8 w-8 p-0"
-                            >
-                              {saving ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4 text-green-600" />
-                              )}
+                            <Button size="sm" variant="ghost" onClick={saveEditing} disabled={saving} className="h-8 w-8 p-0">
+                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-600" />}
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={cancelEditing}
-                              disabled={saving}
-                              className="h-8 w-8 p-0"
-                            >
+                            <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={saving} className="h-8 w-8 p-0">
                               <X className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         ) : (
                           <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => startEditing(user)}
-                              className="h-8 w-8 p-0"
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={batchProgress.active}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0"
-                                  disabled={isLoading}
-                                >
-                                  {isLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  )}
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || batchProgress.active}>
+                                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -784,7 +802,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0 || loading}
+                disabled={page === 0 || loading || batchProgress.active}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -795,7 +813,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1 || loading}
+                disabled={page >= totalPages - 1 || loading || batchProgress.active}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -803,23 +821,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </div>
         )}
 
-        {/* Single Delete Confirmation Dialog */}
+        {/* Single Delete Confirmation */}
         <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Remover Usuário</AlertDialogTitle>
               <AlertDialogDescription>
                 Tem certeza que deseja remover <strong>{deleteConfirm?.nome}</strong> ({deleteConfirm?.email})?
-                Esta ação é irreversível e removerá o usuário tanto do sistema de autenticação quanto da base de dados.
+                Esta ação é irreversível.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                onClick={deleteUser}
-                disabled={deleting}
-              >
+              <Button variant="destructive" onClick={deleteUser} disabled={deleting}>
                 {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
                 Remover
               </Button>
@@ -827,7 +841,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Batch Delete Confirmation Dialog */}
+        {/* Batch Delete Confirmation */}
         <AlertDialog open={batchDeleteOpen} onOpenChange={(open) => { if (!open) { setBatchDeleteOpen(false); setConfirmText(''); } }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -835,36 +849,29 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               <AlertDialogDescription asChild>
                 <div className="space-y-3">
                   <p>
-                    Esta ação é <strong>irreversível</strong>. Todos os dados dos usuários selecionados serão permanentemente removidos, incluindo progresso, simulados e autenticação.
+                    Esta ação é <strong>irreversível</strong>. Todos os dados dos usuários selecionados serão permanentemente removidos.
                   </p>
-                  <p>
-                    Digite <strong>EXCLUIR</strong> para confirmar:
-                  </p>
+                  <p>Digite <strong>EXCLUIR</strong> para confirmar:</p>
                   <Input
                     value={confirmText}
                     onChange={(e) => setConfirmText(e.target.value)}
                     placeholder="EXCLUIR"
-                    className="mt-2"
                     autoFocus
                   />
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={batchDeleting}>Cancelar</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                onClick={executeBatchDelete}
-                disabled={batchDeleting || confirmText !== 'EXCLUIR'}
-              >
-                {batchDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button variant="destructive" onClick={handleBatchDelete} disabled={confirmText !== 'EXCLUIR'}>
+                <Trash2 className="h-4 w-4 mr-2" />
                 Confirmar Exclusão
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* IES Delete Confirmation Dialog */}
+        {/* IES Delete Confirmation */}
         <AlertDialog open={iesDeleteOpen} onOpenChange={(open) => { if (!open) { setIesDeleteOpen(false); setConfirmText(''); } }}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -872,29 +879,22 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               <AlertDialogDescription asChild>
                 <div className="space-y-3">
                   <p>
-                    Esta ação é <strong>irreversível</strong>. Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos, incluindo todos os seus dados.
+                    Esta ação é <strong>irreversível</strong>. Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.
                   </p>
-                  <p>
-                    Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:
-                  </p>
+                  <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
                   <Input
                     value={confirmText}
                     onChange={(e) => setConfirmText(e.target.value)}
                     placeholder={selectedIesName}
-                    className="mt-2"
                     autoFocus
                   />
                 </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={batchDeleting}>Cancelar</AlertDialogCancel>
-              <Button
-                variant="destructive"
-                onClick={executeIesDelete}
-                disabled={batchDeleting || confirmText !== selectedIesName}
-              >
-                {batchDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button variant="destructive" onClick={handleIesDelete} disabled={confirmText !== selectedIesName}>
+                <Trash2 className="h-4 w-4 mr-2" />
                 Excluir Todos da IES
               </Button>
             </AlertDialogFooter>
