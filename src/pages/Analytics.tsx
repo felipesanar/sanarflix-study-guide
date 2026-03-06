@@ -12,7 +12,7 @@ import { ExportReportModal } from '@/components/analytics/ExportReportModal';
 import { DataStatusIndicator } from '@/components/analytics/DataStatusIndicator';
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
 import { LiveUsersIndicator } from '@/components/analytics/LiveUsersIndicator';
-import { isB2BUser } from '@/utils/accessRules';
+import { isAdmin } from '@/utils/accessRules';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
 import { useOnlineUsersCount } from '@/hooks/useOnlineUsersCount';
 import { BarChart3, RefreshCw, Download } from 'lucide-react';
@@ -62,7 +62,7 @@ const Analytics = () => {
     refetch 
   } = data;
 
-  const hasAnalyticsAccess = isB2BUser(user);
+  const hasAnalyticsAccess = isAdmin(user);
   const { count: onlineUsersCount, isConnected, isLoading: isLoadingOnline } = useOnlineUsersCount();
 
   const handleRefresh = async () => {
