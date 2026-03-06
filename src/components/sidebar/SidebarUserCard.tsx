@@ -21,6 +21,7 @@ interface SidebarUserCardProps {
 
 export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
   const passwordDialog = usePasswordDialog();
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!user) return null;
 
