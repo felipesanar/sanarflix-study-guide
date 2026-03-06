@@ -49,6 +49,7 @@ export interface AuthContextType {
   isLoading: boolean;
   needsPasswordChange: boolean;
   changePassword: (newPassword: string) => Promise<boolean>;
+  forceRefreshProfile: () => Promise<void>;
 }
 
 export interface StudyContextType {

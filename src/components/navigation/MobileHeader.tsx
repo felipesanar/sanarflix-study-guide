@@ -126,6 +126,8 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
 
         <ThemeToggle />
       </div>
+
+      <EditProfileSheet open={editProfileOpen} onOpenChange={setEditProfileOpen} />
     </header>
   );
 }

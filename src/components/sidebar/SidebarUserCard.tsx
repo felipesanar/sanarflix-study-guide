@@ -109,6 +109,14 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
             variant="ghost"
             size="sm"
             className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
+            onClick={() => setEditOpen(true)}
+          >
+            Editar perfil
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
             onClick={() => passwordDialog.setOpen(true)}
           >
             Trocar a senha
@@ -123,6 +131,8 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           </Button>
         </div>
       </PopoverContent>
+
+      <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} />
     </Popover>
   );
 }

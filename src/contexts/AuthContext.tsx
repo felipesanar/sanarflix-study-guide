@@ -399,6 +399,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const forceRefreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    // Bypass throttle by resetting ref
+    lastRefreshRef.current = 0;
+    await refreshUserProfile(user.id);
+  }, [user?.id, refreshUserProfile]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -406,7 +413,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logout, 
       isLoading, 
       needsPasswordChange, 
-      changePassword 
+      changePassword,
+      forceRefreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
