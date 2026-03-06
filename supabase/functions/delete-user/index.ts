@@ -27,11 +27,14 @@ const DEPENDENT_TABLES = [
   { table: 'announcements_viewed', filters: ['user_id'] },
   { table: 'sanarclass_views', filters: ['user_id'] },
   { table: 'performance_notifications_sent', filters: ['user_id'] },
+  // consumo_metabase references supabase_to_metabase via FK — must be deleted first
+  { table: 'consumo_metabase', filters: ['id'] },
   { table: 'supabase_to_metabase', filters: ['id'] },
 ];
 
 // Max users per single invocation to avoid CPU timeout
-const MAX_BATCH_SIZE = 5;
+// Each user requires ~23 DB calls, so keep this low
+const MAX_BATCH_SIZE = 3;
 
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
