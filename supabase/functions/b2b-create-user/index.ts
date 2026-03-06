@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
       // Update public.users
       const { error: updateErr } = await supabaseAdmin
         .from('users')
-        .update({ nome, id_ies, semestre })
+        .update({ nome, id_ies, semestre: semestre ?? null })
         .eq('id', existingUser.id);
 
       if (updateErr) {
