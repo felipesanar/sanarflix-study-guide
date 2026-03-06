@@ -25,7 +25,7 @@ const createUserSchema = z.object({
     .trim()
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome muito longo')
-    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, 'Nome deve conter apenas letras e espaços'),
+    .regex(/^[a-zA-ZÀ-ÿ\s\-'.]+$/, 'Nome deve conter apenas letras, espaços, hífens, apóstrofos e pontos'),
   email: z.string()
     .trim()
     .email('Email inválido')
