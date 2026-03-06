@@ -161,7 +161,7 @@ export function AppSidebar() {
     if (item.accessKey === "sanarclass") return accessRules.sanarclass;
     if (item.accessKey === "simulados") return true;
     if (item.accessKey === "analytics") return isAdmin(user);
-    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user);
+    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
     return accessRules[item.accessKey];
   });
 

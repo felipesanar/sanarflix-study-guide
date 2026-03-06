@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdmin, isB2BPartner } from '@/utils/accessRules';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, Target, BarChart3, School, TrendingUp, ChevronLeft, ChevronRight, CheckCircle, XCircle, Download, ArrowUpDown, Ban } from 'lucide-react';
+import { Loader2, Users, Target, BarChart3, School, TrendingUp, ChevronLeft, ChevronRight, CheckCircle, XCircle, Download, ArrowUpDown, Ban, Building2 } from 'lucide-react';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, BarChart as RechartsBarChart, Bar, CartesianGrid } from 'recharts';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
