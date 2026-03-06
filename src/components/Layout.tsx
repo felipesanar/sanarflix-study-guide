@@ -13,6 +13,7 @@ import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { useSessionTracker } from '@/hooks/useSessionTracker';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
+import { SemesterPromptBanner } from './SemesterPromptBanner';
 
 interface LayoutProps {
   children: React.ReactNode;
