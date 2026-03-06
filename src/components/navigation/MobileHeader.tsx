@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Bell, User, AlertTriangle, Info, X, LogOut, Loader2 } from "lucide-react";
+import { Bell, User, AlertTriangle, Info, X, LogOut, Loader2, Pencil } from "lucide-react";
+import { EditProfileSheet } from "@/components/EditProfileSheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
