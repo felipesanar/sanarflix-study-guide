@@ -200,6 +200,14 @@ const defaultMetrics: AnalyticsData = {
       avancados: 0,
       naoInformado: 0,
     },
+    semesterEditing: {
+      totalUpdates: 0,
+      firstDefinitions: 0,
+      bannerShown: 0,
+      bannerClicked: 0,
+      conversionRate: 0,
+      updatesPerDay: [],
+    },
   },
   simulados: {
     simuladosDisponiveis: [],
