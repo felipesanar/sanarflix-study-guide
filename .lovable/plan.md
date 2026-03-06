@@ -1,56 +1,81 @@
 
 
-# Cadastro sem Semestre + Banner de Onboarding
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-## Problema
-1. O cadastro em lote rejeita usuários sem semestre (validação frontend e backend exigem semestre 1-12)
-2. Não existe mecanismo para avisar o usuário que está sem semestre e pedir atualização
+### Causa Raiz Identificada
 
-## Mudanças
+Analisando os logs de autenticacao, o problema fica evidente:
 
-### 1. Edge Function `b2b-create-user` — tornar `semestre` opcional
-
-No schema Zod, mudar `semestre` de obrigatório para opcional (nullable):
-
-```typescript
-semestre: z.number().int().min(1).max(12).nullable().optional(),
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
 
-Nos fluxos de create/update, passar `semestre: semestre ?? null` para o banco e metadata.
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-### 2. Frontend — `UsersTab.tsx` batch validation
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-Remover a validação que rejeita linhas sem semestre. Se `semestreStr` estiver vazio/ausente, passar `semestre: null` ao invés de rejeitar. Manter validação de range (1-12) apenas quando o valor estiver preenchido.
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
 
-Na criação unitária, tornar semestre opcional também (não obrigatório no formulário).
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
-### 3. Banner global "Defina seu semestre" — novo componente
+### Solucao
 
-Criar `src/components/SemesterPromptBanner.tsx`:
-- Verifica `user.semestre` — se `null`/`undefined`, exibe um banner fixo no topo (acima do conteúdo, abaixo do header)
-- Banner amarelo/warning com texto: "Seu semestre ainda não foi definido. Defina agora para ver conteúdo personalizado."
-- Botão "Definir semestre" abre o `EditProfileSheet`
-- Após o usuário definir o semestre e o `forceRefreshProfile` atualizar o context, o banner desaparece automaticamente (sem necessidade de flag localStorage)
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
 
-### 4. Integrar banner no `Layout.tsx`
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
 
-Adicionar `<SemesterPromptBanner />` dentro do `<main>` antes de `{children}`, visível apenas quando `user.semestre` é null.
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
 
-### 5. `EditProfileSheet` — ajuste para semestre null
+---
 
-Quando o semestre é null, o select deve mostrar placeholder "Selecione seu período" sem valor pré-selecionado. O campo nunca fica "locked" se nunca foi definido (pois `semestre_updated_at` será null).
+### Mudancas
 
-## Arquivos a editar
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
 
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/b2b-create-user/index.ts` | Tornar `semestre` opcional no schema e fluxos |
-| `src/components/admin/UsersTab.tsx` | Remover validação obrigatória de semestre no batch e criação unitária |
-| `src/components/SemesterPromptBanner.tsx` | Novo — banner de onboarding |
-| `src/components/Layout.tsx` | Integrar banner |
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
 
-## Segurança
-- A coluna `semestre` na tabela `users` já é nullable (`integer | null`)
-- O trigger `validate_user_update` não bloqueia definição inicial (cooldown só aplica quando `semestre_updated_at IS NOT NULL`)
-- Nenhuma migração SQL necessária
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

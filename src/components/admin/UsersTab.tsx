@@ -68,9 +68,18 @@ export const UsersTab: React.FC = () => {
   // syncUserAuth removed – available per-user in UsersListTable
 
   const createSingleUser = async () => {
-    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies || !singleUser.semestre) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies) {
+      toast.error('Preencha nome, email e instituição');
       return;
+    }
+
+    // Validate semestre only if provided
+    if (singleUser.semestre) {
+      const sem = parseInt(singleUser.semestre);
+      if (isNaN(sem) || sem < 1 || sem > 12) {
+        toast.error('Semestre deve ser entre 1 e 12');
+        return;
+      }
     }
 
     setIsCreating(true);
@@ -81,7 +90,7 @@ export const UsersTab: React.FC = () => {
           nome: singleUser.nome,
           email: singleUser.email.toLowerCase().trim(),
           id_ies: singleUser.id_ies,
-          semestre: parseInt(singleUser.semestre),
+          semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
         },
       });
 
@@ -183,7 +192,7 @@ export const UsersTab: React.FC = () => {
 
       // Validate required columns
       const firstRow = normalizedRows[0];
-      const requiredColumns = ['nome', 'email', 'semestre'];
+      const requiredColumns = ['nome', 'email'];
       const missingColumns = requiredColumns.filter(col => !(col in firstRow));
       
       if (missingColumns.length > 0) {
@@ -194,7 +203,7 @@ export const UsersTab: React.FC = () => {
       }
 
       // Pre-validate all rows
-      const validUsers: { nome: string; email: string; semestre: number; linha: number }[] = [];
+      const validUsers: { nome: string; email: string; semestre: number | null; linha: number }[] = [];
       const results: BatchResult[] = [];
       const processedEmails = new Set<string>();
 
@@ -214,9 +223,9 @@ export const UsersTab: React.FC = () => {
           continue;
         }
 
-        // Basic validation
-        if (!nome || !email || !semestreStr) {
-          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome, email, semestre obrigatórios)' } });
+        // Basic validation — nome and email are required, semestre is optional
+        if (!nome || !email) {
+          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome e email obrigatórios)' } });
           continue;
         }
 
@@ -226,10 +235,15 @@ export const UsersTab: React.FC = () => {
           continue;
         }
 
-        const semestre = parseInt(semestreStr);
-        if (isNaN(semestre) || semestre < 1 || semestre > 12) {
-          results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
-          continue;
+        // Semestre: optional, but if provided must be valid
+        let semestre: number | null = null;
+        if (semestreStr) {
+          const parsed = parseInt(semestreStr);
+          if (isNaN(parsed) || parsed < 1 || parsed > 12) {
+            results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
+            continue;
+          }
+          semestre = parsed;
         }
 
         processedEmails.add(email);
@@ -680,7 +694,7 @@ export const UsersTab: React.FC = () => {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span>, <span className="font-medium text-foreground/70">semestre</span>. Máximo {MAX_BATCH_ROWS} linhas.
+              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span> (obrigatórias) e <span className="font-medium text-foreground/70">semestre</span> (opcional). Máximo {MAX_BATCH_ROWS} linhas.
             </p>
           </div>
 

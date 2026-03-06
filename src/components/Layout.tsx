@@ -13,6 +13,7 @@ import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { useSessionTracker } from '@/hooks/useSessionTracker';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
+import { SemesterPromptBanner } from './SemesterPromptBanner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -64,6 +65,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           {/* Mobile Header */}
           {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
+
+          {/* Semester prompt banner */}
+          {!isModoProva && <SemesterPromptBanner />}
 
           {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
           <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">

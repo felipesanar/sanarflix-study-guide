@@ -36,7 +36,9 @@ const createUserSchema = z.object({
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
     .min(1, 'Semestre mínimo: 1')
-    .max(12, 'Semestre máximo: 12'),
+    .max(12, 'Semestre máximo: 12')
+    .nullable()
+    .optional(),
   resend_email: z.boolean().optional(),
 });
 
@@ -233,7 +235,7 @@ Deno.serve(async (req) => {
     const userMetadata = { 
       full_name: nome, 
       id_ies, 
-      semestre, 
+      semestre: semestre ?? null, 
       must_change_password: true 
     };
 
@@ -258,7 +260,7 @@ Deno.serve(async (req) => {
       // Update public.users
       const { error: updateErr } = await supabaseAdmin
         .from('users')
-        .update({ nome, id_ies, semestre })
+        .update({ nome, id_ies, semestre: semestre ?? null })
         .eq('id', existingUser.id);
 
       if (updateErr) {
@@ -321,7 +323,7 @@ Deno.serve(async (req) => {
             // Upsert into public.users
             const { error: upsertErr } = await supabaseAdmin
               .from('users')
-              .upsert({ id: authUser.id, email, nome, id_ies, semestre }, { onConflict: 'id' });
+              .upsert({ id: authUser.id, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
             if (upsertErr) {
               return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
             }
@@ -350,7 +352,7 @@ Deno.serve(async (req) => {
       // Sync to public.users
       const { error: upsertErr } = await supabaseAdmin
         .from('users')
-        .upsert({ id: userId, email, nome, id_ies, semestre }, { onConflict: 'id' });
+        .upsert({ id: userId, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
 
       if (upsertErr) {
         console.error('[Database] Failed to sync user profile:', upsertErr);
