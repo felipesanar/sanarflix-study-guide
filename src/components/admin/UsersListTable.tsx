@@ -248,13 +248,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     cancelRef.current = false;
     const total = idsToDelete.length;
 
-    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true });
+    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
     setBatchDeleteOpen(false);
     setIesDeleteOpen(false);
     setConfirmText('');
 
     let totalDeleted = 0;
     let totalFailed = 0;
+    const allFailedUsers: FailedUser[] = [];
 
     for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
       if (cancelRef.current) {
@@ -272,9 +273,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         if (error) throw error;
 
         const chunkDeleted = data?.results?.deleted?.length || 0;
-        const chunkFailed = data?.results?.failed?.length || 0;
+        const chunkFailedItems: FailedUser[] = (data?.results?.failed || []).map((f: { id: string; nome?: string; email?: string; error: string }) => ({
+          id: f.id,
+          nome: f.nome || '',
+          email: f.email || '',
+          error: f.error,
+        }));
         totalDeleted += chunkDeleted;
-        totalFailed += chunkFailed;
+        totalFailed += chunkFailedItems.length;
+        allFailedUsers.push(...chunkFailedItems);
 
         // Remove deleted users from local state immediately
         if (chunkDeleted > 0) {
@@ -292,7 +299,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       }
 
       const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
-      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true });
+      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true, failedUsers: allFailedUsers });
     }
 
     // Final state
