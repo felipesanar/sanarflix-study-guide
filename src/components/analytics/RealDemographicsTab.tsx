@@ -15,7 +15,11 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Cell,
-  LabelList
+  LabelList,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
 } from 'recharts';
 import { 
   Users, 
@@ -25,7 +29,10 @@ import {
   ShieldCheck,
   AlertTriangle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CalendarCheck,
+  MousePointerClick,
+  Sparkles,
 } from 'lucide-react';
 import type { DemographicsMetrics } from '@/hooks/useAnalyticsData';
 
