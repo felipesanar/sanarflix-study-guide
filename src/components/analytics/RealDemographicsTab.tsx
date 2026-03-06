@@ -260,6 +260,17 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
         </Card>
       </section>
 
+      {/* Alerta automático: taxa de usuários sem semestre > 10% */}
+      {totalUsuarios > 0 && usuariosSemSemestre / totalUsuarios > 0.10 && (
+        <InsightBox
+          tipo="alerta"
+          titulo="Taxa alta de usuários sem semestre definido"
+          descricao={`${usuariosSemSemestre} usuários (${Math.round((usuariosSemSemestre / totalUsuarios) * 100)}%) ainda não definiram o semestre. Isso compromete segmentação de conteúdo, relatórios pedagógicos e personalização.`}
+          acao="Ative o banner de onboarding e considere campanhas de atualização de perfil"
+          valor={`${Math.round((usuariosSemSemestre / totalUsuarios) * 100)}%`}
+        />
+      )}
+
       {/* Seção 3: Distribuição por IES e Semestre */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Por IES */}
