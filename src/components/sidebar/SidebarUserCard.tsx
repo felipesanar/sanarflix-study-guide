@@ -32,13 +32,6 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
     .join("")
     .toUpperCase();
 
-  const handleSemestreErrado = () => {
-    const msg = encodeURIComponent(
-      "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-    );
-    const url = `https://wa.me/5571993120049?text=${msg}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <Popover>
@@ -120,14 +113,6 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
             onClick={() => passwordDialog.setOpen(true)}
           >
             Trocar a senha
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
-            onClick={handleSemestreErrado}
-          >
-            Semestre errado
           </Button>
         </div>
       </PopoverContent>
