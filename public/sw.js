@@ -110,7 +110,7 @@ async function staleWhileRevalidate(request, cacheName) {
   
   const fetchPromise = fetch(request).then((response) => {
     // Só cacheia GET requests com respostas OK
-    if (response.ok && request.method === 'GET') {
+    if (response.ok && response.status !== 206 && request.method === 'GET') {
       cache.put(request, response.clone());
     }
     return response;
