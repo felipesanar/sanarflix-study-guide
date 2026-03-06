@@ -36,7 +36,9 @@ const createUserSchema = z.object({
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
     .min(1, 'Semestre mínimo: 1')
-    .max(12, 'Semestre máximo: 12'),
+    .max(12, 'Semestre máximo: 12')
+    .nullable()
+    .optional(),
   resend_email: z.boolean().optional(),
 });
 
