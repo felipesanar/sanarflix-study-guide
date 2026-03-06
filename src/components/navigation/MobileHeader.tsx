@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Bell, User, AlertTriangle, Info, X, LogOut, Loader2 } from "lucide-react";
+import { Bell, User, AlertTriangle, Info, X, LogOut, Loader2, Pencil } from "lucide-react";
+import { EditProfileSheet } from "@/components/EditProfileSheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
@@ -24,6 +25,7 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
   const { user, logout } = useAuth();
   const passwordDialog = usePasswordDialog();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -76,6 +78,11 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
+            <DropdownMenuItem onClick={() => setEditProfileOpen(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar perfil
+            </DropdownMenuItem>
+
             <DropdownMenuItem onClick={() => passwordDialog.setOpen(true)}>
               Alterar senha
             </DropdownMenuItem>
@@ -119,6 +126,8 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
 
         <ThemeToggle />
       </div>
+
+      <EditProfileSheet open={editProfileOpen} onOpenChange={setEditProfileOpen} />
     </header>
   );
 }

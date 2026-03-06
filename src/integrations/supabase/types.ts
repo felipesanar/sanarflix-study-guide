@@ -1259,6 +1259,7 @@ export type Database = {
           id_ies: string | null
           nome: string
           semestre: number | null
+          semestre_updated_at: string | null
         }
         Insert: {
           email: string
@@ -1266,6 +1267,7 @@ export type Database = {
           id_ies?: string | null
           nome: string
           semestre?: number | null
+          semestre_updated_at?: string | null
         }
         Update: {
           email?: string
@@ -1273,6 +1275,7 @@ export type Database = {
           id_ies?: string | null
           nome?: string
           semestre?: number | null
+          semestre_updated_at?: string | null
         }
         Relationships: [
           {
