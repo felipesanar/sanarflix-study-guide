@@ -87,21 +87,6 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
               Alterar senha
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={() => {
-                const msg = encodeURIComponent(
-                  "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-                );
-                window.open(
-                  `https://wa.me/5571993120049?text=${msg}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                );
-              }}
-            >
-              Semestre errado
-            </DropdownMenuItem>
-
             <DropdownMenuSeparator />
 
             <DropdownMenuItem

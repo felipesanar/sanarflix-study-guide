@@ -121,14 +121,6 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           >
             Trocar a senha
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
-            onClick={handleSemestreErrado}
-          >
-            Semestre errado
-          </Button>
         </div>
       </PopoverContent>
 
