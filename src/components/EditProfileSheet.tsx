@@ -48,10 +48,11 @@ interface EditProfileSheetProps {
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s\-'.]+$/;
 const COOLDOWN_DAYS = 60;
 
-export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) {
+export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }: EditProfileSheetProps) {
   const isMobile = useIsMobile();
   const { user, forceRefreshProfile } = useAuth();
   const mountedRef = useRef(true);
+  const { trackEvent } = useAnalyticsTracker();
 
   const [nome, setNome] = useState(user?.nome ?? "");
   const [semestre, setSemestre] = useState<number | undefined>(user?.semestre);
