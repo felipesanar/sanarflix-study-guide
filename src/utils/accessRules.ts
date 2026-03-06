@@ -23,8 +23,9 @@ const DEFAULT_RULES: AccessRules = {
   SimuladoDesempenho: false,
   userManagement: false,
   sanarclass: false,
-  simulados: true, // Único acesso padrão para usuários autenticados
+  simulados: true,
   analytics: false,
+  desempenhoInstitucional: false,
 };
 
 /**
