@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
+import { User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -86,6 +86,11 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
                   {user.semestre ? ` • ${user.semestre}º período` : ""}
                 </p>
               </div>
+            )}
+
+            {/* Settings icon */}
+            {!collapsed && (
+              <Settings className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors shrink-0" />
             )}
           </div>
         </motion.button>
