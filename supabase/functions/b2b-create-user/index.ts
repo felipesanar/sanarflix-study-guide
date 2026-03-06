@@ -112,8 +112,13 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
   const firstName = nome.split(' ')[0];
   
   // Generate dynamic recovery link with tokens
-  const confirmationUrl = await generateRecoveryLink(supabaseAdmin, email) 
-    || 'https://academy.sanar.com.br/auth/update-password';
+  const confirmationUrl = await generateRecoveryLink(supabaseAdmin, email);
+
+  // Fix #8: If recovery link generation failed, don't send a broken email
+  if (!confirmationUrl) {
+    console.error('[CreateUser] Skipping welcome email for', email, '- recovery link generation failed');
+    return false;
+  }
 
   const result = await triggerNovuEvent({
     name: 'welcome-academy-email',

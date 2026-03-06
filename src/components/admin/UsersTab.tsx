@@ -667,23 +667,45 @@ export const UsersTab: React.FC = () => {
             </p>
           </div>
 
-          <Button
-            onClick={processCsvFile}
-            disabled={!csvFile || !batchIesId || isProcessing}
-            className="w-full h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Processar Arquivo
-              </>
+          <div className="flex gap-2">
+            <Button
+              onClick={processCsvFile}
+              disabled={!csvFile || !batchIesId || isProcessing}
+              className="flex-1 h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando{batchProgress ? ` ${batchProgress.current}/${batchProgress.total}` : '...'}
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Processar Arquivo
+                </>
+              )}
+            </Button>
+            {isProcessing && (
+              <Button
+                variant="destructive"
+                onClick={cancelBatchProcessing}
+                className="h-12 shrink-0"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
             )}
-          </Button>
+          </div>
+
+          {/* Fix #7: Progress bar */}
+          {batchProgress && batchProgress.total > 0 && (
+            <div className="space-y-2">
+              <Progress value={(batchProgress.current / batchProgress.total) * 100} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {batchProgress.current} de {batchProgress.total} usuários processados ({Math.round((batchProgress.current / batchProgress.total) * 100)}%)
+              </p>
+            </div>
+          )}
 
           {/* Batch Report */}
           {batchReport && (
