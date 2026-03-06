@@ -20,6 +20,7 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
+const DesempenhoInstitucional = lazy(() => import("@/pages/DesempenhoInstitucional"));
 
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
