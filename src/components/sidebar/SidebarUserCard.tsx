@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
+import { EditProfileSheet } from "@/components/EditProfileSheet";
 
 interface SidebarUserCardProps {
   user: {
