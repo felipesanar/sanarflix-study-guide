@@ -203,7 +203,7 @@ export const UsersTab: React.FC = () => {
       }
 
       // Pre-validate all rows
-      const validUsers: { nome: string; email: string; semestre: number; linha: number }[] = [];
+      const validUsers: { nome: string; email: string; semestre: number | null; linha: number }[] = [];
       const results: BatchResult[] = [];
       const processedEmails = new Set<string>();
 
@@ -223,9 +223,9 @@ export const UsersTab: React.FC = () => {
           continue;
         }
 
-        // Basic validation
-        if (!nome || !email || !semestreStr) {
-          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome, email, semestre obrigatórios)' } });
+        // Basic validation — nome and email are required, semestre is optional
+        if (!nome || !email) {
+          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome e email obrigatórios)' } });
           continue;
         }
 
@@ -235,10 +235,15 @@ export const UsersTab: React.FC = () => {
           continue;
         }
 
-        const semestre = parseInt(semestreStr);
-        if (isNaN(semestre) || semestre < 1 || semestre > 12) {
-          results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
-          continue;
+        // Semestre: optional, but if provided must be valid
+        let semestre: number | null = null;
+        if (semestreStr) {
+          const parsed = parseInt(semestreStr);
+          if (isNaN(parsed) || parsed < 1 || parsed > 12) {
+            results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
+            continue;
+          }
+          semestre = parsed;
         }
 
         processedEmails.add(email);
