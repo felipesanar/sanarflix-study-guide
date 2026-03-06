@@ -337,6 +337,13 @@ const StudentScoresTable: React.FC<{ areas: string[]; students: StudentScore[]; 
 
 // --- Main Page ---
 const DesempenhoInstitucional: React.FC = () => {
+  const { user } = useAuth();
+  const canFilterIES = isAdmin(user) || isB2BPartner(user);
+  
+  // IES filter (for admin/b2b_partner)
+  const [iesList, setIesList] = useState<{ id: string; nome: string }[]>([]);
+  const [selectedIes, setSelectedIes] = useState<string | null>(null);
+
   const [simulados, setSimulados] = useState<Simulado[]>([]);
   const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -366,27 +373,51 @@ const DesempenhoInstitucional: React.FC = () => {
   // Evolution
   const [evolution, setEvolution] = useState<EvolutionData[]>([]);
 
-  // Load simulados
+  // Helper to get IES param for RPCs
+  const iesParam = canFilterIES && selectedIes ? selectedIes : undefined;
+
+  // Load IES list for admin/b2b_partner
+  useEffect(() => {
+    if (!canFilterIES) return;
+    const load = async () => {
+      const { data, error } = await supabase.from('ies').select('id, nome').order('nome');
+      if (!error && data) {
+        setIesList(data);
+        if (data.length > 0 && !selectedIes) setSelectedIes(data[0].id);
+      }
+    };
+    load();
+  }, [canFilterIES]);
+
+  // Load simulados (re-trigger when IES changes for admin/b2b)
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase.rpc('get_institutional_simulados');
+      setLoading(true);
+      const params: any = {};
+      if (iesParam) params.p_ies_id = iesParam;
+      
+      const { data, error } = await supabase.rpc('get_institutional_simulados', params);
       if (!error && data) {
         setSimulados(data as Simulado[]);
         if (data.length > 0) setSelectedSimulado((data as Simulado[])[0].id);
+        else setSelectedSimulado(null);
       }
       setLoading(false);
     };
-    load();
-  }, []);
+    // For professor: load immediately. For admin/b2b: wait for IES selection
+    if (!canFilterIES || selectedIes) load();
+  }, [canFilterIES, selectedIes]);
 
-  // Load evolution once
+  // Load evolution (re-trigger when IES changes)
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase.rpc('get_institutional_evolution');
+      const params: any = {};
+      if (iesParam) params.p_ies_id = iesParam;
+      const { data, error } = await supabase.rpc('get_institutional_evolution', params);
       if (!error && data) setEvolution(data as unknown as EvolutionData[]);
     };
-    load();
-  }, []);
+    if (!canFilterIES || selectedIes) load();
+  }, [canFilterIES, selectedIes]);
 
   // Load performance when simulado changes
   useEffect(() => {
@@ -396,9 +427,16 @@ const DesempenhoInstitucional: React.FC = () => {
       setSelectedArea(null);
       setSelectedSpecialty(null);
 
+      const perfParams: any = { p_simulado_id: selectedSimulado };
+      const scoresParams: any = { p_simulado_id: selectedSimulado };
+      if (iesParam) {
+        perfParams.p_ies_id = iesParam;
+        scoresParams.p_ies_id = iesParam;
+      }
+
       const [perfRes, scoresRes] = await Promise.all([
-        supabase.rpc('get_institutional_performance', { p_simulado_id: selectedSimulado }),
-        supabase.rpc('get_institutional_student_scores', { p_simulado_id: selectedSimulado }),
+        supabase.rpc('get_institutional_performance', perfParams),
+        supabase.rpc('get_institutional_student_scores', scoresParams),
       ]);
 
       if (!perfRes.error && perfRes.data) {
@@ -427,12 +465,15 @@ const DesempenhoInstitucional: React.FC = () => {
     setModalLoading(true);
     setModalQuestions([]);
 
-    const { data, error } = await supabase.rpc('get_institutional_question_details', {
+    const params: any = {
       p_simulado_id: selectedSimulado,
       p_tema: tema,
       p_area: area,
       p_specialty: specialty,
-    });
+    };
+    if (iesParam) params.p_ies_id = iesParam;
+
+    const { data, error } = await supabase.rpc('get_institutional_question_details', params);
 
     if (!error && data) {
       setModalQuestions((data as any).questions || []);
@@ -448,6 +489,7 @@ const DesempenhoInstitucional: React.FC = () => {
 
   const percentualGeral = overallStats.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0;
   const simuladoName = simulados.find(s => s.id === selectedSimulado)?.nome || '';
+  const iesName = canFilterIES ? iesList.find(i => i.id === selectedIes)?.nome : user?.ies_nome;
 
   if (loading) {
     return (
@@ -460,19 +502,44 @@ const DesempenhoInstitucional: React.FC = () => {
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><School className="h-6 w-6 text-primary" />Desempenho Institucional</h1>
-          <p className="text-muted-foreground text-sm mt-1">Visão geral do desempenho dos seus alunos nos simulados</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2"><School className="h-6 w-6 text-primary" />Desempenho Institucional</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Visão geral do desempenho dos alunos nos simulados
+              {iesName && <span className="font-medium text-foreground"> — {iesName}</span>}
+            </p>
+          </div>
         </div>
-        <Select value={selectedSimulado || ''} onValueChange={setSelectedSimulado}>
-          <SelectTrigger className="w-full sm:w-[280px]">
-            <SelectValue placeholder="Selecione um simulado" />
-          </SelectTrigger>
-          <SelectContent>
-            {simulados.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-          </SelectContent>
-        </Select>
+
+        {/* Filters row */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* IES filter for admin/b2b_partner */}
+          {canFilterIES && (
+            <Select value={selectedIes || ''} onValueChange={(val) => { setSelectedIes(val); setSelectedSimulado(null); }}>
+              <SelectTrigger className="w-full sm:w-[280px]">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="Selecione uma IES" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {iesList.map(ies => <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Simulado filter */}
+          <Select value={selectedSimulado || ''} onValueChange={setSelectedSimulado}>
+            <SelectTrigger className="w-full sm:w-[280px]">
+              <SelectValue placeholder="Selecione um simulado" />
+            </SelectTrigger>
+            <SelectContent>
+              {simulados.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {perfLoading ? (
