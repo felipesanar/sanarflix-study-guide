@@ -1053,6 +1053,47 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       ? Math.round((cadastrosCompletos / totalUsuarios) * 1000) / 10 
       : 0;
 
+    // Fetch semester editing events
+    const { startDate, endDate } = filterParams;
+    const { data: semesterEvents } = await supabase
+      .from('analytics_events')
+      .select('event_name, event_data, created_at')
+      .in('event_name', ['semester_updated', 'semester_banner_shown', 'semester_banner_clicked'])
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: true });
+
+    const events = semesterEvents || [];
+    let totalUpdates = 0;
+    let firstDefinitions = 0;
+    let bannerShown = 0;
+    let bannerClicked = 0;
+    const updatesPerDayMap = new Map<string, { total: number; firstDef: number }>();
+
+    events.forEach(e => {
+      if (e.event_name === 'semester_updated') {
+        totalUpdates++;
+        const data = e.event_data as Record<string, any> | null;
+        const isFirst = data?.is_first_definition === true;
+        if (isFirst) firstDefinitions++;
+        const day = e.created_at.substring(0, 10);
+        const entry = updatesPerDayMap.get(day) || { total: 0, firstDef: 0 };
+        entry.total++;
+        if (isFirst) entry.firstDef++;
+        updatesPerDayMap.set(day, entry);
+      } else if (e.event_name === 'semester_banner_shown') {
+        bannerShown++;
+      } else if (e.event_name === 'semester_banner_clicked') {
+        bannerClicked++;
+      }
+    });
+
+    const updatesPerDay = Array.from(updatesPerDayMap.entries())
+      .map(([data, v]) => ({ data, total: v.total, firstDef: v.firstDef }))
+      .sort((a, b) => a.data.localeCompare(b.data));
+
+    const conversionRate = bannerShown > 0 ? Math.round((bannerClicked / bannerShown) * 1000) / 10 : 0;
+
     return {
       usuariosPorIES,
       usuariosPorSemestre,
@@ -1066,6 +1107,14 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       indiceHHI,
       concentracaoTop3,
       semestresPorGrupo,
+      semesterEditing: {
+        totalUpdates,
+        firstDefinitions,
+        bannerShown,
+        bannerClicked,
+        conversionRate,
+        updatesPerDay,
+      },
     };
   }, [filterParams, fetchAdminUserIds]);
 
