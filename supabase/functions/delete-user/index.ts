@@ -193,23 +193,38 @@ Deno.serve(async (req) => {
 
       console.log(`[delete-user] Admin ${caller.email} batch deleting ${batch.length} users`);
 
+      // Pre-fetch user details for failure reporting
+      const { data: userDetails } = await supabaseAdmin
+        .from('users')
+        .select('id, nome, email')
+        .in('id', batch);
+
+      const detailsMap = new Map(
+        (userDetails || []).map(u => [u.id, { nome: u.nome, email: u.email }])
+      );
+
       const deleted: string[] = [];
-      const failed: { id: string; error: string }[] = [];
+      const failed: { id: string; nome: string; email: string; error: string }[] = [];
 
       for (const id of batch) {
         if (id === caller.id) {
-          failed.push({ id, error: 'Não pode remover a si mesmo' });
+          const info = detailsMap.get(id);
+          failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: 'Não pode remover a si mesmo' });
           continue;
         }
         const result = await deleteSingleUser(supabaseAdmin, id);
         if (result.success) {
           deleted.push(id);
         } else {
-          failed.push({ id, error: result.error || 'Unknown error' });
+          const info = detailsMap.get(id);
+          failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: result.error || 'Erro desconhecido' });
         }
       }
 
       console.log(`[delete-user] Batch done: ${deleted.length} deleted, ${failed.length} failed`);
+      if (failed.length > 0) {
+        console.warn(`[delete-user] Failed users: ${failed.map(f => `${f.email}: ${f.error}`).join('; ')}`);
+      }
 
       return new Response(JSON.stringify({
         success: true,
