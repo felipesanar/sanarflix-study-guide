@@ -558,6 +558,36 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             <p className="text-xs text-muted-foreground">
               {batchProgress.deleted} removidos • {batchProgress.failed} falhas • {progressPercent}% concluído
             </p>
+
+            {/* Failure report */}
+            {!batchProgress.active && batchProgress.failedUsers.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Usuários que falharam ({batchProgress.failedUsers.length}):
+                </p>
+                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs py-1.5">Nome</TableHead>
+                        <TableHead className="text-xs py-1.5">Email</TableHead>
+                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {batchProgress.failedUsers.map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs py-1.5">{f.nome || f.id.slice(0, 8)}</TableCell>
+                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
