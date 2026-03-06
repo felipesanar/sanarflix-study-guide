@@ -92,6 +92,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       sanarclass: false,
       simulados: false,
       analytics: false,
+      desempenhoInstitucional: false,
     };
   }
   
