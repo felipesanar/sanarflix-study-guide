@@ -198,6 +198,7 @@ Deno.serve(async (req) => {
     const validationResult = createUserSchema.safeParse(body);
     if (!validationResult.success) {
       const errorMessages = validationResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
+      console.error(`[Validation] Failed for email ${body?.email}: nome="${body?.nome?.substring(0, 30)}..." -> ${errorMessages}`);
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
