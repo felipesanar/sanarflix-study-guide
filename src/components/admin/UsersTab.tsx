@@ -694,7 +694,7 @@ export const UsersTab: React.FC = () => {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span>, <span className="font-medium text-foreground/70">semestre</span>. Máximo {MAX_BATCH_ROWS} linhas.
+              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span> (obrigatórias) e <span className="font-medium text-foreground/70">semestre</span> (opcional). Máximo {MAX_BATCH_ROWS} linhas.
             </p>
           </div>
 
