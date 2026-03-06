@@ -610,7 +610,7 @@ export const UsersTab: React.FC = () => {
             <div>
               <CardTitle className="text-lg">Cadastro/Atualização em Lote</CardTitle>
               <CardDescription className="mt-0.5">
-                Importe múltiplos usuários via CSV. Novos receberão convite por email.
+                Importe múltiplos usuários via CSV/XLSX (máx. {MAX_BATCH_ROWS} linhas). Novos receberão convite por email.
               </CardDescription>
             </div>
           </div>
