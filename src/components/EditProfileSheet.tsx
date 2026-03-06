@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, AlertTriangle, Check, Lock, Pencil, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Lock, Pencil, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +49,7 @@ const COOLDOWN_DAYS = 60;
 export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) {
   const isMobile = useIsMobile();
   const { user, forceRefreshProfile } = useAuth();
+  const mountedRef = useRef(true);
 
   const [nome, setNome] = useState(user?.nome ?? "");
   const [semestre, setSemestre] = useState<number | undefined>(user?.semestre);
@@ -59,11 +60,18 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
   const [pendingSemestre, setPendingSemestre] = useState<number | null>(null);
   const [nameSuccess, setNameSuccess] = useState(false);
 
+  // Track mounted state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // Fetch semestre_updated_at on open
   useEffect(() => {
     if (!open || !user?.id) return;
     setNome(user.nome ?? "");
     setSemestre(user.semestre);
+    setNameSuccess(false);
 
     supabase
       .from("users")
@@ -71,7 +79,9 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
-        setSemestreUpdatedAt((data as any)?.semestre_updated_at ?? null);
+        if (mountedRef.current) {
+          setSemestreUpdatedAt((data as any)?.semestre_updated_at ?? null);
+        }
       });
   }, [open, user?.id, user?.nome, user?.semestre]);
 
@@ -84,7 +94,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
   const nameChanged = nome.trim() !== (user?.nome ?? "").trim();
 
   const handleSaveName = async () => {
-    if (!user || !nameValid || !nameChanged) return;
+    if (!user || !nameValid || !nameChanged || savingName) return;
     setSavingName(true);
     try {
       const { error } = await supabase
@@ -95,25 +105,29 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
       if (error) throw error;
 
       await forceRefreshProfile();
-      setNameSuccess(true);
-      setTimeout(() => setNameSuccess(false), 2000);
+      if (mountedRef.current) {
+        setNameSuccess(true);
+        setTimeout(() => {
+          if (mountedRef.current) setNameSuccess(false);
+        }, 2000);
+      }
       toast.success("Nome atualizado com sucesso!");
     } catch (e: any) {
       toast.error(e?.message || "Erro ao atualizar nome.");
     } finally {
-      setSavingName(false);
+      if (mountedRef.current) setSavingName(false);
     }
   };
 
   const handleSemestreChange = (value: string) => {
     const num = parseInt(value, 10);
-    if (num === semestre) return;
+    if (isNaN(num) || num < 1 || num > 12 || num === semestre) return;
     setPendingSemestre(num);
     setConfirmOpen(true);
   };
 
   const confirmSemestreChange = async () => {
-    if (!user || pendingSemestre === null) return;
+    if (!user || pendingSemestre === null || savingSemestre) return;
     setConfirmOpen(false);
     setSavingSemestre(true);
     try {
@@ -124,8 +138,10 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
 
       if (error) throw error;
 
-      setSemestre(pendingSemestre);
-      setSemestreUpdatedAt(new Date().toISOString());
+      if (mountedRef.current) {
+        setSemestre(pendingSemestre);
+        setSemestreUpdatedAt(new Date().toISOString());
+      }
       await forceRefreshProfile();
       toast.success(`Semestre atualizado para ${pendingSemestre}º período!`);
     } catch (e: any) {
@@ -134,8 +150,10 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
         : "Erro ao atualizar semestre.";
       toast.error(msg);
     } finally {
-      setSavingSemestre(false);
-      setPendingSemestre(null);
+      if (mountedRef.current) {
+        setSavingSemestre(false);
+        setPendingSemestre(null);
+      }
     }
   };
 
@@ -160,7 +178,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
             </span>
           </div>
           <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
-            <Pencil className="h-3 w-3 text-white" />
+            <Pencil className="h-3 w-3 text-primary-foreground" />
           </div>
         </motion.div>
       </div>
@@ -180,6 +198,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
             placeholder="Seu nome completo"
             maxLength={100}
             className="pr-10"
+            aria-describedby="nome-error"
           />
           <AnimatePresence>
             {nameSuccess && (
@@ -195,7 +214,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
           </AnimatePresence>
         </div>
         {nome.trim().length > 0 && !nameValid && (
-          <p className="text-xs text-destructive">
+          <p id="nome-error" className="text-xs text-destructive" role="alert">
             Use apenas letras, espaços, hífens ou apóstrofos (mínimo 2 caracteres).
           </p>
         )}
@@ -205,9 +224,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
           disabled={!nameValid || !nameChanged || savingName}
           className="w-full"
         >
-          {savingName ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : null}
+          {savingName && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           Salvar nome
         </Button>
       </div>
@@ -221,6 +238,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
           className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2.5"
+          role="alert"
         >
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
           <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
@@ -276,13 +294,17 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
           </div>
         )}
       </div>
+    </div>
+  );
 
-      {/* Confirmation AlertDialog */}
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar alteração de semestre</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
+  // AlertDialog must be outside Sheet/Dialog to avoid portal nesting issues
+  const confirmDialog = (
+    <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirmar alteração de semestre</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
               <p>
                 Tem certeza que deseja alterar para o{" "}
                 <strong>{pendingSemestre}º período</strong>?
@@ -291,40 +313,46 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
                 Essa ação não poderá ser desfeita por 60 dias. Seu conteúdo,
                 progresso e rankings serão recalculados.
               </p>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSemestreChange}>
-              Confirmar alteração
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmSemestreChange}>
+            Confirmar alteração
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 
   if (isMobile) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Editar perfil</SheetTitle>
-          </SheetHeader>
-          {content}
-        </SheetContent>
-      </Sheet>
+      <>
+        <Sheet open={open} onOpenChange={onOpenChange}>
+          <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Editar perfil</SheetTitle>
+            </SheetHeader>
+            {content}
+          </SheetContent>
+        </Sheet>
+        {confirmDialog}
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Editar perfil</DialogTitle>
-        </DialogHeader>
-        {content}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar perfil</DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+      {confirmDialog}
+    </>
   );
 }
