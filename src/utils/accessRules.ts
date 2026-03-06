@@ -108,6 +108,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       studyGuide: true,
       dashboard: true,
       sanarclass: true,
+      desempenhoInstitucional: true,
     };
   }
 
