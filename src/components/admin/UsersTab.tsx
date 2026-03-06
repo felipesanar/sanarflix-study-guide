@@ -36,6 +36,8 @@ export const UsersTab: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   
   // Stats
   const [totalUsers, setTotalUsers] = useState<number | null>(null);
