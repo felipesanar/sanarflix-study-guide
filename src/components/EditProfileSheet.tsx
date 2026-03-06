@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAnalyticsTracker } from "@/hooks/useAnalyticsTracker";
 import {
   Sheet,
   SheetContent,
@@ -41,15 +42,17 @@ import { Label } from "@/components/ui/label";
 interface EditProfileSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  source?: 'profile_edit' | 'onboarding_banner';
 }
 
 const NAME_REGEX = /^[a-zA-ZÀ-ÿ\s\-'.]+$/;
 const COOLDOWN_DAYS = 60;
 
-export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) {
+export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }: EditProfileSheetProps) {
   const isMobile = useIsMobile();
   const { user, forceRefreshProfile } = useAuth();
   const mountedRef = useRef(true);
+  const { trackEvent } = useAnalyticsTracker();
 
   const [nome, setNome] = useState(user?.nome ?? "");
   const [semestre, setSemestre] = useState<number | undefined>(user?.semestre);
@@ -130,6 +133,7 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
     if (!user || pendingSemestre === null || savingSemestre) return;
     setConfirmOpen(false);
     setSavingSemestre(true);
+    const previousSemestre = semestre ?? null;
     try {
       const { error } = await supabase
         .from("users")
@@ -143,6 +147,19 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
         setSemestreUpdatedAt(new Date().toISOString());
       }
       await forceRefreshProfile();
+
+      // Track semester_updated event
+      trackEvent({
+        eventName: 'semester_updated',
+        category: 'interaction',
+        data: {
+          previous_semester: previousSemestre,
+          new_semester: pendingSemestre,
+          is_first_definition: previousSemestre === null,
+          source,
+        },
+      });
+
       toast.success(`Semestre atualizado para ${pendingSemestre}º período!`);
     } catch (e: any) {
       const msg = e?.message?.includes("bloqueada")
