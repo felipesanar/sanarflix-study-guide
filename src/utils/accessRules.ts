@@ -113,6 +113,14 @@ export const getAccessRules = (user: User | null): AccessRules => {
     };
   }
 
+  // B2B Partner: acesso ao painel institucional + simulados
+  if (isB2BPartner(user)) {
+    return {
+      ...DEFAULT_RULES,
+      desempenhoInstitucional: true,
+    };
+  }
+
   // Aluno B2B: regras padrão
   // Features específicas da IES são aplicadas via useIesFeatures hook
   // e combinadas no componente que consome este hook
