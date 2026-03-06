@@ -25,7 +25,7 @@ const createUserSchema = z.object({
     .trim()
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(100, 'Nome muito longo')
-    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, 'Nome deve conter apenas letras e espaços'),
+    .regex(/^[a-zA-ZÀ-ÿ\s\-'.]+$/, 'Nome deve conter apenas letras, espaços, hífens, apóstrofos e pontos'),
   email: z.string()
     .trim()
     .email('Email inválido')
@@ -112,8 +112,13 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
   const firstName = nome.split(' ')[0];
   
   // Generate dynamic recovery link with tokens
-  const confirmationUrl = await generateRecoveryLink(supabaseAdmin, email) 
-    || 'https://academy.sanar.com.br/auth/update-password';
+  const confirmationUrl = await generateRecoveryLink(supabaseAdmin, email);
+
+  // Fix #8: If recovery link generation failed, don't send a broken email
+  if (!confirmationUrl) {
+    console.error('[CreateUser] Skipping welcome email for', email, '- recovery link generation failed');
+    return false;
+  }
 
   const result = await triggerNovuEvent({
     name: 'welcome-academy-email',
@@ -324,11 +329,9 @@ Deno.serve(async (req) => {
               await supabaseAdmin.from('user_roles')
                 .upsert({ user_id: authUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
             }
-            // Send welcome email
-            EdgeRuntime.waitUntil(
-              sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => {})
-            );
-            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: true });
+            // Send welcome email (awaited for accurate status)
+            const emailOk = await sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => false);
+            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           }
         }
 
@@ -362,21 +365,23 @@ Deno.serve(async (req) => {
         else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
 
-      // Send welcome email via Novu in background (fail-soft)
-      EdgeRuntime.waitUntil(
-        sendWelcomeEmail(supabaseAdmin, userId, nome, email)
-          .then(ok => console.log(`[CreateUser] Welcome email for ${email}: ${ok ? 'sent' : 'FAILED'}`))
-          .catch(err => console.error(`[CreateUser] Welcome email error for ${email}:`, err))
-      );
+      // Fix #4: Await welcome email for accurate status reporting
+      let emailSent = false;
+      try {
+        emailSent = await sendWelcomeEmail(supabaseAdmin, userId, nome, email);
+        console.log(`[CreateUser] Welcome email for ${email}: ${emailSent ? 'sent' : 'FAILED'}`);
+      } catch (err) {
+        console.error(`[CreateUser] Welcome email error for ${email}:`, err);
+      }
 
-      console.log(`[CreateUser] User ${email} created. Welcome email queued in background.`);
+      console.log(`[CreateUser] User ${email} created successfully.`);
 
       return successResponse(
         'created', 
         userId, 
         email, 
-        'Usuário criado e email de boas-vindas sendo enviado',
-        { emailSent: true }
+        emailSent ? 'Usuário criado e email de boas-vindas enviado' : 'Usuário criado, mas falha ao enviar email',
+        { emailSent }
       );
     }
 
