@@ -25,6 +25,7 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
   const { user, logout } = useAuth();
   const passwordDialog = usePasswordDialog();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
