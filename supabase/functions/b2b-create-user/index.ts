@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
     const userMetadata = { 
       full_name: nome, 
       id_ies, 
-      semestre, 
+      semestre: semestre ?? null, 
       must_change_password: true 
     };
 
