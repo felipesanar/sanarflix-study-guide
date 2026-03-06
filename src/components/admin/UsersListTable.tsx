@@ -79,12 +79,20 @@ interface UsersListTableProps {
   onStatsUpdate?: (totalUsers: number, totalAdmins: number) => void;
 }
 
+interface FailedUser {
+  id: string;
+  nome: string;
+  email: string;
+  error: string;
+}
+
 interface BatchProgress {
   total: number;
   completed: number;
   deleted: number;
   failed: number;
   active: boolean;
+  failedUsers: FailedUser[];
 }
 
 const ITEMS_PER_PAGE = 25;
