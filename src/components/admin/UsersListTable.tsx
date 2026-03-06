@@ -308,32 +308,46 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     executeChunkedDelete(Array.from(selectedIds));
   };
 
-  // ──── Delete all from IES ────
+  // ──── Delete all from IES (paginated resolve → chunked delete) ────
   const handleIesDelete = async () => {
     if (filterIes === 'all') return;
 
+    cancelRef.current = false;
     setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true });
     setIesDeleteOpen(false);
     setConfirmText('');
 
     try {
-      // Step 1: Resolve all deletable IDs from the IES
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { ies_id: filterIes, resolve_only: true },
-      });
+      // Step 1: Resolve all deletable IDs via paginated calls
+      const allIds: string[] = [];
+      let cursor: number | null = 0;
 
-      if (error) throw error;
+      while (cursor !== null) {
+        if (cancelRef.current) {
+          toast.info('Exclusão cancelada pelo usuário');
+          setBatchProgress(prev => ({ ...prev, active: false }));
+          return;
+        }
 
-      const idsToDelete: string[] = data?.user_ids || [];
+        const { data, error } = await supabase.functions.invoke('delete-user', {
+          body: { ies_id: filterIes, resolve_only: true, cursor, page_size: 500 },
+        });
 
-      if (idsToDelete.length === 0) {
+        if (error) throw error;
+
+        const pageIds: string[] = data?.user_ids || [];
+        allIds.push(...pageIds);
+        cursor = data?.has_more ? data.next_cursor : null;
+      }
+
+      if (allIds.length === 0) {
         setBatchProgress(prev => ({ ...prev, active: false }));
         toast.info('Nenhum usuário encontrado para remoção nesta IES');
         return;
       }
 
       // Step 2: Delete in chunks
-      await executeChunkedDelete(idsToDelete);
+      await executeChunkedDelete(allIds);
     } catch (err) {
       setBatchProgress(prev => ({ ...prev, active: false }));
       toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
