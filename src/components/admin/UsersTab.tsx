@@ -192,7 +192,7 @@ export const UsersTab: React.FC = () => {
 
       // Validate required columns
       const firstRow = normalizedRows[0];
-      const requiredColumns = ['nome', 'email', 'semestre'];
+      const requiredColumns = ['nome', 'email'];
       const missingColumns = requiredColumns.filter(col => !(col in firstRow));
       
       if (missingColumns.length > 0) {
