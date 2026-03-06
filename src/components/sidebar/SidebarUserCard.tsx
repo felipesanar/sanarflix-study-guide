@@ -32,13 +32,6 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
     .join("")
     .toUpperCase();
 
-  const handleSemestreErrado = () => {
-    const msg = encodeURIComponent(
-      "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-    );
-    const url = `https://wa.me/5571993120049?text=${msg}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <Popover>

@@ -428,13 +428,6 @@ export function MobileBottomNav() {
                       Conta
                     </p>
                     <div className="space-y-0.5">
-                      <button
-                        onClick={handleSemestreErrado}
-                        className="flex items-center gap-3 w-full px-3 py-3 rounded-xl min-h-[48px] text-foreground hover:bg-accent active:bg-accent/80 transition-all duration-150"
-                      >
-                        <MessageCircle className="h-5 w-5 text-muted-foreground shrink-0" aria-hidden="true" />
-                        <span className="flex-1 font-medium text-left">Semestre errado?</span>
-                      </button>
 
                       <button
                         onClick={handleLogout}
