@@ -15,7 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
-import { isAdmin } from "@/utils/accessRules";
+import { isAdmin, isProfessor } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,
@@ -24,6 +24,7 @@ import {
   Home as HomeIcon,
   GraduationCap,
   TrendingUp,
+  School,
 } from "lucide-react";
 
 import {
@@ -70,6 +71,13 @@ const menuItems = [
     icon: TrendingUp,
     accessKey: "analytics" as const,
     description: "Métricas e insights avançados",
+  },
+  {
+    title: "Desempenho Institucional",
+    url: "/desempenho-institucional",
+    icon: School,
+    accessKey: "desempenhoInstitucional" as const,
+    description: "Visão geral do desempenho dos alunos",
   },
 ];
 
@@ -153,6 +161,7 @@ export function AppSidebar() {
     if (item.accessKey === "sanarclass") return accessRules.sanarclass;
     if (item.accessKey === "simulados") return true;
     if (item.accessKey === "analytics") return isAdmin(user);
+    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user);
     return accessRules[item.accessKey];
   });
 

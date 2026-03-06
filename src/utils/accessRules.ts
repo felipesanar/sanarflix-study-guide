@@ -23,8 +23,9 @@ const DEFAULT_RULES: AccessRules = {
   SimuladoDesempenho: false,
   userManagement: false,
   sanarclass: false,
-  simulados: true, // Único acesso padrão para usuários autenticados
+  simulados: true,
   analytics: false,
+  desempenhoInstitucional: false,
 };
 
 /**
@@ -39,6 +40,7 @@ const ADMIN_RULES: AccessRules = {
   sanarclass: true,
   simulados: true,
   analytics: true,
+  desempenhoInstitucional: true,
 };
 
 /**
@@ -90,6 +92,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       sanarclass: false,
       simulados: false,
       analytics: false,
+      desempenhoInstitucional: false,
     };
   }
   
@@ -106,6 +109,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       studyGuide: true,
       dashboard: true,
       sanarclass: true,
+      desempenhoInstitucional: true,
     };
   }
 

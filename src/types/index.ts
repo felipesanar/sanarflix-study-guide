@@ -18,6 +18,7 @@ export interface AccessRules {
   sanarclass: boolean;
   simulados: boolean;
   analytics: boolean;
+  desempenhoInstitucional: boolean;
 }
 
 export interface StudyContent {

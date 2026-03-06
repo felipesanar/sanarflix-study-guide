@@ -1341,6 +1341,32 @@ export type Database = {
           feature_key: string
         }[]
       }
+      get_institutional_evolution: { Args: never; Returns: Json }
+      get_institutional_performance: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
+      get_institutional_question_details: {
+        Args: {
+          p_area?: string
+          p_simulado_id: string
+          p_specialty?: string
+          p_tema: string
+        }
+        Returns: Json
+      }
+      get_institutional_simulados: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          nome: string
+        }[]
+      }
+      get_institutional_student_scores: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
       get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
         | {
@@ -1439,7 +1465,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "b2b_partner"
+      app_role: "admin" | "moderator" | "user" | "b2b_partner" | "professor"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
       progress_source: "manual" | "bulk" | "auto"
     }
@@ -1579,7 +1605,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "b2b_partner"],
+      app_role: ["admin", "moderator", "user", "b2b_partner", "professor"],
       progress_node_type: ["aula", "subtema", "tema", "materia"],
       progress_source: ["manual", "bulk", "auto"],
     },

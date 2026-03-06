@@ -1,71 +1,81 @@
 
 
-# Painel de Desempenho para Professores/Coordenadores
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-## Contexto
+### Causa Raiz Identificada
 
-A página atual `SimuladoDesempenho.tsx` mostra dados individuais do aluno logado usando RPCs como `get_user_performance_aggregates` e `get_user_rankings`. Para professores/coordenadores, precisamos de uma visão institucional agregada que mostre o desempenho de **todos os alunos da IES**.
+Analisando os logs de autenticacao, o problema fica evidente:
 
-## Arquitetura
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+```
 
-A abordagem será criar uma **nova página** `DesempenhoInstitucional.tsx` acessível por professores e admins, com uma nova rota `/desempenho-institucional`. Isso evita sobrecarregar a página existente do aluno e permite lógica/queries independentes.
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-### Dados necessários (novas RPCs no banco)
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-Precisamos de **3 novas database functions** para alimentar o painel:
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
 
-1. **`get_institutional_performance(p_ies_id, p_simulado_id)`** — Retorna desempenho agregado por grande área, especialidade, tema, dificuldade e **segmentação por semestre** para todos os alunos da IES.
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
-2. **`get_institutional_question_details(p_ies_id, p_simulado_id, p_question_tema, p_area, p_specialty)`** — Para o drill-down na árvore hierárquica: retorna questões com gabarito, distribuição de acertos por semestre, e lista de alunos que responderam (nome, semestre, se acertou/errou).
+### Solucao
 
-3. **`get_institutional_student_scores(p_ies_id, p_simulado_id)`** — Retorna planilha de desempenho individual: cada aluno com acertos por grande área + score total.
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
 
-Todas usarão `SECURITY DEFINER` e validarão que o caller tem role `admin`, `professor` ou `coordenador`.
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
 
-## Visualizações da Página
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
 
-### 1. Header + Seletor de Simulado
-- Select de simulados disponíveis para a IES do professor
-- KPIs: total de alunos, acurácia média, questões respondidas
+---
 
-### 2. Segmentação por Semestre (novo)
-- Gráfico de barras agrupado mostrando acurácia por semestre
-- Cada barra com tooltip mostrando n de alunos e acertos/total
+### Mudancas
 
-### 3. Árvore Hierárquica Adaptada
-- Mesma estrutura (Área → Especialidade → Tema) mas com dados agregados da IES
-- Ao clicar num tema, abre modal expandido com:
-  - Enunciado da questão e resposta correta
-  - Gráfico de distribuição de acertos por semestre
-  - Tabela com lista de alunos (nome, semestre, acertou/errou)
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
 
-### 4. Evolução de Pontuação por Simulado (gráfico de barras)
-- Eixo X: simulados (cronológico)
-- Barras agrupadas por grande área
-- Mostra a evolução da acurácia média da IES ao longo dos simulados
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
 
-### 5. Planilha de Desempenho Individual
-- Tabela com colunas: Aluno | Semestre | [Grande Área 1] | [Grande Área 2] | ... | Score Total
-- Cada célula mostra acertos da grande área
-- Última coluna: soma total de acertos
-- Ordenável por qualquer coluna
-- Exportável para CSV/XLSX
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
 
-## Mudanças em Arquivos
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
 
-| Arquivo | Mudança |
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
 |---------|---------|
-| **Migration SQL** | Criar 3 RPCs: `get_institutional_performance`, `get_institutional_question_details`, `get_institutional_student_scores` |
-| **`src/pages/DesempenhoInstitucional.tsx`** | Nova página com todas as 5 visualizações |
-| **`src/types/index.ts`** | Adicionar `desempenhoInstitucional` ao `AccessRules` |
-| **`src/utils/accessRules.ts`** | Habilitar para admin e professor |
-| **`src/hooks/useAccessRules.ts`** | Mapear nova feature key |
-| **`src/components/DynamicRoutes.tsx`** | Adicionar rota `/desempenho-institucional` |
-| **`src/components/AppSidebar.tsx`** | Adicionar item no menu para professor/admin |
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
 
-## Segurança
+### Por que isso resolve
 
-- As RPCs filtram por `id_ies` do professor/admin chamador
-- Validação de role (`admin`, `professor`, `coordenador`) dentro de cada RPC
-- Nenhum dado de aluno de outra IES é exposto
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 
