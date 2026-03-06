@@ -78,6 +78,11 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
+            <DropdownMenuItem onClick={() => setEditProfileOpen(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar perfil
+            </DropdownMenuItem>
+
             <DropdownMenuItem onClick={() => passwordDialog.setOpen(true)}>
               Alterar senha
             </DropdownMenuItem>
