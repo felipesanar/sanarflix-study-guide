@@ -87,6 +87,16 @@ export interface DemographicsMetrics {
     avancados: number; // 9-12+
     naoInformado: number; // 0 ou null
   };
+  
+  // Semester editing metrics
+  semesterEditing: {
+    totalUpdates: number;
+    firstDefinitions: number;
+    bannerShown: number;
+    bannerClicked: number;
+    conversionRate: number;
+    updatesPerDay: { data: string; total: number; firstDef: number }[];
+  };
 }
 
 export interface SimuladoMetrics {
