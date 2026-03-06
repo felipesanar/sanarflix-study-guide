@@ -27,17 +27,41 @@ const DEPENDENT_TABLES = [
   { table: 'announcements_viewed', filters: ['user_id'] },
   { table: 'sanarclass_views', filters: ['user_id'] },
   { table: 'performance_notifications_sent', filters: ['user_id'] },
+  // consumo_metabase references supabase_to_metabase via FK — must be deleted first
+  { table: 'consumo_metabase', filters: ['id'] },
   { table: 'supabase_to_metabase', filters: ['id'] },
 ];
 
 // Max users per single invocation to avoid CPU timeout
-const MAX_BATCH_SIZE = 5;
+// Each user requires ~23 DB calls, so keep this low
+const MAX_BATCH_SIZE = 3;
 
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  // First, resolve metabase mapping (consumo_metabase.id = supabase_to_metabase.user_id_metabase)
+  // Must delete consumo_metabase before supabase_to_metabase due to FK
+  const { data: stmRow } = await supabaseAdmin
+    .from('supabase_to_metabase')
+    .select('user_id_metabase')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (stmRow?.user_id_metabase) {
+    const { error } = await supabaseAdmin
+      .from('consumo_metabase')
+      .delete()
+      .eq('id', stmRow.user_id_metabase);
+    if (error) {
+      console.warn(`[delete-user] consumo_metabase cleanup warning: ${error.message}`);
+    }
+  }
+
   for (const { table, filters } of DEPENDENT_TABLES) {
+    // Skip consumo_metabase — already handled above with proper key lookup
+    if (table === 'consumo_metabase') continue;
+
     for (const col of filters) {
       const { error } = await supabaseAdmin.from(table).delete().eq(col, userId);
       if (error && !error.message.includes('0 rows')) {

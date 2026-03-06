@@ -88,7 +88,7 @@ interface BatchProgress {
 }
 
 const ITEMS_PER_PAGE = 25;
-const BATCH_CHUNK_SIZE = 5; // Must match edge function MAX_BATCH_SIZE
+const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
 
 export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStatsUpdate }) => {
   const [users, setUsers] = useState<UserRow[]>([]);
