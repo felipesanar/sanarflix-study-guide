@@ -7,58 +7,85 @@ const corsHeaders = {
 };
 
 const DEPENDENT_TABLES = [
-  { table: 'user_roles', filters: [{ col: 'user_id' }, { col: 'granted_by' }] },
-  { table: 'answer_progress_historico', filters: [{ col: 'user_id' }] },
-  { table: 'answer_progress', filters: [{ col: 'user_id' }] },
-  { table: 'simulados_finalizados', filters: [{ col: 'user_id' }] },
-  { table: 'simulados_iniciados', filters: [{ col: 'user_id' }] },
-  { table: 'user_progress_nodes', filters: [{ col: 'user_id' }] },
-  { table: 'user_progress', filters: [{ col: 'user_id' }] },
-  { table: 'study_progress', filters: [{ col: 'user_id' }] },
-  { table: 'user_exams', filters: [{ col: 'user_id' }] },
-  { table: 'user_sessions', filters: [{ col: 'user_id' }] },
-  { table: 'page_views', filters: [{ col: 'user_id' }] },
-  { table: 'analytics_events', filters: [{ col: 'user_id' }] },
-  { table: 'aula_views', filters: [{ col: 'user_id' }] },
-  { table: 'push_subscriptions', filters: [{ col: 'user_id' }] },
-  { table: 'study_reminders', filters: [{ col: 'user_id' }] },
-  { table: 'calendar_subjects', filters: [{ col: 'user_id' }] },
-  { table: 'calendar_arrangements', filters: [{ col: 'user_id' }] },
-  { table: 'announcements_viewed', filters: [{ col: 'user_id' }] },
-  { table: 'sanarclass_views', filters: [{ col: 'user_id' }] },
-  { table: 'performance_notifications_sent', filters: [{ col: 'user_id' }] },
-  { table: 'supabase_to_metabase', filters: [{ col: 'id' }] },
+  { table: 'user_roles', filters: ['user_id', 'granted_by'] },
+  { table: 'answer_progress_historico', filters: ['user_id'] },
+  { table: 'answer_progress', filters: ['user_id'] },
+  { table: 'simulados_finalizados', filters: ['user_id'] },
+  { table: 'simulados_iniciados', filters: ['user_id'] },
+  { table: 'user_progress_nodes', filters: ['user_id'] },
+  { table: 'user_progress', filters: ['user_id'] },
+  { table: 'study_progress', filters: ['user_id'] },
+  { table: 'user_exams', filters: ['user_id'] },
+  { table: 'user_sessions', filters: ['user_id'] },
+  { table: 'page_views', filters: ['user_id'] },
+  { table: 'analytics_events', filters: ['user_id'] },
+  { table: 'aula_views', filters: ['user_id'] },
+  { table: 'push_subscriptions', filters: ['user_id'] },
+  { table: 'study_reminders', filters: ['user_id'] },
+  { table: 'calendar_subjects', filters: ['user_id'] },
+  { table: 'calendar_arrangements', filters: ['user_id'] },
+  { table: 'announcements_viewed', filters: ['user_id'] },
+  { table: 'sanarclass_views', filters: ['user_id'] },
+  { table: 'performance_notifications_sent', filters: ['user_id'] },
+  { table: 'supabase_to_metabase', filters: ['id'] },
 ];
+
+// Max users per single invocation to avoid CPU timeout
+const MAX_BATCH_SIZE = 10;
 
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const errors: string[] = [];
-
-  // Delete dependent tables
   for (const { table, filters } of DEPENDENT_TABLES) {
-    for (const { col } of filters) {
+    for (const col of filters) {
       const { error } = await supabaseAdmin.from(table).delete().eq(col, userId);
       if (error && !error.message.includes('0 rows')) {
-        errors.push(`${table}.${col}: ${error.message}`);
+        console.warn(`[delete-user] ${table}.${col} cleanup warning: ${error.message}`);
       }
     }
   }
 
-  // Delete from public.users
   const { error: publicError } = await supabaseAdmin.from('users').delete().eq('id', userId);
   if (publicError) {
     return { success: false, error: `public.users: ${publicError.message}` };
   }
 
-  // Delete from auth.users
   const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (authDeleteError) {
     return { success: false, error: `auth: ${authDeleteError.message}` };
   }
 
   return { success: true };
+}
+
+/**
+ * Fetch ALL user IDs from an IES, paginating past the 1000-row limit.
+ */
+async function fetchAllIesUserIds(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  iesId: string,
+): Promise<string[]> {
+  const allIds: string[] = [];
+  let from = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('id_ies', iesId)
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    allIds.push(...data.map(u => u.id));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return allIds;
 }
 
 Deno.serve(async (req) => {
@@ -70,7 +97,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Verify caller is admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Não autorizado' }), {
@@ -93,7 +119,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check admin role
     const { data: roles } = await supabaseAdmin.rpc('get_user_roles', { _user_id: caller.id });
     if (!roles?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Permissão negada' }), {
@@ -105,70 +130,72 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { user_id, user_ids, ies_id } = body;
 
-    // ──── Mode 1: Delete all users from an IES ────
-    if (ies_id) {
-      console.log(`[delete-user] Admin ${caller.email} deleting all users from IES ${ies_id}`);
+    // ──── Mode 1: Resolve IES user IDs (discovery only) ────
+    // Returns the list of deletable IDs so the client can chunk them
+    if (ies_id && body.resolve_only) {
+      console.log(`[delete-user] Resolving users for IES ${ies_id}`);
 
-      // Get all users from IES (excluding admins and caller)
-      const { data: iesUsers, error: fetchError } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('id_ies', ies_id);
-
-      if (fetchError) {
-        return new Response(JSON.stringify({ error: `Erro ao buscar usuários da IES: ${fetchError.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const allIds = (iesUsers || []).map(u => u.id).filter(id => id !== caller.id);
+      const allIds = await fetchAllIesUserIds(supabaseAdmin, ies_id);
+      const filteredIds = allIds.filter(id => id !== caller.id);
 
       // Filter out admins
-      const { data: adminRoles } = await supabaseAdmin
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin')
-        .in('user_id', allIds);
+      if (filteredIds.length > 0) {
+        const { data: adminRoles } = await supabaseAdmin
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'admin')
+          .in('user_id', filteredIds.slice(0, 1000)); // .in() has limit
 
-      const adminIds = new Set((adminRoles || []).map(r => r.user_id));
-      const idsToDelete = allIds.filter(id => !adminIds.has(id));
+        // For >1000, do multiple lookups
+        let adminIds = new Set((adminRoles || []).map(r => r.user_id));
 
-      if (idsToDelete.length === 0) {
-        return new Response(JSON.stringify({ success: true, results: { deleted: [], failed: [] } }), {
+        if (filteredIds.length > 1000) {
+          for (let i = 1000; i < filteredIds.length; i += 1000) {
+            const chunk = filteredIds.slice(i, i + 1000);
+            const { data: moreRoles } = await supabaseAdmin
+              .from('user_roles')
+              .select('user_id')
+              .eq('role', 'admin')
+              .in('user_id', chunk);
+            (moreRoles || []).forEach(r => adminIds.add(r.user_id));
+          }
+        }
+
+        const deletableIds = filteredIds.filter(id => !adminIds.has(id));
+
+        return new Response(JSON.stringify({
+          success: true,
+          user_ids: deletableIds,
+          total: deletableIds.length,
+        }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      const deleted: string[] = [];
-      const failed: { id: string; error: string }[] = [];
-
-      for (const id of idsToDelete) {
-        const result = await deleteSingleUser(supabaseAdmin, id);
-        if (result.success) {
-          deleted.push(id);
-        } else {
-          failed.push({ id, error: result.error || 'Unknown error' });
-        }
-      }
-
-      console.log(`[delete-user] IES batch: ${deleted.length} deleted, ${failed.length} failed`);
-
-      return new Response(JSON.stringify({ success: true, results: { deleted, failed } }), {
+      return new Response(JSON.stringify({
+        success: true,
+        user_ids: [],
+        total: 0,
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // ──── Mode 2: Delete multiple users by IDs ────
+    // ──── Mode 2: Delete batch of user IDs (capped at MAX_BATCH_SIZE) ────
     if (user_ids && Array.isArray(user_ids) && user_ids.length > 0) {
-      console.log(`[delete-user] Admin ${caller.email} batch deleting ${user_ids.length} users`);
+      const batch = user_ids.slice(0, MAX_BATCH_SIZE);
+      if (user_ids.length > MAX_BATCH_SIZE) {
+        console.log(`[delete-user] Capping batch from ${user_ids.length} to ${MAX_BATCH_SIZE}`);
+      }
+
+      console.log(`[delete-user] Admin ${caller.email} batch deleting ${batch.length} users`);
 
       const deleted: string[] = [];
       const failed: { id: string; error: string }[] = [];
 
-      for (const id of user_ids) {
+      for (const id of batch) {
         if (id === caller.id) {
           failed.push({ id, error: 'Não pode remover a si mesmo' });
           continue;
@@ -181,9 +208,12 @@ Deno.serve(async (req) => {
         }
       }
 
-      console.log(`[delete-user] Batch: ${deleted.length} deleted, ${failed.length} failed`);
+      console.log(`[delete-user] Batch done: ${deleted.length} deleted, ${failed.length} failed`);
 
-      return new Response(JSON.stringify({ success: true, results: { deleted, failed } }), {
+      return new Response(JSON.stringify({
+        success: true,
+        results: { deleted, failed },
+      }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
