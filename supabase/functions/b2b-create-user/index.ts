@@ -323,7 +323,7 @@ Deno.serve(async (req) => {
             // Upsert into public.users
             const { error: upsertErr } = await supabaseAdmin
               .from('users')
-              .upsert({ id: authUser.id, email, nome, id_ies, semestre }, { onConflict: 'id' });
+              .upsert({ id: authUser.id, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
             if (upsertErr) {
               return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
             }
