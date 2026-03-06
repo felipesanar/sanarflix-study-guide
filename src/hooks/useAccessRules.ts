@@ -39,6 +39,7 @@ export const useAccessRules = () => {
       SimuladoDesempenho: hasFeature('SimuladoDesempenho'),
       sanarclass: hasFeature('sanarclass'),
       analytics: hasFeature('analytics'),
+      desempenhoInstitucional: hasFeature('desempenhoInstitucional'),
       // simulados sempre true para usuários autenticados (regra base)
       simulados: baseRules.simulados,
       // userManagement nunca para alunos (regra base)
