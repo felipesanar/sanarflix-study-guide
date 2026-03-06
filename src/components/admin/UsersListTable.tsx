@@ -79,12 +79,20 @@ interface UsersListTableProps {
   onStatsUpdate?: (totalUsers: number, totalAdmins: number) => void;
 }
 
+interface FailedUser {
+  id: string;
+  nome: string;
+  email: string;
+  error: string;
+}
+
 interface BatchProgress {
   total: number;
   completed: number;
   deleted: number;
   failed: number;
   active: boolean;
+  failedUsers: FailedUser[];
 }
 
 const ITEMS_PER_PAGE = 25;
@@ -116,9 +124,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [confirmText, setConfirmText] = useState('');
 
   // Batch progress state
-  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
-    total: 0, completed: 0, deleted: 0, failed: 0, active: false,
-  });
+  const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
   const cancelRef = useRef(false);
 
   // Clear selection on page/filter change
@@ -241,13 +248,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     cancelRef.current = false;
     const total = idsToDelete.length;
 
-    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true });
+    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
     setBatchDeleteOpen(false);
     setIesDeleteOpen(false);
     setConfirmText('');
 
     let totalDeleted = 0;
     let totalFailed = 0;
+    const allFailedUsers: FailedUser[] = [];
 
     for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
       if (cancelRef.current) {
@@ -265,9 +273,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         if (error) throw error;
 
         const chunkDeleted = data?.results?.deleted?.length || 0;
-        const chunkFailed = data?.results?.failed?.length || 0;
+        const chunkFailedItems: FailedUser[] = (data?.results?.failed || []).map((f: { id: string; nome?: string; email?: string; error: string }) => ({
+          id: f.id,
+          nome: f.nome || '',
+          email: f.email || '',
+          error: f.error,
+        }));
         totalDeleted += chunkDeleted;
-        totalFailed += chunkFailed;
+        totalFailed += chunkFailedItems.length;
+        allFailedUsers.push(...chunkFailedItems);
 
         // Remove deleted users from local state immediately
         if (chunkDeleted > 0) {
@@ -285,7 +299,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       }
 
       const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
-      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true });
+      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true, failedUsers: allFailedUsers });
     }
 
     // Final state
@@ -313,7 +327,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     if (filterIes === 'all') return;
 
     cancelRef.current = false;
-    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true });
+    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
     setIesDeleteOpen(false);
     setConfirmText('');
 
@@ -533,7 +547,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: false })}
+                    onClick={() => setBatchProgress(EMPTY_PROGRESS)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -544,6 +558,36 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             <p className="text-xs text-muted-foreground">
               {batchProgress.deleted} removidos • {batchProgress.failed} falhas • {progressPercent}% concluído
             </p>
+
+            {/* Failure report */}
+            {!batchProgress.active && batchProgress.failedUsers.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Usuários que falharam ({batchProgress.failedUsers.length}):
+                </p>
+                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs py-1.5">Nome</TableHead>
+                        <TableHead className="text-xs py-1.5">Email</TableHead>
+                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {batchProgress.failedUsers.map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs py-1.5">{f.nome || f.id.slice(0, 8)}</TableCell>
+                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
