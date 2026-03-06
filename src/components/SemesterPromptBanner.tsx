@@ -1,14 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { EditProfileSheet } from './EditProfileSheet';
+import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 
 export function SemesterPromptBanner() {
   const { user } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
+  const { trackEvent } = useAnalyticsTracker();
+  const trackedRef = useRef(false);
+
+  // Track banner shown once per mount
+  useEffect(() => {
+    if (user && user.semestre == null && !trackedRef.current) {
+      trackedRef.current = true;
+      trackEvent({
+        eventName: 'semester_banner_shown',
+        category: 'interaction',
+      });
+    }
+  }, [user, trackEvent]);
 
   if (!user || user.semestre != null) return null;
+
+  const handleClick = () => {
+    trackEvent({
+      eventName: 'semester_banner_clicked',
+      category: 'interaction',
+    });
+    setEditOpen(true);
+  };
 
   return (
     <>
@@ -23,12 +45,12 @@ export function SemesterPromptBanner() {
           size="sm"
           variant="outline"
           className="shrink-0 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20"
-          onClick={() => setEditOpen(true)}
+          onClick={handleClick}
         >
           Definir semestre
         </Button>
       </div>
-      <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} />
+      <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} source="onboarding_banner" />
     </>
   );
 }

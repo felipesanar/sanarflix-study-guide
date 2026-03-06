@@ -133,6 +133,7 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
     if (!user || pendingSemestre === null || savingSemestre) return;
     setConfirmOpen(false);
     setSavingSemestre(true);
+    const previousSemestre = semestre ?? null;
     try {
       const { error } = await supabase
         .from("users")
@@ -146,6 +147,19 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
         setSemestreUpdatedAt(new Date().toISOString());
       }
       await forceRefreshProfile();
+
+      // Track semester_updated event
+      trackEvent({
+        eventName: 'semester_updated',
+        category: 'interaction',
+        data: {
+          previous_semester: previousSemestre,
+          new_semester: pendingSemestre,
+          is_first_definition: previousSemestre === null,
+          source,
+        },
+      });
+
       toast.success(`Semestre atualizado para ${pendingSemestre}º período!`);
     } catch (e: any) {
       const msg = e?.message?.includes("bloqueada")
