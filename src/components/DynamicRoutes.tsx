@@ -250,6 +250,24 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/sanarclass" element={<Navigate to="/simulados" replace />} />
           )}
 
+          {/* Desempenho Institucional - Professores e Admins */}
+          {accessRules.desempenhoInstitucional ? (
+            <Route
+              path="/desempenho-institucional"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando desempenho institucional..."
+                    waitForData={true}
+                  >
+                    <DesempenhoInstitucional />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/desempenho-institucional" element={<Navigate to="/simulados" replace />} />
+          )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
           <Route path="*" element={<NotFound />} />
