@@ -71,6 +71,13 @@ const menuItems = [
     accessKey: "analytics" as const,
     description: "Métricas e insights avançados",
   },
+  {
+    title: "Desempenho Institucional",
+    url: "/desempenho-institucional",
+    icon: School,
+    accessKey: "desempenhoInstitucional" as const,
+    description: "Visão geral do desempenho dos alunos",
+  },
 ];
 
 const studyGuideItems = [
