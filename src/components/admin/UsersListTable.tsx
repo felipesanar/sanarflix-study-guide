@@ -327,7 +327,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     if (filterIes === 'all') return;
 
     cancelRef.current = false;
-    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true });
+    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
     setIesDeleteOpen(false);
     setConfirmText('');
 
