@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAnalyticsTracker } from "@/hooks/useAnalyticsTracker";
 import {
   Sheet,
   SheetContent,
