@@ -1,81 +1,87 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+# Edição de Nome e Semestre — Experiência Premium com Cooldown de 60 Dias
 
-### Causa Raiz Identificada
+## Resumo
 
-Analisando os logs de autenticacao, o problema fica evidente:
+Permitir que alunos editem nome livremente e semestre com restrição de 60 dias entre alterações. A edição acontece via um modal/sheet premium acessível pelo card de perfil (sidebar e mobile header). Inclui alerta de impacto antes de confirmar mudança de semestre.
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+## Mudanças no Banco de Dados
+
+### 1. Nova coluna na tabela `users`
+
+```sql
+ALTER TABLE public.users
+  ADD COLUMN semestre_updated_at timestamptz DEFAULT NULL;
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+Essa coluna registra quando o semestre foi alterado pela última vez. `NULL` = nunca editou (pode editar livremente a primeira vez).
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+### 2. Atualizar trigger `validate_user_update`
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+Adicionar validação server-side no trigger existente:
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+- Se `semestre` mudou E o caller NÃO é admin/service_role:
+  - Checar `semestre_updated_at`: se `< 60 dias atrás`, rejeitar com exceção clara
+  - Setar `NEW.semestre_updated_at = now()` automaticamente
+- Nome: permitir livremente para o próprio usuário (já permitido)
 
-### Solucao
+### 3. Atualizar RLS
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+A policy de UPDATE existente (`auth.uid() = id`) já cobre. O trigger é a barreira de segurança real.
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+## Frontend
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+### 1. Novo componente `EditProfileSheet`
 
----
+Modal/sheet premium (usa `Sheet` no mobile, `Dialog` no desktop) com:
 
-### Mudancas
+**Seção Nome:**
+- Input editável com o nome atual
+- Validação: 2+ caracteres, regex `^[a-zA-ZÀ-ÿ\s\-'.]+$`
+- Salva com `supabase.from('users').update({ nome }).eq('id', user.id)`
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+**Seção Semestre:**
+- Select com semestres 1-12
+- **Antes de editar**, exibir um banner permanente (amarelo/warning):
+  > "Seu semestre influencia diretamente o conteúdo exibido no Guia de Estudos, Central de Progresso, Rankings e Simulados. Após alterar, você só poderá mudar novamente após 60 dias."
+- Se dentro do cooldown de 60 dias: campo **desabilitado** com texto:
+  > "Você poderá alterar seu semestre novamente em DD/MM/AAAA" (calculado a partir de `semestre_updated_at + 60 dias`)
+- Confirmação dupla: ao clicar "Salvar semestre", abre AlertDialog:
+  > "Tem certeza? Essa ação não pode ser desfeita por 60 dias. Seu conteúdo, progresso e rankings serão recalculados para o Xº período."
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+**Após salvar:**
+- Atualizar `user` no AuthContext (via `refreshUserProfile` forçado, bypass throttle)
+- Atualizar localStorage
+- Toast de sucesso
+- Broadcast para outras tabs via `useTabSync`
 
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+### 2. Integrar no `SidebarUserCard`
 
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+Adicionar botão "Editar perfil" no Popover existente, que abre o `EditProfileSheet`.
 
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+### 3. Integrar no `MobileHeader`
 
-**Arquivo: `src/pages/UpdatePassword.tsx`**
+Adicionar item "Editar perfil" no DropdownMenu da conta.
 
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
+### 4. AuthContext — expor `refreshUserProfile` forçado
 
-#### 3. Deploy da Edge Function
+Adicionar método `forceRefreshProfile()` que bypassa o throttle de 30s para refletir mudanças imediatas.
 
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+## Arquivos a criar/editar
 
----
+| Arquivo | Ação |
+|---------|------|
+| **Migration SQL** | Adicionar `semestre_updated_at` + atualizar trigger `validate_user_update` |
+| **`src/components/EditProfileSheet.tsx`** | Novo — modal premium de edição |
+| **`src/components/sidebar/SidebarUserCard.tsx`** | Adicionar botão "Editar perfil" |
+| **`src/components/navigation/MobileHeader.tsx`** | Adicionar item "Editar perfil" |
+| **`src/contexts/AuthContext.tsx`** | Expor `forceRefreshProfile` no context |
+| **`src/types/index.ts`** | Adicionar `forceRefreshProfile` ao `AuthContextType` |
 
-### Resumo
+## Segurança
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- O trigger `validate_user_update` no banco é a barreira real — mesmo que o frontend seja manipulado, o banco rejeita
+- Admin e service_role podem alterar semestre a qualquer momento (bypass do cooldown)
+- A validação de 60 dias é feita server-side (trigger), não apenas no frontend
 
