@@ -87,6 +87,11 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
                 </p>
               </div>
             )}
+
+            {/* Settings icon */}
+            {!collapsed && (
+              <Settings className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors shrink-0" />
+            )}
           </div>
         </motion.button>
       </PopoverTrigger>
