@@ -68,9 +68,18 @@ export const UsersTab: React.FC = () => {
   // syncUserAuth removed – available per-user in UsersListTable
 
   const createSingleUser = async () => {
-    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies || !singleUser.semestre) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies) {
+      toast.error('Preencha nome, email e instituição');
       return;
+    }
+
+    // Validate semestre only if provided
+    if (singleUser.semestre) {
+      const sem = parseInt(singleUser.semestre);
+      if (isNaN(sem) || sem < 1 || sem > 12) {
+        toast.error('Semestre deve ser entre 1 e 12');
+        return;
+      }
     }
 
     setIsCreating(true);
@@ -81,7 +90,7 @@ export const UsersTab: React.FC = () => {
           nome: singleUser.nome,
           email: singleUser.email.toLowerCase().trim(),
           id_ies: singleUser.id_ies,
-          semestre: parseInt(singleUser.semestre),
+          semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
         },
       });
 
