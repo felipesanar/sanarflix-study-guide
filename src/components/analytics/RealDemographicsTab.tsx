@@ -461,6 +461,172 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
         </div>
       </section>
 
+      {/* Seção: Saúde do Semestre — Tracking de Edição */}
+      {(demographics.semesterEditing.totalUpdates > 0 || demographics.semesterEditing.bannerShown > 0) && (
+        <section>
+          <SectionHeader
+            titulo="Saúde do Semestre"
+            subtitulo="Impacto da feature de edição de semestre na qualidade da base"
+            icon={<CalendarCheck className="w-5 h-5 text-primary" />}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <MetricCard
+              titulo="Definições de Semestre"
+              valor={demographics.semesterEditing.totalUpdates.toString()}
+              subtitulo="no período selecionado"
+              interpretacao={demographics.semesterEditing.totalUpdates > 0 
+                ? `${demographics.semesterEditing.firstDefinitions} foram primeira definição.`
+                : 'Nenhuma definição de semestre no período.'
+              }
+              status={demographics.semesterEditing.totalUpdates > 0 ? 'positivo' : 'neutro'}
+              icon={<CalendarCheck className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Primeira Definição"
+              valor={demographics.semesterEditing.firstDefinitions.toString()}
+              subtitulo="usuários que não tinham semestre"
+              interpretacao={demographics.semesterEditing.firstDefinitions > 0 
+                ? 'Conversões do banner de onboarding.'
+                : 'Nenhuma primeira definição no período.'
+              }
+              status={demographics.semesterEditing.firstDefinitions > 0 ? 'positivo' : 'neutro'}
+              icon={<Sparkles className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Banner Exibido"
+              valor={demographics.semesterEditing.bannerShown.toString()}
+              subtitulo="vezes exibido a usuários"
+              interpretacao={demographics.semesterEditing.bannerShown > 0 
+                ? `${demographics.semesterEditing.bannerClicked} cliques.`
+                : 'Banner não exibido no período.'
+              }
+              status="neutro"
+              icon={<AlertTriangle className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Conversão do Banner"
+              valor={`${demographics.semesterEditing.conversionRate}%`}
+              subtitulo="cliques / exibições"
+              interpretacao={
+                demographics.semesterEditing.conversionRate >= 20 
+                  ? 'Excelente taxa de conversão!'
+                  : demographics.semesterEditing.conversionRate >= 5
+                    ? 'Taxa de conversão aceitável.'
+                    : demographics.semesterEditing.bannerShown === 0
+                      ? 'Sem dados suficientes.'
+                      : 'Considere melhorar o copy do banner.'
+              }
+              status={
+                demographics.semesterEditing.conversionRate >= 20 ? 'positivo' 
+                : demographics.semesterEditing.conversionRate >= 5 ? 'neutro' 
+                : 'alerta'
+              }
+              icon={<MousePointerClick className="w-4 h-4 text-primary" />}
+            />
+          </div>
+
+          {/* Temporal chart */}
+          {demographics.semesterEditing.updatesPerDay.length > 1 && (
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Definições de Semestre por Dia
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={demographics.semesterEditing.updatesPerDay}>
+                    <defs>
+                      <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradFirst" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="data" 
+                      className="text-xs"
+                      tickFormatter={(v) => {
+                        const parts = v.split('-');
+                        return `${parts[2]}/${parts[1]}`;
+                      }}
+                    />
+                    <YAxis className="text-xs" allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelFormatter={(v) => {
+                        const parts = String(v).split('-');
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                      }}
+                      formatter={(value: number, name: string) => [
+                        value,
+                        name === 'total' ? 'Total de definições' : 'Primeira definição'
+                      ]}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke="hsl(var(--primary))" 
+                      fill="url(#gradTotal)" 
+                      strokeWidth={2}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="firstDef" 
+                      stroke="hsl(var(--chart-2))" 
+                      fill="url(#gradFirst)" 
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 rounded bg-primary" />
+                    <span>Total de definições</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
+                    <span>Primeira definição</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Insight automático */}
+          {demographics.semesterEditing.firstDefinitions > 0 && (
+            <InsightBox
+              tipo="oportunidade"
+              titulo="Feature de edição de semestre está convertendo"
+              descricao={`${demographics.semesterEditing.firstDefinitions} usuário(s) definiram semestre pela primeira vez no período. A completude de semestre da base está em ${totalUsuarios > 0 ? Math.round((usuariosComSemestre / totalUsuarios) * 100) : 0}%.`}
+              acao="Continue monitorando para validar o crescimento da completude"
+              valor={`${demographics.semesterEditing.firstDefinitions}`}
+            />
+          )}
+
+          {demographics.semesterEditing.totalUpdates === 0 && demographics.semesterEditing.bannerShown > 0 && (
+            <InsightBox
+              tipo="alerta"
+              titulo="Banner exibido mas sem conversões"
+              descricao={`O banner foi exibido ${demographics.semesterEditing.bannerShown} vezes mas nenhum usuário definiu o semestre. Considere ajustar o texto ou posicionamento.`}
+              acao="Revise o copy e CTA do banner de onboarding"
+            />
+          )}
+        </section>
+      )}
+
       {/* Seção 4: Insights Inteligentes */}
       <section>
         <SectionHeader
