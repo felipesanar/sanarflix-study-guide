@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.ai-study-recommendation]
 verify_jwt = false
+
+[functions.delete-user]
+verify_jwt = false
