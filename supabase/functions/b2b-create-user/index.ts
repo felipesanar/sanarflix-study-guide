@@ -365,21 +365,23 @@ Deno.serve(async (req) => {
         else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
 
-      // Send welcome email via Novu in background (fail-soft)
-      EdgeRuntime.waitUntil(
-        sendWelcomeEmail(supabaseAdmin, userId, nome, email)
-          .then(ok => console.log(`[CreateUser] Welcome email for ${email}: ${ok ? 'sent' : 'FAILED'}`))
-          .catch(err => console.error(`[CreateUser] Welcome email error for ${email}:`, err))
-      );
+      // Fix #4: Await welcome email for accurate status reporting
+      let emailSent = false;
+      try {
+        emailSent = await sendWelcomeEmail(supabaseAdmin, userId, nome, email);
+        console.log(`[CreateUser] Welcome email for ${email}: ${emailSent ? 'sent' : 'FAILED'}`);
+      } catch (err) {
+        console.error(`[CreateUser] Welcome email error for ${email}:`, err);
+      }
 
-      console.log(`[CreateUser] User ${email} created. Welcome email queued in background.`);
+      console.log(`[CreateUser] User ${email} created successfully.`);
 
       return successResponse(
         'created', 
         userId, 
         email, 
-        'Usuário criado e email de boas-vindas sendo enviado',
-        { emailSent: true }
+        emailSent ? 'Usuário criado e email de boas-vindas enviado' : 'Usuário criado, mas falha ao enviar email',
+        { emailSent }
       );
     }
 
