@@ -157,13 +157,6 @@ export function MobileBottomNav() {
     }
   };
 
-  const handleSemestreErrado = () => {
-    const msg = encodeURIComponent(
-      "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-    );
-    window.open(`https://wa.me/5571993120049?text=${msg}`, "_blank", "noopener,noreferrer");
-    setIsMenuOpen(false);
-  };
 
   const handleChangePassword = () => {
     passwordDialog.setOpen(true);
