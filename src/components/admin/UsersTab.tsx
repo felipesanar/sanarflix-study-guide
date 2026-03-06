@@ -118,28 +118,58 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
+    // Fix #2: Validate batchIesId explicitly
+    if (!batchIesId) {
+      toast.error('Selecione uma IES antes de processar');
+      return;
+    }
+
     setIsProcessing(true);
     setLogs([]);
     setBatchReport(null);
+    setBatchProgress(null);
     
     const startedAt = new Date();
-    addLog('Iniciando processamento do arquivo CSV...');
+    addLog('Iniciando processamento do arquivo...');
+
+    // Setup abort controller for cancellation
+    const abortController = new AbortController();
+    abortRef.current = abortController;
 
     try {
-      const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        toast.error('Arquivo CSV vazio ou sem dados');
+      // Fix #1: Use XLSX to parse CSV/XLSX robustly instead of split(',')
+      const arrayBuffer = await csvFile.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      if (rows.length === 0) {
+        toast.error('Arquivo vazio ou sem dados');
         setIsProcessing(false);
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
+      // Fix #6: Limit batch size
+      if (rows.length > MAX_BATCH_ROWS) {
+        toast.error(`Limite de ${MAX_BATCH_ROWS} linhas por lote excedido (${rows.length} linhas encontradas). Divida o arquivo.`);
+        addLog(`Erro: arquivo com ${rows.length} linhas excede limite de ${MAX_BATCH_ROWS}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Normalize headers to lowercase
+      const normalizedRows = rows.map(row => {
+        const normalized: Record<string, string> = {};
+        for (const key of Object.keys(row)) {
+          normalized[key.trim().toLowerCase()] = String(row[key]).trim();
+        }
+        return normalized;
+      });
+
       // Validate required columns
+      const firstRow = normalizedRows[0];
       const requiredColumns = ['nome', 'email', 'semestre'];
-      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
       
       if (missingColumns.length > 0) {
         toast.error(`Colunas obrigatórias faltando: ${missingColumns.join(', ')}`);
@@ -148,111 +178,108 @@ export const UsersTab: React.FC = () => {
         return;
       }
 
+      // Pre-validate all rows
+      const validUsers: { nome: string; email: string; semestre: number; linha: number }[] = [];
       const results: BatchResult[] = [];
       const processedEmails = new Set<string>();
 
-      addLog(`Processando ${lines.length - 1} linhas...`);
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const user: Record<string, string> = {};
-        
-        headers.forEach((header, index) => {
-          user[header] = values[index] || '';
-        });
-
+      for (let i = 0; i < normalizedRows.length; i++) {
+        const user = normalizedRows[i];
         const email = user.email?.toLowerCase().trim();
         const nome = user.nome?.trim();
         const semestreStr = user.semestre?.trim();
+        const linha = i + 2; // +2 because row 1 is header, 0-indexed
 
         // Skip empty lines
-        if (!email && !nome) {
-          continue;
-        }
+        if (!email && !nome) continue;
 
         // Check for duplicates in this batch
         if (processedEmails.has(email)) {
-          results.push({
-            email,
-            nome,
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'SKIPPED',
-              message: 'Email já processado neste lote'
-            }
-          });
-          addLog(`Linha ${i + 1}: ${email} - duplicado no lote`);
+          results.push({ email, nome, linha, success: false, error: { code: 'SKIPPED', message: 'Email já processado neste lote' } });
           continue;
         }
 
         // Basic validation
         if (!nome || !email || !semestreStr) {
-          results.push({
-            email: email || 'N/A',
-            nome: nome || 'N/A',
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Dados incompletos (nome, email, semestre obrigatórios)'
-            }
-          });
-          addLog(`Linha ${i + 1}: dados incompletos`);
+          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome, email, semestre obrigatórios)' } });
+          continue;
+        }
+
+        // Fix #9: Frontend email validation
+        if (!isValidEmail(email)) {
+          results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Email inválido: ${email}` } });
+          continue;
+        }
+
+        const semestre = parseInt(semestreStr);
+        if (isNaN(semestre) || semestre < 1 || semestre > 12) {
+          results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
           continue;
         }
 
         processedEmails.add(email);
+        validUsers.push({ nome, email, semestre, linha });
+      }
 
-        try {
-          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-            body: {
-              nome,
-              email,
-              id_ies: batchIesId,
-              semestre: parseInt(semestreStr),
-            },
-          });
+      const totalToProcess = validUsers.length;
+      addLog(`${results.length} linhas com problemas de validação. Processando ${totalToProcess} usuários válidos...`);
+      setBatchProgress({ current: 0, total: totalToProcess });
 
-          if (error || !data?.success) {
-            results.push({
-              email,
-              nome,
-              linha: i + 1,
-              success: false,
-              error: {
-                code: data?.code || 'INTERNAL_ERROR',
-                message: error?.message || data?.error || 'Erro desconhecido'
-              }
+      // Fix #3: Process in parallel chunks with concurrency control
+      let processed = 0;
+      for (let chunkStart = 0; chunkStart < validUsers.length; chunkStart += CONCURRENCY) {
+        // Check for cancellation
+        if (abortController.signal.aborted) {
+          addLog('⚠️ Processamento cancelado pelo administrador.');
+          break;
+        }
+
+        const chunk = validUsers.slice(chunkStart, chunkStart + CONCURRENCY);
+
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (user) => {
+            const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+              body: { nome: user.nome, email: user.email, id_ies: batchIesId, semestre: user.semestre },
             });
-            addLog(`Linha ${i + 1}: ${email} - ERRO: ${data?.error || error?.message}`);
-          } else {
-            results.push({
-              email,
-              nome,
-              linha: i + 1,
-              success: true,
-              action: data.action,
-              message: data.message,
-              fieldsUpdated: data.details?.fieldsUpdated,
-              emailSent: data.details?.emailSent
-            });
-            
-            const icon = data.action === 'created' ? '✅' : '🔄';
-            addLog(`Linha ${i + 1}: ${email} - ${icon} ${data.action}`);
-          }
-        } catch (err) {
-          results.push({
-            email,
-            nome,
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'INTERNAL_ERROR',
-              message: err instanceof Error ? err.message : 'Erro inesperado'
+
+            if (error || !data?.success) {
+              return {
+                email: user.email, nome: user.nome, linha: user.linha, success: false as const,
+                error: { code: data?.code || 'INTERNAL_ERROR', message: error?.message || data?.error || 'Erro desconhecido' },
+              };
             }
-          });
-          addLog(`Linha ${i + 1}: ${email} - ERRO: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
+
+            return {
+              email: user.email, nome: user.nome, linha: user.linha, success: true as const,
+              action: data.action, message: data.message,
+              fieldsUpdated: data.details?.fieldsUpdated, emailSent: data.details?.emailSent,
+            };
+          })
+        );
+
+        for (const result of chunkResults) {
+          processed++;
+          if (result.status === 'fulfilled') {
+            const r = result.value;
+            results.push(r as BatchResult);
+            if (r.success) {
+              const icon = r.action === 'created' ? '✅' : '🔄';
+              addLog(`${r.email} - ${icon} ${r.action}`);
+            } else {
+              addLog(`${r.email} - ❌ ${(r as any).error?.message}`);
+            }
+          } else {
+            const user = chunk[chunkResults.indexOf(result)];
+            results.push({ email: user.email, nome: user.nome, linha: user.linha, success: false, error: { code: 'INTERNAL_ERROR', message: result.reason?.message || 'Erro inesperado' } });
+            addLog(`${user.email} - ❌ Erro inesperado`);
+          }
+        }
+
+        setBatchProgress({ current: processed, total: totalToProcess });
+
+        // Inter-chunk delay to avoid rate limiting
+        if (chunkStart + CONCURRENCY < validUsers.length && !abortController.signal.aborted) {
+          await new Promise(resolve => setTimeout(resolve, INTER_CHUNK_DELAY_MS));
         }
       }
 
@@ -273,16 +300,24 @@ export const UsersTab: React.FC = () => {
       const emailsFailed = results.filter(r => r.success && r.action === 'created' && !r.emailSent).length;
 
       setBatchReport(report);
+      setBatchProgress(null);
       addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros. Emails: ${emailsSent} enviados, ${emailsFailed} falharam.`);
       
       toast.success(`Importação concluída. ${report.created} criados, ${report.updated} atualizados, ${emailsSent} e-mails enviados${emailsFailed > 0 ? `, ${emailsFailed} falharam` : ''}.`);
     } catch (err) {
       console.error('CSV processing error:', err);
-      toast.error('Erro ao processar arquivo CSV');
+      toast.error('Erro ao processar arquivo');
       addLog(`Erro fatal: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setIsProcessing(false);
+      setBatchProgress(null);
+      abortRef.current = null;
     }
+  };
+
+  const cancelBatchProcessing = () => {
+    abortRef.current?.abort();
+    toast.info('Cancelando processamento...');
   };
 
   const downloadReport = () => {
