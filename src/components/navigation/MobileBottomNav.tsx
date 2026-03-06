@@ -15,7 +15,7 @@ import {
   Lock,
   Sun,
   Moon,
-  MessageCircle,
+  
   LogOut,
   User,
 } from "lucide-react";
