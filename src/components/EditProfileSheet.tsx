@@ -177,9 +177,6 @@ export function EditProfileSheet({ open, onOpenChange }: EditProfileSheetProps) 
                 .toUpperCase()}
             </span>
           </div>
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-background flex items-center justify-center">
-            <Pencil className="h-3 w-3 text-primary-foreground" />
-          </div>
         </motion.div>
       </div>
 
