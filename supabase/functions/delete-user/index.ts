@@ -31,7 +31,7 @@ const DEPENDENT_TABLES = [
 ];
 
 // Max users per single invocation to avoid CPU timeout
-const MAX_BATCH_SIZE = 10;
+const MAX_BATCH_SIZE = 5;
 
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
@@ -60,32 +60,24 @@ async function deleteSingleUser(
 }
 
 /**
- * Fetch ALL user IDs from an IES, paginating past the 1000-row limit.
+ * Paginated fetch of user IDs from an IES.
+ * Accepts a `cursor` (offset) and `page_size` to avoid loading everything at once.
  */
-async function fetchAllIesUserIds(
+async function fetchIesUserIdsPage(
   supabaseAdmin: ReturnType<typeof createClient>,
   iesId: string,
-): Promise<string[]> {
-  const allIds: string[] = [];
-  let from = 0;
-  const pageSize = 1000;
+  cursor: number,
+  pageSize: number,
+): Promise<{ ids: string[]; hasMore: boolean }> {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('id_ies', iesId)
+    .range(cursor, cursor + pageSize - 1);
 
-  while (true) {
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('id_ies', iesId)
-      .range(from, from + pageSize - 1);
-
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-
-    allIds.push(...data.map(u => u.id));
-    if (data.length < pageSize) break;
-    from += pageSize;
-  }
-
-  return allIds;
+  if (error) throw error;
+  const ids = (data || []).map(u => u.id);
+  return { ids, hasMore: ids.length === pageSize };
 }
 
 Deno.serve(async (req) => {
@@ -130,53 +122,38 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { user_id, user_ids, ies_id } = body;
 
-    // ──── Mode 1: Resolve IES user IDs (discovery only) ────
-    // Returns the list of deletable IDs so the client can chunk them
+    // ──── Mode 1: Paginated resolve of IES user IDs ────
+    // Client sends { ies_id, resolve_only: true, cursor?: number, page_size?: number }
+    // Returns a page of deletable IDs so the client can iterate without CPU timeout
     if (ies_id && body.resolve_only) {
-      console.log(`[delete-user] Resolving users for IES ${ies_id}`);
+      const cursor = body.cursor ?? 0;
+      const pageSize = Math.min(body.page_size ?? 500, 500);
 
-      const allIds = await fetchAllIesUserIds(supabaseAdmin, ies_id);
-      const filteredIds = allIds.filter(id => id !== caller.id);
+      console.log(`[delete-user] Resolving users for IES ${ies_id} (cursor=${cursor}, pageSize=${pageSize})`);
 
-      // Filter out admins
+      const { ids: rawIds, hasMore } = await fetchIesUserIdsPage(supabaseAdmin, ies_id, cursor, pageSize);
+
+      // Filter out self and admins
+      const filteredIds = rawIds.filter(id => id !== caller.id);
+
+      // Check admin status only for this page (small set, fast)
+      let deletableIds = filteredIds;
       if (filteredIds.length > 0) {
         const { data: adminRoles } = await supabaseAdmin
           .from('user_roles')
           .select('user_id')
           .eq('role', 'admin')
-          .in('user_id', filteredIds.slice(0, 1000)); // .in() has limit
+          .in('user_id', filteredIds);
 
-        // For >1000, do multiple lookups
-        let adminIds = new Set((adminRoles || []).map(r => r.user_id));
-
-        if (filteredIds.length > 1000) {
-          for (let i = 1000; i < filteredIds.length; i += 1000) {
-            const chunk = filteredIds.slice(i, i + 1000);
-            const { data: moreRoles } = await supabaseAdmin
-              .from('user_roles')
-              .select('user_id')
-              .eq('role', 'admin')
-              .in('user_id', chunk);
-            (moreRoles || []).forEach(r => adminIds.add(r.user_id));
-          }
-        }
-
-        const deletableIds = filteredIds.filter(id => !adminIds.has(id));
-
-        return new Response(JSON.stringify({
-          success: true,
-          user_ids: deletableIds,
-          total: deletableIds.length,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        const adminIds = new Set((adminRoles || []).map(r => r.user_id));
+        deletableIds = filteredIds.filter(id => !adminIds.has(id));
       }
 
       return new Response(JSON.stringify({
         success: true,
-        user_ids: [],
-        total: 0,
+        user_ids: deletableIds,
+        has_more: hasMore,
+        next_cursor: hasMore ? cursor + pageSize : null,
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
