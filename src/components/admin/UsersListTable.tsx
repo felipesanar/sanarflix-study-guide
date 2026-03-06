@@ -124,9 +124,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [confirmText, setConfirmText] = useState('');
 
   // Batch progress state
-  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
-    total: 0, completed: 0, deleted: 0, failed: 0, active: false,
-  });
+  const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
   const cancelRef = useRef(false);
 
   // Clear selection on page/filter change
