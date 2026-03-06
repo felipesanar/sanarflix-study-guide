@@ -15,7 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
-import { isAdmin } from "@/utils/accessRules";
+import { isAdmin, isProfessor } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,
@@ -24,6 +24,7 @@ import {
   Home as HomeIcon,
   GraduationCap,
   TrendingUp,
+  School,
 } from "lucide-react";
 
 import {
