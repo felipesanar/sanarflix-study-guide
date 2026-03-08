@@ -95,6 +95,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       simulados: false,
       analytics: false,
       desempenhoInstitucional: false,
+      errorNotebook: false,
     };
   }
   
