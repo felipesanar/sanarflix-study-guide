@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   CheckCircle, XCircle, HelpCircle, Ban, ChevronLeft, ChevronRight,
   ChevronDown, Eye, EyeOff, FileDown, Loader2, BookOpen, ClipboardCheck,
-  Target, AlertTriangle
+  Target, AlertTriangle, BookMarked
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -572,7 +572,29 @@ export const SimuladoCorrecao: React.FC = () => {
                         </span>
                       )}
                     </div>
-                  </div>
+                    </div>
+
+                  {/* Error Notebook CTA — only for wrong/unanswered */}
+                  {currentQuestion.acertou !== true && !currentQuestion.anulada && (
+                    <div className="mx-4 sm:mx-6 mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <BookMarked className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">Registre no Caderno de Erros</p>
+                        <p className="text-xs text-muted-foreground">Anote o motivo e evite repetir esse erro</p>
+                      </div>
+                      <ErrorNotebookButtonInCorrection
+                        questionId={currentQuestion.id}
+                        simuladoId={selectedSimulado}
+                        simuladoNome={simuladoNome}
+                        wasCorrect={false}
+                        grandeArea={currentQuestion.grande_area}
+                        especialidade={currentQuestion.especialidade}
+                        tema={currentQuestion.tema}
+                      />
+                    </div>
+                  )}
 
                   <CardContent className="p-4 sm:p-6 space-y-5">
                     {/* Enunciado */}
@@ -674,18 +696,6 @@ export const SimuladoCorrecao: React.FC = () => {
                       </Collapsible>
                     )}
 
-                    {/* Error Notebook button */}
-                    <div className="pt-2 border-t">
-                      <ErrorNotebookButtonInCorrection
-                        questionId={currentQuestion.id}
-                        simuladoId={selectedSimulado}
-                        simuladoNome={simuladoNome}
-                        wasCorrect={currentQuestion.acertou === true}
-                        grandeArea={currentQuestion.grande_area}
-                        especialidade={currentQuestion.especialidade}
-                        tema={currentQuestion.tema}
-                      />
-                    </div>
                   </CardContent>
 
                   {/* Bottom navigation */}
