@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageLightbox } from '@/components/simulados/ImageLightbox';
+import { QuestionNavigationRail } from '@/components/simulados/QuestionNavigationRail';
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
