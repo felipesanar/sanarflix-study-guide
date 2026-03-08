@@ -295,7 +295,7 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                       >
                         <span className={cn(
                           "flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold shrink-0 mt-0.5",
-                          isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted/40 text-muted-foreground/60"
+                          isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300" : "bg-muted/40 text-muted-foreground/60"
                         )}>
                           {letter.toUpperCase()}
                         </span>

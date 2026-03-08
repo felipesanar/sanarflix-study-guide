@@ -139,9 +139,9 @@ const AlternativeCard: React.FC<{
     className={cn(
       'relative p-4 sm:p-5 rounded-2xl border text-left transition-all duration-200 flex gap-4 items-start group',
       isCorreta
-        ? 'bg-green-50 border-green-500/40 dark:bg-green-500/8 dark:border-green-500/25 shadow-sm shadow-green-500/5'
+        ? 'bg-green-50 border-green-500/40 dark:bg-green-950/60 dark:border-green-500/40 shadow-sm shadow-green-500/5'
         : isUserWrong
-          ? 'bg-red-50 border-red-500/40 dark:bg-red-500/8 dark:border-red-500/25 shadow-sm shadow-red-500/5'
+          ? 'bg-red-50 border-red-500/40 dark:bg-red-950/60 dark:border-red-500/40 shadow-sm shadow-red-500/5'
           : 'bg-card border-border/60 hover:border-border',
     )}
   >

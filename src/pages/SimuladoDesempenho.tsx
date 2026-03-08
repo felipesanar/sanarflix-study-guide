@@ -208,8 +208,8 @@ const QuestionModal: React.FC<{
                     )}>
                       <span className={cn(
                         "flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold shrink-0",
-                        isCorrectAnswer ? "bg-green-500/15 text-green-600 dark:text-green-400" :
-                        isUserWrongSelection ? "bg-red-500/15 text-red-600 dark:text-red-400" :
+                        isCorrectAnswer ? "bg-green-500/15 text-green-600 dark:bg-green-500/20 dark:text-green-300" :
+                        isUserWrongSelection ? "bg-red-500/15 text-red-600 dark:bg-red-500/20 dark:text-red-300" :
                         "bg-muted text-muted-foreground"
                       )}>
                         {alt.key}
