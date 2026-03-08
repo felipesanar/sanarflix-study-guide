@@ -42,6 +42,7 @@ const ADMIN_RULES: AccessRules = {
   simulados: true,
   analytics: true,
   desempenhoInstitucional: true,
+  errorNotebook: true,
 };
 
 /**
