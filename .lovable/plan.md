@@ -1,81 +1,65 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+# Página de Correção de Simulados
 
-### Causa Raiz Identificada
+## O que será construído
 
-Analisando os logs de autenticacao, o problema fica evidente:
+Uma nova aba **"Correção"** dentro da página `/simulados`, permitindo ao aluno navegar questão a questão do simulado finalizado, ver se acertou/errou, conferir o gabarito e comentário do professor, e adicionar questões ao Caderno de Erros -- tudo numa experiência premium, fluida e intuitiva, inspirada na referência visual enviada.
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
+## Estrutura
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+### Nova aba em `Simulados.tsx`
+Adicionar terceira aba: **Simulados | Desempenho | Correção** (`grid-cols-3`). A aba "Correção" usa ícone `ClipboardCheck`.
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+### Novo componente: `src/pages/SimuladoCorrecao.tsx`
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+Experiência full-page de correção com:
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+**1) Header com seletor de simulado + stats resumidos**
+- Selector do simulado (mesmo padrão do Desempenho)
+- 4 KPI cards inline: Visualizadas, Acertos, Erros, Puladas (como na referência)
+- Botão "Baixar em PDF" (reutiliza lógica existente do Desempenho)
 
-### Solucao
+**2) Barra de navegação de questões**
+- Grid horizontal scrollável com números de questão
+- Cores por status: verde (acerto), vermelho (erro), cinza (não respondida), ícone olho riscado (não visualizada ainda nesta sessão)
+- Questão atual destacada com fundo primary
+- Setas de navegação lateral (< >)
+- Keyboard: setas esquerda/direita para navegar
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+**3) Card da questão (corpo principal)**
+- Badge de resultado: "Correto!" (verde) ou "Incorreto" (vermelho) ou "Não respondida" (amber) ou "Anulada" (purple)
+- Toggle "Exibir Comentário" colapsável (como na referência)
+- Enunciado completo com imagem (se houver)
+- Alternativas com visual de gabarito: verde = correta, vermelho = resposta errada do aluno, neutro = demais
+- Comentário do professor (dentro do collapse)
+- Badges de metadata: dificuldade, grande área, tema
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+**4) Botão do Caderno de Erros**
+- Reutiliza `AddToErrorNotebookButton` + `AddToErrorNotebookDrawer` existentes
+- Passa metadados automaticamente: `grande_area`, `especialidade`, `tema` da questão (dados reais, não null como hoje no QuestionModal)
+- Visível para TODAS as questões (certas e erradas)
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+### Data fetching
+- Busca questões via `questoes_simulado` (enunciado, alternativas, gabarito, comentário, imagem, metadata)
+- Busca respostas do aluno via `answer_progress`
+- Merge client-side para determinar acerto/erro por questão
+- Reutiliza lógica já existente em `handleDownloadProvaRevisada` (linhas 494-672 do SimuladoDesempenho)
 
----
+## Arquivos
 
-### Mudancas
+| Arquivo | Ação |
+|---------|------|
+| `src/pages/SimuladoCorrecao.tsx` | Criar -- página completa de correção |
+| `src/pages/Simulados.tsx` | Editar -- adicionar terceira aba "Correção" |
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+## Detalhes técnicos
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- Componente puro, sem novas dependências
+- Dados carregados ao selecionar simulado, com cache em sessionStorage
+- Navegação por teclado (setas) para trocar questão
+- Mobile-first: cards empilhados, barra de questões scrollável horizontal
+- Skeleton loading enquanto carrega questões
+- Estado "Selecione um simulado" como empty state inicial
+- Reutiliza `ErrorNotebookButtonInModal` pattern do SimuladoDesempenho para integração com Caderno de Erros, mas passando `grandeArea`, `especialidade` e `tema` reais da questão
 
