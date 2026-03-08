@@ -57,7 +57,9 @@ const QuestionModal: React.FC<{
   onOpenChange: (open: boolean) => void;
   questions: ReviewedQuestion[];
   isLoading: boolean;
-}> = ({ isOpen, onOpenChange, questions, isLoading }) => {
+  simuladoId?: string | null;
+  simuladoNome?: string;
+}> = ({ isOpen, onOpenChange, questions, isLoading, simuladoId, simuladoNome }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => { if (isOpen) { setCurrentIndex(0); } }, [isOpen, questions]);
