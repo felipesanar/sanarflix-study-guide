@@ -8,9 +8,9 @@ export type ErrorReason = 'did_not_know' | 'did_not_remember' | 'did_not_underst
 export interface ErrorNotebookEntry {
   id: string;
   user_id: string;
-  question_id: string;
-  simulado_id: string;
-  simulado_nome: string;
+  question_id: string | null;
+  simulado_id: string | null;
+  simulado_nome: string | null;
   grande_area: string | null;
   especialidade: string | null;
   tema: string | null;
@@ -20,18 +20,20 @@ export interface ErrorNotebookEntry {
   source: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export interface AddEntryParams {
-  question_id: string;
-  simulado_id: string;
-  simulado_nome: string;
+  question_id?: string | null;
+  simulado_id?: string | null;
+  simulado_nome?: string | null;
   grande_area?: string | null;
   especialidade?: string | null;
   tema?: string | null;
   reason: ErrorReason;
   learning_text?: string | null;
   was_correct: boolean;
+  source?: 'simulation_correction' | 'manual';
 }
 
 export interface ErrorNotebookFilters {
@@ -66,6 +68,7 @@ export const useErrorNotebook = () => {
         .from('error_notebook_entries')
         .select('*')
         .eq('user_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (filters?.grande_area) query = query.eq('grande_area', filters.grande_area);
@@ -78,7 +81,6 @@ export const useErrorNotebook = () => {
 
       let result = (data || []) as ErrorNotebookEntry[];
 
-      // Client-side search on learning_text
       if (filters?.search && filters.search.trim()) {
         const searchLower = filters.search.toLowerCase().trim();
         result = result.filter(e =>
@@ -109,21 +111,20 @@ export const useErrorNotebook = () => {
         .from('error_notebook_entries')
         .insert({
           user_id: user.id,
-          question_id: params.question_id,
-          simulado_id: params.simulado_id,
-          simulado_nome: params.simulado_nome,
+          question_id: params.question_id || null,
+          simulado_id: params.simulado_id || null,
+          simulado_nome: params.simulado_nome || null,
           grande_area: params.grande_area || null,
           especialidade: params.especialidade || null,
           tema: params.tema || null,
           reason: params.reason,
           learning_text: learningText,
           was_correct: params.was_correct,
-          source: 'simulation_correction',
+          source: params.source || 'simulation_correction',
         });
 
       if (insertError) throw insertError;
 
-      console.log('[ErrorNotebook] Entry added:', params.question_id);
       trackEvent({
         eventName: 'ce_error_added',
         category: 'interaction',
@@ -132,6 +133,7 @@ export const useErrorNotebook = () => {
           question_id: params.question_id,
           reason: params.reason,
           has_learning_text: !!learningText,
+          source: params.source || 'simulation_correction',
         },
       });
 
@@ -171,7 +173,6 @@ export const useErrorNotebook = () => {
 
       if (updateError) throw updateError;
 
-      console.log('[ErrorNotebook] Entry updated:', entryId);
       trackEvent({ eventName: 'ce_entry_edited', category: 'interaction', data: { entry_id: entryId } });
 
       setEntries(prev => prev.map(e =>
@@ -190,15 +191,15 @@ export const useErrorNotebook = () => {
     if (!user?.id) return false;
 
     try {
+      // Soft delete
       const { error: deleteError } = await supabase
         .from('error_notebook_entries')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', entryId)
         .eq('user_id', user.id);
 
       if (deleteError) throw deleteError;
 
-      console.log('[ErrorNotebook] Entry deleted:', entryId);
       trackEvent({ eventName: 'ce_entry_deleted', category: 'interaction', data: { entry_id: entryId } });
 
       setEntries(prev => prev.filter(e => e.id !== entryId));
@@ -206,6 +207,26 @@ export const useErrorNotebook = () => {
     } catch (err: any) {
       console.error('[ErrorNotebook] Delete error:', err);
       setError('Erro ao excluir registro');
+      return false;
+    }
+  }, [user?.id, trackEvent]);
+
+  const restoreEntry = useCallback(async (entryId: string): Promise<boolean> => {
+    if (!user?.id) return false;
+
+    try {
+      const { error: restoreError } = await supabase
+        .from('error_notebook_entries')
+        .update({ deleted_at: null })
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (restoreError) throw restoreError;
+
+      trackEvent({ eventName: 'ce_entry_restored', category: 'interaction', data: { entry_id: entryId } });
+      return true;
+    } catch (err: any) {
+      console.error('[ErrorNotebook] Restore error:', err);
       return false;
     }
   }, [user?.id, trackEvent]);
@@ -220,6 +241,7 @@ export const useErrorNotebook = () => {
         .eq('user_id', user.id)
         .eq('question_id', questionId)
         .eq('simulado_id', simuladoId)
+        .is('deleted_at', null)
         .limit(1);
 
       if (checkError) throw checkError;
@@ -237,6 +259,7 @@ export const useErrorNotebook = () => {
     addEntry,
     updateEntry,
     deleteEntry,
+    restoreEntry,
     checkIfAdded,
     clearError: () => setError(null),
   };
