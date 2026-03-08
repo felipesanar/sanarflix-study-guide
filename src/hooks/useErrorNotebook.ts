@@ -23,6 +23,20 @@ export interface ErrorNotebookEntry {
   deleted_at: string | null;
 }
 
+export interface QuestionDetails {
+  id: string;
+  enunciado: string;
+  alternativa_a: string;
+  alternativa_b: string;
+  alternativa_c: string;
+  alternativa_d: string;
+  alternativa_e: string | null;
+  correta: string;
+  comentario: string | null;
+  imagem: string | null;
+  grau_dificuldade: string | null;
+}
+
 export interface AddEntryParams {
   question_id?: string | null;
   simulado_id?: string | null;
@@ -94,6 +108,29 @@ export const useErrorNotebook = () => {
       setError('Erro ao carregar caderno de erros');
     } finally {
       setLoading(false);
+    }
+  }, [user?.id]);
+
+  const fetchQuestionDetails = useCallback(async (questionId: string): Promise<QuestionDetails | null> => {
+    if (!user?.id || !questionId) return null;
+
+    try {
+      console.log('[ErrorNotebookUI] Fetching question details for:', questionId);
+      const { data, error: fetchError } = await supabase
+        .from('questoes_simulado')
+        .select('id, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grau_dificuldade')
+        .eq('id', questionId)
+        .single();
+
+      if (fetchError) {
+        console.error('[ErrorNotebookUI] Question fetch error:', fetchError);
+        return null;
+      }
+
+      return data as QuestionDetails;
+    } catch (err) {
+      console.error('[ErrorNotebookUI] Question fetch exception:', err);
+      return null;
     }
   }, [user?.id]);
 
@@ -191,7 +228,6 @@ export const useErrorNotebook = () => {
     if (!user?.id) return false;
 
     try {
-      // Soft delete
       const { error: deleteError } = await supabase
         .from('error_notebook_entries')
         .update({ deleted_at: new Date().toISOString() })
@@ -256,6 +292,7 @@ export const useErrorNotebook = () => {
     loading,
     error,
     fetchEntries,
+    fetchQuestionDetails,
     addEntry,
     updateEntry,
     deleteEntry,

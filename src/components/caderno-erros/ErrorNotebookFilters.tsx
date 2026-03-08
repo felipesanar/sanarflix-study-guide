@@ -56,10 +56,12 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
     onFiltersChange({ search: filters.search });
   };
 
+  const selectTriggerClass = "w-full sm:w-[175px] rounded-xl border-border/40 bg-muted/20 hover:bg-muted/40 transition-colors duration-200 h-10 text-sm";
+
   const filterContent = (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+    <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
       <Select value={filters.grande_area || 'all'} onValueChange={(v) => handleChange('grande_area', v)}>
-        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Grande Área" /></SelectTrigger>
+        <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Grande Área" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todas as áreas</SelectItem>
           {uniqueAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
@@ -67,7 +69,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
       </Select>
 
       <Select value={filters.tema || 'all'} onValueChange={(v) => handleChange('tema', v)}>
-        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Tema" /></SelectTrigger>
+        <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Tema" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos os temas</SelectItem>
           {uniqueTemas.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -75,7 +77,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
       </Select>
 
       <Select value={filters.reason || 'all'} onValueChange={(v) => handleChange('reason', v)}>
-        <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Motivo" /></SelectTrigger>
+        <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Motivo" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos os motivos</SelectItem>
           {Object.entries(REASON_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
@@ -83,7 +85,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
       </Select>
 
       <Select value={filters.simulado_id || 'all'} onValueChange={(v) => handleChange('simulado_id', v)}>
-        <SelectTrigger className="w-full sm:w-[200px]"><SelectValue placeholder="Simulado" /></SelectTrigger>
+        <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Simulado" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Todos os simulados</SelectItem>
           {uniqueSimulados.map(([id, nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}
@@ -91,8 +93,8 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
       </Select>
 
       {activeCount > 0 && (
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground">
-          <X className="h-3.5 w-3.5" /> Limpar filtros
+        <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1.5 text-muted-foreground hover:text-foreground rounded-xl h-10">
+          <X className="h-3.5 w-3.5" /> Limpar
         </Button>
       )}
     </div>
@@ -101,14 +103,16 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
   if (isMobile) {
     return (
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{resultCount} registros</span>
+        <span className="text-sm text-muted-foreground">
+          <span className="font-mono font-medium text-foreground">{resultCount}</span> registros
+        </span>
         <Drawer>
           <DrawerTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button variant="outline" size="sm" className="gap-2 rounded-xl border-border/40 h-9">
               <Filter className="h-4 w-4" />
               Filtros
               {activeCount > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                <Badge variant="secondary" className="ml-0.5 h-5 w-5 p-0 flex items-center justify-center text-[10px] rounded-full">
                   {activeCount}
                 </Badge>
               )}
@@ -121,7 +125,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
             <div className="px-4 pb-4">{filterContent}</div>
             <DrawerFooter>
               <DrawerClose asChild>
-                <Button className="w-full">Aplicar</Button>
+                <Button className="w-full rounded-xl">Aplicar</Button>
               </DrawerClose>
             </DrawerFooter>
           </DrawerContent>
@@ -131,9 +135,11 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {filterContent}
-      <p className="text-sm text-muted-foreground">{resultCount} registros encontrados</p>
+      <p className="text-xs text-muted-foreground/60">
+        <span className="font-mono font-medium text-muted-foreground">{resultCount}</span> registros encontrados
+      </p>
     </div>
   );
 };

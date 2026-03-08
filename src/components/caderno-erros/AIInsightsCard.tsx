@@ -12,7 +12,7 @@ interface AIInsightsCardProps {
 }
 
 const CACHE_KEY = 'ce_ai_insights';
-const CACHE_TTL = 30 * 60 * 1000; // 30 min
+const CACHE_TTL = 30 * 60 * 1000;
 
 interface CachedInsight {
   text: string;
@@ -96,17 +96,19 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({ entries }) => {
   if (entries.length < 3) return null;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
+    <Card className="border-primary/15 bg-gradient-to-br from-primary/5 via-transparent to-transparent rounded-2xl">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+            </div>
             <p className="text-sm font-semibold text-foreground">Insights por IA</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8 rounded-lg hover:bg-accent/50"
             onClick={() => fetchInsights(true)}
             disabled={loading}
           >
@@ -115,15 +117,15 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({ entries }) => {
         </div>
 
         {loading && !insight ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-4 w-5/6" />
+          <div className="space-y-2.5">
+            <Skeleton className="h-4 w-full rounded-lg" />
+            <Skeleton className="h-4 w-3/4 rounded-lg" />
+            <Skeleton className="h-4 w-5/6 rounded-lg" />
           </div>
         ) : insight ? (
           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{insight}</p>
         ) : (
-          <p className="text-sm text-muted-foreground italic">Clique em atualizar para gerar insights.</p>
+          <p className="text-sm text-muted-foreground/60 italic">Clique em atualizar para gerar insights.</p>
         )}
       </CardContent>
     </Card>
