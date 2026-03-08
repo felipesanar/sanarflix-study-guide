@@ -139,6 +139,18 @@ const QuestionModal: React.FC<{
                 })}
               </div>
               <div className="bg-muted/80 p-4 rounded-md space-y-2 border"> <h4 className="font-bold text-lg text-primary">Comentário do Professor</h4> <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{question.comentario}</p> </div>
+              {/* Caderno de Erros Button */}
+              {simuladoId && (
+                <ErrorNotebookButtonInModal
+                  questionId={question.id}
+                  simuladoId={simuladoId}
+                  simuladoNome={simuladoNome || 'Simulado'}
+                  wasCorrect={question.acertou}
+                  grandeArea={null}
+                  especialidade={null}
+                  tema={null}
+                />
+              )}
             </div>
           ) : (<div className="flex justify-center items-center h-full"> <p>Nenhuma questão de exemplo foi encontrada para esta subespecialidade.</p> </div>)}
         </div>
