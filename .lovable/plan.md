@@ -1,81 +1,139 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+# Caderno de Erros -- Adaptado para o Academy
 
-### Causa Raiz Identificada
+## Contexto da Adaptação
 
-Analisando os logs de autenticacao, o problema fica evidente:
+O prompt original foi pensado para uma plataforma com plano PRO/freemium (SanarFlix PRO: ENAMED). O Academy **nao tem modelo freemium** -- todos os usuarios sao B2B vinculados a uma IES. Portanto:
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+- **Nao ha gate/paywall/upsell**. A feature sera disponivel para todos os usuarios autenticados.
+- A "tela de correcao" no Academy e a pagina `SimuladoDesempenho.tsx` (aba Desempenho do `/simulados`), que ja tem o `QuestionModal` para revisar questoes por subespecialidade.
+- O acesso sera controlado via `ies_features` (chave `error_notebook`), como todas as outras features.
+- A taxonomia existente usa `grande_area`, `especialidade` e `tema` (da tabela `questoes_simulado`).
+
+## Faseamento
+
+### Fase 1: Estrutura de dados + Captura na revisao
+
+**Migracao SQL** -- Criar tabela `error_notebook_entries`:
+```sql
+CREATE TABLE public.error_notebook_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  question_id UUID NOT NULL,
+  simulado_id UUID NOT NULL,
+  simulado_nome TEXT NOT NULL,
+  grande_area TEXT,
+  especialidade TEXT,
+  tema TEXT,
+  reason TEXT NOT NULL CHECK (reason IN ('did_not_know','did_not_remember','did_not_understand_statement','answered_without_confidence')),
+  learning_text TEXT,
+  was_correct BOOLEAN NOT NULL DEFAULT false,
+  source TEXT NOT NULL DEFAULT 'simulation_correction',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.error_notebook_entries ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own entries"
+  ON public.error_notebook_entries FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all entries"
+  ON public.error_notebook_entries FOR SELECT
+  USING (has_role(auth.uid(), 'admin'::app_role));
+
+CREATE INDEX idx_error_notebook_user ON error_notebook_entries(user_id);
+CREATE INDEX idx_error_notebook_tema ON error_notebook_entries(tema);
+CREATE INDEX idx_error_notebook_simulado ON error_notebook_entries(simulado_id);
+CREATE INDEX idx_error_notebook_reason ON error_notebook_entries(reason);
+CREATE INDEX idx_error_notebook_created ON error_notebook_entries(created_at DESC);
+
+CREATE TRIGGER update_error_notebook_updated_at
+  BEFORE UPDATE ON error_notebook_entries
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+**Componentes a criar:**
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+1. `src/components/caderno-erros/AddToErrorNotebookDrawer.tsx` -- Drawer/modal com radio cards para motivo + textarea para aprendizado (280 chars). Aberto pelo botao no QuestionModal.
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+2. `src/components/caderno-erros/AddToErrorNotebookButton.tsx` -- Botao "Adicionar ao Caderno de Erros" com estados: default, loading, saved, error. Inclui protecao contra duplo clique.
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+3. `src/hooks/useErrorNotebook.ts` -- Hook com funcoes: `addEntry`, `updateEntry`, `deleteEntry`, `fetchEntries` (com filtros), `checkIfAdded` (por question_id + simulado_id).
 
-### Solucao
+**Integracao:** Adicionar o botao `AddToErrorNotebookButton` dentro do `QuestionModal` no `SimuladoDesempenho.tsx`, abaixo do comentario do professor. O botao aparece para TODAS as questoes (erradas, certas, anuladas). Metadados captados automaticamente do contexto da questao ja carregada.
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+### Fase 2: Controle de acesso
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+- Adicionar `errorNotebook` ao tipo `AccessRules` em `src/types/index.ts`
+- Atualizar `accessRules.ts` com default false, admin true, professor true
+- O `useAccessRules` hook ja integra com `ies_features` -- a IES precisa ter `error_notebook: true` habilitado
+- Rota `/caderno-de-erros` protegida via `DynamicRoutes.tsx` com redirect para `/simulados` se sem acesso
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+### Fase 3: Pagina dedicada do Caderno de Erros
 
----
+**Pagina:** `src/pages/CadernoErros.tsx`
 
-### Mudancas
+- Header com titulo e descricao
+- Barra de busca (debounce 300ms, client-side em `learning_text`)
+- Filtros combinaveis: Grande Area, Tema, Motivo, Simulado (chips/selects em desktop, drawer em mobile)
+- Listagem agrupada: Grande Area > Tema > cards compactos
+- Badge de reincidencia quando >= 2 erros no mesmo tema
+- Cada card mostra: motivo (badge), aprendizado, simulado, data, link para questao original (abre QuestionModal), acoes editar/excluir
+- Estados: loading skeleton, empty state, erro, sem resultados
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+**Componentes:**
+- `src/components/caderno-erros/ErrorNotebookList.tsx`
+- `src/components/caderno-erros/ErrorNotebookFilters.tsx`
+- `src/components/caderno-erros/ErrorNotebookItem.tsx`
+- `src/components/caderno-erros/ErrorNotebookEmptyState.tsx`
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+### Fase 4: Analytics, sidebar, polimento
 
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+**Sidebar:** Adicionar item "Caderno de Erros" com icone `BookMarked` no `AppSidebar.tsx`, condicional via `accessRules.errorNotebook`.
 
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+**Rota:** Adicionar `/caderno-de-erros` em `DynamicRoutes.tsx`.
 
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+**Analytics** (via `useAnalyticsTracker` existente):
+- `ce_add_clicked` (simulado_id, question_id)
+- `ce_error_added` (simulado_id, question_id, reason, has_learning_text)
+- `ce_page_viewed`
+- `ce_search_used`
+- `ce_filter_applied` (filter_type)
+- `ce_question_navigated` (question_id)
+- `ce_entry_edited`
+- `ce_entry_deleted`
 
-**Arquivo: `src/pages/UpdatePassword.tsx`**
+**Responsividade:** Mobile-first, drawer para filtros em mobile, cards compactos com acoes por toque.
 
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
+## Arquivos a criar/editar
 
-#### 3. Deploy da Edge Function
+| Arquivo | Acao |
+|---------|------|
+| Migracao SQL | Criar tabela `error_notebook_entries` |
+| `src/types/index.ts` | Adicionar `errorNotebook` a `AccessRules` |
+| `src/utils/accessRules.ts` | Adicionar regra para `errorNotebook` |
+| `src/hooks/useErrorNotebook.ts` | Criar hook CRUD |
+| `src/components/caderno-erros/AddToErrorNotebookButton.tsx` | Criar botao |
+| `src/components/caderno-erros/AddToErrorNotebookDrawer.tsx` | Criar drawer de captura |
+| `src/components/caderno-erros/ErrorNotebookList.tsx` | Criar listagem |
+| `src/components/caderno-erros/ErrorNotebookFilters.tsx` | Criar filtros |
+| `src/components/caderno-erros/ErrorNotebookItem.tsx` | Criar card do item |
+| `src/components/caderno-erros/ErrorNotebookEmptyState.tsx` | Criar empty states |
+| `src/pages/CadernoErros.tsx` | Criar pagina dedicada |
+| `src/pages/SimuladoDesempenho.tsx` | Integrar botao no QuestionModal |
+| `src/components/AppSidebar.tsx` | Adicionar item nav |
+| `src/components/DynamicRoutes.tsx` | Adicionar rota |
 
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+## O que NAO sera feito (fora do escopo v1)
 
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+- Sem gate/paywall (nao existe modelo freemium no Academy)
+- Sem IA ou deteccao semantica
+- Sem modo flashcard
+- Sem dashboard de evolucao
+- Sem integracao fora da Plataforma de Simulados
+- Sem soft delete (delete real, mais simples para v1)
 
