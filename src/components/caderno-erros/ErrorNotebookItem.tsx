@@ -69,10 +69,8 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
         title: 'Registro excluído',
         description: 'Clique em Desfazer para restaurar.',
         action: (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
+          <ToastAction
+            altText="Desfazer exclusão"
             onClick={async () => {
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
               const restored = await restoreEntry(entry.id);
@@ -83,8 +81,8 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
               dismiss();
             }}
           >
-            <Undo2 className="h-3.5 w-3.5" /> Desfazer
-          </Button>
+            <Undo2 className="h-3.5 w-3.5 mr-1" /> Desfazer
+          </ToastAction>
         ),
         duration: 5000,
       });
