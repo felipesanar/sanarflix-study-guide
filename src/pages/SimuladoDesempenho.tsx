@@ -817,7 +817,7 @@ export const SimuladoDesempenho: React.FC = () => {
       </div>
       {stats && (<DecompositionTree overallStats={stats} areas={performancePorArea} specialties={bySpecialty} subspecialties={bySubspecialty} onSubspecialtyClick={handleSubspecialtyClick} selectedSimulado={selectedSimulado} />)}
       <EvolutionChart allPerformanceData={allPerformanceData} />
-      <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} />
+      <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} simuladoId={selectedSimulado} simuladoNome={simulados.find(s => s.id === selectedSimulado)?.nome} />
     </div>
   );
 };
