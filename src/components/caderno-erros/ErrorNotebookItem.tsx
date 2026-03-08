@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ToastAction } from '@/components/ui/toast';
 import { ErrorNotebookEntry, ErrorReason, REASON_LABELS, useErrorNotebook } from '@/hooks/useErrorNotebook';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { toast } from '@/hooks/use-toast';
@@ -68,10 +69,8 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
         title: 'Registro excluído',
         description: 'Clique em Desfazer para restaurar.',
         action: (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
+          <ToastAction
+            altText="Desfazer exclusão"
             onClick={async () => {
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
               const restored = await restoreEntry(entry.id);
@@ -82,8 +81,8 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
               dismiss();
             }}
           >
-            <Undo2 className="h-3.5 w-3.5" /> Desfazer
-          </Button>
+            <Undo2 className="h-3.5 w-3.5 mr-1" /> Desfazer
+          </ToastAction>
         ),
         duration: 5000,
       });
