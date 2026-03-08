@@ -5,6 +5,7 @@ import { ErrorNotebookEntry, ErrorReason, REASON_LABELS } from '@/hooks/useError
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { subWeeks, startOfWeek, format, isAfter, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 
 interface ErrorNotebookDashboardProps {
   entries: ErrorNotebookEntry[];
@@ -17,13 +18,28 @@ const REASON_COLORS: Record<ErrorReason, string> = {
   answered_without_confidence: 'hsl(262, 83%, 58%)',
 };
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-card border border-border/50 rounded-xl shadow-lg px-3.5 py-2.5 text-xs">
+        <p className="font-medium text-foreground mb-0.5">{label}</p>
+        {payload.map((p: any, i: number) => (
+          <p key={i} className="text-muted-foreground">
+            {p.name}: <span className="font-semibold text-foreground">{p.value}</span>
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ entries }) => {
   const stats = useMemo(() => {
     const now = new Date();
     const sevenDaysAgo = subDays(now, 7);
     const recentCount = entries.filter(e => isAfter(new Date(e.created_at), sevenDaysAgo)).length;
 
-    // Recurrence: temas with 2+ entries
     const temaMap = new Map<string, number>();
     entries.forEach(e => {
       const t = e.tema || 'Sem tema';
@@ -31,11 +47,8 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
     });
     const recurrentTemas = Array.from(temaMap.entries()).filter(([, c]) => c >= 2).length;
 
-    // Dominant reason
     const reasonCounts: Record<string, number> = {};
-    entries.forEach(e => {
-      reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1;
-    });
+    entries.forEach(e => { reasonCounts[e.reason] = (reasonCounts[e.reason] || 0) + 1; });
     const dominantReason = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1])[0];
     const dominantPct = dominantReason ? Math.round((dominantReason[1] / entries.length) * 100) : 0;
 
@@ -76,116 +89,100 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
     return Array.from(map.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, count }));
+      .map(([name, count]) => ({ name: name.length > 22 ? name.slice(0, 22) + '…' : name, count }));
   }, [entries]);
 
   if (entries.length === 0) return null;
 
+  const kpiCards = [
+    { icon: BarChart3, iconBg: 'bg-primary/10', iconColor: 'text-primary', value: stats.total, label: 'Total registros' },
+    { icon: AlertTriangle, iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', value: stats.recurrentTemas, label: 'Temas reincidentes' },
+    { icon: TrendingUp, iconBg: 'bg-blue-500/10', iconColor: 'text-blue-500', value: `${stats.dominantPct}%`, label: stats.dominantReason ? REASON_LABELS[stats.dominantReason[0] as ErrorReason] : '—' },
+    { icon: Calendar, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', value: stats.recentCount, label: 'Últimos 7 dias' },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <BarChart3 className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total registros</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{stats.recurrentTemas}</p>
-              <p className="text-xs text-muted-foreground">Temas reincidentes</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-4 w-4 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{stats.dominantPct}%</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {stats.dominantReason ? REASON_LABELS[stats.dominantReason[0] as ErrorReason] : '—'}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-              <Calendar className="h-4 w-4 text-green-500" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{stats.recentCount}</p>
-              <p className="text-xs text-muted-foreground">Últimos 7 dias</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpiCards.map((kpi, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: i * 0.05 }}
+          >
+            <Card className="border-border/30 rounded-2xl hover:shadow-sm transition-shadow duration-200">
+              <CardContent className="p-4 flex items-center gap-3.5">
+                <div className={`h-10 w-10 rounded-xl ${kpi.iconBg} flex items-center justify-center shrink-0`}>
+                  <kpi.icon className={`h-[18px] w-[18px] ${kpi.iconColor}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold text-foreground tracking-tight">{kpi.value}</p>
+                  <p className="text-[11px] text-muted-foreground/70 truncate">{kpi.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Weekly trend */}
-        <Card className="md:col-span-1">
-          <CardContent className="p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">Erros por semana</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={weeklyData}>
-                <defs>
-                  <linearGradient id="errGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="week" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#errGrad)" strokeWidth={2} name="Erros" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.2 }}>
+          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+            <CardContent className="p-5">
+              <p className="text-sm font-semibold text-foreground mb-4">Erros por semana</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <AreaChart data={weeklyData}>
+                  <defs>
+                    <linearGradient id="errGradPremium" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.4} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#errGradPremium)" strokeWidth={2} name="Erros" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {/* Reason pie */}
-        <Card className="md:col-span-1">
-          <CardContent className="p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">Distribuição por motivo</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <PieChart>
-                <Pie data={reasonPieData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2}>
-                  {reasonPieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.25 }}>
+          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+            <CardContent className="p-5">
+              <p className="text-sm font-semibold text-foreground mb-4">Distribuição por motivo</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <PieChart>
+                  <Pie data={reasonPieData} cx="50%" cy="50%" innerRadius={32} outerRadius={52} dataKey="value" paddingAngle={3} strokeWidth={0}>
+                    {reasonPieData.map((entry, index) => (
+                      <Cell key={index} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {/* Top temas */}
-        <Card className="md:col-span-1">
-          <CardContent className="p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">Top 5 temas</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <BarChart data={topTemasData} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={80} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ fontSize: 12 }} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Erros" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.3 }}>
+          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+            <CardContent className="p-5">
+              <p className="text-sm font-semibold text-foreground mb-4">Top 5 temas</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <BarChart data={topTemasData} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={85} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.5} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} name="Erros" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );
