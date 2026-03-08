@@ -478,14 +478,15 @@ export type Database = {
       error_notebook_entries: {
         Row: {
           created_at: string
+          deleted_at: string | null
           especialidade: string | null
           grande_area: string | null
           id: string
           learning_text: string | null
-          question_id: string
+          question_id: string | null
           reason: string
-          simulado_id: string
-          simulado_nome: string
+          simulado_id: string | null
+          simulado_nome: string | null
           source: string
           tema: string | null
           updated_at: string
@@ -494,14 +495,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           especialidade?: string | null
           grande_area?: string | null
           id?: string
           learning_text?: string | null
-          question_id: string
+          question_id?: string | null
           reason: string
-          simulado_id: string
-          simulado_nome: string
+          simulado_id?: string | null
+          simulado_nome?: string | null
           source?: string
           tema?: string | null
           updated_at?: string
@@ -510,14 +512,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           especialidade?: string | null
           grande_area?: string | null
           id?: string
           learning_text?: string | null
-          question_id?: string
+          question_id?: string | null
           reason?: string
-          simulado_id?: string
-          simulado_nome?: string
+          simulado_id?: string | null
+          simulado_nome?: string | null
           source?: string
           tema?: string | null
           updated_at?: string
