@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, Trophy, HelpCircle } from 'lucide-react';
+import { FileText, Trophy, HelpCircle, ClipboardCheck } from 'lucide-react';
 import { SimuladosDisponiveis } from '@/components/simulados/SimuladosDisponiveis';
 import { SimuladoDesempenho } from './SimuladoDesempenho';
+import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
 
 export const Simulados = () => {
@@ -18,6 +19,8 @@ export const Simulados = () => {
     const abaParam = params.get('aba');
     if (abaParam === 'desempenho') {
       setAbaAtiva('desempenho');
+    } else if (abaParam === 'correcao') {
+      setAbaAtiva('correcao');
     } else {
       setAbaAtiva('disponiveis');
     }
@@ -55,14 +58,21 @@ export const Simulados = () => {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-8">
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
-            Simulados
+            <span className="hidden sm:inline">Simulados</span>
+            <span className="sm:hidden text-xs">Simulados</span>
           </TabsTrigger>
           <TabsTrigger value="desempenho" className="gap-2">
             <Trophy className="h-4 w-4" />
-            Desempenho
+            <span className="hidden sm:inline">Desempenho</span>
+            <span className="sm:hidden text-xs">Desempenho</span>
+          </TabsTrigger>
+          <TabsTrigger value="correcao" className="gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Correção</span>
+            <span className="sm:hidden text-xs">Correção</span>
           </TabsTrigger>
         </TabsList>
 
@@ -72,6 +82,10 @@ export const Simulados = () => {
 
         <TabsContent value="desempenho" className="mt-0">
           <SimuladoDesempenho />
+        </TabsContent>
+
+        <TabsContent value="correcao" className="mt-0">
+          <SimuladoCorrecao />
         </TabsContent>
       </Tabs>
 
