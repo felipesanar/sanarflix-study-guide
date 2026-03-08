@@ -25,6 +25,7 @@ import {
   GraduationCap,
   TrendingUp,
   School,
+  BookMarked,
 } from "lucide-react";
 
 import {
