@@ -7,6 +7,8 @@ import { subWeeks, startOfWeek, format, isAfter, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 
+console.log('[ErrorNotebookUI] ErrorNotebookDashboard loaded');
+
 interface ErrorNotebookDashboardProps {
   entries: ErrorNotebookEntry[];
 }
@@ -21,11 +23,11 @@ const REASON_COLORS: Record<ErrorReason, string> = {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card border border-border/50 rounded-xl shadow-lg px-3.5 py-2.5 text-xs">
-        <p className="font-medium text-foreground mb-0.5">{label}</p>
+      <div className="bg-card border border-border/40 rounded-xl shadow-lg px-4 py-3 text-xs">
+        <p className="font-semibold text-foreground mb-1">{label}</p>
         {payload.map((p: any, i: number) => (
           <p key={i} className="text-muted-foreground">
-            {p.name}: <span className="font-semibold text-foreground">{p.value}</span>
+            {p.name}: <span className="font-bold text-foreground">{p.value}</span>
           </p>
         ))}
       </div>
@@ -89,7 +91,7 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
     return Array.from(map.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([name, count]) => ({ name: name.length > 22 ? name.slice(0, 22) + '…' : name, count }));
+      .map(([name, count]) => ({ name: name.length > 20 ? name.slice(0, 20) + '…' : name, count }));
   }, [entries]);
 
   if (entries.length === 0) return null;
@@ -113,13 +115,13 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
             transition={{ duration: 0.25, delay: i * 0.05 }}
           >
             <Card className="border-border/30 rounded-2xl hover:shadow-sm transition-shadow duration-200">
-              <CardContent className="p-4 flex items-center gap-3.5">
+              <CardContent className="p-4 sm:p-5 flex items-center gap-3.5">
                 <div className={`h-10 w-10 rounded-xl ${kpi.iconBg} flex items-center justify-center shrink-0`}>
                   <kpi.icon className={`h-[18px] w-[18px] ${kpi.iconColor}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-2xl font-bold text-foreground tracking-tight">{kpi.value}</p>
-                  <p className="text-[11px] text-muted-foreground/70 truncate">{kpi.label}</p>
+                  <p className="text-2xl font-bold text-foreground tracking-tight tabular-nums">{kpi.value}</p>
+                  <p className="text-[11px] text-muted-foreground/60 truncate">{kpi.label}</p>
                 </div>
               </CardContent>
             </Card>
@@ -130,18 +132,18 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
       {/* Charts Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.2 }}>
-          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+          <Card className="border-border/30 rounded-2xl">
             <CardContent className="p-5">
               <p className="text-sm font-semibold text-foreground mb-4">Erros por semana</p>
-              <ResponsiveContainer width="100%" height={130}>
+              <ResponsiveContainer width="100%" height={140}>
                 <AreaChart data={weeklyData}>
                   <defs>
                     <linearGradient id="errGradPremium" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
                       <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="week" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.4} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.3} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#errGradPremium)" strokeWidth={2} name="Erros" />
                 </AreaChart>
@@ -151,10 +153,10 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.25 }}>
-          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+          <Card className="border-border/30 rounded-2xl">
             <CardContent className="p-5">
               <p className="text-sm font-semibold text-foreground mb-4">Distribuição por motivo</p>
-              <ResponsiveContainer width="100%" height={130}>
+              <ResponsiveContainer width="100%" height={140}>
                 <PieChart>
                   <Pie data={reasonPieData} cx="50%" cy="50%" innerRadius={32} outerRadius={52} dataKey="value" paddingAngle={3} strokeWidth={0}>
                     {reasonPieData.map((entry, index) => (
@@ -169,13 +171,13 @@ export const ErrorNotebookDashboard: React.FC<ErrorNotebookDashboardProps> = ({ 
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: 0.3 }}>
-          <Card className="md:col-span-1 border-border/30 rounded-2xl">
+          <Card className="border-border/30 rounded-2xl">
             <CardContent className="p-5">
               <p className="text-sm font-semibold text-foreground mb-4">Top 5 temas</p>
-              <ResponsiveContainer width="100%" height={130}>
+              <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={topTemasData} layout="vertical">
                   <XAxis type="number" hide />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={85} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.5} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={80} tickLine={false} axisLine={false} stroke="hsl(var(--muted-foreground))" opacity={0.4} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} name="Erros" />
                 </BarChart>

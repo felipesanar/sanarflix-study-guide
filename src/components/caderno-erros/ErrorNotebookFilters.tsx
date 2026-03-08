@@ -8,6 +8,8 @@ import { ErrorNotebookEntry, ErrorReason, REASON_LABELS, ErrorNotebookFilters as
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 
+console.log('[ErrorNotebookUI] ErrorNotebookFilters loaded');
+
 interface ErrorNotebookFiltersProps {
   entries: ErrorNotebookEntry[];
   filters: Filters;
@@ -37,9 +39,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
   const uniqueSimulados = useMemo(() => {
     const map = new Map<string, string>();
     entries.forEach(e => {
-      if (e.simulado_id && e.simulado_nome && !map.has(e.simulado_id)) {
-        map.set(e.simulado_id, e.simulado_nome);
-      }
+      if (e.simulado_id && e.simulado_nome && !map.has(e.simulado_id)) map.set(e.simulado_id, e.simulado_nome);
     });
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [entries]);
@@ -52,17 +52,15 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
     trackEvent({ eventName: 'ce_filter_applied', category: 'interaction', data: { filter_type: key } });
   };
 
-  const clearFilters = () => {
-    onFiltersChange({ search: filters.search });
-  };
+  const clearFilters = () => { onFiltersChange({ search: filters.search }); };
 
-  const selectTriggerClass = "w-full sm:w-[175px] rounded-xl border-border/40 bg-muted/20 hover:bg-muted/40 transition-colors duration-200 h-10 text-sm";
+  const selectTriggerClass = "w-full sm:w-[175px] rounded-xl border-border/40 bg-card hover:bg-accent/30 transition-all duration-200 h-10 text-sm shadow-sm";
 
   const filterContent = (
     <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
       <Select value={filters.grande_area || 'all'} onValueChange={(v) => handleChange('grande_area', v)}>
         <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Grande Área" /></SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl">
           <SelectItem value="all">Todas as áreas</SelectItem>
           {uniqueAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
         </SelectContent>
@@ -70,7 +68,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
 
       <Select value={filters.tema || 'all'} onValueChange={(v) => handleChange('tema', v)}>
         <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Tema" /></SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl">
           <SelectItem value="all">Todos os temas</SelectItem>
           {uniqueTemas.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
         </SelectContent>
@@ -78,7 +76,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
 
       <Select value={filters.reason || 'all'} onValueChange={(v) => handleChange('reason', v)}>
         <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Motivo" /></SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl">
           <SelectItem value="all">Todos os motivos</SelectItem>
           {Object.entries(REASON_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
         </SelectContent>
@@ -86,7 +84,7 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
 
       <Select value={filters.simulado_id || 'all'} onValueChange={(v) => handleChange('simulado_id', v)}>
         <SelectTrigger className={selectTriggerClass}><SelectValue placeholder="Simulado" /></SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl">
           <SelectItem value="all">Todos os simulados</SelectItem>
           {uniqueSimulados.map(([id, nome]) => <SelectItem key={id} value={id}>{nome}</SelectItem>)}
         </SelectContent>
@@ -104,11 +102,11 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
     return (
       <div className="flex items-center justify-between">
         <span className="text-sm text-muted-foreground">
-          <span className="font-mono font-medium text-foreground">{resultCount}</span> registros
+          <span className="font-mono font-semibold text-foreground tabular-nums">{resultCount}</span> registros
         </span>
         <Drawer>
           <DrawerTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 rounded-xl border-border/40 h-9">
+            <Button variant="outline" size="sm" className="gap-2 rounded-xl border-border/40 h-10 shadow-sm">
               <Filter className="h-4 w-4" />
               Filtros
               {activeCount > 0 && (
@@ -118,14 +116,12 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
               )}
             </Button>
           </DrawerTrigger>
-          <DrawerContent>
-            <DrawerHeader>
-              <DrawerTitle>Filtros</DrawerTitle>
-            </DrawerHeader>
+          <DrawerContent className="rounded-t-2xl">
+            <DrawerHeader><DrawerTitle>Filtros</DrawerTitle></DrawerHeader>
             <div className="px-4 pb-4">{filterContent}</div>
             <DrawerFooter>
               <DrawerClose asChild>
-                <Button className="w-full rounded-xl">Aplicar</Button>
+                <Button className="w-full rounded-xl h-11">Aplicar</Button>
               </DrawerClose>
             </DrawerFooter>
           </DrawerContent>
@@ -137,8 +133,8 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
   return (
     <div className="space-y-2.5">
       {filterContent}
-      <p className="text-xs text-muted-foreground/60">
-        <span className="font-mono font-medium text-muted-foreground">{resultCount}</span> registros encontrados
+      <p className="text-xs text-muted-foreground/50">
+        <span className="font-mono font-semibold text-muted-foreground tabular-nums">{resultCount}</span> registros encontrados
       </p>
     </div>
   );
