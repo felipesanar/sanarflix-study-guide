@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileText, Trophy, HelpCircle } from 'lucide-react';
+import { FileText, Trophy, HelpCircle, ClipboardCheck } from 'lucide-react';
 import { SimuladosDisponiveis } from '@/components/simulados/SimuladosDisponiveis';
 import { SimuladoDesempenho } from './SimuladoDesempenho';
+import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
 
 export const Simulados = () => {
