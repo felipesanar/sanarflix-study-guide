@@ -1,81 +1,99 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+# Caderno de Erros v2 — Features Pendentes
 
-### Causa Raiz Identificada
+## Escopo
 
-Analisando os logs de autenticacao, o problema fica evidente:
+Implementar as 5 features que ficaram fora da v1:
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
-
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
-
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
-
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
-
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
-
-### Solucao
-
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
-
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
-
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+1. **Soft delete** (substituir hard delete)
+2. **Dashboard de evolução** (mini painel de tendências)
+3. **Modo flashcard** (revisão ativa dos erros)
+4. **Integração fora da Plataforma de Simulados** (adicionar erros manuais)
+5. **Detecção semântica de reincidência via IA** (agrupamento inteligente)
 
 ---
 
-### Mudancas
+## Mudanças
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+### 1. Soft Delete
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+**Migração SQL**: Adicionar coluna `deleted_at TIMESTAMPTZ DEFAULT NULL` à tabela `error_notebook_entries`. Atualizar a RLS policy para filtrar `deleted_at IS NULL` automaticamente. Criar index parcial em `deleted_at`.
 
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+**`useErrorNotebook.ts`**: Mudar `deleteEntry` de `DELETE` para `UPDATE ... SET deleted_at = now()`. Adicionar `fetchEntries` com `.is('deleted_at', null)` em todas as queries. Adicionar função `restoreEntry(id)` para desfazer exclusão.
 
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+**`ErrorNotebookItem.tsx`**: Após exclusão, mostrar toast com botão "Desfazer" que chama `restoreEntry`. Timeout de 5s antes de confirmar visualmente.
 
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+### 2. Dashboard de Evolução
 
-**Arquivo: `src/pages/UpdatePassword.tsx`**
+Criar `src/components/caderno-erros/ErrorNotebookDashboard.tsx` — seção no topo da página `/caderno-de-erros` com:
 
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
+- **KPI cards**: Total de erros registrados, temas com reincidência, % por motivo dominante, erros nos últimos 7 dias
+- **Gráfico temporal** (AreaChart/Recharts): erros adicionados por semana nas últimas 8 semanas
+- **Distribuição por motivo** (PieChart): pizza dos 4 motivos
+- **Top 5 temas** com mais erros (bar horizontal)
 
-#### 3. Deploy da Edge Function
+Dados calculados client-side a partir dos entries já carregados (sem nova query).
 
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+**`CadernoErros.tsx`**: Adicionar `<ErrorNotebookDashboard entries={allEntries} />` acima dos filtros, colapsável via Collapsible.
+
+### 3. Modo Flashcard
+
+Criar `src/components/caderno-erros/FlashcardMode.tsx` — experiência de revisão ativa:
+
+- Botão "Modo Revisão" no header da página do Caderno de Erros
+- Abre modal/drawer full-screen com cards empilhados
+- Frente do card: mostra área + tema + motivo original (sem o aprendizado)
+- Verso do card: mostra aprendizado registrado + link para questão
+- Navegação: swipe ou botões "Lembro" / "Não lembro"
+- Ao final: resumo com % de acertos da revisão
+- Filtros aplicados na página se refletem nos cards do flashcard
+- Analytics: `ce_flashcard_started`, `ce_flashcard_completed` com `{ total, remembered, forgot }`
+
+### 4. Integração Fora da Plataforma de Simulados
+
+Permitir adicionar erros manualmente (sem questão de simulado):
+
+**`useErrorNotebook.ts`**: Tornar `question_id` e `simulado_id` opcionais no `AddEntryParams`. Adicionar campo `source: 'manual' | 'simulation_correction'`.
+
+**Migração SQL**: Alterar constraints para `question_id` e `simulado_id` serem nullable. Adicionar default `source = 'simulation_correction'`.
+
+**Criar `src/components/caderno-erros/ManualEntryForm.tsx`**: Form com campos:
+- Grande Área (texto livre ou select das áreas existentes)
+- Tema (texto livre)
+- Motivo (radio cards existentes)
+- Aprendizado (textarea 280 chars)
+- Sem question_id/simulado_id
+
+**`CadernoErros.tsx`**: Adicionar botão "Adicionar erro manual" no header, que abre drawer com `ManualEntryForm`.
+
+**`ErrorNotebookItem.tsx`**: Mostrar badge "Manual" quando `source === 'manual'`. Esconder link "Ver questão" quando não há `question_id`.
+
+### 5. Detecção Semântica de Reincidência via IA
+
+Criar edge function `supabase/functions/analyze-error-patterns/index.ts`:
+- Recebe entries do usuário (últimos 50)
+- Usa Lovable AI gateway (Gemini) para agrupar semanticamente temas similares
+- Retorna clusters de temas relacionados com insight textual
+- Ex: "Você tem 4 erros em temas relacionados a Cardiologia (ICC, Arritmias, HAS). Considere revisar essa área como um bloco."
+
+**Criar `src/components/caderno-erros/AIInsightsCard.tsx`**: Card no dashboard que chama a edge function e exibe insights. Cache em sessionStorage por 30min (mesmo padrão do `AiRecommendationCard`). Botão refresh. Loading skeleton.
+
+**`CadernoErros.tsx`**: Adicionar `<AIInsightsCard entries={allEntries} />` no dashboard.
 
 ---
 
-### Resumo
+## Arquivos
 
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+| Arquivo | Ação |
+|---------|------|
+| Migração SQL | `deleted_at` + nullable `question_id`/`simulado_id` |
+| `src/hooks/useErrorNotebook.ts` | Soft delete, restore, manual entries |
+| `src/components/caderno-erros/ErrorNotebookDashboard.tsx` | Criar — KPIs + gráficos |
+| `src/components/caderno-erros/FlashcardMode.tsx` | Criar — revisão ativa |
+| `src/components/caderno-erros/ManualEntryForm.tsx` | Criar — form manual |
+| `src/components/caderno-erros/AIInsightsCard.tsx` | Criar — insights IA |
+| `supabase/functions/analyze-error-patterns/index.ts` | Criar — edge function IA |
+| `src/pages/CadernoErros.tsx` | Integrar dashboard, flashcard, manual entry |
+| `src/components/caderno-erros/ErrorNotebookItem.tsx` | Soft delete UX, badge manual, conditional link |
 
