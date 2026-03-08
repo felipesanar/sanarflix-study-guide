@@ -26,6 +26,7 @@ const DEFAULT_RULES: AccessRules = {
   simulados: true,
   analytics: false,
   desempenhoInstitucional: false,
+  errorNotebook: false,
 };
 
 /**
