@@ -289,13 +289,13 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                         className={cn(
                           "flex items-start gap-3 p-3.5 rounded-xl border text-sm transition-colors",
                           isCorrect
-                            ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-500/30 dark:text-emerald-300"
                             : "bg-card border-border/25 text-foreground/75"
                         )}
                       >
                         <span className={cn(
                           "flex items-center justify-center w-6 h-6 rounded-lg text-xs font-bold shrink-0 mt-0.5",
-                          isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-muted/40 text-muted-foreground/60"
+                          isCorrect ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300" : "bg-muted/40 text-muted-foreground/60"
                         )}>
                           {letter.toUpperCase()}
                         </span>
