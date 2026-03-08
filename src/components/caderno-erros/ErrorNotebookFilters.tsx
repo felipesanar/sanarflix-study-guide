@@ -36,7 +36,11 @@ export const ErrorNotebookFilters: React.FC<ErrorNotebookFiltersProps> = ({
 
   const uniqueSimulados = useMemo(() => {
     const map = new Map<string, string>();
-    entries.forEach(e => { if (!map.has(e.simulado_id)) map.set(e.simulado_id, e.simulado_nome); });
+    entries.forEach(e => {
+      if (e.simulado_id && e.simulado_nome && !map.has(e.simulado_id)) {
+        map.set(e.simulado_id, e.simulado_nome);
+      }
+    });
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [entries]);
 
