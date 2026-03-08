@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import {
   CheckCircle, XCircle, HelpCircle, Ban, ChevronLeft, ChevronRight,
   ChevronDown, Eye, EyeOff, FileDown, Loader2, BookOpen, ClipboardCheck,
-  Target, AlertTriangle
+  Target, AlertTriangle, BookMarked
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
