@@ -220,9 +220,10 @@ export const QuestionNavigationRail: React.FC<QuestionNavigationRailProps> = ({
           {/* Scroll area */}
           <div
             ref={scrollContainerRef}
-            className="overflow-x-auto scrollbar-none scroll-smooth"
+            className="overflow-x-auto scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            <div className="flex gap-1.5 sm:gap-2 py-1 px-1 min-w-max">
+            <div className="flex gap-1.5 sm:gap-2 py-2 px-2 min-w-max">
               {questions.map((q, i) => (
                 <NavChip
                   key={q.id}
