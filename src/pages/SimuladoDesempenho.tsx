@@ -14,6 +14,45 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
+import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
+
+// Helper component to manage error notebook state per question inside the modal
+const ErrorNotebookButtonInModal: React.FC<{
+  questionId: string;
+  simuladoId: string;
+  simuladoNome: string;
+  wasCorrect: boolean;
+  grandeArea: string | null;
+  especialidade: string | null;
+  tema: string | null;
+}> = ({ questionId, simuladoId, simuladoNome, wasCorrect, grandeArea, especialidade, tema }) => {
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+
+  return (
+    <>
+      <AddToErrorNotebookButton
+        key={refreshKey}
+        questionId={questionId}
+        simuladoId={simuladoId}
+        onOpenDrawer={() => setDrawerOpen(true)}
+      />
+      <AddToErrorNotebookDrawer
+        isOpen={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        questionId={questionId}
+        simuladoId={simuladoId}
+        simuladoNome={simuladoNome}
+        grandeArea={grandeArea}
+        especialidade={especialidade}
+        tema={tema}
+        wasCorrect={wasCorrect}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+      />
+    </>
+  );
+};
 
 // --- Interfaces ---
 interface Simulado { id: string; nome: string; }
