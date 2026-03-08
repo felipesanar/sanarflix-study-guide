@@ -289,7 +289,7 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                         className={cn(
                           "flex items-start gap-3 p-3.5 rounded-xl border text-sm transition-colors",
                           isCorrect
-                            ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-500/30 dark:text-emerald-300"
                             : "bg-card border-border/25 text-foreground/75"
                         )}
                       >
