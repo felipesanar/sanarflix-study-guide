@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pencil, Trash2, ExternalLink, Loader2, Check, X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Pencil, Trash2, ExternalLink, Loader2, Check, X, Undo2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,13 +34,14 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
   showRecurrence,
   recurrenceCount,
 }) => {
-  const { updateEntry, deleteEntry } = useErrorNotebook();
+  const { updateEntry, deleteEntry, restoreEntry } = useErrorNotebook();
   const { trackEvent } = useAnalyticsTracker();
   const [isEditing, setIsEditing] = useState(false);
   const [editReason, setEditReason] = useState<ErrorReason>(entry.reason as ErrorReason);
   const [editLearning, setEditLearning] = useState(entry.learning_text || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleSaveEdit = async () => {
     setIsSaving(true);
@@ -63,7 +64,29 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
     const success = await deleteEntry(entry.id);
     setIsDeleting(false);
     if (success) {
-      toast({ title: 'Registro excluído' });
+      const { dismiss } = toast({
+        title: 'Registro excluído',
+        description: 'Clique em Desfazer para restaurar.',
+        action: (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={async () => {
+              if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+              const restored = await restoreEntry(entry.id);
+              if (restored) {
+                toast({ title: 'Registro restaurado' });
+                onDeleted(); // refresh list
+              }
+              dismiss();
+            }}
+          >
+            <Undo2 className="h-3.5 w-3.5" /> Desfazer
+          </Button>
+        ),
+        duration: 5000,
+      });
       onDeleted();
     } else {
       toast({ title: 'Erro ao excluir', variant: 'destructive' });
@@ -76,9 +99,10 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
       category: 'interaction',
       data: { question_id: entry.question_id },
     });
-    // Navigate to simulado desempenho page
     window.location.href = `/simulados`;
   };
+
+  const isManual = entry.source === 'manual';
 
   if (isEditing) {
     return (
@@ -137,6 +161,11 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                 Acertou
               </Badge>
             )}
+            {isManual && (
+              <Badge variant="outline" className="text-xs bg-accent text-accent-foreground border-border gap-1">
+                <Tag className="h-3 w-3" /> Manual
+              </Badge>
+            )}
             {showRecurrence && recurrenceCount && recurrenceCount >= 2 && (
               <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
                 {recurrenceCount}+ erros neste tema
@@ -151,8 +180,8 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
 
           {/* Meta info */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>{entry.simulado_nome}</span>
-            <span>•</span>
+            {entry.simulado_nome && <span>{entry.simulado_nome}</span>}
+            {entry.simulado_nome && <span>•</span>}
             <span>{format(new Date(entry.created_at), "dd MMM yyyy", { locale: ptBR })}</span>
             {entry.especialidade && (
               <>
@@ -168,9 +197,11 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditing(true)} title="Editar">
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNavigateToQuestion} title="Ver questão">
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
+          {entry.question_id && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNavigateToQuestion} title="Ver questão">
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" title="Excluir" disabled={isDeleting}>
@@ -181,7 +212,7 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
               <AlertDialogHeader>
                 <AlertDialogTitle>Excluir registro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. O registro será removido permanentemente do seu caderno de erros.
+                  O registro será removido do seu caderno de erros. Você poderá desfazer nos próximos segundos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
