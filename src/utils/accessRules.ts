@@ -112,6 +112,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: true,
       sanarclass: true,
       desempenhoInstitucional: true,
+      errorNotebook: true,
     };
   }
 
