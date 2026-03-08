@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ImageLightbox } from '@/components/simulados/ImageLightbox';
+import { QuestionNavigationRail } from '@/components/simulados/QuestionNavigationRail';
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -121,55 +122,7 @@ const StatCard: React.FC<{
   </motion.div>
 );
 
-// --- Question Nav Chip ---
-const QuestionChip: React.FC<{
-  index: number;
-  question: CorrectedQuestion;
-  isCurrent: boolean;
-  onClick: () => void;
-}> = ({ index, question, isCurrent, onClick }) => {
-  const chipRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isCurrent && chipRef.current) {
-      chipRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [isCurrent]);
-
-  let bgClass = 'bg-muted/60 text-muted-foreground hover:bg-muted';
-  let dotColor = 'bg-muted-foreground/30';
-
-  if (question.anulada) {
-    bgClass = 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20';
-    dotColor = 'bg-purple-500';
-  } else if (question.acertou === true) {
-    bgClass = 'bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20';
-    dotColor = 'bg-green-500';
-  } else if (question.acertou === false) {
-    bgClass = 'bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-500/20';
-    dotColor = 'bg-red-500';
-  } else {
-    bgClass = 'bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15';
-    dotColor = 'bg-amber-500';
-  }
-
-  return (
-    <button
-      ref={chipRef}
-      onClick={onClick}
-      className={cn(
-        'relative w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center shrink-0',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
-        bgClass,
-        isCurrent && 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110 shadow-sm',
-      )}
-      title={`Questão ${index + 1}`}
-    >
-      {index + 1}
-      <span className={cn('absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-all', dotColor, isCurrent && 'scale-125')} />
-    </button>
-  );
-};
+// QuestionChip moved to QuestionNavigationRail component
 
 // --- Alternative Card ---
 const AlternativeCard: React.FC<{
@@ -604,49 +557,11 @@ export const SimuladoCorrecao: React.FC = () => {
           )}
 
           {/* ─── Question Navigator ─── */}
-          <div className="rounded-2xl border border-border/60 bg-card p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-9 w-9 rounded-xl"
-                onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
-                disabled={currentIndex === 0}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <div className="flex-1 overflow-x-auto scrollbar-thin scroll-smooth">
-                <div className="flex gap-1.5 py-1 min-w-max px-1">
-                  {questions.map((q, i) => (
-                    <QuestionChip
-                      key={q.id}
-                      index={i}
-                      question={q}
-                      isCurrent={i === currentIndex}
-                      onClick={() => goToQuestion(i)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-9 w-9 rounded-xl"
-                onClick={() => goToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                disabled={currentIndex === questions.length - 1}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <p className="text-center text-[11px] text-muted-foreground/70 mt-2.5 font-medium">
-              Questão {currentIndex + 1} de {questions.length}
-              <span className="mx-1.5 opacity-40">·</span>
-              <span className="hidden sm:inline">Use ← → para navegar</span>
-            </p>
-          </div>
+          <QuestionNavigationRail
+            questions={questions}
+            currentIndex={currentIndex}
+            onNavigate={goToQuestion}
+          />
 
           {/* ─── Question Card ─── */}
           <AnimatePresence mode="wait">
