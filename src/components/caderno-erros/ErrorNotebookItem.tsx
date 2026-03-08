@@ -5,10 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ToastAction } from '@/components/ui/toast';
 import { ErrorNotebookEntry, ErrorReason, REASON_LABELS, useErrorNotebook } from '@/hooks/useErrorNotebook';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
