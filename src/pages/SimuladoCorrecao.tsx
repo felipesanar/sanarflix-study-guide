@@ -557,49 +557,11 @@ export const SimuladoCorrecao: React.FC = () => {
           )}
 
           {/* ─── Question Navigator ─── */}
-          <div className="rounded-2xl border border-border/60 bg-card p-3 sm:p-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-9 w-9 rounded-xl"
-                onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
-                disabled={currentIndex === 0}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-
-              <div className="flex-1 overflow-x-auto scrollbar-thin scroll-smooth">
-                <div className="flex gap-1.5 py-1 min-w-max px-1">
-                  {questions.map((q, i) => (
-                    <QuestionChip
-                      key={q.id}
-                      index={i}
-                      question={q}
-                      isCurrent={i === currentIndex}
-                      onClick={() => goToQuestion(i)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 h-9 w-9 rounded-xl"
-                onClick={() => goToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                disabled={currentIndex === questions.length - 1}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <p className="text-center text-[11px] text-muted-foreground/70 mt-2.5 font-medium">
-              Questão {currentIndex + 1} de {questions.length}
-              <span className="mx-1.5 opacity-40">·</span>
-              <span className="hidden sm:inline">Use ← → para navegar</span>
-            </p>
-          </div>
+          <QuestionNavigationRail
+            questions={questions}
+            currentIndex={currentIndex}
+            onNavigate={goToQuestion}
+          />
 
           {/* ─── Question Card ─── */}
           <AnimatePresence mode="wait">
