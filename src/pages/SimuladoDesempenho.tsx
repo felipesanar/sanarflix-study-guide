@@ -14,6 +14,45 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
+import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
+
+// Helper component to manage error notebook state per question inside the modal
+const ErrorNotebookButtonInModal: React.FC<{
+  questionId: string;
+  simuladoId: string;
+  simuladoNome: string;
+  wasCorrect: boolean;
+  grandeArea: string | null;
+  especialidade: string | null;
+  tema: string | null;
+}> = ({ questionId, simuladoId, simuladoNome, wasCorrect, grandeArea, especialidade, tema }) => {
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+
+  return (
+    <>
+      <AddToErrorNotebookButton
+        key={refreshKey}
+        questionId={questionId}
+        simuladoId={simuladoId}
+        onOpenDrawer={() => setDrawerOpen(true)}
+      />
+      <AddToErrorNotebookDrawer
+        isOpen={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        questionId={questionId}
+        simuladoId={simuladoId}
+        simuladoNome={simuladoNome}
+        grandeArea={grandeArea}
+        especialidade={especialidade}
+        tema={tema}
+        wasCorrect={wasCorrect}
+        onSuccess={() => setRefreshKey(k => k + 1)}
+      />
+    </>
+  );
+};
 
 // --- Interfaces ---
 interface Simulado { id: string; nome: string; }
@@ -57,7 +96,9 @@ const QuestionModal: React.FC<{
   onOpenChange: (open: boolean) => void;
   questions: ReviewedQuestion[];
   isLoading: boolean;
-}> = ({ isOpen, onOpenChange, questions, isLoading }) => {
+  simuladoId?: string | null;
+  simuladoNome?: string;
+}> = ({ isOpen, onOpenChange, questions, isLoading, simuladoId, simuladoNome }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => { if (isOpen) { setCurrentIndex(0); } }, [isOpen, questions]);
@@ -137,6 +178,18 @@ const QuestionModal: React.FC<{
                 })}
               </div>
               <div className="bg-muted/80 p-4 rounded-md space-y-2 border"> <h4 className="font-bold text-lg text-primary">Comentário do Professor</h4> <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{question.comentario}</p> </div>
+              {/* Caderno de Erros Button */}
+              {simuladoId && (
+                <ErrorNotebookButtonInModal
+                  questionId={question.id}
+                  simuladoId={simuladoId}
+                  simuladoNome={simuladoNome || 'Simulado'}
+                  wasCorrect={question.acertou}
+                  grandeArea={null}
+                  especialidade={null}
+                  tema={null}
+                />
+              )}
             </div>
           ) : (<div className="flex justify-center items-center h-full"> <p>Nenhuma questão de exemplo foi encontrada para esta subespecialidade.</p> </div>)}
         </div>
@@ -764,7 +817,7 @@ export const SimuladoDesempenho: React.FC = () => {
       </div>
       {stats && (<DecompositionTree overallStats={stats} areas={performancePorArea} specialties={bySpecialty} subspecialties={bySubspecialty} onSubspecialtyClick={handleSubspecialtyClick} selectedSimulado={selectedSimulado} />)}
       <EvolutionChart allPerformanceData={allPerformanceData} />
-      <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} />
+      <QuestionModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} questions={selectedQuestions} isLoading={isLoadingQuestion} simuladoId={selectedSimulado} simuladoNome={simulados.find(s => s.id === selectedSimulado)?.nome} />
     </div>
   );
 };

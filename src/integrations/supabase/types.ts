@@ -475,6 +475,57 @@ export type Database = {
           },
         ]
       }
+      error_notebook_entries: {
+        Row: {
+          created_at: string
+          especialidade: string | null
+          grande_area: string | null
+          id: string
+          learning_text: string | null
+          question_id: string
+          reason: string
+          simulado_id: string
+          simulado_nome: string
+          source: string
+          tema: string | null
+          updated_at: string
+          user_id: string
+          was_correct: boolean
+        }
+        Insert: {
+          created_at?: string
+          especialidade?: string | null
+          grande_area?: string | null
+          id?: string
+          learning_text?: string | null
+          question_id: string
+          reason: string
+          simulado_id: string
+          simulado_nome: string
+          source?: string
+          tema?: string | null
+          updated_at?: string
+          user_id: string
+          was_correct?: boolean
+        }
+        Update: {
+          created_at?: string
+          especialidade?: string | null
+          grande_area?: string | null
+          id?: string
+          learning_text?: string | null
+          question_id?: string
+          reason?: string
+          simulado_id?: string
+          simulado_nome?: string
+          source?: string
+          tema?: string | null
+          updated_at?: string
+          user_id?: string
+          was_correct?: boolean
+        }
+        Relationships: []
+      }
       ies: {
         Row: {
           id: string

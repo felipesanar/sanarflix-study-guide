@@ -26,6 +26,7 @@ const DEFAULT_RULES: AccessRules = {
   simulados: true,
   analytics: false,
   desempenhoInstitucional: false,
+  errorNotebook: false,
 };
 
 /**
@@ -41,6 +42,7 @@ const ADMIN_RULES: AccessRules = {
   simulados: true,
   analytics: true,
   desempenhoInstitucional: true,
+  errorNotebook: true,
 };
 
 /**
@@ -93,6 +95,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       simulados: false,
       analytics: false,
       desempenhoInstitucional: false,
+      errorNotebook: false,
     };
   }
   
@@ -110,6 +113,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       dashboard: true,
       sanarclass: true,
       desempenhoInstitucional: true,
+      errorNotebook: true,
     };
   }
 

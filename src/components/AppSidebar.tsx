@@ -25,6 +25,7 @@ import {
   GraduationCap,
   TrendingUp,
   School,
+  BookMarked,
 } from "lucide-react";
 
 import {
@@ -57,6 +58,13 @@ const menuItems = [
     icon: ClipboardCheck,
     accessKey: "simulados" as const,
     description: "Simulados completos e desempenho",
+  },
+  {
+    title: "Caderno de Erros",
+    url: "/caderno-de-erros",
+    icon: BookMarked,
+    accessKey: "errorNotebook" as const,
+    description: "Revise seus gaps e evite repeti-los",
   },
   {
     title: "Portal do Admin",
@@ -160,6 +168,7 @@ export function AppSidebar() {
     if (item.accessKey === "home") return false; // Rendered separately above
     if (item.accessKey === "sanarclass") return accessRules.sanarclass;
     if (item.accessKey === "simulados") return true;
+    if (item.accessKey === "errorNotebook") return accessRules.errorNotebook;
     if (item.accessKey === "analytics") return isAdmin(user);
     if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
     return accessRules[item.accessKey];

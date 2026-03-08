@@ -21,7 +21,7 @@ const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
 const DesempenhoInstitucional = lazy(() => import("@/pages/DesempenhoInstitucional"));
-
+const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -267,6 +267,25 @@ export const DynamicRoutes: React.FC = () => {
             />
           ) : (
             <Route path="/desempenho-institucional" element={<Navigate to="/simulados" replace />} />
+          )}
+
+          {/* Caderno de Erros - Controlado dinamicamente por ies_features */}
+          {accessRules.errorNotebook ? (
+            <Route
+              path="/caderno-de-erros"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando caderno de erros..."
+                    waitForData={true}
+                  >
+                    <CadernoErros />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/caderno-de-erros" element={<Navigate to="/simulados" replace />} />
           )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />

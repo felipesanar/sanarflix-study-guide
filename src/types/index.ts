@@ -19,6 +19,7 @@ export interface AccessRules {
   simulados: boolean;
   analytics: boolean;
   desempenhoInstitucional: boolean;
+  errorNotebook: boolean;
 }
 
 export interface StudyContent {
