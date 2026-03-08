@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,8 +9,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   CheckCircle, XCircle, HelpCircle, Ban, ChevronLeft, ChevronRight,
-  ChevronDown, Eye, EyeOff, FileDown, Loader2, BookOpen, ClipboardCheck,
-  Target, AlertTriangle, BookMarked
+  ChevronDown, FileDown, Loader2, BookOpen, ClipboardCheck,
+  AlertTriangle, BookMarked, Hash, TrendingUp, Minus, GraduationCap,
+  Lightbulb, Stethoscope
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -39,9 +40,8 @@ interface CorrectedQuestion {
   tema: string | null;
   grau_dificuldade: string | null;
   anulada: boolean;
-  // Student answer data
   resposta_usuario: string | null;
-  acertou: boolean | null; // true=correct, false=wrong, null=not answered
+  acertou: boolean | null;
 }
 
 interface SimuladoOption {
@@ -86,20 +86,139 @@ const ErrorNotebookButtonInCorrection: React.FC<{
   );
 };
 
-// --- Difficulty Badge ---
-const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
-  const styles: Record<string, string> = {
-    Fácil: 'bg-green-500/10 text-green-600 dark:text-green-400',
-    Moderado: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    Médio: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    Difícil: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  };
+// --- Stat Card ---
+const StatCard: React.FC<{
+  label: string;
+  value: number;
+  icon: React.ReactNode;
+  accentClass: string;
+  delay?: number;
+}> = ({ label, value, icon, accentClass, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.35, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+  >
+    <div className={cn(
+      'relative overflow-hidden rounded-2xl border p-4 sm:p-5 transition-all duration-200 group',
+      'hover:shadow-md dark:hover:shadow-lg',
+      accentClass,
+    )}>
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-background/80 dark:bg-background/40 shadow-sm">
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-0.5">
+            {label}
+          </p>
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight">
+            {value}
+          </p>
+        </div>
+      </div>
+    </div>
+  </motion.div>
+);
+
+// --- Question Nav Chip ---
+const QuestionChip: React.FC<{
+  index: number;
+  question: CorrectedQuestion;
+  isCurrent: boolean;
+  onClick: () => void;
+}> = ({ index, question, isCurrent, onClick }) => {
+  const chipRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (isCurrent && chipRef.current) {
+      chipRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [isCurrent]);
+
+  let bgClass = 'bg-muted/60 text-muted-foreground hover:bg-muted';
+  let dotColor = 'bg-muted-foreground/30';
+
+  if (question.anulada) {
+    bgClass = 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20';
+    dotColor = 'bg-purple-500';
+  } else if (question.acertou === true) {
+    bgClass = 'bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20';
+    dotColor = 'bg-green-500';
+  } else if (question.acertou === false) {
+    bgClass = 'bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-500/20';
+    dotColor = 'bg-red-500';
+  } else {
+    bgClass = 'bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15';
+    dotColor = 'bg-amber-500';
+  }
+
   return (
-    <span className={cn('px-2 py-0.5 rounded-md text-xs font-semibold', styles[difficulty] || 'bg-muted text-muted-foreground')}>
-      {difficulty}
-    </span>
+    <button
+      ref={chipRef}
+      onClick={onClick}
+      className={cn(
+        'relative w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center shrink-0',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
+        bgClass,
+        isCurrent && 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110 shadow-sm',
+      )}
+      title={`Questão ${index + 1}`}
+    >
+      {index + 1}
+      <span className={cn('absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-all', dotColor, isCurrent && 'scale-125')} />
+    </button>
   );
 };
+
+// --- Alternative Card ---
+const AlternativeCard: React.FC<{
+  letra: string;
+  texto: string;
+  isCorreta: boolean;
+  isUserWrong: boolean;
+  index: number;
+}> = ({ letra, texto, isCorreta, isUserWrong, index }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 6 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.2, delay: index * 0.04, ease: 'easeOut' }}
+    className={cn(
+      'relative p-4 sm:p-5 rounded-2xl border text-left transition-all duration-200 flex gap-4 items-start group',
+      isCorreta
+        ? 'bg-green-50 border-green-500/40 dark:bg-green-500/8 dark:border-green-500/25 shadow-sm shadow-green-500/5'
+        : isUserWrong
+          ? 'bg-red-50 border-red-500/40 dark:bg-red-500/8 dark:border-red-500/25 shadow-sm shadow-red-500/5'
+          : 'bg-card border-border/60 hover:border-border',
+    )}
+  >
+    <span
+      className={cn(
+        'flex items-center justify-center w-8 h-8 rounded-xl text-xs font-bold shrink-0 transition-all duration-200',
+        isCorreta
+          ? 'bg-green-500 text-white shadow-sm shadow-green-500/30'
+          : isUserWrong
+            ? 'bg-red-500 text-white shadow-sm shadow-red-500/30'
+            : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {letra}
+    </span>
+    <span className={cn(
+      'text-sm sm:text-[15px] leading-relaxed flex-1 pt-0.5',
+      isCorreta ? 'text-green-900 dark:text-green-100 font-medium' : '',
+      isUserWrong ? 'text-red-900 dark:text-red-100' : ''
+    )}>
+      {texto}
+    </span>
+    {isCorreta && (
+      <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+    )}
+    {isUserWrong && (
+      <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+    )}
+  </motion.div>
+);
 
 // --- Main Component ---
 export const SimuladoCorrecao: React.FC = () => {
@@ -117,8 +236,8 @@ export const SimuladoCorrecao: React.FC = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState('');
 
-  // Track page view
   useEffect(() => {
+    console.log('[ReviewUI] Page mounted');
     trackEvent({ eventName: 'correction_page_viewed', category: 'navigation', data: {} });
   }, []);
 
@@ -131,8 +250,9 @@ export const SimuladoCorrecao: React.FC = () => {
         const { data, error } = await supabase.rpc('get_user_simulados');
         if (error) throw error;
         setSimulados((data || []).map((s: any) => ({ id: s.id, nome: s.nome })));
+        console.log('[ReviewUI] Simulados loaded:', data?.length);
       } catch (err) {
-        console.error('[Correção] Erro ao buscar simulados:', err);
+        console.error('[ReviewUI] Error fetching simulados:', err);
       } finally {
         setLoadingSimulados(false);
       }
@@ -140,7 +260,7 @@ export const SimuladoCorrecao: React.FC = () => {
     fetchSimulados();
   }, [user?.id]);
 
-  // Fetch questions when simulado changes
+  // Fetch questions
   useEffect(() => {
     if (!selectedSimulado || !user?.id) {
       setQuestions([]);
@@ -154,16 +274,15 @@ export const SimuladoCorrecao: React.FC = () => {
       setViewedQuestions(new Set([0]));
 
       try {
-        // Check cache first
         const cacheKey = `correction_${user.id}_${selectedSimulado}`;
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
           setQuestions(JSON.parse(cached));
           setLoading(false);
+          console.log('[ReviewUI] Loaded from cache');
           return;
         }
 
-        // Fetch questions and answers in parallel
         const [questoesRes, respostasRes] = await Promise.all([
           supabase
             .from('questoes_simulado')
@@ -196,18 +315,14 @@ export const SimuladoCorrecao: React.FC = () => {
             acertou = respostaUsuario === gabarito;
           }
 
-          return {
-            ...q,
-            correta: gabarito,
-            resposta_usuario: respostaUsuario,
-            acertou,
-          };
+          return { ...q, correta: gabarito, resposta_usuario: respostaUsuario, acertou };
         });
 
         setQuestions(merged);
         sessionStorage.setItem(cacheKey, JSON.stringify(merged));
+        console.log('[ReviewUI] Questions loaded:', merged.length);
       } catch (err) {
-        console.error('[Correção] Erro ao buscar questões:', err);
+        console.error('[ReviewUI] Error fetching questions:', err);
         toast({ title: 'Erro', description: 'Não foi possível carregar as questões.', variant: 'destructive' });
       } finally {
         setLoading(false);
@@ -236,19 +351,19 @@ export const SimuladoCorrecao: React.FC = () => {
     setCommentOpen(true);
   }, []);
 
-  // Stats
   const stats = useMemo(() => {
     const total = questions.length;
     const acertos = questions.filter(q => q.acertou === true).length;
     const erros = questions.filter(q => q.acertou === false).length;
     const naoRespondidas = questions.filter(q => q.acertou === null).length;
-    return { total, acertos, erros, naoRespondidas };
+    const percentual = total > 0 ? Math.round((acertos / total) * 100) : 0;
+    return { total, acertos, erros, naoRespondidas, percentual };
   }, [questions]);
 
   const currentQuestion = questions[currentIndex] || null;
   const simuladoNome = simulados.find(s => s.id === selectedSimulado)?.nome || 'Simulado';
 
-  // PDF download (reuse existing logic)
+  // PDF download
   const handleDownloadPDF = async () => {
     if (!selectedSimulado || !user || questions.length === 0) return;
     setIsDownloading(true);
@@ -320,15 +435,15 @@ export const SimuladoCorrecao: React.FC = () => {
       await generateProvaRevisadaPDF(simuladoNome, user.email || 'Aluno', questoesRevisadas, provaStats, (stage, current, totalItems) => {
         switch (stage) {
           case 'preparing': setDownloadProgress('Preparando...'); break;
-          case 'loading_images': setDownloadProgress(`Carregando imagens (${current}/${totalItems})...`); break;
-          case 'generating': setDownloadProgress(`Gerando PDF (${current}/${totalItems} questões)...`); break;
+          case 'loading_images': setDownloadProgress(`Imagens (${current}/${totalItems})...`); break;
+          case 'generating': setDownloadProgress(`Gerando (${current}/${totalItems})...`); break;
           case 'complete': setDownloadProgress('Concluído!'); break;
         }
       });
 
       toast({ title: 'Prova revisada gerada!', description: 'O PDF foi baixado com sucesso.' });
     } catch (error) {
-      console.error('[Correção] Erro ao gerar PDF:', error);
+      console.error('[ReviewUI] Error generating PDF:', error);
       toast({ title: 'Erro', description: 'Não foi possível gerar o PDF.', variant: 'destructive' });
     } finally {
       setIsDownloading(false);
@@ -338,267 +453,307 @@ export const SimuladoCorrecao: React.FC = () => {
 
   // --- Render ---
   return (
-    <div className="space-y-6">
-      {/* Simulator selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="flex-1">
-          {loadingSimulados ? (
-            <Skeleton className="h-10 w-full max-w-sm" />
-          ) : (
-            <Select
-              value={selectedSimulado || 'placeholder'}
-              onValueChange={(v) => setSelectedSimulado(v === 'placeholder' ? null : v)}
+    <div className="max-w-4xl mx-auto space-y-6 pb-8">
+      {/* ─── Header ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-4"
+      >
+        <div className="flex items-center gap-3 mb-1">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <GraduationCap className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Correção de Simulado</h1>
+            <p className="text-xs text-muted-foreground">Revise suas respostas questão a questão</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1">
+            {loadingSimulados ? (
+              <Skeleton className="h-11 w-full max-w-sm rounded-xl" />
+            ) : (
+              <Select
+                value={selectedSimulado || 'placeholder'}
+                onValueChange={(v) => setSelectedSimulado(v === 'placeholder' ? null : v)}
+              >
+                <SelectTrigger className="w-full max-w-sm h-11 rounded-xl border-border/60 bg-card shadow-sm text-sm font-medium">
+                  <SelectValue placeholder="Selecione um simulado" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {simulados.map(s => (
+                    <SelectItem key={s.id} value={s.id} className="rounded-lg">{s.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          {selectedSimulado && questions.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="gap-2 shrink-0 h-11 rounded-xl border-border/60 shadow-sm hover:shadow-md transition-all"
             >
-              <SelectTrigger className="w-full max-w-sm">
-                <SelectValue placeholder="Selecione um simulado" />
-              </SelectTrigger>
-              <SelectContent>
-                {simulados.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              <span className="text-sm">{isDownloading ? downloadProgress : 'Baixar Prova'}</span>
+            </Button>
           )}
         </div>
-        {selectedSimulado && questions.length > 0 && (
-          <Button
-            variant="outline"
-            onClick={handleDownloadPDF}
-            disabled={isDownloading}
-            className="gap-2 shrink-0"
-          >
-            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            {isDownloading ? downloadProgress : 'Baixar Prova Revisada'}
-          </Button>
-        )}
-      </div>
+      </motion.div>
 
-      {/* Empty state */}
+      {/* ─── Empty state ─── */}
       {!selectedSimulado && !loading && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-            <ClipboardCheck className="h-12 w-12 text-muted-foreground/40" />
-            <div>
-              <p className="text-lg font-medium text-muted-foreground">Selecione um simulado</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Escolha um simulado acima para revisar suas respostas questão a questão
-              </p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="rounded-2xl border-2 border-dashed border-border/50 bg-card/50">
+            <div className="flex flex-col items-center justify-center py-20 gap-5 text-center px-6">
+              <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center">
+                <ClipboardCheck className="h-8 w-8 text-muted-foreground/40" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-muted-foreground">Selecione um simulado</p>
+                <p className="text-sm text-muted-foreground/60 mt-1.5 max-w-xs mx-auto">
+                  Escolha um simulado acima para revisar suas respostas e ver os comentários do professor
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
       )}
 
-      {/* Loading */}
+      {/* ─── Loading skeleton ─── */}
       {loading && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
           </div>
-          <Skeleton className="h-14 rounded-xl" />
-          <Skeleton className="h-96 rounded-xl" />
+          <Skeleton className="h-16 rounded-2xl" />
+          <Skeleton className="h-[500px] rounded-2xl" />
         </div>
       )}
 
-      {/* Main content */}
+      {/* ─── Main content ─── */}
       {selectedSimulado && !loading && questions.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          transition={{ duration: 0.35 }}
           className="space-y-5"
         >
-          {/* KPI cards */}
+          {/* ─── KPI Cards ─── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Card className="bg-muted/30">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <Eye className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</span>
-                </div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-green-500/5 border-green-500/20">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  <span className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">Acertos</span>
-                </div>
-                <p className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.acertos}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-red-500/5 border-red-500/20">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  <span className="text-xs font-medium text-red-600 dark:text-red-400 uppercase tracking-wide">Erros</span>
-                </div>
-                <p className="text-2xl font-bold text-red-700 dark:text-red-300">{stats.erros}</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-amber-500/5 border-amber-500/20">
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
-                  <HelpCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">Em branco</span>
-                </div>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{stats.naoRespondidas}</p>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total"
+              value={stats.total}
+              icon={<Hash className="h-5 w-5 text-muted-foreground" />}
+              accentClass="bg-card border-border/60"
+              delay={0}
+            />
+            <StatCard
+              label="Acertos"
+              value={stats.acertos}
+              icon={<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
+              accentClass="bg-green-500/[0.04] border-green-500/20 dark:bg-green-500/[0.06]"
+              delay={0.05}
+            />
+            <StatCard
+              label="Erros"
+              value={stats.erros}
+              icon={<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
+              accentClass="bg-red-500/[0.04] border-red-500/20 dark:bg-red-500/[0.06]"
+              delay={0.1}
+            />
+            <StatCard
+              label="Em branco"
+              value={stats.naoRespondidas}
+              icon={<Minus className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+              accentClass="bg-amber-500/[0.04] border-amber-500/20 dark:bg-amber-500/[0.06]"
+              delay={0.15}
+            />
           </div>
 
-          {/* Question navigator */}
-          <Card>
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-8 w-8"
-                  onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
-                  disabled={currentIndex === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <div className="flex-1 overflow-x-auto scrollbar-thin">
-                  <div className="flex gap-1.5 py-1 min-w-max">
-                    {questions.map((q, i) => {
-                      const isCurrent = i === currentIndex;
-                      const isViewed = viewedQuestions.has(i);
-                      let bgClass = 'bg-muted text-muted-foreground hover:bg-muted/80';
-                      if (q.anulada) {
-                        bgClass = 'bg-purple-500/15 text-purple-700 dark:text-purple-300 hover:bg-purple-500/25';
-                      } else if (q.acertou === true) {
-                        bgClass = 'bg-green-500/15 text-green-700 dark:text-green-300 hover:bg-green-500/25';
-                      } else if (q.acertou === false) {
-                        bgClass = 'bg-red-500/15 text-red-700 dark:text-red-300 hover:bg-red-500/25';
-                      } else {
-                        bgClass = 'bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20';
-                      }
-
-                      return (
-                        <button
-                          key={q.id}
-                          onClick={() => goToQuestion(i)}
-                          className={cn(
-                            'w-8 h-8 rounded-md text-xs font-semibold transition-all flex items-center justify-center shrink-0',
-                            bgClass,
-                            isCurrent && 'ring-2 ring-primary ring-offset-1 ring-offset-background scale-110',
-                          )}
-                          title={`Questão ${i + 1}`}
-                        >
-                          {i + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
+          {/* ─── Score bar ─── */}
+          {stats.total > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scaleX: 0.8 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
+              className="origin-left"
+            >
+              <div className="flex items-center gap-3 px-1">
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full bg-gradient-to-r from-green-500 to-green-400"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stats.percentual}%` }}
+                    transition={{ duration: 0.8, delay: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  />
                 </div>
+                <span className="text-sm font-bold text-foreground tabular-nums min-w-[3ch] text-right">
+                  {stats.percentual}%
+                </span>
+              </div>
+            </motion.div>
+          )}
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-8 w-8"
-                  onClick={() => goToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
-                  disabled={currentIndex === questions.length - 1}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+          {/* ─── Question Navigator ─── */}
+          <div className="rounded-2xl border border-border/60 bg-card p-3 sm:p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-9 w-9 rounded-xl"
+                onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
+                disabled={currentIndex === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <div className="flex-1 overflow-x-auto scrollbar-thin scroll-smooth">
+                <div className="flex gap-1.5 py-1 min-w-max px-1">
+                  {questions.map((q, i) => (
+                    <QuestionChip
+                      key={q.id}
+                      index={i}
+                      question={q}
+                      isCurrent={i === currentIndex}
+                      onClick={() => goToQuestion(i)}
+                    />
+                  ))}
+                </div>
               </div>
 
-              {/* Current position */}
-              <p className="text-center text-xs text-muted-foreground mt-2">
-                Questão {currentIndex + 1} de {questions.length}
-                <span className="mx-1.5">·</span>
-                Use as setas ← → para navegar
-              </p>
-            </CardContent>
-          </Card>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-9 w-9 rounded-xl"
+                onClick={() => goToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
+                disabled={currentIndex === questions.length - 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-          {/* Question card */}
+            <p className="text-center text-[11px] text-muted-foreground/70 mt-2.5 font-medium">
+              Questão {currentIndex + 1} de {questions.length}
+              <span className="mx-1.5 opacity-40">·</span>
+              <span className="hidden sm:inline">Use ← → para navegar</span>
+            </p>
+          </div>
+
+          {/* ─── Question Card ─── */}
           <AnimatePresence mode="wait">
             {currentQuestion && (
               <motion.div
                 key={currentQuestion.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
-                <Card className="overflow-hidden">
-                  {/* Status header */}
+                <div className="rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
+                  {/* ── Status header ── */}
                   <div className={cn(
-                    'px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 border-b',
+                    'px-5 sm:px-7 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3',
+                    'border-b',
                     currentQuestion.anulada
-                      ? 'bg-purple-500/5'
+                      ? 'bg-purple-500/[0.03] dark:bg-purple-500/[0.05]'
                       : currentQuestion.acertou === true
-                        ? 'bg-green-500/5'
+                        ? 'bg-green-500/[0.03] dark:bg-green-500/[0.05]'
                         : currentQuestion.acertou === false
-                          ? 'bg-red-500/5'
-                          : 'bg-amber-500/5'
+                          ? 'bg-red-500/[0.03] dark:bg-red-500/[0.05]'
+                          : 'bg-amber-500/[0.03] dark:bg-amber-500/[0.05]'
                   )}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">Questão {currentIndex + 1}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-bold tracking-tight">Questão {currentIndex + 1}</span>
                       {currentQuestion.anulada ? (
-                        <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30 gap-1">
+                        <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/25 gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold">
                           <Ban className="h-3 w-3" /> Anulada
                         </Badge>
                       ) : currentQuestion.acertou === true ? (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 gap-1">
-                          <CheckCircle className="h-3 w-3" /> Correto!
+                        <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/25 gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold">
+                          <CheckCircle className="h-3 w-3" /> Correto
                         </Badge>
                       ) : currentQuestion.acertou === false ? (
-                        <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 gap-1">
+                        <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/25 gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold">
                           <XCircle className="h-3 w-3" /> Incorreto
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1">
+                        <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25 gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold">
                           <HelpCircle className="h-3 w-3" /> Não respondida
                         </Badge>
                       )}
                     </div>
+
+                    {/* Meta badges */}
                     <div className="flex items-center gap-2 flex-wrap">
                       {currentQuestion.grau_dificuldade && (
-                        <DifficultyBadge difficulty={currentQuestion.grau_dificuldade} />
+                        <span className={cn(
+                          'px-2.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide',
+                          currentQuestion.grau_dificuldade === 'Fácil' && 'bg-green-500/10 text-green-600 dark:text-green-400',
+                          (currentQuestion.grau_dificuldade === 'Moderado' || currentQuestion.grau_dificuldade === 'Médio') && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+                          currentQuestion.grau_dificuldade === 'Difícil' && 'bg-red-500/10 text-red-600 dark:text-red-400',
+                          !['Fácil', 'Moderado', 'Médio', 'Difícil'].includes(currentQuestion.grau_dificuldade) && 'bg-muted text-muted-foreground',
+                        )}>
+                          {currentQuestion.grau_dificuldade}
+                        </span>
                       )}
                       {currentQuestion.grande_area && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                        <span className="text-[11px] text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-lg font-medium">
                           {currentQuestion.grande_area}
                         </span>
                       )}
                       {currentQuestion.tema && (
-                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                        <span className="text-[11px] text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-lg font-medium">
                           {currentQuestion.tema}
                         </span>
                       )}
                     </div>
-                    </div>
+                  </div>
 
-                  {/* Error Notebook CTA — only for wrong/unanswered */}
+                  {/* ── Error Notebook CTA ── */}
                   {currentQuestion.acertou !== true && !currentQuestion.anulada && (
-                    <div className="mx-4 sm:mx-6 mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <BookMarked className="h-4 w-4 text-primary" />
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      transition={{ duration: 0.25, delay: 0.15 }}
+                    >
+                      <div className="mx-5 sm:mx-7 mt-5 p-4 rounded-xl bg-primary/[0.04] border border-primary/15 flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          <BookMarked className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground">Registre no Caderno de Erros</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Anote o motivo e evite repetir esse erro</p>
+                        </div>
+                        <ErrorNotebookButtonInCorrection
+                          questionId={currentQuestion.id}
+                          simuladoId={selectedSimulado}
+                          simuladoNome={simuladoNome}
+                          wasCorrect={false}
+                          grandeArea={currentQuestion.grande_area}
+                          especialidade={currentQuestion.especialidade}
+                          tema={currentQuestion.tema}
+                        />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-foreground">Registre no Caderno de Erros</p>
-                        <p className="text-xs text-muted-foreground">Anote o motivo e evite repetir esse erro</p>
-                      </div>
-                      <ErrorNotebookButtonInCorrection
-                        questionId={currentQuestion.id}
-                        simuladoId={selectedSimulado}
-                        simuladoNome={simuladoNome}
-                        wasCorrect={false}
-                        grandeArea={currentQuestion.grande_area}
-                        especialidade={currentQuestion.especialidade}
-                        tema={currentQuestion.tema}
-                      />
-                    </div>
+                    </motion.div>
                   )}
 
-                  <CardContent className="p-4 sm:p-6 space-y-5">
+                  {/* ── Question body ── */}
+                  <div className="px-5 sm:px-7 py-6 space-y-6">
                     {/* Enunciado */}
-                    <p className="text-base leading-relaxed whitespace-pre-wrap">{currentQuestion.enunciado}</p>
+                    <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none">
+                      <p className="text-[15px] sm:text-base leading-[1.8] text-foreground/90 whitespace-pre-wrap">
+                        {currentQuestion.enunciado}
+                      </p>
+                    </div>
 
                     {/* Image */}
                     {currentQuestion.imagem && (
@@ -606,14 +761,14 @@ export const SimuladoCorrecao: React.FC = () => {
                         <ImageLightbox
                           src={currentQuestion.imagem}
                           alt={`Imagem da questão ${currentIndex + 1}`}
-                          className="max-w-full max-h-80 rounded-lg object-contain"
+                          className="max-w-full max-h-80 rounded-xl object-contain"
                         />
                       </div>
                     )}
 
                     {/* Alternatives */}
-                    <div className="space-y-2.5">
-                      {(['A', 'B', 'C', 'D', 'E'] as const).map(letra => {
+                    <div className="space-y-3">
+                      {(['A', 'B', 'C', 'D', 'E'] as const).map((letra, idx) => {
                         const textoMap: Record<string, string | null> = {
                           A: currentQuestion.alternativa_a,
                           B: currentQuestion.alternativa_b,
@@ -628,120 +783,108 @@ export const SimuladoCorrecao: React.FC = () => {
                         const isUserWrong = currentQuestion.resposta_usuario === letra && !currentQuestion.acertou;
 
                         return (
-                          <div
+                          <AlternativeCard
                             key={letra}
-                            className={cn(
-                              'p-3 sm:p-4 border rounded-xl text-left transition-colors flex gap-3 items-start',
-                              isCorreta
-                                ? 'bg-green-50 border-green-500/50 dark:bg-green-500/10 dark:border-green-500/30'
-                                : isUserWrong
-                                  ? 'bg-red-50 border-red-500/50 dark:bg-red-500/10 dark:border-red-500/30'
-                                  : 'bg-muted/20 border-border'
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                'flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 mt-0.5',
-                                isCorreta
-                                  ? 'bg-green-500 text-white'
-                                  : isUserWrong
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-muted text-muted-foreground'
-                              )}
-                            >
-                              {letra}
-                            </span>
-                            <span className={cn(
-                              'text-sm leading-relaxed flex-1',
-                              isCorreta ? 'text-green-800 dark:text-green-200 font-medium' : '',
-                              isUserWrong ? 'text-red-800 dark:text-red-200' : ''
-                            )}>
-                              {texto}
-                            </span>
-                            {isCorreta && (
-                              <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-1" />
-                            )}
-                            {isUserWrong && (
-                              <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-1" />
-                            )}
-                          </div>
+                            letra={letra}
+                            texto={texto}
+                            isCorreta={isCorreta}
+                            isUserWrong={isUserWrong}
+                            index={idx}
+                          />
                         );
                       })}
                     </div>
 
-                    {/* Comment collapse */}
+                    {/* ── Comment / Explanation ── */}
                     {currentQuestion.comentario && (
                       <Collapsible open={commentOpen} onOpenChange={setCommentOpen}>
                         <CollapsibleTrigger asChild>
-                          <Button variant="ghost" className="w-full justify-between gap-2 text-sm font-semibold text-primary hover:bg-primary/5">
-                            <span className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4" />
+                          <button className={cn(
+                            'w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl',
+                            'text-sm font-semibold transition-all duration-200',
+                            'bg-primary/[0.04] hover:bg-primary/[0.07] text-primary',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
+                          )}>
+                            <span className="flex items-center gap-2.5">
+                              <Lightbulb className="h-4 w-4" />
                               Comentário do Professor
                             </span>
-                            <ChevronDown className={cn('h-4 w-4 transition-transform', commentOpen && 'rotate-180')} />
-                          </Button>
+                            <ChevronDown className={cn(
+                              'h-4 w-4 transition-transform duration-200',
+                              commentOpen && 'rotate-180'
+                            )} />
+                          </button>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="bg-muted/40 p-4 rounded-xl border mt-2"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.25 }}
+                            className="mt-3 rounded-xl border border-border/50 bg-muted/30 dark:bg-muted/20 overflow-hidden"
                           >
-                            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                              {currentQuestion.comentario}
-                            </p>
+                            <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 bg-muted/20">
+                              <Stethoscope className="h-4 w-4 text-muted-foreground/60" />
+                              <span className="text-xs font-semibold text-muted-foreground/70 uppercase tracking-wider">
+                                Explicação
+                              </span>
+                            </div>
+                            <div className="px-5 py-5">
+                              <p className="text-sm sm:text-[15px] text-muted-foreground leading-[1.85] whitespace-pre-wrap">
+                                {currentQuestion.comentario}
+                              </p>
+                            </div>
                           </motion.div>
                         </CollapsibleContent>
                       </Collapsible>
                     )}
+                  </div>
 
-                  </CardContent>
-
-                  {/* Bottom navigation */}
-                  <div className="px-4 sm:px-6 py-4 border-t bg-muted/10 flex items-center justify-between gap-3">
+                  {/* ── Bottom navigation ── */}
+                  <div className="px-5 sm:px-7 py-4 border-t border-border/40 bg-muted/[0.03] flex items-center justify-between gap-3">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => goToQuestion(currentIndex - 1)}
                       disabled={currentIndex === 0}
-                      className="gap-2"
+                      className="gap-2 rounded-xl h-10 px-4 hover:bg-muted/60"
                     >
                       <ChevronLeft className="h-4 w-4" />
-                      <span className="hidden sm:inline">Anterior</span>
+                      <span className="hidden sm:inline text-sm">Anterior</span>
                     </Button>
-                    <span className="text-sm text-muted-foreground font-medium">
+                    <span className="text-sm text-muted-foreground font-semibold tabular-nums">
                       {currentIndex + 1} / {questions.length}
                     </span>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => goToQuestion(currentIndex + 1)}
                       disabled={currentIndex === questions.length - 1}
-                      className="gap-2"
+                      className="gap-2 rounded-xl h-10 px-4 hover:bg-muted/60"
                     >
-                      <span className="hidden sm:inline">Próxima</span>
+                      <span className="hidden sm:inline text-sm">Próxima</span>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                </Card>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       )}
 
-      {/* No questions found */}
+      {/* No questions */}
       {selectedSimulado && !loading && questions.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-            <AlertTriangle className="h-12 w-12 text-muted-foreground/40" />
+        <div className="rounded-2xl border-2 border-dashed border-border/50 bg-card/50">
+          <div className="flex flex-col items-center justify-center py-20 gap-5 text-center px-6">
+            <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center">
+              <AlertTriangle className="h-8 w-8 text-muted-foreground/40" />
+            </div>
             <div>
-              <p className="text-lg font-medium text-muted-foreground">Nenhuma questão encontrada</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
+              <p className="text-base font-semibold text-muted-foreground">Nenhuma questão encontrada</p>
+              <p className="text-sm text-muted-foreground/60 mt-1.5">
                 Não encontramos questões para este simulado
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );
