@@ -121,55 +121,7 @@ const StatCard: React.FC<{
   </motion.div>
 );
 
-// --- Question Nav Chip ---
-const QuestionChip: React.FC<{
-  index: number;
-  question: CorrectedQuestion;
-  isCurrent: boolean;
-  onClick: () => void;
-}> = ({ index, question, isCurrent, onClick }) => {
-  const chipRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (isCurrent && chipRef.current) {
-      chipRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-    }
-  }, [isCurrent]);
-
-  let bgClass = 'bg-muted/60 text-muted-foreground hover:bg-muted';
-  let dotColor = 'bg-muted-foreground/30';
-
-  if (question.anulada) {
-    bgClass = 'bg-purple-500/10 text-purple-700 dark:text-purple-300 hover:bg-purple-500/20';
-    dotColor = 'bg-purple-500';
-  } else if (question.acertou === true) {
-    bgClass = 'bg-green-500/10 text-green-700 dark:text-green-300 hover:bg-green-500/20';
-    dotColor = 'bg-green-500';
-  } else if (question.acertou === false) {
-    bgClass = 'bg-red-500/10 text-red-700 dark:text-red-300 hover:bg-red-500/20';
-    dotColor = 'bg-red-500';
-  } else {
-    bgClass = 'bg-amber-500/8 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15';
-    dotColor = 'bg-amber-500';
-  }
-
-  return (
-    <button
-      ref={chipRef}
-      onClick={onClick}
-      className={cn(
-        'relative w-9 h-9 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center shrink-0',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
-        bgClass,
-        isCurrent && 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110 shadow-sm',
-      )}
-      title={`Questão ${index + 1}`}
-    >
-      {index + 1}
-      <span className={cn('absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full transition-all', dotColor, isCurrent && 'scale-125')} />
-    </button>
-  );
-};
+// QuestionChip moved to QuestionNavigationRail component
 
 // --- Alternative Card ---
 const AlternativeCard: React.FC<{
