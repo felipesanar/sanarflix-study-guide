@@ -696,18 +696,6 @@ export const SimuladoCorrecao: React.FC = () => {
                       </Collapsible>
                     )}
 
-                    {/* Error Notebook button */}
-                    <div className="pt-2 border-t">
-                      <ErrorNotebookButtonInCorrection
-                        questionId={currentQuestion.id}
-                        simuladoId={selectedSimulado}
-                        simuladoNome={simuladoNome}
-                        wasCorrect={currentQuestion.acertou === true}
-                        grandeArea={currentQuestion.grande_area}
-                        especialidade={currentQuestion.especialidade}
-                        tema={currentQuestion.tema}
-                      />
-                    </div>
                   </CardContent>
 
                   {/* Bottom navigation */}
