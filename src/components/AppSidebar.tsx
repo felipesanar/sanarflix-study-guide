@@ -60,6 +60,13 @@ const menuItems = [
     description: "Simulados completos e desempenho",
   },
   {
+    title: "Caderno de Erros",
+    url: "/caderno-de-erros",
+    icon: BookMarked,
+    accessKey: "errorNotebook" as const,
+    description: "Revise seus gaps e evite repeti-los",
+  },
+  {
     title: "Portal do Admin",
     url: "/gestao-usuarios",
     icon: UserCog,
