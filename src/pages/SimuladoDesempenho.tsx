@@ -201,9 +201,9 @@ const QuestionModal: React.FC<{
                     <div key={alt.key} className={cn(
                       "flex items-start gap-3 p-3.5 rounded-xl border text-sm transition-colors",
                       isCorrectAnswer
-                        ? "bg-green-50 border-green-500/30 dark:bg-green-500/8 dark:border-green-500/20"
+                        ? "bg-green-50 border-green-500/30 dark:bg-green-950/60 dark:border-green-500/40"
                         : isUserWrongSelection
-                          ? "bg-red-50 border-red-500/30 dark:bg-red-500/8 dark:border-red-500/20"
+                          ? "bg-red-50 border-red-500/30 dark:bg-red-950/60 dark:border-red-500/40"
                           : "bg-card border-border/40"
                     )}>
                       <span className={cn(
