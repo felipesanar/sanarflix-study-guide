@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useErrorNotebook, ErrorNotebookFilters as Filters, ErrorNotebookEntry } from '@/hooks/useErrorNotebook';
 import { ErrorNotebookList } from '@/components/caderno-erros/ErrorNotebookList';
 import { ErrorNotebookFilters } from '@/components/caderno-erros/ErrorNotebookFilters';
@@ -35,9 +34,7 @@ export const CadernoErros: React.FC = () => {
     }
   }, [trackEvent]);
 
-  useEffect(() => {
-    fetchEntries().then(() => {});
-  }, [fetchEntries]);
+  useEffect(() => { fetchEntries().then(() => {}); }, [fetchEntries]);
 
   useEffect(() => {
     if (!filters.grande_area && !filters.tema && !filters.reason && !filters.simulado_id && !filters.search) {
@@ -60,9 +57,7 @@ export const CadernoErros: React.FC = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setFilters(prev => ({ ...prev, search: value || undefined }));
-      if (value) {
-        trackEvent({ eventName: 'ce_search_used', category: 'interaction' });
-      }
+      if (value) trackEvent({ eventName: 'ce_search_used', category: 'interaction' });
     }, 300);
   }, [trackEvent]);
 
@@ -70,20 +65,16 @@ export const CadernoErros: React.FC = () => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
-  const handleRefresh = useCallback(() => {
-    fetchEntries(filters);
-  }, [fetchEntries, filters]);
-
+  const handleRefresh = useCallback(() => { fetchEntries(filters); }, [fetchEntries, filters]);
   const hasFiltersActive = !!(filters.grande_area || filters.tema || filters.reason || filters.simulado_id || filters.search);
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-4xl lg:max-w-6xl space-y-6 sm:space-y-8">
-      {/* Premium Header */}
+      {/* ─── Premium Header ─── */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="space-y-1"
       >
         <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
           <div className="flex items-center gap-4">
@@ -105,19 +96,19 @@ export const CadernoErros: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setFlashcardOpen(true)}
-                className="gap-2 rounded-xl border-border/60 hover:bg-accent/50 hover:shadow-sm transition-all duration-200 flex-1 sm:flex-none h-9"
+                className="gap-2 rounded-xl border-border/50 hover:bg-accent/50 hover:shadow-sm transition-all duration-200 flex-1 sm:flex-none h-10 text-sm shadow-sm"
               >
                 <Brain className="h-4 w-4" />
-                <span className="sm:inline">Revisão</span>
+                Modo Revisão
               </Button>
             )}
             <Button
               size="sm"
               onClick={() => setManualFormOpen(true)}
-              className="gap-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 flex-1 sm:flex-none h-9"
+              className="gap-2 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 flex-1 sm:flex-none h-10 text-sm"
             >
               <PlusCircle className="h-4 w-4" />
-              <span className="sm:inline">Adicionar</span>
+              Adicionar
             </Button>
           </div>
         </div>
@@ -128,7 +119,7 @@ export const CadernoErros: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center gap-2 p-3.5 rounded-xl bg-destructive/8 border border-destructive/15 text-destructive text-sm"
+          className="flex items-center gap-3 p-4 rounded-xl bg-destructive/5 border border-destructive/15 text-destructive text-sm"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span className="flex-1">{error}</span>
@@ -136,29 +127,29 @@ export const CadernoErros: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Tab Layout */}
+      {/* ─── Tab Layout ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: 0.1 }}
+          transition={{ duration: 0.25, delay: 0.08 }}
         >
-          <TabsList className="bg-muted/50 border border-border/40 rounded-xl p-1 h-auto">
+          <TabsList className="bg-muted/40 border border-border/30 rounded-xl p-1 h-auto">
             <TabsTrigger
               value="erros"
-              className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
               <BookMarked className="h-4 w-4 mr-2" />
               Meus Erros
               {allEntries.length > 0 && (
-                <span className="ml-2 text-xs font-mono bg-muted/80 px-1.5 py-0.5 rounded-md">
+                <span className="ml-2 text-[11px] font-mono bg-muted/80 px-1.5 py-0.5 rounded-md tabular-nums">
                   {allEntries.length}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="evolucao"
-              className="rounded-lg px-4 py-2 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
               <Sparkles className="h-4 w-4 mr-2" />
               Evolução
@@ -172,15 +163,15 @@ export const CadernoErros: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0.15 }}
+            transition={{ duration: 0.25, delay: 0.12 }}
             className="relative"
           >
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
             <Input
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Buscar nos aprendizados..."
-              className="pl-10 h-11 rounded-xl bg-muted/30 border-border/40 focus-visible:ring-primary/20 focus-visible:border-primary/30 transition-all duration-200 text-sm"
+              className="pl-11 h-12 rounded-xl bg-card border-border/40 focus-visible:ring-primary/20 focus-visible:border-primary/30 transition-all duration-200 text-sm shadow-sm"
             />
           </motion.div>
 
@@ -188,7 +179,7 @@ export const CadernoErros: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25, delay: 0.2 }}
+            transition={{ duration: 0.25, delay: 0.16 }}
           >
             <ErrorNotebookFilters
               entries={allEntries.length > 0 ? allEntries : entries}
@@ -202,7 +193,7 @@ export const CadernoErros: React.FC = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.25 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
           >
             <ErrorNotebookList
               entries={entries}
@@ -227,15 +218,20 @@ export const CadernoErros: React.FC = () => {
               <AIInsightsCard entries={allEntries} />
             </motion.div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-                <Sparkles className="h-6 w-6 text-muted-foreground/50" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25 }}
+              className="flex flex-col items-center justify-center py-24 text-center"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-5 border border-border/20">
+                <Sparkles className="h-7 w-7 text-muted-foreground/40" />
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1.5">Sem dados de evolução</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
+              <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
                 Adicione registros ao seu caderno de erros para visualizar insights e evolução.
               </p>
-            </div>
+            </motion.div>
           )}
         </TabsContent>
       </Tabs>

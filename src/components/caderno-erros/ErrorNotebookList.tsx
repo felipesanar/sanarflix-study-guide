@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 
+console.log('[ErrorNotebookUI] ErrorNotebookList loaded');
+
 interface ErrorNotebookListProps {
   entries: ErrorNotebookEntry[];
   loading: boolean;
@@ -48,11 +50,15 @@ export const ErrorNotebookList: React.FC<ErrorNotebookListProps> = ({
       <div className="space-y-6">
         {[1, 2, 3].map(i => (
           <div key={i} className="space-y-3">
-            <Skeleton className="h-5 w-40 rounded-lg" />
-            <Skeleton className="h-4 w-28 rounded-lg" />
-            <div className="space-y-3">
-              <Skeleton className="h-28 w-full rounded-2xl" />
-              <Skeleton className="h-28 w-full rounded-2xl" />
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-1 w-5 rounded-full" />
+              <Skeleton className="h-5 w-32 rounded-lg" />
+              <Skeleton className="h-5 w-8 rounded-full" />
+            </div>
+            <div className="pl-5 space-y-3">
+              <Skeleton className="h-4 w-28 rounded-lg" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
+              <Skeleton className="h-24 w-full rounded-2xl" />
             </div>
           </div>
         ))}
@@ -78,9 +84,9 @@ export const ErrorNotebookList: React.FC<ErrorNotebookListProps> = ({
           >
             {/* Grande Área header */}
             <div className="flex items-center gap-3">
-              <div className="w-1 h-6 rounded-full bg-primary/40" />
+              <div className="w-1 h-6 rounded-full bg-primary/30" />
               <h2 className="text-base font-bold text-foreground tracking-tight">{area}</h2>
-              <Badge variant="secondary" className="text-[10px] font-mono rounded-full px-2 py-0 h-5 bg-muted/60">
+              <Badge variant="secondary" className="text-[10px] font-mono rounded-full px-2 py-0 h-5 bg-muted/50 tabular-nums">
                 {areaEntryCount}
               </Badge>
             </div>
@@ -96,10 +102,10 @@ export const ErrorNotebookList: React.FC<ErrorNotebookListProps> = ({
                   className="space-y-2.5 pl-4 sm:pl-5"
                 >
                   {/* Tema subheader */}
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-muted-foreground">{tema}</h3>
-                    <div className="flex-1 border-t border-dashed border-border/30" />
-                    <span className="text-[10px] font-mono text-muted-foreground/50">{items.length}</span>
+                  <div className="flex items-center gap-2.5">
+                    <h3 className="text-sm font-medium text-muted-foreground/80">{tema}</h3>
+                    <div className="flex-1 border-t border-dashed border-border/20" />
+                    <span className="text-[10px] font-mono text-muted-foreground/40 tabular-nums">{items.length}</span>
                   </div>
 
                   {/* Items */}
