@@ -29,7 +29,7 @@ const StatusIcon = ({ status }: { status: ProgressOverview['status_level'] }) =>
     accelerating: Zap,
     dominating: Crown
   };
-  const Icon = icons[status];
+  const Icon = icons[status] || TrendingUp;
   return <Icon className="h-4 w-4" aria-hidden="true" />;
 };
 

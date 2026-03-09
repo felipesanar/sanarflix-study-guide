@@ -83,6 +83,7 @@ export const useAnalyticsTracker = () => {
 
   // Process queue with retry logic
   const processQueue = useCallback(async () => {
+    if (isImpersonating) return;
     if (processingRef.current || eventQueueRef.current.length === 0) return;
     processingRef.current = true;
 
@@ -141,7 +142,7 @@ export const useAnalyticsTracker = () => {
     if (eventQueueRef.current.length > 0) {
       setTimeout(processQueue, 100);
     }
-  }, [user?.id, user?.id_ies, user?.semestre, baseContext]);
+  }, [user?.id, user?.id_ies, user?.semestre, baseContext, isImpersonating]);
 
   // Main track function with validation, dedupe, and rate limiting
   const trackEvent = useCallback(async ({
@@ -199,7 +200,7 @@ export const useAnalyticsTracker = () => {
 
     // Process queue
     processQueue();
-  }, [processQueue]);
+  }, [processQueue, isImpersonating]);
 
   // ===== STUDY GUIDE SPECIFIC EVENTS =====
   
