@@ -114,11 +114,18 @@ export default function UpdatePassword() {
         }
 
         try {
-            const { error: updError } = await supabase.auth.updateUser({
-                password,
-                data: { must_change_password: false }
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) throw new Error('Sessão expirada. Solicite um novo link.');
+
+            const res = await supabase.functions.invoke('update-password', {
+                body: { newPassword: password },
             });
-            if (updError) throw updError;
+            if (res.error || !res.data?.success) {
+                throw new Error(res.data?.error || 'Erro ao definir senha.');
+            }
+
+            // Clear must_change_password flag (metadata-only update, no reauth needed)
+            await supabase.auth.updateUser({ data: { must_change_password: false } });
 
             toast.success('Senha definida com sucesso! Faça login para continuar.');
             navigate('/login');
