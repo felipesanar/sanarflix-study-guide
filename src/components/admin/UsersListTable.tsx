@@ -133,6 +133,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
   const cancelRef = useRef(false);
 
+  // Support panel state
+  const [supportUserId, setSupportUserId] = useState<string | null>(null);
+  const [supportUserName, setSupportUserName] = useState('');
+  const [supportOpen, setSupportOpen] = useState(false);
+
   // Clear selection on page/filter change
   useEffect(() => {
     setSelectedIds(new Set());
