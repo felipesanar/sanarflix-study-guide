@@ -1,81 +1,40 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Audit: Impersonation Not Working Correctly
 
-### Causa Raiz Identificada
+### Problems Found
 
-Analisando os logs de autenticacao, o problema fica evidente:
+**1. Dashboard hidden in sidebar for non-admin users (BUG)**
+In `AppSidebar.tsx` line 160-163, the "Seu progresso" (dashboard) menu item uses `isAdmin(user)` instead of `accessRules.dashboard`. During impersonation, `user` is the student, so `isAdmin()` returns false and the dashboard is hidden — even though Fame has Dashboard enabled in IES features.
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
+**2. Simulados not filtered by student's IES**
+`simuladosApi.listarSimulados()` queries `simulados_admin` without filtering by `ies_ids`. It relies on RLS, but during impersonation `auth.uid()` is still the admin (who has global access), so ALL simulados from all institutions appear instead of only those assigned to the student's IES.
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+**3. Progress Hub uses admin's JWT**
+`useProgressHub` calls the `get-progress-hub` edge function which uses the JWT token to identify the user. During impersonation, the JWT belongs to the admin, so it returns admin's progress data, not the student's.
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+### Fix Plan
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+**File 1: `src/components/AppSidebar.tsx`** — Fix dashboard visibility
+- Line 160-163: Change `return isAdmin(user)` to `return accessRules[item.accessKey]` so Dashboard shows for any user whose IES has it enabled.
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+**File 2: `src/services/simuladosApi.ts`** — Add IES filtering
+- Accept optional `userIesId` parameter in `listarSimulados()`
+- After fetching simulados, filter by `ies_ids.includes(userIesId)` when the parameter is provided
+- This ensures students (and impersonated views) only see their IES's simulados
 
-### Solucao
+**File 3: `src/components/simulados/SimuladosDisponiveis.tsx`** — Pass user IES to API
+- Pass `user.id_ies` to `simuladosApi.listarSimulados(user.id_ies)` so the filtering works for both regular students and impersonation
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+**File 4: `src/hooks/useProgressHub.ts`** — Support impersonation in progress data
+- When `isImpersonating` is true, call `admin-user-support` edge function with section `progress` instead of `get-progress-hub`
+- This uses the service role to fetch the student's actual data rather than the admin's JWT-scoped data
 
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
+**File 5: `src/contexts/AuthContext.tsx`** — Expose `realAdminUser` for impersonation checks
+- Add `realAdminUser` to the context so hooks can detect impersonation and access the admin's identity when needed for edge function calls
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+**File 6: `src/types/index.ts`** — Add `realAdminUser` to AuthContextType
 
----
-
-### Mudancas
-
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+### Summary
+Three distinct bugs: sidebar hiding dashboard for students, simulados showing all IES data, and progress using admin's JWT. All stem from the impersonation being a visual-only swap without adjusting data queries.
 
