@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
 
 export const simuladosApi = {
-  async listarSimulados(): Promise<Simulado[]> {
+  async listarSimulados(userIesId?: string): Promise<Simulado[]> {
     // Obter data/hora atual em UTC para comparar com timestamps do banco
     const agoraISO = new Date().toISOString();
 
