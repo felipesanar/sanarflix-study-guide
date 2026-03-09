@@ -103,6 +103,7 @@ const ITEMS_PER_PAGE = 25;
 const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
 
 export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStatsUpdate }) => {
+  const { startImpersonation } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
