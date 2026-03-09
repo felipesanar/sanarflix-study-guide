@@ -1,81 +1,46 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Bug Found: Invalid Enum Value in Trigger Breaks All Student Profile Updates
 
-### Causa Raiz Identificada
+### Root Cause
 
-Analisando os logs de autenticacao, o problema fica evidente:
+The `validate_user_update` trigger on the `users` table contains this line:
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+```sql
+IF public.has_role(auth.uid(), 'coordenador') THEN RETURN NEW; END IF;
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
-
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+**`'coordenador'` is not a valid value in the `app_role` enum** (valid values: `admin`, `moderator`, `user`, `b2b_partner`, `professor`). This causes a PostgreSQL error:
 
 ```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+ERROR: 22P02: invalid input value for enum app_role: "coordenador"
 ```
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+This error fires for **every non-admin, non-service-role UPDATE** to the `users` table — because admins and service_role return early before hitting this line, but all regular students reach it and crash.
 
-### Solucao
+### Impact
 
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+- Students cannot change their semester
+- Students cannot change their name
+- Only admins and service_role updates work (they bypass via early return)
 
-**Novo formato do link:**
+### Fix
+
+**Single SQL migration** — Replace the trigger function, removing the invalid `'coordenador'` reference:
+
+```sql
+CREATE OR REPLACE FUNCTION public.validate_user_update()
+  -- Same function but remove the line:
+  -- IF public.has_role(auth.uid(), 'coordenador') THEN RETURN NEW; END IF;
 ```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
 
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+If `coordenador` role is needed in the future, it should first be added to the `app_role` enum. For now, removing the reference fixes the issue immediately.
 
----
+### Secondary Issue
 
-### Mudancas
+The trigger's admin bypass returns `NEW` **before** setting `semestre_updated_at`, so admin semester changes don't record the cooldown timestamp. This should also be fixed by moving the `semestre_updated_at` assignment before the admin bypass, or handling it separately.
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+### No Frontend Changes Needed
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+The frontend code in `EditProfileSheet.tsx` is correct. The bug is entirely in the database trigger.
 
