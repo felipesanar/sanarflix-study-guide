@@ -95,9 +95,21 @@ export const UsersTab: React.FC = () => {
       });
 
       if (error || !data?.success) {
-        const msg = error?.message || data?.error || 'Erro ao criar usuário';
-        toast.error(msg);
-        addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+        let msg = data?.error || 'Erro ao criar usuário';
+        let details = data?.details;
+
+        // Extract actual error from FunctionsHttpError response body
+        if (error && !data) {
+          try {
+            const errorBody = await (error as any).context?.json?.();
+            if (errorBody?.error) msg = errorBody.error;
+            if (errorBody?.details) details = errorBody.details;
+          } catch { /* use fallback */ }
+        }
+
+        const displayMsg = details ? `${msg}: ${details}` : msg;
+        toast.error(displayMsg);
+        addLog(`Erro ao criar ${singleUser.email}: ${displayMsg}`);
         return;
       }
 
