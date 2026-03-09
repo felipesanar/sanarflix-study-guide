@@ -79,7 +79,7 @@ export const useSessionTracker = () => {
       sessionRef.current = session;
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     }
-  }, [user?.id, user?.id_ies]);
+  }, [user?.id, user?.id_ies, isImpersonating]);
 
   // Registrar page view
   const trackPageView = useCallback(async (path: string) => {
