@@ -54,6 +54,7 @@ export interface AuthContextType {
   // Impersonation
   impersonatedUser: User | null;
   isImpersonating: boolean;
+  realAdminUser: User | null;
   startImpersonation: (userId: string) => Promise<void>;
   stopImpersonation: () => void;
 }

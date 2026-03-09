@@ -68,7 +68,22 @@ export function useProgressHub() {
       }
       setError(null);
 
-      const { data: response, error: fetchError } = await supabase.functions.invoke('get-progress-hub');
+      // When impersonating, use admin-user-support to fetch the student's data
+      let response: any;
+      let fetchError: any;
+
+      if (isImpersonating && impersonatedUser?.id) {
+        Logger.debug('useProgressHub: fetching via impersonation', { userId: impersonatedUser.id });
+        const result = await supabase.functions.invoke('admin-user-support', {
+          body: { userId: impersonatedUser.id, section: 'progress_hub' },
+        });
+        response = result.data;
+        fetchError = result.error;
+      } else {
+        const result = await supabase.functions.invoke('get-progress-hub');
+        response = result.data;
+        fetchError = result.error;
+      }
 
       if (fetchError) {
         console.error('Progress hub fetch error:', fetchError);

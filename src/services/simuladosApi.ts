@@ -49,7 +49,12 @@ export const simuladosApi = {
       }
     }
 
-    return simuladosDisponiveis.map(s => ({
+    // Filter by IES when provided (important for impersonation & regular students)
+    const simuladosFiltradosPorIes = userIesId
+      ? simuladosDisponiveis.filter(s => Array.isArray(s.ies_ids) && s.ies_ids.includes(userIesId))
+      : simuladosDisponiveis;
+
+    return simuladosFiltradosPorIes.map(s => ({
       id: s.id,
       titulo: s.nome || `Simulado ${s.id}`,
       descricao: s.descricao,

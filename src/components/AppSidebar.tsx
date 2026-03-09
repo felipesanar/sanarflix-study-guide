@@ -158,7 +158,7 @@ export function AppSidebar() {
   // Filter visible study guide subitems
   const visibleStudyGuideItems = studyGuideItems.filter((item) => {
     if (item.accessKey === "dashboard") {
-      return isAdmin(user);
+      return accessRules.dashboard;
     }
     return accessRules[item.accessKey];
   });
