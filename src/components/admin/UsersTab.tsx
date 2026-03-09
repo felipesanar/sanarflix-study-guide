@@ -284,11 +284,20 @@ export const UsersTab: React.FC = () => {
             });
 
             if (error || !data?.success) {
-              // Fix #3: Capture details from VALIDATION_ERROR responses
-              const errorMsg = data?.details || error?.message || data?.error || 'Erro desconhecido';
+              let errorMsg = data?.details || data?.error || 'Erro desconhecido';
+              let errorCode = data?.code || 'INTERNAL_ERROR';
+
+              if (error && !data) {
+                try {
+                  const errorBody = await (error as any).context?.json?.();
+                  if (errorBody?.error) errorMsg = errorBody.details ? `${errorBody.error}: ${errorBody.details}` : errorBody.error;
+                  if (errorBody?.code) errorCode = errorBody.code;
+                } catch { /* use fallback */ }
+              }
+
               return {
                 email: user.email, nome: user.nome, linha: user.linha, success: false as const,
-                error: { code: data?.code || 'INTERNAL_ERROR', message: errorMsg },
+                error: { code: errorCode, message: errorMsg },
               };
             }
 
