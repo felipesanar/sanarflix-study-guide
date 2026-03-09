@@ -30,7 +30,7 @@ const readCacheSync = (): ProgressHubData | null => {
 };
 
 export function useProgressHub() {
-  const { user } = useAuth();
+  const { user, isImpersonating, impersonatedUser } = useAuth();
   
   // Initialize with cached data if available
   const cachedData = useMemo(() => readCacheSync(), []);
