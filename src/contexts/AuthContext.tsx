@@ -186,29 +186,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.functions.invoke('auth-login', {
         body: { email: normalizedEmail, password }
       });
-      Logger.debug('login_edge_function_response', { hasData: !!data, hasError: !!error, status: (error as any)?.context?.status });
+      const edgeStatus = (error as any)?.context?.status;
+      Logger.debug('login_edge_function_response', { hasData: !!data, hasError: !!error, status: edgeStatus });
 
-      let contextualMessage: string | undefined;
-      const maybeBody = (error as any)?.context?.body;
-      if (!data?.error && typeof maybeBody === 'string') {
-        try {
-          const parsed = JSON.parse(maybeBody);
-          if (parsed?.error) contextualMessage = String(parsed.error);
-        } catch {
-          // ignore
+      // Extract error message from edge function response body (even on non-2xx)
+      let edgeErrorMessage: string | undefined;
+      if (error) {
+        const maybeBody = (error as any)?.context?.body;
+        if (typeof maybeBody === 'string') {
+          try {
+            const parsed = JSON.parse(maybeBody);
+            if (parsed?.error) edgeErrorMessage = String(parsed.error);
+          } catch {
+            // not JSON
+          }
+        }
+        // Also check if data was returned alongside the error (some SDK versions)
+        if (!edgeErrorMessage && data?.error) {
+          edgeErrorMessage = String(data.error);
         }
       }
 
-      const errorMessage = data?.error || contextualMessage || error?.message;
-      
+      const errorMessage = data?.error || edgeErrorMessage;
+
+      // Determine user-friendly message based on HTTP status
       if (error && !data) {
-        Logger.error('Login communication error', error);
-        Logger.debug('login_error_context', { status: (error as any)?.context?.status, body: (error as any)?.context?.body });
+        const isAuthError = edgeStatus === 401 || edgeStatus === 404;
+        const isServerError = edgeStatus >= 500;
+        
+        let description: string;
+        if (isAuthError && edgeErrorMessage) {
+          // Edge function returned a known auth error (invalid credentials, profile not found)
+          description = edgeErrorMessage;
+        } else if (isAuthError) {
+          description = 'Email ou senha inválidos. Verifique suas credenciais.';
+        } else if (isServerError) {
+          description = 'Erro interno do servidor. Tente novamente em instantes.';
+        } else if (!navigator.onLine) {
+          description = 'Sem conexão com a internet. Verifique sua rede.';
+        } else {
+          description = 'Erro de comunicação com o servidor. Verifique sua conexão e tente novamente.';
+        }
+
+        Logger.warn('Login error', { status: edgeStatus, edgeErrorMessage, online: navigator.onLine });
         toast({
           title: "Erro no login",
-          description: "Erro de comunicação com o servidor. Verifique sua conexão.",
+          description,
           variant: "destructive",
-          duration: 3000,
+          duration: 4000,
         });
         setIsLoading(false);
         return false;
