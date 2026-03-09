@@ -83,6 +83,7 @@ export const useAnalyticsTracker = () => {
 
   // Process queue with retry logic
   const processQueue = useCallback(async () => {
+    if (isImpersonating) return;
     if (processingRef.current || eventQueueRef.current.length === 0) return;
     processingRef.current = true;
 
