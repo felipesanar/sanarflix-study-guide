@@ -1,81 +1,61 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Audit: Resend Email Flow and Token Consumption Fix
 
-### Causa Raiz Identificada
+### Problem Identified
 
-Analisando os logs de autenticacao, o problema fica evidente:
+The resend flow for `amandarochazevedo@gmail.com` works correctly on the server side (logs confirm token generation and Novu email delivery). The issue is that when the student clicks the link, `verifyOtp` fails with "Link inválido".
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+**Root cause**: The `UpdatePassword` page auto-calls `verifyOtp()` on page load inside a `useEffect`. Email security scanners (Gmail Safe Browsing, Microsoft Safe Links, corporate proxies) load the page in a headless browser and **execute JavaScript**, which calls `verifyOtp()` and consumes the one-time token before the real user clicks.
+
+**Secondary issue**: The `custom-email-templates` (invite-user.tsx, reset-password.tsx) still generate links pointing to the old vulnerable Supabase server-side verify endpoint (`supabase.co/auth/v1/verify?token=...`), which is consumed by ANY HTTP GET request from bots.
+
+### Fix (3 files)
+
+#### 1. `src/pages/UpdatePassword.tsx` — Defer `verifyOtp` behind user click
+
+Instead of auto-calling `verifyOtp` on page load, show a "Validar meu acesso" button. Only call `verifyOtp` when the user clicks. Bots don't click buttons.
+
+```
+Page loads with token_hash in URL
+  → Show card: "Clique para validar seu acesso" [button]
+  → User clicks → verifyOtp() → success → show password form
+  → If fail → show error + "Solicite um novo link"
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+The `useEffect` will only extract and store the params. The actual `verifyOtp` call moves to a button click handler.
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+#### 2. `supabase/functions/custom-email-templates/_templates/invite-user.tsx` — Frontend-direct link
 
+Change line 31 from:
 ```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=...
 ```
-
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
-
-### Solucao
-
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
-
-**Novo formato do link:**
+To:
 ```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+https://academy.sanar.com.br/auth/update-password?token_hash=${token_hash}&type=${email_action_type}
 ```
 
-Em vez de:
+This makes the invite template consistent with the Novu flow — links go to the frontend, not to the Supabase verify endpoint.
+
+#### 3. `supabase/functions/custom-email-templates/_templates/reset-password.tsx` — Frontend-direct link
+
+Same change as above but for recovery emails. Change line 58 from the Supabase verify URL to:
 ```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+https://academy.sanar.com.br/auth/update-password?token_hash=${token_hash}&type=${email_action_type}
 ```
 
----
+#### 4. Deploy edge functions
 
-### Mudancas
+Deploy `custom-email-templates` after template changes.
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+### Why this is the definitive fix
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+- The button-click approach is the **only** 100% reliable way to prevent bot token consumption — no scanner clicks buttons
+- The template updates ensure that even if `custom-email-templates` is triggered (e.g., via Supabase's built-in auth flows), links are safe
+- The Novu flow already generates correct links (confirmed by logs) — no changes needed there
 
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+### UX Impact
 
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+One extra tap for the student (click "Validar meu acesso" before seeing the password form). This is a minor trade-off for guaranteed reliability.
 
