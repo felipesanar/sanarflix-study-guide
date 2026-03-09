@@ -14,6 +14,7 @@ import { useSessionTracker } from '@/hooks/useSessionTracker';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
 import { SemesterPromptBanner } from './SemesterPromptBanner';
+import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
 
 interface LayoutProps {
   children: React.ReactNode;
