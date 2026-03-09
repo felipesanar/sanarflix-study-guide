@@ -50,7 +50,11 @@ import {
   Loader2,
   AlertCircle,
   Trash2,
+  Eye,
+  UserCheck,
 } from 'lucide-react';
+import { UserSupportPanel } from './UserSupportPanel';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface IES {
   id: string;
@@ -99,6 +103,7 @@ const ITEMS_PER_PAGE = 25;
 const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
 
 export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStatsUpdate }) => {
+  const { startImpersonation } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,6 +132,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
   const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
   const cancelRef = useRef(false);
+
+  // Support panel state
+  const [supportUserId, setSupportUserId] = useState<string | null>(null);
+  const [supportUserName, setSupportUserName] = useState('');
+  const [supportOpen, setSupportOpen] = useState(false);
 
   // Clear selection on page/filter change
   useEffect(() => {
@@ -809,6 +819,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setSupportUserId(user.id);
+                                  setSupportUserName(user.nome);
+                                  setSupportOpen(true);
+                                }}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Detalhes
+                                </DropdownMenuItem>
+                                {!isAdmin && (
+                                  <DropdownMenuItem onClick={() => startImpersonation(user.id)}>
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Acessar como Aluno
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => resendInvite(user)}>
                                   <Mail className="h-4 w-4 mr-2" />
                                   Reenviar Convite
@@ -958,6 +983,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* User Support Panel */}
+        <UserSupportPanel
+          userId={supportUserId}
+          userName={supportUserName}
+          open={supportOpen}
+          onOpenChange={setSupportOpen}
+        />
       </CardContent>
     </Card>
   );

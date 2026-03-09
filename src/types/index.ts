@@ -51,6 +51,11 @@ export interface AuthContextType {
   needsPasswordChange: boolean;
   changePassword: (newPassword: string) => Promise<boolean>;
   forceRefreshProfile: () => Promise<void>;
+  // Impersonation
+  impersonatedUser: User | null;
+  isImpersonating: boolean;
+  startImpersonation: (userId: string) => Promise<void>;
+  stopImpersonation: () => void;
 }
 
 export interface StudyContextType {
