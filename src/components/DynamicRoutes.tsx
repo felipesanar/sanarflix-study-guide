@@ -57,7 +57,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
  * 3. Aluno B2B → features dinâmicas da tabela ies_features
  */
 export const DynamicRoutes: React.FC = () => {
-  const { needsPasswordChange } = useAuth();
+  const { user, needsPasswordChange } = useAuth();
   const { accessRules, loading } = useAccessRules();
 
   // Mostrar skeleton enquanto carrega as features do banco
@@ -269,8 +269,8 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/desempenho-institucional" element={<Navigate to="/simulados" replace />} />
           )}
 
-          {/* Caderno de Erros - Controlado dinamicamente por ies_features */}
-          {accessRules.errorNotebook ? (
+          {/* Caderno de Erros - Apenas para administradores */}
+          {accessRules.errorNotebook && user?.roles?.includes('admin') ? (
             <Route
               path="/caderno-de-erros"
               element={
