@@ -410,15 +410,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await refreshUserProfile(user.id);
   }, [user?.id, refreshUserProfile]);
 
+  const startImpersonation = useCallback(async (userId: string) => {
+    if (!user?.roles?.includes('admin')) {
+      toast({ title: 'Sem permissão', description: 'Apenas admins podem usar este recurso', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-user-support', {
+        body: { userId, section: 'impersonate' },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      
+      setRealAdminUser(user);
+      setImpersonatedUser(data as User);
+      setUser(data as User);
+      
+      toast({ title: 'Impersonação ativa', description: `Visualizando como ${data.nome}` });
+    } catch (err) {
+      toast({ title: 'Erro ao impersonar', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
+    }
+  }, [user]);
+
+  const stopImpersonation = useCallback(() => {
+    if (realAdminUser) {
+      setUser(realAdminUser);
+      setImpersonatedUser(null);
+      setRealAdminUser(null);
+      toast({ title: 'Impersonação encerrada', description: 'Você voltou à sua conta admin' });
+    }
+  }, [realAdminUser]);
+
   return (
     <AuthContext.Provider value={{ 
-      user, 
+      user: impersonatedUser || user, 
       login, 
       logout, 
       isLoading, 
       needsPasswordChange, 
       changePassword,
       forceRefreshProfile,
+      impersonatedUser,
+      isImpersonating: !!impersonatedUser,
+      startImpersonation,
+      stopImpersonation,
     }}>
       {children}
     </AuthContext.Provider>
