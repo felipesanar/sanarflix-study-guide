@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { ProgressHubData } from '@/types/progressHub';
+import Logger from '@/utils/logger';
 
 const CACHE_KEY = 'progress_hub_data';
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
