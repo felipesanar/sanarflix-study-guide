@@ -16,6 +16,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const lastRefreshRef = useRef<number>(0);
 
+  // Impersonation state
+  const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
+  const [realAdminUser, setRealAdminUser] = useState<User | null>(null);
+
   /**
    * Fetches fresh user profile from public.users + ies + roles,
    * updating state and localStorage cache.
