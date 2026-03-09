@@ -42,6 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <PasswordDialogProvider>
       <OfflineIndicator />
+      <ImpersonationBanner />
       <SidebarProvider>
         {/* Desktop Sidebar */}
         {!isModoProva && <AppSidebar />}

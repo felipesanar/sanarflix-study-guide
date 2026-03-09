@@ -50,7 +50,11 @@ import {
   Loader2,
   AlertCircle,
   Trash2,
+  Eye,
+  UserCheck,
 } from 'lucide-react';
+import { UserSupportPanel } from './UserSupportPanel';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface IES {
   id: string;
