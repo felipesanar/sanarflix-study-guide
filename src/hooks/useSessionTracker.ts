@@ -27,7 +27,7 @@ export const useSessionTracker = () => {
 
   // Inicializar ou recuperar sessão
   const initSession = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || isImpersonating) return;
 
     let session = sessionRef.current;
 
