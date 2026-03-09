@@ -83,7 +83,7 @@ export const useSessionTracker = () => {
 
   // Registrar page view
   const trackPageView = useCallback(async (path: string) => {
-    if (!user?.id || !sessionRef.current) return;
+    if (!user?.id || !sessionRef.current || isImpersonating) return;
 
     const session = sessionRef.current;
     
