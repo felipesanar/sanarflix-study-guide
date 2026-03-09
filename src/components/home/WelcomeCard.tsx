@@ -126,7 +126,7 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.4 }}
-                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight truncate max-w-[240px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-none"
+                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight break-words"
               >
                 {user?.nome || 'Estudante'}
               </motion.h1>
