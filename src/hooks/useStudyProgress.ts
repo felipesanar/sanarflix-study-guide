@@ -159,8 +159,7 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         .from('study_progress')
         .select('*')
         .eq('user_id', user.id)
-        .eq('semestre', semestre)
-        .eq('ies_nome', iesNome);
+        .eq('semestre', semestre);
 
       if (error) {
         throw error;
