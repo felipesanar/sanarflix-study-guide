@@ -43,8 +43,13 @@ const AppContent = () => {
   // Prefetch de dados das rotas adjacentes
   useDataPrefetch();
 
-  // Rotas públicas (usuário não autenticado)
-  if (!user) {
+  // Check if we're on the update-password page — always show it even if authenticated
+  // because the user may have been auto-authenticated by detectSessionInUrl consuming
+  // the recovery token, and still needs to set their password.
+  const isUpdatePasswordPage = window.location.pathname === '/auth/update-password';
+
+  // Rotas públicas (usuário não autenticado OR on update-password page)
+  if (!user || isUpdatePasswordPage) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <Routes>
