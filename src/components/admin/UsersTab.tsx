@@ -95,9 +95,21 @@ export const UsersTab: React.FC = () => {
       });
 
       if (error || !data?.success) {
-        const msg = error?.message || data?.error || 'Erro ao criar usuário';
-        toast.error(msg);
-        addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+        let msg = data?.error || 'Erro ao criar usuário';
+        let details = data?.details;
+
+        // Extract actual error from FunctionsHttpError response body
+        if (error && !data) {
+          try {
+            const errorBody = await (error as any).context?.json?.();
+            if (errorBody?.error) msg = errorBody.error;
+            if (errorBody?.details) details = errorBody.details;
+          } catch { /* use fallback */ }
+        }
+
+        const displayMsg = details ? `${msg}: ${details}` : msg;
+        toast.error(displayMsg);
+        addLog(`Erro ao criar ${singleUser.email}: ${displayMsg}`);
         return;
       }
 
@@ -272,11 +284,20 @@ export const UsersTab: React.FC = () => {
             });
 
             if (error || !data?.success) {
-              // Fix #3: Capture details from VALIDATION_ERROR responses
-              const errorMsg = data?.details || error?.message || data?.error || 'Erro desconhecido';
+              let errorMsg = data?.details || data?.error || 'Erro desconhecido';
+              let errorCode = data?.code || 'INTERNAL_ERROR';
+
+              if (error && !data) {
+                try {
+                  const errorBody = await (error as any).context?.json?.();
+                  if (errorBody?.error) errorMsg = errorBody.details ? `${errorBody.error}: ${errorBody.details}` : errorBody.error;
+                  if (errorBody?.code) errorCode = errorBody.code;
+                } catch { /* use fallback */ }
+              }
+
               return {
                 email: user.email, nome: user.nome, linha: user.linha, success: false as const,
-                error: { code: data?.code || 'INTERNAL_ERROR', message: errorMsg },
+                error: { code: errorCode, message: errorMsg },
               };
             }
 
