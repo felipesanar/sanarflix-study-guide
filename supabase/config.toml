@@ -91,3 +91,6 @@ verify_jwt = false
 
 [functions.analyze-error-patterns]
 verify_jwt = false
+
+[functions.admin-user-support]
+verify_jwt = false
