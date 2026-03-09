@@ -7,24 +7,28 @@ import { SimuladosDisponiveis } from '@/components/simulados/SimuladosDisponivei
 import { SimuladoDesempenho } from './SimuladoDesempenho';
 import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const Simulados = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [abaAtiva, setAbaAtiva] = useState('disponiveis');
   const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  const isAdmin = user?.roles?.includes('admin') ?? false;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const abaParam = params.get('aba');
     if (abaParam === 'desempenho') {
       setAbaAtiva('desempenho');
-    } else if (abaParam === 'correcao') {
+    } else if (abaParam === 'correcao' && isAdmin) {
       setAbaAtiva('correcao');
     } else {
       setAbaAtiva('disponiveis');
     }
-  }, [location.search]);
+  }, [location.search, isAdmin]);
 
   const handleTabChange = (val: string) => {
     setAbaAtiva(val);
@@ -58,7 +62,7 @@ export const Simulados = () => {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-3 mb-8">
+        <TabsList className={`grid w-full max-w-lg ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-8`}>
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Simulados</span>
@@ -69,11 +73,13 @@ export const Simulados = () => {
             <span className="hidden sm:inline">Desempenho</span>
             <span className="sm:hidden text-xs">Desempenho</span>
           </TabsTrigger>
-          <TabsTrigger value="correcao" className="gap-2">
-            <ClipboardCheck className="h-4 w-4" />
-            <span className="hidden sm:inline">Correção</span>
-            <span className="sm:hidden text-xs">Correção</span>
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="correcao" className="gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Correção</span>
+              <span className="sm:hidden text-xs">Correção</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="disponiveis" className="mt-0">
@@ -84,9 +90,11 @@ export const Simulados = () => {
           <SimuladoDesempenho />
         </TabsContent>
 
-        <TabsContent value="correcao" className="mt-0">
-          <SimuladoCorrecao />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="correcao" className="mt-0">
+            <SimuladoCorrecao />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Modal do tutorial */}
