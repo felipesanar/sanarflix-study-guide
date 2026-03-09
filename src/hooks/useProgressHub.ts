@@ -117,7 +117,17 @@ export function useProgressHub() {
       setLoading(false);
       setSyncing(false);
     }
-  }, [user?.id, cachedData, saveToCache, streakGoal]);
+  }, [user?.id, isImpersonating, cachedData, saveToCache, streakGoal]);
+
+  // Reset fetch when impersonated user changes
+  useEffect(() => {
+    if (isImpersonating) {
+      fetchedRef.current = false;
+      setData(null);
+      setLoading(true);
+      fetchData(true);
+    }
+  }, [isImpersonating, impersonatedUser?.id]);
 
   // Initial fetch
   useEffect(() => {
