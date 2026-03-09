@@ -200,7 +200,7 @@ export const useAnalyticsTracker = () => {
 
     // Process queue
     processQueue();
-  }, [processQueue]);
+  }, [processQueue, isImpersonating]);
 
   // ===== STUDY GUIDE SPECIFIC EVENTS =====
   
