@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { ProgressHubData } from '@/types/progressHub';
+import Logger from '@/utils/logger';
 
 const CACHE_KEY = 'progress_hub_data';
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
@@ -29,7 +30,7 @@ const readCacheSync = (): ProgressHubData | null => {
 };
 
 export function useProgressHub() {
-  const { user } = useAuth();
+  const { user, isImpersonating, impersonatedUser } = useAuth();
   
   // Initialize with cached data if available
   const cachedData = useMemo(() => readCacheSync(), []);
@@ -67,7 +68,22 @@ export function useProgressHub() {
       }
       setError(null);
 
-      const { data: response, error: fetchError } = await supabase.functions.invoke('get-progress-hub');
+      // When impersonating, use admin-user-support to fetch the student's data
+      let response: any;
+      let fetchError: any;
+
+      if (isImpersonating && impersonatedUser?.id) {
+        Logger.debug('useProgressHub: fetching via impersonation', { userId: impersonatedUser.id });
+        const result = await supabase.functions.invoke('admin-user-support', {
+          body: { userId: impersonatedUser.id, section: 'progress_hub' },
+        });
+        response = result.data;
+        fetchError = result.error;
+      } else {
+        const result = await supabase.functions.invoke('get-progress-hub');
+        response = result.data;
+        fetchError = result.error;
+      }
 
       if (fetchError) {
         console.error('Progress hub fetch error:', fetchError);
@@ -101,7 +117,17 @@ export function useProgressHub() {
       setLoading(false);
       setSyncing(false);
     }
-  }, [user?.id, cachedData, saveToCache, streakGoal]);
+  }, [user?.id, isImpersonating, cachedData, saveToCache, streakGoal]);
+
+  // Reset fetch when impersonated user changes
+  useEffect(() => {
+    if (isImpersonating) {
+      fetchedRef.current = false;
+      setData(null);
+      setLoading(true);
+      fetchData(true);
+    }
+  }, [isImpersonating, impersonatedUser?.id]);
 
   // Initial fetch
   useEffect(() => {

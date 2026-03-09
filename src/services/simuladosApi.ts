@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
 
 export const simuladosApi = {
-  async listarSimulados(): Promise<Simulado[]> {
+  async listarSimulados(userIesId?: string): Promise<Simulado[]> {
     // Obter data/hora atual em UTC para comparar com timestamps do banco
     const agoraISO = new Date().toISOString();
 
@@ -49,7 +49,12 @@ export const simuladosApi = {
       }
     }
 
-    return simuladosDisponiveis.map(s => ({
+    // Filter by IES when provided (important for impersonation & regular students)
+    const simuladosFiltradosPorIes = userIesId
+      ? simuladosDisponiveis.filter(s => Array.isArray(s.ies_ids) && s.ies_ids.includes(userIesId))
+      : simuladosDisponiveis;
+
+    return simuladosFiltradosPorIes.map(s => ({
       id: s.id,
       titulo: s.nome || `Simulado ${s.id}`,
       descricao: s.descricao,

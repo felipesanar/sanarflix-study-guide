@@ -238,6 +238,133 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "progress_hub": {
+        // Proxy to get-progress-hub for the target user by creating a temporary
+        // approach: call the RPC get_progress_hub_summary as admin for the target user
+        // Instead, we call the edge function with a special header
+        // Simplest: invoke get-progress-hub internally with admin override
+        
+        // Get target user data to build a scoped response
+        const { data: targetUser } = await admin
+          .from("users")
+          .select("id, id_ies, semestre, nome")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (!targetUser?.id_ies) {
+          result = { error: "Target user not found or has no IES" };
+          break;
+        }
+
+        // Fetch the progress hub data for this user using service role
+        // We replicate the core logic: contents, progress, streak
+        const userSemestre = targetUser.semestre;
+        
+        // Get contents for user's IES/semester
+        let conteudosQuery = admin
+          .from("conteudos")
+          .select("id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz")
+          .eq("id_ies", targetUser.id_ies);
+        
+        if (userSemestre) {
+          conteudosQuery = conteudosQuery.eq("semestre", String(userSemestre));
+        }
+
+        const [conteudosRes, progressRes, nodesRes] = await Promise.all([
+          conteudosQuery,
+          admin
+            .from("user_progress")
+            .select("content_id, completed_at")
+            .eq("user_id", userId),
+          admin
+            .from("user_progress_nodes")
+            .select("node_type, node_id, source, completed_at, metadata")
+            .eq("user_id", userId),
+        ]);
+
+        const conteudos = conteudosRes.data || [];
+        const progressSet = new Set((progressRes.data || []).map((p: any) => p.content_id));
+
+        // Build overview
+        const total = conteudos.length;
+        const completed = conteudos.filter((c: any) => progressSet.has(c.id)).length;
+
+        // Build by_materia
+        const materiaMap: Record<string, { total: number; completed: number }> = {};
+        const temaMap: Record<string, { materia: string; tema: string; total: number; completed: number }> = {};
+
+        for (const c of conteudos) {
+          // By materia
+          if (!materiaMap[c.materia]) materiaMap[c.materia] = { total: 0, completed: 0 };
+          materiaMap[c.materia].total++;
+          if (progressSet.has(c.id)) materiaMap[c.materia].completed++;
+
+          // By tema
+          if (c.tema) {
+            const key = `${c.materia}::${c.tema}`;
+            if (!temaMap[key]) temaMap[key] = { materia: c.materia, tema: c.tema, total: 0, completed: 0 };
+            temaMap[key].total++;
+            if (progressSet.has(c.id)) temaMap[key].completed++;
+          }
+        }
+
+        const by_materia = Object.entries(materiaMap).map(([materia, d]) => ({
+          materia,
+          total: d.total,
+          completed: d.completed,
+          percentage: d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0,
+        })).sort((a, b) => a.materia.localeCompare(b.materia));
+
+        const by_tema = Object.values(temaMap).map(d => ({
+          ...d,
+          percentage: d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0,
+        })).sort((a, b) => a.materia.localeCompare(b.materia) || a.tema.localeCompare(b.tema));
+
+        // Simple streak calc
+        const completionDates = (progressRes.data || [])
+          .map((p: any) => p.completed_at ? new Date(p.completed_at).toISOString().split("T")[0] : null)
+          .filter(Boolean);
+        const uniqueDays = [...new Set(completionDates)].sort().reverse();
+        
+        let currentStreak = 0;
+        const today = new Date().toISOString().split("T")[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+        
+        if (uniqueDays[0] === today || uniqueDays[0] === yesterday) {
+          for (let i = 0; i < uniqueDays.length; i++) {
+            const expected = new Date(Date.now() - i * 86400000).toISOString().split("T")[0];
+            if (uniqueDays[i] === expected) currentStreak++;
+            else break;
+          }
+        }
+
+        // Active days this week
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        const weekStartStr = weekStart.toISOString().split("T")[0];
+        const activeDaysThisWeek = uniqueDays.filter((d: any) => d >= weekStartStr).length;
+
+        result = {
+          overview: {
+            total,
+            completed,
+            percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+          },
+          by_materia,
+          by_tema,
+          streak: {
+            current: currentStreak,
+            goal: 3,
+            active_days_this_week: activeDaysThisWeek,
+            active_days_of_week: [],
+          },
+          weekly_evolution: [],
+          next_actions: [],
+          last_activity: null,
+        };
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: `Unknown section: ${section}` }), {
           status: 400,

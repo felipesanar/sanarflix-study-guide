@@ -451,6 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       forceRefreshProfile,
       impersonatedUser,
       isImpersonating: !!impersonatedUser,
+      realAdminUser,
       startImpersonation,
       stopImpersonation,
     }}>
