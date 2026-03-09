@@ -819,6 +819,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => {
+                                  setSupportUserId(user.id);
+                                  setSupportUserName(user.nome);
+                                  setSupportOpen(true);
+                                }}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver Detalhes
+                                </DropdownMenuItem>
+                                {!isAdmin && (
+                                  <DropdownMenuItem onClick={() => startImpersonation(user.id)}>
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Acessar como Aluno
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => resendInvite(user)}>
                                   <Mail className="h-4 w-4 mr-2" />
                                   Reenviar Convite
