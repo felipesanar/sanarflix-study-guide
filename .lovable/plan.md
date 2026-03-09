@@ -1,81 +1,25 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Fix: "Continuar estudos" button getting clipped by long names
 
-### Causa Raiz Identificada
+### Problem
+The user name `h1` has `truncate` with restrictive `max-w-[240px] sm:max-w-xs md:max-w-sm lg:max-w-md` which truncates long names. Meanwhile, the flex layout uses `xl:flex-row` so on screens below `xl`, name and button stack vertically — but on `xl+`, the name's `max-w` constraints still clip it. The button also gets clipped because the card has `overflow-hidden` and the layout doesn't wrap properly.
 
-Analisando os logs de autenticacao, o problema fica evidente:
+### Fix (line 129 in `WelcomeCard.tsx`)
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
+1. **Remove restrictive max-width on the name** — replace `truncate max-w-[240px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-none` with `break-words` so long names wrap naturally instead of being truncated or pushing the button off-screen.
+
+2. **Ensure the button never gets clipped** — the button container already has `flex-shrink-0 min-w-fit`, which is correct. The issue is the name forcing the row too wide. With `break-words` the name will wrap within its `flex-1` container.
+
+### Change
+**File: `src/components/home/WelcomeCard.tsx`**, line 129:
+```
+// Before:
+className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight truncate max-w-[240px] sm:max-w-xs md:max-w-sm lg:max-w-md xl:max-w-none"
+
+// After:
+className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight break-words"
 ```
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
-
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
-
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
-
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
-
-### Solucao
-
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
-
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
-
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
-
----
-
-### Mudancas
-
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
-
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+This lets long names wrap to a second line naturally while the button remains fully visible and never clipped.
 
