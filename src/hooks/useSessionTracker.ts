@@ -124,7 +124,7 @@ export const useSessionTracker = () => {
     } catch (err) {
       console.error('[SessionTracker] Error tracking page view:', err);
     }
-  }, [user?.id, user?.id_ies]);
+  }, [user?.id, user?.id_ies, isImpersonating]);
 
   // Finalizar sessão (ao sair da página)
   const endSession = useCallback(async () => {

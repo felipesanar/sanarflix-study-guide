@@ -106,7 +106,7 @@ export const ProgressSummaryCard: React.FC = () => {
   }
 
   const { overview, streak } = data;
-  const statusConfig = STATUS_CONFIG[overview.status_level];
+  const statusConfig = STATUS_CONFIG[overview.status_level] || STATUS_CONFIG.starting;
   const metGoal = streak.active_days_week >= streak.goal;
 
   const animationProps = shouldReduceMotion 

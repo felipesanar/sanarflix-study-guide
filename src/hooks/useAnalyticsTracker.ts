@@ -150,6 +150,9 @@ export const useAnalyticsTracker = () => {
     data = {},
     pagePath
   }: TrackEventParams) => {
+    // Skip tracking during impersonation to avoid RLS 403 errors
+    if (isImpersonating) return;
+
     // Rate limiting check
     const now = Date.now();
     if (now - eventCountRef.current.windowStart > RATE_LIMIT_WINDOW_MS) {
