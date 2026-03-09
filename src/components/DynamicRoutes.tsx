@@ -57,7 +57,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
  * 3. Aluno B2B → features dinâmicas da tabela ies_features
  */
 export const DynamicRoutes: React.FC = () => {
-  const { needsPasswordChange } = useAuth();
+  const { user, needsPasswordChange } = useAuth();
   const { accessRules, loading } = useAccessRules();
 
   // Mostrar skeleton enquanto carrega as features do banco
