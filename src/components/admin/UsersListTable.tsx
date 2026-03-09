@@ -809,6 +809,20 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                           </div>
                         ) : (
                           <div className="flex justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setSupportUserId(user.id);
+                                setSupportUserName(user.nome);
+                                setSupportOpen(true);
+                              }}
+                              className="h-8 w-8 p-0"
+                              disabled={batchProgress.active}
+                              title="Ver Detalhes"
+                            >
+                              <Eye className="h-4 w-4 text-primary" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={batchProgress.active}>
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -819,14 +833,6 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
-                                  setSupportUserId(user.id);
-                                  setSupportUserName(user.nome);
-                                  setSupportOpen(true);
-                                }}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalhes
-                                </DropdownMenuItem>
                                 {!isAdmin && (
                                   <DropdownMenuItem onClick={() => startImpersonation(user.id)}>
                                     <UserCheck className="h-4 w-4 mr-2" />
