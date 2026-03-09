@@ -18,7 +18,7 @@ interface SessionData {
  * Deve ser usado no componente raiz da aplicação
  */
 export const useSessionTracker = () => {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const location = useLocation();
   const sessionRef = useRef<SessionData | null>(null);
   const lastPageRef = useRef<string>('');
