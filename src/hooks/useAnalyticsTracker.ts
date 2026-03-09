@@ -142,7 +142,7 @@ export const useAnalyticsTracker = () => {
     if (eventQueueRef.current.length > 0) {
       setTimeout(processQueue, 100);
     }
-  }, [user?.id, user?.id_ies, user?.semestre, baseContext]);
+  }, [user?.id, user?.id_ies, user?.semestre, baseContext, isImpersonating]);
 
   // Main track function with validation, dedupe, and rate limiting
   const trackEvent = useCallback(async ({
