@@ -138,16 +138,22 @@ function ProfileTab({ data }: { data: any }) {
 }
 
 function ProgressTab({ data }: { data: any }) {
-  const progressCount = data.user_progress?.length || 0;
+  const legacyCount = data.user_progress?.length || 0;
+  const studyGuideCount = data.study_progress?.length || 0;
   const nodesCount = data.progress_nodes?.length || 0;
   const viewsCount = data.aula_views?.length || 0;
+  const totalCompleted = legacyCount + studyGuideCount;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg border p-3 text-center">
-          <p className="text-2xl font-bold text-primary">{progressCount}</p>
-          <p className="text-xs text-muted-foreground">Aulas concluídas</p>
+          <p className="text-2xl font-bold text-primary">{totalCompleted}</p>
+          <p className="text-xs text-muted-foreground">Total concluído</p>
+        </div>
+        <div className="rounded-lg border p-3 text-center">
+          <p className="text-2xl font-bold text-primary">{studyGuideCount}</p>
+          <p className="text-xs text-muted-foreground">Guia de Estudos</p>
         </div>
         <div className="rounded-lg border p-3 text-center">
           <p className="text-2xl font-bold text-primary">{nodesCount}</p>
@@ -158,6 +164,26 @@ function ProgressTab({ data }: { data: any }) {
           <p className="text-xs text-muted-foreground">Visualizações</p>
         </div>
       </div>
+
+      {data.study_progress?.length > 0 && (
+        <div className="rounded-lg border p-4">
+          <h4 className="text-sm font-medium mb-3">Progresso do Guia de Estudos (recente)</h4>
+          <div className="space-y-2 max-h-[300px] overflow-auto">
+            {data.study_progress.slice(0, 30).map((item: any, i: number) => (
+              <div key={i} className="flex items-center justify-between text-xs border-b border-border/30 pb-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px]">{item.content_type}</Badge>
+                  <span className="text-muted-foreground truncate max-w-[180px]">{item.materia_id}</span>
+                  <span className="text-muted-foreground">Sem {item.semestre}</span>
+                </div>
+                <span className="text-muted-foreground">
+                  {item.completed_at ? format(new Date(item.completed_at), "dd/MM HH:mm") : '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {data.progress_nodes?.length > 0 && (
         <div className="rounded-lg border p-4">

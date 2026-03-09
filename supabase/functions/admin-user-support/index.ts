@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
       }
 
       case "progress": {
-        const [progressRes, nodesRes, viewsRes] = await Promise.all([
+        const [progressRes, nodesRes, viewsRes, studyProgressRes] = await Promise.all([
           admin
             .from("user_progress")
             .select("content_id, completed_at")
@@ -116,12 +116,20 @@ Deno.serve(async (req) => {
             .eq("user_id", userId)
             .order("viewed_at", { ascending: false })
             .limit(100),
+          admin
+            .from("study_progress")
+            .select("content_id, content_type, materia_id, semestre, completed, completed_at, ies_nome")
+            .eq("user_id", userId)
+            .eq("completed", true)
+            .order("completed_at", { ascending: false })
+            .limit(500),
         ]);
 
         result = {
           user_progress: progressRes.data || [],
           progress_nodes: nodesRes.data || [],
           aula_views: viewsRes.data || [],
+          study_progress: studyProgressRes.data || [],
         };
         break;
       }
