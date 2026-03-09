@@ -1,53 +1,81 @@
 
 
-## Fix: Impersonation Mode Crashing and Not Reflecting Student Data
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### Root Cause Analysis
+### Causa Raiz Identificada
 
-There are **two distinct issues** causing the crash during impersonation:
+Analisando os logs de autenticacao, o problema fica evidente:
 
-#### 1. RLS 403 Errors on `analytics_events` and `page_views`
-When impersonating, `useAuth()` returns the **impersonated student's** data as `user`. The analytics tracker and session tracker then try to INSERT rows with `user_id = impersonatedUser.id`. However, the RLS INSERT policies check `auth.uid() = user_id`, and `auth.uid()` is still the **admin's real JWT** — so the IDs don't match, causing 403 Forbidden.
-
-This affects:
-- `useAnalyticsTracker` — inserts into `analytics_events` with student's user_id
-- `useSessionTracker` — inserts into `page_views` and `user_sessions` with student's user_id
-- `usePageTimeTracking` — fires analytics events via the tracker
-
-#### 2. TypeError: Cannot read properties of undefined (reading 'color')
-In `ProgressSummaryCard` and `ProgressHeroCard`, the code does:
-```typescript
-const statusConfig = STATUS_CONFIG[overview.status_level];
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
-If `status_level` is undefined or an unrecognized value (e.g., from impersonation data), this returns `undefined`, and accessing `.color` crashes the app. `MobileSummaryHeader` already has a fallback (`|| STATUS_CONFIG.starting`) but the other components don't.
 
-### Fix Plan
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-#### File 1: `src/hooks/useAnalyticsTracker.ts`
-- Add `isImpersonating` from `useAuth()`
-- Early-return from `trackEvent` when impersonating — admin shouldn't generate student analytics events
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-#### File 2: `src/hooks/useSessionTracker.ts`
-- Add `isImpersonating` from `useAuth()`
-- Skip session creation, page view tracking, and session end when impersonating
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
 
-#### File 3: `src/hooks/usePageTimeTracking.ts`
-- Accept an optional `enabled` prop (already exists) — no change needed here since the caller can disable it, but we should also guard inside by checking impersonation. However, this hook uses `useAnalyticsTracker` which will be guarded. So the 403 errors will stop.
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
-#### File 4: `src/components/home/ProgressSummaryCard.tsx`
-- Add fallback: `STATUS_CONFIG[overview.status_level] || STATUS_CONFIG.starting`
+### Solucao
 
-#### File 5: `src/components/progress-hub/ProgressHeroCard.tsx`
-- Add fallback: `STATUS_CONFIG[overview.status_level] || STATUS_CONFIG.starting`
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
 
-### Summary of Changes
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
 
-| File | Change |
-|------|--------|
-| `useAnalyticsTracker.ts` | Skip all tracking when `isImpersonating` |
-| `useSessionTracker.ts` | Skip session/page_view inserts when `isImpersonating` |
-| `ProgressSummaryCard.tsx` | Add `STATUS_CONFIG` fallback |
-| `ProgressHeroCard.tsx` | Add `STATUS_CONFIG` fallback |
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
 
-These changes ensure impersonation mode doesn't pollute student analytics data and doesn't crash due to missing status config.
+---
+
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

@@ -67,7 +67,7 @@ const getScrollDepthBucket = (): string => {
  * - Proteção contra PII
  */
 export const useAnalyticsTracker = () => {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const sessionIdRef = useRef<string>(getOrCreateSessionId());
   const eventQueueRef = useRef<QueuedEvent[]>([]);
   const lastEventsRef = useRef<Map<string, number>>(new Map());
@@ -150,6 +150,9 @@ export const useAnalyticsTracker = () => {
     data = {},
     pagePath
   }: TrackEventParams) => {
+    // Skip tracking during impersonation to avoid RLS 403 errors
+    if (isImpersonating) return;
+
     // Rate limiting check
     const now = Date.now();
     if (now - eventCountRef.current.windowStart > RATE_LIMIT_WINDOW_MS) {

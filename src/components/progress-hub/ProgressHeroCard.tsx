@@ -43,7 +43,7 @@ export const ProgressHeroCard: React.FC<ProgressHeroCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
-  const statusConfig = STATUS_CONFIG[overview.status_level];
+  const statusConfig = STATUS_CONFIG[overview.status_level] || STATUS_CONFIG.starting;
 
   const handleContinue = () => {
     onContinueClick?.();
