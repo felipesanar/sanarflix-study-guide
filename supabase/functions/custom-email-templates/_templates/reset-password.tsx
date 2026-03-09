@@ -55,7 +55,7 @@ export const ResetPasswordEmail = ({
 
         <Section style={buttonContainer}>
           <Link
-            href={`${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://academy.sanar.com.br/reset-password'}`}
+            href={`https://academy.sanar.com.br/auth/update-password?token_hash=${token_hash}&type=${email_action_type}`}
             style={button}
           >
             Redefinir Senha
