@@ -47,11 +47,40 @@ export default function UpdatePassword() {
 
     const hasErrorParams = !!(params.errorParam || params.errorCode || params.errorDesc);
 
+    // Check if Supabase's detectSessionInUrl already consumed the token
+    // and created a valid session (common with token_hash in query params).
+    React.useEffect(() => {
+        if (pageState !== 'ready_to_verify') return;
+        
+        const checkExistingSession = async () => {
+            // Small delay to let Supabase's auto-detection finish
+            await new Promise(r => setTimeout(r, 500));
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                console.log('[UpdatePassword] Session already exists (auto-detected). Skipping manual verify.');
+                setPageState('verified');
+            }
+        };
+        
+        if (hasValidParams && !hasErrorParams) {
+            checkExistingSession();
+        }
+    }, [pageState, hasValidParams, hasErrorParams]);
+
     const handleVerify = async () => {
         setPageState('verifying');
         setError('');
 
         try {
+            // First check if session was already created by detectSessionInUrl
+            const { data: { session: existingSession } } = await supabase.auth.getSession();
+            if (existingSession) {
+                console.log('[UpdatePassword] Session already exists. Skipping verifyOtp.');
+                setPageState('verified');
+                return;
+            }
+
             if (params.tokenHash && params.type) {
                 const { error } = await supabase.auth.verifyOtp({
                     token_hash: params.tokenHash,
