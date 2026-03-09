@@ -983,6 +983,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* User Support Panel */}
+        <UserSupportPanel
+          userId={supportUserId}
+          userName={supportUserName}
+          open={supportOpen}
+          onOpenChange={setSupportOpen}
+        />
       </CardContent>
     </Card>
   );
