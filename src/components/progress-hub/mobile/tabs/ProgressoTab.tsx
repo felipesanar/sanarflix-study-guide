@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { TrendingUp, Map, BarChart2, Filter } from 'lucide-react';
+import { TrendingUp, Map, BarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,7 +16,6 @@ import { FilterChips } from '@/components/progress-hub/FilterChips';
 import { EmptyState } from '@/components/progress-hub/EmptyState';
 import type { MateriaProgress, TemaProgress, SubtemaProgress, WeeklyEvolution } from '@/types/progressHub';
 
-// Import filter type from index to ensure consistency
 type ProgressFilters = {
   status: 'all' | 'pending' | 'completed';
   materia: string | null;
@@ -70,57 +68,40 @@ export const ProgressoTab: React.FC<ProgressoTabProps> = ({
   const hasFilteredResults = byMateria.length > 0 || byTema.length > 0;
 
   return (
-    <div className="px-4 py-4 space-y-4">
-      {/* Weekly Evolution - compact */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <BarChart2 className="h-4 w-4 text-primary" />
-          Evolução Semanal
-        </h3>
-        <WeeklyEvolutionCard
-          evolution={weeklyEvolution}
-          totalContent={totalContent}
-          onChartInteract={onChartInteract}
-        />
-      </div>
+    <div className="px-4 py-4 space-y-5">
+      {/* Weekly Evolution */}
+      <WeeklyEvolutionCard
+        evolution={weeklyEvolution}
+        totalContent={totalContent}
+        onChartInteract={onChartInteract}
+      />
 
-      {/* Coverage Ranking - compact */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          Cobertura por Matéria
-        </h3>
-        <CoverageRankingCard byMateria={byMateria} onMateriaClick={onCoverageClick} />
-      </div>
+      {/* Coverage Ranking */}
+      <CoverageRankingCard byMateria={byMateria} onMateriaClick={onCoverageClick} />
 
       {/* Semester Map - Collapsible */}
       <Collapsible open={mapOpen} onOpenChange={setMapOpen}>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Map className="h-4 w-4 text-primary" />
-              Mapa do Semestre
-            </h3>
-            <div className="flex items-center gap-2">
-              <FiltersDrawerMobile
-                filters={filters}
-                materias={materiasList}
-                temas={temasList}
-                onFiltersChange={onFiltersChange}
-                activeCount={activeFiltersCount}
-                totalCount={totalCount}
-                filteredCount={filteredCount}
-              />
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 px-2 gap-1">
-                  <ChevronDown className={cn(
-                    'h-4 w-4 transition-transform',
-                    mapOpen && 'rotate-180'
-                  )} />
-                  {mapOpen ? 'Fechar' : 'Abrir'}
-                </Button>
-              </CollapsibleTrigger>
-            </div>
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-sm font-semibold text-foreground active:opacity-70 transition-opacity">
+                <Map className="h-4 w-4 text-primary" />
+                Mapa do Semestre
+                <ChevronDown className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                  mapOpen && 'rotate-180'
+                )} />
+              </button>
+            </CollapsibleTrigger>
+            <FiltersDrawerMobile
+              filters={filters}
+              materias={materiasList}
+              temas={temasList}
+              onFiltersChange={onFiltersChange}
+              activeCount={activeFiltersCount}
+              totalCount={totalCount}
+              filteredCount={filteredCount}
+            />
           </div>
 
           {/* Active filter chips */}
@@ -133,7 +114,7 @@ export const ProgressoTab: React.FC<ProgressoTabProps> = ({
           )}
 
           <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-            <div className="pt-2">
+            <div className="pt-1">
               {hasFilteredResults ? (
                 <SemesterMapCard
                   byMateria={byMateria}
