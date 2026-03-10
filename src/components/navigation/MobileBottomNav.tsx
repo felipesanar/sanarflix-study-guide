@@ -124,7 +124,7 @@ export function MobileBottomNav() {
     sections.push({
       title: "Ferramentas",
       items: [
-        { title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: true },
+        { title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
       ],
     });
 

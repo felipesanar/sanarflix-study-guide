@@ -41,8 +41,8 @@ export const useAccessRules = () => {
       analytics: hasFeature('analytics'),
       desempenhoInstitucional: hasFeature('desempenhoInstitucional'),
       errorNotebook: hasFeature('errorNotebook'),
-      // simulados sempre true para usuários autenticados (regra base)
-      simulados: baseRules.simulados,
+      // simulados controlado pela IES (via ies_features)
+      simulados: hasFeature('simulados'),
       // userManagement nunca para alunos (regra base)
       userManagement: baseRules.userManagement,
     };

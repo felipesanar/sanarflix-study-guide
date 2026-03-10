@@ -134,20 +134,24 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/guia-estudos" element={<Navigate to="/simulados" replace />} />
           )}
 
-          {/* Rota de Simulados - Sempre disponível para usuários autenticados */}
-          <Route
-            path="/simulados"
-            element={
-              <ProtectedRoute>
-                <PageWrapper
-                  loadingMessage="Carregando simulados..."
-                  waitForData={true}
-                >
-                  <Simulados />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
+          {/* Rota de Simulados - Controlado dinamicamente por ies_features */}
+          {accessRules.simulados ? (
+            <Route
+              path="/simulados"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando simulados..."
+                    waitForData={true}
+                  >
+                    <Simulados />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/simulados" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
 
           {/* Modo Prova - Sem Layout */}
           <Route
