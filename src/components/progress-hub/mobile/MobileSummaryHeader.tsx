@@ -12,8 +12,6 @@ interface MobileSummaryHeaderProps {
   userName?: string;
   semestre?: number | null;
   nextExam?: ExamInsight | null;
-  onContinue: () => void;
-  onOrganize: () => void;
   onExamClick?: () => void;
 }
 
