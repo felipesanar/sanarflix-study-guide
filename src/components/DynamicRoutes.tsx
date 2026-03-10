@@ -237,7 +237,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/analytics" element={<Navigate to="/simulados" replace />} />
+            <Route path="/analytics" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* SanarClass - Controlado dinamicamente */}
