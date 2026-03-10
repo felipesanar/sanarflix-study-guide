@@ -294,7 +294,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/caderno-de-erros" element={<Navigate to="/simulados" replace />} />
+            <Route path="/caderno-de-erros" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
