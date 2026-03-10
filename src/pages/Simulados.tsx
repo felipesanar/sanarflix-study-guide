@@ -8,15 +8,18 @@ import { SimuladoDesempenho } from './SimuladoDesempenho';
 import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessRules } from '@/hooks/useAccessRules';
 
 export const Simulados = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { accessRules } = useAccessRules();
   const [abaAtiva, setAbaAtiva] = useState('disponiveis');
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const isAdmin = user?.roles?.includes('admin') ?? false;
+  const showDesempenho = accessRules.SimuladoDesempenho;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -62,17 +65,19 @@ export const Simulados = () => {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
-        <TabsList className={`grid w-full max-w-lg ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} mb-8`}>
+        <TabsList className={`grid w-full max-w-lg ${isAdmin ? 'grid-cols-3' : showDesempenho ? 'grid-cols-2' : 'grid-cols-1'} mb-8`}>
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Simulados</span>
             <span className="sm:hidden text-xs">Simulados</span>
           </TabsTrigger>
-          <TabsTrigger value="desempenho" className="gap-2">
-            <Trophy className="h-4 w-4" />
-            <span className="hidden sm:inline">Desempenho</span>
-            <span className="sm:hidden text-xs">Desempenho</span>
-          </TabsTrigger>
+          {showDesempenho && (
+            <TabsTrigger value="desempenho" className="gap-2">
+              <Trophy className="h-4 w-4" />
+              <span className="hidden sm:inline">Desempenho</span>
+              <span className="sm:hidden text-xs">Desempenho</span>
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="correcao" className="gap-2">
               <ClipboardCheck className="h-4 w-4" />
@@ -86,9 +91,11 @@ export const Simulados = () => {
           <SimuladosDisponiveis />
         </TabsContent>
 
-        <TabsContent value="desempenho" className="mt-0">
-          <SimuladoDesempenho />
-        </TabsContent>
+        {showDesempenho && (
+          <TabsContent value="desempenho" className="mt-0">
+            <SimuladoDesempenho />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="correcao" className="mt-0">
