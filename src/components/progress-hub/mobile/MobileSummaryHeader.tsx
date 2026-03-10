@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { RefreshCw, GraduationCap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, RefreshCw, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProgressOverview, ProgressStreak, ExamInsight } from '@/types/progressHub';
 import { STATUS_CONFIG } from '@/types/progressHub';
@@ -12,6 +13,7 @@ interface MobileSummaryHeaderProps {
   userName?: string;
   semestre?: number | null;
   nextExam?: ExamInsight | null;
+  onOrganize: () => void;
   onExamClick?: () => void;
 }
 
@@ -22,6 +24,7 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
   userName,
   semestre,
   nextExam,
+  onOrganize,
   onExamClick,
 }) => {
   const shouldReduceMotion = useReducedMotion();
@@ -73,7 +76,7 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
       className="relative px-4 pt-4 pb-3 bg-gradient-to-b from-primary/5 via-background to-background"
     >
       {/* Top row: Title + compact exam chip */}
-      <div className="flex items-center justify-between mb-4 gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-foreground">Seu Progresso</h1>
@@ -125,8 +128,18 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
         })()}
       </div>
 
-      {/* Metrics row: 2-column micro grid */}
-
+      {/* Organize button */}
+      <div className="mt-3">
+        <Button
+          onClick={onOrganize}
+          variant="outline"
+          size="sm"
+          className="gap-2 rounded-xl text-xs font-medium border-border/60"
+        >
+          <Calendar className="h-3.5 w-3.5 shrink-0" />
+          Organizar semana
+        </Button>
+      </div>
     </motion.div>
   );
 };
