@@ -275,7 +275,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/desempenho-institucional" element={<Navigate to="/simulados" replace />} />
+            <Route path="/desempenho-institucional" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Caderno de Erros - Apenas para administradores */}
