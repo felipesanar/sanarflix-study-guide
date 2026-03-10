@@ -179,7 +179,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/desempenho-simulado" element={<Navigate to="/simulados" replace />} />
+            <Route path="/desempenho-simulado" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Dashboard - Controlado dinamicamente */}
