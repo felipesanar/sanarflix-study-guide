@@ -79,16 +79,58 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
       {...fadeIn}
       className="relative px-4 pt-4 pb-5 bg-gradient-to-b from-primary/5 via-background to-background"
     >
-      {/* Top row: Title + sync indicator */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-lg font-bold text-foreground">Seu Progresso</h1>
-          <p className="text-xs text-muted-foreground">
+      {/* Top row: Title + compact exam chip */}
+      <div className="flex items-center justify-between mb-4 gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-lg font-bold text-foreground">Seu Progresso</h1>
+            {syncing && (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label="Sincronizando" />
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground truncate">
             {userName} {semestre ? `• ${semestre}º período` : ''}
           </p>
         </div>
-        {syncing && (
-          <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Sincronizando" />
+
+        {/* Compact exam chip */}
+        {nextExam && (
+          <motion.button
+            onClick={onExamClick}
+            whileTap={{ scale: 0.97 }}
+            className={cn(
+              "relative flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all flex-shrink-0",
+              getExamStatusStyle(nextExam.status).bg
+            )}
+          >
+            {nextExam.status === 'critical' && nextExam.days_remaining <= 3 && (
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0, 0.4] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
+                className="absolute inset-0 rounded-xl bg-destructive/20"
+              />
+            )}
+            <GraduationCap className={cn(
+              "h-4 w-4 flex-shrink-0 relative z-10",
+              nextExam.status === 'critical' ? 'text-destructive' : 'text-primary'
+            )} />
+            <div className="relative z-10 min-w-0">
+              <p className="text-[11px] font-semibold text-foreground truncate max-w-[100px]">
+                {nextExam.exam.materia}
+              </p>
+              <p className={cn("text-[10px] font-medium", getExamStatusStyle(nextExam.status).text)}>
+                {nextExam.days_remaining === 0 ? 'Hoje!' : nextExam.days_remaining === 1 ? 'Amanhã' : `${nextExam.days_remaining}d restantes`}
+              </p>
+            </div>
+            {nextExam.materia_progress && (
+              <span className={cn(
+                "text-xs font-bold tabular-nums relative z-10",
+                getExamStatusStyle(nextExam.status).text
+              )}>
+                {nextExam.materia_progress.percentage}%
+              </span>
+            )}
+          </motion.button>
         )}
       </div>
 
@@ -138,78 +180,6 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
           </p>
         </div>
       </div>
-
-      {/* Exam indicator - compact card */}
-      {nextExam && (
-        <motion.button
-          onClick={onExamClick}
-          whileTap={{ scale: 0.98 }}
-          className={cn(
-            "w-full flex items-center gap-3 p-3 rounded-xl border mb-4 text-left transition-all",
-            "hover:shadow-md active:scale-[0.99]",
-            getExamStatusStyle(nextExam.status).bg
-          )}
-        >
-          {/* Icon with pulse for critical */}
-          <div className="relative flex-shrink-0">
-            <div className={cn(
-              "h-10 w-10 rounded-full flex items-center justify-center",
-              nextExam.status === 'critical' ? 'bg-destructive/20' : 'bg-primary/10'
-            )}>
-              <GraduationCap className={cn(
-                "h-5 w-5",
-                nextExam.status === 'critical' ? 'text-destructive' : 'text-primary'
-              )} />
-            </div>
-            {nextExam.status === 'critical' && nextExam.days_remaining <= 3 && (
-              <motion.div
-                animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0, 0.6] }}
-                transition={{ repeat: Infinity, duration: 1.5 }}
-                className="absolute inset-0 rounded-full bg-destructive/30"
-              />
-            )}
-          </div>
-
-          {/* Exam info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-foreground truncate">
-                {nextExam.exam.materia}
-              </span>
-              <span className="text-lg" aria-hidden="true">
-                {getExamStatusStyle(nextExam.status).icon}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {nextExam.days_remaining === 0 ? (
-                <span className="font-bold text-destructive">Prova hoje!</span>
-              ) : nextExam.days_remaining === 1 ? (
-                <span className="font-bold text-destructive">Amanhã</span>
-              ) : (
-                <span>
-                  <strong className={getExamStatusStyle(nextExam.status).text}>
-                    {nextExam.days_remaining}
-                  </strong> dias restantes
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Progress mini-indicator */}
-          {nextExam.materia_progress && (
-            <div className="flex-shrink-0 text-right">
-              <span className={cn(
-                "text-lg font-bold",
-                getExamStatusStyle(nextExam.status).text
-              )}>
-                {nextExam.materia_progress.percentage}%
-              </span>
-              <p className="text-[10px] text-muted-foreground">pronto</p>
-            </div>
-          )}
-        </motion.button>
-      )}
 
       {/* CTA Buttons - Primary + Secondary */}
       <div className="grid grid-cols-[1fr_auto] gap-2.5">
