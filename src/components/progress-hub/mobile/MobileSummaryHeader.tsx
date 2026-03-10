@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Calendar, RefreshCw, GraduationCap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Play, Calendar, Zap, Flame, BookOpen, RefreshCw, GraduationCap, Clock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProgressOverview, ProgressStreak, ExamInsight } from '@/types/progressHub';
 import { STATUS_CONFIG } from '@/types/progressHub';
@@ -13,6 +15,7 @@ interface MobileSummaryHeaderProps {
   userName?: string;
   semestre?: number | null;
   nextExam?: ExamInsight | null;
+  onContinue: () => void;
   onOrganize: () => void;
   onExamClick?: () => void;
 }
@@ -24,6 +27,7 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
   userName,
   semestre,
   nextExam,
+  onContinue,
   onOrganize,
   onExamClick,
 }) => {
@@ -73,10 +77,10 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
   return (
     <motion.div 
       {...fadeIn}
-      className="relative px-4 pt-4 pb-3 bg-gradient-to-b from-primary/5 via-background to-background"
+      className="relative px-4 pt-4 pb-5 bg-gradient-to-b from-primary/5 via-background to-background"
     >
       {/* Top row: Title + compact exam chip */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between mb-4 gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-foreground">Seu Progresso</h1>
@@ -128,16 +132,24 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
         })()}
       </div>
 
-      {/* Organize button */}
-      <div className="mt-3">
+      {/* Metrics row: 2-column micro grid */}
+
+      {/* CTA Buttons - Primary + Secondary */}
+      <div className="grid grid-cols-[1fr_auto] gap-2.5">
+        <Button
+          onClick={onContinue}
+          className="h-11 gap-2 rounded-xl shadow-md shadow-primary/15 text-sm font-semibold"
+        >
+          <Play className="h-4 w-4 shrink-0" fill="currentColor" />
+          Continuar estudando
+        </Button>
         <Button
           onClick={onOrganize}
           variant="outline"
-          size="sm"
-          className="gap-2 rounded-xl text-xs font-medium border-border/60"
+          className="h-11 px-4 gap-2 rounded-xl text-sm font-medium border-border/60"
         >
-          <Calendar className="h-3.5 w-3.5 shrink-0" />
-          Organizar semana
+          <Calendar className="h-4 w-4 shrink-0" />
+          Organizar
         </Button>
       </div>
     </motion.div>
