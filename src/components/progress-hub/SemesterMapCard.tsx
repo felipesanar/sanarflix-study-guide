@@ -23,6 +23,15 @@ interface SemesterMapCardProps {
   onSearchChange?: (query: string) => void;
 }
 
+// Progress bar color helper based on percentage
+const getProgressColor = (pct: number): string => {
+  if (pct === 100) return 'bg-emerald-500';
+  if (pct >= 70) return 'bg-emerald-400';
+  if (pct >= 30) return 'bg-amber-400';
+  if (pct > 0) return 'bg-red-400';
+  return 'bg-muted-foreground/25';
+};
+
 export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   byMateria,
   byTema,
@@ -36,7 +45,6 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
   const [expandedMaterias, setExpandedMaterias] = useState<Set<string>>(new Set());
   const [internalSearchQuery, setInternalSearchQuery] = useState('');
   
-  // Use external search query if provided, otherwise use internal
   const searchQuery = externalSearchQuery !== undefined ? externalSearchQuery : internalSearchQuery;
   const setSearchQuery = onSearchChange || setInternalSearchQuery;
 
@@ -52,13 +60,11 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
 
     const query = searchQuery.toLowerCase().trim();
     
-    // Find matching temas first
     const matchingTemas = byTema.filter(
       t => t.tema.toLowerCase().includes(query) || 
            t.materia.toLowerCase().includes(query)
     );
     
-    // Get materias that have matching temas or match directly
     const matchingMateriaNames = new Set([
       ...matchingTemas.map(t => t.materia),
       ...byMateria.filter(m => m.materia.toLowerCase().includes(query)).map(m => m.materia)
@@ -83,11 +89,10 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
     });
   };
 
-  // Animation helpers
   const getAnimationProps = (delay: number) => shouldReduceMotion ? {} : {
-    initial: { opacity: 0, y: 10 },
+    initial: { opacity: 0, y: 8 },
     animate: { opacity: 1, y: 0 },
-    transition: { delay }
+    transition: { delay, duration: 0.25 }
   };
 
   if (byMateria.length === 0) {
@@ -116,7 +121,7 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
 
   return (
     <Card>
-      <CardContent className="space-y-3 pt-0" role="list" aria-label="Progresso por matéria">
+      <CardContent className="space-y-2 pt-0 px-3 sm:px-6" role="list" aria-label="Progresso por matéria">
       
         {filteredMaterias.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center" role="status">
@@ -139,19 +144,20 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
             const statusConfig = TEMA_STATUS[materiaStatus];
             const temasForMateria = filteredTemas.filter(t => t.materia === materia.materia);
             const isComplete = materia.percentage === 100;
+            const progressColor = getProgressColor(materia.percentage);
 
             return (
               <motion.div
                 key={materia.materia}
-                {...getAnimationProps(index * 0.04)}
+                {...getAnimationProps(index * 0.03)}
                 role="listitem"
               >
                 <Collapsible open={isExpanded} onOpenChange={() => toggleMateria(materia.materia)}>
                   <CollapsibleTrigger asChild>
                     <motion.div
                       className={cn(
-                        "w-full p-4 rounded-xl border bg-card cursor-pointer",
-                        "hover:bg-muted/50 hover:border-primary/20 hover:shadow-md",
+                        "w-full p-3.5 sm:p-4 rounded-xl border bg-card cursor-pointer",
+                        "active:bg-muted/60 hover:bg-muted/50 hover:border-primary/20",
                         "transition-all duration-200",
                         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                         isExpanded && "border-primary/30 bg-muted/30 shadow-sm"
@@ -166,22 +172,20 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                           toggleMateria(materia.materia);
                         }
                       }}
-                      whileHover={shouldReduceMotion ? {} : { scale: 1.005 }}
-                      whileTap={shouldReduceMotion ? {} : { scale: 0.995 }}
+                      whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
                     >
                       <div className="flex items-center gap-3">
                         {/* Expand icon */}
                         <div className="flex-shrink-0" aria-hidden="true">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
+                          <ChevronRight className={cn(
+                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                            isExpanded && "rotate-90"
+                          )} />
                         </div>
 
                         {/* Materia info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1.5">
                             <h4 className="font-medium text-sm truncate">
                               {materia.materia}
                             </h4>
@@ -189,22 +193,27 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                               <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" aria-label="Concluído" />
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Progress 
-                              value={materia.percentage} 
-                              className="h-1.5 flex-1" 
-                              aria-label={`${materia.percentage}% concluído`}
-                            />
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
+                          <div className="flex items-center gap-2.5">
+                            {/* Custom colored progress bar */}
+                            <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                              <div 
+                                className={cn("h-full rounded-full transition-all duration-500", progressColor)}
+                                style={{ width: `${materia.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground flex-shrink-0 tabular-nums">
                               {materia.completed}/{materia.total}
                             </span>
                           </div>
                         </div>
 
-                        {/* Status badge */}
+                        {/* Percentage badge */}
                         <Badge 
                           variant="secondary" 
-                          className={cn("text-xs flex-shrink-0", statusConfig.color)}
+                          className={cn(
+                            "text-xs flex-shrink-0 font-semibold tabular-nums min-w-[3rem] justify-center",
+                            statusConfig.color
+                          )}
                         >
                           {materia.percentage}%
                         </Badge>
@@ -220,7 +229,7 @@ export const SemesterMapCard: React.FC<SemesterMapCardProps> = ({
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={shouldReduceMotion ? {} : { opacity: 0, height: 0 }}
                           transition={shouldReduceMotion ? {} : { duration: 0.2 }}
-                          className="pl-8 pr-4 py-2 space-y-2"
+                          className="pl-6 sm:pl-8 pr-2 sm:pr-4 py-2 space-y-1.5"
                           role="list"
                           aria-label={`Temas de ${materia.materia}`}
                         >
