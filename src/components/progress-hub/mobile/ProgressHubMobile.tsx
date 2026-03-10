@@ -219,6 +219,7 @@ export const ProgressHubMobile: React.FC<ProgressHubMobileProps> = ({
           userName={user?.ies_nome}
           semestre={semestreAtivo}
           nextExam={nextExam}
+          onOrganize={handleOrganize}
           onExamClick={handleExamClick}
         />
 
