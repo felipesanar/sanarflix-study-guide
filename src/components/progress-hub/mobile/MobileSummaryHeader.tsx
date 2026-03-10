@@ -127,24 +127,6 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
 
       {/* Metrics row: 2-column micro grid */}
 
-      {/* CTA Buttons - Primary + Secondary */}
-      <div className="grid grid-cols-[1fr_auto] gap-2.5">
-        <Button
-          onClick={onContinue}
-          className="h-11 gap-2 rounded-xl shadow-md shadow-primary/15 text-sm font-semibold"
-        >
-          <Play className="h-4 w-4 shrink-0" fill="currentColor" />
-          Continuar estudando
-        </Button>
-        <Button
-          onClick={onOrganize}
-          variant="outline"
-          className="h-11 px-4 gap-2 rounded-xl text-sm font-medium border-border/60"
-        >
-          <Calendar className="h-4 w-4 shrink-0" />
-          Organizar
-        </Button>
-      </div>
     </motion.div>
   );
 };
