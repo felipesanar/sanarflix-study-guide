@@ -199,7 +199,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/dashboard" element={<Navigate to="/simulados" replace />} />
+            <Route path="/dashboard" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* User Management - Controlado dinamicamente (somente admin) */}
