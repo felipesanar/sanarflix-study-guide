@@ -78,7 +78,12 @@ export const DynamicRoutes: React.FC = () => {
 
   // Rota padrão baseada nas permissões dinâmicas
   const getDefaultRoute = () => {
-    return accessRules.home ? "/home" : "/simulados";
+    if (accessRules.home) return "/home";
+    if (accessRules.simulados) return "/simulados";
+    if (accessRules.studyGuide) return "/guia-estudos";
+    if (accessRules.dashboard) return "/dashboard";
+    if (accessRules.sanarclass) return "/sanarclass";
+    return "/home";
   };
 
   return (
