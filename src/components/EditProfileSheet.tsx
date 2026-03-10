@@ -250,22 +250,6 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
       <div className="space-y-3">
         <Label className="text-sm font-medium">Período / Semestre</Label>
 
-        {/* Warning banner */}
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2.5"
-          role="alert"
-        >
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-          <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-            Seu semestre influencia diretamente o conteúdo do{" "}
-            <strong>Guia de Estudos</strong>, <strong>Central de Progresso</strong>,{" "}
-            <strong>Rankings</strong> e <strong>Simulados</strong>. Após alterar,
-            você só poderá mudar novamente após <strong>60 dias</strong>.
-          </p>
-        </motion.div>
-
         {isLocked ? (
           <div className="rounded-xl border border-border bg-muted/50 p-3 flex items-center gap-2.5">
             <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -310,6 +294,22 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
             )}
           </div>
         )}
+
+        {/* Warning banner - below the selector */}
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2.5"
+          role="alert"
+        >
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+            Seu semestre influencia diretamente o conteúdo do{" "}
+            <strong>Guia de Estudos</strong>, <strong>Central de Progresso</strong>,{" "}
+            <strong>Rankings</strong> e <strong>Simulados</strong>. Após alterar,
+            você só poderá mudar novamente após <strong>60 dias</strong>.
+          </p>
+        </motion.div>
       </div>
     </div>
   );
