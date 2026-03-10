@@ -8,15 +8,18 @@ import { SimuladoDesempenho } from './SimuladoDesempenho';
 import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessRules } from '@/hooks/useAccessRules';
 
 export const Simulados = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { accessRules } = useAccessRules();
   const [abaAtiva, setAbaAtiva] = useState('disponiveis');
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const isAdmin = user?.roles?.includes('admin') ?? false;
+  const showDesempenho = accessRules.SimuladoDesempenho;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
