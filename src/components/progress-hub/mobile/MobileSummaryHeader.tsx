@@ -1,9 +1,6 @@
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Play, Calendar, Zap, Flame, BookOpen, RefreshCw, GraduationCap, Clock, AlertTriangle } from 'lucide-react';
+import { RefreshCw, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ProgressOverview, ProgressStreak, ExamInsight } from '@/types/progressHub';
 import { STATUS_CONFIG } from '@/types/progressHub';
