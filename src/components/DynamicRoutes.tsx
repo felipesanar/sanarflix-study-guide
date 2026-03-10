@@ -218,7 +218,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/gestao-usuarios" element={<Navigate to="/simulados" replace />} />
+            <Route path="/gestao-usuarios" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Analytics - Controlado dinamicamente */}
