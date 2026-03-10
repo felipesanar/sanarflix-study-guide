@@ -212,27 +212,21 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
       )}
 
       {/* CTA Buttons - Primary + Secondary */}
-      <div className="flex gap-3">
+      <div className="grid grid-cols-[1fr_auto] gap-2.5">
         <Button
           onClick={onContinue}
-          className="flex-1 h-12 gap-2 rounded-xl shadow-lg shadow-primary/20 flex-col items-center py-1"
+          className="h-11 gap-2 rounded-xl shadow-md shadow-primary/15 text-sm font-semibold"
         >
-          <span className="flex items-center gap-1.5 text-sm font-semibold">
-            <Play className="h-3.5 w-3.5" fill="currentColor" />
-            Continuar estudando
-          </span>
-          <span className="text-[10px] font-normal opacity-80">Siga seu roteiro</span>
+          <Play className="h-4 w-4 shrink-0" fill="currentColor" />
+          Continuar estudando
         </Button>
         <Button
           onClick={onOrganize}
           variant="outline"
-          className="h-12 px-4 gap-2 rounded-xl flex-col items-center py-1"
+          className="h-11 px-4 gap-2 rounded-xl text-sm font-medium border-border/60"
         >
-          <span className="flex items-center gap-1.5 text-sm font-medium">
-            <Calendar className="h-3.5 w-3.5" />
-            Vamos organizar
-          </span>
-          <span className="text-[10px] font-normal text-muted-foreground">Ajuste seu cronograma</span>
+          <Calendar className="h-4 w-4 shrink-0" />
+          Organizar
         </Button>
       </div>
     </motion.div>
