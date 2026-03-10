@@ -256,7 +256,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/sanarclass" element={<Navigate to="/simulados" replace />} />
+            <Route path="/sanarclass" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Desempenho Institucional - Professores e Admins */}
