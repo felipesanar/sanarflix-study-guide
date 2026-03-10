@@ -131,7 +131,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/guia-estudos" element={<Navigate to="/simulados" replace />} />
+            <Route path="/guia-estudos" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Rota de Simulados - Controlado dinamicamente por ies_features */}
