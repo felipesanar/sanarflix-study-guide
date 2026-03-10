@@ -524,12 +524,29 @@ Deno.serve(async (req) => {
       const date = new Date(p.completed_at);
       if (date < eightWeeksAgo) continue;
       
-      // Get week start (Monday)
+      // Get week start (Monday) — fix: handle Sunday correctly
       const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay() + 1);
+      const dayOffset = (date.getDay() + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+      weekStart.setDate(date.getDate() - dayOffset);
+      weekStart.setHours(0, 0, 0, 0);
       const weekKey = weekStart.toISOString().split('T')[0];
       
       weeklyMap.set(weekKey, (weeklyMap.get(weekKey) || 0) + 1);
+    }
+    
+    // Pad to always emit 8 weeks (fill missing weeks with 0)
+    const currentWeekStart = new Date(today);
+    const currentDayOffset = (today.getDay() + 6) % 7;
+    currentWeekStart.setDate(today.getDate() - currentDayOffset);
+    currentWeekStart.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 8; i++) {
+      const ws = new Date(currentWeekStart);
+      ws.setDate(ws.getDate() - i * 7);
+      const key = ws.toISOString().split('T')[0];
+      if (!weeklyMap.has(key)) {
+        weeklyMap.set(key, 0);
+      }
     }
     
     const weeklyEvolution = Array.from(weeklyMap.entries())
