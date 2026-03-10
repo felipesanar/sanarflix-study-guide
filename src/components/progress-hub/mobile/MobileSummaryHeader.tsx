@@ -70,7 +70,7 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
   return (
     <motion.div 
       {...fadeIn}
-      className="relative px-4 pt-4 pb-5 bg-gradient-to-b from-primary/5 via-background to-background"
+      className="relative px-4 pt-4 pb-3 bg-gradient-to-b from-primary/5 via-background to-background"
     >
       {/* Top row: Title + compact exam chip */}
       <div className="flex items-center justify-between mb-4 gap-3">
