@@ -22,8 +22,6 @@ export const MobileSummaryHeader: React.FC<MobileSummaryHeaderProps> = ({
   userName,
   semestre,
   nextExam,
-  onContinue,
-  onOrganize,
   onExamClick,
 }) => {
   const shouldReduceMotion = useReducedMotion();
