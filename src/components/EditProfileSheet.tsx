@@ -212,6 +212,9 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
             placeholder="Seu nome completo"
             maxLength={100}
             className="pr-10"
+            autoFocus={false}
+            readOnly={false}
+            onFocus={(e) => e.target.removeAttribute('autofocus')}
             aria-describedby="nome-error"
           />
           <AnimatePresence>
