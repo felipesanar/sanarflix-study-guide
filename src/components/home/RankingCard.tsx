@@ -15,9 +15,10 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
   const navigate = useNavigate();
   const [showRankingConsumoModal, setShowRankingConsumoModal] = useState(false);
 
-  const getPercentile = (rank: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round(((total - rank + 1) / total) * 100);
+  // "Top X%" = percentile position (rank 1 of 10 = Top 10%, rank 10 of 10 = Top 100%)
+  const getTopPercent = (rank: number, total: number) => {
+    if (total === 0) return 100;
+    return Math.ceil((rank / total) * 100);
   };
 
   const getRankEmoji = (rank: number) => {
@@ -26,6 +27,17 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
     if (rank === 3) return '🥉';
     return null;
   };
+
+  // Progress bar: higher is better (inverted from rank)
+  const getProgressValue = (rank: number, total: number) => {
+    if (total === 0) return 0;
+    return Math.round(((total - rank + 1) / total) * 100);
+  };
+
+  // Check if ranking data represents zero activity (misleading #1 of 1)
+  const hasSimuladoData = data.simuladoRank && data.simuladoTotal && data.simuladoTotal > 1;
+  const hasConteudoData = data.conteudoRank && data.conteudoTotal && 
+    !(data.conteudoRank === data.conteudoTotal && data.conteudoTotal <= 1);
 
   return (
     <div className="relative overflow-hidden rounded-xl sm:rounded-2xl card-premium h-full glass-subtle">
@@ -41,7 +53,7 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-semibold text-foreground">Ranking</h3>
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Comparativo semanal</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Posição na sua turma</p>
             </div>
           </div>
           <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 animate-pulse" />
@@ -64,22 +76,22 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
             <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
           </div>
           
-          {data.simuladoRank && data.simuladoTotal ? (
+          {hasSimuladoData ? (
             <div className="space-y-2.5 sm:space-y-3">
               <div className="flex items-baseline gap-1.5 sm:gap-2">
-                {getRankEmoji(data.simuladoRank) && (
-                  <span className="text-xl sm:text-2xl">{getRankEmoji(data.simuladoRank)}</span>
+                {getRankEmoji(data.simuladoRank!) && (
+                  <span className="text-xl sm:text-2xl">{getRankEmoji(data.simuladoRank!)}</span>
                 )}
                 <span className="text-2xl sm:text-3xl font-bold text-foreground">#{data.simuladoRank}</span>
                 <span className="text-[10px] sm:text-sm text-muted-foreground">de {data.simuladoTotal} alunos</span>
               </div>
               <div className="space-y-1 sm:space-y-1.5">
                 <Progress 
-                  value={getPercentile(data.simuladoRank, data.simuladoTotal)} 
+                  value={getProgressValue(data.simuladoRank!, data.simuladoTotal!)} 
                   className="h-1.5 sm:h-2 bg-primary/10"
                 />
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
-                  Top {100 - getPercentile(data.simuladoRank, data.simuladoTotal) + 1}% da turma
+                  Top {getTopPercent(data.simuladoRank!, data.simuladoTotal!)}% da turma
                 </p>
               </div>
             </div>
@@ -103,22 +115,22 @@ export const RankingCard: React.FC<RankingCardProps> = ({ data }) => {
             <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground/50 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
           </div>
           
-          {data.conteudoRank && data.conteudoTotal ? (
+          {hasConteudoData ? (
             <div className="space-y-2.5 sm:space-y-3">
               <div className="flex items-baseline gap-1.5 sm:gap-2">
-                {getRankEmoji(data.conteudoRank) && (
-                  <span className="text-xl sm:text-2xl">{getRankEmoji(data.conteudoRank)}</span>
+                {getRankEmoji(data.conteudoRank!) && (
+                  <span className="text-xl sm:text-2xl">{getRankEmoji(data.conteudoRank!)}</span>
                 )}
                 <span className="text-2xl sm:text-3xl font-bold text-foreground">#{data.conteudoRank}</span>
                 <span className="text-[10px] sm:text-sm text-muted-foreground">de {data.conteudoTotal} alunos</span>
               </div>
               <div className="space-y-1 sm:space-y-1.5">
                 <Progress 
-                  value={getPercentile(data.conteudoRank, data.conteudoTotal)} 
+                  value={getProgressValue(data.conteudoRank!, data.conteudoTotal!)} 
                   className="h-1.5 sm:h-2 bg-blue-500/10 [&>div]:bg-blue-500"
                 />
                 <p className="text-[10px] sm:text-xs text-muted-foreground">
-                  Top {100 - getPercentile(data.conteudoRank, data.conteudoTotal) + 1}% em engajamento
+                  Top {getTopPercent(data.conteudoRank!, data.conteudoTotal!)}% em engajamento
                 </p>
               </div>
             </div>

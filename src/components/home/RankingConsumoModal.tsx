@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   Dialog, 
   DialogContent, 
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Trophy, 
   PlayCircle, 
@@ -33,7 +35,12 @@ interface RankingConsumoModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const initialMetrics = {
+interface ConsumoMetrics {
+  aulasAssistidas: { quantidade: number; posicao: number; total: number };
+  questoesRespondidas: { quantidade: number; posicao: number; total: number };
+}
+
+const initialMetrics: ConsumoMetrics = {
   aulasAssistidas: { quantidade: 0, posicao: 0, total: 0 },
   questoesRespondidas: { quantidade: 0, posicao: 0, total: 0 },
 };
@@ -43,10 +50,15 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
   onOpenChange 
 }) => {
   const { user } = useAuth() || {};
-  const [metrics, setMetrics] = useState(initialMetrics);
+  const navigate = useNavigate();
+  const [metrics, setMetrics] = useState<ConsumoMetrics>(initialMetrics);
+  const [loading, setLoading] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       if (!user?.id) return;
+      setLoading(true);
+      
       let iesId = user.id_ies || null;
       let semestreVal: number | null = (user.semestre ?? null) as number | null;
       try {
@@ -57,7 +69,12 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
         if (iesRpc) iesId = iesRpc as string;
         if (semRpc !== null && semRpc !== undefined) semestreVal = semRpc as number;
       } catch {}
-      if (!iesId || semestreVal === null || semestreVal === undefined) return;
+      
+      if (!iesId || semestreVal === null || semestreVal === undefined) {
+        setLoading(false);
+        return;
+      }
+      
       const sb: any = supabase;
 
       try {
@@ -73,10 +90,12 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
             aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },
             questoesRespondidas: { quantidade: myQuests, posicao: questsPos, total },
           });
+          setLoading(false);
           return;
         }
       } catch {}
 
+      // Fallback manual
       const { data: usersRes } = await sb
         .from('users')
         .select('id')
@@ -94,7 +113,7 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
       if (metabaseIds.length > 0) {
         const { data: consumo } = await sb
           .from('consumo_metabase')
-          .select('id, videos_assistidos, documentos_lidos, questoes_respondidas')
+          .select('id, videos_assistidos, questoes_respondidas')
           .in('id', metabaseIds);
         consumoRes = consumo || [];
       }
@@ -138,12 +157,14 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
         aulasAssistidas: { quantidade: myVideos, posicao: videosPos, total },
         questoesRespondidas: { quantidade: myQuests, posicao: questsPos, total },
       });
+      setLoading(false);
     };
     if (open) load();
   }, [open, user?.id]);
-  const getPercentile = (rank: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round(((total - rank + 1) / total) * 100);
+
+  const getTopPercent = (rank: number, total: number) => {
+    if (total === 0) return 100;
+    return Math.ceil((rank / total) * 100);
   };
 
   const getMedalIcon = (position: number) => {
@@ -152,6 +173,9 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
     if (position === 3) return '🥉';
     return '🏅';
   };
+
+  const hasZeroActivity = metrics.aulasAssistidas.quantidade === 0 && 
+    metrics.questoesRespondidas.quantidade === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -185,95 +209,14 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6 mt-6">
-          {/* Card: Minha Posição Geral */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Award className="h-5 w-5 text-primary" />
-                  Minha Posição no Ranking
-                </CardTitle>
-                <CardDescription>
-                  {user?.nome || ''} • {user?.semestre || ''}º Semestre • {user?.ies_nome || ''}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Aulas Assistidas */}
-                  <div className="p-4 bg-background/80 rounded-lg border border-border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <PlayCircle className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-semibold text-sm">Aulas Assistidas</h4>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">
-                          {getMedalIcon(metrics.aulasAssistidas.posicao)}
-                        </span>
-                        <span className="text-2xl font-bold">
-                          #{metrics.aulasAssistidas.posicao}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          de {metrics.aulasAssistidas.total}
-                        </span>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        Top {getPercentile(
-                          metrics.aulasAssistidas.posicao,
-                          metrics.aulasAssistidas.total
-                        )}%
-                      </Badge>
-                      <p className="text-sm text-muted-foreground mt-3">
-                        Você assistiu <span className="font-semibold text-foreground">
-                          {metrics.aulasAssistidas.quantidade} aulas
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Questões Respondidas */}
-                  <div className="p-4 bg-background/80 rounded-lg border border-border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileCheck className="h-5 w-5 text-green-600" />
-                      <h4 className="font-semibold text-sm">Questões Respondidas</h4>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">
-                          {getMedalIcon(metrics.questoesRespondidas.posicao)}
-                        </span>
-                        <span className="text-2xl font-bold">
-                          #{metrics.questoesRespondidas.posicao}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          de {metrics.questoesRespondidas.total}
-                        </span>
-                      </div>
-                      <Badge variant="secondary" className="text-xs">
-                        Top {getPercentile(
-                          metrics.questoesRespondidas.posicao,
-                          metrics.questoesRespondidas.total
-                        )}%
-                      </Badge>
-                      <p className="text-sm text-muted-foreground mt-3">
-                        Você respondeu <span className="font-semibold text-foreground">
-                          {metrics.questoesRespondidas.quantidade} questões
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Estado vazio quando não há dados */}
-          {metrics.aulasAssistidas.quantidade === 0 && 
-           metrics.questoesRespondidas.quantidade === 0 && (
+          {/* Loading state */}
+          {loading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-48 w-full rounded-xl" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          ) : hasZeroActivity ? (
+            /* Empty state - shown INSTEAD of cards when zero activity */
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -289,7 +232,7 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
               <Button 
                 onClick={() => {
                   onOpenChange(false);
-                  window.location.href = '/guia-estudos';
+                  navigate('/guia-estudos');
                 }}
                 className="gap-2"
               >
@@ -297,12 +240,98 @@ export const RankingConsumoModal: React.FC<RankingConsumoModalProps> = ({
                 Ir para Guia de Estudos
               </Button>
             </motion.div>
+          ) : (
+            /* Card: Minha Posição Geral */
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Award className="h-5 w-5 text-primary" />
+                    Minha Posição no Ranking
+                  </CardTitle>
+                  <CardDescription>
+                    {user?.nome || ''} • {user?.semestre || ''}º Semestre • {user?.ies_nome || ''}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Aulas Assistidas */}
+                    <div className="p-4 bg-background/80 rounded-lg border border-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <PlayCircle className="h-5 w-5 text-blue-600" />
+                        <h4 className="font-semibold text-sm">Aulas Assistidas</h4>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold">
+                            {getMedalIcon(metrics.aulasAssistidas.posicao)}
+                          </span>
+                          <span className="text-2xl font-bold">
+                            #{metrics.aulasAssistidas.posicao}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            de {metrics.aulasAssistidas.total}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          Top {getTopPercent(
+                            metrics.aulasAssistidas.posicao,
+                            metrics.aulasAssistidas.total
+                          )}%
+                        </Badge>
+                        <p className="text-sm text-muted-foreground mt-3">
+                          Você assistiu <span className="font-semibold text-foreground">
+                            {metrics.aulasAssistidas.quantidade} aulas
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Questões Respondidas */}
+                    <div className="p-4 bg-background/80 rounded-lg border border-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileCheck className="h-5 w-5 text-green-600" />
+                        <h4 className="font-semibold text-sm">Questões Respondidas</h4>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-3xl font-bold">
+                            {getMedalIcon(metrics.questoesRespondidas.posicao)}
+                          </span>
+                          <span className="text-2xl font-bold">
+                            #{metrics.questoesRespondidas.posicao}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            de {metrics.questoesRespondidas.total}
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          Top {getTopPercent(
+                            metrics.questoesRespondidas.posicao,
+                            metrics.questoesRespondidas.total
+                          )}%
+                        </Badge>
+                        <p className="text-sm text-muted-foreground mt-3">
+                          Você respondeu <span className="font-semibold text-foreground">
+                            {metrics.questoesRespondidas.quantidade} questões
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           )}
 
           {/* Dica informativa */}
           <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border">
             <p>
-              💡 <span className="font-medium">Nota:</span> O ranking é atualizado diariamente 
+              💡 <span className="font-medium">Nota:</span> O ranking é atualizado periodicamente 
               e considera apenas alunos do mesmo semestre e instituição. Continue estudando 
               para melhorar sua posição!
             </p>
