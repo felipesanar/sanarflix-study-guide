@@ -1,81 +1,50 @@
 
 
-## Auditoria do Link de Acesso: Diagnostico e Correcao
+## Audit: WeeklyEvolutionCard — Bugs, Data Issues, and Premium UI Plan
 
-### Causa Raiz Identificada
+### Bugs Found
 
-Analisando os logs de autenticacao, o problema fica evidente:
+**Bug 1 (Critical): Weekly evolution ignores `study_progress` completions**
+In `get-progress-hub/index.ts` line 522, the weekly evolution loop iterates only `progressData` (from `user_progress` table). But the system merges TWO progress sources: `user_progress` AND `study_progress`. Completions tracked via `study_progress` are invisible in the chart. This means the chart shows fewer completions than the user actually did.
 
-```text
-16:07:58  user_signedup  → maria.guerra@sanar.com criada
-16:07:58  recovery_requested → token gerado (generateLink)
-16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
-16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
-```
+**Bug 2 (Medium): Sunday week calculation is off by 1**
+Line 529: `weekStart.setDate(date.getDate() - date.getDay() + 1)` — when the day is Sunday (`getDay() = 0`), this becomes `date + 1`, incorrectly assigning Sunday's completions to the NEXT Monday. Activity on a Sunday gets counted in the wrong week.
 
-**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
+**Bug 3 (Medium): Misleading trend with insufficient data**
+When there's only 1 week of data, `evolution[1]` is undefined, defaulting to 0. So any activity shows "↑ up trend" even though there's no real comparison. The screenshot shows exactly this: 3 completed in 1 week = "↑ tendência", which is meaningless.
 
-Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
+**Bug 4 (Minor): Single data point renders as a dot, not a chart**
+With only 1 data point, the AreaChart renders a tiny circle with no line or filled area. The chart looks broken/empty.
 
-```
-https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
-```
+**Bug 5 (Minor): "Últimas 8 semanas" is hardcoded label**
+The header always says "Últimas 8 semanas" even when there's only 1 week of data.
 
-Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+### UI/UX Issues
 
-### Solucao
-
-Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
-
-**Novo formato do link:**
-```
-https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
-```
-
-Em vez de:
-```
-https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
-```
+- Chart with 1 data point is ugly and uninformative
+- No visual distinction between "this week" and past weeks
+- Percentage mode is confusing (accumulated vs per-week semantics switch without explanation)
+- Tooltip is plain and doesn't show the week range
+- Stats row arrows (↑↓→) feel generic, not premium
+- No animation on the data points
+- No "zero weeks" padding — if the user only has 1 active week out of 8, the chart should still show the 8-week window with zeros for empty weeks
 
 ---
 
-### Mudancas
+### Fix Plan
 
-#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+**File 1: `supabase/functions/get-progress-hub/index.ts` (lines 517-537)**
+- Include `studyProgressData` in the weekly evolution loop alongside `progressData`, deduplicating by content_id to avoid double-counting
+- Fix Sunday calculation: use `((date.getDay() + 6) % 7)` for Monday-based week start
+- Pad the result to always emit 8 weeks (fill missing weeks with `completed_count: 0`), so the chart always has a full 8-point window
 
-**Arquivo: `supabase/functions/_shared/auth-links.ts`**
-
-Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
-
-A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
-
-#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
-
-**Arquivo: `src/pages/UpdatePassword.tsx`**
-
-Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
-1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
-2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
-3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
-4. Error params → mostrar erro
-
-#### 3. Deploy da Edge Function
-
-Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
-
----
-
-### Resumo
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
-| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
-| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
-
-### Por que isso resolve
-
-- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
-- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
-- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
+**File 2: `src/components/progress-hub/WeeklyEvolutionCard.tsx`**
+- **Trend guard**: Show "—" (neutral) if fewer than 2 weeks have data
+- **Dynamic label**: Show "Última semana" / "Últimas N semanas" based on actual data count
+- **Premium tooltip**: Custom tooltip component showing week date range, count, and a small bar indicator
+- **Active dot**: Add `activeDot` with a larger radius and glow effect for the most recent data point
+- **Animated gradient**: Use a more vibrant gradient with emerald tones
+- **Stats row redesign**: Replace plain arrows with colored pill badges (e.g., green "↑ 40%" or neutral "— sem dados")
+- **Single data point handling**: When only 1 week has data, show a simplified stat display instead of the chart, with a message like "Complete mais uma semana para ver sua evolução"
+- **Dot animation**: Add `animationBegin` and custom `dot` renderer for smooth entry
 
