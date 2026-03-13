@@ -845,7 +845,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
-              disabled={batchProgress.active}
+              disabled={isAnyBatchActive}
             />
           </div>
           <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={batchProgress.active}>
