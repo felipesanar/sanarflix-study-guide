@@ -161,7 +161,8 @@ Deno.serve(async (req) => {
 
       console.log(`[delete-user] Resolving users for IES ${ies_id} (cursor=${cursor}, pageSize=${pageSize})`);
 
-      const { ids: rawIds, hasMore } = await fetchIesUserIdsPage(supabaseAdmin, ies_id, cursor, pageSize);
+      const semestre = body.semestre ? parseInt(body.semestre) : undefined;
+      const { ids: rawIds, hasMore } = await fetchIesUserIdsPage(supabaseAdmin, ies_id, cursor, pageSize, semestre);
 
       // Filter out self and admins
       const filteredIds = rawIds.filter(id => id !== caller.id);

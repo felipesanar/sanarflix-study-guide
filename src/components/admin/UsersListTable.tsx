@@ -990,11 +990,20 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         <AlertDialog open={iesDeleteOpen} onOpenChange={(open) => { if (!open) { setIesDeleteOpen(false); setConfirmText(''); } }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir todos os usuários da IES</AlertDialogTitle>
+              <AlertDialogTitle>
+                {filterSemestre !== 'all'
+                  ? `Excluir usuários do ${filterSemestre}º semestre da IES`
+                  : 'Excluir todos os usuários da IES'}
+              </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-3">
                   <p>
-                    Esta ação é <strong>irreversível</strong>. Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.
+                    Esta ação é <strong>irreversível</strong>.{' '}
+                    {filterSemestre !== 'all' ? (
+                      <>Todos os usuários (exceto admins) do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
+                    ) : (
+                      <>Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
+                    )}
                   </p>
                   <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
                   <Input
@@ -1010,7 +1019,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <Button variant="destructive" onClick={handleIesDelete} disabled={confirmText !== selectedIesName}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Excluir Todos da IES
+                {filterSemestre !== 'all' ? `Excluir do ${filterSemestre}º sem.` : 'Excluir Todos da IES'}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
