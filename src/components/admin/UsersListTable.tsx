@@ -359,7 +359,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         }
 
         const { data, error } = await supabase.functions.invoke('delete-user', {
-          body: { ies_id: filterIes, resolve_only: true, cursor, page_size: 500 },
+          body: {
+            ies_id: filterIes,
+            resolve_only: true,
+            cursor,
+            page_size: 500,
+            ...(filterSemestre !== 'all' ? { semestre: filterSemestre } : {}),
+          },
         });
 
         if (error) throw error;
