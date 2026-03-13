@@ -99,6 +99,15 @@ interface BatchProgress {
   failedUsers: FailedUser[];
 }
 
+interface EmailProgress {
+  total: number;
+  completed: number;
+  sent: number;
+  failed: number;
+  active: boolean;
+  failedUsers: FailedUser[];
+}
+
 const ITEMS_PER_PAGE = 25;
 const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
 
@@ -127,12 +136,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [iesDeleteOpen, setIesDeleteOpen] = useState(false);
+  const [iesResendOpen, setIesResendOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [emailConfirmText, setEmailConfirmText] = useState('');
 
   // Batch progress state
   const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
+  const EMPTY_EMAIL_PROGRESS: EmailProgress = { total: 0, completed: 0, sent: 0, failed: 0, active: false, failedUsers: [] };
   const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
+  const [emailProgress, setEmailProgress] = useState<EmailProgress>(EMPTY_EMAIL_PROGRESS);
   const cancelRef = useRef(false);
+  const cancelEmailRef = useRef(false);
 
   // Support panel state
   const [supportUserId, setSupportUserId] = useState<string | null>(null);
@@ -393,6 +407,138 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     cancelRef.current = true;
   };
 
+  // ──── Chunked batch email resend with progress ────
+  const executeChunkedResend = async (usersToResend: { nome: string; email: string; id_ies: string | null; semestre: number | null }[]) => {
+    cancelEmailRef.current = false;
+    const total = usersToResend.length;
+
+    setEmailProgress({ total, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
+    setIesResendOpen(false);
+    setEmailConfirmText('');
+
+    let totalSent = 0;
+    let totalFailed = 0;
+    const allFailedUsers: FailedUser[] = [];
+
+    for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
+      if (cancelEmailRef.current) {
+        toast.info('Reenvio cancelado pelo usuário');
+        break;
+      }
+
+      const chunk = usersToResend.slice(i, i + BATCH_CHUNK_SIZE);
+
+      const results = await Promise.allSettled(
+        chunk.map(async (u) => {
+          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+            body: { nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre || 1, resend_email: true },
+          });
+          if (error) throw error;
+          if (!data?.success) throw new Error(data?.error || 'Falha ao reenviar');
+          return data;
+        })
+      );
+
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled') {
+          totalSent++;
+        } else {
+          totalFailed++;
+          allFailedUsers.push({
+            id: chunk[idx].email,
+            nome: chunk[idx].nome,
+            email: chunk[idx].email,
+            error: r.reason?.message || 'Erro desconhecido',
+          });
+        }
+      });
+
+      const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
+      setEmailProgress({ total, completed, sent: totalSent, failed: totalFailed, active: true, failedUsers: allFailedUsers });
+    }
+
+    setEmailProgress(prev => ({ ...prev, active: false }));
+
+    if (totalFailed > 0) {
+      toast.warning(`${totalSent} enviados, ${totalFailed} falharam`);
+    } else if (totalSent > 0) {
+      toast.success(`${totalSent} emails reenviados com sucesso`);
+    } else {
+      toast.info('Nenhum email foi enviado');
+    }
+  };
+
+  // ──── Resend all from IES (paginated resolve → chunked resend) ────
+  const handleIesResend = async () => {
+    if (filterIes === 'all') return;
+
+    cancelEmailRef.current = false;
+    setEmailProgress({ total: 0, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
+    setIesResendOpen(false);
+    setEmailConfirmText('');
+
+    try {
+      // Resolve all users from the selected IES+semester via paginated queries
+      const allUsers: { nome: string; email: string; id_ies: string | null; semestre: number | null }[] = [];
+      const PAGE_SIZE = 500;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        if (cancelEmailRef.current) {
+          toast.info('Reenvio cancelado pelo usuário');
+          setEmailProgress(prev => ({ ...prev, active: false }));
+          return;
+        }
+
+        let query = supabase
+          .from('users')
+          .select('nome, email, id_ies, semestre')
+          .eq('id_ies', filterIes)
+          .order('nome')
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (filterSemestre !== 'all') {
+          query = query.eq('semestre', parseInt(filterSemestre));
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allUsers.push(...data);
+          from += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allUsers.length === 0) {
+        setEmailProgress(prev => ({ ...prev, active: false }));
+        toast.info('Nenhum usuário encontrado para reenvio');
+        return;
+      }
+
+      await executeChunkedResend(allUsers);
+    } catch (err) {
+      setEmailProgress(prev => ({ ...prev, active: false }));
+      toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
+    }
+  };
+
+  // ──── Batch resend selected ────
+  const handleBatchResend = () => {
+    const usersToResend = users
+      .filter(u => selectedIds.has(u.id) && !u.roles.includes('admin'))
+      .map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre }));
+    executeChunkedResend(usersToResend);
+  };
+
+  const cancelEmailResend = () => {
+    cancelEmailRef.current = true;
+  };
+
   // ──── Existing single-user actions (unchanged) ────
   const startEditing = (user: UserRow) => {
     setEditing({
@@ -524,6 +670,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const progressPercent = batchProgress.total > 0
     ? Math.round((batchProgress.completed / batchProgress.total) * 100)
     : 0;
+  const emailProgressPercent = emailProgress.total > 0
+    ? Math.round((emailProgress.completed / emailProgress.total) * 100)
+    : 0;
+  const isAnyBatchActive = batchProgress.active || emailProgress.active;
 
   return (
     <Card>
@@ -612,7 +762,81 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </div>
         )}
 
-        {/* Filters */}
+        {/* Email resend progress overlay */}
+        {(emailProgress.active || emailProgress.completed > 0) && emailProgress.total > 0 && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {emailProgress.active ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Check className="h-4 w-4 text-primary" />
+                )}
+                <span className="text-sm font-medium">
+                  {emailProgress.active
+                    ? `Reenviando emails... ${emailProgress.completed}/${emailProgress.total}`
+                    : `Reenvio concluído: ${emailProgress.sent} enviados`
+                  }
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {emailProgress.failed > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    {emailProgress.failed} falha{emailProgress.failed > 1 ? 's' : ''}
+                  </Badge>
+                )}
+                {emailProgress.active ? (
+                  <Button variant="outline" size="sm" onClick={cancelEmailResend}>
+                    Cancelar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEmailProgress(EMPTY_EMAIL_PROGRESS)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Progress value={emailProgressPercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {emailProgress.sent} enviados • {emailProgress.failed} falhas • {emailProgressPercent}% concluído
+            </p>
+
+            {/* Failure report */}
+            {!emailProgress.active && emailProgress.failedUsers.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Emails que falharam ({emailProgress.failedUsers.length}):
+                </p>
+                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs py-1.5">Nome</TableHead>
+                        <TableHead className="text-xs py-1.5">Email</TableHead>
+                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emailProgress.failedUsers.map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs py-1.5">{f.nome || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -621,10 +845,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
-              disabled={batchProgress.active}
+              disabled={isAnyBatchActive}
             />
           </div>
-          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={batchProgress.active}>
+          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={isAnyBatchActive}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por IES" />
             </SelectTrigger>
@@ -638,7 +862,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </SelectContent>
           </Select>
           {filterIes !== 'all' && (
-            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={batchProgress.active}>
+            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={isAnyBatchActive}>
               <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Semestre" />
               </SelectTrigger>
@@ -654,27 +878,47 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           )}
           {filterIes !== 'all' && (
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setEmailConfirmText(''); setIesResendOpen(true); }}
+              className="whitespace-nowrap"
+              disabled={isAnyBatchActive}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              {filterSemestre !== 'all' ? `Reenviar ${filterSemestre}º sem.` : 'Reenviar emails'}
+            </Button>
+          )}
+          {filterIes !== 'all' && (
+            <Button
               variant="destructive"
               size="sm"
               onClick={() => { setConfirmText(''); setIesDeleteOpen(true); }}
               className="whitespace-nowrap"
-              disabled={batchProgress.active}
+              disabled={isAnyBatchActive}
             >
               <Trash2 className="h-4 w-4 mr-1" />
               {filterSemestre !== 'all' ? `Excluir ${filterSemestre}º sem.` : 'Excluir todos da IES'}
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || batchProgress.active}>
+          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || isAnyBatchActive}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
 
         {/* Batch action bar */}
-        {selectedIds.size > 0 && !batchProgress.active && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+        {selectedIds.size > 0 && !isAnyBatchActive && (
+          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
             <span className="text-sm font-medium">
               {selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''}
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBatchResend}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              Reenviar emails
+            </Button>
             <Button
               variant="destructive"
               size="sm"
@@ -703,7 +947,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                     checked={allPageSelected && selectableUsers.length > 0}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Selecionar todos"
-                    disabled={batchProgress.active}
+                    disabled={isAnyBatchActive}
                   />
                 </TableHead>
                 <TableHead className="min-w-[200px]">Nome</TableHead>
@@ -753,7 +997,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                             checked={isSelected}
                             onCheckedChange={() => toggleSelect(user.id)}
                             aria-label={`Selecionar ${user.nome}`}
-                            disabled={batchProgress.active}
+                            disabled={isAnyBatchActive}
                           />
                         )}
                       </TableCell>
@@ -844,17 +1088,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 setSupportOpen(true);
                               }}
                               className="h-8 w-8 p-0"
-                              disabled={batchProgress.active}
+                              disabled={isAnyBatchActive}
                               title="Ver Detalhes"
                             >
                               <Eye className="h-4 w-4 text-primary" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={batchProgress.active}>
+                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={isAnyBatchActive}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || batchProgress.active}>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || isAnyBatchActive}>
                                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                                 </Button>
                               </DropdownMenuTrigger>
@@ -917,7 +1161,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0 || loading || batchProgress.active}
+                disabled={page === 0 || loading || isAnyBatchActive}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -928,7 +1172,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1 || loading || batchProgress.active}
+                disabled={page >= totalPages - 1 || loading || isAnyBatchActive}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -1025,7 +1269,44 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* User Support Panel */}
+        {/* IES Resend Confirmation */}
+        <AlertDialog open={iesResendOpen} onOpenChange={(open) => { if (!open) { setIesResendOpen(false); setEmailConfirmText(''); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {filterSemestre !== 'all'
+                  ? `Reenviar emails do ${filterSemestre}º semestre da IES`
+                  : 'Reenviar emails para todos da IES'}
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <p>
+                    {filterSemestre !== 'all' ? (
+                      <>Os emails de convite serão reenviados para todos os usuários do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong>.</>
+                    ) : (
+                      <>Os emails de convite serão reenviados para todos os usuários da IES <strong>{selectedIesName}</strong>.</>
+                    )}
+                  </p>
+                  <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
+                  <Input
+                    value={emailConfirmText}
+                    onChange={(e) => setEmailConfirmText(e.target.value)}
+                    placeholder={selectedIesName}
+                    autoFocus
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button onClick={handleIesResend} disabled={emailConfirmText !== selectedIesName}>
+                <Mail className="h-4 w-4 mr-2" />
+                {filterSemestre !== 'all' ? `Reenviar do ${filterSemestre}º sem.` : 'Reenviar para Todos'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <UserSupportPanel
           userId={supportUserId}
           userName={supportUserName}
