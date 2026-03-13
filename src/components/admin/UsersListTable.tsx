@@ -534,7 +534,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   // ──── Batch resend selected ────
   const handleBatchResend = () => {
     const usersToResend = users
-      .filter(u => selectedIds.has(u.id) && !u.roles.includes('admin'))
+      .filter(u => selectedIds.has(u.id))
       .map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre }));
     executeChunkedResend(usersToResend);
   };
