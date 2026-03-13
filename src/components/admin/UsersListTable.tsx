@@ -256,7 +256,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, filterIes]);
+  }, [searchTerm, filterIes, filterSemestre]);
 
   // ──── Chunked batch deletion with progress ────
   const executeChunkedDelete = async (idsToDelete: string[]) => {
