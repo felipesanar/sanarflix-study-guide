@@ -213,7 +213,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       }
 
       if (searchTerm.trim()) {
-        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+        // Sanitize search term to prevent PostgREST filter syntax breakage
+        const sanitized = searchTerm.replace(/[%_,().*]/g, '');
+        if (sanitized.trim()) {
+          query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
+        }
       }
 
       const from = page * ITEMS_PER_PAGE;
@@ -478,7 +482,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     setEmailConfirmText('');
 
     try {
-      // Resolve all users from the selected IES+semester via paginated queries
+      // Resolve all users from the selected IES+semester via paginated queries (excluding admins)
       const allUsers: { nome: string; email: string; id_ies: string | null; semestre: number | null }[] = [];
       const PAGE_SIZE = 500;
       let from = 0;
@@ -493,7 +497,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
         let query = supabase
           .from('users')
-          .select('nome, email, id_ies, semestre')
+          .select('id, nome, email, id_ies, semestre')
           .eq('id_ies', filterIes)
           .order('nome')
           .range(from, from + PAGE_SIZE - 1);
@@ -506,7 +510,18 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         if (error) throw error;
 
         if (data && data.length > 0) {
-          allUsers.push(...data);
+          // Fetch admin roles for this page to exclude them
+          const pageIds = data.map(u => u.id);
+          const { data: adminRoles } = await supabase
+            .from('user_roles')
+            .select('user_id')
+            .eq('role', 'admin')
+            .in('user_id', pageIds);
+
+          const adminIds = new Set((adminRoles || []).map(r => r.user_id));
+          const nonAdminUsers = data.filter(u => !adminIds.has(u.id));
+
+          allUsers.push(...nonAdminUsers.map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre })));
           from += PAGE_SIZE;
           hasMore = data.length === PAGE_SIZE;
         } else {
