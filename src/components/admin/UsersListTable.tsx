@@ -1088,17 +1088,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 setSupportOpen(true);
                               }}
                               className="h-8 w-8 p-0"
-                              disabled={batchProgress.active}
+                              disabled={isAnyBatchActive}
                               title="Ver Detalhes"
                             >
                               <Eye className="h-4 w-4 text-primary" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={batchProgress.active}>
+                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={isAnyBatchActive}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || batchProgress.active}>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || isAnyBatchActive}>
                                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                                 </Button>
                               </DropdownMenuTrigger>
