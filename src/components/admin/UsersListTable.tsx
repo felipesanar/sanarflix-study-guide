@@ -997,7 +997,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                             checked={isSelected}
                             onCheckedChange={() => toggleSelect(user.id)}
                             aria-label={`Selecionar ${user.nome}`}
-                            disabled={batchProgress.active}
+                            disabled={isAnyBatchActive}
                           />
                         )}
                       </TableCell>
