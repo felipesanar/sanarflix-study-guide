@@ -878,17 +878,29 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           )}
           {filterIes !== 'all' && (
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setEmailConfirmText(''); setIesResendOpen(true); }}
+              className="whitespace-nowrap"
+              disabled={isAnyBatchActive}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              {filterSemestre !== 'all' ? `Reenviar ${filterSemestre}º sem.` : 'Reenviar emails'}
+            </Button>
+          )}
+          {filterIes !== 'all' && (
+            <Button
               variant="destructive"
               size="sm"
               onClick={() => { setConfirmText(''); setIesDeleteOpen(true); }}
               className="whitespace-nowrap"
-              disabled={batchProgress.active}
+              disabled={isAnyBatchActive}
             >
               <Trash2 className="h-4 w-4 mr-1" />
               {filterSemestre !== 'all' ? `Excluir ${filterSemestre}º sem.` : 'Excluir todos da IES'}
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || batchProgress.active}>
+          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || isAnyBatchActive}>
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
