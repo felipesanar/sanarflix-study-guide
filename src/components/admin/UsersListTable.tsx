@@ -1269,7 +1269,44 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* User Support Panel */}
+        {/* IES Resend Confirmation */}
+        <AlertDialog open={iesResendOpen} onOpenChange={(open) => { if (!open) { setIesResendOpen(false); setEmailConfirmText(''); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {filterSemestre !== 'all'
+                  ? `Reenviar emails do ${filterSemestre}º semestre da IES`
+                  : 'Reenviar emails para todos da IES'}
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3">
+                  <p>
+                    {filterSemestre !== 'all' ? (
+                      <>Os emails de convite serão reenviados para todos os usuários do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong>.</>
+                    ) : (
+                      <>Os emails de convite serão reenviados para todos os usuários da IES <strong>{selectedIesName}</strong>.</>
+                    )}
+                  </p>
+                  <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
+                  <Input
+                    value={emailConfirmText}
+                    onChange={(e) => setEmailConfirmText(e.target.value)}
+                    placeholder={selectedIesName}
+                    autoFocus
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <Button onClick={handleIesResend} disabled={emailConfirmText !== selectedIesName}>
+                <Mail className="h-4 w-4 mr-2" />
+                {filterSemestre !== 'all' ? `Reenviar do ${filterSemestre}º sem.` : 'Reenviar para Todos'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <UserSupportPanel
           userId={supportUserId}
           userName={supportUserName}
