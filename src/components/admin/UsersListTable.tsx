@@ -848,7 +848,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               disabled={isAnyBatchActive}
             />
           </div>
-          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={batchProgress.active}>
+          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={isAnyBatchActive}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por IES" />
             </SelectTrigger>
