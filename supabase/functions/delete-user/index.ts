@@ -92,12 +92,18 @@ async function fetchIesUserIdsPage(
   iesId: string,
   cursor: number,
   pageSize: number,
+  semestre?: number,
 ): Promise<{ ids: string[]; hasMore: boolean }> {
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('users')
     .select('id')
-    .eq('id_ies', iesId)
-    .range(cursor, cursor + pageSize - 1);
+    .eq('id_ies', iesId);
+
+  if (semestre !== undefined && semestre !== null) {
+    query = query.eq('semestre', semestre);
+  }
+
+  const { data, error } = await query.range(cursor, cursor + pageSize - 1);
 
   if (error) throw error;
   const ids = (data || []).map(u => u.id);
