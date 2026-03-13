@@ -108,6 +108,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
+  const [filterSemestre, setFilterSemestre] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   
