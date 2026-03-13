@@ -407,6 +407,138 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     cancelRef.current = true;
   };
 
+  // ──── Chunked batch email resend with progress ────
+  const executeChunkedResend = async (usersToResend: { nome: string; email: string; id_ies: string | null; semestre: number | null }[]) => {
+    cancelEmailRef.current = false;
+    const total = usersToResend.length;
+
+    setEmailProgress({ total, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
+    setIesResendOpen(false);
+    setEmailConfirmText('');
+
+    let totalSent = 0;
+    let totalFailed = 0;
+    const allFailedUsers: FailedUser[] = [];
+
+    for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
+      if (cancelEmailRef.current) {
+        toast.info('Reenvio cancelado pelo usuário');
+        break;
+      }
+
+      const chunk = usersToResend.slice(i, i + BATCH_CHUNK_SIZE);
+
+      const results = await Promise.allSettled(
+        chunk.map(async (u) => {
+          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+            body: { nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre || 1, resend_email: true },
+          });
+          if (error) throw error;
+          if (!data?.success) throw new Error(data?.error || 'Falha ao reenviar');
+          return data;
+        })
+      );
+
+      results.forEach((r, idx) => {
+        if (r.status === 'fulfilled') {
+          totalSent++;
+        } else {
+          totalFailed++;
+          allFailedUsers.push({
+            id: chunk[idx].email,
+            nome: chunk[idx].nome,
+            email: chunk[idx].email,
+            error: r.reason?.message || 'Erro desconhecido',
+          });
+        }
+      });
+
+      const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
+      setEmailProgress({ total, completed, sent: totalSent, failed: totalFailed, active: true, failedUsers: allFailedUsers });
+    }
+
+    setEmailProgress(prev => ({ ...prev, active: false }));
+
+    if (totalFailed > 0) {
+      toast.warning(`${totalSent} enviados, ${totalFailed} falharam`);
+    } else if (totalSent > 0) {
+      toast.success(`${totalSent} emails reenviados com sucesso`);
+    } else {
+      toast.info('Nenhum email foi enviado');
+    }
+  };
+
+  // ──── Resend all from IES (paginated resolve → chunked resend) ────
+  const handleIesResend = async () => {
+    if (filterIes === 'all') return;
+
+    cancelEmailRef.current = false;
+    setEmailProgress({ total: 0, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
+    setIesResendOpen(false);
+    setEmailConfirmText('');
+
+    try {
+      // Resolve all users from the selected IES+semester via paginated queries
+      const allUsers: { nome: string; email: string; id_ies: string | null; semestre: number | null }[] = [];
+      const PAGE_SIZE = 500;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        if (cancelEmailRef.current) {
+          toast.info('Reenvio cancelado pelo usuário');
+          setEmailProgress(prev => ({ ...prev, active: false }));
+          return;
+        }
+
+        let query = supabase
+          .from('users')
+          .select('nome, email, id_ies, semestre')
+          .eq('id_ies', filterIes)
+          .order('nome')
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (filterSemestre !== 'all') {
+          query = query.eq('semestre', parseInt(filterSemestre));
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allUsers.push(...data);
+          from += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allUsers.length === 0) {
+        setEmailProgress(prev => ({ ...prev, active: false }));
+        toast.info('Nenhum usuário encontrado para reenvio');
+        return;
+      }
+
+      await executeChunkedResend(allUsers);
+    } catch (err) {
+      setEmailProgress(prev => ({ ...prev, active: false }));
+      toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
+    }
+  };
+
+  // ──── Batch resend selected ────
+  const handleBatchResend = () => {
+    const usersToResend = users
+      .filter(u => selectedIds.has(u.id) && !u.roles.includes('admin'))
+      .map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre }));
+    executeChunkedResend(usersToResend);
+  };
+
+  const cancelEmailResend = () => {
+    cancelEmailRef.current = true;
+  };
+
   // ──── Existing single-user actions (unchanged) ────
   const startEditing = (user: UserRow) => {
     setEditing({
