@@ -624,7 +624,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               disabled={batchProgress.active}
             />
           </div>
-          <Select value={filterIes} onValueChange={setFilterIes} disabled={batchProgress.active}>
+          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={batchProgress.active}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por IES" />
             </SelectTrigger>
@@ -638,6 +638,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </SelectContent>
           </Select>
           {filterIes !== 'all' && (
+            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={batchProgress.active}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os semestres</SelectItem>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
+                  <SelectItem key={s} value={s.toString()}>
+                    {s}º semestre
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {filterIes !== 'all' && (
             <Button
               variant="destructive"
               size="sm"
@@ -646,7 +661,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               disabled={batchProgress.active}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Excluir todos da IES
+              {filterSemestre !== 'all' ? `Excluir ${filterSemestre}º sem.` : 'Excluir todos da IES'}
             </Button>
           )}
           <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || batchProgress.active}>
