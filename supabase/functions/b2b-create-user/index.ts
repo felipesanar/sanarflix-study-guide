@@ -277,25 +277,11 @@ Deno.serve(async (req) => {
         else console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
       }
 
-      // Resend access email if requested — use Supabase native recovery (auth-email-hook)
+      // Resend welcome email if requested
       let emailSent = false;
       if (resend_email) {
-        console.log(`[CreateUser] Sending password reset email for existing user: ${email}`);
-        try {
-          const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-            redirectTo: `${CANONICAL_ORIGIN}/auth/update-password`,
-          });
-          if (resetErr) {
-            console.error('[CreateUser] resetPasswordForEmail failed:', resetErr);
-            emailSent = false;
-          } else {
-            console.log(`[CreateUser] Password reset email triggered successfully for: ${email}`);
-            emailSent = true;
-          }
-        } catch (err) {
-          console.error('[CreateUser] Exception in resetPasswordForEmail:', err);
-          emailSent = false;
-        }
+        console.log(`[CreateUser] Resending welcome email for existing user: ${email}`);
+        emailSent = await sendWelcomeEmail(supabaseAdmin, existingUser.id, nome, email);
       }
 
       const message = resend_email 
