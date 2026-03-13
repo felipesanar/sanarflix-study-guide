@@ -248,7 +248,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, onStatsUpdate]);
+  }, [page, searchTerm, filterIes, filterSemestre, onStatsUpdate]);
 
   useEffect(() => {
     fetchUsers();
