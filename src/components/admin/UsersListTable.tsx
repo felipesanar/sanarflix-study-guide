@@ -670,6 +670,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const progressPercent = batchProgress.total > 0
     ? Math.round((batchProgress.completed / batchProgress.total) * 100)
     : 0;
+  const emailProgressPercent = emailProgress.total > 0
+    ? Math.round((emailProgress.completed / emailProgress.total) * 100)
+    : 0;
+  const isAnyBatchActive = batchProgress.active || emailProgress.active;
 
   return (
     <Card>
