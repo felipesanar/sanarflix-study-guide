@@ -136,12 +136,17 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [iesDeleteOpen, setIesDeleteOpen] = useState(false);
+  const [iesResendOpen, setIesResendOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [emailConfirmText, setEmailConfirmText] = useState('');
 
   // Batch progress state
   const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
+  const EMPTY_EMAIL_PROGRESS: EmailProgress = { total: 0, completed: 0, sent: 0, failed: 0, active: false, failedUsers: [] };
   const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
+  const [emailProgress, setEmailProgress] = useState<EmailProgress>(EMPTY_EMAIL_PROGRESS);
   const cancelRef = useRef(false);
+  const cancelEmailRef = useRef(false);
 
   // Support panel state
   const [supportUserId, setSupportUserId] = useState<string | null>(null);
