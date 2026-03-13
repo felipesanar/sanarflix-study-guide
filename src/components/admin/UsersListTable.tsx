@@ -906,11 +906,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         </div>
 
         {/* Batch action bar */}
-        {selectedIds.size > 0 && !batchProgress.active && (
-          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+        {selectedIds.size > 0 && !isAnyBatchActive && (
+          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
             <span className="text-sm font-medium">
               {selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''}
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBatchResend}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              Reenviar emails
+            </Button>
             <Button
               variant="destructive"
               size="sm"
