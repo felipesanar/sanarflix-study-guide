@@ -510,18 +510,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         if (error) throw error;
 
         if (data && data.length > 0) {
-          // Fetch admin roles for this page to exclude them
-          const pageIds = data.map(u => u.id);
-          const { data: adminRoles } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .eq('role', 'admin')
-            .in('user_id', pageIds);
-
-          const adminIds = new Set((adminRoles || []).map(r => r.user_id));
-          const nonAdminUsers = data.filter(u => !adminIds.has(u.id));
-
-          allUsers.push(...nonAdminUsers.map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre })));
+          allUsers.push(...data.map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre })));
           from += PAGE_SIZE;
           hasMore = data.length === PAGE_SIZE;
         } else {
@@ -545,7 +534,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   // ──── Batch resend selected ────
   const handleBatchResend = () => {
     const usersToResend = users
-      .filter(u => selectedIds.has(u.id) && !u.roles.includes('admin'))
+      .filter(u => selectedIds.has(u.id))
       .map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre }));
     executeChunkedResend(usersToResend);
   };
