@@ -1161,7 +1161,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0 || loading || batchProgress.active}
+                disabled={page === 0 || loading || isAnyBatchActive}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -1172,7 +1172,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1 || loading || batchProgress.active}
+                disabled={page >= totalPages - 1 || loading || isAnyBatchActive}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
