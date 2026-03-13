@@ -99,6 +99,15 @@ interface BatchProgress {
   failedUsers: FailedUser[];
 }
 
+interface EmailProgress {
+  total: number;
+  completed: number;
+  sent: number;
+  failed: number;
+  active: boolean;
+  failedUsers: FailedUser[];
+}
+
 const ITEMS_PER_PAGE = 25;
 const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
 
