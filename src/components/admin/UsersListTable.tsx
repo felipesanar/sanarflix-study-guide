@@ -194,6 +194,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         query = query.eq('id_ies', filterIes);
       }
 
+      if (filterSemestre !== 'all') {
+        query = query.eq('semestre', parseInt(filterSemestre));
+      }
+
       if (searchTerm.trim()) {
         query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
       }
