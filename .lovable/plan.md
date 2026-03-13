@@ -1,32 +1,81 @@
 
 
-## Plan: Add Semester Filter to Mass Deletion
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-Two changes needed: the edge function must accept an optional `semestre` parameter in `resolve_only` mode, and the frontend needs a semester filter dropdown + updated delete button/dialog.
+### Causa Raiz Identificada
 
-### 1. Edge Function: `supabase/functions/delete-user/index.ts`
+Analisando os logs de autenticacao, o problema fica evidente:
 
-**`fetchIesUserIdsPage`** — add optional `semestre` parameter:
-```typescript
-async function fetchIesUserIdsPage(supabaseAdmin, iesId, cursor, pageSize, semestre?)
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
-When `semestre` is provided, add `.eq('semestre', semestre)` to the query.
 
-**`resolve_only` handler** — pass `body.semestre` to `fetchIesUserIdsPage`.
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-### 2. Frontend: `src/components/admin/UsersListTable.tsx`
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-- **New state**: `filterSemestre` (`string`, default `'all'`). Add to `useEffect` that resets page/selection.
-- **Fetch query**: When `filterSemestre !== 'all'`, add `.eq('semestre', parseInt(filterSemestre))`.
-- **Filters row**: Add a semester `Select` dropdown (values 1-12 + "Todos") next to the IES filter. Only show when `filterIes !== 'all'`.
-- **Delete button**: Change from "Excluir todos da IES" to also show semester when filtered. E.g., "Excluir todos do 7º sem. da IES". Show the button when IES is selected (semester optional).
-- **`handleIesDelete`**: Pass `semestre` in the `resolve_only` call body:
-  ```typescript
-  body: { ies_id: filterIes, resolve_only: true, cursor, page_size: 500, semestre: filterSemestre !== 'all' ? parseInt(filterSemestre) : undefined }
-  ```
-- **IES Delete dialog**: Update confirmation text to include semester when filtered. E.g., "Todos os usuários do **7º semestre** da IES **Claretiano**".
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
+```
 
-### Files Modified
-1. `supabase/functions/delete-user/index.ts` — add `semestre` param to resolve
-2. `src/components/admin/UsersListTable.tsx` — semester filter + updated delete flow
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
+
+### Solucao
+
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
+
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
+
+---
+
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 

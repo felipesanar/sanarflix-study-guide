@@ -108,6 +108,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
+  const [filterSemestre, setFilterSemestre] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   
@@ -141,7 +142,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   // Clear selection on page/filter change
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, searchTerm, filterIes]);
+  }, [page, searchTerm, filterIes, filterSemestre]);
 
   const selectableUsers = useMemo(
     () => users.filter(u => !u.roles.includes('admin')),
@@ -191,6 +192,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
       if (filterIes !== 'all') {
         query = query.eq('id_ies', filterIes);
+      }
+
+      if (filterSemestre !== 'all') {
+        query = query.eq('semestre', parseInt(filterSemestre));
       }
 
       if (searchTerm.trim()) {
@@ -243,7 +248,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, onStatsUpdate]);
+  }, [page, searchTerm, filterIes, filterSemestre, onStatsUpdate]);
 
   useEffect(() => {
     fetchUsers();
@@ -251,7 +256,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, filterIes]);
+  }, [searchTerm, filterIes, filterSemestre]);
 
   // ──── Chunked batch deletion with progress ────
   const executeChunkedDelete = async (idsToDelete: string[]) => {
@@ -354,7 +359,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         }
 
         const { data, error } = await supabase.functions.invoke('delete-user', {
-          body: { ies_id: filterIes, resolve_only: true, cursor, page_size: 500 },
+          body: {
+            ies_id: filterIes,
+            resolve_only: true,
+            cursor,
+            page_size: 500,
+            ...(filterSemestre !== 'all' ? { semestre: filterSemestre } : {}),
+          },
         });
 
         if (error) throw error;
@@ -613,7 +624,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               disabled={batchProgress.active}
             />
           </div>
-          <Select value={filterIes} onValueChange={setFilterIes} disabled={batchProgress.active}>
+          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={batchProgress.active}>
             <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Filtrar por IES" />
             </SelectTrigger>
@@ -627,6 +638,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </SelectContent>
           </Select>
           {filterIes !== 'all' && (
+            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={batchProgress.active}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <SelectValue placeholder="Semestre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os semestres</SelectItem>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
+                  <SelectItem key={s} value={s.toString()}>
+                    {s}º semestre
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {filterIes !== 'all' && (
             <Button
               variant="destructive"
               size="sm"
@@ -635,7 +661,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               disabled={batchProgress.active}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Excluir todos da IES
+              {filterSemestre !== 'all' ? `Excluir ${filterSemestre}º sem.` : 'Excluir todos da IES'}
             </Button>
           )}
           <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || batchProgress.active}>
@@ -964,11 +990,20 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         <AlertDialog open={iesDeleteOpen} onOpenChange={(open) => { if (!open) { setIesDeleteOpen(false); setConfirmText(''); } }}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir todos os usuários da IES</AlertDialogTitle>
+              <AlertDialogTitle>
+                {filterSemestre !== 'all'
+                  ? `Excluir usuários do ${filterSemestre}º semestre da IES`
+                  : 'Excluir todos os usuários da IES'}
+              </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-3">
                   <p>
-                    Esta ação é <strong>irreversível</strong>. Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.
+                    Esta ação é <strong>irreversível</strong>.{' '}
+                    {filterSemestre !== 'all' ? (
+                      <>Todos os usuários (exceto admins) do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
+                    ) : (
+                      <>Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
+                    )}
                   </p>
                   <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
                   <Input
@@ -984,7 +1019,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <Button variant="destructive" onClick={handleIesDelete} disabled={confirmText !== selectedIesName}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Excluir Todos da IES
+                {filterSemestre !== 'all' ? `Excluir do ${filterSemestre}º sem.` : 'Excluir Todos da IES'}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
