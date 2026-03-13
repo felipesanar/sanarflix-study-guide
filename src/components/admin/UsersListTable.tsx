@@ -213,7 +213,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       }
 
       if (searchTerm.trim()) {
-        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+        // Sanitize search term to prevent PostgREST filter syntax breakage
+        const sanitized = searchTerm.replace(/[%_,().*]/g, '');
+        if (sanitized.trim()) {
+          query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
+        }
       }
 
       const from = page * ITEMS_PER_PAGE;
