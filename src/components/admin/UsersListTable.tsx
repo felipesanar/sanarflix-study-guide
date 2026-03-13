@@ -762,7 +762,81 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           </div>
         )}
 
-        {/* Filters */}
+        {/* Email resend progress overlay */}
+        {(emailProgress.active || emailProgress.completed > 0) && emailProgress.total > 0 && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {emailProgress.active ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Check className="h-4 w-4 text-primary" />
+                )}
+                <span className="text-sm font-medium">
+                  {emailProgress.active
+                    ? `Reenviando emails... ${emailProgress.completed}/${emailProgress.total}`
+                    : `Reenvio concluído: ${emailProgress.sent} enviados`
+                  }
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {emailProgress.failed > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    {emailProgress.failed} falha{emailProgress.failed > 1 ? 's' : ''}
+                  </Badge>
+                )}
+                {emailProgress.active ? (
+                  <Button variant="outline" size="sm" onClick={cancelEmailResend}>
+                    Cancelar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEmailProgress(EMPTY_EMAIL_PROGRESS)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <Progress value={emailProgressPercent} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              {emailProgress.sent} enviados • {emailProgress.failed} falhas • {emailProgressPercent}% concluído
+            </p>
+
+            {/* Failure report */}
+            {!emailProgress.active && emailProgress.failedUsers.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Emails que falharam ({emailProgress.failedUsers.length}):
+                </p>
+                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs py-1.5">Nome</TableHead>
+                        <TableHead className="text-xs py-1.5">Email</TableHead>
+                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emailProgress.failedUsers.map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs py-1.5">{f.nome || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
+                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
