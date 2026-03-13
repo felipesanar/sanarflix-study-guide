@@ -1,75 +1,81 @@
 
 
-## Audit: Mass Email Resend Not Delivering
+## Auditoria do Link de Acesso: Diagnostico e Correcao
 
-### Root Cause
+### Causa Raiz Identificada
 
-The logs confirm the entire pipeline runs without errors:
-1. `b2b-create-user` receives `resend_email: true` -- OK
-2. Recovery link generated via `generateLink()` -- OK
-3. `triggerNovuEvent('welcome-academy-email')` called -- OK
-4. Novu Kong gateway returns `200` ("Event triggered successfully") -- OK
-5. **But no emails arrive**
+Analisando os logs de autenticacao, o problema fica evidente:
 
-The problem is **Novu is a black box** here. The Kong gateway accepts the event, but Novu's internal workflow (`welcome-academy-email`) is not delivering the emails. This is an external service issue we cannot debug or fix from our side.
-
-### Solution
-
-Replace the Novu dependency for resends with **Supabase's built-in password reset flow** (`resetPasswordForEmail`), which triggers the managed `auth-email-hook` system. This system uses the verified domain (`academy.sanar.com.br`) and is proven to deliver emails.
-
-The resend use case is specifically "send a user a link to set/reset their password" -- this is exactly what `resetPasswordForEmail` does.
-
-### Changes
-
-**1. Edge Function: `supabase/functions/b2b-create-user/index.ts`**
-
-Add a new function `sendPasswordResetEmail` that uses the Supabase Auth API directly:
-
-```typescript
-async function sendPasswordResetEmail(supabaseAdmin, email: string): Promise<boolean> {
-  const { error } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'recovery',
-    email,
-    options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
-  });
-  if (error) {
-    console.error('[CreateUser] Password reset email failed:', error);
-    return false;
-  }
-  return true;
-}
+```text
+16:07:58  user_signedup  → maria.guerra@sanar.com criada
+16:07:58  recovery_requested → token gerado (generateLink)
+16:08:23  verify SUCCESS  → IP: 44.198.52.178 (AWS) ← BOT/SCANNER
+16:08:27  verify FAIL     → IP: 187.103.33.162 (usuario real) ← "One-time token not found"
 ```
 
-Wait -- `generateLink` doesn't send emails. We need `resetPasswordForEmail` but that's a client-side method. For the admin API, we should use `supabaseAdmin.auth.admin.generateLink({ type: 'invite' })` which **does** trigger the auth email hook.
+**O token OTP foi consumido por um bot de seguranca de email (IP AWS 44.198.52.178) 4 segundos antes do usuario real clicar.**
 
-Actually, the correct approach: call the Supabase Auth `/recover` endpoint directly, or use `supabase.auth.resetPasswordForEmail()` from a service-role client. This triggers the email hook pipeline.
+Isso acontece porque o `buildCanonicalLink` gera URLs que apontam para o endpoint server-side do Supabase:
 
-Modify the `sendWelcomeEmail` function (used when `resend_email: true`) to:
-1. **Primary**: Call `supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo })` -- this triggers the managed auth-email-hook which sends the recovery email via the verified domain
-2. **Fallback**: Keep Novu as a fallback if the reset call fails
-
-For **new user creation** (not resend), keep the existing Novu welcome email flow (it has different copy/branding than a password reset).
-
-**2. Split resend logic from create logic**
-
-When `resend_email: true`, instead of calling `sendWelcomeEmail` (which uses Novu), call the new `sendPasswordResetEmail` which uses Supabase's native auth email system:
-
-```typescript
-if (resend_email) {
-  // Use Supabase's native recovery flow — triggers auth-email-hook
-  const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://academy.sanar.com.br/auth/update-password'
-  });
-  emailSent = !error;
-  if (error) console.error('[CreateUser] Reset email failed:', error);
-}
+```
+https://gvqvrmkizemwsasmupmo.supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=...
 ```
 
-This bypasses Novu entirely for resends and uses the proven auth email pipeline.
+Este endpoint auto-verifica o token em qualquer requisicao GET. Scanners de email (Outlook, Gmail corporativo, SendGrid) fazem GET nessas URLs para checar malware, consumindo o OTP antes do usuario.
 
-### Files Modified
-1. `supabase/functions/b2b-create-user/index.ts` -- replace Novu with `resetPasswordForEmail` for resend flow
+### Solucao
 
-### No Frontend Changes Needed
-The frontend already works correctly. Only the email delivery mechanism in the edge function needs to change.
+Mudar os links para apontar diretamente para a pagina do frontend com o `token_hash` como parametro de query. O frontend verifica o token via `verifyOtp()` apenas quando JavaScript executa num browser real. Scanners de email nao executam JavaScript.
+
+**Novo formato do link:**
+```
+https://academy.sanar.com.br/auth/update-password?token_hash=TOKEN&type=recovery
+```
+
+Em vez de:
+```
+https://supabase.co/auth/v1/verify?token=TOKEN&type=recovery&redirect_to=https://academy.sanar.com.br/auth/update-password
+```
+
+---
+
+### Mudancas
+
+#### 1. Alterar `buildCanonicalLink` para gerar links diretos ao frontend
+
+**Arquivo: `supabase/functions/_shared/auth-links.ts`**
+
+Mudar a Strategy 1 (token_hash) para construir URL apontando para `academy.sanar.com.br/auth/update-password?token_hash=X&type=Y` em vez de `supabase.co/auth/v1/verify?token=X`.
+
+A Strategy 2 (action_link) e Strategy 3 (fallback) permanecem como backup.
+
+#### 2. Atualizar `UpdatePassword.tsx` para verificar via query params
+
+**Arquivo: `src/pages/UpdatePassword.tsx`**
+
+Adicionar suporte para ler `token_hash` e `type` dos query params (alem dos hash params que ja le). Prioridade:
+1. Query params `token_hash` + `type` → chamar `supabase.auth.verifyOtp({ token_hash, type })`
+2. Hash params `access_token` + `refresh_token` → chamar `setSession` (fluxo existente)
+3. Hash params `token` + `type` → chamar `verifyOtp` (fluxo existente)
+4. Error params → mostrar erro
+
+#### 3. Deploy da Edge Function
+
+Fazer deploy de todas as Edge Functions que importam `auth-links.ts` (b2b-create-user, b2c-signup, e qualquer outra que use o utilitario).
+
+---
+
+### Resumo
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `supabase/functions/_shared/auth-links.ts` | Links apontam direto ao frontend, nao ao Supabase verify |
+| `src/pages/UpdatePassword.tsx` | Ler token_hash de query params e verificar via verifyOtp |
+| Edge Functions | Redeploy b2b-create-user (usa auth-links) |
+
+### Por que isso resolve
+
+- Scanners de email fazem GET na URL → recebem HTML do React SPA → nao executam JS → token nao e consumido
+- Usuario real abre a pagina → JS executa → `verifyOtp()` consome o token → senha pode ser definida
+- Links antigos (formato Supabase verify) continuam funcionando no UpdatePassword via hash params
 
