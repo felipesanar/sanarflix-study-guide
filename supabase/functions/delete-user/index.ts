@@ -27,6 +27,7 @@ const DEPENDENT_TABLES = [
   { table: 'announcements_viewed', filters: ['user_id'] },
   { table: 'sanarclass_views', filters: ['user_id'] },
   { table: 'performance_notifications_sent', filters: ['user_id'] },
+  { table: 'error_notebook_entries', filters: ['user_id'] },
   // consumo_metabase references supabase_to_metabase via FK — must be deleted first
   { table: 'consumo_metabase', filters: ['id'] },
   { table: 'supabase_to_metabase', filters: ['id'] },
