@@ -947,7 +947,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                     checked={allPageSelected && selectableUsers.length > 0}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Selecionar todos"
-                    disabled={batchProgress.active}
+                    disabled={isAnyBatchActive}
                   />
                 </TableHead>
                 <TableHead className="min-w-[200px]">Nome</TableHead>
