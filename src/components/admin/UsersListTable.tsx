@@ -862,7 +862,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             </SelectContent>
           </Select>
           {filterIes !== 'all' && (
-            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={batchProgress.active}>
+            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={isAnyBatchActive}>
               <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Semestre" />
               </SelectTrigger>
