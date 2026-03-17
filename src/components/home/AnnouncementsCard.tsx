@@ -43,7 +43,7 @@ export const AnnouncementsCard: React.FC = () => {
 
     const { data, error } = await supabase
       .from('announcements')
-      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade, created_at, data_expiracao')
+      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade, created_at, data_expiracao, visibilidade, ies_selecionadas, ies_excluidas')
       .eq('ativo', true)
       .order('created_at', { ascending: false });
 
