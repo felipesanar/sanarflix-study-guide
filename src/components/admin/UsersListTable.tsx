@@ -213,9 +213,11 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       }
 
       if (searchTerm.trim()) {
-        // Sanitize search term to prevent PostgREST filter syntax breakage
-        const sanitized = searchTerm.replace(/[%_,().*]/g, '');
-        if (sanitized.trim()) {
+        // Sanitize: only remove characters that break PostgREST .or() filter syntax
+        // Commas and parentheses are filter delimiters; % and _ are SQL LIKE wildcards
+        // Dots, @, hyphens etc. are valid in names/emails and must be preserved
+        const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
+        if (sanitized) {
           query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
         }
       }
