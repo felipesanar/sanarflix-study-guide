@@ -199,6 +199,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   };
 
   const fetchUsers = useCallback(async () => {
+    const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
     try {
       let query = supabase
