@@ -115,11 +115,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const { startImpersonation } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
   const [filterSemestre, setFilterSemestre] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const fetchIdRef = useRef(0);
+
+  // Debounce search input → searchTerm (400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput), 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
   
   const [editing, setEditing] = useState<EditingState>({
     userId: null,
