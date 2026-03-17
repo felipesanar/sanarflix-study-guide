@@ -240,6 +240,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
       if (error) throw error;
 
+      // Discard stale responses from previous searches
+      if (currentFetchId !== fetchIdRef.current) return;
+
       const userIds = usersData?.map(u => u.id) || [];
       const { data: rolesData } = await supabase
         .from('user_roles')
