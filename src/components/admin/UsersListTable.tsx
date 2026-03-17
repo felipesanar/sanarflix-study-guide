@@ -115,11 +115,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const { startImpersonation } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
   const [filterSemestre, setFilterSemestre] = useState<string>('all');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const fetchIdRef = useRef(0);
+
+  // Debounce search input → searchTerm (400ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput), 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
   
   const [editing, setEditing] = useState<EditingState>({
     userId: null,
@@ -191,6 +199,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   };
 
   const fetchUsers = useCallback(async () => {
+    const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
     try {
       let query = supabase
@@ -230,6 +239,9 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         .range(from, to);
 
       if (error) throw error;
+
+      // Discard stale responses from previous searches
+      if (currentFetchId !== fetchIdRef.current) return;
 
       const userIds = usersData?.map(u => u.id) || [];
       const { data: rolesData } = await supabase
@@ -848,8 +860,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nome ou email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
               disabled={isAnyBatchActive}
             />
