@@ -31,6 +31,7 @@ export const AnnouncementsCard: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [popupAnnouncement, setPopupAnnouncement] = useState<Announcement | null>(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [expandedAnnouncement, setExpandedAnnouncement] = useState<Announcement | null>(null);
 
   useEffect(() => {
     if (user) {
