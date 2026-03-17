@@ -72,7 +72,20 @@ export const useAnnouncements = () => {
 
     if (data && data.length > 0) {
       const now = getBrazilDate();
-      const active = data.filter((a: Announcement) => !a.data_expiracao || toBrazilDate(a.data_expiracao) >= now);
+      const userIesId = user.id_ies;
+      const filtered = data.filter((a: any) => {
+        if (a.data_expiracao && toBrazilDate(a.data_expiracao) < now) return false;
+        if (a.visibilidade === 'seletivo') {
+          const selected: string[] = a.ies_selecionadas || [];
+          return userIesId ? selected.includes(userIesId) : false;
+        }
+        if (a.visibilidade === 'exceto') {
+          const excluded: string[] = a.ies_excluidas || [];
+          return userIesId ? !excluded.includes(userIesId) : true;
+        }
+        return true; // 'todas'
+      });
+      const active = filtered;
       const weight = (p: string) => {
         const x = (p || '').toLowerCase();
         if (x.includes('muito')) return 3;
