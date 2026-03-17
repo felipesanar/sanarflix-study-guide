@@ -187,17 +187,19 @@ export const WelcomeCard: React.FC<WelcomeCardProps> = ({
             </SheetHeader>
             
             <div className="space-y-4 sm:space-y-5">
-              <p className="text-muted-foreground text-sm leading-relaxed line-clamp-4">
+              <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
                 {mobileAnnouncement.announcement.descricao}
               </p>
               
-              <Button 
-                className={`w-full rounded-xl h-11 sm:h-12 bg-gradient-to-r ${mobileAnnouncement.gradient.bg} hover:opacity-90 text-white font-medium text-sm sm:text-base`}
-                onClick={handleSheetAction}
-              >
-                {mobileAnnouncement.announcement.texto_botao}
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+              {mobileAnnouncement.announcement.link_botao && (
+                <Button 
+                  className={`w-full rounded-xl h-11 sm:h-12 bg-gradient-to-r ${mobileAnnouncement.gradient.bg} hover:opacity-90 text-white font-medium text-sm sm:text-base`}
+                  onClick={handleSheetAction}
+                >
+                  {mobileAnnouncement.announcement.texto_botao}
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
