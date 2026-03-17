@@ -291,7 +291,7 @@ export const AnnouncementsCard: React.FC = () => {
           );
         })()}
 
-      {/* Pop-up Modal */}
+      </Dialog>
       <AnimatePresence>
         {showPopup && popupAnnouncement && (
           <Dialog open={showPopup} onOpenChange={handleClosePopup}>
