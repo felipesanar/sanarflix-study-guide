@@ -36,20 +36,30 @@ export const ImportantAnnouncementsCard: React.FC = () => {
 
     const { data, error } = await supabase
       .from('announcements')
-      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores')
+      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, visibilidade, ies_selecionadas, ies_excluidas')
       .eq('ativo', true)
       .order('prioridade', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Erro ao buscar avisos:', error);
       return;
     }
 
-    if (data) {
-      setAnnouncement(data);
+    if (data && data.length > 0) {
+      const userIesId = user.id_ies;
+      const visible = data.find((a: any) => {
+        if (a.visibilidade === 'seletivo') {
+          const selected: string[] = a.ies_selecionadas || [];
+          return userIesId ? selected.includes(userIesId) : false;
+        }
+        if (a.visibilidade === 'exceto') {
+          const excluded: string[] = a.ies_excluidas || [];
+          return userIesId ? !excluded.includes(userIesId) : true;
+        }
+        return true;
+      });
+      if (visible) setAnnouncement(visible);
     }
   };
 
