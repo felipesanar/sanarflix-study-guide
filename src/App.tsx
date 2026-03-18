@@ -20,6 +20,7 @@ import { DynamicRoutes } from '@/components/DynamicRoutes';
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
+const ResendWelcome = lazy(() => import("./pages/ResendWelcome"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
