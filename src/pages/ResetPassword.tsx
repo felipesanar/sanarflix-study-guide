@@ -98,7 +98,13 @@ export default function ResetPassword() {
       toast.success('Senha redefinida com sucesso!');
       navigate('/login');
     } catch (error: any) {
-      setError(error.message || 'Erro ao redefinir senha. Tente novamente.');
+      const msg = error.message || 'Erro ao redefinir senha. Tente novamente.';
+      const translated = msg.includes('different from the old password')
+        ? 'A nova senha deve ser diferente da senha atual.'
+        : msg.includes('should be at least')
+        ? 'A senha deve ter pelo menos 6 caracteres.'
+        : msg;
+      setError(translated);
     } finally {
       setIsLoading(false);
     }
