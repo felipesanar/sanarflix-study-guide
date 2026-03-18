@@ -215,7 +215,7 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
     return false;
   }
 
-  const htmlContent = buildWelcomeEmailHtml(confirmationUrl);
+  const htmlContent = buildWelcomeEmailHtml(confirmationUrl, email);
 
   const result = await triggerNovuEvent({
     name: 'workflow-email',
