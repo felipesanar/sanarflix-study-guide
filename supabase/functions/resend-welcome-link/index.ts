@@ -7,37 +7,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function buildResetPasswordHtml(confirmationUrl: string): string {
-  const loginUrl = 'https://academy.sanar.com.br/login';
+function buildWelcomeEmailHtml(confirmationUrl: string, email: string): string {
+  const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}`;
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="color-scheme" content="light only" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Redefina sua senha</title>
+    <title>Defina sua Senha</title>
     <style>
       body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
       table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
       img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
       table { border-collapse: collapse !important; }
-      body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #FFFFFF; }
-      .wrapper { width: 100%; table-layout: fixed; background-color: #FFFFFF; background-image: linear-gradient(180deg, #FFFFFF 0%, #FDE8E8 65%, #FBD1D1 100%); }
+      body { margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #ffffff; }
+      .wrapper { width: 100%; table-layout: fixed; background-color: #ffffff; background-image: linear-gradient(180deg, #ffffff 0%, #fde8e8 65%, #fbd1d1 100%); }
       .webkit { max-width: 600px; margin: 0 auto; }
       .outer { margin: 0 auto; width: 100%; max-width: 600px; }
-      .card { background-color: #FFFFFF; border-radius: 14px; border: 1px solid #F1F1F1; box-shadow: 0 10px 32px rgba(0,0,0,0.08); }
+      .card { background-color: #ffffff; border-radius: 14px; border: 1px solid #f1f1f1; box-shadow: 0 10px 32px rgba(0,0,0,0.08); }
       .heading { font-family: Helvetica, Arial, sans-serif; font-size: 22px; line-height: 1.3; color: #111111; margin: 0; }
       .body { font-family: Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #444444; margin: 0; }
       .small { font-family: Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #888888; margin: 0; }
-      .cta { display: inline-block; background-color: #DC2626; color: #FFFFFF !important; text-decoration: none; font-weight: 700; font-family: Helvetica, Arial, sans-serif; font-size: 15px; border-radius: 10px; padding: 14px 24px; border: 1px solid #DC2626; box-shadow: 0 8px 16px rgba(220, 38, 38, 0.25); }
-      .cta:hover, .cta:focus { background-color: #B91C1C; border-color: #B91C1C; }
+      .cta { display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; font-weight: 700; font-family: Helvetica, Arial, sans-serif; font-size: 15px; border-radius: 10px; padding: 14px 24px; border: 1px solid #dc2626; box-shadow: 0 8px 16px rgba(220, 38, 38, 0.25); }
+      .cta:hover, .cta:focus { background-color: #b91c1c; border-color: #b91c1c; }
       .cta-secondary { display: inline-block; background-color: #ffffff; color: #dc2626 !important; text-decoration: none; font-weight: 600; font-family: Helvetica, Arial, sans-serif; font-size: 13px; border-radius: 10px; padding: 10px 20px; border: 2px solid #dc2626; }
       .cta-secondary:hover, .cta-secondary:focus { background-color: #fef2f2; }
       .preheader { display: none !important; visibility: hidden; opacity: 0; color: transparent; height: 0; max-height: 0; overflow: hidden; mso-hide: all; }
     </style>
   </head>
   <body style="margin:0; padding:0; background-color:#ffffff;">
-    <div class="preheader">Recebemos uma solicitação para redefinir sua senha no SanarFlix Academy.</div>
+    <div class="preheader">Defina sua senha para concluir seu acesso ao SanarFlix Academy.</div>
     <center class="wrapper">
       <div class="webkit">
         <table class="outer" align="center" role="presentation" cellpadding="0" cellspacing="0">
@@ -51,33 +51,34 @@ function buildResetPasswordHtml(confirmationUrl: string): string {
               <table class="card" width="100%" role="presentation" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding: 36px 28px 8px 28px;">
-                    <h1 class="heading">Redefina sua senha</h1>
+                    <h1 class="heading">Boas\u2011vindas ao SanarFlix Academy</h1>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding: 8px 28px 0 28px;">
-                    <p class="body">Recebemos uma solicitação para redefinir a senha da sua conta no <strong>SanarFlix Academy</strong>. Para criar uma nova senha, clique no botão abaixo.</p>
+                    <p class="body">
+                      Voc\u00ea foi convidado para acessar a plataforma. Para garantir sua seguran\u00e7a e liberar seu acesso,
+                      clique no bot\u00e3o abaixo e <strong>defina sua senha pessoal</strong>.
+                    </p>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding: 18px 28px 12px 28px;">
-                    <a href="${confirmationUrl}" class="cta" target="_blank" rel="noopener">Redefinir minha senha</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding: 0 28px 12px 28px;">
-                    <p class="small">Se você não solicitou essa redefinição, pode ignorar este e-mail com segurança.</p>
+                    <a href="${confirmationUrl}" class="cta" target="_blank" rel="noopener">Definir minha senha</a>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding: 8px 28px 12px 28px;">
-                    <p class="small">Se o botão não funcionar, copie e cole este link no navegador:<br /><a href="${confirmationUrl}" style="color:#dc2626; text-decoration:underline; word-break:break-all;" target="_blank" rel="noopener">${confirmationUrl}</a></p>
+                    <p class="small">
+                      Se o bot\u00e3o n\u00e3o funcionar, copie e cole este link no navegador:<br />
+                      <a href="${confirmationUrl}" style="color:#dc2626; text-decoration:underline; word-break:break-all;" target="_blank" rel="noopener">${confirmationUrl}</a>
+                    </p>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding: 8px 28px 28px 28px; border-top: 1px solid #f1f1f1;">
-                    <p class="small" style="margin-bottom: 10px;">Link expirado ou não funciona?</p>
-                    <a href="${loginUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
+                    <p class="small" style="margin-bottom: 10px;">Link expirado ou n\u00e3o funciona?</p>
+                    <a href="${resendUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
                   </td>
                 </tr>
               </table>
@@ -85,7 +86,10 @@ function buildResetPasswordHtml(confirmationUrl: string): string {
           </tr>
           <tr>
             <td align="center" style="padding: 28px 0 36px 0;">
-              <p class="small" style="color:#666;">Este e-mail foi enviado porque foi solicitada uma redefinição de senha para sua conta.<br />© 2025 SanarFlix. Todos os direitos reservados.</p>
+              <p class="small" style="color:#666;">
+                Voc\u00ea recebeu este e\u2011mail porque foi cadastrado na plataforma.<br/>
+                \u00a9 2025 SanarFlix. Todos os direitos reservados.
+              </p>
             </td>
           </tr>
         </table>
@@ -102,7 +106,7 @@ Deno.serve(async (req) => {
 
   try {
     const { email } = await req.json();
-    
+
     if (!email || typeof email !== 'string') {
       return new Response(
         JSON.stringify({ success: false, error: 'Email é obrigatório' }),
@@ -118,7 +122,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Check if user exists in public.users
+    // Check if user exists
     const { data: userRecord } = await supabaseAdmin
       .from('users')
       .select('id, nome')
@@ -126,25 +130,24 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!userRecord) {
-      // Don't reveal whether user exists — return success silently
-      console.log('[request-password-reset] User not found, returning silent success');
+      console.log('[resend-welcome-link] User not found, returning silent success');
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate recovery link
+    // Generate new recovery link
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
       email: normalizedEmail,
       options: {
-        redirectTo: 'https://academy.sanar.com.br/reset-password',
+        redirectTo: 'https://academy.sanar.com.br/auth/update-password',
       },
     });
 
     if (linkError || !linkData) {
-      console.error('[request-password-reset] generateLink error:', linkError?.message);
+      console.error('[resend-welcome-link] generateLink error:', linkError?.message);
       return new Response(
         JSON.stringify({ success: false, error: 'Erro ao gerar link de recuperação' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -153,18 +156,17 @@ Deno.serve(async (req) => {
 
     const confirmationUrl = buildCanonicalLink({
       properties: linkData.properties,
-      redirectPath: '/reset-password',
+      redirectPath: '/auth/update-password',
     });
 
-    console.log('[request-password-reset] Recovery link generated for:', normalizedEmail);
+    console.log('[resend-welcome-link] Recovery link generated for:', normalizedEmail);
 
-    // Split name
     const nome = userRecord.nome || '';
     const nameParts = nome.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    const htmlContent = buildResetPasswordHtml(confirmationUrl);
+    const htmlContent = buildWelcomeEmailHtml(confirmationUrl, normalizedEmail);
 
     const result = await triggerNovuEvent({
       name: 'workflow-email',
@@ -174,15 +176,14 @@ Deno.serve(async (req) => {
         email: {
           from: '<atendimento@sanar.com.br>',
           replyTo: 'atendimento@sanar.com.br',
-          subject: 'Redefinição de Senha — SanarFlix Academy',
+          subject: 'Novo link de acesso — SanarFlix Academy',
           html: htmlContent,
         },
       },
     });
 
     if (!result.ok) {
-      console.error('[request-password-reset] Novu trigger failed:', result.error);
-      // Still return success to not reveal info
+      console.error('[resend-welcome-link] Novu trigger failed:', result.error);
     }
 
     return new Response(
@@ -190,7 +191,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('[request-password-reset] Exception:', error);
+    console.error('[resend-welcome-link] Exception:', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Erro interno' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

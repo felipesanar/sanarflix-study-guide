@@ -110,7 +110,8 @@ async function generateRecoveryLink(supabaseAdmin: any, email: string): Promise<
   }
 }
 
-function buildWelcomeEmailHtml(confirmationUrl: string): string {
+function buildWelcomeEmailHtml(confirmationUrl: string, email: string): string {
+  const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}`;
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
@@ -133,6 +134,8 @@ function buildWelcomeEmailHtml(confirmationUrl: string): string {
       .small { font-family: Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #888888; margin: 0; }
       .cta { display: inline-block; background-color: #dc2626; color: #ffffff !important; text-decoration: none; font-weight: 700; font-family: Helvetica, Arial, sans-serif; font-size: 15px; border-radius: 10px; padding: 14px 24px; border: 1px solid #dc2626; box-shadow: 0 8px 16px rgba(220, 38, 38, 0.25); }
       .cta:hover, .cta:focus { background-color: #b91c1c; border-color: #b91c1c; }
+      .cta-secondary { display: inline-block; background-color: #ffffff; color: #dc2626 !important; text-decoration: none; font-weight: 600; font-family: Helvetica, Arial, sans-serif; font-size: 13px; border-radius: 10px; padding: 10px 20px; border: 2px solid #dc2626; }
+      .cta-secondary:hover, .cta-secondary:focus { background-color: #fef2f2; }
       .preheader { display: none !important; visibility: hidden; opacity: 0; color: transparent; height: 0; max-height: 0; overflow: hidden; mso-hide: all; }
     </style>
   </head>
@@ -143,12 +146,7 @@ function buildWelcomeEmailHtml(confirmationUrl: string): string {
         <table class="outer" align="center" role="presentation" cellpadding="0" cellspacing="0">
           <tr>
             <td align="center" style="padding: 36px 0 20px 0;">
-              <img
-                src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
-                alt="SanarFlix Academy"
-                width="120"
-                style="display:block; border:0; border-radius:16px;"
-              />
+              <img src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png" alt="SanarFlix Academy" width="120" style="display:block; border:0; border-radius:16px;" />
             </td>
           </tr>
           <tr>
@@ -173,13 +171,17 @@ function buildWelcomeEmailHtml(confirmationUrl: string): string {
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding: 8px 28px 28px 28px;">
+                  <td align="center" style="padding: 8px 28px 12px 28px;">
                     <p class="small">
                       Se o bot\u00e3o n\u00e3o funcionar, copie e cole este link no navegador:<br />
-                      <a href="${confirmationUrl}" style="color:#dc2626; text-decoration:underline; word-break:break-all;" target="_blank" rel="noopener">
-                        ${confirmationUrl}
-                      </a>
+                      <a href="${confirmationUrl}" style="color:#dc2626; text-decoration:underline; word-break:break-all;" target="_blank" rel="noopener">${confirmationUrl}</a>
                     </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding: 8px 28px 28px 28px; border-top: 1px solid #f1f1f1;">
+                    <p class="small" style="margin-bottom: 10px;">Link expirado ou n\u00e3o funciona?</p>
+                    <a href="${resendUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
                   </td>
                 </tr>
               </table>
@@ -213,7 +215,7 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
     return false;
   }
 
-  const htmlContent = buildWelcomeEmailHtml(confirmationUrl);
+  const htmlContent = buildWelcomeEmailHtml(confirmationUrl, email);
 
   const result = await triggerNovuEvent({
     name: 'workflow-email',

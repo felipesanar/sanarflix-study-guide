@@ -20,6 +20,7 @@ import { DynamicRoutes } from '@/components/DynamicRoutes';
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
+const ResendWelcome = lazy(() => import("./pages/ResendWelcome"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -56,6 +57,7 @@ const AppContent = () => {
           <Route path="/login" element={<LoginForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/update-password" element={<UpdatePassword />} />
+          <Route path="/auth/resend" element={<ResendWelcome />} />
           <Route path="/cadastro-b2c" element={<SignupB2C />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
