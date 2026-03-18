@@ -44,7 +44,6 @@ export const LoginForm: React.FC = () => {
       }, 50);
     }
   };
-  const [isResetting, setIsResetting] = useState(false);
 
   const handleResetPassword = async () => {
     const normalizedEmail = email.trim().toLowerCase();
