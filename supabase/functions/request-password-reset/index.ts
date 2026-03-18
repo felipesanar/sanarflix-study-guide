@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 function buildResetPasswordHtml(confirmationUrl: string, email: string): string {
-  const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}`;
+  const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}&type=reset`;
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
