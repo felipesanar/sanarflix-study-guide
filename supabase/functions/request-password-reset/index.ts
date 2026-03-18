@@ -7,8 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function buildResetPasswordHtml(confirmationUrl: string): string {
-  const loginUrl = 'https://academy.sanar.com.br/login';
+function buildResetPasswordHtml(confirmationUrl: string, email: string): string {
+  const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}`;
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
@@ -77,7 +77,7 @@ function buildResetPasswordHtml(confirmationUrl: string): string {
                 <tr>
                   <td align="center" style="padding: 8px 28px 28px 28px; border-top: 1px solid #f1f1f1;">
                     <p class="small" style="margin-bottom: 10px;">Link expirado ou não funciona?</p>
-                    <a href="${loginUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
+                    <a href="${resendUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
                   </td>
                 </tr>
               </table>
@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    const htmlContent = buildResetPasswordHtml(confirmationUrl);
+    const htmlContent = buildResetPasswordHtml(confirmationUrl, normalizedEmail);
 
     // Fire-and-forget: send email without blocking the response
     triggerNovuEvent({
