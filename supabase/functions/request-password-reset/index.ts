@@ -166,7 +166,8 @@ Deno.serve(async (req) => {
 
     const htmlContent = buildResetPasswordHtml(confirmationUrl);
 
-    const result = await triggerNovuEvent({
+    // Fire-and-forget: send email without blocking the response
+    triggerNovuEvent({
       name: 'workflow-email',
       payload: { name: nome, email: normalizedEmail, confirmationUrl },
       to: [{ subscriberId: userRecord.id, firstName, lastName, email: normalizedEmail }],
@@ -178,12 +179,13 @@ Deno.serve(async (req) => {
           html: htmlContent,
         },
       },
+    }).then(result => {
+      if (!result.ok) {
+        console.error('[request-password-reset] Novu trigger failed:', result.error);
+      }
+    }).catch(err => {
+      console.error('[request-password-reset] Novu exception:', err);
     });
-
-    if (!result.ok) {
-      console.error('[request-password-reset] Novu trigger failed:', result.error);
-      // Still return success to not reveal info
-    }
 
     return new Response(
       JSON.stringify({ success: true }),
