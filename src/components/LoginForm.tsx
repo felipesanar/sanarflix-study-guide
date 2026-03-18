@@ -167,12 +167,18 @@ export const LoginForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Botão "Esqueci a senha" ocultado temporariamente enquanto o domínio de email é configurado */}
-                {/* <div className="flex items-center justify-end -mt-2">
-                  <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword}>
-                    Esqueci a senha
+                <div className="flex items-center justify-end -mt-2">
+                  <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword} disabled={isResetting}>
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      'Esqueci a senha'
+                    )}
                   </Button>
-                </div> */}
+                </div>
 
                 <Button
                   type="submit"
