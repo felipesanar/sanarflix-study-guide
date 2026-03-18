@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-    const htmlContent = buildResetPasswordHtml(confirmationUrl);
+    const htmlContent = buildResetPasswordHtml(confirmationUrl, normalizedEmail);
 
     // Fire-and-forget: send email without blocking the response
     triggerNovuEvent({
