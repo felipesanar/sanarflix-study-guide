@@ -43,6 +43,8 @@ export const LoginForm: React.FC = () => {
       }, 50);
     }
   };
+  const [isResetting, setIsResetting] = useState(false);
+
   const handleResetPassword = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -54,15 +56,17 @@ export const LoginForm: React.FC = () => {
       return;
     }
 
+    setIsResetting(true);
     try {
-      const redirectTo = `https://academy.sanar.com.br/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo,
+      const { data, error: fnError } = await supabase.functions.invoke('request-password-reset', {
+        body: { email: normalizedEmail },
       });
-      if (error) throw error;
+
+      if (fnError) throw fnError;
+
       toast({
         title: "Verifique seu e-mail",
-        description: "Enviamos um link para redefinir sua senha em academy.sanar.com.br.",
+        description: "Se esse e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.",
         duration: 4000,
       });
     } catch (err: any) {
@@ -72,6 +76,8 @@ export const LoginForm: React.FC = () => {
         variant: "destructive",
         duration: 3500,
       });
+    } finally {
+      setIsResetting(false);
     }
   };
   return (
