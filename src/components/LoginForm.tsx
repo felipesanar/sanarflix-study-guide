@@ -15,6 +15,7 @@ export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const authContext = useAuth();
   const navigate = useNavigate();
 
