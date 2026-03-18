@@ -178,6 +178,16 @@ Deno.serve(async (req) => {
           subject: 'Redefinição de Senha — SanarFlix Academy',
           html: htmlContent,
         },
+        providers: {
+          sendgrid: {
+            trackingSettings: {
+              clickTracking: {
+                enable: false,
+                enableText: false,
+              },
+            },
+          },
+        },
       },
     }).then(result => {
       if (!result.ok) {
