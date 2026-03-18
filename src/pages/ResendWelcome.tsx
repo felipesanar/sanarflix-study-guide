@@ -10,6 +10,7 @@ const ResendWelcome = () => {
   const navigate = useNavigate();
   const [status, setStatus] = useState<Status>('loading');
   const email = searchParams.get('email') || '';
+  const type = searchParams.get('type') || 'welcome'; // 'welcome' | 'reset'
 
   useEffect(() => {
     if (!email) {
@@ -19,7 +20,8 @@ const ResendWelcome = () => {
 
     const resend = async () => {
       try {
-        const { error } = await supabase.functions.invoke('resend-welcome-link', {
+        const functionName = type === 'reset' ? 'request-password-reset' : 'resend-welcome-link';
+        const { error } = await supabase.functions.invoke(functionName, {
           body: { email },
         });
         setStatus(error ? 'error' : 'success');
@@ -29,7 +31,7 @@ const ResendWelcome = () => {
     };
 
     resend();
-  }, [email]);
+  }, [email, type]);
 
   useEffect(() => {
     if (status === 'success') {
@@ -37,6 +39,13 @@ const ResendWelcome = () => {
       return () => clearTimeout(timer);
     }
   }, [status, navigate]);
+
+  const isReset = type === 'reset';
+  const successTitle = isReset ? 'Novo link de redefinição enviado!' : 'Novo link enviado!';
+  const successDesc = isReset
+    ? `Um novo link de redefinição de senha foi enviado para`
+    : `Um novo link de acesso foi enviado para`;
+  const loadingMsg = isReset ? 'Gerando novo link de redefinição...' : 'Gerando novo link de acesso...';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -50,16 +59,16 @@ const ResendWelcome = () => {
         {status === 'loading' && (
           <>
             <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
-            <p className="text-muted-foreground">Gerando novo link de acesso...</p>
+            <p className="text-muted-foreground">{loadingMsg}</p>
           </>
         )}
 
         {status === 'success' && (
           <>
             <CheckCircle2 className="w-10 h-10 mx-auto text-green-600" />
-            <h1 className="text-xl font-semibold text-foreground">Novo link enviado!</h1>
+            <h1 className="text-xl font-semibold text-foreground">{successTitle}</h1>
             <p className="text-muted-foreground text-sm">
-              Um novo link de acesso foi enviado para <strong>{email}</strong>.
+              {successDesc} <strong>{email}</strong>.
               Verifique sua caixa de entrada e spam.
             </p>
             <p className="text-xs text-muted-foreground">Redirecionando para o login em 5 segundos...</p>
