@@ -47,14 +47,19 @@ export async function triggerNovuEvent(input: TriggerNovuEventInput): Promise<Tr
 
     console.log('[Novu] Triggering event:', input.name, 'to:', input.to.map(t => t.email).join(', '));
 
+    const body: Record<string, any> = {
+      name: input.name,
+      payload: input.payload,
+      to: input.to,
+    };
+    if (input.overrides) {
+      body.overrides = input.overrides;
+    }
+
     const response = await fetch(NOVU_TRIGGER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: input.name,
-        payload: input.payload,
-        to: input.to,
-      }),
+      body: JSON.stringify(body),
     });
 
     let data: any;
