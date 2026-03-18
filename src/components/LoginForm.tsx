@@ -15,6 +15,7 @@ export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const authContext = useAuth();
   const navigate = useNavigate();
 
@@ -43,6 +44,7 @@ export const LoginForm: React.FC = () => {
       }, 50);
     }
   };
+
   const handleResetPassword = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -54,15 +56,17 @@ export const LoginForm: React.FC = () => {
       return;
     }
 
+    setIsResetting(true);
     try {
-      const redirectTo = `https://academy.sanar.com.br/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo,
+      const { data, error: fnError } = await supabase.functions.invoke('request-password-reset', {
+        body: { email: normalizedEmail },
       });
-      if (error) throw error;
+
+      if (fnError) throw fnError;
+
       toast({
         title: "Verifique seu e-mail",
-        description: "Enviamos um link para redefinir sua senha em academy.sanar.com.br.",
+        description: "Se esse e-mail estiver cadastrado, enviaremos um link para redefinir sua senha.",
         duration: 4000,
       });
     } catch (err: any) {
@@ -72,6 +76,8 @@ export const LoginForm: React.FC = () => {
         variant: "destructive",
         duration: 3500,
       });
+    } finally {
+      setIsResetting(false);
     }
   };
   return (
@@ -161,12 +167,18 @@ export const LoginForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Botão "Esqueci a senha" ocultado temporariamente enquanto o domínio de email é configurado */}
-                {/* <div className="flex items-center justify-end -mt-2">
-                  <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword}>
-                    Esqueci a senha
+                <div className="flex items-center justify-end -mt-2">
+                  <Button type="button" variant="link" className="px-0 text-primary" onClick={handleResetPassword} disabled={isResetting}>
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      'Esqueci a senha'
+                    )}
                   </Button>
-                </div> */}
+                </div>
 
                 <Button
                   type="submit"
