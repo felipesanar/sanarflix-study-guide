@@ -57,6 +57,7 @@ const AppContent = () => {
           <Route path="/login" element={<LoginForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/update-password" element={<UpdatePassword />} />
+          <Route path="/auth/resend" element={<ResendWelcome />} />
           <Route path="/cadastro-b2c" element={<SignupB2C />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

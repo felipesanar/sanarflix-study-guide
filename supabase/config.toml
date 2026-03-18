@@ -95,5 +95,8 @@ verify_jwt = false
 [functions.admin-user-support]
 verify_jwt = false
 
+[functions.resend-welcome-link]
+verify_jwt = false
+
 [functions.request-password-reset]
 verify_jwt = false

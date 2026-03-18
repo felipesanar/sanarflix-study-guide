@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 function buildResetPasswordHtml(confirmationUrl: string): string {
+  const loginUrl = 'https://academy.sanar.com.br/login';
   return `<!doctype html>
 <html lang="pt-BR">
   <head>
@@ -30,6 +31,8 @@ function buildResetPasswordHtml(confirmationUrl: string): string {
       .small { font-family: Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #888888; margin: 0; }
       .cta { display: inline-block; background-color: #DC2626; color: #FFFFFF !important; text-decoration: none; font-weight: 700; font-family: Helvetica, Arial, sans-serif; font-size: 15px; border-radius: 10px; padding: 14px 24px; border: 1px solid #DC2626; box-shadow: 0 8px 16px rgba(220, 38, 38, 0.25); }
       .cta:hover, .cta:focus { background-color: #B91C1C; border-color: #B91C1C; }
+      .cta-secondary { display: inline-block; background-color: #ffffff; color: #dc2626 !important; text-decoration: none; font-weight: 600; font-family: Helvetica, Arial, sans-serif; font-size: 13px; border-radius: 10px; padding: 10px 20px; border: 2px solid #dc2626; }
+      .cta-secondary:hover, .cta-secondary:focus { background-color: #fef2f2; }
       .preheader { display: none !important; visibility: hidden; opacity: 0; color: transparent; height: 0; max-height: 0; overflow: hidden; mso-hide: all; }
     </style>
   </head>
@@ -67,8 +70,14 @@ function buildResetPasswordHtml(confirmationUrl: string): string {
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding: 8px 28px 28px 28px;">
+                  <td align="center" style="padding: 8px 28px 12px 28px;">
                     <p class="small">Se o botão não funcionar, copie e cole este link no navegador:<br /><a href="${confirmationUrl}" style="color:#dc2626; text-decoration:underline; word-break:break-all;" target="_blank" rel="noopener">${confirmationUrl}</a></p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding: 8px 28px 28px 28px; border-top: 1px solid #f1f1f1;">
+                    <p class="small" style="margin-bottom: 10px;">Link expirado ou não funciona?</p>
+                    <a href="${loginUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
                   </td>
                 </tr>
               </table>
