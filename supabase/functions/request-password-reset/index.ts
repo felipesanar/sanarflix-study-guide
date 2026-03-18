@@ -77,7 +77,7 @@ function buildResetPasswordHtml(confirmationUrl: string, email: string): string 
                 <tr>
                   <td align="center" style="padding: 8px 28px 28px 28px; border-top: 1px solid #f1f1f1;">
                     <p class="small" style="margin-bottom: 10px;">Link expirado ou não funciona?</p>
-                    <a href="${loginUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
+                    <a href="${resendUrl}" class="cta-secondary" target="_blank" rel="noopener">Solicitar um novo link</a>
                   </td>
                 </tr>
               </table>
