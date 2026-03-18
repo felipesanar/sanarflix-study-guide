@@ -44,13 +44,13 @@ const AppContent = () => {
   // Prefetch de dados das rotas adjacentes
   useDataPrefetch();
 
-  // Check if we're on the update-password page — always show it even if authenticated
-  // because the user may have been auto-authenticated by detectSessionInUrl consuming
-  // the recovery token, and still needs to set their password.
+  // Keep password recovery routes accessible even if a session is auto-created
+  // while processing recovery tokens.
   const isUpdatePasswordPage = window.location.pathname === '/auth/update-password';
+  const isResetPasswordPage = window.location.pathname === '/reset-password';
 
-  // Rotas públicas (usuário não autenticado OR on update-password page)
-  if (!user || isUpdatePasswordPage) {
+  // Rotas públicas (usuário não autenticado OR recovery flow pages)
+  if (!user || isUpdatePasswordPage || isResetPasswordPage) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <Routes>
