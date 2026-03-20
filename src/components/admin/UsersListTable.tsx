@@ -52,6 +52,8 @@ import {
   Trash2,
   Eye,
   UserCheck,
+  Link,
+  KeyRound,
 } from 'lucide-react';
 import { UserSupportPanel } from './UserSupportPanel';
 import { useAuth } from '@/contexts/AuthContext';
