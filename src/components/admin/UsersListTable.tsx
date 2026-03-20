@@ -1134,6 +1134,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                   <Mail className="h-4 w-4 mr-2" />
                                   Reenviar Convite
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
+                                  <Link className="h-4 w-4 mr-2" />
+                                  Copiar link de primeiro acesso
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
+                                  <KeyRound className="h-4 w-4 mr-2" />
+                                  Copiar link de redefinição
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
                                   <RefreshCw className="h-4 w-4 mr-2" />
                                   Sincronizar Auth
