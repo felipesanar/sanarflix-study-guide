@@ -52,6 +52,8 @@ import {
   Trash2,
   Eye,
   UserCheck,
+  Link,
+  KeyRound,
 } from 'lucide-react';
 import { UserSupportPanel } from './UserSupportPanel';
 import { useAuth } from '@/contexts/AuthContext';
@@ -657,6 +659,23 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     }
   };
 
+  const copyUserLink = async (email: string, type: 'welcome' | 'reset') => {
+    const label = type === 'welcome' ? 'primeiro acesso' : 'redefinição de senha';
+    try {
+      toast.info(`Gerando link de ${label}...`);
+      const { data, error } = await supabase.functions.invoke('generate-user-link', {
+        body: { email, type },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error('URL não retornada');
+      await navigator.clipboard.writeText(data.url);
+      toast.success(`Link de ${label} copiado!`);
+    } catch (err) {
+      console.error('[copyUserLink]', err);
+      toast.error(`Erro ao gerar link de ${label}`);
+    }
+  };
+
   const deleteUser = async () => {
     if (!deleteConfirm) return;
     const userToDelete = deleteConfirm;
@@ -1131,6 +1150,14 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                 <DropdownMenuItem onClick={() => resendInvite(user)}>
                                   <Mail className="h-4 w-4 mr-2" />
                                   Reenviar Convite
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
+                                  <Link className="h-4 w-4 mr-2" />
+                                  Copiar link de primeiro acesso
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
+                                  <KeyRound className="h-4 w-4 mr-2" />
+                                  Copiar link de redefinição
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
                                   <RefreshCw className="h-4 w-4 mr-2" />
