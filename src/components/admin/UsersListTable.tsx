@@ -659,7 +659,24 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     }
   };
 
-  const deleteUser = async () => {
+  const copyUserLink = async (email: string, type: 'welcome' | 'reset') => {
+    const label = type === 'welcome' ? 'primeiro acesso' : 'redefinição de senha';
+    try {
+      toast.info(`Gerando link de ${label}...`);
+      const { data, error } = await supabase.functions.invoke('generate-user-link', {
+        body: { email, type },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error('URL não retornada');
+      await navigator.clipboard.writeText(data.url);
+      toast.success(`Link de ${label} copiado!`);
+    } catch (err) {
+      console.error('[copyUserLink]', err);
+      toast.error(`Erro ao gerar link de ${label}`);
+    }
+  };
+
+
     if (!deleteConfirm) return;
     const userToDelete = deleteConfirm;
     setDeleting(true);
