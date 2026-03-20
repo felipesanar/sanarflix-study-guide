@@ -676,7 +676,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     }
   };
 
-
+  const deleteUser = async () => {
     if (!deleteConfirm) return;
     const userToDelete = deleteConfirm;
     setDeleting(true);
