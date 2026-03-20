@@ -98,5 +98,8 @@ verify_jwt = false
 [functions.resend-welcome-link]
 verify_jwt = false
 
+[functions.generate-user-link]
+verify_jwt = false
+
 [functions.request-password-reset]
 verify_jwt = false
