@@ -178,6 +178,7 @@ export function AppSidebar() {
     if (item.accessKey === "errorNotebook") return isAdmin(user);
     if (item.accessKey === "analytics") return isAdmin(user);
     if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
+    if (item.url === "/desempenho-institucional-v2") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
     return accessRules[item.accessKey];
   });
 
