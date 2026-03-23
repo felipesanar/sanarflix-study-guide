@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, Award, Users } from 'lucide-react';
+import { Target, TrendingUp, Award, Users, ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { MetaInstitucional } from '@/mocks/desempenhoInstitucionalV2';
@@ -12,11 +12,24 @@ interface Props {
 }
 
 export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
+  const percent = meta.percentProficientes ?? 0;
+  const conceito =
+    percent < 40 ? 'Conceito 1' :
+    percent < 60 ? 'Conceito 2' :
+    percent < 75 ? 'Conceito 3' :
+    percent < 90 ? 'Conceito 4' : 'Conceito 5';
+  const sancao =
+    percent >= 50 && percent < 60 ? 'Proibição de aumento de vagas' :
+    percent >= 40 && percent < 50 ? 'Redução de 25% das vagas' :
+    percent >= 30 && percent < 40 ? 'Redução de 50% das vagas' : 'Sem sanção';
+
   const subCards = [
     { label: 'Gap de Proficiência', value: `${meta.gapProficiencia} pts`, icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400' },
     { label: 'Nota Atual → Meta', value: `${meta.notaAtual} → ${meta.notaMeta.toFixed(2)}`, icon: Target, color: 'text-muted-foreground' },
     { label: 'Percentil Médio', value: `${meta.percentilMedio}º`, icon: Award, color: 'text-muted-foreground' },
     { label: 'Taxa de Adesão', value: `${meta.taxaAdesao}%`, icon: Users, color: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'Conceito da IES', value: `${conceito} (${percent.toFixed(1)}%)`, icon: ShieldAlert, color: 'text-muted-foreground' },
+    { label: 'Sanção Regul.', value: sancao, icon: ShieldAlert, color: 'text-destructive' },
   ];
 
   return (

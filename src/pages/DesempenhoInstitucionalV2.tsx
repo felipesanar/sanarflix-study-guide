@@ -17,6 +17,7 @@ import {
   mockMeta,
   mockEvolucao,
   mockDistanciaFaixa,
+  mockAlunosAbaixo,
 } from '@/mocks/desempenhoInstitucionalV2';
 
 const DesempenhoInstitucionalV2: React.FC = () => {
@@ -52,8 +53,8 @@ const DesempenhoInstitucionalV2: React.FC = () => {
                 Dashboard ENAMED
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                <span className="font-semibold text-foreground">78% dos alunos estão aprovados.</span>{' '}
-                Faltam 14 alunos para atingir nota máxima no ENAMED.
+                <span className="font-semibold text-foreground">35% dos alunos são proficientes.</span>{' '}
+                Faltam 55 alunos proficientes para atingir Conceito 5 (90%).
               </p>
             </div>
           </div>
@@ -84,30 +85,30 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 w-fit">
           <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-foreground">Risco de queda monitorado</p>
+            <p className="text-sm font-semibold text-foreground">Sanção regulatória ativa</p>
             <p className="text-xs text-muted-foreground">
-              26 alunos concentram a maior pressão sobre a nota institucional.
+              Com 35% de alunos proficientes, há redução de 50% das vagas. Faltam 5 alunos proficientes para sair desta sanção.
             </p>
           </div>
         </div>
       </div>
 
       {/* 2. KPI Cards */}
-      <KpiCardsGrid kpis={mockKpis} />
+      <KpiCardsGrid kpis={mockKpis} alunosAbaixo={mockAlunosAbaixo} />
 
-      {/* 3 & 4. Distribution + Meta side by side on desktop */}
+      {/* 3. Meta + Distance side by side on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <FaixaDistribuicaoChart faixas={mockFaixas} />
         <MetaInstitucionalCard meta={mockMeta} />
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground mb-3">Distância para Próxima Faixa</h3>
+          <DistanciaFaixaCards items={mockDistanciaFaixa} />
+        </div>
       </div>
 
-      {/* 5. Evolution Chart */}
-      <EvolucaoChart evolucao={mockEvolucao} />
-
-      {/* 6. Distance Cards */}
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-3">Distância para Próxima Faixa</h3>
-        <DistanciaFaixaCards items={mockDistanciaFaixa} />
+      {/* 4 & 5. Charts at the bottom */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <FaixaDistribuicaoChart faixas={mockFaixas} />
+        <EvolucaoChart evolucao={mockEvolucao} />
       </div>
     </motion.div>
   );
