@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SectionHeader } from '@/components/analytics/SectionHeader';
-import { School } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { KpiCardsGrid } from '@/components/analytics/v2/KpiCardsGrid';

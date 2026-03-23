@@ -46,7 +46,7 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis }) => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
-                  <p className={cn('text-xl font-bold mt-0.5', statusColors[kpi.status])}>
+                  <p className="text-xl font-bold mt-0.5 text-foreground">
                     {kpi.value}
                   </p>
                   {kpi.description && (
