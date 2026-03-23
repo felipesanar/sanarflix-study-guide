@@ -87,6 +87,13 @@ const menuItems = [
     accessKey: "desempenhoInstitucional" as const,
     description: "Visão geral do desempenho dos alunos",
   },
+  {
+    title: "Desempenho v2",
+    url: "/desempenho-institucional-v2",
+    icon: School,
+    accessKey: "desempenhoInstitucional" as const,
+    description: "Nova visão do desempenho institucional",
+  },
 ];
 
 const studyGuideItems = [
@@ -171,6 +178,7 @@ export function AppSidebar() {
     if (item.accessKey === "errorNotebook") return isAdmin(user);
     if (item.accessKey === "analytics") return isAdmin(user);
     if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
+    if (item.url === "/desempenho-institucional-v2") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
     return accessRules[item.accessKey];
   });
 

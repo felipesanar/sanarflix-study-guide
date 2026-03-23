@@ -21,6 +21,7 @@ const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
 const DesempenhoInstitucional = lazy(() => import("@/pages/DesempenhoInstitucional"));
+const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstitucionalV2"));
 const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -276,6 +277,22 @@ export const DynamicRoutes: React.FC = () => {
             />
           ) : (
             <Route path="/desempenho-institucional" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Desempenho Institucional v2 - Mock page */}
+          {accessRules.desempenhoInstitucional ? (
+            <Route
+              path="/desempenho-institucional-v2"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper loadingMessage="Carregando desempenho v2..." waitForData={true}>
+                    <DesempenhoInstitucionalV2 />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/desempenho-institucional-v2" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Caderno de Erros - Apenas para administradores */}
