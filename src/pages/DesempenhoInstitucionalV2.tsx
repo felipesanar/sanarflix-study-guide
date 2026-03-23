@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SectionHeader } from '@/components/analytics/SectionHeader';
+
 import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
