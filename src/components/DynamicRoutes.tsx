@@ -21,6 +21,7 @@ const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
 const DesempenhoInstitucional = lazy(() => import("@/pages/DesempenhoInstitucional"));
+const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstitucionalV2"));
 const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
