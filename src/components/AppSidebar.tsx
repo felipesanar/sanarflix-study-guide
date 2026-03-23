@@ -87,6 +87,13 @@ const menuItems = [
     accessKey: "desempenhoInstitucional" as const,
     description: "Visão geral do desempenho dos alunos",
   },
+  {
+    title: "Desempenho v2",
+    url: "/desempenho-institucional-v2",
+    icon: School,
+    accessKey: "desempenhoInstitucional" as const,
+    description: "Nova visão do desempenho institucional",
+  },
 ];
 
 const studyGuideItems = [
