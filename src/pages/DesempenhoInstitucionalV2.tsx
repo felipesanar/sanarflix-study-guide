@@ -41,30 +41,54 @@ const DesempenhoInstitucionalV2: React.FC = () => {
       transition={{ duration: 0.3 }}
     >
       {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <SectionHeader
-          titulo="Desempenho Institucional v2"
-          subtitulo="Visão geral do desempenho dos alunos nos simulados — B2B"
-          icon={<School className="h-5 w-5 text-primary" />}
-          className="mb-0"
-        />
-        <div className="flex gap-2 shrink-0">
-          <Select defaultValue="b2b">
-            <SelectTrigger className="w-[120px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="b2b">B2B</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select defaultValue="simulado-teste">
-            <SelectTrigger className="w-[160px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="simulado-teste">Simulado Teste</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-3">
+            <span className="inline-block text-xs font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">
+              Situação atual da instituição
+            </span>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                Dashboard ENAMED
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                <span className="font-semibold text-foreground">78% dos alunos estão aprovados.</span>{' '}
+                Faltam 14 alunos para atingir nota máxima no ENAMED.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 shrink-0">
+            <div className="flex gap-2">
+              <Select defaultValue="b2b">
+                <SelectTrigger className="w-[120px] h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="b2b">B2B</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select defaultValue="simulado-teste">
+                <SelectTrigger className="w-[160px] h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="simulado-teste">Simulado Teste</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Risk alert card */}
+        <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 w-fit">
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Risco de queda monitorado</p>
+            <p className="text-xs text-muted-foreground">
+              26 alunos concentram a maior pressão sobre a nota institucional.
+            </p>
+          </div>
         </div>
       </div>
 
