@@ -11,7 +11,7 @@ import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptySta
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 
 const DesempenhoInstitucionalV2: React.FC = () => {
-  const { activeTab, setActiveTab, filters, updateFilter, autoSelectSimulado } = useDesempenhoV2State();
+  const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
   const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
 
   // Auto-select first simulado
@@ -36,8 +36,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
             <GlobalFilterBar
               filters={filters}
               onFilterChange={updateFilter}
+              onClearFilters={clearFilters}
               simulados={simulados}
               iesList={iesList}
+              availableAreas={data ? extractAreasFromData(data) : []}
+              availableSemestres={data ? extractSemestresFromData(data) : []}
               usingMock={usingMock}
             />
           </div>
