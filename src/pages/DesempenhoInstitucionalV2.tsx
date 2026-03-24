@@ -82,60 +82,55 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         />
       </div>
 
-      {/* Tabs */}
-      <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Tabs + action buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setExportOpen(true)}>
+            <FileDown className="h-3.5 w-3.5" /> Exportar
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setChatOpen(true)}>
+            <Sparkles className="h-3.5 w-3.5" /> Assistente IA
+          </Button>
+        </div>
+      </div>
 
       {/* Module Content */}
       <div>
         {activeTab === 'visao-institucional' && (
-          <VisaoInstitucionalModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <VisaoInstitucionalModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'diagnostico-curricular' && (
-          <DiagnosticoCurricularModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <DiagnosticoCurricularModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'visao-alunos' && (
-          <VisaoAlunosModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <VisaoAlunosModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'insights-pedagogicos' && (
-          <InsightsPedagogicosModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <InsightsPedagogicosModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'inteligencia-decisoria' && (
-          <InteligenciaDecisoriModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <InteligenciaDecisoriModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'simulador-impacto' && (
-          <SimuladorImpactoModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <SimuladorImpactoModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
       </div>
+
+      {/* Drawers */}
+      <ExportReportDrawer
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        data={data}
+        filters={filters}
+        simuladoNome={simuladoNome}
+      />
+      <AiChatDrawer
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        data={data}
+        activeTab={activeTab}
+      />
     </motion.div>
   );
 };
