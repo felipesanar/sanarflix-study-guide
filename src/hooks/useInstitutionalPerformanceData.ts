@@ -189,6 +189,8 @@ export function useInstitutionalPerformanceData(
       if (simErr) {
         console.warn('[DesempenhoV2:Data]', 'Simulados fetch failed:', simErr.message);
         setSimulados([]);
+        setError(`Erro ao carregar simulados: ${simErr.message}`);
+        setLoading(false);
         return;
       }
 

@@ -1,5 +1,5 @@
 // Service Worker para Sanarflix - Cache Inteligente
-const CACHE_VERSION = 'sanarflix-v2';
+const CACHE_VERSION = 'sanarflix-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const API_CACHE = `${CACHE_VERSION}-api`;

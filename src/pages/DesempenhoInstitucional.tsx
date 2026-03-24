@@ -393,10 +393,9 @@ const DesempenhoInstitucional: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const params: any = {};
-      if (iesParam) params.p_ies_id = iesParam;
-      
-      const { data, error } = await supabase.rpc('get_institutional_simulados', params);
+      const { data, error } = await supabase.rpc('get_institutional_simulados', {
+        p_ies_id: iesParam ?? undefined,
+      });
       if (!error && data) {
         setSimulados(data as Simulado[]);
         if (data.length > 0) setSelectedSimulado((data as Simulado[])[0].id);
@@ -411,9 +410,9 @@ const DesempenhoInstitucional: React.FC = () => {
   // Load evolution (re-trigger when IES changes)
   useEffect(() => {
     const load = async () => {
-      const params: any = {};
-      if (iesParam) params.p_ies_id = iesParam;
-      const { data, error } = await supabase.rpc('get_institutional_evolution', params);
+      const { data, error } = await supabase.rpc('get_institutional_evolution', {
+        p_ies_id: iesParam ?? undefined,
+      });
       if (!error && data) setEvolution(data as unknown as EvolutionData[]);
     };
     if (!canFilterIES || selectedIes) load();
