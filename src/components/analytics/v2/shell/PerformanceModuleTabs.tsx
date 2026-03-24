@@ -1,5 +1,6 @@
 import React from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import type { DesempenhoV2Tab } from '@/types/desempenhoV2';
 import { TAB_CONFIG } from '@/types/desempenhoV2';
 
@@ -9,26 +10,33 @@ interface Props {
 }
 
 export const PerformanceModuleTabs: React.FC<Props> = ({ activeTab, onTabChange }) => (
-  <Tabs
-    value={activeTab}
-    onValueChange={(value) => {
-      if (TAB_CONFIG.some((tab) => tab.value === value)) {
-        onTabChange(value as DesempenhoV2Tab);
-      }
-    }}
-    className="w-full"
-  >
-    <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto rounded-lg border bg-muted/60 p-1.5 shadow-inner">
-      {TAB_CONFIG.map((tab) => (
-        <TabsTrigger
+  <nav className="flex items-center gap-1 overflow-x-auto scrollbar-none" role="tablist">
+    {TAB_CONFIG.map((tab) => {
+      const isActive = tab.value === activeTab;
+      return (
+        <button
           key={tab.value}
-          value={tab.value}
-          className="whitespace-nowrap text-xs sm:text-sm px-3.5 py-2 shrink-0 min-h-9 rounded-md border border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:shadow-sm hover:text-foreground/90"
-          aria-label={`Abrir módulo ${tab.label}`}
+          role="tab"
+          aria-selected={isActive}
+          aria-label={`Módulo ${tab.label}`}
+          onClick={() => onTabChange(tab.value)}
+          className={cn(
+            'relative whitespace-nowrap text-xs font-medium px-3.5 py-2 rounded-lg transition-colors shrink-0',
+            isActive
+              ? 'text-foreground'
+              : 'text-muted-foreground hover:text-foreground/80 hover:bg-accent/40'
+          )}
         >
-          {tab.label}
-        </TabsTrigger>
-      ))}
-    </TabsList>
-  </Tabs>
+          {isActive && (
+            <motion.div
+              layoutId="active-tab-pill"
+              className="absolute inset-0 bg-background border border-border/80 rounded-lg shadow-sm"
+              transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+            />
+          )}
+          <span className="relative z-10">{tab.label}</span>
+        </button>
+      );
+    })}
+  </nav>
 );

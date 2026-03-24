@@ -10,14 +10,14 @@ export const InstitutionalAlertBanner: React.FC<Props> = ({ sancao, percentProfi
   if (!sancao) return null;
 
   return (
-    <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 w-full">
-      <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-      <div>
-        <p className="text-sm font-semibold text-foreground">Sanção regulatória ativa</p>
-        <p className="text-xs text-muted-foreground">
-          Com {percentProficientes ?? '—'}% de alunos proficientes: {sancao}.
-        </p>
-      </div>
+    <div className="flex items-center gap-2.5 bg-destructive/8 border border-destructive/15 rounded-lg px-3.5 py-2.5">
+      <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+      <p className="text-xs text-foreground">
+        <span className="font-semibold">Sanção regulatória:</span>{' '}
+        <span className="text-muted-foreground">
+          Com {percentProficientes ?? '—'}% de proficientes — {sancao}.
+        </span>
+      </p>
     </div>
   );
 };
