@@ -1,15 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   User, TrendingDown, TrendingUp, Zap, BarChart3,
-  AlertTriangle, Shield, ChevronRight,
+  AlertTriangle, Shield,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type {
   StudentScore,
@@ -38,7 +37,7 @@ export function computeRiskLevel(percentual: number): RiskLevel {
   return 'critico';
 }
 
-export function computeRiskAssessment(student: StudentScore, areas: CurricularAreaNode[]): RiskAssessment {
+export function computeRiskAssessment(student: StudentScore, _areas: CurricularAreaNode[]): RiskAssessment {
   const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
   const level = computeRiskLevel(student.percentual);
 
@@ -134,6 +133,12 @@ interface StudentAnalyticsDrawerProps {
 export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   student, data, open, onClose,
 }) => {
+  useEffect(() => {
+    if (open && student) {
+      console.log('[GlobalDetailDrawer]', 'Drawer de aluno aberto', { aluno: student.nome });
+    }
+  }, [open, student]);
+
   if (!student || !data) return null;
 
   const risk = computeRiskAssessment(student, data.curricular.areas);

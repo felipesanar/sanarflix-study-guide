@@ -173,9 +173,12 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const mapped = (simData ?? []).map((s: any) => ({ id: s.id, nome: s.nome }));
+      const mapped = (simData ?? []).map((item: unknown) => {
+        const simulado = item as { id: string; nome: string };
+        return { id: simulado.id, nome: simulado.nome };
+      });
       setSimulados(mapped);
-      console.log('[DesempenhoV2:Data]', 'Simulados loaded:', mapped.length);
+      console.log('[DesempenhoInstitucionalV2]', 'Simulados carregados', { total: mapped.length });
     };
     fetchSimulados();
   }, [filters.iesId]);
@@ -234,10 +237,11 @@ export function useInstitutionalPerformanceData(
 
       const viewModel = mapInstitutionalRpcToViewModel(perfData, evoData, scoresData);
       setData(viewModel);
-      console.log('[DesempenhoV2:Data]', 'Real data loaded successfully');
-    } catch (err: any) {
-      console.error('[DesempenhoV2:Data]', 'Error fetching data:', err.message);
-      setError(err.message);
+      console.log('[DesempenhoInstitucionalV2]', 'Dados reais carregados');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
+      console.error('[DesempenhoInstitucionalV2]', 'Falha no carregamento', { message });
+      setError(message);
       // Fallback to mock on error
       setUsingMock(true);
       setData(getMockViewModel());

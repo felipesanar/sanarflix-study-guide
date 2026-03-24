@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { DesempenhoV2Filters, SimuladoOption, IesOption } from '@/types/desempenhoV2';
-import { DEFAULT_FILTERS, countActiveFilters } from '@/types/desempenhoV2';
+import { countActiveFilters } from '@/types/desempenhoV2';
 
 interface FilterOption {
   id: string;
@@ -23,6 +23,7 @@ interface Props {
   availableAreas?: FilterOption[];
   availableEspecialidades?: FilterOption[];
   availableSemestres?: FilterOption[];
+  availableTemas?: FilterOption[];
   usingMock?: boolean;
 }
 
@@ -96,6 +97,7 @@ const FilterChip: React.FC<{ label: string; onRemove: () => void }> = ({ label, 
   <Badge variant="secondary" className="gap-1 text-xs pl-2 pr-1 py-0.5">
     {label}
     <button
+      type="button"
       onClick={onRemove}
       className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
       aria-label={`Remover filtro: ${label}`}
@@ -114,6 +116,7 @@ export const GlobalFilterBar: React.FC<Props> = ({
   availableAreas = [],
   availableEspecialidades = [],
   availableSemestres = [],
+  availableTemas = [],
   usingMock,
 }) => {
   const activeCount = countActiveFilters(filters);
@@ -155,6 +158,15 @@ export const GlobalFilterBar: React.FC<Props> = ({
       key: `sem-${sem}`,
       label: `Sem: ${sem}`,
       onRemove: () => onFilterChange('semestres', filters.semestres.filter((s) => s !== sem)),
+    });
+  });
+
+  filters.temas.forEach((temaId) => {
+    const tema = availableTemas.find((option) => option.id === temaId);
+    activeChips.push({
+      key: `tema-${temaId}`,
+      label: `Tema: ${tema?.label ?? temaId}`,
+      onRemove: () => onFilterChange('temas', filters.temas.filter((value) => value !== temaId)),
     });
   });
 
@@ -229,6 +241,15 @@ export const GlobalFilterBar: React.FC<Props> = ({
             options={availableSemestres}
             selected={filters.semestres}
             onChange={(v) => onFilterChange('semestres', v)}
+          />
+        )}
+
+        {availableTemas.length > 0 && (
+          <MultiSelectFilter
+            label="Temas"
+            options={availableTemas}
+            selected={filters.temas}
+            onChange={(v) => onFilterChange('temas', v)}
           />
         )}
 

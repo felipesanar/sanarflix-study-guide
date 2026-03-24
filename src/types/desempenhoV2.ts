@@ -3,8 +3,7 @@ export type DesempenhoV2Tab =
   | 'diagnostico-curricular'
   | 'visao-alunos'
   | 'insights-pedagogicos'
-  | 'inteligencia-decisoria'
-  | 'simulador-impacto';
+  | 'inteligencia-decisoria';
 
 export interface DesempenhoV2Filters {
   iesId: string;
@@ -48,7 +47,6 @@ export const TAB_CONFIG: { value: DesempenhoV2Tab; label: string }[] = [
   { value: 'visao-alunos', label: 'Visão de Alunos' },
   { value: 'insights-pedagogicos', label: 'Insights Pedagógicos' },
   { value: 'inteligencia-decisoria', label: 'Inteligência Decisória' },
-  { value: 'simulador-impacto', label: 'Simulador de Impacto' },
 ];
 
 // ── View Model types consumed by UI components ──

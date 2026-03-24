@@ -1,13 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  MessageSquare, Send, Loader2, Info, ShieldAlert, Sparkles,
-  BarChart3, Users, Target, X,
+  Send, Loader2, ShieldAlert, Sparkles,
+  BarChart3,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -34,7 +33,6 @@ const TAB_CONTEXT: Record<DesempenhoV2Tab, string> = {
   'visao-alunos': 'Visão de Alunos — ranking, risco e segmentação',
   'insights-pedagogicos': 'Insights Pedagógicos — recomendações e prioridades',
   'inteligencia-decisoria': 'Inteligência Decisória — ações e impacto',
-  'simulador-impacto': 'Simulador de Impacto — cenários hipotéticos',
 };
 
 const SUGGESTED_QUESTIONS: Record<string, string[]> = {
@@ -60,7 +58,7 @@ const SUGGESTED_QUESTIONS: Record<string, string[]> = {
   ],
 };
 
-function generateMockResponse(question: string, data: InstitutionalViewModel | null, tab: DesempenhoV2Tab): string {
+function generateMockResponse(question: string, data: InstitutionalViewModel | null, _tab: DesempenhoV2Tab): string {
   if (!data) return 'Não há dados carregados. Selecione um simulado para que eu possa analisar.';
 
   const q = question.toLowerCase();
@@ -234,7 +232,6 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
                           return <p key={i} className="font-semibold">{line.replace(/\*\*/g, '')}</p>;
                         }
                         if (line.startsWith('- ')) {
-                          const text = line.slice(2).replace(/\*\*(.*?)\*\*/g, '$1');
                           return <p key={i} className="pl-2">{line.slice(2).split('**').map((part, j) =>
                             j % 2 === 1 ? <strong key={j}>{part}</strong> : part
                           )}</p>;

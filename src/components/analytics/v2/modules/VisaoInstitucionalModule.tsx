@@ -7,6 +7,7 @@ import { FaixaDistribuicaoChart } from '@/components/analytics/v2/FaixaDistribui
 import { MetaInstitucionalCard } from '@/components/analytics/v2/MetaInstitucionalCard';
 import { EvolucaoChart } from '@/components/analytics/v2/EvolucaoChart';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -51,12 +52,26 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
     );
   }
 
+  if (data.headerSummary.totalAlunos === 0) {
+    return (
+      <ModuleEmptyState
+        title="Sem resultados para o recorte atual"
+        description="Nenhum aluno foi encontrado com os filtros aplicados. Revise os filtros globais."
+      />
+    );
+  }
+
   const distanciaFaixaParsed = data.distanciaFaixa.map((item) => {
     const match = String(item.value).match(/\d+/);
     const count = match ? Number(match[0]) : 0;
     return { ...item, count };
   });
   const distanciaFaixaTotal = distanciaFaixaParsed.reduce((acc, item) => acc + item.count, 0);
+
+  console.log('[VisaoInstitucional]', 'Render do módulo', {
+    totalAlunos: data.headerSummary.totalAlunos,
+    percentProficientes: data.headerSummary.percentProficientes,
+  });
 
   return (
     <motion.div

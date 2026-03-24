@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import type {
   InstitutionalViewModel,
   CurricularAreaNode,
@@ -149,6 +150,23 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
 
   const { curricular } = data;
   const areas = [...curricular.areas].sort((a, b) => a.percentual - b.percentual);
+
+  if (areas.length === 0) {
+    return (
+      <ModuleEmptyState
+        title="Sem dados curriculares no recorte atual"
+        description="Ajuste os filtros globais para visualizar grandes áreas, especialidades e temas."
+      />
+    );
+  }
+
+  console.log('[DiagnosticoCurricular]', 'Render do módulo', {
+    level: drill.level,
+    areas: areas.length,
+    selectedArea: drill.selectedArea?.name,
+    selectedSpecialty: drill.selectedSpecialty?.name,
+    selectedTema: drill.selectedTema?.name,
+  });
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>

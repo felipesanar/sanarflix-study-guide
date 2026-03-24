@@ -76,28 +76,28 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                   <DialogHeader>
                     <DialogTitle>Alunos abaixo do esperado</DialogTitle>
                     <DialogDescription>
-                      Visualize proficiência (TRI), percentual de acerto e distância até a proficiência.
+                      Visualize percentual de acerto e distância até a proficiência institucional.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid grid-cols-6 gap-2 text-[11px] text-muted-foreground">
                     <div>Aluno</div>
                     <div>Semestre</div>
-                    <div>Proficiência (TRI)</div>
+                    <div>Acurácia atual</div>
                     <div>% Acerto</div>
                     <div>Distância até 60</div>
                     <div>Status</div>
                   </div>
                   <div className="mt-2 space-y-2">
                     {alunosAbaixo!.map((aluno) => {
-                      const status = aluno.proficienciaTri >= 500 ? 'Proficiente' : 'Não proficiente';
+                      const status = aluno.percentualAcerto >= 60 ? 'Proficiente' : 'Abaixo do esperado';
                       return (
                         <div key={aluno.nome} className="grid grid-cols-6 gap-2 text-sm">
                           <div className="truncate">{aluno.nome}</div>
                           <div>{aluno.semestre}º</div>
-                          <div>{aluno.proficienciaTri}</div>
+                          <div>{aluno.percentualAcerto}%</div>
                           <div>{aluno.percentualAcerto}%</div>
                           <div>{aluno.distanciaAteProficiencia} pts</div>
-                          <div className={cn('truncate', aluno.proficienciaTri >= 500 ? 'text-emerald-600' : 'text-destructive')}>
+                          <div className={cn('truncate', aluno.percentualAcerto >= 60 ? 'text-emerald-600' : 'text-destructive')}>
                             {status}
                           </div>
                         </div>

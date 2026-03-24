@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AlertCircle, Zap, TrendingDown, TrendingUp, Target,
+  AlertCircle, Zap, Target,
   ChevronRight, Users, BookOpen, ArrowRight, Crosshair,
   Gauge, Layers, Star, Sparkles,
 } from 'lucide-react';
@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Sheet,
   SheetContent,
@@ -18,9 +17,9 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import type {
   InstitutionalViewModel,
-  StudentScore,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
@@ -201,9 +200,24 @@ export const InteligenciaDecisoriModule: React.FC<Props> = ({ data, loading, err
     );
   }
 
+  if (items.length === 0) {
+    return (
+      <ModuleEmptyState
+        title="Sem prioridades no recorte atual"
+        description="Nenhum tema abaixo da proficiência foi encontrado com os filtros aplicados."
+      />
+    );
+  }
+
   // Top 3 for executive summary
   const top3 = items.slice(0, 3);
   const totalImpact = top3.reduce((s, i) => s + i.impactoPotencial, 0);
+
+  console.log('[InteligenciaDecisoria]', 'Render do módulo', {
+    viewMode,
+    totalItens: items.length,
+    itensFiltrados: filtered.length,
+  });
 
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -286,7 +300,7 @@ export const InteligenciaDecisoriModule: React.FC<Props> = ({ data, loading, err
         {filtered.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum item nesta categoria.</p>
         ) : (
-          filtered.map((item, i) => {
+          filtered.map((item) => {
             const cfg = categoryConfig[item.category];
             return (
               <button

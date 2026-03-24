@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,15 +9,12 @@ import { InstitutionalHeader } from '@/components/analytics/v2/shell/Institution
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
 import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
-import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
-import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
-import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
-import { InsightsPedagogicosModule } from '@/components/analytics/v2/modules/InsightsPedagogicosModule';
-import { InteligenciaDecisoriModule } from '@/components/analytics/v2/modules/InteligenciaDecisoriModule';
-import { SimuladorImpactoModule } from '@/components/analytics/v2/modules/SimuladorImpactoModule';
+import { PerformanceContextBar } from '@/components/analytics/v2/shell/PerformanceContextBar';
+import { ModuleContentRenderer } from '@/components/analytics/v2/shell/ModuleContentRenderer';
 import { ExportReportDrawer } from '@/components/analytics/v2/shared/ExportReportDrawer';
 import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
+import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
 // Extract unique areas from student score data for filter options
 function extractAreasFromData(data: InstitutionalViewModel) {
@@ -37,11 +34,41 @@ function extractSemestresFromData(data: InstitutionalViewModel) {
   return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
 }
 
+function extractEspecialidadesFromData(data: InstitutionalViewModel) {
+  const especialidades = new Set<string>();
+  data.curricular.areas.forEach((area) => {
+    area.specialties.forEach((specialty) => especialidades.add(specialty.name));
+  });
+  return Array.from(especialidades).sort().map((value) => ({ id: value, label: value }));
+}
+
+function extractTemasFromData(data: InstitutionalViewModel) {
+  const temas = new Set<string>();
+  data.curricular.areas.forEach((area) => {
+    area.specialties.forEach((specialty) => {
+      specialty.temas.forEach((tema) => temas.add(tema.name));
+    });
+  });
+  return Array.from(temas).sort().map((value) => ({ id: value, label: value }));
+}
+
 const DesempenhoInstitucionalV2: React.FC = () => {
   const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
   const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
   const [exportOpen, setExportOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+
+  const filteredData = useMemo(() => {
+    const nextData = applyDesempenhoV2Filters(data, filters);
+    console.log('[DesempenhoInstitucionalV2]', 'Recorte aplicado', {
+      areas: filters.areas.length,
+      especialidades: filters.especialidades.length,
+      temas: filters.temas.length,
+      semestres: filters.semestres.length,
+      hasData: Boolean(nextData),
+    });
+    return nextData;
+  }, [data, filters]);
 
   const simuladoNome = simulados.find(s => s.id === filters.simuladoId)?.nome;
 
@@ -50,7 +77,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
     autoSelectSimulado(simulados);
   }, [simulados, autoSelectSimulado]);
 
-  console.log('[DesempenhoV2:Shell]', 'Render', { activeTab, usingMock, hasData: !!data });
+  console.log('[DesempenhoInstitucionalV2]', 'Render da shell', { activeTab, usingMock, hasData: !!filteredData });
 
   return (
     <motion.div
@@ -71,7 +98,9 @@ const DesempenhoInstitucionalV2: React.FC = () => {
               simulados={simulados}
               iesList={iesList}
               availableAreas={data ? extractAreasFromData(data) : []}
+              availableEspecialidades={data ? extractEspecialidadesFromData(data) : []}
               availableSemestres={data ? extractSemestresFromData(data) : []}
+              availableTemas={data ? extractTemasFromData(data) : []}
               usingMock={usingMock}
             />
           </div>
@@ -95,40 +124,31 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         </div>
       </div>
 
+      <PerformanceContextBar activeTab={activeTab} filters={filters} usingMock={usingMock} />
+
       {/* Module Content */}
       <div>
-        {activeTab === 'visao-institucional' && (
-          <VisaoInstitucionalModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
-        {activeTab === 'diagnostico-curricular' && (
-          <DiagnosticoCurricularModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
-        {activeTab === 'visao-alunos' && (
-          <VisaoAlunosModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
-        {activeTab === 'insights-pedagogicos' && (
-          <InsightsPedagogicosModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
-        {activeTab === 'inteligencia-decisoria' && (
-          <InteligenciaDecisoriModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
-        {activeTab === 'simulador-impacto' && (
-          <SimuladorImpactoModule data={data} loading={loading} error={error} onRetry={refetch} />
-        )}
+        <ModuleContentRenderer
+          activeTab={activeTab}
+          data={filteredData}
+          loading={loading}
+          error={error}
+          onRetry={refetch}
+        />
       </div>
 
       {/* Drawers */}
       <ExportReportDrawer
         open={exportOpen}
         onClose={() => setExportOpen(false)}
-        data={data}
+        data={filteredData}
         filters={filters}
         simuladoNome={simuladoNome}
       />
       <AiChatDrawer
         open={chatOpen}
         onClose={() => setChatOpen(false)}
-        data={data}
+        data={filteredData}
         activeTab={activeTab}
       />
     </motion.div>

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle, Lightbulb, TrendingDown, TrendingUp, Zap,
-  ChevronRight, Users, BookOpen, BarChart3, Target, ArrowRight,
+  ChevronRight, Users, BookOpen, BarChart3, Target,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,9 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import type {
   InstitutionalViewModel,
-  CurricularAreaNode,
-  CurricularSpecialtyNode,
-  CurricularTemaNode,
-  StudentScore,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
@@ -187,12 +184,15 @@ function getInsightConfig(type: PrioritizedInsight['type']) {
 
 export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
   const [selectedInsight, setSelectedInsight] = useState<PrioritizedInsight | null>(null);
-  const [filterType, setFilterType] = useState<string>('all');
+  const [filterType, setFilterType] = useState<'all' | 'critical' | 'critical-tema' | 'critical-area' | 'quick-win' | 'strength'>('all');
 
   const insights = useMemo(() => data ? buildInsights(data) : [], [data]);
 
   const filtered = useMemo(() => {
     if (filterType === 'all') return insights;
+    if (filterType === 'critical') {
+      return insights.filter((insight) => insight.type === 'critical-tema' || insight.type === 'critical-area');
+    }
     return insights.filter(i => i.type === filterType);
   }, [insights, filterType]);
 
@@ -232,7 +232,21 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
     );
   }
 
+  if (insights.length === 0) {
+    return (
+      <ModuleEmptyState
+        title="Sem insights para o recorte atual"
+        description="Amplie o recorte nos filtros globais para gerar recomendações pedagógicas acionáveis."
+      />
+    );
+  }
+
   const topPriority = filtered.filter(i => i.type !== 'strength').slice(0, 3);
+  console.log('[InsightsPedagogicos]', 'Render do módulo', {
+    totalInsights: insights.length,
+    filteredInsights: filtered.length,
+    filterType,
+  });
 
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -248,7 +262,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
       {/* Top priority highlights */}
       {topPriority.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {topPriority.map((insight, i) => {
+          {topPriority.map((insight) => {
             const cfg = getInsightConfig(insight.type);
             return (
               <Card
@@ -280,7 +294,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
       {/* Filter chips */}
       <div className="flex flex-wrap gap-2">
         <FilterChip label={`Todos (${counts.all})`} active={filterType === 'all'} onClick={() => setFilterType('all')} />
-        <FilterChip label={`Críticos (${counts['critical-tema'] + counts['critical-area']})`} active={filterType === 'critical-tema'} onClick={() => setFilterType('critical-tema')} />
+        <FilterChip label={`Críticos (${counts['critical-tema'] + counts['critical-area']})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
         <FilterChip label={`Quick Wins (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
         <FilterChip label={`Pontos Fortes (${counts.strength})`} active={filterType === 'strength'} onClick={() => setFilterType('strength')} />
       </div>

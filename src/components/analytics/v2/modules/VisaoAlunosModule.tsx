@@ -2,10 +2,10 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
-  ArrowUpDown, Search, X, ChevronRight, User, BarChart3, Zap,
+  ArrowUpDown, Search, X, ChevronRight, User, Zap,
   Shield, AlertTriangle,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -16,6 +16,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import {
   StudentAnalyticsDrawer,
   computeRiskLevel,
@@ -28,8 +29,6 @@ import {
 import type {
   InstitutionalViewModel,
   StudentScore,
-  CurricularAreaNode,
-  CurricularTemaNode,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
@@ -174,11 +173,29 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     );
   }
 
+  if (data.alunosAbaixo.length === 0) {
+    return (
+      <ModuleEmptyState
+        title="Sem alunos no recorte atual"
+        description="Ajuste os filtros para visualizar ranking, segmentações e detalhes de alunos."
+      />
+    );
+  }
+
   // Summary stats
-  const totalStudents = data.alunosAbaixo.length;
-  const proficientes = data.alunosAbaixo.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
+  const totalStudents = data.headerSummary.totalAlunos;
+  const proficientes = Math.max(0, totalStudents - data.alunosAbaixo.length);
   const oportunidade = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
   const criticos = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
+
+  console.log('[VisaoAlunos]', 'Render do módulo', {
+    totalStudents,
+    alunosAbaixo: data.alunosAbaixo.length,
+    oportunidade,
+    criticos,
+    subView,
+    searchQuery,
+  });
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -273,7 +290,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                 const gap = Math.max(0, PROFICIENCY_THRESHOLD - s.percentual);
                 return (
                   <button
-                    key={`${s.nome}-${i}`}
+                    key={`${s.nome}-${s.semestre}-${s.total}-${i}`}
                     onClick={() => setSelectedStudent(s)}
                     className="w-full flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group"
                   >
@@ -315,7 +332,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                 const cfg = getRiskConfig(t.risk);
                 return (
                   <button
-                    key={`${t.name}-${i}`}
+                    key={`${t.name}-${t.specialtyName}-${i}`}
                     onClick={() => setSelectedTema(t)}
                     className="w-full flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group"
                   >
