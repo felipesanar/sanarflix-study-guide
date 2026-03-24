@@ -41,9 +41,17 @@ interface Props {
   onRetry?: () => void;
 }
 
-type SubView = 'ranking' | 'alunos' | 'temas';
+type SubView = 'alunos' | 'temas';
 type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre' | 'risco';
-type SegmentFilter = 'todos' | 'destaque' | 'atencao' | 'risco' | 'oportunidade';
+type SegmentFilter = 'todos' | 'proficiente' | 'oportunidade' | 'atencao' | 'critico';
+
+const SEGMENT_OPTIONS: { value: SegmentFilter; label: string; icon: React.ElementType }[] = [
+  { value: 'todos', label: 'Todos', icon: Users },
+  { value: 'proficiente', label: 'Destaque', icon: Shield },
+  { value: 'oportunidade', label: 'Oportunidade', icon: Zap },
+  { value: 'atencao', label: 'Atenção', icon: AlertTriangle },
+  { value: 'critico', label: 'Risco', icon: TrendingDown },
+];
 
 function getRiskConfig(risk: RiskLevel) {
   return { label: getRiskLabel(risk), variant: getRiskVariant(risk), color: getRiskColor(risk) };
@@ -94,6 +102,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   const [sortKey, setSortKey] = useState<SortKey>('percentual');
   const [sortAsc, setSortAsc] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState<SegmentFilter>('todos');
   const [selectedStudent, setSelectedStudent] = useState<StudentScore | null>(null);
   const [selectedTema, setSelectedTema] = useState<TemaSummary | null>(null);
 
@@ -104,6 +113,9 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...data.alunosAbaixo];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
+    if (segmentFilter !== 'todos') {
+      list = list.filter(s => computeRiskLevel(s.percentual) === segmentFilter);
+    }
     list.sort((a, b) => {
       let cmp = 0;
       if (sortKey === 'nome') cmp = a.nome.localeCompare(b.nome);
@@ -118,7 +130,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [data, searchQuery, sortKey, sortAsc]);
+  }, [data, searchQuery, sortKey, sortAsc, segmentFilter]);
 
   const sortedTemas = useMemo(() => {
     const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -206,6 +218,31 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
           )}
         </div>
       </div>
+
+      {/* Segment filter chips */}
+      {subView === 'alunos' && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {SEGMENT_OPTIONS.map(seg => {
+            const Icon = seg.icon;
+            const isActive = segmentFilter === seg.value;
+            const count = seg.value === 'todos' ? data.alunosAbaixo.length
+              : data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
+            return (
+              <Button
+                key={seg.value}
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 text-xs gap-1 px-2.5"
+                onClick={() => setSegmentFilter(seg.value)}
+              >
+                <Icon className="h-3 w-3" />
+                {seg.label}
+                <Badge variant={isActive ? 'secondary' : 'outline'} className="ml-0.5 text-[10px] h-4 px-1 min-w-[1.25rem]">{count}</Badge>
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sort controls */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
