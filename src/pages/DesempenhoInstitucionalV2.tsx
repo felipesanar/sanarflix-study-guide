@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 import { useDesempenhoV2State } from '@/hooks/useDesempenhoV2State';
+import { useInstitutionalPerformanceData } from '@/hooks/useInstitutionalPerformanceData';
 import { InstitutionalHeader } from '@/components/analytics/v2/shell/InstitutionalHeader';
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
@@ -10,9 +11,15 @@ import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptySta
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 
 const DesempenhoInstitucionalV2: React.FC = () => {
-  const { activeTab, setActiveTab, filters, updateFilter } = useDesempenhoV2State();
+  const { activeTab, setActiveTab, filters, updateFilter, autoSelectSimulado } = useDesempenhoV2State();
+  const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
 
-  console.log('[DesempenhoV2:Shell]', 'Page render, activeTab:', activeTab);
+  // Auto-select first simulado
+  useEffect(() => {
+    autoSelectSimulado(simulados);
+  }, [simulados, autoSelectSimulado]);
+
+  console.log('[DesempenhoV2:Shell]', 'Render', { activeTab, usingMock, hasData: !!data });
 
   return (
     <motion.div
@@ -24,12 +31,21 @@ const DesempenhoInstitucionalV2: React.FC = () => {
       {/* Header + Filters */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <InstitutionalHeader />
+          <InstitutionalHeader summary={data?.headerSummary} />
           <div className="shrink-0">
-            <GlobalFilterBar filters={filters} onFilterChange={updateFilter} />
+            <GlobalFilterBar
+              filters={filters}
+              onFilterChange={updateFilter}
+              simulados={simulados}
+              iesList={iesList}
+              usingMock={usingMock}
+            />
           </div>
         </div>
-        <InstitutionalAlertBanner />
+        <InstitutionalAlertBanner
+          sancao={data?.headerSummary?.sancao}
+          percentProficientes={data?.headerSummary?.percentProficientes}
+        />
       </div>
 
       {/* Tabs */}
@@ -38,7 +54,12 @@ const DesempenhoInstitucionalV2: React.FC = () => {
       {/* Module Content */}
       <div>
         {activeTab === 'visao-institucional' && (
-          <VisaoInstitucionalModule filters={filters} />
+          <VisaoInstitucionalModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
+          />
         )}
         {activeTab === 'diagnostico-curricular' && (
           <ModuleEmptyState

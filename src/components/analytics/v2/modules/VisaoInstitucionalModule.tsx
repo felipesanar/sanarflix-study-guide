@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Target } from 'lucide-react';
+import React from 'react';
+import { Target, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { KpiCardsGrid } from '@/components/analytics/v2/KpiCardsGrid';
@@ -9,42 +9,54 @@ import { EvolucaoChart } from '@/components/analytics/v2/EvolucaoChart';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
-import {
-  mockKpis,
-  mockFaixas,
-  mockMeta,
-  mockEvolucao,
-  mockDistanciaFaixa,
-  mockAlunosAbaixo,
-} from '@/mocks/desempenhoInstitucionalV2';
-
-import type { DesempenhoV2Filters } from '@/types/desempenhoV2';
+import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 interface Props {
-  filters: DesempenhoV2Filters;
+  data: InstitutionalViewModel | null;
+  loading: boolean;
+  error: string | null;
+  onRetry?: () => void;
 }
 
-export const VisaoInstitucionalModule: React.FC<Props> = ({ filters }) => {
-  const [loading, setLoading] = useState(true);
+export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
+  if (loading) return <DesempenhoV2Skeleton />;
 
-  const distanciaFaixaParsed = mockDistanciaFaixa.map((item) => {
+  if (error && !data) {
+    return (
+      <Card className="border-dashed border-destructive/30">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="p-3 rounded-full bg-destructive/10 mb-4">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Erro ao carregar dados</h3>
+          <p className="text-sm text-muted-foreground max-w-md mb-4">{error}</p>
+          {onRetry && (
+            <Button variant="outline" onClick={onRetry}>Tentar novamente</Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <h3 className="text-lg font-semibold mb-2">Selecione um simulado</h3>
+          <p className="text-sm text-muted-foreground">Escolha um simulado nos filtros acima para visualizar os dados.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const distanciaFaixaParsed = data.distanciaFaixa.map((item) => {
     const match = String(item.value).match(/\d+/);
     const count = match ? Number(match[0]) : 0;
     return { ...item, count };
   });
   const distanciaFaixaTotal = distanciaFaixaParsed.reduce((acc, item) => acc + item.count, 0);
-
-  useEffect(() => {
-    console.log('[DesempenhoV2:VisaoInstitucional]', 'Module mounted, filters:', filters);
-    const timer = setTimeout(() => {
-      setLoading(false);
-      console.log('[DesempenhoV2:VisaoInstitucional]', 'Mock data loaded');
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (loading) return <DesempenhoV2Skeleton />;
 
   return (
     <motion.div
@@ -53,10 +65,21 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ filters }) => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <KpiCardsGrid kpis={mockKpis} alunosAbaixo={mockAlunosAbaixo} />
+      <KpiCardsGrid
+        kpis={data.kpis}
+        alunosAbaixo={data.alunosAbaixo.map((s) => ({
+          nome: s.nome,
+          proficienciaTri: s.percentual,
+          percentualAcerto: s.percentual,
+          distanciaAteProficiencia: Math.round(60 - s.percentual),
+          turma: '',
+          periodo: '',
+          semestre: s.semestre,
+        }))}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MetaInstitucionalCard meta={mockMeta} />
+        <MetaInstitucionalCard meta={data.meta} />
         <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
@@ -83,8 +106,8 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ filters }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <FaixaDistribuicaoChart faixas={mockFaixas} />
-        <EvolucaoChart evolucao={mockEvolucao} />
+        <FaixaDistribuicaoChart faixas={data.faixas} />
+        <EvolucaoChart evolucao={data.evolucao} />
       </div>
     </motion.div>
   );
