@@ -159,13 +159,9 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const rpcArgs: { p_ies_id?: string } = {};
-      if (filters.iesId) rpcArgs.p_ies_id = filters.iesId;
-
-      const { data: simData, error: simErr } = await supabase.rpc(
-        'get_institutional_simulados',
-        rpcArgs,
-      );
+      const { data: simData, error: simErr } = filters.iesId
+        ? await supabase.rpc('get_institutional_simulados', { p_ies_id: filters.iesId })
+        : await supabase.rpc('get_institutional_simulados');
 
       if (simErr) {
         console.warn('[DesempenhoV2:Data]', 'Simulados fetch failed:', simErr.message);
@@ -209,13 +205,12 @@ export function useInstitutionalPerformanceData(
       };
       if (filters.iesId) rpcBaseArgs.p_ies_id = filters.iesId;
 
-      const evoArgs: { p_ies_id?: string } = {};
-      if (filters.iesId) evoArgs.p_ies_id = filters.iesId;
-
       // Parallel RPC calls
       const [perfResult, evoResult, scoresResult] = await Promise.all([
         supabase.rpc('get_institutional_performance', rpcBaseArgs),
-        supabase.rpc('get_institutional_evolution', evoArgs),
+        filters.iesId
+          ? supabase.rpc('get_institutional_evolution', { p_ies_id: filters.iesId })
+          : supabase.rpc('get_institutional_evolution'),
         supabase.rpc('get_institutional_student_scores', rpcBaseArgs),
       ]);
 
