@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { FileDown, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 import { useDesempenhoV2State } from '@/hooks/useDesempenhoV2State';
 import { useInstitutionalPerformanceData } from '@/hooks/useInstitutionalPerformanceData';
@@ -7,13 +9,14 @@ import { InstitutionalHeader } from '@/components/analytics/v2/shell/Institution
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
 import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
-import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
 import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
 import { InsightsPedagogicosModule } from '@/components/analytics/v2/modules/InsightsPedagogicosModule';
 import { InteligenciaDecisoriModule } from '@/components/analytics/v2/modules/InteligenciaDecisoriModule';
 import { SimuladorImpactoModule } from '@/components/analytics/v2/modules/SimuladorImpactoModule';
+import { ExportReportDrawer } from '@/components/analytics/v2/shared/ExportReportDrawer';
+import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
@@ -37,6 +40,10 @@ function extractSemestresFromData(data: InstitutionalViewModel) {
 const DesempenhoInstitucionalV2: React.FC = () => {
   const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
   const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const simuladoNome = simulados.find(s => s.id === filters.simuladoId)?.nome;
 
   // Auto-select first simulado
   useEffect(() => {
@@ -75,60 +82,55 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         />
       </div>
 
-      {/* Tabs */}
-      <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Tabs + action buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setExportOpen(true)}>
+            <FileDown className="h-3.5 w-3.5" /> Exportar
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setChatOpen(true)}>
+            <Sparkles className="h-3.5 w-3.5" /> Assistente IA
+          </Button>
+        </div>
+      </div>
 
       {/* Module Content */}
       <div>
         {activeTab === 'visao-institucional' && (
-          <VisaoInstitucionalModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <VisaoInstitucionalModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'diagnostico-curricular' && (
-          <DiagnosticoCurricularModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <DiagnosticoCurricularModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'visao-alunos' && (
-          <VisaoAlunosModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <VisaoAlunosModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'insights-pedagogicos' && (
-          <InsightsPedagogicosModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <InsightsPedagogicosModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'inteligencia-decisoria' && (
-          <InteligenciaDecisoriModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <InteligenciaDecisoriModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
         {activeTab === 'simulador-impacto' && (
-          <SimuladorImpactoModule
-            data={data}
-            loading={loading}
-            error={error}
-            onRetry={refetch}
-          />
+          <SimuladorImpactoModule data={data} loading={loading} error={error} onRetry={refetch} />
         )}
       </div>
+
+      {/* Drawers */}
+      <ExportReportDrawer
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        data={data}
+        filters={filters}
+        simuladoNome={simuladoNome}
+      />
+      <AiChatDrawer
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        data={data}
+        activeTab={activeTab}
+      />
     </motion.div>
   );
 };
