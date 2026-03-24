@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
   ArrowUpDown, Search, X, ChevronRight, User, BarChart3, Zap,
+  Shield, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import {
+  StudentAnalyticsDrawer,
+  computeRiskLevel,
+  computeRiskAssessment,
+  getRiskLabel,
+  getRiskVariant,
+  getRiskColor,
+  type RiskLevel,
+} from '@/components/analytics/v2/shared/StudentAnalyticsDrawer';
 import type {
   InstitutionalViewModel,
   StudentScore,
@@ -34,31 +41,14 @@ interface Props {
   onRetry?: () => void;
 }
 
-type SubView = 'alunos' | 'temas';
-type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre';
-type RiskLevel = 'critico' | 'atencao' | 'oportunidade' | 'proficiente';
-
-function getRisk(percentual: number): RiskLevel {
-  if (percentual >= PROFICIENCY_THRESHOLD) return 'proficiente';
-  if (percentual >= PROFICIENCY_THRESHOLD - 5) return 'oportunidade';
-  if (percentual >= PROFICIENCY_THRESHOLD - 15) return 'atencao';
-  return 'critico';
-}
+type SubView = 'ranking' | 'alunos' | 'temas';
+type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre' | 'risco';
+type SegmentFilter = 'todos' | 'destaque' | 'atencao' | 'risco' | 'oportunidade';
 
 function getRiskConfig(risk: RiskLevel) {
-  switch (risk) {
-    case 'critico':
-      return { label: 'Crítico', variant: 'destructive' as const, color: 'text-destructive' };
-    case 'atencao':
-      return { label: 'Atenção', variant: 'secondary' as const, color: 'text-amber-600 dark:text-amber-400' };
-    case 'oportunidade':
-      return { label: 'Próximo de virar', variant: 'outline' as const, color: 'text-blue-600 dark:text-blue-400' };
-    case 'proficiente':
-      return { label: 'Proficiente', variant: 'default' as const, color: 'text-emerald-600 dark:text-emerald-400' };
-  }
+  return { label: getRiskLabel(risk), variant: getRiskVariant(risk), color: getRiskColor(risk) };
 }
 
-// ── Tema summary for ranking ──
 interface TemaSummary {
   name: string;
   areaName: string;
@@ -88,7 +78,7 @@ function buildTemaSummaries(data: InstitutionalViewModel): TemaSummary[] {
           acertos: tema.acertos,
           percentual: tema.percentual,
           gap,
-          risk: getRisk(tema.percentual),
+          risk: computeRiskLevel(tema.percentual),
           // Estimate: proportional to gap
           alunosCriticos: tema.percentual < 50 ? Math.ceil(data.alunosAbaixo.length * 0.6) : Math.ceil(data.alunosAbaixo.length * 0.3),
           alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.alunosAbaixo.length * 0.4) : Math.ceil(data.alunosAbaixo.length * 0.15),
@@ -120,6 +110,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       else if (sortKey === 'percentual') cmp = a.percentual - b.percentual;
       else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - a.percentual) - (PROFICIENCY_THRESHOLD - b.percentual);
       else if (sortKey === 'semestre') cmp = a.semestre - b.semestre;
+      else if (sortKey === 'risco') {
+        const riskA = computeRiskAssessment(a, data?.curricular.areas ?? []);
+        const riskB = computeRiskAssessment(b, data?.curricular.areas ?? []);
+        cmp = riskB.score - riskA.score; // higher risk first
+      }
       return sortAsc ? cmp : -cmp;
     });
     return list;
@@ -170,8 +165,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   // Summary stats
   const totalStudents = data.alunosAbaixo.length;
   const proficientes = data.alunosAbaixo.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
-  const oportunidade = data.alunosAbaixo.filter(s => getRisk(s.percentual) === 'oportunidade').length;
-  const criticos = data.alunosAbaixo.filter(s => getRisk(s.percentual) === 'critico').length;
+  const oportunidade = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
+  const criticos = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -219,6 +214,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         {subView === 'alunos' ? (
           <>
             <SortButton label="Acurácia" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
+            <SortButton label="Risco" active={sortKey === 'risco'} asc={sortAsc} onClick={() => toggleSort('risco')} />
             <SortButton label="Nome" active={sortKey === 'nome'} asc={sortAsc} onClick={() => toggleSort('nome')} />
             <SortButton label="Semestre" active={sortKey === 'semestre'} asc={sortAsc} onClick={() => toggleSort('semestre')} />
           </>
@@ -235,7 +231,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum aluno encontrado.</p>
             ) : (
               sortedStudents.map((s, i) => {
-                const risk = getRisk(s.percentual);
+                const risk = computeRiskLevel(s.percentual);
                 const cfg = getRiskConfig(risk);
                 const gap = Math.max(0, PROFICIENCY_THRESHOLD - s.percentual);
                 return (
@@ -312,10 +308,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         )}
       </AnimatePresence>
 
-      {/* Student detail drawer */}
-      <StudentDetailSheet
+      {/* Student detail drawer (shared) */}
+      <StudentAnalyticsDrawer
         student={selectedStudent}
-        areas={data.curricular.areas}
+        data={data}
+        open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
       />
 
@@ -350,157 +347,7 @@ const SortButton: React.FC<{ label: string; active: boolean; asc: boolean; onCli
   </Button>
 );
 
-// ── Student detail drawer ──
-const StudentDetailSheet: React.FC<{
-  student: StudentScore | null;
-  areas: CurricularAreaNode[];
-  onClose: () => void;
-}> = ({ student, areas, onClose }) => {
-  if (!student) return null;
-  const risk = getRisk(student.percentual);
-  const cfg = getRiskConfig(risk);
-  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
-
-  // Build area performance from scoresByArea or from curricular data
-  const areaPerformance = areas.map(a => ({
-    name: a.name,
-    percentual: student.scoresByArea[a.name] ?? a.percentual,
-  })).sort((a, b) => a.percentual - b.percentual);
-
-  // Identify critical and opportunity temas
-  const allTemas: { name: string; area: string; specialty: string; percentual: number }[] = [];
-  areas.forEach(a => a.specialties.forEach(sp => sp.temas.forEach(t => {
-    allTemas.push({ name: t.name, area: a.name, specialty: sp.name, percentual: t.percentual });
-  })));
-  const criticalTemas = allTemas.filter(t => t.percentual < 50).sort((a, b) => a.percentual - b.percentual).slice(0, 5);
-  const opportunityTemas = allTemas.filter(t => t.percentual >= 55 && t.percentual < 65).sort((a, b) => b.percentual - a.percentual).slice(0, 5);
-
-  return (
-    <Sheet open={!!student} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {student.nome}
-          </SheetTitle>
-        </SheetHeader>
-
-        <div className="space-y-5 mt-4">
-          {/* Overview */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">Acurácia</p>
-              <p className={`text-xl font-bold ${cfg.color}`}>{student.percentual}%</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">Gap p/ proficiência</p>
-              <p className={`text-xl font-bold ${gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {gap > 0 ? `${gap} pp` : '✓'}
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">Semestre</p>
-              <p className="text-xl font-bold text-foreground">{student.semestre}º</p>
-            </div>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">Status</p>
-              <Badge variant={cfg.variant} className="mt-1">{cfg.label}</Badge>
-            </div>
-          </div>
-
-          {/* Risk justification */}
-          <Card>
-            <CardContent className="py-3 px-4">
-              <div className="flex items-start gap-2">
-                {risk === 'oportunidade' ? (
-                  <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                ) : risk === 'critico' ? (
-                  <TrendingDown className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                ) : (
-                  <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
-                )}
-                <div>
-                  <p className="text-sm font-medium">
-                    {risk === 'oportunidade' ? 'Próximo de virar o jogo' : risk === 'critico' ? 'Aluno em risco' : risk === 'atencao' ? 'Requer atenção' : 'Desempenho adequado'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {risk === 'oportunidade'
-                      ? `Faltam apenas ${gap}pp para atingir proficiência. Intervenção focada pode gerar resultado rápido.`
-                      : risk === 'critico'
-                        ? `Distante ${gap}pp da proficiência. Necessita intervenção estrutural.`
-                        : risk === 'atencao'
-                          ? `A ${gap}pp da proficiência. Monitorar de perto.`
-                          : 'Acima do limiar de proficiência. Manter acompanhamento.'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Performance by area */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-              <BarChart3 className="h-4 w-4" /> Desempenho por Área
-            </h4>
-            <div className="space-y-2">
-              {areaPerformance.map(a => {
-                const aRisk = getRisk(a.percentual);
-                const aCfg = getRiskConfig(aRisk);
-                return (
-                  <div key={a.name} className="flex items-center gap-3">
-                    <span className="text-xs w-32 truncate text-muted-foreground">{a.name}</span>
-                    <Progress value={a.percentual} className="h-2 flex-1" />
-                    <span className={`text-xs font-medium w-10 text-right ${aCfg.color}`}>{a.percentual}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Critical temas */}
-          {criticalTemas.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5 text-destructive">
-                <TrendingDown className="h-4 w-4" /> Temas Críticos
-              </h4>
-              <div className="space-y-1">
-                {criticalTemas.map(t => (
-                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-destructive/5 text-sm">
-                    <div className="min-w-0">
-                      <span className="font-medium truncate block">{t.name}</span>
-                      <span className="text-xs text-muted-foreground">{t.area}</span>
-                    </div>
-                    <span className="text-destructive font-semibold shrink-0">{t.percentual}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Opportunity temas */}
-          {opportunityTemas.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
-                <Zap className="h-4 w-4" /> Temas de Oportunidade
-              </h4>
-              <div className="space-y-1">
-                {opportunityTemas.map(t => (
-                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-blue-500/5 text-sm">
-                    <div className="min-w-0">
-                      <span className="font-medium truncate block">{t.name}</span>
-                      <span className="text-xs text-muted-foreground">{t.area}</span>
-                    </div>
-                    <span className="text-blue-600 dark:text-blue-400 font-semibold shrink-0">{t.percentual}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
+// Old StudentDetailSheet removed — now using shared StudentAnalyticsDrawer
 
 // ── Tema detail drawer ──
 const TemaDetailSheet: React.FC<{
@@ -580,7 +427,7 @@ const TemaDetailSheet: React.FC<{
             <ScrollArea className="max-h-64">
               <div className="space-y-1">
                 {relevantStudents.map((s, i) => {
-                  const sRisk = getRisk(s.temaScore);
+                  const sRisk = computeRiskLevel(s.temaScore);
                   const sCfg = getRiskConfig(sRisk);
                   return (
                     <button
