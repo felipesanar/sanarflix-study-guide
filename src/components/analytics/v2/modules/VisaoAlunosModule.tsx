@@ -307,10 +307,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         )}
       </AnimatePresence>
 
-      {/* Student detail drawer */}
-      <StudentDetailSheet
+      {/* Student detail drawer (shared) */}
+      <StudentAnalyticsDrawer
         student={selectedStudent}
-        areas={data.curricular.areas}
+        data={data}
+        open={!!selectedStudent}
         onClose={() => setSelectedStudent(null)}
       />
 
