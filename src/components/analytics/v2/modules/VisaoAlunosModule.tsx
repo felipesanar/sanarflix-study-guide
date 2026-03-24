@@ -75,7 +75,7 @@ function buildTemaSummaries(data: InstitutionalViewModel): TemaSummary[] {
           acertos: tema.acertos,
           percentual: tema.percentual,
           gap,
-          risk: getRisk(tema.percentual),
+          risk: computeRiskLevel(tema.percentual),
           // Estimate: proportional to gap
           alunosCriticos: tema.percentual < 50 ? Math.ceil(data.alunosAbaixo.length * 0.6) : Math.ceil(data.alunosAbaixo.length * 0.3),
           alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.alunosAbaixo.length * 0.4) : Math.ceil(data.alunosAbaixo.length * 0.15),
@@ -157,8 +157,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   // Summary stats
   const totalStudents = data.alunosAbaixo.length;
   const proficientes = data.alunosAbaixo.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
-  const oportunidade = data.alunosAbaixo.filter(s => getRisk(s.percentual) === 'oportunidade').length;
-  const criticos = data.alunosAbaixo.filter(s => getRisk(s.percentual) === 'critico').length;
+  const oportunidade = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
+  const criticos = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -222,7 +222,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum aluno encontrado.</p>
             ) : (
               sortedStudents.map((s, i) => {
-                const risk = getRisk(s.percentual);
+                const risk = computeRiskLevel(s.percentual);
                 const cfg = getRiskConfig(risk);
                 const gap = Math.max(0, PROFICIENCY_THRESHOLD - s.percentual);
                 return (
@@ -344,7 +344,7 @@ const StudentDetailSheet: React.FC<{
   onClose: () => void;
 }> = ({ student, areas, onClose }) => {
   if (!student) return null;
-  const risk = getRisk(student.percentual);
+  const risk = computeRiskLevel(student.percentual);
   const cfg = getRiskConfig(risk);
   const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
 
@@ -431,7 +431,7 @@ const StudentDetailSheet: React.FC<{
             </h4>
             <div className="space-y-2">
               {areaPerformance.map(a => {
-                const aRisk = getRisk(a.percentual);
+                const aRisk = computeRiskLevel(a.percentual);
                 const aCfg = getRiskConfig(aRisk);
                 return (
                   <div key={a.name} className="flex items-center gap-3">
@@ -567,7 +567,7 @@ const TemaDetailSheet: React.FC<{
             <ScrollArea className="max-h-64">
               <div className="space-y-1">
                 {relevantStudents.map((s, i) => {
-                  const sRisk = getRisk(s.temaScore);
+                  const sRisk = computeRiskLevel(s.temaScore);
                   const sCfg = getRiskConfig(sRisk);
                   return (
                     <button
