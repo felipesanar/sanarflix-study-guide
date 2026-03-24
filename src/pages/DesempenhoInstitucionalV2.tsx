@@ -10,6 +10,7 @@ import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/Performan
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
+import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
@@ -93,9 +94,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'visao-alunos' && (
-          <ModuleEmptyState
-            title="Visão de Alunos"
-            description="Ranking e acompanhamento individual dos alunos com segmentação por risco e oportunidade."
+          <VisaoAlunosModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
         {activeTab === 'insights-pedagogicos' && (
