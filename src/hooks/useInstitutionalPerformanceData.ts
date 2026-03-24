@@ -146,6 +146,23 @@ export function useInstitutionalPerformanceData(
     fetchIes();
   }, []);
 
+  const resolveTargetIesId = useCallback(async (): Promise<string | null> => {
+    if (filters.iesId) return filters.iesId;
+
+    const { data: ownIesId, error: ownIesErr } = await supabase.rpc('get_user_ies_id');
+    if (ownIesErr) {
+      console.warn('[DesempenhoV2:Data]', 'Could not resolve own IES:', ownIesErr.message);
+      return null;
+    }
+
+    if (!ownIesId) {
+      console.warn('[DesempenhoV2:Data]', 'Own IES not found for current user');
+      return null;
+    }
+
+    return ownIesId as string;
+  }, [filters.iesId]);
+
   // Fetch simulados whenever IES changes
   useEffect(() => {
     const fetchSimulados = async () => {
@@ -159,9 +176,15 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const { data: simData, error: simErr } = filters.iesId
-        ? await supabase.rpc('get_institutional_simulados', { p_ies_id: filters.iesId })
-        : await supabase.rpc('get_institutional_simulados');
+      const targetIesId = await resolveTargetIesId();
+      if (!targetIesId) {
+        setSimulados([]);
+        return;
+      }
+
+      const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
+        p_ies_id: targetIesId,
+      });
 
       if (simErr) {
         console.warn('[DesempenhoV2:Data]', 'Simulados fetch failed:', simErr.message);
@@ -177,7 +200,7 @@ export function useInstitutionalPerformanceData(
       console.log('[DesempenhoInstitucionalV2]', 'Simulados carregados', { total: mapped.length });
     };
     fetchSimulados();
-  }, [filters.iesId]);
+  }, [filters.iesId, resolveTargetIesId]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
@@ -200,17 +223,20 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const rpcBaseArgs: { p_simulado_id: string; p_ies_id?: string } = {
+      const targetIesId = await resolveTargetIesId();
+      if (!targetIesId) {
+        throw new Error('IES do usuário não encontrada para carregar desempenho institucional');
+      }
+
+      const rpcBaseArgs = {
         p_simulado_id: filters.simuladoId,
+        p_ies_id: targetIesId,
       };
-      if (filters.iesId) rpcBaseArgs.p_ies_id = filters.iesId;
 
       // Parallel RPC calls
       const [perfResult, evoResult, scoresResult] = await Promise.all([
         supabase.rpc('get_institutional_performance', rpcBaseArgs),
-        filters.iesId
-          ? supabase.rpc('get_institutional_evolution', { p_ies_id: filters.iesId })
-          : supabase.rpc('get_institutional_evolution'),
+        supabase.rpc('get_institutional_evolution', { p_ies_id: targetIesId }),
         supabase.rpc('get_institutional_student_scores', rpcBaseArgs),
       ]);
 
@@ -243,7 +269,7 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId]);
+  }, [filters.simuladoId, resolveTargetIesId]);
 
   useEffect(() => {
     fetchPerformance();
