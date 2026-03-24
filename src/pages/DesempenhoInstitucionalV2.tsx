@@ -94,9 +94,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'visao-alunos' && (
-          <ModuleEmptyState
-            title="Visão de Alunos"
-            description="Ranking e acompanhamento individual dos alunos com segmentação por risco e oportunidade."
+          <VisaoAlunosModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
         {activeTab === 'insights-pedagogicos' && (
