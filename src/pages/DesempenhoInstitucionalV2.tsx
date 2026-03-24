@@ -13,6 +13,7 @@ import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/D
 import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
 import { InsightsPedagogicosModule } from '@/components/analytics/v2/modules/InsightsPedagogicosModule';
 import { InteligenciaDecisoriModule } from '@/components/analytics/v2/modules/InteligenciaDecisoriModule';
+import { SimuladorImpactoModule } from '@/components/analytics/v2/modules/SimuladorImpactoModule';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
@@ -113,6 +114,14 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         )}
         {activeTab === 'inteligencia-decisoria' && (
           <InteligenciaDecisoriModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
+          />
+        )}
+        {activeTab === 'simulador-impacto' && (
+          <SimuladorImpactoModule
             data={data}
             loading={loading}
             error={error}
