@@ -103,9 +103,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'insights-pedagogicos' && (
-          <ModuleEmptyState
-            title="Insights Pedagógicos"
-            description="Recomendações baseadas em dados com priorização por prevalência e impacto institucional."
+          <InsightsPedagogicosModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
         {activeTab === 'inteligencia-decisoria' && (
