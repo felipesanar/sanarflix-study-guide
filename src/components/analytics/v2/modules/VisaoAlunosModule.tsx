@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
   ArrowUpDown, Search, X, ChevronRight, User, BarChart3, Zap,
+  Shield, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
+import {
+  StudentAnalyticsDrawer,
+  computeRiskLevel,
+  computeRiskAssessment,
+  getRiskLabel,
+  getRiskVariant,
+  getRiskColor,
+  type RiskLevel,
+} from '@/components/analytics/v2/shared/StudentAnalyticsDrawer';
 import type {
   InstitutionalViewModel,
   StudentScore,
@@ -34,29 +41,9 @@ interface Props {
   onRetry?: () => void;
 }
 
-type SubView = 'alunos' | 'temas';
-type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre';
-type RiskLevel = 'critico' | 'atencao' | 'oportunidade' | 'proficiente';
-
-function getRisk(percentual: number): RiskLevel {
-  if (percentual >= PROFICIENCY_THRESHOLD) return 'proficiente';
-  if (percentual >= PROFICIENCY_THRESHOLD - 5) return 'oportunidade';
-  if (percentual >= PROFICIENCY_THRESHOLD - 15) return 'atencao';
-  return 'critico';
-}
-
-function getRiskConfig(risk: RiskLevel) {
-  switch (risk) {
-    case 'critico':
-      return { label: 'Crítico', variant: 'destructive' as const, color: 'text-destructive' };
-    case 'atencao':
-      return { label: 'Atenção', variant: 'secondary' as const, color: 'text-amber-600 dark:text-amber-400' };
-    case 'oportunidade':
-      return { label: 'Próximo de virar', variant: 'outline' as const, color: 'text-blue-600 dark:text-blue-400' };
-    case 'proficiente':
-      return { label: 'Proficiente', variant: 'default' as const, color: 'text-emerald-600 dark:text-emerald-400' };
-  }
-}
+type SubView = 'ranking' | 'alunos' | 'temas';
+type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre' | 'risco';
+type SegmentFilter = 'todos' | 'destaque' | 'atencao' | 'risco' | 'oportunidade';
 
 // ── Tema summary for ranking ──
 interface TemaSummary {
