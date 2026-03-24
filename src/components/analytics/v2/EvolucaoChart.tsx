@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import type { EvolucaoSimulado } from '@/mocks/desempenhoInstitucionalV2';
 
 interface Props {
@@ -11,55 +10,67 @@ interface Props {
 }
 
 export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
-  const [activeTab, setActiveTab] = useState('proficiencia');
-
-  const dataKey = activeTab === 'nota' ? 'nota' : 'proficiencia';
-  const label = activeTab === 'nota' ? 'Nota' : 'Proficiência';
+  const [metric, setMetric] = useState<'proficiencia' | 'nota'>('proficiencia');
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4 }}>
-      <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Evolução entre Simulados</CardTitle>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.3 }}>
+      <Card className="h-full">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Evolução entre Simulados</CardTitle>
+            <div className="flex items-center rounded-lg bg-muted/60 p-0.5">
+              {(['proficiencia', 'nota'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMetric(m)}
+                  className={cn(
+                    'text-[11px] font-medium px-2.5 py-1 rounded-md transition-all',
+                    metric === m
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {m === 'proficiencia' ? 'Proficiência' : 'Nota'}
+                </button>
+              ))}
             </div>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="h-8 bg-muted/70">
-                <TabsTrigger value="proficiencia" className="text-xs px-3 h-6">Proficiência</TabsTrigger>
-                <TabsTrigger value="nota" className="text-xs px-3 h-6">Nota</TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px] w-full">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={evolucao} margin={{ left: 0, right: 20, top: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="simulado" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+              <LineChart data={evolucao} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
+                <XAxis
+                  dataKey="simulado"
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  width={34}
-                  domain={activeTab === 'nota' ? [0, 5] : ['auto', 'auto']}
+                  width={32}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={metric === 'nota' ? [0, 5] : ['auto', 'auto']}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`${value}`, label]}
+                  formatter={(value: number) => [`${value}`, metric === 'nota' ? 'Nota' : 'Proficiência']}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '12px',
+                    boxShadow: '0 4px 12px -2px rgba(0,0,0,0.08)',
                   }}
                 />
                 <Line
                   type="monotone"
-                  dataKey={dataKey}
+                  dataKey={metric}
                   stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
-                  dot={{ r: 5, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--card))' }}
-                  activeDot={{ r: 7 }}
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--card))' }}
+                  activeDot={{ r: 6, strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>

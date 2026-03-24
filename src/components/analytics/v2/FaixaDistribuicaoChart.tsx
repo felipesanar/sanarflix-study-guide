@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
-import { BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { FaixaDistribuicao } from '@/mocks/desempenhoInstitucionalV2';
 
@@ -11,39 +10,26 @@ interface Props {
 
 export const FaixaDistribuicaoChart: React.FC<Props> = ({ faixas }) => {
   const sorted = [...faixas].sort((a, b) => b.quantidade - a.quantidade);
-  const maxIndex = 0;
-  const minIndex = Math.max(0, sorted.length - 1);
-
-  const getExtremeFill = (kind: 'max' | 'min') => {
-    return kind === 'max' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
-  };
-
-  const getFill = (index: number) => {
-    if (index === maxIndex) return getExtremeFill('max');
-    if (index === minIndex) return getExtremeFill('min');
-    return sorted[index].cor;
-  };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4 }}>
-      <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-base">Distribuição por Faixa de Proficiência</CardTitle>
-          </div>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3 }}>
+      <Card className="h-full">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">Distribuição por Faixa</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[280px] w-full">
+          <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sorted} layout="vertical" margin={{ left: 0, right: 18, top: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+              <BarChart data={sorted} layout="vertical" margin={{ left: 0, right: 12, top: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border) / 0.5)" />
+                <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                 <YAxis
                   type="category"
                   dataKey="faixa"
-                  width={110}
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  width={100}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip
                   formatter={(value: number) => [`${value} alunos`, 'Quantidade']}
@@ -52,22 +38,22 @@ export const FaixaDistribuicaoChart: React.FC<Props> = ({ faixas }) => {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '12px',
+                    boxShadow: '0 4px 12px -2px rgba(0,0,0,0.08)',
                   }}
-                  labelStyle={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}
+                  cursor={{ fill: 'hsl(var(--accent) / 0.3)' }}
                 />
-                <Bar dataKey="quantidade" radius={[0, 6, 6, 0]} barSize={28}>
-                  {sorted.map((f, i) => (
-                    <Cell key={f.faixa} fill={getFill(i)} />
+                <Bar dataKey="quantidade" radius={[0, 6, 6, 0]} barSize={24}>
+                  {sorted.map((f) => (
+                    <Cell key={f.faixa} fill={f.cor} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3 mt-3 justify-center">
-            {sorted.map((f, i) => (
-              <div key={f.faixa} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: getFill(i) }} />
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3">
+            {sorted.map((f) => (
+              <div key={f.faixa} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: f.cor }} />
                 <span>{f.faixa}: {f.quantidade} ({f.percentual}%)</span>
               </div>
             ))}

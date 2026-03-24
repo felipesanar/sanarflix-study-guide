@@ -9,14 +9,12 @@ import { InstitutionalHeader } from '@/components/analytics/v2/shell/Institution
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
 import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
-import { PerformanceContextBar } from '@/components/analytics/v2/shell/PerformanceContextBar';
 import { ModuleContentRenderer } from '@/components/analytics/v2/shell/ModuleContentRenderer';
 import { ExportReportDrawer } from '@/components/analytics/v2/shared/ExportReportDrawer';
 import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
-// Extract unique areas from student score data for filter options
 function extractAreasFromData(data: InstitutionalViewModel) {
   const areas = new Set<string>();
   data.alunosAbaixo.forEach((s) => {
@@ -25,7 +23,6 @@ function extractAreasFromData(data: InstitutionalViewModel) {
   return Array.from(areas).sort().map((a) => ({ id: a, label: a }));
 }
 
-// Extract unique semestres from student data
 function extractSemestresFromData(data: InstitutionalViewModel) {
   const sems = new Set<string>();
   data.alunosAbaixo.forEach((s) => {
@@ -59,89 +56,69 @@ const DesempenhoInstitucionalV2: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
 
   const filteredData = useMemo(() => {
-    const nextData = applyDesempenhoV2Filters(data, filters);
-    console.log('[DesempenhoInstitucionalV2]', 'Recorte aplicado', {
-      areas: filters.areas.length,
-      especialidades: filters.especialidades.length,
-      temas: filters.temas.length,
-      semestres: filters.semestres.length,
-      hasData: Boolean(nextData),
-    });
-    return nextData;
+    return applyDesempenhoV2Filters(data, filters);
   }, [data, filters]);
 
   const simuladoNome = simulados.find(s => s.id === filters.simuladoId)?.nome;
 
-  // Auto-select first simulado
   useEffect(() => {
     autoSelectSimulado(simulados);
   }, [simulados, autoSelectSimulado]);
 
-  console.log('[DesempenhoInstitucionalV2]', 'Render da shell', { activeTab, usingMock, hasData: !!filteredData });
-
   return (
     <motion.div
-      className="space-y-5 pb-8"
+      className="space-y-4 pb-8 max-w-7xl mx-auto"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.25 }}
     >
-      {/* Header + Filters */}
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="rounded-xl border bg-card/70 backdrop-blur-sm p-4 sm:p-5">
-          <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-            <InstitutionalHeader summary={data?.headerSummary} />
-            <div className="xl:shrink-0">
-              <GlobalFilterBar
-                filters={filters}
-                onFilterChange={updateFilter}
-                onClearFilters={clearFilters}
-                simulados={simulados}
-                iesList={iesList}
-                availableAreas={data ? extractAreasFromData(data) : []}
-                availableEspecialidades={data ? extractEspecialidadesFromData(data) : []}
-                availableSemestres={data ? extractSemestresFromData(data) : []}
-                availableTemas={data ? extractTemasFromData(data) : []}
-                usingMock={usingMock}
-              />
-            </div>
-          </div>
-        </div>
-        <div className="px-1">
-          <InstitutionalAlertBanner
-            sancao={data?.headerSummary?.sancao}
-            percentProficientes={data?.headerSummary?.percentProficientes}
-          />
-        </div>
-      </div>
-
-      {/* Tabs + action buttons */}
-      <div className="rounded-xl border bg-card/60 px-2.5 py-2 sm:px-3">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setExportOpen(true)}>
+      {/* Header area */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <InstitutionalHeader summary={data?.headerSummary} />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground" onClick={() => setExportOpen(true)}>
               <FileDown className="h-3.5 w-3.5" /> Exportar
             </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setChatOpen(true)}>
-              <Sparkles className="h-3.5 w-3.5" /> Assistente IA
+            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground" onClick={() => setChatOpen(true)}>
+              <Sparkles className="h-3.5 w-3.5" /> IA
             </Button>
           </div>
         </div>
-      </div>
 
-      <PerformanceContextBar activeTab={activeTab} filters={filters} usingMock={usingMock} />
+        {/* Filters */}
+        <GlobalFilterBar
+          filters={filters}
+          onFilterChange={updateFilter}
+          onClearFilters={clearFilters}
+          simulados={simulados}
+          iesList={iesList}
+          availableAreas={data ? extractAreasFromData(data) : []}
+          availableEspecialidades={data ? extractEspecialidadesFromData(data) : []}
+          availableSemestres={data ? extractSemestresFromData(data) : []}
+          availableTemas={data ? extractTemasFromData(data) : []}
+          usingMock={usingMock}
+        />
 
-      {/* Module Content */}
-      <div className="rounded-xl border bg-background/60 p-3 sm:p-4">
-        <ModuleContentRenderer
-          activeTab={activeTab}
-          data={filteredData}
-          loading={loading}
-          error={error}
-          onRetry={refetch}
+        <InstitutionalAlertBanner
+          sancao={data?.headerSummary?.sancao}
+          percentProficientes={data?.headerSummary?.percentProficientes}
         />
       </div>
+
+      {/* Tabs */}
+      <div className="rounded-xl bg-muted/30 px-2 py-1.5">
+        <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+
+      {/* Module Content */}
+      <ModuleContentRenderer
+        activeTab={activeTab}
+        data={filteredData}
+        loading={loading}
+        error={error}
+        onRetry={refetch}
+      />
 
       {/* Drawers */}
       <ExportReportDrawer

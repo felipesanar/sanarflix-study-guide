@@ -10,18 +10,18 @@ const iconMap: Record<string, React.ElementType> = {
   Users, Target, School, BarChart3, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle,
 };
 
-const statusColors: Record<string, string> = {
+const statusAccent: Record<string, string> = {
+  good: 'border-l-emerald-500',
+  warning: 'border-l-amber-500',
+  critical: 'border-l-red-500',
+  neutral: 'border-l-border',
+};
+
+const statusIconColor: Record<string, string> = {
   good: 'text-emerald-600 dark:text-emerald-400',
   warning: 'text-amber-600 dark:text-amber-400',
   critical: 'text-destructive',
   neutral: 'text-muted-foreground',
-};
-
-const statusBg: Record<string, string> = {
-  good: 'bg-emerald-50 dark:bg-emerald-950/30',
-  warning: 'bg-amber-50 dark:bg-amber-950/30',
-  critical: 'bg-red-50 dark:bg-red-950/30',
-  neutral: 'bg-muted/50',
 };
 
 interface Props {
@@ -31,81 +31,85 @@ interface Props {
 
 export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
   const [openModal, setOpenModal] = useState(false);
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {kpis.map((kpi, i) => {
         const Icon = iconMap[kpi.icon] || BarChart3;
         const isDetails = kpi.label === 'Alunos Abaixo do Esperado' && !!alunosAbaixo && alunosAbaixo.length > 0;
         return (
           <motion.div
             key={kpi.label}
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.3 }}
+            transition={{ delay: i * 0.04, duration: 0.25 }}
           >
             <Card
               className={cn(
-                'transition-all duration-200 h-full border-border/70',
-                isDetails ? 'hover:shadow-md hover:border-primary/30 cursor-pointer' : 'hover:shadow-md'
+                'border-l-[3px] transition-all duration-200 h-full',
+                statusAccent[kpi.status],
+                isDetails && 'hover:shadow-md cursor-pointer group'
               )}
               onClick={isDetails ? () => setOpenModal(true) : undefined}
             >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className={cn('p-2 rounded-lg shrink-0', statusBg[kpi.status])}>
-                    <Icon className={cn('h-5 w-5', statusColors[kpi.status])} />
-                  </div>
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{kpi.label}</p>
-                    <p className="text-xl font-bold text-foreground">
-                      {kpi.value}
-                    </p>
-                    {kpi.description && (
-                      <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2 min-h-[1.75rem]">{kpi.description}</p>
-                    )}
-                    {isDetails && (
-                      <div className="mt-2 inline-flex items-center gap-1 text-xs text-primary">
-                        <span>Ver detalhes</span>
-                        <ChevronRight className="h-3 w-3" />
-                      </div>
-                    )}
-                  </div>
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className={cn('h-4 w-4', statusIconColor[kpi.status])} />
+                  <p className="text-[11px] text-muted-foreground truncate">{kpi.label}</p>
                 </div>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-none">
+                  {kpi.value}
+                </p>
+                {kpi.description && (
+                  <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-1">{kpi.description}</p>
+                )}
+                {isDetails && (
+                  <div className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary font-medium group-hover:gap-1.5 transition-all">
+                    <span>Ver alunos</span>
+                    <ChevronRight className="h-3 w-3" />
+                  </div>
+                )}
               </CardContent>
             </Card>
             {isDetails && (
               <Dialog open={openModal} onOpenChange={setOpenModal}>
-                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Alunos abaixo do esperado</DialogTitle>
-                    <DialogDescription>
-                      Visualize percentual de acerto e distância até a proficiência institucional.
+                    <DialogTitle className="text-base">Alunos abaixo do esperado</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Percentual de acerto e distância até a proficiência.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="grid grid-cols-6 gap-2 text-[11px] text-muted-foreground">
-                    <div>Aluno</div>
-                    <div>Semestre</div>
-                    <div>Acurácia atual</div>
-                    <div>% Acerto</div>
-                    <div>Distância até 60</div>
-                    <div>Status</div>
-                  </div>
-                  <div className="mt-2 space-y-2">
-                    {alunosAbaixo!.map((aluno) => {
-                      const status = aluno.percentualAcerto >= 60 ? 'Proficiente' : 'Abaixo do esperado';
-                      return (
-                        <div key={aluno.nome} className="grid grid-cols-6 gap-2 text-sm">
-                          <div className="truncate">{aluno.nome}</div>
-                          <div>{aluno.semestre}º</div>
-                          <div>{aluno.percentualAcerto}%</div>
-                          <div>{aluno.percentualAcerto}%</div>
-                          <div>{aluno.distanciaAteProficiencia} pts</div>
-                          <div className={cn('truncate', aluno.percentualAcerto >= 60 ? 'text-emerald-600' : 'text-destructive')}>
-                            {status}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b text-xs text-muted-foreground">
+                          <th className="text-left py-2 pr-4 font-medium">Aluno</th>
+                          <th className="text-center py-2 px-2 font-medium">Sem.</th>
+                          <th className="text-center py-2 px-2 font-medium">Acerto</th>
+                          <th className="text-center py-2 px-2 font-medium">Distância</th>
+                          <th className="text-center py-2 pl-2 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alunosAbaixo!.map((aluno) => (
+                          <tr key={aluno.nome} className="border-b border-border/40 last:border-0">
+                            <td className="py-2 pr-4 truncate max-w-[180px]">{aluno.nome}</td>
+                            <td className="py-2 px-2 text-center text-muted-foreground">{aluno.semestre}º</td>
+                            <td className="py-2 px-2 text-center font-medium">{aluno.percentualAcerto}%</td>
+                            <td className="py-2 px-2 text-center text-muted-foreground">{aluno.distanciaAteProficiencia} pts</td>
+                            <td className="py-2 pl-2 text-center">
+                              <span className={cn(
+                                'text-xs font-medium',
+                                aluno.percentualAcerto >= 60 ? 'text-emerald-600' : 'text-destructive'
+                              )}>
+                                {aluno.percentualAcerto >= 60 ? 'Proficiente' : 'Abaixo'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </DialogContent>
               </Dialog>
