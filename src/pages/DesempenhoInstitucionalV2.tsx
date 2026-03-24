@@ -9,6 +9,25 @@ import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar
 import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
+import type { InstitutionalViewModel } from '@/types/desempenhoV2';
+
+// Extract unique areas from student score data for filter options
+function extractAreasFromData(data: InstitutionalViewModel) {
+  const areas = new Set<string>();
+  data.alunosAbaixo.forEach((s) => {
+    Object.keys(s.scoresByArea).forEach((a) => areas.add(a));
+  });
+  return Array.from(areas).sort().map((a) => ({ id: a, label: a }));
+}
+
+// Extract unique semestres from student data
+function extractSemestresFromData(data: InstitutionalViewModel) {
+  const sems = new Set<string>();
+  data.alunosAbaixo.forEach((s) => {
+    if (s.semestre) sems.add(String(s.semestre));
+  });
+  return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
+}
 
 const DesempenhoInstitucionalV2: React.FC = () => {
   const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
