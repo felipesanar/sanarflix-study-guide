@@ -1,45 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-import { AlertTriangle, Target } from 'lucide-react';
+import React from 'react';
 import { motion } from 'framer-motion';
 
-import { KpiCardsGrid } from '@/components/analytics/v2/KpiCardsGrid';
-import { FaixaDistribuicaoChart } from '@/components/analytics/v2/FaixaDistribuicaoChart';
-import { MetaInstitucionalCard } from '@/components/analytics/v2/MetaInstitucionalCard';
-import { EvolucaoChart } from '@/components/analytics/v2/EvolucaoChart';
-import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-
-import {
-  mockKpis,
-  mockFaixas,
-  mockMeta,
-  mockEvolucao,
-  mockDistanciaFaixa,
-  mockAlunosAbaixo,
-} from '@/mocks/desempenhoInstitucionalV2';
+import { useDesempenhoV2State } from '@/hooks/useDesempenhoV2State';
+import { InstitutionalHeader } from '@/components/analytics/v2/shell/InstitutionalHeader';
+import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
+import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
+import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
+import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
+import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 
 const DesempenhoInstitucionalV2: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const distanciaFaixaParsed = mockDistanciaFaixa.map((item) => {
-    const match = String(item.value).match(/\d+/);
-    const count = match ? Number(match[0]) : 0;
-    return { ...item, count };
-  });
-  const distanciaFaixaTotal = distanciaFaixaParsed.reduce((acc, item) => acc + item.count, 0);
+  const { activeTab, setActiveTab, filters, updateFilter } = useDesempenhoV2State();
 
-  useEffect(() => {
-    console.log('[DesempenhoV2]', 'Page mounted');
-    const timer = setTimeout(() => {
-      setLoading(false);
-      console.log('[DesempenhoV2]', 'Mock data loaded');
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (loading) return <DesempenhoV2Skeleton />;
+  console.log('[DesempenhoV2:Shell]', 'Page render, activeTab:', activeTab);
 
   return (
     <motion.div
@@ -48,93 +21,49 @@ const DesempenhoInstitucionalV2: React.FC = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
-      {/* 1. Header */}
+      {/* Header + Filters */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="space-y-3">
-            <span className="inline-block text-xs font-medium text-muted-foreground bg-muted px-3 py-1 rounded-full">
-              Situação atual da instituição
-            </span>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                Dashboard ENAMED
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                <span className="font-semibold text-foreground">35% dos alunos são proficientes.</span>{' '}
-                Faltam 55 alunos proficientes para atingir Conceito 5 (90%).
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 shrink-0">
-            <div className="flex gap-2">
-              <Select defaultValue="b2b">
-                <SelectTrigger className="w-[120px] h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="b2b">B2B</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="simulado-teste">
-                <SelectTrigger className="w-[160px] h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="simulado-teste">Simulado Teste</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <InstitutionalHeader />
+          <div className="shrink-0">
+            <GlobalFilterBar filters={filters} onFilterChange={updateFilter} />
           </div>
         </div>
-
-        {/* Risk alert card */}
-        <div className="flex items-start gap-3 bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 w-fit">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">Sanção regulatória ativa</p>
-            <p className="text-xs text-muted-foreground">
-              Com 35% de alunos proficientes, há redução de 50% das vagas. Faltam 5 alunos proficientes para sair desta sanção.
-            </p>
-          </div>
-        </div>
+        <InstitutionalAlertBanner />
       </div>
 
-      {/* 2. KPI Cards */}
-      <KpiCardsGrid kpis={mockKpis} alunosAbaixo={mockAlunosAbaixo} />
+      {/* Tabs */}
+      <PerformanceModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* 3. Meta + Distance side by side on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MetaInstitucionalCard meta={mockMeta} />
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">Distância para Próxima Faixa</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {distanciaFaixaParsed.map((item) => {
-              const percent = distanciaFaixaTotal > 0 ? (item.count / distanciaFaixaTotal) * 100 : 0;
-              return (
-                <div key={item.label} className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{item.label}</span>
-                    <span className="font-semibold">{item.count} alunos</span>
-                  </div>
-                  <Progress value={percent} className="h-3" />
-                  <p className="text-xs text-muted-foreground text-right">{Math.round(percent)}% do total</p>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 4 & 5. Charts at the bottom */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <FaixaDistribuicaoChart faixas={mockFaixas} />
-        <EvolucaoChart evolucao={mockEvolucao} />
+      {/* Module Content */}
+      <div>
+        {activeTab === 'visao-institucional' && (
+          <VisaoInstitucionalModule filters={filters} />
+        )}
+        {activeTab === 'diagnostico-curricular' && (
+          <ModuleEmptyState
+            title="Diagnóstico Curricular"
+            description="Análise por área, especialidade e tema com drill-down progressivo e navegação em árvore."
+          />
+        )}
+        {activeTab === 'visao-alunos' && (
+          <ModuleEmptyState
+            title="Visão de Alunos"
+            description="Ranking e acompanhamento individual dos alunos com segmentação por risco e oportunidade."
+          />
+        )}
+        {activeTab === 'insights-pedagogicos' && (
+          <ModuleEmptyState
+            title="Insights Pedagógicos"
+            description="Recomendações baseadas em dados com priorização por prevalência e impacto institucional."
+          />
+        )}
+        {activeTab === 'inteligencia-decisoria' && (
+          <ModuleEmptyState
+            title="Inteligência Decisória"
+            description="Simulação de impacto institucional e priorização de intervenções pedagógicas."
+          />
+        )}
       </div>
     </motion.div>
   );
