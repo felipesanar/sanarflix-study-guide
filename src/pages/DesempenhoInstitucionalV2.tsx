@@ -112,9 +112,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'inteligencia-decisoria' && (
-          <ModuleEmptyState
-            title="Inteligência Decisória"
-            description="Simulação de impacto institucional e priorização de intervenções pedagógicas."
+          <InteligenciaDecisoriModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
       </div>
