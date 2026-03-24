@@ -6,7 +6,7 @@ import react from "eslint-plugin-react";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "*.config.ts", "*.config.js"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -16,6 +16,8 @@ export default tseslint.config(
       parserOptions: {
         ecmaFeatures: { jsx: true },
         sourceType: "module",
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
@@ -35,13 +37,13 @@ export default tseslint.config(
       "no-console": "warn",
       "no-debugger": "error",
       "no-eval": "error",
-      
+
       // Regras de TypeScript
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/prefer-optional-chain": "error",
-      
+
       // Regras de React
       "react-hooks/exhaustive-deps": "error",
       "react/jsx-key": "error",
