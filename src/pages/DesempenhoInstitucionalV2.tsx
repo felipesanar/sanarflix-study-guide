@@ -12,6 +12,7 @@ import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/Visa
 import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
 import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
 import { InsightsPedagogicosModule } from '@/components/analytics/v2/modules/InsightsPedagogicosModule';
+import { InteligenciaDecisoriModule } from '@/components/analytics/v2/modules/InteligenciaDecisoriModule';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
