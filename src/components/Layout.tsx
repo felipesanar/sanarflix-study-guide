@@ -11,7 +11,10 @@ import { PasswordDialogProvider, usePasswordDialog } from '@/contexts/PasswordDi
 import { useLocation } from 'react-router-dom';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { useSessionTracker } from '@/hooks/useSessionTracker';
+import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
+import { SemesterPromptBanner } from './SemesterPromptBanner';
+import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +30,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Session tracking
   useSessionTracker();
   
+  // Presence tracking for real-time online users
+  usePresenceTracker();
+  
   if (!authContext) {
     return <>{children}</>;
   }
@@ -36,6 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <PasswordDialogProvider>
       <OfflineIndicator />
+      <ImpersonationBanner />
       <SidebarProvider>
         {/* Desktop Sidebar */}
         {!isModoProva && <AppSidebar />}
@@ -59,10 +66,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           )}
 
           {/* Mobile Header */}
-          {!isModoProva && <MobileHeader />}
+          {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
 
-          {/* Main content */}
-          <main className="flex-1 min-w-0 overflow-auto overflow-x-clip pb-24 md:pb-0">
+          {/* Semester prompt banner */}
+          {!isModoProva && <SemesterPromptBanner />}
+
+          {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
+          <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">
             {children}
           </main>
 

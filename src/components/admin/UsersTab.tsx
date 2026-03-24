@@ -1,16 +1,26 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Upload, Download, Users, Shield, RefreshCw, Search, Copy, Loader2, Mail } from 'lucide-react';
+import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User, XCircle } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
+import { UsersListTable } from './UsersListTable';
 import * as XLSX from 'xlsx';
+
+const MAX_BATCH_ROWS = 1000;
+const CONCURRENCY = 5;
+const INTER_CHUNK_DELAY_MS = 300;
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
 interface IES {
   id: string;
@@ -21,15 +31,18 @@ export const UsersTab: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [batchIesId, setBatchIesId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [batchReport, setBatchReport] = useState<BatchReport | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   
-  // Sync auth states
-  const [syncEmail, setSyncEmail] = useState('');
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ password?: string; message?: string } | null>(null);
+  // Stats
+  const [totalUsers, setTotalUsers] = useState<number | null>(null);
+  const [totalAdmins, setTotalAdmins] = useState<number | null>(null);
+  
 
   useEffect(() => {
     fetchIesList();
@@ -42,69 +55,31 @@ export const UsersTab: React.FC = () => {
     }
   };
 
+  const handleStatsUpdate = useCallback((users: number, admins: number) => {
+    setTotalUsers(users);
+    setTotalAdmins(admins);
+  }, []);
+
   const addLog = (message: string) => {
     const timestamp = getBrazilDate().toLocaleTimeString('pt-BR');
     setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
   };
 
-  const syncUserAuth = async () => {
-    if (!syncEmail.trim()) {
-      toast.error('Digite o email do usuário');
-      return;
-    }
-
-    setSyncLoading(true);
-    setSyncResult(null);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-user-auth', {
-        body: { email: syncEmail.trim().toLowerCase() }
-      });
-
-      if (error) {
-        const errorMsg = error.message || 'Erro ao sincronizar';
-        toast.error(errorMsg);
-        addLog(`[SYNC] Erro: ${errorMsg}`);
-        return;
-      }
-
-      if (data?.error) {
-        if (data.already_synced) {
-          toast.info(data.error);
-        } else {
-          toast.error(data.error);
-        }
-        addLog(`[SYNC] ${data.error}`);
-        return;
-      }
-
-      if (data?.success) {
-        toast.success(data.message);
-        addLog(`[SYNC] ${data.message}`);
-        
-        if (data.temporary_password) {
-          setSyncResult({ 
-            password: data.temporary_password,
-            message: 'Senha temporária gerada. Envie para o usuário.'
-          });
-        } else if (data.password_reset_needed) {
-          setSyncResult({
-            message: 'IDs sincronizados. Solicite reset de senha pelo Supabase Dashboard.'
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Sync error:', err);
-      toast.error('Erro inesperado ao sincronizar');
-    } finally {
-      setSyncLoading(false);
-    }
-  };
+  // syncUserAuth removed – available per-user in UsersListTable
 
   const createSingleUser = async () => {
-    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies || !singleUser.semestre) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!singleUser.nome || !singleUser.email || !singleUser.id_ies) {
+      toast.error('Preencha nome, email e instituição');
       return;
+    }
+
+    // Validate semestre only if provided
+    if (singleUser.semestre) {
+      const sem = parseInt(singleUser.semestre);
+      if (isNaN(sem) || sem < 1 || sem > 12) {
+        toast.error('Semestre deve ser entre 1 e 12');
+        return;
+      }
     }
 
     setIsCreating(true);
@@ -115,20 +90,37 @@ export const UsersTab: React.FC = () => {
           nome: singleUser.nome,
           email: singleUser.email.toLowerCase().trim(),
           id_ies: singleUser.id_ies,
-          semestre: parseInt(singleUser.semestre),
+          semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
         },
       });
 
       if (error || !data?.success) {
-        const msg = error?.message || data?.error || 'Erro ao criar usuário';
-        toast.error(msg);
-        addLog(`Erro ao criar ${singleUser.email}: ${msg}`);
+        let msg = data?.error || 'Erro ao criar usuário';
+        let details = data?.details;
+
+        // Extract actual error from FunctionsHttpError response body
+        if (error && !data) {
+          try {
+            const errorBody = await (error as any).context?.json?.();
+            if (errorBody?.error) msg = errorBody.error;
+            if (errorBody?.details) details = errorBody.details;
+          } catch { /* use fallback */ }
+        }
+
+        const displayMsg = details ? `${msg}: ${details}` : msg;
+        toast.error(displayMsg);
+        addLog(`Erro ao criar ${singleUser.email}: ${displayMsg}`);
         return;
       }
 
-      const actionMsg = data.action === 'created' 
-        ? '✅ Usuário criado! Email de convite enviado.'
-        : `🔄 Usuário atualizado: ${data.details?.fieldsUpdated?.join(', ') || 'nenhuma alteração'}`;
+      let actionMsg: string;
+      if (data.action === 'created') {
+        actionMsg = data.details?.emailSent 
+          ? '✅ Usuário cadastrado. E-mail de boas-vindas enviado.'
+          : '⚠️ Usuário cadastrado, mas não foi possível enviar o e-mail.';
+      } else {
+        actionMsg = `🔄 Usuário atualizado: ${data.details?.fieldsUpdated?.join(', ') || 'nenhuma alteração'}`;
+      }
       
       toast.success(actionMsg);
       addLog(`${singleUser.email}: ${actionMsg}`);
@@ -147,28 +139,73 @@ export const UsersTab: React.FC = () => {
       return;
     }
 
+    // Fix #2: Validate batchIesId explicitly
+    if (!batchIesId) {
+      toast.error('Selecione uma IES antes de processar');
+      return;
+    }
+
     setIsProcessing(true);
     setLogs([]);
     setBatchReport(null);
+    setBatchProgress(null);
     
     const startedAt = new Date();
-    addLog('Iniciando processamento do arquivo CSV...');
+    addLog('Iniciando processamento do arquivo...');
+
+    // Setup abort controller for cancellation
+    const abortController = new AbortController();
+    abortRef.current = abortController;
 
     try {
-      const text = await csvFile.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        toast.error('Arquivo CSV vazio ou sem dados');
+      // Fix #1: Use XLSX to parse CSV/XLSX robustly with encoding detection
+      const arrayBuffer = await csvFile.arrayBuffer();
+      const isCsv = csvFile.name.toLowerCase().endsWith('.csv');
+      let workbook: XLSX.WorkBook;
+
+      if (isCsv) {
+        // Detect encoding: try UTF-8 first, check for mojibake patterns
+        let text = new TextDecoder('utf-8').decode(arrayBuffer);
+        const mojibakePatterns = /Ã£|Ã©|Ãª|Ã´|Ã§|Ã¡|Ãº|Ã³|Ã­|Ã¢|Ãã|Ã\u00a0/;
+        if (mojibakePatterns.test(text)) {
+          addLog('⚠️ Encoding Latin-1 detectado, convertendo para UTF-8...');
+          text = new TextDecoder('windows-1252').decode(arrayBuffer);
+        }
+        workbook = XLSX.read(text, { type: 'string' });
+      } else {
+        workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      }
+
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+      if (rows.length === 0) {
+        toast.error('Arquivo vazio ou sem dados');
         setIsProcessing(false);
         return;
       }
 
-      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
+      // Fix #6: Limit batch size
+      if (rows.length > MAX_BATCH_ROWS) {
+        toast.error(`Limite de ${MAX_BATCH_ROWS} linhas por lote excedido (${rows.length} linhas encontradas). Divida o arquivo.`);
+        addLog(`Erro: arquivo com ${rows.length} linhas excede limite de ${MAX_BATCH_ROWS}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Normalize headers to lowercase
+      const normalizedRows = rows.map(row => {
+        const normalized: Record<string, string> = {};
+        for (const key of Object.keys(row)) {
+          normalized[key.trim().toLowerCase()] = String(row[key]).trim();
+        }
+        return normalized;
+      });
+
       // Validate required columns
-      const requiredColumns = ['nome', 'email', 'id_ies', 'semestre'];
-      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      const firstRow = normalizedRows[0];
+      const requiredColumns = ['nome', 'email'];
+      const missingColumns = requiredColumns.filter(col => !(col in firstRow));
       
       if (missingColumns.length > 0) {
         toast.error(`Colunas obrigatórias faltando: ${missingColumns.join(', ')}`);
@@ -177,111 +214,124 @@ export const UsersTab: React.FC = () => {
         return;
       }
 
+      // Pre-validate all rows
+      const validUsers: { nome: string; email: string; semestre: number | null; linha: number }[] = [];
       const results: BatchResult[] = [];
       const processedEmails = new Set<string>();
 
-      addLog(`Processando ${lines.length - 1} linhas...`);
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        const user: Record<string, string> = {};
-        
-        headers.forEach((header, index) => {
-          user[header] = values[index] || '';
-        });
-
+      for (let i = 0; i < normalizedRows.length; i++) {
+        const user = normalizedRows[i];
         const email = user.email?.toLowerCase().trim();
         const nome = user.nome?.trim();
-        const id_ies = user.id_ies?.trim();
         const semestreStr = user.semestre?.trim();
+        const linha = i + 2; // +2 because row 1 is header, 0-indexed
 
         // Skip empty lines
-        if (!email && !nome) {
-          continue;
-        }
+        if (!email && !nome) continue;
 
         // Check for duplicates in this batch
         if (processedEmails.has(email)) {
-          results.push({
-            email,
-            nome,
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'SKIPPED',
-              message: 'Email já processado neste lote'
-            }
-          });
-          addLog(`Linha ${i + 1}: ${email} - duplicado no lote`);
+          results.push({ email, nome, linha, success: false, error: { code: 'SKIPPED', message: 'Email já processado neste lote' } });
           continue;
         }
 
-        // Basic validation
-        if (!nome || !email || !id_ies || !semestreStr) {
-          results.push({
-            email: email || 'N/A',
-            nome: nome || 'N/A',
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Dados incompletos (nome, email, id_ies, semestre obrigatórios)'
-            }
-          });
-          addLog(`Linha ${i + 1}: dados incompletos`);
+        // Basic validation — nome and email are required, semestre is optional
+        if (!nome || !email) {
+          results.push({ email: email || 'N/A', nome: nome || 'N/A', linha, success: false, error: { code: 'VALIDATION_ERROR', message: 'Dados incompletos (nome e email obrigatórios)' } });
           continue;
+        }
+
+        // Fix #9: Frontend email validation
+        if (!isValidEmail(email)) {
+          results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Email inválido: ${email}` } });
+          continue;
+        }
+
+        // Semestre: optional, but if provided must be valid
+        let semestre: number | null = null;
+        if (semestreStr) {
+          const parsed = parseInt(semestreStr);
+          if (isNaN(parsed) || parsed < 1 || parsed > 12) {
+            results.push({ email, nome, linha, success: false, error: { code: 'VALIDATION_ERROR', message: `Semestre inválido: ${semestreStr}` } });
+            continue;
+          }
+          semestre = parsed;
         }
 
         processedEmails.add(email);
+        validUsers.push({ nome, email, semestre, linha });
+      }
 
-        try {
-          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-            body: {
-              nome,
-              email,
-              id_ies,
-              semestre: parseInt(semestreStr),
-            },
-          });
+      const totalToProcess = validUsers.length;
+      addLog(`${results.length} linhas com problemas de validação. Processando ${totalToProcess} usuários válidos...`);
+      setBatchProgress({ current: 0, total: totalToProcess });
 
-          if (error || !data?.success) {
-            results.push({
-              email,
-              nome,
-              linha: i + 1,
-              success: false,
-              error: {
-                code: data?.code || 'INTERNAL_ERROR',
-                message: error?.message || data?.error || 'Erro desconhecido'
+      // Fix #3: Process in parallel chunks with concurrency control
+      let processed = 0;
+      for (let chunkStart = 0; chunkStart < validUsers.length; chunkStart += CONCURRENCY) {
+        // Check for cancellation
+        if (abortController.signal.aborted) {
+          addLog('⚠️ Processamento cancelado pelo administrador.');
+          break;
+        }
+
+        const chunk = validUsers.slice(chunkStart, chunkStart + CONCURRENCY);
+
+        const chunkResults = await Promise.allSettled(
+          chunk.map(async (user) => {
+            const { data, error } = await supabase.functions.invoke('b2b-create-user', {
+              body: { nome: user.nome, email: user.email, id_ies: batchIesId, semestre: user.semestre },
+            });
+
+            if (error || !data?.success) {
+              let errorMsg = data?.details || data?.error || 'Erro desconhecido';
+              let errorCode = data?.code || 'INTERNAL_ERROR';
+
+              if (error && !data) {
+                try {
+                  const errorBody = await (error as any).context?.json?.();
+                  if (errorBody?.error) errorMsg = errorBody.details ? `${errorBody.error}: ${errorBody.details}` : errorBody.error;
+                  if (errorBody?.code) errorCode = errorBody.code;
+                } catch { /* use fallback */ }
               }
-            });
-            addLog(`Linha ${i + 1}: ${email} - ERRO: ${data?.error || error?.message}`);
-          } else {
-            results.push({
-              email,
-              nome,
-              linha: i + 1,
-              success: true,
-              action: data.action,
-              message: data.message,
-              fieldsUpdated: data.details?.fieldsUpdated
-            });
-            
-            const icon = data.action === 'created' ? '✅' : '🔄';
-            addLog(`Linha ${i + 1}: ${email} - ${icon} ${data.action}`);
-          }
-        } catch (err) {
-          results.push({
-            email,
-            nome,
-            linha: i + 1,
-            success: false,
-            error: {
-              code: 'INTERNAL_ERROR',
-              message: err instanceof Error ? err.message : 'Erro inesperado'
+
+              return {
+                email: user.email, nome: user.nome, linha: user.linha, success: false as const,
+                error: { code: errorCode, message: errorMsg },
+              };
             }
-          });
-          addLog(`Linha ${i + 1}: ${email} - ERRO: ${err instanceof Error ? err.message : 'Erro inesperado'}`);
+
+            return {
+              email: user.email, nome: user.nome, linha: user.linha, success: true as const,
+              action: data.action, message: data.message,
+              fieldsUpdated: data.details?.fieldsUpdated, emailSent: data.details?.emailSent,
+            };
+          })
+        );
+
+        for (const result of chunkResults) {
+          processed++;
+          if (result.status === 'fulfilled') {
+            const r = result.value;
+            results.push(r as BatchResult);
+            if (r.success) {
+              const icon = r.action === 'created' ? '✅' : '🔄';
+              addLog(`${r.email} - ${icon} ${r.action}`);
+            } else {
+              addLog(`${r.email} - ❌ ${(r as any).error?.message}`);
+            }
+          } else {
+            const user = chunk[chunkResults.indexOf(result)];
+            results.push({ email: user.email, nome: user.nome, linha: user.linha, success: false, error: { code: 'INTERNAL_ERROR', message: result.reason?.message || 'Erro inesperado' } });
+            addLog(`${user.email} - ❌ Erro inesperado`);
+          }
+        }
+
+        setBatchProgress({ current: processed, total: totalToProcess });
+
+        // Inter-chunk delay to avoid rate limiting
+        if (chunkStart + CONCURRENCY < validUsers.length && !abortController.signal.aborted) {
+          await new Promise(resolve => setTimeout(resolve, INTER_CHUNK_DELAY_MS));
         }
       }
 
@@ -298,17 +348,28 @@ export const UsersTab: React.FC = () => {
         finishedAt
       };
 
+      const emailsSent = results.filter(r => r.success && r.action === 'created' && r.emailSent).length;
+      const emailsFailed = results.filter(r => r.success && r.action === 'created' && !r.emailSent).length;
+
       setBatchReport(report);
-      addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros`);
+      setBatchProgress(null);
+      addLog(`Processamento concluído: ${report.created} criados, ${report.updated} atualizados, ${report.errors} erros. Emails: ${emailsSent} enviados, ${emailsFailed} falharam.`);
       
-      toast.success(`Processamento concluído! ${report.created} criados, ${report.updated} atualizados`);
+      toast.success(`Importação concluída. ${report.created} criados, ${report.updated} atualizados, ${emailsSent} e-mails enviados${emailsFailed > 0 ? `, ${emailsFailed} falharam` : ''}.`);
     } catch (err) {
       console.error('CSV processing error:', err);
-      toast.error('Erro ao processar arquivo CSV');
+      toast.error('Erro ao processar arquivo');
       addLog(`Erro fatal: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {
       setIsProcessing(false);
+      setBatchProgress(null);
+      abortRef.current = null;
     }
+  };
+
+  const cancelBatchProcessing = () => {
+    abortRef.current?.abort();
+    toast.info('Cancelando processamento...');
   };
 
   const downloadReport = () => {
@@ -389,14 +450,14 @@ export const UsersTab: React.FC = () => {
         'Linha': r.linha,
         'Email': r.email,
         'Nome': r.nome,
-        'Status': 'Email de convite enviado'
+        'Email Boas-Vindas': r.emailSent ? '✅ Enviado' : '❌ Falhou'
       }));
       const createdSheet = XLSX.utils.json_to_sheet(createdData);
       createdSheet['!cols'] = [
         { wch: 8 },
         { wch: 35 },
         { wch: 30 },
-        { wch: 30 },
+        { wch: 20 },
       ];
       XLSX.utils.book_append_sheet(workbook, createdSheet, 'Criados');
     }
@@ -436,141 +497,112 @@ export const UsersTab: React.FC = () => {
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const downloadExampleCsv = () => {
-    const example = 'nome,email,id_ies,semestre\nJoão Silva,joao@example.com,UUID-DA-IES,5';
-    const blob = new Blob([example], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'exemplo_usuarios.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const downloadExampleXlsx = () => {
+    const header = ['nome', 'email', 'semestre'];
+    const exampleRows = [
+      ['João Silva', 'joao@exemplo.com', 5],
+      ['Maria Souza', 'maria@exemplo.com', 3],
+    ];
+
+    const wsData = [header, ...exampleRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [
+      { wch: 25 }, // nome
+      { wch: 30 }, // email
+      { wch: 10 }, // semestre
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+    XLSX.writeFile(wb, 'exemplo_cadastro_usuarios.xlsx');
   };
 
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total de Usuários</CardTitle>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-3xl font-bold tracking-tight">
+              {totalUsers !== null ? totalUsers.toLocaleString('pt-BR') : '-'}
+            </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-border/50 bg-gradient-to-br from-card to-card/80 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Administradores</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Administradores</CardTitle>
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Shield className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-3xl font-bold tracking-tight">
+              {totalAdmins !== null ? totalAdmins : '-'}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Sync User Auth - Fix Login Issues */}
-      <Card className="border-amber-500/30 bg-amber-500/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCw className="h-5 w-5 text-amber-600" />
-            Sincronizar Autenticação
-          </CardTitle>
-          <CardDescription>
-            Corrige problemas de login para usuários importados manualmente. 
-            Sincroniza public.users com auth.users.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Email do usuário com problema de login"
-                value={syncEmail}
-                onChange={(e) => setSyncEmail(e.target.value)}
-                className="pl-9"
-                onKeyDown={(e) => e.key === 'Enter' && syncUserAuth()}
-              />
-            </div>
-            <Button 
-              onClick={syncUserAuth} 
-              disabled={syncLoading || !syncEmail.trim()}
-              variant="outline"
-              className="border-amber-500/50 hover:bg-amber-500/10"
-            >
-              {syncLoading ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sincronizar
-                </>
-              )}
-            </Button>
-          </div>
-
-          {syncResult && (
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <p className="text-sm text-muted-foreground">{syncResult.message}</p>
-              {syncResult.password && (
-                <div className="flex gap-2">
-                  <Input value={syncResult.password} readOnly className="font-mono" />
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    onClick={() => {
-                      navigator.clipboard.writeText(syncResult.password!);
-                      toast.success('Senha copiada!');
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Users List Table */}
+      <UsersListTable iesList={iesList} onStatsUpdate={handleStatsUpdate} />
 
       {/* Single User Creation */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Criar Usuário Individual
-          </CardTitle>
-          <CardDescription>
-            Adicione um novo usuário. Um email de convite será enviado automaticamente.
-          </CardDescription>
+      <Card className="border-border/50 overflow-hidden shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <UserPlus className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Criar Usuário Individual</CardTitle>
+              <CardDescription className="mt-0.5">
+                Adicione um novo usuário. Um email de convite será enviado automaticamente.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5 pt-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome Completo</Label>
+              <Label htmlFor="nome" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Nome Completo
+              </Label>
               <Input
                 id="nome"
                 value={singleUser.nome}
                 onChange={(e) => setSingleUser({ ...singleUser, nome: e.target.value })}
                 placeholder="João Silva"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <AtSign className="h-3.5 w-3.5" />
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
                 value={singleUser.email}
                 onChange={(e) => setSingleUser({ ...singleUser, email: e.target.value })}
                 placeholder="joao@example.com"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ies">Instituição</Label>
+              <Label htmlFor="ies" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Instituição
+              </Label>
               <Select value={singleUser.id_ies} onValueChange={(v) => setSingleUser({ ...singleUser, id_ies: v })}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
                   <SelectValue placeholder="Selecione a IES" />
                 </SelectTrigger>
                 <SelectContent>
@@ -583,7 +615,10 @@ export const UsersTab: React.FC = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="semestre">Semestre</Label>
+              <Label htmlFor="semestre" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <GraduationCap className="h-3.5 w-3.5" />
+                Semestre
+              </Label>
               <Input
                 id="semestre"
                 type="number"
@@ -592,11 +627,16 @@ export const UsersTab: React.FC = () => {
                 placeholder="5"
                 min="1"
                 max="12"
+                className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
           </div>
 
-          <Button onClick={createSingleUser} disabled={isCreating} className="w-full">
+          <Button
+            onClick={createSingleUser}
+            disabled={isCreating}
+            className="w-full h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+          >
             {isCreating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -613,44 +653,111 @@ export const UsersTab: React.FC = () => {
       </Card>
 
       {/* Batch User Creation */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Cadastro/Atualização em Lote via CSV</CardTitle>
-          <CardDescription>
-            Importe múltiplos usuários. Novos usuários receberão email de convite. 
-            Usuários existentes terão seus dados atualizados.
-          </CardDescription>
+      <Card className="border-border/50 overflow-hidden shadow-sm">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent pb-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Cadastro/Atualização em Lote</CardTitle>
+              <CardDescription className="mt-0.5">
+                Importe múltiplos usuários via CSV/XLSX (máx. {MAX_BATCH_ROWS} linhas). Novos receberão convite por email.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                setCsvFile(e.target.files?.[0] || null);
-                setBatchReport(null);
-              }}
-              disabled={isProcessing}
-            />
-            <Button variant="outline" onClick={downloadExampleCsv}>
-              <Download className="h-4 w-4 mr-2" />
-              Exemplo
-            </Button>
+        <CardContent className="space-y-5 pt-5">
+          {/* Step 1: IES Selection */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5" />
+              Instituição (IES)
+            </Label>
+            <Select value={batchIesId} onValueChange={setBatchIesId}>
+              <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
+                <SelectValue placeholder="Selecione a IES para este lote" />
+              </SelectTrigger>
+              <SelectContent>
+                {iesList.map((ies) => (
+                  <SelectItem key={ies.id} value={ies.id}>
+                    {ies.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <Button onClick={processCsvFile} disabled={!csvFile || isProcessing} className="w-full">
-            {isProcessing ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processando...
-              </>
-            ) : (
-              <>
-                <Upload className="h-4 w-4 mr-2" />
-                Processar Arquivo
-              </>
+          {/* Step 2: File Upload */}
+          <div className="space-y-2">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Upload className="h-3.5 w-3.5" />
+              Arquivo CSV / XLSX
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={(e) => {
+                  setCsvFile(e.target.files?.[0] || null);
+                  setBatchReport(null);
+                }}
+                disabled={isProcessing}
+                className="h-11 bg-secondary/50 border-border/60 file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:px-3 file:py-1 file:mr-3 file:font-medium file:text-sm hover:file:bg-primary/20 file:transition-colors cursor-pointer"
+              />
+              <Button
+                variant="outline"
+                onClick={downloadExampleXlsx}
+                className="h-11 shrink-0 border-border/60 hover:bg-secondary/80 transition-all active:scale-[0.98]"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exemplo
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              O arquivo deve conter as colunas: <span className="font-medium text-foreground/70">nome</span>, <span className="font-medium text-foreground/70">email</span> (obrigatórias) e <span className="font-medium text-foreground/70">semestre</span> (opcional). Máximo {MAX_BATCH_ROWS} linhas.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={processCsvFile}
+              disabled={!csvFile || !batchIesId || isProcessing}
+              className="flex-1 h-12 text-base font-semibold shadow-sm hover:shadow-md transition-all active:scale-[0.99]"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando{batchProgress ? ` ${batchProgress.current}/${batchProgress.total}` : '...'}
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Processar Arquivo
+                </>
+              )}
+            </Button>
+            {isProcessing && (
+              <Button
+                variant="destructive"
+                onClick={cancelBatchProcessing}
+                className="h-12 shrink-0"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancelar
+              </Button>
             )}
-          </Button>
+          </div>
+
+          {/* Fix #7: Progress bar */}
+          {batchProgress && batchProgress.total > 0 && (
+            <div className="space-y-2">
+              <Progress value={(batchProgress.current / batchProgress.total) * 100} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">
+                {batchProgress.current} de {batchProgress.total} usuários processados ({Math.round((batchProgress.current / batchProgress.total) * 100)}%)
+              </p>
+            </div>
+          )}
 
           {/* Batch Report */}
           {batchReport && (
@@ -663,11 +770,13 @@ export const UsersTab: React.FC = () => {
 
           {/* Processing Logs */}
           {logs.length > 0 && !batchReport && (
-            <div className="bg-muted rounded-lg p-4 max-h-64 overflow-y-auto">
-              <Label className="mb-2 block">Logs de Processamento</Label>
-              <div className="font-mono text-xs space-y-1">
+            <div className="bg-secondary/50 border border-border/50 rounded-xl p-4 max-h-64 overflow-y-auto">
+              <Label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Logs de Processamento
+              </Label>
+              <div className="font-mono text-xs space-y-1 text-muted-foreground">
                 {logs.map((log, i) => (
-                  <div key={i}>{log}</div>
+                  <div key={i} className="py-0.5">{log}</div>
                 ))}
               </div>
             </div>

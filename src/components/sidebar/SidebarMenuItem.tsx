@@ -39,11 +39,11 @@ export function SidebarNavItem({ item, isActive, collapsed }: SidebarNavItemProp
       end
       aria-current={isActive ? "page" : undefined}
       className={`
-        group relative flex items-center gap-3 px-3 py-2.5
+        group relative flex items-center gap-3 py-2.5
         rounded-xl
         transition-all duration-200 ease-out
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1
-        ${collapsed ? "justify-center px-2" : "ml-1"}
+        ${collapsed ? "justify-center px-0 mx-auto w-11 h-11" : "px-3 ml-1"}
         ${
           isActive
             ? "bg-primary/10 text-primary font-semibold shadow-sm"
@@ -125,11 +125,11 @@ export function SidebarNavGroup({
       type="button"
       aria-expanded={isOpen}
       className={`
-        group relative flex items-center justify-between w-full gap-3 px-3 py-2.5
+        group relative flex items-center justify-between w-full gap-3 py-2.5
         rounded-xl
         transition-all duration-200 ease-out
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1
-        ${collapsed ? "justify-center px-2" : "ml-1"}
+        ${collapsed ? "justify-center px-0 mx-auto w-11 h-11" : "px-3 ml-1"}
         ${
           isActive
             ? "bg-primary/10 text-primary font-semibold shadow-sm"
@@ -171,14 +171,14 @@ export function SidebarNavGroup({
         <Tooltip>
           <TooltipTrigger asChild>
             <SidebarMenuButton asChild className="p-0">
-              <NavLink
-                to="/guia-estudos"
-                className={`
-                  flex items-center justify-center px-2 py-2.5 rounded-xl
-                  transition-all duration-200
-                  ${isActive ? "bg-primary/10 text-primary" : "hover:bg-sidebar-accent"}
-                `}
-              >
+                <NavLink
+                  to="/guia-estudos"
+                  className={`
+                    flex items-center justify-center w-11 h-11 mx-auto rounded-xl
+                    transition-all duration-200
+                    ${isActive ? "bg-primary/10 text-primary" : "hover:bg-sidebar-accent"}
+                  `}
+                >
                 <Icon className="h-5 w-5" />
               </NavLink>
             </SidebarMenuButton>

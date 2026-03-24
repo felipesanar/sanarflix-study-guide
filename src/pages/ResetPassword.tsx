@@ -28,7 +28,7 @@ export default function ResetPassword() {
 
       const accessToken = getParam('access_token');
       const refreshToken = getParam('refresh_token');
-      const token = getParam('token');
+      const tokenHash = getParam('token_hash') || getParam('token');
       const type = getParam('type');
       const errorGeneral = getParam('error');
       const errorCode = getParam('error_code');
@@ -39,10 +39,10 @@ export default function ResetPassword() {
           access_token: accessToken,
           refresh_token: refreshToken,
         });
-      } else if (token && type) {
+      } else if (tokenHash && type) {
         try {
           const { error } = await supabase.auth.verifyOtp({
-            token_hash: token,
+            token_hash: tokenHash,
             type: type as any
           });
           if (error) throw error;
@@ -98,7 +98,13 @@ export default function ResetPassword() {
       toast.success('Senha redefinida com sucesso!');
       navigate('/login');
     } catch (error: any) {
-      setError(error.message || 'Erro ao redefinir senha. Tente novamente.');
+      const msg = error.message || 'Erro ao redefinir senha. Tente novamente.';
+      const translated = msg.includes('different from the old password')
+        ? 'A nova senha deve ser diferente da senha atual.'
+        : msg.includes('should be at least')
+        ? 'A senha deve ter pelo menos 6 caracteres.'
+        : msg;
+      setError(translated);
     } finally {
       setIsLoading(false);
     }

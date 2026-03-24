@@ -18,7 +18,7 @@ interface SessionData {
  * Deve ser usado no componente raiz da aplicação
  */
 export const useSessionTracker = () => {
-  const { user } = useAuth();
+  const { user, isImpersonating } = useAuth();
   const location = useLocation();
   const sessionRef = useRef<SessionData | null>(null);
   const lastPageRef = useRef<string>('');
@@ -27,7 +27,7 @@ export const useSessionTracker = () => {
 
   // Inicializar ou recuperar sessão
   const initSession = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || isImpersonating) return;
 
     let session = sessionRef.current;
 
@@ -79,11 +79,11 @@ export const useSessionTracker = () => {
       sessionRef.current = session;
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     }
-  }, [user?.id, user?.id_ies]);
+  }, [user?.id, user?.id_ies, isImpersonating]);
 
   // Registrar page view
   const trackPageView = useCallback(async (path: string) => {
-    if (!user?.id || !sessionRef.current) return;
+    if (!user?.id || !sessionRef.current || isImpersonating) return;
 
     const session = sessionRef.current;
     
@@ -124,7 +124,7 @@ export const useSessionTracker = () => {
     } catch (err) {
       console.error('[SessionTracker] Error tracking page view:', err);
     }
-  }, [user?.id, user?.id_ies]);
+  }, [user?.id, user?.id_ies, isImpersonating]);
 
   // Finalizar sessão (ao sair da página)
   const endSession = useCallback(async () => {

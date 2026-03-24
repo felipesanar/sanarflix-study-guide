@@ -30,18 +30,17 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({ position = '
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className={position === 'fixed' ? 'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 pb-[env(safe-area-inset-bottom)]' : ''}
     >
-      <div className="px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-background/70 backdrop-blur-xl border border-border/50 shadow-lg">
-        <Popover>
-          <PopoverTrigger asChild>
-            <motion.button
-              whileHover={{ y: -2, scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-card border border-border hover:border-primary/40 transition-all"
-              aria-label="Ajuda"
-            >
-              <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-            </motion.button>
-          </PopoverTrigger>
+      <Popover>
+        <PopoverTrigger asChild>
+          <motion.button
+            whileHover={{ y: -2, scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+            className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border hover:border-primary/40 shadow-lg transition-all"
+            aria-label="Ajuda"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </motion.button>
+        </PopoverTrigger>
           <PopoverContent 
             side="top" 
             align="end" 
@@ -77,9 +76,8 @@ export const QuickActionsDock: React.FC<QuickActionsDockProps> = ({ position = '
                 </motion.button>
               </div>
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+        </PopoverContent>
+      </Popover>
     </motion.div>
   );
 };

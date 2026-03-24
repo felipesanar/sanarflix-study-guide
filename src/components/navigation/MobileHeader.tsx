@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Bell, User, AlertTriangle, Info, X, LogOut } from "lucide-react";
+import { Bell, User, AlertTriangle, Info, X, LogOut, Loader2, Pencil } from "lucide-react";
+import { EditProfileSheet } from "@/components/EditProfileSheet";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
 import { supabase } from "@/integrations/supabase/client";
 import { getBrazilDate, toBrazilDate } from "@/utils/timezone";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,12 +17,36 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function MobileHeader() {
+interface MobileHeaderProps {
+  hasScrolled?: boolean;
+}
+
+export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
   const { user, logout } = useAuth();
   const passwordDialog = usePasswordDialog();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      console.error("[Nav] logout error:", error);
+      toast.error("Erro ao sair. Tente novamente.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
-    <header className="sticky top-0 z-30 h-14 flex items-center justify-between px-4 bg-background/80 backdrop-blur-lg border-b border-border/30 md:hidden">
+    <header className={`sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:hidden transition-all duration-300 ${
+      hasScrolled 
+        ? 'bg-background/60 dark:bg-background/40 backdrop-blur-lg border-b border-border/20 dark:border-white/10' 
+        : 'bg-transparent border-b border-transparent'
+    }`}>
       {/* Logo */}
       <div className="flex items-center gap-2">
         <img
@@ -31,14 +57,14 @@ export function MobileHeader() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <NotificationsButton />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <motion.button
               whileTap={{ scale: 0.95 }}
-              className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              className="flex items-center justify-center gap-1.5 min-h-11 min-w-11 px-2.5 rounded-xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               aria-label="Perfil do usuário"
             >
               <User className="h-5 w-5" aria-hidden="true" />
@@ -52,39 +78,41 @@ export function MobileHeader() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={() => passwordDialog.setOpen(true)}>
-              Alterar senha
+            <DropdownMenuItem onClick={() => setEditProfileOpen(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Editar perfil
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={() => {
-                const msg = encodeURIComponent(
-                  "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-                );
-                window.open(
-                  `https://wa.me/5571993120049?text=${msg}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                );
-              }}
-            >
-              Semestre errado
+            <DropdownMenuItem onClick={() => passwordDialog.setOpen(true)}>
+              Alterar senha
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuItem
-              onClick={() => logout()}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
               className="text-destructive focus:text-destructive"
             >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
+              {isLoggingOut ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saindo...
+                </>
+              ) : (
+                <>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </>
+              )}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <ThemeToggle />
       </div>
+
+      <EditProfileSheet open={editProfileOpen} onOpenChange={setEditProfileOpen} />
     </header>
   );
 }
@@ -173,14 +201,18 @@ function NotificationsButton() {
       <DropdownMenuTrigger asChild>
         <motion.button
           whileTap={{ scale: 0.95 }}
-          className="relative flex items-center justify-center py-2 px-2 rounded-lg text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="relative flex items-center justify-center min-h-11 min-w-11 rounded-xl text-muted-foreground hover:bg-accent/60 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           aria-label="Notificações"
         >
           <Bell className="h-5 w-5" />
           {count > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground font-medium min-w-[18px] text-center">
+            <motion.span 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute top-1 right-1 text-[9px] px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground font-medium min-w-[18px] text-center shadow-sm"
+            >
               {count}
-            </span>
+            </motion.span>
           )}
         </motion.button>
       </DropdownMenuTrigger>

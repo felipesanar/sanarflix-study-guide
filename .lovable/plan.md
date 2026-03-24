@@ -1,68 +1,90 @@
 
-# Plano: Correção do Layout da Sidebar
 
-## Problema Identificado
+## Plano: Fase 0 — Fundação da V2 como plataforma multi-módulo
 
-A sidebar está sobrepondo o header e o conteúdo das páginas. Isso ocorre devido a um conflito entre os estilos customizados aplicados no redesign e o sistema de CSS variables do componente `Sidebar` do shadcn/ui.
+### Objetivo
+Transformar a página atual (tela monolítica) em um shell modular com abas internas horizontais, estado global de filtros, e área de conteúdo dinâmica por módulo. O conteúdo existente da v2 vira o módulo "Visão Institucional". Os demais módulos nascem como placeholders com empty states.
 
-### Causa Raiz (Técnica)
+### O que muda
 
-1. **Classes de largura conflitantes** em `AppSidebar.tsx`:
-   - O componente aplica `w-[260px]` e `w-[68px]` diretamente
-   - Mas o sistema de sidebar usa CSS variables (`--sidebar-width: min(16rem, 20vw)` = 256px e `--sidebar-width-icon: 3rem` = 48px)
-   - O "spacer div" interno do componente `Sidebar` cria espaço baseado nas CSS variables, não nas classes customizadas
-   - Resultado: diferença de 4-20px causa sobreposição
+**1. Nova estrutura de página (`DesempenhoInstitucionalV2.tsx`)**
 
-2. **Classes redundantes** `hidden md:flex` conflitando com o sistema interno
-
----
-
-## Solução
-
-Remover as classes de largura customizadas e deixar o sistema de CSS variables do shadcn controlar a largura corretamente.
-
-### Arquivos a Modificar
-
-**1. `src/components/AppSidebar.tsx`**
-- Remover as classes `w-[260px]` e `w-[68px]` do className
-- Remover `hidden md:flex` (já gerenciado pelo componente base)
-- Manter apenas estilos visuais (bg, border, shadow, transition)
+A página passa a ter 3 blocos fixos + 1 dinâmico:
 
 ```text
-ANTES (linhas 161-170):
-<Sidebar
-  className={`
-    hidden md:flex flex-col
-    bg-sidebar border-r border-sidebar-border
-    shadow-lg dark:shadow-none
-    transition-all duration-300
-    ${collapsed ? "w-[68px]" : "w-[260px]"}
-  `}
-  collapsible="icon"
->
-
-DEPOIS:
-<Sidebar
-  className="bg-sidebar shadow-lg dark:shadow-none transition-all duration-300"
-  collapsible="icon"
->
+┌─────────────────────────────────────────────┐
+│ InstitutionalHeader (título + filtros)      │
+│ InstitutionalAlertBanner (sanção)           │
+│ GlobalFilterBar (IES, simulado, período)    │
+├─────────────────────────────────────────────┤
+│ Tabs: Visão | Diagnóstico | Alunos |       │
+│       Insights | Inteligência               │
+├─────────────────────────────────────────────┤
+│ ModuleContent (dinâmico por aba ativa)      │
+└─────────────────────────────────────────────┘
 ```
 
----
+**2. Novos arquivos**
 
-## Resultado Esperado
+| Arquivo | Propósito |
+|---|---|
+| `src/components/analytics/v2/shell/InstitutionalHeader.tsx` | Header extraído (título, subtítulo, badge) |
+| `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx` | Alert de sanção extraído |
+| `src/components/analytics/v2/shell/GlobalFilterBar.tsx` | Barra de filtros (IES, simulado, período) — mockada |
+| `src/components/analytics/v2/shell/PerformanceModuleTabs.tsx` | Abas horizontais com as 5 tabs |
+| `src/components/analytics/v2/shell/ModuleEmptyState.tsx` | Placeholder genérico "Em construção" para módulos futuros |
+| `src/components/analytics/v2/modules/VisaoInstitucionalModule.tsx` | Conteúdo atual (KPIs, meta, charts) extraído como módulo |
+| `src/hooks/useDesempenhoV2State.ts` | Estado global: aba ativa, filtros, contexto de drill-down |
+| `src/types/desempenhoV2.ts` | Tipos centralizados do estado global e filtros |
 
-- Sidebar desktop respeita o espaçamento correto (256px expandida / 48px colapsada)
-- Header e conteúdo principal não são mais sobrepostos
-- Comportamento de colapso (`collapsible="icon"`) funciona corretamente
-- Sem regressões visuais no design premium implementado
+**3. Hook de estado global (`useDesempenhoV2State`)**
 
----
+Estado mínimo gerenciado num único hook com `useState`:
 
-## Verificação
+- `activeTab`: qual módulo está ativo (default: `visao-institucional`)
+- `filters`: `{ iesId, simuladoId, periodo, turmas }` — todos mockados
+- `setActiveTab` / `setFilters`: setters
 
-Após a correção, testar:
-1. Visualizar a Home em desktop (1280px+)
-2. Expandir/colapsar a sidebar com o trigger
-3. Verificar que não há sobreposição em nenhuma das páginas
-4. Confirmar que mobile continua usando MobileHeader + MobileBottomNav (sem sidebar)
+Trocar de aba preserva filtros. Trocar filtros não reseta aba.
+
+**4. Módulo "Visão Institucional"**
+
+O conteúdo atual da página (KPIs, Meta, Distância, Distribuição, Evolução) é movido para `VisaoInstitucionalModule.tsx` sem alteração visual. Recebe `filters` como prop (sem uso real ainda).
+
+**5. Módulos placeholder**
+
+Os 4 módulos restantes renderizam `ModuleEmptyState` com ícone, título e descrição contextual:
+- Diagnóstico Curricular — "Análise por área, especialidade e tema"
+- Visão de Alunos — "Ranking e acompanhamento individual"
+- Insights Pedagógicos — "Recomendações baseadas em dados"
+- Inteligência Decisória — "Simulação de impacto e priorização"
+
+**6. Skeleton por módulo**
+
+O skeleton da página continua para o loading inicial. Cada módulo terá capacidade de ter loading próprio (o VisaoInstitucionalModule já inclui o timer de 800ms).
+
+### O que NÃO muda
+
+- Nenhum backend, API ou hook existente
+- Nenhuma outra página do sistema
+- Design system, cores, tipografia
+- Rota permanece `/desempenho-institucional-v2`
+- Sidebar permanece igual
+
+### Detalhes técnicos
+
+- As abas usam o componente `Tabs/TabsList/TabsTrigger/TabsContent` do shadcn já existente
+- O `GlobalFilterBar` renderiza os mesmos `Select` que já existem no header, mas agora em posição dedicada abaixo do alert
+- Framer Motion mantido para animações de entrada
+- Console logs: `[DesempenhoV2:Shell]`, `[DesempenhoV2:VisaoInstitucional]`, etc.
+- Mobile: tabs com scroll horizontal (`overflow-x-auto`), filtros empilhados
+
+### Critérios de aceitação
+
+- Trocar de aba não perde filtros
+- Módulo Visão Institucional renderiza exatamente igual ao que está hoje
+- Abas restantes mostram empty state claro
+- Loading skeleton funciona
+- Responsivo em mobile (375px) e desktop
+- Zero erros no console
+

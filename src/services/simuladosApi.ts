@@ -1,24 +1,37 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
-import { getBrazilDate } from '@/utils/timezone';
 
 export const simuladosApi = {
-  async listarSimulados(): Promise<Simulado[]> {
-    // Obter data/hora atual em Brasília
-    const agora = getBrazilDate();
-    const agoraISO = agora.toISOString();
+  async listarSimulados(userIesId?: string): Promise<Simulado[]> {
+    // Obter data/hora atual em UTC para comparar com timestamps do banco
+    const agoraISO = new Date().toISOString();
 
+    // Buscar simulados que:
+    // 1. Estão ativos OU aguardando (simulados agendados que devem aparecer quando a hora chegar)
+    // 2. Já foram liberados (data_liberacao <= agora) OU não têm data de liberação
+    // 3. Ainda não encerraram (data_encerramento >= agora) OU não têm data de encerramento
+    // 4. NÃO estão encerrados (status != 'encerrado')
     const { data, error } = await supabase
       .from('simulados_admin')
       .select('*')
-      .eq('status', 'ativo')
-      .lte('data_liberacao', agoraISO) // Já foi liberado
-      .or(`data_encerramento.is.null,data_encerramento.gte.${agoraISO}`) // Ainda não encerrou
+      .neq('status', 'encerrado') // Excluir encerrados
       .order('data_liberacao', { ascending: false });
 
     if (error) throw error;
 
-    const idsStr = (data || []).map(s => s.id);
+    // Filtrar no cliente para garantir lógica correta de datas
+    const agoraDt = new Date(agoraISO);
+    const simuladosDisponiveis = (data || []).filter(s => {
+      // Verificar se já foi liberado
+      const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agoraDt;
+      
+      // Verificar se ainda não encerrou
+      const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agoraDt;
+      
+      return liberado && naoEncerrado;
+    });
+
+    const idsStr = simuladosDisponiveis.map(s => s.id);
     let countsBySimulado: Record<string, number> = {};
 
     if (idsStr.length > 0) {
@@ -36,7 +49,12 @@ export const simuladosApi = {
       }
     }
 
-    return (data || []).map(s => ({
+    // Filter by IES when provided (important for impersonation & regular students)
+    const simuladosFiltradosPorIes = userIesId
+      ? simuladosDisponiveis.filter(s => Array.isArray(s.ies_ids) && s.ies_ids.includes(userIesId))
+      : simuladosDisponiveis;
+
+    return simuladosFiltradosPorIes.map(s => ({
       id: s.id,
       titulo: s.nome || `Simulado ${s.id}`,
       descricao: s.descricao,

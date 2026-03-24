@@ -20,6 +20,7 @@ import { DynamicRoutes } from '@/components/DynamicRoutes';
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const SignupB2C = lazy(() => import("./pages/SignupB2C").then(m => ({ default: m.SignupB2C })));
+const ResendWelcome = lazy(() => import("./pages/ResendWelcome"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,14 +44,20 @@ const AppContent = () => {
   // Prefetch de dados das rotas adjacentes
   useDataPrefetch();
 
-  // Rotas públicas (usuário não autenticado)
-  if (!user) {
+  // Keep password recovery routes accessible even if a session is auto-created
+  // while processing recovery tokens.
+  const isUpdatePasswordPage = window.location.pathname === '/auth/update-password';
+  const isResetPasswordPage = window.location.pathname === '/reset-password';
+
+  // Rotas públicas (usuário não autenticado OR recovery flow pages)
+  if (!user || isUpdatePasswordPage || isResetPasswordPage) {
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <Routes>
           <Route path="/login" element={<LoginForm />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/update-password" element={<UpdatePassword />} />
+          <Route path="/auth/resend" element={<ResendWelcome />} />
           <Route path="/cadastro-b2c" element={<SignupB2C />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

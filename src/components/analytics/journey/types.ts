@@ -1,0 +1,190 @@
+// Enterprise Journey Analytics Types
+
+export interface JourneyFilters {
+  dateRange: { start: Date; end: Date };
+  iesId?: string;
+  excludedIES?: string[];
+}
+
+// Executive Summary Types
+export interface ExecutiveMetrics {
+  dau: number;
+  wau: number;
+  mau: number;
+  stickiness: number; // DAU/MAU ratio
+  avgSessionDepth: number;
+  avgSessionDuration: number;
+  timeToFirstSimulado: number | null; // days
+  calendarAdoption: number; // percentage
+  // B2B metrics (substitui churnRiskCount)
+  lowEngagementCount: number; // usuarios com apenas 1 visita em 14d
+  neverActiveCount: number; // usuarios cadastrados sem nenhum acesso
+  activationRate: number; // % de usuarios que ja acessaram
+  totalUsers: number;
+}
+
+// Funnel Types
+export interface FunnelStage {
+  id: string;
+  name: string;
+  shortName: string;
+  count: number;
+  percentage: number;
+  dropoff: number;
+  description: string;
+}
+
+export interface JourneyFunnelData {
+  stages: FunnelStage[];
+  totalUsers: number;
+  conversionRate: number;
+}
+
+// Behavioral Segments
+export interface BehavioralSegment {
+  id: string;
+  name: string;
+  description: string;
+  count: number;
+  percentage: number;
+  trend: 'up' | 'down' | 'stable';
+  color: string;
+}
+
+export interface BehavioralSegmentsData {
+  segments: BehavioralSegment[];
+  totalUsers: number;
+}
+
+// Retention Cohort
+export interface CohortWeek {
+  cohortDate: string;
+  cohortLabel: string;
+  initialUsers: number;
+  weeks: {
+    week: number;
+    retained: number;
+    percentage: number;
+  }[];
+}
+
+export interface RetentionCohortData {
+  cohorts: CohortWeek[];
+  avgRetentionWeek1: number;
+  avgRetentionWeek4: number;
+}
+
+// Study vs Performance Correlation
+export interface StudyBand {
+  band: string;      // "0", "1-5", "6-15", "16-30", "31+"
+  avgAccuracy: number;
+  userCount: number;
+  lessonsCompleted: number;
+}
+
+export interface AreaCorrelation {
+  area: string;
+  studyPercentage: number;    // % de aulas concluídas da área
+  accuracy: number;            // % de acertos nas questões
+  gap: 'content' | 'activation' | 'balanced';
+  lessonsCompleted: number;
+  totalLessons: number;
+  answersCorrect: number;
+  totalAnswers: number;
+}
+
+export interface StudyVsPerformanceData {
+  studyBands: StudyBand[];
+  areaCorrelation: AreaCorrelation[];
+  correlationCoefficient: number;  // -1 a 1, quanto mais perto de 1, maior correlação
+  topInsights: string[];
+  totalLessonsCompleted: number;
+  totalAnswers: number;
+  hasEnoughData: boolean;
+}
+
+// Legacy types kept for compatibility
+export interface AreaPerformance {
+  area: string;
+  accuracy: number;
+  totalResponses: number;
+  uniqueUsers: number;
+  avgTimePerQuestion?: number;
+}
+
+export interface StudyCorrelation {
+  studyHours: string;
+  accuracy: number;
+  userCount: number;
+}
+
+export interface LearningVelocityData {
+  areaPerformance: AreaPerformance[];
+  overallAccuracy: number;
+  correlationData: StudyCorrelation[];
+  gaps: { area: string; accuracy: number; improvement: string }[];
+}
+
+// Engagement Depth
+export interface SessionDepthBucket {
+  bucket: string;
+  count: number;
+  percentage: number;
+}
+
+export interface HourlyHeatmapCell {
+  dayOfWeek: number;
+  hour: number;
+  value: number;
+}
+
+export interface EngagementDepthData {
+  sessionDepth: SessionDepthBucket[];
+  avgPagesPerSession: number;
+  avgTimeOnPlatform: number;
+  heatmap: HourlyHeatmapCell[];
+  peakDay: string;
+  peakHour: number;
+}
+
+// Smart Insights
+export interface SmartInsight {
+  id: string;
+  type: 'anomaly' | 'opportunity' | 'risk' | 'correlation' | 'positive';
+  severity: 'critical' | 'warning' | 'info' | 'success';
+  title: string;
+  description: string;
+  metric?: string;
+  value?: number;
+  change?: number;
+  action?: string;
+  dataSource: string;
+}
+
+// Engagement Alerts (contexto B2B - substitui RiskAlerts)
+export interface EngagementAlert {
+  id: string;
+  level: 'critical' | 'warning' | 'positive';
+  title: string;
+  description: string;
+  count?: number;
+  percentage?: number;
+  trend?: 'up' | 'down' | 'stable';
+}
+
+// Alias para compatibilidade
+export type RiskAlert = EngagementAlert;
+
+// Combined Journey Data
+export interface JourneyAnalyticsData {
+  executive: ExecutiveMetrics;
+  funnel: JourneyFunnelData;
+  segments: BehavioralSegmentsData;
+  retention: RetentionCohortData;
+  learning: LearningVelocityData;
+  engagement: EngagementDepthData;
+  insights: SmartInsight[];
+  alerts: RiskAlert[];
+  isLoading: boolean;
+  error: Error | null;
+}

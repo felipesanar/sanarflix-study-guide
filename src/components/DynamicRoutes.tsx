@@ -20,6 +20,9 @@ const NotFound = lazy(() => import("@/pages/NotFound"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
+const DesempenhoInstitucional = lazy(() => import("@/pages/DesempenhoInstitucional"));
+const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstitucionalV2"));
+const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -55,7 +58,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
  * 3. Aluno B2B → features dinâmicas da tabela ies_features
  */
 export const DynamicRoutes: React.FC = () => {
-  const { needsPasswordChange } = useAuth();
+  const { user, needsPasswordChange } = useAuth();
   const { accessRules, loading } = useAccessRules();
 
   // Mostrar skeleton enquanto carrega as features do banco
@@ -76,7 +79,12 @@ export const DynamicRoutes: React.FC = () => {
 
   // Rota padrão baseada nas permissões dinâmicas
   const getDefaultRoute = () => {
-    return accessRules.home ? "/home" : "/simulados";
+    if (accessRules.home) return "/home";
+    if (accessRules.simulados) return "/simulados";
+    if (accessRules.studyGuide) return "/guia-estudos";
+    if (accessRules.dashboard) return "/dashboard";
+    if (accessRules.sanarclass) return "/sanarclass";
+    return "/home";
   };
 
   return (
@@ -104,7 +112,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/home" element={<Navigate to="/simulados" replace />} />
+            <Route path="/home" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Study Guide - Controlado dinamicamente por ies_features */}
@@ -124,23 +132,27 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/guia-estudos" element={<Navigate to="/simulados" replace />} />
+            <Route path="/guia-estudos" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
-          {/* Rota de Simulados - Sempre disponível para usuários autenticados */}
-          <Route
-            path="/simulados"
-            element={
-              <ProtectedRoute>
-                <PageWrapper
-                  loadingMessage="Carregando simulados..."
-                  waitForData={true}
-                >
-                  <Simulados />
-                </PageWrapper>
-              </ProtectedRoute>
-            }
-          />
+          {/* Rota de Simulados - Controlado dinamicamente por ies_features */}
+          {accessRules.simulados ? (
+            <Route
+              path="/simulados"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando simulados..."
+                    waitForData={true}
+                  >
+                    <Simulados />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/simulados" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
 
           {/* Modo Prova - Sem Layout */}
           <Route
@@ -168,7 +180,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/desempenho-simulado" element={<Navigate to="/simulados" replace />} />
+            <Route path="/desempenho-simulado" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Dashboard - Controlado dinamicamente */}
@@ -188,7 +200,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/dashboard" element={<Navigate to="/simulados" replace />} />
+            <Route path="/dashboard" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* User Management - Controlado dinamicamente (somente admin) */}
@@ -207,7 +219,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/gestao-usuarios" element={<Navigate to="/simulados" replace />} />
+            <Route path="/gestao-usuarios" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* Analytics - Controlado dinamicamente */}
@@ -226,7 +238,7 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/analytics" element={<Navigate to="/simulados" replace />} />
+            <Route path="/analytics" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           {/* SanarClass - Controlado dinamicamente */}
@@ -245,7 +257,61 @@ export const DynamicRoutes: React.FC = () => {
               }
             />
           ) : (
-            <Route path="/sanarclass" element={<Navigate to="/simulados" replace />} />
+            <Route path="/sanarclass" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Desempenho Institucional - Professores e Admins */}
+          {accessRules.desempenhoInstitucional ? (
+            <Route
+              path="/desempenho-institucional"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando desempenho institucional..."
+                    waitForData={true}
+                  >
+                    <DesempenhoInstitucional />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/desempenho-institucional" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Desempenho Institucional v2 - Mock page */}
+          {accessRules.desempenhoInstitucional ? (
+            <Route
+              path="/desempenho-institucional-v2"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper loadingMessage="Carregando desempenho v2..." waitForData={true}>
+                    <DesempenhoInstitucionalV2 />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/desempenho-institucional-v2" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Caderno de Erros - Apenas para administradores */}
+          {accessRules.errorNotebook && user?.roles?.includes('admin') ? (
+            <Route
+              path="/caderno-de-erros"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper
+                    loadingMessage="Carregando caderno de erros..."
+                    waitForData={true}
+                  >
+                    <CadernoErros />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/caderno-de-erros" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />

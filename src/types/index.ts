@@ -18,6 +18,8 @@ export interface AccessRules {
   sanarclass: boolean;
   simulados: boolean;
   analytics: boolean;
+  desempenhoInstitucional: boolean;
+  errorNotebook: boolean;
 }
 
 export interface StudyContent {
@@ -48,6 +50,13 @@ export interface AuthContextType {
   isLoading: boolean;
   needsPasswordChange: boolean;
   changePassword: (newPassword: string) => Promise<boolean>;
+  forceRefreshProfile: () => Promise<void>;
+  // Impersonation
+  impersonatedUser: User | null;
+  isImpersonating: boolean;
+  realAdminUser: User | null;
+  startImpersonation: (userId: string) => Promise<void>;
+  stopImpersonation: () => void;
 }
 
 export interface StudyContextType {

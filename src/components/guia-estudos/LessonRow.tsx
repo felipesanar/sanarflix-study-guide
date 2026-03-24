@@ -1,6 +1,6 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, memo, useCallback, useMemo } from 'react';
 import { Check, Play, FileText, Brain, Clock } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -20,22 +20,49 @@ export interface LessonRowProps {
   onAction?: (action: 'video' | 'pdf' | 'quiz') => void;
 }
 
-export const LessonRow = forwardRef<HTMLDivElement, LessonRowProps>(({
+export const LessonRow = memo(forwardRef<HTMLDivElement, LessonRowProps>(({
   aula,
   isCompleted = false,
   isHighlighted = false,
   onToggleComplete,
   onAction
 }, ref) => {
+  const shouldReduceMotion = useReducedMotion();
+  
   const hasVideo = !!aula.link_aula;
   const hasPdf = !!aula.link_pdf;
   const hasQuiz = !!aula.link_quiz;
+
+  // Memoize handlers
+  const handleVideoClick = useCallback(() => {
+    window.open(aula.link_aula!, '_blank');
+    onAction?.('video');
+  }, [aula.link_aula, onAction]);
+
+  const handlePdfClick = useCallback(() => {
+    window.open(aula.link_pdf!, '_blank');
+    onAction?.('pdf');
+  }, [aula.link_pdf, onAction]);
+
+  const handleQuizClick = useCallback(() => {
+    window.open(aula.link_quiz!, '_blank');
+    onAction?.('quiz');
+  }, [aula.link_quiz, onAction]);
+
+  // Animation props based on reduced motion preference
+  const motionProps = useMemo(() => 
+    shouldReduceMotion ? {} : {
+      initial: { opacity: 0, x: -10 },
+      animate: { opacity: 1, x: 0 },
+      whileHover: { scale: 1.005 },
+      transition: { type: "spring", stiffness: 400, damping: 25 }
+    }, [shouldReduceMotion]);
 
   return (
     <motion.div
       ref={ref}
       data-aula={aula.aula}
-      initial={{ opacity: 0, x: -10 }}
+      {...motionProps}
       animate={{ opacity: 1, x: 0 }}
       whileHover={{ scale: 1.005 }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
@@ -160,7 +187,7 @@ export const LessonRow = forwardRef<HTMLDivElement, LessonRowProps>(({
       )}
     </motion.div>
   );
-});
+}));
 
 LessonRow.displayName = 'LessonRow';
 

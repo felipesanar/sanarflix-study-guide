@@ -31,6 +31,7 @@ export const AnnouncementsCard: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [popupAnnouncement, setPopupAnnouncement] = useState<Announcement | null>(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [expandedAnnouncement, setExpandedAnnouncement] = useState<Announcement | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -43,7 +44,7 @@ export const AnnouncementsCard: React.FC = () => {
 
     const { data, error } = await supabase
       .from('announcements')
-      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade, created_at, data_expiracao')
+      .select('id, titulo, descricao, link_botao, texto_botao, paleta_cores, prioridade, created_at, data_expiracao, visibilidade, ies_selecionadas, ies_excluidas')
       .eq('ativo', true)
       .order('created_at', { ascending: false });
 
@@ -54,7 +55,20 @@ export const AnnouncementsCard: React.FC = () => {
 
     if (data && data.length > 0) {
       const now = getBrazilDate();
-      const active = data.filter((a: any) => !a.data_expiracao || toBrazilDate(a.data_expiracao) >= now);
+      const userIesId = user.id_ies;
+      const filtered = data.filter((a: any) => {
+        if (a.data_expiracao && toBrazilDate(a.data_expiracao) < now) return false;
+        if (a.visibilidade === 'seletivo') {
+          const selected: string[] = a.ies_selecionadas || [];
+          return userIesId ? selected.includes(userIesId) : false;
+        }
+        if (a.visibilidade === 'exceto') {
+          const excluded: string[] = a.ies_excluidas || [];
+          return userIesId ? !excluded.includes(userIesId) : true;
+        }
+        return true;
+      });
+      const active = filtered;
       const weight = (p: string) => {
         const x = (p || '').toLowerCase();
         if (x.includes('muito')) return 3;
@@ -193,7 +207,7 @@ export const AnnouncementsCard: React.FC = () => {
       <motion.div 
         whileHover={{ scale: 1.01, y: -2 }}
         className={`relative overflow-hidden rounded-xl sm:rounded-2xl h-full min-h-[180px] sm:min-h-[200px] lg:min-h-[220px] bg-gradient-to-br ${gradient.bg} hover:${gradient.hover} transition-all duration-300 cursor-pointer group`}
-        onClick={() => handleAnnouncementClick(mainAnnouncement)}
+        onClick={() => setExpandedAnnouncement(mainAnnouncement)}
       >
         {/* Glassmorphism overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
@@ -226,6 +240,10 @@ export const AnnouncementsCard: React.FC = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             className="mt-3 sm:mt-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAnnouncementClick(mainAnnouncement);
+            }}
           >
             <Button 
               variant="secondary"
@@ -238,7 +256,42 @@ export const AnnouncementsCard: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Pop-up Modal */}
+      {/* Expanded announcement modal */}
+      <Dialog open={!!expandedAnnouncement} onOpenChange={(open) => !open && setExpandedAnnouncement(null)}>
+        {expandedAnnouncement && (() => {
+          const expGradient = getGradient(expandedAnnouncement.paleta_cores);
+          const ExpIcon = priorityIcons[expandedAnnouncement.prioridade as keyof typeof priorityIcons] || Bell;
+          return (
+            <DialogContent className="sm:max-w-lg p-0 border-0 overflow-hidden rounded-xl sm:rounded-2xl">
+              <div className={`bg-gradient-to-br ${expGradient.bg} p-5 sm:p-6`}>
+                <DialogHeader>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                      <ExpIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    </div>
+                    <DialogTitle className="text-lg sm:text-xl font-semibold text-white flex-1">
+                      {expandedAnnouncement.titulo}
+                    </DialogTitle>
+                  </div>
+                </DialogHeader>
+                <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap mt-2">
+                  {expandedAnnouncement.descricao}
+                </p>
+                {expandedAnnouncement.link_botao && (
+                  <Button
+                    className="w-full mt-5 bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm font-medium rounded-xl h-11 text-sm"
+                    onClick={() => handleAnnouncementClick(expandedAnnouncement)}
+                  >
+                    {expandedAnnouncement.texto_botao}
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </DialogContent>
+          );
+        })()}
+
+      </Dialog>
       <AnimatePresence>
         {showPopup && popupAnnouncement && (
           <Dialog open={showPopup} onOpenChange={handleClosePopup}>

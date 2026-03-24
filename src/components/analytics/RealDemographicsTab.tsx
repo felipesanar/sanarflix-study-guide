@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionHeader } from './SectionHeader';
 import { InsightBox } from './InsightBox';
-import { EmptyState } from './EmptyState';
+import { MetricCard } from './MetricCard';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { 
   BarChart, 
   Bar, 
@@ -12,11 +14,26 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
+  Cell,
+  LabelList,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
 } from 'recharts';
-import { Users, Building2, GraduationCap, TrendingUp } from 'lucide-react';
+import { 
+  Users, 
+  Building2, 
+  GraduationCap, 
+  TrendingUp,
+  ShieldCheck,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  CalendarCheck,
+  MousePointerClick,
+  Sparkles,
+} from 'lucide-react';
 import type { DemographicsMetrics } from '@/hooks/useAnalyticsData';
 
 interface RealDemographicsTabProps {
@@ -24,6 +41,7 @@ interface RealDemographicsTabProps {
   isLoading: boolean;
 }
 
+// Cores para gráficos baseadas no design system
 const COLORS = [
   'hsl(var(--primary))',
   'hsl(var(--chart-2))',
@@ -32,30 +50,69 @@ const COLORS = [
   'hsl(var(--chart-5))',
 ];
 
+// Helper para determinar cor baseada em faixa de progresso
+const getBarColor = (percentual: number, index: number): string => {
+  if (percentual >= 20) return 'hsl(var(--primary))';
+  if (percentual >= 10) return 'hsl(var(--chart-2))';
+  if (percentual >= 5) return 'hsl(var(--chart-3))';
+  return COLORS[index % COLORS.length];
+};
+
+// Helper para interpretar HHI
+const interpretarHHI = (hhi: number): { status: 'positivo' | 'neutro' | 'alerta'; texto: string } => {
+  if (hhi < 1500) return { status: 'positivo', texto: 'Mercado competitivo. Boa diversificação de IES.' };
+  if (hhi < 2500) return { status: 'neutro', texto: 'Mercado moderadamente concentrado. Considere expandir.' };
+  return { status: 'alerta', texto: 'Mercado altamente concentrado. Alta dependência de poucas IES.' };
+};
+
 export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
   demographics,
   isLoading,
 }) => {
+  const [showAllIES, setShowAllIES] = useState(false);
+  const [showAllSemestres, setShowAllSemestres] = useState(false);
+
   const hasIESData = demographics.usuariosPorIES.length > 0;
   const hasSemestreData = demographics.usuariosPorSemestre.length > 0;
 
-  const totalUsuarios = demographics.usuariosPorIES.reduce((acc, ies) => acc + ies.quantidade, 0);
+  const { 
+    totalUsuarios, 
+    usuariosComIES, 
+    usuariosSemIES,
+    usuariosComSemestre,
+    usuariosSemSemestre,
+    taxaCompletude, 
+    indiceHHI, 
+    concentracaoTop3,
+    semestresPorGrupo 
+  } = demographics;
 
-  // Calcular concentração de IES
   const iesLider = demographics.usuariosPorIES[0];
-  const percentIesLider = totalUsuarios > 0 && iesLider 
-    ? Math.round((iesLider.quantidade / totalUsuarios) * 100) 
-    : 0;
+  const hhi = interpretarHHI(indiceHHI);
 
-  // Semestre mais comum
-  const semestreLider = demographics.usuariosPorSemestre.reduce(
-    (max, s) => s.quantidade > max.quantidade ? s : max,
-    { semestre: 0, quantidade: 0 }
-  );
+  // Preparar dados para gráficos
+  const iesChartData = showAllIES 
+    ? demographics.usuariosPorIES 
+    : demographics.usuariosPorIES.slice(0, 8);
+  
+  const semestreChartData = showAllSemestres
+    ? demographics.usuariosPorSemestre
+    : demographics.usuariosPorSemestre.slice(0, 10);
+
+  // Dados de grupos de semestre para gráfico resumido
+  const gruposSemestreData = [
+    { grupo: 'Iniciais (1-4)', quantidade: semestresPorGrupo.iniciais, cor: COLORS[0] },
+    { grupo: 'Intermediários (5-8)', quantidade: semestresPorGrupo.intermediarios, cor: COLORS[1] },
+    { grupo: 'Avançados (9+)', quantidade: semestresPorGrupo.avancados, cor: COLORS[2] },
+    { grupo: 'Não informado', quantidade: semestresPorGrupo.naoInformado, cor: 'hsl(var(--muted-foreground))' },
+  ].filter(g => g.quantidade > 0);
 
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <Card key={i} className="h-36 bg-muted/30" />)}
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card className="h-80 bg-muted/30" />
           <Card className="h-80 bg-muted/30" />
@@ -66,60 +123,155 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Seção: Resumo Demográfico */}
+      {/* Seção 1: Hero Metrics com MetricCards */}
       <section>
         <SectionHeader
           titulo="Resumo Demográfico"
-          subtitulo="Visão geral da distribuição de usuários"
+          subtitulo="Visão geral da base de usuários"
           icon={<Users className="w-5 h-5 text-primary" />}
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-2">
-                  {totalUsuarios}
-                </div>
-                <p className="text-sm text-muted-foreground">Total de Usuários</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Usuários cadastrados na plataforma
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            titulo="Total de Usuários"
+            valor={totalUsuarios.toLocaleString('pt-BR')}
+            subtitulo="excluindo administradores"
+            interpretacao={
+              usuariosSemIES > 0 
+                ? `${usuariosSemIES} usuário(s) sem IES associada.`
+                : 'Todos os usuários têm IES associada.'
+            }
+            status={usuariosSemIES > totalUsuarios * 0.05 ? 'alerta' : 'positivo'}
+            icon={<Users className="w-4 h-4 text-primary" />}
+          />
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-2">
-                  {demographics.usuariosPorIES.length}
-                </div>
-                <p className="text-sm text-muted-foreground">IES Representadas</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Instituições de ensino com usuários ativos
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <MetricCard
+            titulo="IES Parceiras"
+            valor={demographics.usuariosPorIES.length.toString()}
+            subtitulo="instituições ativas"
+            interpretacao={
+              concentracaoTop3 > 60 
+                ? `Top 3 IES concentram ${concentracaoTop3}% da base. Risco de dependência.`
+                : `Top 3 IES representam ${concentracaoTop3}% da base. Boa diversificação.`
+            }
+            status={concentracaoTop3 > 70 ? 'alerta' : concentracaoTop3 > 50 ? 'neutro' : 'positivo'}
+            icon={<Building2 className="w-4 h-4 text-primary" />}
+          />
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-primary mb-2">
-                  {demographics.usuariosPorSemestre.length}
-                </div>
-                <p className="text-sm text-muted-foreground">Semestres Ativos</p>
-                <p className="text-xs text-muted-foreground mt-3">
-                  {semestreLider.semestre > 0 && `Maior concentração no ${semestreLider.semestre}º semestre`}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <MetricCard
+            titulo="Cadastros Completos"
+            valor={`${taxaCompletude}%`}
+            subtitulo="com IES e semestre"
+            interpretacao={
+              taxaCompletude >= 90 
+                ? 'Excelente taxa de completude de cadastros.'
+                : `${usuariosSemSemestre} usuários sem semestre informado.`
+            }
+            status={taxaCompletude >= 90 ? 'positivo' : taxaCompletude >= 70 ? 'neutro' : 'alerta'}
+            icon={<ShieldCheck className="w-4 h-4 text-primary" />}
+          />
+
+          <MetricCard
+            titulo="Índice HHI"
+            valor={indiceHHI.toLocaleString('pt-BR')}
+            subtitulo="concentração de mercado"
+            interpretacao={hhi.texto}
+            status={hhi.status}
+            icon={<TrendingUp className="w-4 h-4 text-primary" />}
+          />
         </div>
       </section>
 
-      {/* Seção: Distribuição por IES e Semestre */}
+      {/* Seção 2: Saúde do Cadastro */}
+      <section>
+        <SectionHeader
+          titulo="Saúde do Cadastro"
+          subtitulo="Qualidade dos dados demográficos"
+          icon={<ShieldCheck className="w-5 h-5 text-primary" />}
+        />
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Usuários com IES</span>
+                  <span className="font-medium">
+                    {usuariosComIES.toLocaleString('pt-BR')} de {totalUsuarios.toLocaleString('pt-BR')} 
+                    <span className="text-muted-foreground ml-1">
+                      ({totalUsuarios > 0 ? Math.round((usuariosComIES / totalUsuarios) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+                <Progress 
+                  value={totalUsuarios > 0 ? (usuariosComIES / totalUsuarios) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Usuários com Semestre</span>
+                  <span className="font-medium">
+                    {usuariosComSemestre.toLocaleString('pt-BR')} de {totalUsuarios.toLocaleString('pt-BR')}
+                    <span className="text-muted-foreground ml-1">
+                      ({totalUsuarios > 0 ? Math.round((usuariosComSemestre / totalUsuarios) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+                <Progress 
+                  value={totalUsuarios > 0 ? (usuariosComSemestre / totalUsuarios) * 100 : 0} 
+                  className="h-2"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cadastros Completos (IES + Semestre)</span>
+                  <span className="font-medium">
+                    {demographics.cadastrosCompletos.toLocaleString('pt-BR')} de {totalUsuarios.toLocaleString('pt-BR')}
+                    <span className="text-muted-foreground ml-1">({taxaCompletude}%)</span>
+                  </span>
+                </div>
+                <Progress 
+                  value={taxaCompletude} 
+                  className="h-2"
+                />
+              </div>
+
+              {(usuariosSemIES > 0 || usuariosSemSemestre > 0) && (
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t text-xs text-muted-foreground">
+                  {usuariosSemIES > 0 && (
+                    <Badge variant="outline" className="gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {usuariosSemIES} sem IES
+                    </Badge>
+                  )}
+                  {usuariosSemSemestre > 0 && (
+                    <Badge variant="outline" className="gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {usuariosSemSemestre} sem semestre
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Alerta automático: taxa de usuários sem semestre > 10% */}
+      {totalUsuarios > 0 && usuariosSemSemestre / totalUsuarios > 0.10 && (
+        <InsightBox
+          tipo="alerta"
+          titulo="Taxa alta de usuários sem semestre definido"
+          descricao={`${usuariosSemSemestre} usuários (${Math.round((usuariosSemSemestre / totalUsuarios) * 100)}%) ainda não definiram o semestre. Isso compromete segmentação de conteúdo, relatórios pedagógicos e personalização.`}
+          acao="Ative o banner de onboarding e considere campanhas de atualização de perfil"
+          valor={`${Math.round((usuariosSemSemestre / totalUsuarios) * 100)}%`}
+        />
+      )}
+
+      {/* Seção 3: Distribuição por IES e Semestre */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Por IES */}
         <div>
@@ -130,24 +282,25 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
           />
 
           {!hasIESData ? (
-            <EmptyState
-              titulo="Dados de IES ainda não disponíveis"
-              motivo="Nenhum usuário tem IES associada ainda."
-              sugestao="Os dados aparecerão conforme usuários são cadastrados com IES"
-            />
+            <Card className="p-6">
+              <div className="text-center text-muted-foreground">
+                <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Nenhum dado de IES disponível</p>
+              </div>
+            </Card>
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={demographics.usuariosPorIES.slice(0, 10)} layout="vertical">
+                <ResponsiveContainer width="100%" height={Math.max(300, iesChartData.length * 40)}>
+                  <BarChart data={iesChartData} layout="vertical" margin={{ right: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" className="text-xs" />
                     <YAxis 
                       dataKey="ies_nome" 
                       type="category" 
-                      width={120} 
+                      width={100} 
                       className="text-xs"
-                      tickFormatter={(value) => value.length > 15 ? value.slice(0, 15) + '...' : value}
+                      tickFormatter={(value) => value.length > 12 ? value.slice(0, 12) + '...' : value}
                     />
                     <Tooltip 
                       contentStyle={{ 
@@ -155,21 +308,53 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px'
                       }}
-                      formatter={(value) => [`${value} usuários`, 'Quantidade']}
+                      formatter={(value, name, props) => [
+                        `${value} usuários (${props.payload.percentual}%)`, 
+                        'Quantidade'
+                      ]}
                     />
                     <Bar 
                       dataKey="quantidade" 
-                      fill="hsl(var(--primary))" 
                       radius={[0, 4, 4, 0]}
-                    />
+                    >
+                      {iesChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={getBarColor(entry.percentual, index)}
+                        />
+                      ))}
+                      <LabelList 
+                        dataKey="percentual" 
+                        position="right" 
+                        formatter={(value: number) => `${value}%`}
+                        className="text-xs fill-foreground"
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
 
-                {/* Interpretação */}
+                {demographics.usuariosPorIES.length > 8 && (
+                  <div className="mt-4 text-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowAllIES(!showAllIES)}
+                      className="gap-1"
+                    >
+                      {showAllIES ? (
+                        <>Mostrar menos <ChevronUp className="w-4 h-4" /></>
+                      ) : (
+                        <>Ver todas as {demographics.usuariosPorIES.length} IES <ChevronDown className="w-4 h-4" /></>
+                      )}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Legenda de concentração */}
                 <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
                   <p className="text-muted-foreground">
-                    <strong>Como interpretar:</strong> Concentração em poucas IES pode indicar dependência. 
-                    Diversificar a base reduz riscos de negócio.
+                    <strong>Concentração:</strong> Top 3 IES representam <strong>{concentracaoTop3}%</strong> da base.
+                    {concentracaoTop3 > 60 && ' Considere estratégias de diversificação.'}
                   </p>
                 </div>
               </CardContent>
@@ -186,61 +371,274 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
           />
 
           {!hasSemestreData ? (
-            <EmptyState
-              titulo="Dados de semestre ainda não disponíveis"
-              motivo="Nenhum usuário tem semestre associado ainda."
-            />
+            <Card className="p-6">
+              <div className="text-center text-muted-foreground">
+                <GraduationCap className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Nenhum dado de semestre disponível</p>
+              </div>
+            </Card>
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={demographics.usuariosPorSemestre}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="quantidade"
-                      label={({ semestre }) => `${semestre}º`}
+                {/* Resumo por grupos */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {gruposSemestreData.map((grupo, idx) => (
+                    <div 
+                      key={grupo.grupo}
+                      className="p-3 rounded-lg border bg-card"
                     >
-                      {demographics.usuariosPorSemestre.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: grupo.cor }}
+                        />
+                        <span className="text-xs text-muted-foreground">{grupo.grupo}</span>
+                      </div>
+                      <div className="text-lg font-bold">
+                        {grupo.quantidade.toLocaleString('pt-BR')}
+                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                          ({totalUsuarios > 0 ? Math.round((grupo.quantidade / totalUsuarios) * 100) : 0}%)
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Gráfico de barras horizontal por semestre */}
+                <ResponsiveContainer width="100%" height={Math.max(250, semestreChartData.length * 30)}>
+                  <BarChart data={semestreChartData} layout="vertical" margin={{ right: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" className="text-xs" />
+                    <YAxis 
+                      dataKey="semestre" 
+                      type="category" 
+                      width={80} 
+                      className="text-xs"
+                    />
                     <Tooltip 
-                      formatter={(value, name, props) => [
-                        `${value} usuários`,
-                        `${props.payload.semestre}º Semestre`
-                      ]}
                       contentStyle={{ 
                         backgroundColor: 'hsl(var(--card))', 
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px'
                       }}
+                      formatter={(value, name, props) => [
+                        `${value} usuários (${props.payload.percentual}%)`,
+                        props.payload.semestre
+                      ]}
                     />
-                  </PieChart>
+                    <Bar 
+                      dataKey="quantidade" 
+                      fill="hsl(var(--primary))"
+                      radius={[0, 4, 4, 0]}
+                    >
+                      {semestreChartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.semestre === 'Não informado' 
+                            ? 'hsl(var(--muted-foreground))' 
+                            : COLORS[index % COLORS.length]
+                          }
+                        />
+                      ))}
+                      <LabelList 
+                        dataKey="percentual" 
+                        position="right" 
+                        formatter={(value: number) => `${value}%`}
+                        className="text-xs fill-foreground"
+                      />
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
 
-                <div className="flex flex-wrap items-center justify-center gap-3 mt-4 text-xs">
-                  {demographics.usuariosPorSemestre.map((s, index) => (
-                    <Badge key={s.semestre} variant="outline" className="gap-1">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      {s.semestre}º sem: {s.quantidade}
-                    </Badge>
-                  ))}
-                </div>
+                {demographics.usuariosPorSemestre.length > 10 && (
+                  <div className="mt-4 text-center">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowAllSemestres(!showAllSemestres)}
+                      className="gap-1"
+                    >
+                      {showAllSemestres ? (
+                        <>Mostrar menos <ChevronUp className="w-4 h-4" /></>
+                      ) : (
+                        <>Ver todos <ChevronDown className="w-4 h-4" /></>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
         </div>
       </section>
 
-      {/* Seção: Insights Demográficos */}
+      {/* Seção: Saúde do Semestre — Tracking de Edição */}
+      {(demographics.semesterEditing.totalUpdates > 0 || demographics.semesterEditing.bannerShown > 0) && (
+        <section>
+          <SectionHeader
+            titulo="Saúde do Semestre"
+            subtitulo="Impacto da feature de edição de semestre na qualidade da base"
+            icon={<CalendarCheck className="w-5 h-5 text-primary" />}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <MetricCard
+              titulo="Definições de Semestre"
+              valor={demographics.semesterEditing.totalUpdates.toString()}
+              subtitulo="no período selecionado"
+              interpretacao={demographics.semesterEditing.totalUpdates > 0 
+                ? `${demographics.semesterEditing.firstDefinitions} foram primeira definição.`
+                : 'Nenhuma definição de semestre no período.'
+              }
+              status={demographics.semesterEditing.totalUpdates > 0 ? 'positivo' : 'neutro'}
+              icon={<CalendarCheck className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Primeira Definição"
+              valor={demographics.semesterEditing.firstDefinitions.toString()}
+              subtitulo="usuários que não tinham semestre"
+              interpretacao={demographics.semesterEditing.firstDefinitions > 0 
+                ? 'Conversões do banner de onboarding.'
+                : 'Nenhuma primeira definição no período.'
+              }
+              status={demographics.semesterEditing.firstDefinitions > 0 ? 'positivo' : 'neutro'}
+              icon={<Sparkles className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Banner Exibido"
+              valor={demographics.semesterEditing.bannerShown.toString()}
+              subtitulo="vezes exibido a usuários"
+              interpretacao={demographics.semesterEditing.bannerShown > 0 
+                ? `${demographics.semesterEditing.bannerClicked} cliques.`
+                : 'Banner não exibido no período.'
+              }
+              status="neutro"
+              icon={<AlertTriangle className="w-4 h-4 text-primary" />}
+            />
+
+            <MetricCard
+              titulo="Conversão do Banner"
+              valor={`${demographics.semesterEditing.conversionRate}%`}
+              subtitulo="cliques / exibições"
+              interpretacao={
+                demographics.semesterEditing.conversionRate >= 20 
+                  ? 'Excelente taxa de conversão!'
+                  : demographics.semesterEditing.conversionRate >= 5
+                    ? 'Taxa de conversão aceitável.'
+                    : demographics.semesterEditing.bannerShown === 0
+                      ? 'Sem dados suficientes.'
+                      : 'Considere melhorar o copy do banner.'
+              }
+              status={
+                demographics.semesterEditing.conversionRate >= 20 ? 'positivo' 
+                : demographics.semesterEditing.conversionRate >= 5 ? 'neutro' 
+                : 'alerta'
+              }
+              icon={<MousePointerClick className="w-4 h-4 text-primary" />}
+            />
+          </div>
+
+          {/* Temporal chart */}
+          {demographics.semesterEditing.updatesPerDay.length > 1 && (
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Definições de Semestre por Dia
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={demographics.semesterEditing.updatesPerDay}>
+                    <defs>
+                      <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradFirst" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="data" 
+                      className="text-xs"
+                      tickFormatter={(v) => {
+                        const parts = v.split('-');
+                        return `${parts[2]}/${parts[1]}`;
+                      }}
+                    />
+                    <YAxis className="text-xs" allowDecimals={false} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelFormatter={(v) => {
+                        const parts = String(v).split('-');
+                        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                      }}
+                      formatter={(value: number, name: string) => [
+                        value,
+                        name === 'total' ? 'Total de definições' : 'Primeira definição'
+                      ]}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="total" 
+                      stroke="hsl(var(--primary))" 
+                      fill="url(#gradTotal)" 
+                      strokeWidth={2}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="firstDef" 
+                      stroke="hsl(var(--chart-2))" 
+                      fill="url(#gradFirst)" 
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 rounded bg-primary" />
+                    <span>Total de definições</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 rounded" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
+                    <span>Primeira definição</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Insight automático */}
+          {demographics.semesterEditing.firstDefinitions > 0 && (
+            <InsightBox
+              tipo="oportunidade"
+              titulo="Feature de edição de semestre está convertendo"
+              descricao={`${demographics.semesterEditing.firstDefinitions} usuário(s) definiram semestre pela primeira vez no período. A completude de semestre da base está em ${totalUsuarios > 0 ? Math.round((usuariosComSemestre / totalUsuarios) * 100) : 0}%.`}
+              acao="Continue monitorando para validar o crescimento da completude"
+              valor={`${demographics.semesterEditing.firstDefinitions}`}
+            />
+          )}
+
+          {demographics.semesterEditing.totalUpdates === 0 && demographics.semesterEditing.bannerShown > 0 && (
+            <InsightBox
+              tipo="alerta"
+              titulo="Banner exibido mas sem conversões"
+              descricao={`O banner foi exibido ${demographics.semesterEditing.bannerShown} vezes mas nenhum usuário definiu o semestre. Considere ajustar o texto ou posicionamento.`}
+              acao="Revise o copy e CTA do banner de onboarding"
+            />
+          )}
+        </section>
+      )}
+
+      {/* Seção 4: Insights Inteligentes */}
       <section>
         <SectionHeader
           titulo="Insights Demográficos"
@@ -249,58 +647,93 @@ export const RealDemographicsTab: React.FC<RealDemographicsTabProps> = ({
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Concentração de IES */}
-          {percentIesLider > 50 && iesLider && (
+          {/* Insight: Concentração de IES */}
+          {iesLider && iesLider.percentual > 25 && (
             <InsightBox
               tipo="alerta"
               titulo="Alta concentração em uma IES"
-              descricao={`${percentIesLider}% dos usuários são da ${iesLider.ies_nome}. Alta dependência de uma única instituição representa risco.`}
+              descricao={`${iesLider.ies_nome} representa ${iesLider.percentual}% da base. Dependência significativa de uma única instituição.`}
               acao="Considere estratégias de expansão para outras IES"
-              valor={`${percentIesLider}%`}
+              valor={`${iesLider.percentual}%`}
             />
           )}
 
-          {percentIesLider <= 50 && iesLider && (
+          {iesLider && iesLider.percentual <= 25 && (
             <InsightBox
               tipo="oportunidade"
-              titulo="Base diversificada"
-              descricao={`A maior IES (${iesLider.ies_nome}) representa apenas ${percentIesLider}% da base. Boa diversificação reduz riscos.`}
+              titulo="Base bem diversificada"
+              descricao={`A maior IES (${iesLider.ies_nome}) representa apenas ${iesLider.percentual}% da base. Boa diversificação reduz riscos.`}
             />
           )}
 
-          {/* Semestres iniciais */}
-          {semestreLider.semestre <= 2 && semestreLider.quantidade > 0 && (
+          {/* Insight: Top 3 concentração */}
+          {concentracaoTop3 > 60 && (
             <InsightBox
-              tipo="insight"
-              titulo="Maioria em semestres iniciais"
-              descricao={`A maior concentração está no ${semestreLider.semestre}º semestre. Foque em conteúdo para iniciantes e retenção a longo prazo.`}
+              tipo="alerta"
+              titulo="Top 3 IES muito concentradas"
+              descricao={`As 3 maiores IES concentram ${concentracaoTop3}% dos usuários. Isso representa risco caso uma parceria seja encerrada.`}
+              acao="Diversifique a base com novas parcerias"
+              valor={`${concentracaoTop3}%`}
             />
           )}
 
-          {semestreLider.semestre > 4 && semestreLider.quantidade > 0 && (
+          {/* Insight: Semestres avançados */}
+          {semestresPorGrupo.avancados > totalUsuarios * 0.30 && (
             <InsightBox
               tipo="insight"
               titulo="Maioria em semestres avançados"
-              descricao={`A maior concentração está no ${semestreLider.semestre}º semestre. Esses usuários podem ter maior maturidade e expectativas específicas.`}
+              descricao={`${Math.round((semestresPorGrupo.avancados / totalUsuarios) * 100)}% dos usuários estão em semestres 9+. Base madura, focada em residência.`}
               acao="Considere conteúdo avançado e preparatório para residência"
             />
           )}
 
-          {/* Sem dados suficientes */}
+          {/* Insight: Semestres iniciais */}
+          {semestresPorGrupo.iniciais > totalUsuarios * 0.30 && (
+            <InsightBox
+              tipo="insight"
+              titulo="Forte presença em semestres iniciais"
+              descricao={`${Math.round((semestresPorGrupo.iniciais / totalUsuarios) * 100)}% dos usuários estão em semestres 1-4. Foco em conteúdo básico e retenção.`}
+              acao="Invista em onboarding e conteúdo fundamental"
+            />
+          )}
+
+          {/* Insight: Cadastros incompletos */}
+          {taxaCompletude < 90 && (
+            <InsightBox
+              tipo="info"
+              titulo="Cadastros incompletos"
+              descricao={`${100 - taxaCompletude}% dos usuários não têm cadastro completo. Isso pode afetar segmentação e análises.`}
+              acao="Considere campanha de atualização de perfil"
+              valor={`${Math.round(100 - taxaCompletude)}%`}
+            />
+          )}
+
+          {/* Insight: Múltiplas IES */}
+          {demographics.usuariosPorIES.length >= 10 && (
+            <InsightBox
+              tipo="oportunidade"
+              titulo="Presença em múltiplas IES"
+              descricao={`A plataforma está presente em ${demographics.usuariosPorIES.length} instituições diferentes. Excelente penetração de mercado.`}
+            />
+          )}
+
+          {/* Insight: HHI */}
+          {indiceHHI > 2500 && (
+            <InsightBox
+              tipo="alerta"
+              titulo="Mercado altamente concentrado"
+              descricao={`O índice HHI de ${indiceHHI.toLocaleString('pt-BR')} indica alta concentração. Valores acima de 2500 representam risco.`}
+              acao="Priorize diversificação de parcerias institucionais"
+              valor={indiceHHI.toLocaleString('pt-BR')}
+            />
+          )}
+
+          {/* Fallback se poucos insights */}
           {!hasIESData && !hasSemestreData && (
             <InsightBox
               tipo="info"
               titulo="Coletando dados demográficos"
-              descricao="Os dados demográficos serão populados conforme usuários são cadastrados com informações de IES e semestre."
-            />
-          )}
-
-          {/* Múltiplas IES */}
-          {demographics.usuariosPorIES.length > 5 && (
-            <InsightBox
-              tipo="oportunidade"
-              titulo="Presença em múltiplas IES"
-              descricao={`A plataforma está presente em ${demographics.usuariosPorIES.length} instituições diferentes. Boa penetração de mercado.`}
+              descricao="Os dados demográficos serão populados conforme usuários são cadastrados."
             />
           )}
         </div>

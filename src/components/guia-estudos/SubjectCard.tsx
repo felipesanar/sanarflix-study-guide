@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { Check, ChevronDown, ChevronRight, MoreHorizontal } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -39,7 +39,7 @@ interface SubjectCardProps {
   className?: string;
 }
 
-export const SubjectCard: React.FC<SubjectCardProps> = ({
+export const SubjectCard: React.FC<SubjectCardProps> = memo(({
   materia,
   icon,
   temas,
@@ -57,11 +57,18 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
   aulaRefs,
   className
 }) => {
+  const shouldReduceMotion = useReducedMotion();
+  // Memoize animation props
+  const motionProps = useMemo(() => 
+    shouldReduceMotion ? {} : {
+      initial: { opacity: 0, y: 20 },
+      animate: { opacity: 1, y: 0 },
+      transition: { duration: 0.4 }
+    }, [shouldReduceMotion]);
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      {...motionProps}
       ref={materiaRef}
     >
       <Card className={cn(
@@ -240,4 +247,6 @@ export const SubjectCard: React.FC<SubjectCardProps> = ({
       </Card>
     </motion.div>
   );
-};
+});
+
+SubjectCard.displayName = 'SubjectCard';

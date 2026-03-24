@@ -28,7 +28,7 @@ export const InviteUserEmail = ({
     redirect_to,
     token_hash,
 }: InviteUserEmailProps) => {
-    const confirmationUrl = `${supabase_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to || 'https://preview--sanarflix-study-guide.lovable.app//auth/update-password'}`
+    const confirmationUrl = `https://academy.sanar.com.br/auth/update-password?token_hash=${token_hash}&type=${email_action_type}`
 
     return (
         <Html>
@@ -38,7 +38,7 @@ export const InviteUserEmail = ({
                 <Container style={container}>
                     <Section style={logoSection}>
                         <Img
-                            src="https://sanarflix-study-guide.lovable.app/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
+                            src="https://academy.sanar.com.br/lovable-uploads/8b68f9f7-c5f4-42f8-9ac8-0bffc3fdb96d.png"
                             width="48"
                             height="48"
                             alt="SanarFlix Academy"

@@ -23,8 +23,10 @@ const DEFAULT_RULES: AccessRules = {
   SimuladoDesempenho: false,
   userManagement: false,
   sanarclass: false,
-  simulados: true, // Único acesso padrão para usuários autenticados
+  simulados: true,
   analytics: false,
+  desempenhoInstitucional: false,
+  errorNotebook: false,
 };
 
 /**
@@ -39,6 +41,8 @@ const ADMIN_RULES: AccessRules = {
   sanarclass: true,
   simulados: true,
   analytics: true,
+  desempenhoInstitucional: true,
+  errorNotebook: true,
 };
 
 /**
@@ -58,11 +62,11 @@ export const isProfessor = (user: User | null): boolean => {
 };
 
 /**
- * @deprecated Use isAdmin() instead
- * Mantido para compatibilidade temporária
+ * Verifica se usuário é b2b_partner
  */
-export const isB2BUser = (user: User | null): boolean => {
-  return isAdmin(user);
+export const isB2BPartner = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.includes('b2b_partner') || false;
 };
 
 /**
@@ -90,6 +94,8 @@ export const getAccessRules = (user: User | null): AccessRules => {
       sanarclass: false,
       simulados: false,
       analytics: false,
+      desempenhoInstitucional: false,
+      errorNotebook: false,
     };
   }
   
@@ -106,6 +112,16 @@ export const getAccessRules = (user: User | null): AccessRules => {
       studyGuide: true,
       dashboard: true,
       sanarclass: true,
+      desempenhoInstitucional: true,
+      errorNotebook: true,
+    };
+  }
+
+  // B2B Partner: acesso ao painel institucional + simulados
+  if (isB2BPartner(user)) {
+    return {
+      ...DEFAULT_RULES,
+      desempenhoInstitucional: true,
     };
   }
 

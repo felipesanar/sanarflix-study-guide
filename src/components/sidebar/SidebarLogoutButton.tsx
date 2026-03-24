@@ -28,13 +28,13 @@ export function SidebarLogoutButton({ onLogout, collapsed }: SidebarLogoutButton
 
   if (collapsed) {
     return (
-      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex justify-center">
         <Button
           variant="destructive"
           size="icon"
           onClick={handleLogout}
           disabled={isLoading}
-          className="w-10 h-10 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+          className="w-11 h-11 rounded-xl shadow-sm hover:shadow-md transition-shadow"
           aria-label="Sair da conta"
         >
           {isLoading ? (

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { User } from "lucide-react";
+import { User, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
+import { EditProfileSheet } from "@/components/EditProfileSheet";
 
 interface SidebarUserCardProps {
   user: {
@@ -20,6 +21,7 @@ interface SidebarUserCardProps {
 
 export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
   const passwordDialog = usePasswordDialog();
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!user) return null;
 
@@ -30,13 +32,6 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
     .join("")
     .toUpperCase();
 
-  const handleSemestreErrado = () => {
-    const msg = encodeURIComponent(
-      "Olá, o meu semestre na plataforma Sanarflix Academy está errado."
-    );
-    const url = `https://wa.me/5571993120049?text=${msg}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <Popover>
@@ -47,21 +42,23 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
           transition={{ duration: 0.2, ease: "easeOut" }}
           className={`
             group relative w-full text-left 
-            rounded-xl p-3 
-            bg-gradient-to-br from-card to-secondary/30
-            border border-border/60
-            shadow-sm hover:shadow-md
-            hover:border-primary/20
+            rounded-xl
+            ${collapsed 
+              ? "p-2 flex items-center justify-center bg-transparent border-0 shadow-none hover:bg-sidebar-accent/50" 
+              : "p-3 bg-gradient-to-br from-card via-card to-secondary/20 border border-border/40 shadow-sm hover:shadow-md hover:border-primary/20"
+            }
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar
             transition-all duration-200 cursor-pointer
-            ${collapsed ? "px-2 justify-center" : ""}
           `}
+          style={{
+            boxShadow: "inset 0 1px 0 0 hsl(var(--background) / 0.5)"
+          }}
           aria-label="Abrir opções de conta"
         >
           <div className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-xl shadow-md group-hover:shadow-lg transition-shadow">
+              <div className={`flex items-center justify-center bg-gradient-to-br from-primary to-primary/80 rounded-xl shadow-md group-hover:shadow-lg transition-all duration-200 ${collapsed ? "w-9 h-9" : "w-10 h-10"}`}>
                 {initials ? (
                   <span className="text-sm font-semibold text-primary-foreground">
                     {initials}
@@ -70,9 +67,9 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
                   <User className="h-5 w-5 text-primary-foreground" />
                 )}
               </div>
-              {/* Status indicator - using emerald from design system */}
+              {/* Status indicator */}
               <motion.div
-                className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-sidebar"
+                className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-sidebar shadow-sm"
                 animate={{ scale: [1, 1.15, 1] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
               />
@@ -81,7 +78,7 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
             {/* User info */}
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold truncate text-sidebar-foreground group-hover:text-primary transition-colors">
+                <p className="text-sm font-semibold truncate text-sidebar-foreground">
                   {user.nome}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
@@ -89,6 +86,11 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
                   {user.semestre ? ` • ${user.semestre}º período` : ""}
                 </p>
               </div>
+            )}
+
+            {/* Settings icon */}
+            {!collapsed && (
+              <Settings className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors shrink-0" />
             )}
           </div>
         </motion.button>
@@ -105,20 +107,22 @@ export function SidebarUserCard({ user, collapsed }: SidebarUserCardProps) {
             variant="ghost"
             size="sm"
             className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
-            onClick={() => passwordDialog.setOpen(true)}
+            onClick={() => setEditOpen(true)}
           >
-            Trocar a senha
+            Editar perfil
           </Button>
           <Button
             variant="ghost"
             size="sm"
             className="justify-start h-9 px-3 rounded-lg hover:bg-accent"
-            onClick={handleSemestreErrado}
+            onClick={() => passwordDialog.setOpen(true)}
           >
-            Semestre errado
+            Trocar a senha
           </Button>
         </div>
       </PopoverContent>
+
+      <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} />
     </Popover>
   );
 }

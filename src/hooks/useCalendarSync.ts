@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -18,13 +18,37 @@ interface StoredData {
 
 const STORAGE_KEY = 'user_calendar_subjects';
 const SYNC_VERSION = '2.0';
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutos
+
+// Leitura síncrona do cache ANTES do useState (similar ao readCacheSync da Home)
+const readCacheSync = (): CalendarSubject[] => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) return [];
+    
+    const data: StoredData = JSON.parse(stored);
+    // Verificar se o cache é recente
+    if (data.subjects && data.lastUpdated && (Date.now() - data.lastUpdated) < CACHE_TTL) {
+      return data.subjects;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
 
 export const useCalendarSync = () => {
   const { user } = useAuth();
-  const [subjects, setSubjects] = useState<CalendarSubject[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Leitura síncrona do cache ANTES do useState (evita loading desnecessário)
+  const cachedSubjects = useMemo(() => readCacheSync(), []);
+  
+  // Inicializar estado COM dados do cache (evita skeleton em revisitas)
+  const [subjects, setSubjects] = useState<CalendarSubject[]>(cachedSubjects);
+  const [loading, setLoading] = useState(cachedSubjects.length === 0);
   const [syncing, setSyncing] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const initializedRef = useRef(false);
 
   // Carregar do Local Storage (instantâneo) - apenas como fallback
   const loadFromLocalStorage = useCallback((): CalendarSubject[] => {
@@ -140,27 +164,40 @@ export const useCalendarSync = () => {
     }
   }, [user]);
 
-  // Inicialização: SERVER-FIRST - buscar dados do servidor como fonte de verdade
+  // Inicialização: SERVER-FIRST com cache instantâneo
   useEffect(() => {
+    // Evitar múltiplas inicializações
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    
     const initialize = async () => {
-      setLoading(true);
-      
       if (user?.id) {
-        // SERVER-FIRST: Buscar do banco como fonte de verdade
-        const serverSubjects = await loadFromDatabase();
-        setSubjects(serverSubjects);
-        saveToLocalStorage(serverSubjects);
+        // Se já tem cache válido, não mostrar loading (atualiza em background)
+        if (cachedSubjects.length > 0) {
+          // Background refresh sem loading
+          const serverSubjects = await loadFromDatabase();
+          setSubjects(serverSubjects);
+          saveToLocalStorage(serverSubjects);
+        } else {
+          // Sem cache: loading normal
+          setLoading(true);
+          const serverSubjects = await loadFromDatabase();
+          setSubjects(serverSubjects);
+          saveToLocalStorage(serverSubjects);
+          setLoading(false);
+        }
       } else {
-        // Fallback: usuário não autenticado, usar localStorage
-        const localSubjects = loadFromLocalStorage();
-        setSubjects(localSubjects);
+        // Usuário não autenticado: usar localStorage como fallback
+        if (cachedSubjects.length === 0) {
+          const localSubjects = loadFromLocalStorage();
+          setSubjects(localSubjects);
+        }
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     initialize();
-  }, [user, loadFromDatabase, loadFromLocalStorage, saveToLocalStorage]);
+  }, [user, cachedSubjects, loadFromDatabase, loadFromLocalStorage, saveToLocalStorage]);
 
   // Realtime subscription para sincronização multi-aba
   useEffect(() => {

@@ -69,6 +69,13 @@
     --active-selection: 214 76% 38%;
     --toggle-list: 214 76% 45%;
 
+    /* Chart palette (recharts) */
+    --chart-1: 152 69% 31%; /* emerald */
+    --chart-2: 214 76% 38%; /* blue */
+    --chart-3: 45 93% 47%;  /* amber */
+    --chart-4: 263 70% 50%; /* violet */
+    --chart-5: 0 84% 60%;   /* red */
+
     --scrollbar-track: 220 14% 96%;
     --scrollbar-thumb: 220 14% 89%;
   }
@@ -119,6 +126,13 @@
     --progress-indicator: 0 65% 45%;
     --active-selection: 214 76% 38%;
     --toggle-list: 214 76% 55%;
+
+    /* Chart palette (recharts) */
+    --chart-1: 152 69% 41%; /* emerald (brighter for dark) */
+    --chart-2: 214 76% 48%; /* blue (brighter for dark) */
+    --chart-3: 45 93% 55%;  /* amber (brighter for dark) */
+    --chart-4: 263 70% 60%; /* violet (brighter for dark) */
+    --chart-5: 0 62% 50%;   /* red (matches destructive) */
 
     --scrollbar-track: 220 13% 8%;
     --scrollbar-thumb: 220 13% 26%;

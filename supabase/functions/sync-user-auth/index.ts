@@ -1,13 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { triggerNovuEvent } from "../_shared/novu.ts";
+import { buildCanonicalLink } from "../_shared/auth-links.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -78,7 +81,6 @@ serve(async (req) => {
     if (existingAuthUser) {
       console.log(`[sync-user-auth] User already exists in auth.users with ID: ${existingAuthUser.id}`);
       
-      // Check if IDs match
       if (existingAuthUser.id === publicUser.id) {
         return new Response(JSON.stringify({ 
           error: 'Usuário já está sincronizado corretamente',
@@ -89,7 +91,6 @@ serve(async (req) => {
         });
       }
 
-      // IDs don't match - update public.users to use auth.users ID
       console.log(`[sync-user-auth] ID mismatch. Updating public.users ID from ${publicUser.id} to ${existingAuthUser.id}`);
       
       const { error: updateError } = await supabaseAdmin
@@ -119,7 +120,6 @@ serve(async (req) => {
     // 3. User doesn't exist in auth.users - create it
     console.log('[sync-user-auth] Creating user in auth.users...');
     
-    // Generate secure temporary password
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
     let tempPassword = '';
     for (let i = 0; i < 12; i++) {
@@ -155,7 +155,6 @@ serve(async (req) => {
 
     if (updateIdError) {
       console.error('[sync-user-auth] Error updating public.users with new ID:', updateIdError);
-      // Try to delete the created auth user to avoid orphaned records
       await supabaseAdmin.auth.admin.deleteUser(newAuthUser.user.id);
       return new Response(JSON.stringify({ error: 'Erro ao sincronizar IDs' }), {
         status: 500,
@@ -163,13 +162,40 @@ serve(async (req) => {
       });
     }
 
+    // 5. Generate recovery link and send welcome email via Novu
+    let emailSent = false;
+    try {
+      const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email: normalizedEmail,
+        options: { redirectTo: 'https://academy.sanar.com.br/auth/update-password' }
+      });
+      const confirmationUrl = buildCanonicalLink({
+        properties: linkData?.properties ?? {},
+        redirectPath: '/auth/update-password',
+      });
+
+      const firstName = publicUser.nome.split(' ')[0];
+      const novuResult = await triggerNovuEvent({
+        name: 'welcome-academy-email',
+        payload: { name: publicUser.nome, email: normalizedEmail, confirmationUrl },
+        to: [{ subscriberId: newAuthUser.user.id, firstName, email: normalizedEmail }],
+      });
+      emailSent = novuResult.ok;
+      if (!emailSent) {
+        console.log('[sync-user-auth] Novu email failed:', novuResult.error);
+      }
+    } catch (err) {
+      console.error('[sync-user-auth] Error sending welcome email:', err);
+    }
+
     console.log('[sync-user-auth] Successfully synced user!');
 
     return new Response(JSON.stringify({ 
       success: true,
-      message: 'Usuário sincronizado com sucesso!',
+      message: 'Usuário sincronizado com sucesso! Email de acesso enviado.',
       user_id: newAuthUser.user.id,
-      temporary_password: tempPassword
+      emailSent
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

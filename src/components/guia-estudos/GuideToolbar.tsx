@@ -54,7 +54,7 @@ export const GuideToolbar: React.FC<GuideToolbarProps> = ({
           >
             <SelectValue placeholder="Selecione o semestre" />
           </SelectTrigger>
-          <SelectContent className="rounded-xl">
+          <SelectContent className="rounded-xl max-h-[300px] overflow-y-auto z-50 bg-popover">
             {semestres.map((sem) => (
               <SelectItem 
                 key={sem} 

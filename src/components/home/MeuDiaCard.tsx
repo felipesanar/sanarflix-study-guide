@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIesFeatures } from '@/hooks/useIesFeatures';
+import { UpcomingExamBanner } from './UpcomingExamBanner';
+import type { ExamInsight } from '@/types/progressHub';
 
 interface MeuDiaCardProps {
   items: MeuDiaItem[];
@@ -16,6 +19,12 @@ interface MeuDiaCardProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  // Exam props
+  nextExam?: ExamInsight | null;
+  examLoading?: boolean;
+  onAddExamClick?: () => void;
+  onEditExam?: (examId: string) => void;
+  onRemoveExam?: (examId: string) => void;
 }
 
 const iconMap: Record<string, any> = { BookOpen, Zap, BarChart3 };
@@ -45,6 +54,13 @@ const resolveIcon = (path?: string, icon?: string) => {
 // Empty state component
 const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
   const navigate = useNavigate();
+  const { hasFeature, loading: featuresLoading } = useIesFeatures();
+  
+  // Verificar se a IES tem acesso ao guia de estudos
+  const hasGuideAccess = hasFeature('studyGuide');
+  
+  // Só exibir botão se IES tem acesso ao guia E existe conteúdo do guia
+  const showCalendarButton = hasGuideAccess && hasStudyGuide;
   
   return (
     <div className="flex flex-col items-center justify-center py-6 sm:py-8 lg:py-10 px-4">
@@ -64,29 +80,23 @@ const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
       <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4 sm:mb-6 max-w-xs">
         {hasStudyGuide 
           ? "Você não tem matérias agendadas para hoje."
-          : "Configure seu plano de estudos para começar."
+          : "Nenhuma atividade programada."
         }
       </p>
 
-      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-        <Button
-          onClick={() => navigate(hasStudyGuide ? '/cronograma-enamed' : '/guia-estudos')}
-          variant="outline"
-          className="gap-2 rounded-lg sm:rounded-xl text-xs sm:text-sm h-9 sm:h-10"
-        >
-          {hasStudyGuide ? (
-            <>
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Configurar Calendário
-            </>
-          ) : (
-            <>
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              Configurar Guia de Estudos
-            </>
-          )}
-        </Button>
-      </motion.div>
+      {/* Botão só aparece para IES com acesso ao guia de estudos */}
+      {!featuresLoading && showCalendarButton && (
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={() => navigate('/guia-estudos?view=calendar')}
+            variant="outline"
+            className="gap-2 rounded-lg sm:rounded-xl text-xs sm:text-sm h-9 sm:h-10"
+          >
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            Configurar Calendário
+          </Button>
+        </motion.div>
+      )}
     </div>
   );
 };
@@ -142,7 +152,12 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
   hasStudyGuide,
   loading = false,
   error = null,
-  onRetry
+  onRetry,
+  nextExam,
+  examLoading = false,
+  onAddExamClick,
+  onEditExam,
+  onRemoveExam
 }) => {
   const navigate = useNavigate();
 
@@ -199,6 +214,17 @@ export const MeuDiaCard: React.FC<MeuDiaCardProps> = ({
       </div>
       
       <div className="relative px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6">
+        {/* Upcoming Exam Banner - only for users with study guide access */}
+        {onAddExamClick && hasStudyGuide && (
+          <UpcomingExamBanner
+            exam={nextExam ?? null}
+            loading={examLoading}
+            onAddExamClick={onAddExamClick}
+            onEditExam={onEditExam}
+            onRemoveExam={onRemoveExam}
+          />
+        )}
+
         {loading && <LoadingSkeleton />}
         
         {!loading && error && <ErrorState onRetry={onRetry} />}

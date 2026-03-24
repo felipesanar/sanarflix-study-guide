@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -474,6 +501,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      error_notebook_entries: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          especialidade: string | null
+          grande_area: string | null
+          id: string
+          learning_text: string | null
+          question_id: string | null
+          reason: string
+          simulado_id: string | null
+          simulado_nome: string | null
+          source: string
+          tema: string | null
+          updated_at: string
+          user_id: string
+          was_correct: boolean
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          especialidade?: string | null
+          grande_area?: string | null
+          id?: string
+          learning_text?: string | null
+          question_id?: string | null
+          reason: string
+          simulado_id?: string | null
+          simulado_nome?: string | null
+          source?: string
+          tema?: string | null
+          updated_at?: string
+          user_id: string
+          was_correct?: boolean
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          especialidade?: string | null
+          grande_area?: string | null
+          id?: string
+          learning_text?: string | null
+          question_id?: string | null
+          reason?: string
+          simulado_id?: string | null
+          simulado_nome?: string | null
+          source?: string
+          tema?: string | null
+          updated_at?: string
+          user_id?: string
+          was_correct?: boolean
+        }
+        Relationships: []
       }
       ies: {
         Row: {
@@ -1099,6 +1180,36 @@ export type Database = {
           },
         ]
       }
+      user_exams: {
+        Row: {
+          created_at: string | null
+          exam_date: string
+          exam_name: string
+          id: string
+          materia: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          exam_date: string
+          exam_name?: string
+          id?: string
+          materia: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          exam_date?: string
+          exam_name?: string
+          id?: string
+          materia?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           completed_at: string
@@ -1122,6 +1233,39 @@ export type Database = {
           created_at?: string
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_progress_nodes: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          node_id: string
+          node_type: Database["public"]["Enums"]["progress_node_type"]
+          source: Database["public"]["Enums"]["progress_source"]
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          node_id: string
+          node_type: Database["public"]["Enums"]["progress_node_type"]
+          source?: Database["public"]["Enums"]["progress_source"]
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          node_id?: string
+          node_type?: Database["public"]["Enums"]["progress_node_type"]
+          source?: Database["public"]["Enums"]["progress_source"]
           user_id?: string
         }
         Relationships: []
@@ -1196,6 +1340,7 @@ export type Database = {
           id_ies: string | null
           nome: string
           semestre: number | null
+          semestre_updated_at: string | null
         }
         Insert: {
           email: string
@@ -1203,6 +1348,7 @@ export type Database = {
           id_ies?: string | null
           nome: string
           semestre?: number | null
+          semestre_updated_at?: string | null
         }
         Update: {
           email?: string
@@ -1210,6 +1356,7 @@ export type Database = {
           id_ies?: string | null
           nome?: string
           semestre?: number | null
+          semestre_updated_at?: string | null
         }
         Relationships: [
           {
@@ -1226,6 +1373,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_theme: {
+        Args: { p_materia: string; p_subtema?: string; p_tema: string }
+        Returns: Json
+      }
       get_all_user_performance_by_area: {
         Args: never
         Returns: {
@@ -1261,6 +1412,12 @@ export type Database = {
       get_current_user_faculty: { Args: never; Returns: string }
       get_current_user_ies_id: { Args: never; Returns: string }
       get_current_user_semester: { Args: never; Returns: number }
+      get_distinct_semestres: {
+        Args: { p_ies_id: string }
+        Returns: {
+          semestre: string
+        }[]
+      }
       get_ies_features: {
         Args: { p_ies_id: string }
         Returns: {
@@ -1268,6 +1425,53 @@ export type Database = {
           feature_key: string
         }[]
       }
+      get_institutional_evolution:
+        | { Args: never; Returns: Json }
+        | { Args: { p_ies_id?: string }; Returns: Json }
+      get_institutional_performance:
+        | { Args: { p_simulado_id: string }; Returns: Json }
+        | { Args: { p_ies_id?: string; p_simulado_id: string }; Returns: Json }
+      get_institutional_question_details:
+        | {
+            Args: {
+              p_area?: string
+              p_simulado_id: string
+              p_specialty?: string
+              p_tema: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_area?: string
+              p_ies_id?: string
+              p_simulado_id: string
+              p_specialty?: string
+              p_tema: string
+            }
+            Returns: Json
+          }
+      get_institutional_simulados:
+        | {
+            Args: never
+            Returns: {
+              created_at: string
+              id: string
+              nome: string
+            }[]
+          }
+        | {
+            Args: { p_ies_id?: string }
+            Returns: {
+              created_at: string
+              id: string
+              nome: string
+            }[]
+          }
+      get_institutional_student_scores:
+        | { Args: { p_simulado_id: string }; Returns: Json }
+        | { Args: { p_ies_id?: string; p_simulado_id: string }; Returns: Json }
+      get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
         | {
             Args: { sub_name: string }
@@ -1359,9 +1563,15 @@ export type Database = {
         Args: { p_feature: string; p_ies_id: string }
         Returns: boolean
       }
+      uncomplete_theme: {
+        Args: { p_materia: string; p_subtema?: string; p_tema: string }
+        Returns: Json
+      }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "b2b_partner"
+      app_role: "admin" | "moderator" | "user" | "b2b_partner" | "professor"
+      progress_node_type: "aula" | "subtema" | "tema" | "materia"
+      progress_source: "manual" | "bulk" | "auto"
     }
     CompositeTypes: {
       question_details_type: {
@@ -1499,7 +1709,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "user", "b2b_partner"],
+      app_role: ["admin", "moderator", "user", "b2b_partner", "professor"],
+      progress_node_type: ["aula", "subtema", "tema", "materia"],
+      progress_source: ["manual", "bulk", "auto"],
     },
   },
 } as const
