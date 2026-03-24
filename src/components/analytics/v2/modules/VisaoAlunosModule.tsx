@@ -45,7 +45,10 @@ type SubView = 'ranking' | 'alunos' | 'temas';
 type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre' | 'risco';
 type SegmentFilter = 'todos' | 'destaque' | 'atencao' | 'risco' | 'oportunidade';
 
-// ── Tema summary for ranking ──
+function getRiskConfig(risk: RiskLevel) {
+  return { label: getRiskLabel(risk), variant: getRiskVariant(risk), color: getRiskColor(risk) };
+}
+
 interface TemaSummary {
   name: string;
   areaName: string;
