@@ -1,90 +1,52 @@
 
+Diagnóstico (na fonte dos dados)
 
-## Plano: Fase 0 — Fundação da V2 como plataforma multi-módulo
+- O erro não está só no frontend: há sobrecarga duplicada de RPCs no Supabase para os mesmos nomes.
+- Confirmação em banco: existem duas assinaturas para cada função institucional principal, por exemplo:
+  - `get_institutional_simulados()`
+  - `get_institutional_simulados(p_ies_id uuid)`
+- Com PostgREST/Supabase RPC, essa combinação gera exatamente o erro:  
+  “Could not choose the best candidate function…”
+- O `sw.js` está amplificando o problema visual (503 e logs de `Failed to fetch`), mas não é a causa raiz da ambiguidade da RPC.
+- Há também um problema de UX no hook: quando falha ao buscar simulados, o estado pode ficar em loading/skeleton sem feedback claro.
 
-### Objetivo
-Transformar a página atual (tela monolítica) em um shell modular com abas internas horizontais, estado global de filtros, e área de conteúdo dinâmica por módulo. O conteúdo existente da v2 vira o módulo "Visão Institucional". Os demais módulos nascem como placeholders com empty states.
+Plano de correção (implementação)
 
-### O que muda
+1) Corrigir a causa raiz no Supabase (migração única, canônica)
+- Criar migração para remover APENAS as assinaturas legadas ambíguas, mantendo as versões com `p_ies_id` opcional:
+  - `DROP FUNCTION IF EXISTS public.get_institutional_simulados();`
+  - `DROP FUNCTION IF EXISTS public.get_institutional_evolution();`
+  - `DROP FUNCTION IF EXISTS public.get_institutional_performance(uuid);`
+  - `DROP FUNCTION IF EXISTS public.get_institutional_student_scores(uuid);`
+  - `DROP FUNCTION IF EXISTS public.get_institutional_question_details(uuid, text, text, text);`
+- Resultado esperado: 1 assinatura por RPC institucional, sem ambiguidade.
 
-**1. Nova estrutura de página (`DesempenhoInstitucionalV2.tsx`)**
+2) Blindar chamadas frontend para coerência total
+- `src/hooks/useInstitutionalPerformanceData.ts`:
+  - manter chamadas sempre explícitas com `p_ies_id` quando aplicável.
+  - em falha de `get_institutional_simulados`, setar `error` e encerrar `loading` corretamente (sem loop de skeleton).
+  - evitar fallback silencioso para mock quando houver sessão autenticada e erro real de RPC (para não mascarar problema de dados).
+- `src/pages/DesempenhoInstitucional.tsx` (legado):
+  - parar de enviar `params` vazio ambíguo; normalizar chamada para assinatura canônica.
 
-A página passa a ter 3 blocos fixos + 1 dinâmico:
+3) Reduzir interferência do Service Worker no diagnóstico e navegação
+- `public/sw.js`:
+  - subir `CACHE_VERSION` (ex.: `sanarflix-v3`) para invalidar bundle antigo.
+  - evitar retornar 503 genérico para cenários não críticos de fetch (principalmente requisições cross-origin/ruído), preservando comportamento de navegação SPA.
+- Objetivo: impedir cache antigo de manter código desatualizado e reduzir falsos sintomas.
 
-```text
-┌─────────────────────────────────────────────┐
-│ InstitutionalHeader (título + filtros)      │
-│ InstitutionalAlertBanner (sanção)           │
-│ GlobalFilterBar (IES, simulado, período)    │
-├─────────────────────────────────────────────┤
-│ Tabs: Visão | Diagnóstico | Alunos |       │
-│       Insights | Inteligência               │
-├─────────────────────────────────────────────┤
-│ ModuleContent (dinâmico por aba ativa)      │
-└─────────────────────────────────────────────┘
-```
+4) Validação de ponta a ponta (dados reais)
+- Banco:
+  - consultar `pg_proc` e validar que cada RPC institucional ficou com assinatura única.
+- App:
+  - abrir `/desempenho-institucional-v2` e `/desempenho-institucional`.
+  - confirmar carregamento de simulados sem PGRST203.
+  - confirmar que, sem simulados, a UI mostra estado vazio explícito (não skeleton infinito).
+  - confirmar ausência de mistura não sinalizada entre dado real e hipotético.
 
-**2. Novos arquivos**
+Critérios de aceite
 
-| Arquivo | Propósito |
-|---|---|
-| `src/components/analytics/v2/shell/InstitutionalHeader.tsx` | Header extraído (título, subtítulo, badge) |
-| `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx` | Alert de sanção extraído |
-| `src/components/analytics/v2/shell/GlobalFilterBar.tsx` | Barra de filtros (IES, simulado, período) — mockada |
-| `src/components/analytics/v2/shell/PerformanceModuleTabs.tsx` | Abas horizontais com as 5 tabs |
-| `src/components/analytics/v2/shell/ModuleEmptyState.tsx` | Placeholder genérico "Em construção" para módulos futuros |
-| `src/components/analytics/v2/modules/VisaoInstitucionalModule.tsx` | Conteúdo atual (KPIs, meta, charts) extraído como módulo |
-| `src/hooks/useDesempenhoV2State.ts` | Estado global: aba ativa, filtros, contexto de drill-down |
-| `src/types/desempenhoV2.ts` | Tipos centralizados do estado global e filtros |
-
-**3. Hook de estado global (`useDesempenhoV2State`)**
-
-Estado mínimo gerenciado num único hook com `useState`:
-
-- `activeTab`: qual módulo está ativo (default: `visao-institucional`)
-- `filters`: `{ iesId, simuladoId, periodo, turmas }` — todos mockados
-- `setActiveTab` / `setFilters`: setters
-
-Trocar de aba preserva filtros. Trocar filtros não reseta aba.
-
-**4. Módulo "Visão Institucional"**
-
-O conteúdo atual da página (KPIs, Meta, Distância, Distribuição, Evolução) é movido para `VisaoInstitucionalModule.tsx` sem alteração visual. Recebe `filters` como prop (sem uso real ainda).
-
-**5. Módulos placeholder**
-
-Os 4 módulos restantes renderizam `ModuleEmptyState` com ícone, título e descrição contextual:
-- Diagnóstico Curricular — "Análise por área, especialidade e tema"
-- Visão de Alunos — "Ranking e acompanhamento individual"
-- Insights Pedagógicos — "Recomendações baseadas em dados"
-- Inteligência Decisória — "Simulação de impacto e priorização"
-
-**6. Skeleton por módulo**
-
-O skeleton da página continua para o loading inicial. Cada módulo terá capacidade de ter loading próprio (o VisaoInstitucionalModule já inclui o timer de 800ms).
-
-### O que NÃO muda
-
-- Nenhum backend, API ou hook existente
-- Nenhuma outra página do sistema
-- Design system, cores, tipografia
-- Rota permanece `/desempenho-institucional-v2`
-- Sidebar permanece igual
-
-### Detalhes técnicos
-
-- As abas usam o componente `Tabs/TabsList/TabsTrigger/TabsContent` do shadcn já existente
-- O `GlobalFilterBar` renderiza os mesmos `Select` que já existem no header, mas agora em posição dedicada abaixo do alert
-- Framer Motion mantido para animações de entrada
-- Console logs: `[DesempenhoV2:Shell]`, `[DesempenhoV2:VisaoInstitucional]`, etc.
-- Mobile: tabs com scroll horizontal (`overflow-x-auto`), filtros empilhados
-
-### Critérios de aceitação
-
-- Trocar de aba não perde filtros
-- Módulo Visão Institucional renderiza exatamente igual ao que está hoje
-- Abas restantes mostram empty state claro
-- Loading skeleton funciona
-- Responsivo em mobile (375px) e desktop
-- Zero erros no console
-
+- Nenhum log de ambiguidade de RPC para funções institucionais.
+- Simulados carregam corretamente para perfis permitidos.
+- Erros reais de dados ficam visíveis e acionáveis (sem mascaramento por mock).
+- Navegação não fica presa em 503 por cache antigo do SW.
