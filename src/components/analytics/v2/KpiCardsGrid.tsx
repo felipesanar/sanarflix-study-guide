@@ -32,7 +32,7 @@ interface Props {
 export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
   const [openModal, setOpenModal] = useState(false);
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {kpis.map((kpi, i) => {
         const Icon = iconMap[kpi.icon] || BarChart3;
         const isDetails = kpi.label === 'Alunos Abaixo do Esperado' && !!alunosAbaixo && alunosAbaixo.length > 0;
@@ -44,7 +44,10 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
             transition={{ delay: i * 0.05, duration: 0.3 }}
           >
             <Card
-              className={cn('transition-shadow duration-200 h-full', isDetails ? 'hover:shadow-md cursor-pointer' : 'hover:shadow-md')}
+              className={cn(
+                'transition-all duration-200 h-full border-border/70',
+                isDetails ? 'hover:shadow-md hover:border-primary/30 cursor-pointer' : 'hover:shadow-md'
+              )}
               onClick={isDetails ? () => setOpenModal(true) : undefined}
             >
               <CardContent className="p-4">
@@ -52,13 +55,13 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                   <div className={cn('p-2 rounded-lg shrink-0', statusBg[kpi.status])}>
                     <Icon className={cn('h-5 w-5', statusColors[kpi.status])} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{kpi.label}</p>
-                    <p className="text-xl font-bold mt-0.5 text-foreground">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1">{kpi.label}</p>
+                    <p className="text-xl font-bold text-foreground">
                       {kpi.value}
                     </p>
                     {kpi.description && (
-                      <p className="text-[10px] text-muted-foreground mt-1">{kpi.description}</p>
+                      <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-2 min-h-[1.75rem]">{kpi.description}</p>
                     )}
                     {isDetails && (
                       <div className="mt-2 inline-flex items-center gap-1 text-xs text-primary">

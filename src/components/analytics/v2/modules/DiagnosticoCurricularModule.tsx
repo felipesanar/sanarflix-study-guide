@@ -68,7 +68,7 @@ const CurricularRow: React.FC<{
     <button
       onClick={onClick}
       disabled={!onClick}
-      className="w-full flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group disabled:opacity-70 disabled:cursor-default"
+      className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group disabled:opacity-70 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
@@ -169,7 +169,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
   });
 
   return (
-    <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+    <motion.div className="space-y-4 sm:space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Search + Breadcrumb navigation */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
             onSelectTema={(area, sp, tema) => goToTemaDetail(area, sp, tema)}
           />
         </div>
-        <Breadcrumb>
+        <Breadcrumb className="overflow-x-auto">
           <BreadcrumbList>
             <BreadcrumbItem>
               {drill.level === 'areas' ? (

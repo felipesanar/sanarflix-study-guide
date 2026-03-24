@@ -200,7 +200,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" />
         <SummaryCard icon={TrendingUp} label="Proficientes" value={proficientes} color="text-emerald-600 dark:text-emerald-400" />
         <SummaryCard icon={Zap} label="Próximos de virar" value={oportunidade} color="text-blue-600 dark:text-blue-400" />
@@ -262,7 +262,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       )}
 
       {/* Sort controls */}
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground overflow-x-auto pb-1">
         <ArrowUpDown className="h-3.5 w-3.5" />
         <span>Ordenar por:</span>
         {subView === 'alunos' ? (
@@ -292,7 +292,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                   <button
                     key={`${s.nome}-${s.semestre}-${s.total}-${i}`}
                     onClick={() => setSelectedStudent(s)}
-                    className="w-full flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group"
+                    className="w-full flex items-center gap-3 sm:gap-4 px-3 py-3 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                       <User className="h-4 w-4 text-muted-foreground" />
@@ -334,7 +334,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                   <button
                     key={`${t.name}-${t.specialtyName}-${i}`}
                     onClick={() => setSelectedTema(t)}
-                    className="w-full flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group"
+                    className="w-full flex items-center gap-3 sm:gap-4 px-3 py-3 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">

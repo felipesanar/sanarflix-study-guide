@@ -267,7 +267,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
             return (
               <Card
                 key={insight.id}
-                className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                className="cursor-pointer hover:shadow-md transition-all border-l-4 border-border/70 hover:border-primary/30"
                 style={{ borderLeftColor: insight.type.includes('critical') ? 'hsl(var(--destructive))' : 'hsl(var(--primary))' }}
                 onClick={() => setSelectedInsight(insight)}
               >
@@ -310,7 +310,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
               <button
                 key={insight.id}
                 onClick={() => setSelectedInsight(insight)}
-                className="w-full flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors text-left group"
+                className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <div className={`p-2 rounded-lg ${cfg.bg} shrink-0`}>
                   <cfg.icon className={`h-4 w-4 ${cfg.color}`} />

@@ -166,7 +166,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto px-4 sm:px-6">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -174,7 +174,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-5 mt-4">
+        <div className="space-y-5 mt-4 pb-4">
           {/* Overview metrics */}
           <div className="grid grid-cols-2 gap-3">
             <MetricTile label="Acurácia" value={`${student.percentual}%`} color={getRiskColor(risk.level)} />
@@ -184,7 +184,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
           </div>
 
           {/* Risk assessment card */}
-          <Card className={risk.level === 'critico' ? 'bg-destructive/5 border-destructive/20' : risk.level === 'oportunidade' ? 'bg-blue-500/5 border-blue-500/20' : ''}>
+          <Card className={risk.level === 'critico' ? 'bg-destructive/5 border-destructive/20' : risk.level === 'oportunidade' ? 'bg-blue-500/5 border-blue-500/20' : 'border-border/70'}>
             <CardContent className="py-3 px-4">
               <div className="flex items-start gap-2">
                 {risk.level === 'critico' ? (
@@ -212,7 +212,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
             <h4 className="text-sm font-semibold mb-2">Fatores de Risco</h4>
             <div className="space-y-1.5">
               {risk.factors.map((f, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm">
+                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm border border-transparent">
                   <span className="text-muted-foreground">{f.label}</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-medium">{f.value}</span>
@@ -287,7 +287,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               </h4>
               <div className="space-y-1">
                 {criticalTemas.map(t => (
-                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-destructive/5 text-sm">
+                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-destructive/5 text-sm border border-destructive/10">
                     <div className="min-w-0">
                       <span className="font-medium truncate block">{t.name}</span>
                       <span className="text-xs text-muted-foreground">{t.area}</span>
@@ -307,7 +307,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               </h4>
               <div className="space-y-1">
                 {opportunityTemas.map(t => (
-                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-blue-500/5 text-sm">
+                  <div key={t.name} className="flex items-center justify-between p-2 rounded-md bg-blue-500/5 text-sm border border-blue-500/10">
                     <div className="min-w-0">
                       <span className="font-medium truncate block">{t.name}</span>
                       <span className="text-xs text-muted-foreground">{t.area}</span>

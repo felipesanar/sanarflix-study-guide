@@ -75,7 +75,7 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-5"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
@@ -95,7 +95,7 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MetaInstitucionalCard meta={data.meta} />
-        <Card className="hover:shadow-md transition-shadow duration-200">
+        <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <Target className="h-5 w-5 text-muted-foreground" />

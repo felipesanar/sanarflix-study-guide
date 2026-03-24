@@ -34,7 +34,7 @@ export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25, duration: 0.4 }}>
-      <Card className="hover:shadow-md transition-shadow duration-200">
+      <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
           {/* Sub-cards grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {subCards.map((sc) => (
-              <div key={sc.label} className="flex items-center gap-3 rounded-lg border p-3">
+              <div key={sc.label} className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/10 p-3">
                 <sc.icon className={cn('h-4 w-4 shrink-0', sc.color)} />
                 <div className="min-w-0">
                   <p className="text-[10px] text-muted-foreground">{sc.label}</p>

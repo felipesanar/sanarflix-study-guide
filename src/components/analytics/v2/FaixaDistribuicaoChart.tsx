@@ -14,20 +14,19 @@ export const FaixaDistribuicaoChart: React.FC<Props> = ({ faixas }) => {
   const maxIndex = 0;
   const minIndex = Math.max(0, sorted.length - 1);
 
-  const getExtremeFill = (_faixa: string, kind: 'max' | 'min') => {
-    return kind === 'max' ? 'hsl(0 72% 40%)' : 'hsl(0 72% 46%)';
+  const getExtremeFill = (kind: 'max' | 'min') => {
+    return kind === 'max' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
   };
 
   const getFill = (index: number) => {
-    if (index === maxIndex) return getExtremeFill(sorted[index].faixa, 'max');
-    if (index === minIndex) return getExtremeFill(sorted[index].faixa, 'min');
-    // Barras do meio em cinza mais escuro
-    return 'hsl(var(--muted-foreground))';
+    if (index === maxIndex) return getExtremeFill('max');
+    if (index === minIndex) return getExtremeFill('min');
+    return sorted[index].cor;
   };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.4 }}>
-      <Card className="hover:shadow-md transition-shadow duration-200">
+      <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-muted-foreground" />
@@ -37,26 +36,24 @@ export const FaixaDistribuicaoChart: React.FC<Props> = ({ faixas }) => {
         <CardContent>
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sorted} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
+              <BarChart data={sorted} layout="vertical" margin={{ left: 0, right: 18, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
                 <XAxis type="number" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis
                   type="category"
                   dataKey="faixa"
-                  width={100}
+                  width={110}
                   tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 />
                 <Tooltip
-                  formatter={(value: number, _name: string, props: any) => [
-                    `${value} alunos (${props.payload.percentual}%)`,
-                    'Quantidade',
-                  ]}
+                  formatter={(value: number) => [`${value} alunos`, 'Quantidade']}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                     fontSize: '12px',
                   }}
+                  labelStyle={{ fontSize: '11px', color: 'hsl(var(--muted-foreground))' }}
                 />
                 <Bar dataKey="quantidade" radius={[0, 6, 6, 0]} barSize={28}>
                   {sorted.map((f, i) => (

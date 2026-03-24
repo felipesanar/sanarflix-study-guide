@@ -18,7 +18,7 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.4 }}>
-      <Card className="hover:shadow-md transition-shadow duration-200">
+      <Card className="hover:shadow-md transition-shadow duration-200 border-border/70">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
@@ -26,10 +26,9 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
               <CardTitle className="text-base">Evolução entre Simulados</CardTitle>
             </div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="h-8">
+              <TabsList className="h-8 bg-muted/70">
                 <TabsTrigger value="proficiencia" className="text-xs px-3 h-6">Proficiência</TabsTrigger>
                 <TabsTrigger value="nota" className="text-xs px-3 h-6">Nota</TabsTrigger>
-                <TabsTrigger value="distribuicao" className="text-xs px-3 h-6" disabled>Distribuição por Faixa</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -42,6 +41,7 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
                 <XAxis dataKey="simulado" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                 <YAxis
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  width={34}
                   domain={activeTab === 'nota' ? [0, 5] : ['auto', 'auto']}
                 />
                 <Tooltip

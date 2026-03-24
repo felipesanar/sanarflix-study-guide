@@ -16,13 +16,14 @@ export const PerformanceModuleTabs: React.FC<Props> = ({ activeTab, onTabChange 
         onTabChange(value as DesempenhoV2Tab);
       }
     }}
+    className="w-full"
   >
-    <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1 bg-muted">
+    <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto rounded-lg border bg-muted/60 p-1.5 shadow-inner">
       {TAB_CONFIG.map((tab) => (
         <TabsTrigger
           key={tab.value}
           value={tab.value}
-          className="whitespace-nowrap text-xs sm:text-sm px-3 py-1.5 shrink-0"
+          className="whitespace-nowrap text-xs sm:text-sm px-3.5 py-2 shrink-0 min-h-9 rounded-md border border-transparent data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:shadow-sm hover:text-foreground/90"
           aria-label={`Abrir módulo ${tab.label}`}
         >
           {tab.label}
