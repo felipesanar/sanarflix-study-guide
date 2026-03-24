@@ -464,11 +464,11 @@ const DesempenhoInstitucional: React.FC = () => {
     setModalLoading(true);
     setModalQuestions([]);
 
-    const params: Record<string, string | undefined> = {
-      p_simulado_id: selectedSimulado,
+    const params = {
+      p_simulado_id: selectedSimulado!,
       p_tema: tema,
-      p_area: area,
-      p_specialty: specialty,
+      p_area: area || undefined,
+      p_specialty: specialty || undefined,
       p_ies_id: iesParam ?? undefined,
     };
 
