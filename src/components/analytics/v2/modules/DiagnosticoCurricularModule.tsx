@@ -152,8 +152,8 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {/* Breadcrumb navigation */}
-      <div className="flex items-center gap-3">
+      {/* Search bar */}
+      <div className="flex items-center gap-3 flex-wrap">
         {drill.level !== 'areas' && (
           <Button
             variant="ghost"
@@ -168,6 +168,13 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
+        <CurricularSearchBar
+          curricular={data.curricular}
+          onSelectArea={(area) => goToSpecialties(area)}
+          onSelectSpecialty={(area, sp) => goToTemas(area, sp)}
+          onSelectTema={(area, sp, tema) => goToTemaDetail(area, sp, tema)}
+        />
+      </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
