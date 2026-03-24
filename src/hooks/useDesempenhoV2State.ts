@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import type { DesempenhoV2Tab, DesempenhoV2Filters } from '@/types/desempenhoV2';
+import { useState, useCallback, useEffect } from 'react';
+import type { DesempenhoV2Tab, DesempenhoV2Filters, SimuladoOption } from '@/types/desempenhoV2';
 import { DEFAULT_FILTERS } from '@/types/desempenhoV2';
 
 export function useDesempenhoV2State() {
@@ -10,7 +10,13 @@ export function useDesempenhoV2State() {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 
-  console.log('[DesempenhoV2:Shell]', 'activeTab:', activeTab, 'filters:', filters);
+  // Auto-select first simulado when list arrives
+  const autoSelectSimulado = useCallback((simulados: SimuladoOption[]) => {
+    if (!filters.simuladoId && simulados.length > 0) {
+      console.log('[DesempenhoV2:Shell]', 'Auto-selecting simulado:', simulados[0].nome);
+      setFilters(prev => ({ ...prev, simuladoId: simulados[0].id }));
+    }
+  }, [filters.simuladoId]);
 
-  return { activeTab, setActiveTab, filters, setFilters, updateFilter };
+  return { activeTab, setActiveTab, filters, setFilters, updateFilter, autoSelectSimulado };
 }
