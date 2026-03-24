@@ -61,6 +61,33 @@ export interface IesOption {
   nome: string;
 }
 
+export interface CurricularNode {
+  name: string;
+  total: number;
+  acertos: number;
+  percentual: number;
+  /** How many students answered questions in this node */
+  prevalencia?: number;
+}
+
+export interface CurricularAreaNode extends CurricularNode {
+  specialties: CurricularSpecialtyNode[];
+}
+
+export interface CurricularSpecialtyNode extends CurricularNode {
+  areaName: string;
+  temas: CurricularTemaNode[];
+}
+
+export interface CurricularTemaNode extends CurricularNode {
+  areaName: string;
+  specialtyName: string;
+}
+
+export interface CurricularBreakdown {
+  areas: CurricularAreaNode[];
+}
+
 export interface InstitutionalViewModel {
   kpis: import('@/mocks/desempenhoInstitucionalV2').KpiData[];
   faixas: import('@/mocks/desempenhoInstitucionalV2').FaixaDistribuicao[];
@@ -69,6 +96,7 @@ export interface InstitutionalViewModel {
   distanciaFaixa: import('@/mocks/desempenhoInstitucionalV2').DistanciaFaixa[];
   alunosAbaixo: StudentScore[];
   headerSummary: HeaderSummary;
+  curricular: CurricularBreakdown;
 }
 
 export interface StudentScore {

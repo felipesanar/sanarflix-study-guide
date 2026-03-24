@@ -5,6 +5,10 @@ import type {
   RpcStudentScoresResponse,
   StudentScore,
   HeaderSummary,
+  CurricularBreakdown,
+  CurricularAreaNode,
+  CurricularSpecialtyNode,
+  CurricularTemaNode,
 } from '@/types/desempenhoV2';
 import type {
   KpiData,
