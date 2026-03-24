@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, ArrowLeft, AlertCircle, BookOpen, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
+import { CurricularSearchBar } from './CurricularSearchBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -151,22 +152,30 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
 
   return (
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      {/* Breadcrumb navigation */}
-      <div className="flex items-center gap-3">
-        {drill.level !== 'areas' && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => {
-              if (drill.level === 'specialties') goToAreas();
-              else if (drill.level === 'temas') goToSpecialties(drill.selectedArea!);
-              else if (drill.level === 'tema-detail') goToTemas(drill.selectedArea!, drill.selectedSpecialty!);
-            }}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        )}
+      {/* Search + Breadcrumb navigation */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          {drill.level !== 'areas' && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => {
+                if (drill.level === 'specialties') goToAreas();
+                else if (drill.level === 'temas') goToSpecialties(drill.selectedArea!);
+                else if (drill.level === 'tema-detail') goToTemas(drill.selectedArea!, drill.selectedSpecialty!);
+              }}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          )}
+          <CurricularSearchBar
+            curricular={data.curricular}
+            onSelectArea={(area) => goToSpecialties(area)}
+            onSelectSpecialty={(area, sp) => goToTemas(area, sp)}
+            onSelectTema={(area, sp, tema) => goToTemaDetail(area, sp, tema)}
+          />
+        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
