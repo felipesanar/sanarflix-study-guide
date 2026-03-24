@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type { DesempenhoV2Tab, DesempenhoV2Filters, SimuladoOption } from '@/types/desempenhoV2';
 import { DEFAULT_FILTERS } from '@/types/desempenhoV2';
 
@@ -10,6 +10,16 @@ export function useDesempenhoV2State() {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 
+  const clearFilters = useCallback(() => {
+    // Preserve simuladoId and iesId (primary selects), clear all multi-selects
+    setFilters(prev => ({
+      ...DEFAULT_FILTERS,
+      iesId: prev.iesId,
+      simuladoId: prev.simuladoId,
+    }));
+    console.log('[DesempenhoV2:Shell]', 'Filters cleared');
+  }, []);
+
   // Auto-select first simulado when list arrives
   const autoSelectSimulado = useCallback((simulados: SimuladoOption[]) => {
     if (!filters.simuladoId && simulados.length > 0) {
@@ -18,5 +28,5 @@ export function useDesempenhoV2State() {
     }
   }, [filters.simuladoId]);
 
-  return { activeTab, setActiveTab, filters, setFilters, updateFilter, autoSelectSimulado };
+  return { activeTab, setActiveTab, filters, setFilters, updateFilter, clearFilters, autoSelectSimulado };
 }

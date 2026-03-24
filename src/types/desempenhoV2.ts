@@ -10,6 +10,10 @@ export interface DesempenhoV2Filters {
   simuladoId: string;
   periodo: string;
   turmas: string[];
+  semestres: string[];
+  areas: string[];
+  especialidades: string[];
+  temas: string[];
 }
 
 export const DEFAULT_FILTERS: DesempenhoV2Filters = {
@@ -17,7 +21,25 @@ export const DEFAULT_FILTERS: DesempenhoV2Filters = {
   simuladoId: '',
   periodo: '',
   turmas: [],
+  semestres: [],
+  areas: [],
+  especialidades: [],
+  temas: [],
 };
+
+/** Count how many filters are actively set (non-default) */
+export function countActiveFilters(filters: DesempenhoV2Filters): number {
+  let count = 0;
+  if (filters.iesId) count++;
+  if (filters.simuladoId) count++;
+  if (filters.periodo) count++;
+  if (filters.turmas.length) count++;
+  if (filters.semestres.length) count++;
+  if (filters.areas.length) count++;
+  if (filters.especialidades.length) count++;
+  if (filters.temas.length) count++;
+  return count;
+}
 
 export const TAB_CONFIG: { value: DesempenhoV2Tab; label: string }[] = [
   { value: 'visao-institucional', label: 'Visão Institucional' },
