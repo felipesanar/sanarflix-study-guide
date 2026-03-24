@@ -464,13 +464,13 @@ const DesempenhoInstitucional: React.FC = () => {
     setModalLoading(true);
     setModalQuestions([]);
 
-    const params: any = {
+    const params: Record<string, string | undefined> = {
       p_simulado_id: selectedSimulado,
       p_tema: tema,
       p_area: area,
       p_specialty: specialty,
+      p_ies_id: iesParam ?? undefined,
     };
-    if (iesParam) params.p_ies_id = iesParam;
 
     const { data, error } = await supabase.rpc('get_institutional_question_details', params);
 
