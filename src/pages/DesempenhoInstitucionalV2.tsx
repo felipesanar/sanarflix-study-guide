@@ -11,6 +11,7 @@ import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptySta
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
 import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
 import { VisaoAlunosModule } from '@/components/analytics/v2/modules/VisaoAlunosModule';
+import { InsightsPedagogicosModule } from '@/components/analytics/v2/modules/InsightsPedagogicosModule';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
@@ -102,9 +103,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'insights-pedagogicos' && (
-          <ModuleEmptyState
-            title="Insights Pedagógicos"
-            description="Recomendações baseadas em dados com priorização por prevalência e impacto institucional."
+          <InsightsPedagogicosModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
         {activeTab === 'inteligencia-decisoria' && (
