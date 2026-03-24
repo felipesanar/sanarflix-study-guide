@@ -1425,52 +1425,36 @@ export type Database = {
           feature_key: string
         }[]
       }
-      get_institutional_evolution:
-        | { Args: never; Returns: Json }
-        | { Args: { p_ies_id?: string }; Returns: Json }
-      get_institutional_performance:
-        | { Args: { p_simulado_id: string }; Returns: Json }
-        | { Args: { p_ies_id?: string; p_simulado_id: string }; Returns: Json }
-      get_institutional_question_details:
-        | {
-            Args: {
-              p_area?: string
-              p_simulado_id: string
-              p_specialty?: string
-              p_tema: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_area?: string
-              p_ies_id?: string
-              p_simulado_id: string
-              p_specialty?: string
-              p_tema: string
-            }
-            Returns: Json
-          }
-      get_institutional_simulados:
-        | {
-            Args: never
-            Returns: {
-              created_at: string
-              id: string
-              nome: string
-            }[]
-          }
-        | {
-            Args: { p_ies_id?: string }
-            Returns: {
-              created_at: string
-              id: string
-              nome: string
-            }[]
-          }
-      get_institutional_student_scores:
-        | { Args: { p_simulado_id: string }; Returns: Json }
-        | { Args: { p_ies_id?: string; p_simulado_id: string }; Returns: Json }
+      get_institutional_evolution: {
+        Args: { p_ies_id?: string }
+        Returns: Json
+      }
+      get_institutional_performance: {
+        Args: { p_ies_id?: string; p_simulado_id: string }
+        Returns: Json
+      }
+      get_institutional_question_details: {
+        Args: {
+          p_area?: string
+          p_ies_id?: string
+          p_simulado_id: string
+          p_specialty?: string
+          p_tema: string
+        }
+        Returns: Json
+      }
+      get_institutional_simulados: {
+        Args: { p_ies_id?: string }
+        Returns: {
+          created_at: string
+          id: string
+          nome: string
+        }[]
+      }
+      get_institutional_student_scores: {
+        Args: { p_ies_id?: string; p_simulado_id: string }
+        Returns: Json
+      }
       get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
         | {
