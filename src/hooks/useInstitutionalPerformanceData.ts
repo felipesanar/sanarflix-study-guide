@@ -50,6 +50,75 @@ function getMockViewModel(): InstitutionalViewModel {
       alunosFaltamMeta: 55,
       sancao: 'Redução de 50% das vagas',
     },
+    curricular: {
+      areas: [
+        {
+          name: 'Clínica Médica', total: 200, acertos: 120, percentual: 60,
+          specialties: [
+            { name: 'Cardiologia', total: 50, acertos: 35, percentual: 70, areaName: 'Clínica Médica',
+              temas: [
+                { name: 'Insuficiência Cardíaca', total: 20, acertos: 16, percentual: 80, areaName: 'Clínica Médica', specialtyName: 'Cardiologia' },
+                { name: 'Hipertensão Arterial', total: 15, acertos: 9, percentual: 60, areaName: 'Clínica Médica', specialtyName: 'Cardiologia' },
+                { name: 'Arritmias', total: 15, acertos: 10, percentual: 66.7, areaName: 'Clínica Médica', specialtyName: 'Cardiologia' },
+              ],
+            },
+            { name: 'Endocrinologia', total: 40, acertos: 20, percentual: 50, areaName: 'Clínica Médica',
+              temas: [
+                { name: 'Diabetes Mellitus', total: 25, acertos: 12, percentual: 48, areaName: 'Clínica Médica', specialtyName: 'Endocrinologia' },
+                { name: 'Tireoide', total: 15, acertos: 8, percentual: 53.3, areaName: 'Clínica Médica', specialtyName: 'Endocrinologia' },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'Cirurgia', total: 150, acertos: 75, percentual: 50,
+          specialties: [
+            { name: 'Cirurgia Geral', total: 80, acertos: 44, percentual: 55, areaName: 'Cirurgia',
+              temas: [
+                { name: 'Abdome Agudo', total: 30, acertos: 18, percentual: 60, areaName: 'Cirurgia', specialtyName: 'Cirurgia Geral' },
+                { name: 'Hérnias', total: 25, acertos: 10, percentual: 40, areaName: 'Cirurgia', specialtyName: 'Cirurgia Geral' },
+                { name: 'Trauma', total: 25, acertos: 16, percentual: 64, areaName: 'Cirurgia', specialtyName: 'Cirurgia Geral' },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'Pediatria', total: 120, acertos: 48, percentual: 40,
+          specialties: [
+            { name: 'Neonatologia', total: 60, acertos: 21, percentual: 35, areaName: 'Pediatria',
+              temas: [
+                { name: 'Icterícia Neonatal', total: 20, acertos: 6, percentual: 30, areaName: 'Pediatria', specialtyName: 'Neonatologia' },
+                { name: 'Reanimação Neonatal', total: 20, acertos: 8, percentual: 40, areaName: 'Pediatria', specialtyName: 'Neonatologia' },
+                { name: 'Prematuridade', total: 20, acertos: 7, percentual: 35, areaName: 'Pediatria', specialtyName: 'Neonatologia' },
+              ],
+            },
+            { name: 'Puericultura', total: 60, acertos: 27, percentual: 45, areaName: 'Pediatria',
+              temas: [
+                { name: 'Crescimento e Desenvolvimento', total: 30, acertos: 15, percentual: 50, areaName: 'Pediatria', specialtyName: 'Puericultura' },
+                { name: 'Vacinação', total: 30, acertos: 12, percentual: 40, areaName: 'Pediatria', specialtyName: 'Puericultura' },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'Ginecologia e Obstetrícia', total: 100, acertos: 65, percentual: 65,
+          specialties: [
+            { name: 'Obstetrícia', total: 60, acertos: 42, percentual: 70, areaName: 'Ginecologia e Obstetrícia',
+              temas: [
+                { name: 'Pré-natal', total: 30, acertos: 24, percentual: 80, areaName: 'Ginecologia e Obstetrícia', specialtyName: 'Obstetrícia' },
+                { name: 'Parto', total: 30, acertos: 18, percentual: 60, areaName: 'Ginecologia e Obstetrícia', specialtyName: 'Obstetrícia' },
+              ],
+            },
+            { name: 'Ginecologia', total: 40, acertos: 23, percentual: 57.5, areaName: 'Ginecologia e Obstetrícia',
+              temas: [
+                { name: 'Câncer de Colo', total: 20, acertos: 14, percentual: 70, areaName: 'Ginecologia e Obstetrícia', specialtyName: 'Ginecologia' },
+                { name: 'Endometriose', total: 20, acertos: 9, percentual: 45, areaName: 'Ginecologia e Obstetrícia', specialtyName: 'Ginecologia' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   };
 }
 
