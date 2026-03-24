@@ -110,6 +110,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       else if (sortKey === 'percentual') cmp = a.percentual - b.percentual;
       else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - a.percentual) - (PROFICIENCY_THRESHOLD - b.percentual);
       else if (sortKey === 'semestre') cmp = a.semestre - b.semestre;
+      else if (sortKey === 'risco') {
+        const riskA = computeRiskAssessment(a, data?.curricular.areas ?? []);
+        const riskB = computeRiskAssessment(b, data?.curricular.areas ?? []);
+        cmp = riskB.score - riskA.score; // higher risk first
+      }
       return sortAsc ? cmp : -cmp;
     });
     return list;
