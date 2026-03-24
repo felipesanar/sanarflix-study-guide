@@ -9,6 +9,7 @@ import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar
 import { PerformanceModuleTabs } from '@/components/analytics/v2/shell/PerformanceModuleTabs';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { VisaoInstitucionalModule } from '@/components/analytics/v2/modules/VisaoInstitucionalModule';
+import { DiagnosticoCurricularModule } from '@/components/analytics/v2/modules/DiagnosticoCurricularModule';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 // Extract unique areas from student score data for filter options
@@ -84,9 +85,11 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           />
         )}
         {activeTab === 'diagnostico-curricular' && (
-          <ModuleEmptyState
-            title="Diagnóstico Curricular"
-            description="Análise por área, especialidade e tema com drill-down progressivo e navegação em árvore."
+          <DiagnosticoCurricularModule
+            data={data}
+            loading={loading}
+            error={error}
+            onRetry={refetch}
           />
         )}
         {activeTab === 'visao-alunos' && (

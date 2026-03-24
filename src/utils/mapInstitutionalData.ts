@@ -5,6 +5,10 @@ import type {
   RpcStudentScoresResponse,
   StudentScore,
   HeaderSummary,
+  CurricularBreakdown,
+  CurricularAreaNode,
+  CurricularSpecialtyNode,
+  CurricularTemaNode,
 } from '@/types/desempenhoV2';
 import type {
   KpiData,
@@ -192,12 +196,42 @@ export function mapInstitutionalRpcToViewModel(
     (a, b) => b.percentual - a.percentual,
   );
 
+  // ── Curricular breakdown (area → specialty → tema) ──
+  const temaNodes: CurricularTemaNode[] = (performance.bySubspecialty ?? []).map((t) => ({
+    name: t.name,
+    total: t.total,
+    acertos: t.acertos,
+    percentual: t.total > 0 ? Math.round((t.acertos / t.total) * 1000) / 10 : 0,
+    areaName: t.area_name,
+    specialtyName: t.specialty_name,
+  }));
+
+  const specialtyNodes: CurricularSpecialtyNode[] = (performance.bySpecialty ?? []).map((sp) => ({
+    name: sp.name,
+    total: sp.total,
+    acertos: sp.acertos,
+    percentual: sp.total > 0 ? Math.round((sp.acertos / sp.total) * 1000) / 10 : 0,
+    areaName: sp.area_name,
+    temas: temaNodes.filter((t) => t.specialtyName === sp.name && t.areaName === sp.area_name),
+  }));
+
+  const areaNodes: CurricularAreaNode[] = (performance.byArea ?? []).map((a) => ({
+    name: a.name,
+    total: a.total,
+    acertos: a.acertos,
+    percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 1000) / 10 : 0,
+    specialties: specialtyNodes.filter((sp) => sp.areaName === a.name),
+  }));
+
+  const curricular: CurricularBreakdown = { areas: areaNodes };
+
   console.log('[DesempenhoV2:Mapper]', 'Mapped:', {
     totalStudents,
     overallAccuracy,
     percentProficientes,
     conceito,
     faixas: faixaCounts,
+    curricularAreas: areaNodes.length,
   });
 
   return {
@@ -208,5 +242,6 @@ export function mapInstitutionalRpcToViewModel(
     distanciaFaixa,
     alunosAbaixo: alunosAbaixoSorted,
     headerSummary,
+    curricular,
   };
 }
