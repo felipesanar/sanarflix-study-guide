@@ -48,6 +48,7 @@ export interface StudentBelowExpected {
   distanciaAteProficiencia: number;
   turma: string;
   periodo: string;
+  semestre: number;
 }
 
 export const mockKpis: KpiData[] = [
@@ -95,14 +96,14 @@ export const mockDistanciaFaixa: DistanciaFaixa[] = [
 ];
 
 export const mockAlunosAbaixo: StudentBelowExpected[] = [
-  { nome: 'Ana Silva', proficienciaTri: 438, percentualAcerto: 54, distanciaAteProficiencia: 6, turma: 'Medicina A', periodo: '2024.2' },
-  { nome: 'Bruno Souza', proficienciaTri: 452, percentualAcerto: 57, distanciaAteProficiencia: 3, turma: 'Medicina B', periodo: '2024.2' },
-  { nome: 'Carla Mendes', proficienciaTri: 421, percentualAcerto: 50, distanciaAteProficiencia: 10, turma: 'Medicina A', periodo: '2024.2' },
-  { nome: 'Diego Ramos', proficienciaTri: 468, percentualAcerto: 59, distanciaAteProficiencia: 1, turma: 'Medicina C', periodo: '2024.2' },
-  { nome: 'Eduarda Lima', proficienciaTri: 445, percentualAcerto: 56, distanciaAteProficiencia: 4, turma: 'Medicina B', periodo: '2024.2' },
-  { nome: 'Felipe Rocha', proficienciaTri: 409, percentualAcerto: 48, distanciaAteProficiencia: 12, turma: 'Medicina A', periodo: '2024.2' },
-  { nome: 'Gabriela Nunes', proficienciaTri: 432, percentualAcerto: 53, distanciaAteProficiencia: 7, turma: 'Medicina C', periodo: '2024.2' },
-  { nome: 'Henrique Costa', proficienciaTri: 416, percentualAcerto: 49, distanciaAteProficiencia: 11, turma: 'Medicina B', periodo: '2024.2' },
-  { nome: 'Isabela Freitas', proficienciaTri: 440, percentualAcerto: 55, distanciaAteProficiencia: 5, turma: 'Medicina A', periodo: '2024.2' },
-  { nome: 'João Pereira', proficienciaTri: 458, percentualAcerto: 58, distanciaAteProficiencia: 2, turma: 'Medicina C', periodo: '2024.2' },
+  { nome: 'Ana Silva', proficienciaTri: 438, percentualAcerto: 54, distanciaAteProficiencia: 6, turma: 'Medicina A', periodo: '2024.2', semestre: 6 },
+  { nome: 'Bruno Souza', proficienciaTri: 452, percentualAcerto: 57, distanciaAteProficiencia: 3, turma: 'Medicina B', periodo: '2024.2', semestre: 7 },
+  { nome: 'Carla Mendes', proficienciaTri: 421, percentualAcerto: 50, distanciaAteProficiencia: 10, turma: 'Medicina A', periodo: '2024.2', semestre: 5 },
+  { nome: 'Diego Ramos', proficienciaTri: 468, percentualAcerto: 59, distanciaAteProficiencia: 1, turma: 'Medicina C', periodo: '2024.2', semestre: 8 },
+  { nome: 'Eduarda Lima', proficienciaTri: 445, percentualAcerto: 56, distanciaAteProficiencia: 4, turma: 'Medicina B', periodo: '2024.2', semestre: 6 },
+  { nome: 'Felipe Rocha', proficienciaTri: 409, percentualAcerto: 48, distanciaAteProficiencia: 12, turma: 'Medicina A', periodo: '2024.2', semestre: 4 },
+  { nome: 'Gabriela Nunes', proficienciaTri: 432, percentualAcerto: 53, distanciaAteProficiencia: 7, turma: 'Medicina C', periodo: '2024.2', semestre: 5 },
+  { nome: 'Henrique Costa', proficienciaTri: 416, percentualAcerto: 49, distanciaAteProficiencia: 11, turma: 'Medicina B', periodo: '2024.2', semestre: 4 },
+  { nome: 'Isabela Freitas', proficienciaTri: 440, percentualAcerto: 55, distanciaAteProficiencia: 5, turma: 'Medicina A', periodo: '2024.2', semestre: 7 },
+  { nome: 'João Pereira', proficienciaTri: 458, percentualAcerto: 58, distanciaAteProficiencia: 2, turma: 'Medicina C', periodo: '2024.2', semestre: 8 },
 ];

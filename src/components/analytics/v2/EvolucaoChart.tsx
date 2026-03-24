@@ -35,7 +35,7 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[260px] w-full">
+          <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={evolucao} margin={{ left: 0, right: 20, top: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />

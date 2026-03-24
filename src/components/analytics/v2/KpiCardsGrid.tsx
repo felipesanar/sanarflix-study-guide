@@ -79,8 +79,9 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                       Visualize proficiência (TRI), percentual de acerto e distância até a proficiência.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="grid grid-cols-5 gap-2 text-[11px] text-muted-foreground">
+                  <div className="grid grid-cols-6 gap-2 text-[11px] text-muted-foreground">
                     <div>Aluno</div>
+                    <div>Semestre</div>
                     <div>Proficiência (TRI)</div>
                     <div>% Acerto</div>
                     <div>Distância até 60</div>
@@ -90,8 +91,9 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                     {alunosAbaixo!.map((aluno) => {
                       const status = aluno.proficienciaTri >= 500 ? 'Proficiente' : 'Não proficiente';
                       return (
-                        <div key={aluno.nome} className="grid grid-cols-5 gap-2 text-sm">
+                        <div key={aluno.nome} className="grid grid-cols-6 gap-2 text-sm">
                           <div className="truncate">{aluno.nome}</div>
+                          <div>{aluno.semestre}º</div>
                           <div>{aluno.proficienciaTri}</div>
                           <div>{aluno.percentualAcerto}%</div>
                           <div>{aluno.distanciaAteProficiencia} pts</div>
