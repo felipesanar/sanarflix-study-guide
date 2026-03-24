@@ -214,6 +214,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         {subView === 'alunos' ? (
           <>
             <SortButton label="Acurácia" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
+            <SortButton label="Risco" active={sortKey === 'risco'} asc={sortAsc} onClick={() => toggleSort('risco')} />
             <SortButton label="Nome" active={sortKey === 'nome'} asc={sortAsc} onClick={() => toggleSort('nome')} />
             <SortButton label="Semestre" active={sortKey === 'semestre'} asc={sortAsc} onClick={() => toggleSort('semestre')} />
           </>
