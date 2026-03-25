@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
@@ -101,7 +101,15 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   const [sortKey, setSortKey] = useState<SortKey>('percentual');
   const [sortAsc, setSortAsc] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<SegmentFilter>('todos');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
   const [selectedStudent, setSelectedStudent] = useState<StudentScore | null>(null);
   const [selectedTema, setSelectedTema] = useState<TemaSummary | null>(null);
 
