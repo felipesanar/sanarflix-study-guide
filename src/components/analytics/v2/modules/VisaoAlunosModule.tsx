@@ -173,7 +173,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     );
   }
 
-  if (data.alunosAbaixo.length === 0) {
+  if (data.allStudents.length === 0) {
     return (
       <ModuleEmptyState
         title="Sem alunos no recorte atual"
