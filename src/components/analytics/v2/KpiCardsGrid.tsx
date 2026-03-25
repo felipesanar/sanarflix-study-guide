@@ -85,27 +85,20 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                       <thead>
                         <tr className="border-b text-xs text-muted-foreground">
                           <th className="text-left py-2 pr-4 font-medium">Aluno</th>
-                          <th className="text-center py-2 px-2 font-medium">Sem.</th>
+                          <th className="text-center py-2 px-2 font-medium">Proficiência (TRI)</th>
                           <th className="text-center py-2 px-2 font-medium">Acerto</th>
                           <th className="text-center py-2 px-2 font-medium">Distância</th>
-                          <th className="text-center py-2 pl-2 font-medium">Status</th>
+                          <th className="text-center py-2 pl-2 font-medium">Sem.</th>
                         </tr>
                       </thead>
                       <tbody>
                         {alunosAbaixo!.map((aluno) => (
                           <tr key={aluno.nome} className="border-b border-border/40 last:border-0">
                             <td className="py-2 pr-4 truncate max-w-[180px]">{aluno.nome}</td>
-                            <td className="py-2 px-2 text-center text-muted-foreground">{aluno.semestre}º</td>
+                            <td className="py-2 px-2 text-center font-medium">{aluno.proficienciaTri}</td>
                             <td className="py-2 px-2 text-center font-medium">{aluno.percentualAcerto}%</td>
                             <td className="py-2 px-2 text-center text-muted-foreground">{aluno.distanciaAteProficiencia} pts</td>
-                            <td className="py-2 pl-2 text-center">
-                              <span className={cn(
-                                'text-xs font-medium',
-                                aluno.percentualAcerto >= 60 ? 'text-emerald-600' : 'text-destructive'
-                              )}>
-                                {aluno.percentualAcerto >= 60 ? 'Proficiente' : 'Abaixo'}
-                              </span>
-                            </td>
+                            <td className="py-2 pl-2 text-center text-muted-foreground">{aluno.semestre}º</td>
                           </tr>
                         ))}
                       </tbody>
