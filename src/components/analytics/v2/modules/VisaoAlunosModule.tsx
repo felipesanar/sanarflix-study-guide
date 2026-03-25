@@ -191,10 +191,10 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   }
 
   // Summary stats
-  const totalStudents = data.headerSummary.totalAlunos;
-  const proficientes = Math.max(0, totalStudents - data.alunosAbaixo.length);
-  const oportunidade = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
-  const criticos = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
+  const totalStudents = data.allStudents.length;
+  const proficientes = data.allStudents.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
+  const oportunidade = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
+  const criticos = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
 
   console.log('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
