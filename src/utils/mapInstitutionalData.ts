@@ -164,22 +164,22 @@ export function mapInstitutionalRpcToViewModel(
   // ── Distância para próxima faixa ──
   const distanciaFaixa: DistanciaFaixa[] = [
     {
-      label: 'Próximos de avançar (até 10pp)',
+      label: 'Próximos de avançar (até 10pts)',
       value: `${proximosDeAvancar.length} alunos`,
       status: 'good' as const,
-      description: `A menos de 10pp da proficiência (${PROFICIENCY_THRESHOLD}%)`,
+      description: `A menos de 10pts da proficiência (${PROFICIENCY_THRESHOLD}%)`,
     },
     {
-      label: 'Distância moderada (10-20pp)',
+      label: 'Distância moderada (10-20pts)',
       value: `${abaixo.filter((s) => s.percentual >= PROFICIENCY_THRESHOLD - 20 && s.percentual < PROFICIENCY_THRESHOLD - 10).length} alunos`,
       status: 'neutral' as const,
-      description: 'Entre 10pp e 20pp da proficiência',
+      description: 'Entre 10pts e 20pts da proficiência',
     },
     {
-      label: 'Muito abaixo (>20pp)',
+      label: 'Muito abaixo (>20pts)',
       value: `${abaixo.filter((s) => s.percentual < PROFICIENCY_THRESHOLD - 20).length} alunos`,
       status: 'critical' as const,
-      description: 'Mais de 20pp da proficiência',
+      description: 'Mais de 20pts da proficiência',
     },
   ];
 

@@ -248,7 +248,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
         {drill.level === 'areas' && (
           <motion.div key="areas" className="space-y-2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">{areas.length} grandes áreas • ordenadas por acurácia</p>
+              <p className="text-sm text-muted-foreground">{areas.length} grandes áreas • ordenadas por percentual de acertos</p>
             </div>
             {areas.map((area) => (
               <CurricularRow
@@ -386,7 +386,7 @@ const TemaDetailPanel: React.FC<{
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Gap p/ Proficiência</p>
               <p className={`text-2xl font-bold ${gap > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {gap > 0 ? `${gap} pp` : '✓'}
+                {gap > 0 ? `${gap} pts` : '✓'}
               </p>
             </div>
           </div>
@@ -425,9 +425,9 @@ const TemaDetailPanel: React.FC<{
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {isCritical
-                  ? `Mais de 10pp abaixo da proficiência (${PROFICIENCY_THRESHOLD}%). Requer intervenção prioritária.`
+                  ? `Mais de 10pts abaixo da proficiência (${PROFICIENCY_THRESHOLD}%). Requer intervenção prioritária.`
                   : isOpportunity
-                    ? `Próximo da proficiência — a menos de 10pp. Intervenção focada pode gerar resultados rápidos.`
+                    ? `Próximo da proficiência — a menos de 10pts. Intervenção focada pode gerar resultados rápidos.`
                     : `Acima do limiar de proficiência. Manter monitoramento.`
                 }
               </p>
@@ -441,19 +441,19 @@ const TemaDetailPanel: React.FC<{
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">vs. Área ({area.name})</span>
                 <span className={`font-medium ${tema.percentual >= area.percentual ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {tema.percentual >= area.percentual ? '+' : ''}{Math.round((tema.percentual - area.percentual) * 10) / 10} pp
+                  {tema.percentual >= area.percentual ? '+' : ''}{Math.round((tema.percentual - area.percentual) * 10) / 10} pts
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">vs. Especialidade ({specialty.name})</span>
                 <span className={`font-medium ${tema.percentual >= specialty.percentual ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {tema.percentual >= specialty.percentual ? '+' : ''}{Math.round((tema.percentual - specialty.percentual) * 10) / 10} pp
+                  {tema.percentual >= specialty.percentual ? '+' : ''}{Math.round((tema.percentual - specialty.percentual) * 10) / 10} pts
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">vs. Proficiência ({PROFICIENCY_THRESHOLD}%)</span>
                 <span className={`font-medium ${gap <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {gap <= 0 ? '+' : '-'}{Math.abs(Math.round((tema.percentual - PROFICIENCY_THRESHOLD) * 10) / 10)} pp
+                  {gap <= 0 ? '+' : '-'}{Math.abs(Math.round((tema.percentual - PROFICIENCY_THRESHOLD) * 10) / 10)} pts
                 </span>
               </div>
             </div>

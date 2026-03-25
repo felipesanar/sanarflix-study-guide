@@ -50,7 +50,7 @@ export function computeRiskAssessment(student: StudentScore, _areas: CurricularA
   const factors: RiskAssessment['factors'] = [];
   factors.push({
     label: 'Gap de proficiência',
-    value: `${gap}pp`,
+    value: `${gap}pts`,
     severity: gap >= 15 ? 'high' : gap >= 5 ? 'medium' : 'low',
   });
 
@@ -66,7 +66,7 @@ export function computeRiskAssessment(student: StudentScore, _areas: CurricularA
   }
 
   factors.push({
-    label: 'Acurácia geral',
+    label: 'Percentual de acertos',
     value: `${student.percentual}% (${student.acertos}/${student.total})`,
     severity: student.percentual < 45 ? 'high' : student.percentual < 55 ? 'medium' : 'low',
   });
@@ -76,15 +76,15 @@ export function computeRiskAssessment(student: StudentScore, _areas: CurricularA
 
   switch (level) {
     case 'critico':
-      justification = `Distante ${gap}pp da proficiência. ${weakAreas.length > 0 ? `Apresenta fragilidade em ${weakAreas.length} área(s): ${weakAreas.join(', ')}.` : 'Desempenho baixo generalizado.'} Score de risco ${score}/100.`;
+      justification = `Distante ${gap}pts da proficiência. ${weakAreas.length > 0 ? `Apresenta fragilidade em ${weakAreas.length} área(s): ${weakAreas.join(', ')}.` : 'Desempenho baixo generalizado.'} Score de risco ${score}/100.`;
       recommendation = 'Plano de recuperação estrutural com tutoria individualizada, reforço nos temas mais críticos e acompanhamento semanal.';
       break;
     case 'atencao':
-      justification = `A ${gap}pp da proficiência. ${weakAreas.length > 0 ? `Precisa melhorar em ${weakAreas.join(', ')}.` : 'Desempenho intermediário.'} Score de risco ${score}/100.`;
+      justification = `A ${gap}pts da proficiência. ${weakAreas.length > 0 ? `Precisa melhorar em ${weakAreas.join(', ')}.` : 'Desempenho intermediário.'} Score de risco ${score}/100.`;
       recommendation = 'Monitoramento próximo com revisão focada nos temas de maior gap. Sessões de reforço em grupo podem ser eficazes.';
       break;
     case 'oportunidade':
-      justification = `Muito próximo da proficiência — apenas ${gap}pp. Pequena melhoria pode resultar em reclassificação como proficiente. Score de risco ${score}/100.`;
+      justification = `Muito próximo da proficiência — apenas ${gap}pts. Pequena melhoria pode resultar em reclassificação como proficiente. Score de risco ${score}/100.`;
       recommendation = 'Intervenção focada e pontual. Revisar 2-3 temas mais fracos pode ser suficiente para cruzar o limiar.';
       break;
     default:
@@ -177,8 +177,8 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
         <div className="space-y-5 mt-4 pb-4">
           {/* Overview metrics */}
           <div className="grid grid-cols-2 gap-3">
-            <MetricTile label="Acurácia" value={`${student.percentual}%`} color={getRiskColor(risk.level)} />
-            <MetricTile label="Gap p/ proficiência" value={gap > 0 ? `${gap}pp` : '✓'} color={gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'} />
+            <MetricTile label="Percentual Médio de Acertos" value={`${student.percentual}%`} color={getRiskColor(risk.level)} />
+            <MetricTile label="Gap p/ proficiência" value={gap > 0 ? `${gap}pts` : '✓'} color={gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'} />
             <MetricTile label="Semestre" value={`${student.semestre}º`} />
             <MetricTile label="Score de Risco" value={`${risk.score}/100`} color={getRiskColor(risk.level)} />
           </div>

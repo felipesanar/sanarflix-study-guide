@@ -68,10 +68,10 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
         id: `area-${area.name}`,
         type: 'critical-area',
         title: `Área ${area.name} abaixo da proficiência`,
-        description: `${area.name} está a ${gap.toFixed(0)}pp da proficiência com ${area.specialties.length} especialidades e ${area.total} questões no simulado.`,
+        description: `${area.name} está a ${gap.toFixed(0)}pts da proficiência com ${area.specialties.length} especialidades e ${area.total} questões no simulado.`,
         priority,
         priorityFactors: [
-          { label: 'Gap', value: `${gap.toFixed(0)}pp` },
+          { label: 'Gap', value: `${gap.toFixed(0)}pts` },
           { label: 'Prevalência', value: `${areaPrevalencia.toFixed(0)}%` },
           { label: 'Especialidades', value: String(area.specialties.length) },
         ],
@@ -97,11 +97,11 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             id: `critical-${tema.name}-${sp.name}`,
             type: 'critical-tema',
             title: `${tema.name} é crítico`,
-            description: `Apenas ${tema.percentual}% de acurácia em ${tema.name} (${sp.name}). Tema requer intervenção prioritária.`,
+            description: `Apenas ${tema.percentual}% de acerto em ${tema.name} (${sp.name}). Tema requer intervenção prioritária.`,
             priority,
             priorityFactors: [
-              { label: 'Acurácia', value: `${tema.percentual}%` },
-              { label: 'Gap', value: `${gap}pp` },
+              { label: 'Acerto', value: `${tema.percentual}%` },
+              { label: 'Gap', value: `${gap}pts` },
               { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
               { label: 'Alunos afetados', value: `~${alunosAfetados}` },
             ],
@@ -121,10 +121,10 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             id: `opportunity-${tema.name}-${sp.name}`,
             type: 'quick-win',
             title: `${tema.name} é quick win`,
-            description: `A apenas ${gap}pp da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
+            description: `A apenas ${gap}pts da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
             priority,
             priorityFactors: [
-              { label: 'Gap', value: `${gap}pp` },
+              { label: 'Gap', value: `${gap}pts` },
               { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
               { label: 'Alunos próximos', value: `~${alunosAfetados}` },
             ],
@@ -143,10 +143,10 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             id: `strength-${tema.name}-${sp.name}`,
             type: 'strength',
             title: `${tema.name} é ponto forte`,
-            description: `${tema.percentual}% de acurácia. Manter monitoramento e usar como referência.`,
+            description: `${tema.percentual}% de acerto. Manter monitoramento e usar como referência.`,
             priority: 10,
             priorityFactors: [
-              { label: 'Acurácia', value: `${tema.percentual}%` },
+              { label: 'Acerto', value: `${tema.percentual}%` },
               { label: 'Questões', value: String(tema.total) },
             ],
             areaName: area.name,
@@ -281,7 +281,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                   </div>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
                     <span>Prioridade: {Math.round(insight.priority)}/100</span>
-                    <span>{insight.gap > 0 ? `${insight.gap}pp gap` : `${insight.percentual}%`}</span>
+                    <span>{insight.gap > 0 ? `${insight.gap}pts gap` : `${insight.percentual}%`}</span>
                   </div>
                   <Progress value={insight.priority} className="h-1.5 mt-1.5" />
                 </CardContent>
@@ -458,7 +458,7 @@ const InsightDetailSheet: React.FC<{
           {/* Metrics */}
           <div className="grid grid-cols-3 gap-3">
             <div className="p-3 rounded-lg bg-muted/50 text-center">
-              <p className="text-xs text-muted-foreground">Acurácia</p>
+              <p className="text-xs text-muted-foreground">Percentual Médio de Acertos</p>
               <p className={`text-xl font-bold ${cfg.color}`}>{insight.percentual}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 text-center">
@@ -482,7 +482,7 @@ const InsightDetailSheet: React.FC<{
                     {insight.type === 'critical-tema' || insight.type === 'critical-area'
                       ? `Priorizar revisão de conteúdo e reforço em ${insight.temaName ?? insight.areaName}. Considerar atividades de recuperação dirigida para os ${insight.alunosAfetados} alunos afetados.`
                       : insight.type === 'quick-win'
-                        ? `Investir em intervenção focada — faltam apenas ${insight.gap}pp para proficiência. Potencial de mover ~${insight.alunosAfetados} alunos para faixa proficiente com esforço direcionado.`
+                        ? `Investir em intervenção focada — faltam apenas ${insight.gap}pts para proficiência. Potencial de mover ~${insight.alunosAfetados} alunos para faixa proficiente com esforço direcionado.`
                         : `Manter monitoramento de ${insight.temaName}. Usar como referência de boas práticas para áreas com desempenho inferior.`}
                   </p>
                 </div>

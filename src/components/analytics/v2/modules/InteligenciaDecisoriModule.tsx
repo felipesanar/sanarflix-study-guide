@@ -41,7 +41,7 @@ interface DecisionItem {
   gap: number;
   prevalencia: number;
   alunosAfetados: number;
-  impactoPotencial: number; // estimated pp gain on institutional %
+  impactoPotencial: number; // estimated pts gain on institutional %
   compositeScore: number;
   justification: string;
   areaName: string;
@@ -108,13 +108,13 @@ function buildDecisionItems(data: InstitutionalViewModel): DecisionItem[] {
 
 function buildJustification(tema: string, gap: number, prev: number, alunos: number, impacto: number): string {
   const parts: string[] = [];
-  if (gap >= 15) parts.push(`distante ${gap}pp da proficiência`);
-  else if (gap >= 5) parts.push(`a ${gap}pp da proficiência`);
-  else parts.push(`muito próximo da proficiência (${gap}pp)`);
+  if (gap >= 15) parts.push(`distante ${gap}pts da proficiência`);
+  else if (gap >= 5) parts.push(`a ${gap}pts da proficiência`);
+  else parts.push(`muito próximo da proficiência (${gap}pts)`);
 
   if (prev >= 5) parts.push(`alta prevalência no simulado (${prev.toFixed(0)}%)`);
   if (alunos >= 5) parts.push(`afeta ~${alunos} alunos`);
-  if (impacto >= 1) parts.push(`potencial de +${impacto}pp no índice institucional`);
+  if (impacto >= 1) parts.push(`potencial de +${impacto}pts no índice institucional`);
 
   return `${tema} é prioritário porque: ${parts.join('; ')}.`;
 }
@@ -422,12 +422,12 @@ const DecisionDetailSheet: React.FC<{
                 <span className="text-xl font-bold">{item.compositeScore}</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <MetricBox label="Acurácia" value={`${item.percentual}%`} />
-                <MetricBox label="Gap" value={`${item.gap}pp`} />
+                <MetricBox label="Percentual Médio de Acertos" value={`${item.percentual}%`} />
+                <MetricBox label="Gap" value={`${item.gap}pts`} />
                 <MetricBox label="Prevalência" value={`${item.prevalencia.toFixed(1)}%`} />
                 <MetricBox label="Questões" value={String(item.questoes)} />
                 <MetricBox label="Alunos afetados" value={`~${item.alunosAfetados}`} />
-                <MetricBox label="Impacto potencial" value={`+${item.impactoPotencial}pp`} highlight />
+                <MetricBox label="Impacto potencial" value={`+${item.impactoPotencial}pts`} highlight />
               </div>
             </CardContent>
           </Card>
