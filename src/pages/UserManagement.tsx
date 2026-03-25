@@ -9,13 +9,18 @@ import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
 import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
 import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload } from 'lucide-react';
+import { isAdmin, isAtendimento } from '@/utils/accessRules';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
 
-  const isAdmin = user?.roles?.includes('admin') || false;
+  const userIsAdmin = isAdmin(user);
+  const userIsAtendimento = isAtendimento(user);
+  const hasAccess = userIsAdmin || userIsAtendimento;
 
-  if (!isAdmin) {
+  console.log('[Auth] user role loaded:', user?.roles);
+
+  if (!hasAccess) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md p-8 bg-card rounded-lg shadow-lg text-center">
