@@ -15,7 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
-import { isAdmin, isProfessor, isB2BPartner } from "@/utils/accessRules";
+import { isAdmin, isProfessor, isB2BPartner, isGestor, isAtendimento } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,
@@ -170,8 +170,9 @@ export function AppSidebar() {
     if (item.accessKey === "simulados") return accessRules.simulados;
     if (item.accessKey === "errorNotebook") return isAdmin(user);
     if (item.accessKey === "analytics") return isAdmin(user);
-    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user);
-    return accessRules[item.accessKey];
+    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user) || isGestor(user);
+    if (item.accessKey === "userManagement") return isAdmin(user) || isAtendimento(user);
+    return accessRules[(item as (typeof menuItems)[number]).accessKey];
   });
 
   return (
