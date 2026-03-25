@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileDown, Sparkles } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { FileDown, Sparkles, Bug, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 import { useDesempenhoV2State } from '@/hooks/useDesempenhoV2State';
@@ -17,7 +18,7 @@ import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
 function extractAreasFromData(data: InstitutionalViewModel) {
   const areas = new Set<string>();
-  data.alunosAbaixo.forEach((s) => {
+  data.allStudents.forEach((s) => {
     Object.keys(s.scoresByArea).forEach((a) => areas.add(a));
   });
   return Array.from(areas).sort().map((a) => ({ id: a, label: a }));
@@ -25,7 +26,7 @@ function extractAreasFromData(data: InstitutionalViewModel) {
 
 function extractSemestresFromData(data: InstitutionalViewModel) {
   const sems = new Set<string>();
-  data.alunosAbaixo.forEach((s) => {
+  data.allStudents.forEach((s) => {
     if (s.semestre) sems.add(String(s.semestre));
   });
   return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
@@ -49,7 +50,50 @@ function extractTemasFromData(data: InstitutionalViewModel) {
   return Array.from(temas).sort().map((value) => ({ id: value, label: value }));
 }
 
+const DebugPanel: React.FC<{ data: InstitutionalViewModel | null; filteredData: InstitutionalViewModel | null }> = ({ data, filteredData }) => {
+  const [open, setOpen] = useState(false);
+
+  if (!data) return null;
+
+  const summary = {
+    raw: {
+      allStudents: data.allStudents.length,
+      alunosAbaixo: data.alunosAbaixo.length,
+      areas: data.curricular.areas.length,
+      temas: data.curricular.areas.reduce((s, a) => s + a.specialties.reduce((ss, sp) => ss + sp.temas.length, 0), 0),
+      percentProficientes: data.headerSummary.percentProficientes,
+    },
+    filtered: filteredData ? {
+      allStudents: filteredData.allStudents.length,
+      alunosAbaixo: filteredData.alunosAbaixo.length,
+      areas: filteredData.curricular.areas.length,
+      temas: filteredData.curricular.areas.reduce((s, a) => s + a.specialties.reduce((ss, sp) => ss + sp.temas.length, 0), 0),
+      percentProficientes: filteredData.headerSummary.percentProficientes,
+    } : null,
+  };
+
+  return (
+    <div className="rounded-lg border border-dashed border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 text-xs font-mono text-amber-700 dark:text-amber-400 w-full"
+      >
+        <Bug className="h-3.5 w-3.5" />
+        <span>Debug Mode</span>
+        {open ? <ChevronUp className="h-3.5 w-3.5 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto" />}
+      </button>
+      {open && (
+        <pre className="mt-3 text-[10px] font-mono text-amber-800 dark:text-amber-300 overflow-auto max-h-64 whitespace-pre-wrap">
+          {JSON.stringify(summary, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+};
+
 const DesempenhoInstitucionalV2: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const isDebug = searchParams.get('debug') === 'true';
   const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
   const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
   const [exportOpen, setExportOpen] = useState(false);
@@ -72,6 +116,9 @@ const DesempenhoInstitucionalV2: React.FC = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
+      {/* Debug panel */}
+      {isDebug && <DebugPanel data={data} filteredData={filteredData} />}
+
       {/* Header area */}
       <div className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
