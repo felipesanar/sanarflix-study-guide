@@ -103,8 +103,8 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   if (q.includes('ação') || q.includes('urgente') || q.includes('intervenção')) {
     return `**3 ações mais urgentes:**\n\n` +
       `1. **Reforço em temas críticos** — Focar nos temas com <50% de acurácia com sessões intensivas.\n` +
-      `2. **Tutoria para alunos próximos** — Os ${data.alunosAbaixo.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
-      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.alunosAbaixo.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
+      `2. **Tutoria para alunos próximos** — Os ${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
+      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.allStudents.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
       `_Estas recomendações são baseadas nos dados do simulado atual._`;
   }
 
