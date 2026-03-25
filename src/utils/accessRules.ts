@@ -70,6 +70,22 @@ export const isB2BPartner = (user: User | null): boolean => {
 };
 
 /**
+ * Verifica se usuário é gestor
+ */
+export const isGestor = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.includes('gestor') || false;
+};
+
+/**
+ * Verifica se usuário é atendimento
+ */
+export const isAtendimento = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.includes('atendimento') || false;
+};
+
+/**
  * Obtém regras de acesso baseadas no usuário
  * 
  * Hierarquia de permissões:
@@ -122,6 +138,22 @@ export const getAccessRules = (user: User | null): AccessRules => {
     return {
       ...DEFAULT_RULES,
       desempenhoInstitucional: true,
+    };
+  }
+
+  // Gestor: acesso ao desempenho institucional
+  if (isGestor(user)) {
+    return {
+      ...DEFAULT_RULES,
+      desempenhoInstitucional: true,
+    };
+  }
+
+  // Atendimento: acesso ao portal do admin (apenas aba Usuários)
+  if (isAtendimento(user)) {
+    return {
+      ...DEFAULT_RULES,
+      userManagement: true,
     };
   }
 
