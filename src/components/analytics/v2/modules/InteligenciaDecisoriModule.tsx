@@ -382,7 +382,7 @@ const DecisionDetailSheet: React.FC<{
   const cfg = categoryConfig[item.category];
 
   // Related students
-  const relatedStudents = data.alunosAbaixo
+  const relatedStudents = data.allStudents
     .map(s => ({
       ...s,
       areaScore: s.scoresByArea[item.areaName] ?? s.percentual,

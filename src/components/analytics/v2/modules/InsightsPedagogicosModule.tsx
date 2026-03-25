@@ -384,7 +384,7 @@ const InsightDetailSheet: React.FC<{
   const cfg = getInsightConfig(insight.type);
 
   // Find related students
-  const relatedStudents = data.alunosAbaixo
+  const relatedStudents = data.allStudents
     .filter(s => {
       const areaScore = s.scoresByArea[insight.areaName];
       return areaScore !== undefined ? areaScore < PROFICIENCY_THRESHOLD : s.percentual < PROFICIENCY_THRESHOLD;
