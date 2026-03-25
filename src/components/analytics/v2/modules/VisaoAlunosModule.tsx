@@ -117,7 +117,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   const sortedStudents = useMemo(() => {
     if (!data) return [];
-    const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
@@ -137,16 +137,16 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [data, searchQuery, sortKey, sortAsc, segmentFilter]);
+  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter]);
 
   const sortedTemas = useMemo(() => {
-    const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...temaSummaries];
     if (q) list = list.filter(t => t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q)
       || t.areaName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     list.sort((a, b) => sortAsc ? a.percentual - b.percentual : b.percentual - a.percentual);
     return list;
-  }, [temaSummaries, searchQuery, sortAsc]);
+  }, [temaSummaries, debouncedQuery, sortAsc]);
 
   const toggleSort = useCallback((key: SortKey) => {
     if (sortKey === key) setSortAsc(prev => !prev);
