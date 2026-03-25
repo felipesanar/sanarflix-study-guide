@@ -23,14 +23,13 @@ export async function fetchInstitutionalPerformance(
   iesId: string,
 ): Promise<RpcPerformanceResponse> {
   return withRetry(async () => {
-    const result = await withTimeout(
+    const rpcPromise = Promise.resolve(
       supabase.rpc('get_institutional_performance', {
         p_simulado_id: simuladoId,
         p_ies_id: iesId,
-      }).then(r => r),
-      RPC_TIMEOUT,
-      'get_institutional_performance',
+      }),
     );
+    const result = await withTimeout(rpcPromise, RPC_TIMEOUT, 'get_institutional_performance');
     if (result.error) throw new Error(`Performance: ${result.error.message}`);
     return result.data as unknown as RpcPerformanceResponse;
   });
@@ -41,14 +40,13 @@ export async function fetchStudentScores(
   iesId: string,
 ): Promise<RpcStudentScoresResponse> {
   return withRetry(async () => {
-    const result = await withTimeout(
+    const rpcPromise = Promise.resolve(
       supabase.rpc('get_institutional_student_scores', {
         p_simulado_id: simuladoId,
         p_ies_id: iesId,
-      }).then(r => r),
-      RPC_TIMEOUT,
-      'get_institutional_student_scores',
+      }),
     );
+    const result = await withTimeout(rpcPromise, RPC_TIMEOUT, 'get_institutional_student_scores');
     if (result.error) throw new Error(`Scores: ${result.error.message}`);
     return result.data as unknown as RpcStudentScoresResponse;
   });
@@ -58,11 +56,10 @@ export async function fetchInstitutionalEvolution(
   iesId: string,
 ): Promise<RpcEvolutionEntry[]> {
   return withRetry(async () => {
-    const result = await withTimeout(
-      supabase.rpc('get_institutional_evolution', { p_ies_id: iesId }).then(r => r),
-      RPC_TIMEOUT,
-      'get_institutional_evolution',
+    const rpcPromise = Promise.resolve(
+      supabase.rpc('get_institutional_evolution', { p_ies_id: iesId }),
     );
+    const result = await withTimeout(rpcPromise, RPC_TIMEOUT, 'get_institutional_evolution');
     if (result.error) throw new Error(`Evolution: ${result.error.message}`);
     return (result.data ?? []) as unknown as RpcEvolutionEntry[];
   });
