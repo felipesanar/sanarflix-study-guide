@@ -172,7 +172,7 @@ export function AppSidebar() {
     if (item.accessKey === "analytics") return isAdmin(user);
     if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user) || isGestor(user);
     if (item.accessKey === "userManagement") return isAdmin(user) || isAtendimento(user);
-    return accessRules[item.accessKey];
+    return accessRules[item.accessKey as keyof typeof accessRules];
   });
 
   return (
