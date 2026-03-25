@@ -134,22 +134,22 @@ function computeDistanciaFaixa(students: StudentScore[]) {
 
   return [
     {
-      label: 'Próximos de avançar (até 10pp)',
+      label: 'Próximos de avançar (até 10pts)',
       value: `${proximos} alunos`,
       status: 'good' as const,
-      description: `A menos de 10pp da proficiência (${PROFICIENCY_THRESHOLD}%)`,
+      description: `A menos de 10pts da proficiência (${PROFICIENCY_THRESHOLD}%)`,
     },
     {
-      label: 'Distância moderada (10-20pp)',
+      label: 'Distância moderada (10-20pts)',
       value: `${moderados} alunos`,
       status: 'neutral' as const,
-      description: 'Entre 10pp e 20pp da proficiência',
+      description: 'Entre 10pts e 20pts da proficiência',
     },
     {
-      label: 'Muito abaixo (>20pp)',
+      label: 'Muito abaixo (>20pts)',
       value: `${criticos} alunos`,
       status: 'critical' as const,
-      description: 'Mais de 20pp da proficiência',
+      description: 'Mais de 20pts da proficiência',
     },
   ];
 }
@@ -189,8 +189,8 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
     if (kpi.label === 'Total de Alunos') {
       return { ...kpi, value: header.totalAlunos, description: 'Alunos no recorte aplicado' };
     }
-    if (kpi.label === 'Acurácia Média') {
-      return { ...kpi, value: `${acuraciaMedia}%` };
+    if (kpi.label === 'Proficiência Média (TRI)') {
+      return { ...kpi, value: Math.round(acuraciaMedia) };
     }
     if (kpi.label === 'Alunos Proficientes') {
       return {

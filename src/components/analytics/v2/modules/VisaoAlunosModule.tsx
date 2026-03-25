@@ -275,13 +275,13 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         <span>Ordenar por:</span>
         {subView === 'alunos' ? (
           <>
-            <SortButton label="Acurácia" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
+            <SortButton label="Acerto" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
             <SortButton label="Risco" active={sortKey === 'risco'} asc={sortAsc} onClick={() => toggleSort('risco')} />
             <SortButton label="Nome" active={sortKey === 'nome'} asc={sortAsc} onClick={() => toggleSort('nome')} />
             <SortButton label="Semestre" active={sortKey === 'semestre'} asc={sortAsc} onClick={() => toggleSort('semestre')} />
           </>
         ) : (
-          <SortButton label="Acurácia" active={true} asc={sortAsc} onClick={() => setSortAsc(p => !p)} />
+          <SortButton label="Acerto" active={true} asc={sortAsc} onClick={() => setSortAsc(p => !p)} />
         )}
       </div>
 
@@ -446,13 +446,13 @@ const TemaDetailSheet: React.FC<{
           {/* Overview */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3 rounded-lg bg-muted/50">
-              <p className="text-xs text-muted-foreground">Acurácia</p>
+              <p className="text-xs text-muted-foreground">Percentual Médio de Acertos</p>
               <p className={`text-xl font-bold ${cfg.color}`}>{tema.percentual}%</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50">
               <p className="text-xs text-muted-foreground">Gap</p>
               <p className={`text-xl font-bold ${tema.gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {tema.gap > 0 ? `${tema.gap} pp` : '✓'}
+                {tema.gap > 0 ? `${tema.gap} pts` : '✓'}
               </p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50">
@@ -474,7 +474,7 @@ const TemaDetailSheet: React.FC<{
                   <p className="text-sm font-medium">Impacto Potencial</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {tema.alunosOportunidade} aluno(s) próximo(s) de virar o jogo neste tema.
-                    Melhorar acurácia aqui pode elevar {tema.alunosCriticos + tema.alunosOportunidade} alunos.
+                    Melhorar o percentual de acertos aqui pode elevar {tema.alunosCriticos + tema.alunosOportunidade} alunos.
                   </p>
                 </div>
               </div>

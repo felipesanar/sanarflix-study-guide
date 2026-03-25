@@ -40,7 +40,7 @@ interface SimulationScenario {
   selectedArea: string;
   selectedSpecialty: string;
   selectedTema: string;
-  improvement: number; // pp to add
+  improvement: number; // pts to add
   segment: SegmentFilter;
 }
 
@@ -169,7 +169,7 @@ function simulateImpact(
   const premisses = [
     `Limiar de proficiência: ${PROFICIENCY_THRESHOLD}%`,
     `Peso do alvo no total: ${(weight * 100).toFixed(1)}% (${targetNode.total}/${totalQuestions} questões)`,
-    `Melhoria efetiva por aluno: +${effectiveImprovement.toFixed(1)}pp (${scenario.improvement}pp × ${(weight * 100).toFixed(1)}%)`,
+    `Melhoria efetiva por aluno: +${effectiveImprovement.toFixed(1)}pts (${scenario.improvement}pts × ${(weight * 100).toFixed(1)}%)`,
     `Segmento: ${segmentLabel} (${affectedStudents.length} alunos)`,
     'Premissa: melhoria no tema propaga-se proporcionalmente ao score geral',
     'Simulação baseada em dados do último simulado — não é projeção garantida',
