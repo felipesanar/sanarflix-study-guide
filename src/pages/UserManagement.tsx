@@ -50,74 +50,82 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 max-w-6xl">
+          <TabsList className={`grid w-full max-w-6xl ${userIsAdmin ? 'grid-cols-6' : 'grid-cols-1'}`}>
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuários</span>
             </TabsTrigger>
-            <TabsTrigger value="avisos" className="flex items-center gap-2">
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Avisos</span>
-            </TabsTrigger>
-            <TabsTrigger value="ies-features" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">IES</span>
-            </TabsTrigger>
-            <TabsTrigger value="guia-estudos" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              <span className="hidden sm:inline">Guia</span>
-            </TabsTrigger>
-            <TabsTrigger value="sanarclass" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">SanarClass</span>
-            </TabsTrigger>
-            <TabsTrigger value="simulados" className="flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
-              <span className="hidden sm:inline">Simulados</span>
-            </TabsTrigger>
+            {userIsAdmin && (
+              <>
+                <TabsTrigger value="avisos" className="flex items-center gap-2">
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Avisos</span>
+                </TabsTrigger>
+                <TabsTrigger value="ies-features" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">IES</span>
+                </TabsTrigger>
+                <TabsTrigger value="guia-estudos" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  <span className="hidden sm:inline">Guia</span>
+                </TabsTrigger>
+                <TabsTrigger value="sanarclass" className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">SanarClass</span>
+                </TabsTrigger>
+                <TabsTrigger value="simulados" className="flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  <span className="hidden sm:inline">Simulados</span>
+                </TabsTrigger>
+              </>
+            )}
           </TabsList>
 
           <TabsContent value="usuarios" className="mt-6">
             <UsersTab />
           </TabsContent>
 
-          <TabsContent value="avisos" className="mt-6">
-            <AnnouncementsTab />
-          </TabsContent>
+          {userIsAdmin && (
+            <>
+              <TabsContent value="avisos" className="mt-6">
+                <AnnouncementsTab />
+              </TabsContent>
 
-          <TabsContent value="ies-features" className="mt-6">
-            <IesFeaturesTab />
-          </TabsContent>
+              <TabsContent value="ies-features" className="mt-6">
+                <IesFeaturesTab />
+              </TabsContent>
 
-          <TabsContent value="guia-estudos" className="mt-6">
-            <StudyGuideImportTab />
-          </TabsContent>
+              <TabsContent value="guia-estudos" className="mt-6">
+                <StudyGuideImportTab />
+              </TabsContent>
 
-          <TabsContent value="sanarclass" className="mt-6">
-            <SanarClassTab />
-          </TabsContent>
-
-          <TabsContent value="simulados" className="mt-6">
-            <Tabs defaultValue="simulados" className="w-full">
-              <TabsList className="flex gap-2 w-full max-w-3xl">
-                <TabsTrigger value="simulados" className="flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4" />
-                  Simulados
-                </TabsTrigger>
-                <TabsTrigger value="liberacoes" className="flex items-center gap-2">
-                  <Unlock className="h-4 w-4" />
-                  Liberações
-                </TabsTrigger>
-              </TabsList>
+              <TabsContent value="sanarclass" className="mt-6">
+                <SanarClassTab />
+              </TabsContent>
 
               <TabsContent value="simulados" className="mt-6">
-                <SimuladosTab />
+                <Tabs defaultValue="simulados" className="w-full">
+                  <TabsList className="flex gap-2 w-full max-w-3xl">
+                    <TabsTrigger value="simulados" className="flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4" />
+                      Simulados
+                    </TabsTrigger>
+                    <TabsTrigger value="liberacoes" className="flex items-center gap-2">
+                      <Unlock className="h-4 w-4" />
+                      Liberações
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="simulados" className="mt-6">
+                    <SimuladosTab />
+                  </TabsContent>
+                  <TabsContent value="liberacoes" className="mt-6">
+                    <LiberacoesTab />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
-              <TabsContent value="liberacoes" className="mt-6">
-                <LiberacoesTab />
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
+            </>
+          )}
         </Tabs>
       </div>
     </div>
