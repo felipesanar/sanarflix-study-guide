@@ -79,13 +79,13 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   }
 
   if (q.includes('risco') || q.includes('crítico')) {
-    const criticos = data.alunosAbaixo.filter(s => s.percentual < 45).length;
-    const atencao = data.alunosAbaixo.filter(s => s.percentual >= 45 && s.percentual < 55).length;
+    const criticos = data.allStudents.filter(s => s.percentual < 45).length;
+    const atencao = data.allStudents.filter(s => s.percentual >= 45 && s.percentual < 55).length;
     return `**Distribuição de risco:**\n\n` +
       `- 🔴 Crítico (< 45%): **${criticos}** alunos\n` +
       `- 🟡 Atenção (45-55%): **${atencao}** alunos\n` +
-      `- 🔵 Oportunidade (55-60%): **${data.alunosAbaixo.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
-      `- 🟢 Proficientes (≥60%): **${data.alunosAbaixo.filter(s => s.percentual >= 60).length}** alunos\n\n` +
+      `- 🔵 Oportunidade (55-60%): **${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
+      `- 🟢 Proficientes (≥60%): **${data.allStudents.filter(s => s.percentual >= 60).length}** alunos\n\n` +
       `_Os alunos em "Oportunidade" são os com maior potencial de impacto com intervenções pontuais._`;
   }
 

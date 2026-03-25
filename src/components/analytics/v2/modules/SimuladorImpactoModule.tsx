@@ -125,7 +125,7 @@ function simulateImpact(
   const currentPercent = data.headerSummary.percentProficientes;
 
   // Find affected students based on segment
-  let affectedStudents = data.alunosAbaixo.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
+  let affectedStudents = data.allStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
 
   if (scenario.segment === 'proximos') {
     affectedStudents = affectedStudents.filter(s => s.percentual >= PROFICIENCY_THRESHOLD - 10);
