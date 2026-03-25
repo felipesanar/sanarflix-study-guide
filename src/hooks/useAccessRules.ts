@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIesFeatures } from '@/hooks/useIesFeatures';
-import { getAccessRules, isAdmin, isProfessor } from '@/utils/accessRules';
+import { getAccessRules, isAdmin, isProfessor, isGestor, isAtendimento } from '@/utils/accessRules';
 import { AccessRules } from '@/types';
 
 /**
@@ -25,7 +25,7 @@ export const useAccessRules = () => {
     const baseRules = getAccessRules(user);
 
     // Admin e Professor não usam ies_features - retorna regras base
-    if (!user || isAdmin(user) || isProfessor(user)) {
+    if (!user || isAdmin(user) || isProfessor(user) || isGestor(user) || isAtendimento(user)) {
       return baseRules;
     }
 
