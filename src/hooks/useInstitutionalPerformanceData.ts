@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { mapInstitutionalRpcToViewModel } from '@/utils/mapInstitutionalData';
+import {
+  fetchInstitutionalPerformance,
+  fetchStudentScores,
+  fetchInstitutionalEvolution,
+  resolveIesId,
+} from '@/services/institutional';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
   SimuladoOption,
   IesOption,
-  RpcPerformanceResponse,
-  RpcEvolutionEntry,
-  RpcStudentScoresResponse,
 } from '@/types/desempenhoV2';
 import {
   mockKpis,
@@ -30,20 +33,23 @@ interface UseInstitutionalPerformanceResult {
 }
 
 function getMockViewModel(): InstitutionalViewModel {
+  const students = mockAlunosAbaixo.map((a) => ({
+    nome: a.nome,
+    semestre: a.semestre,
+    acertos: Math.round(a.percentualAcerto * 100 / 100),
+    total: 100,
+    percentual: a.percentualAcerto,
+    scoresByArea: {},
+  }));
+
   return {
     kpis: mockKpis,
     faixas: mockFaixas,
     meta: mockMeta,
     evolucao: mockEvolucao,
     distanciaFaixa: mockDistanciaFaixa,
-    alunosAbaixo: mockAlunosAbaixo.map((a) => ({
-      nome: a.nome,
-      semestre: a.semestre,
-      acertos: Math.round(a.percentualAcerto * 100 / 100),
-      total: 100,
-      percentual: a.percentualAcerto,
-      scoresByArea: {},
-    })),
+    alunosAbaixo: students.filter(s => s.percentual < 60),
+    allStudents: students,
     headerSummary: {
       totalAlunos: 100,
       percentProficientes: 35,
@@ -146,139 +152,100 @@ export function useInstitutionalPerformanceData(
     fetchIes();
   }, []);
 
-  const resolveTargetIesId = useCallback(async (): Promise<string | null> => {
-    if (filters.iesId) return filters.iesId;
-
-    const { data: ownIesId, error: ownIesErr } = await supabase.rpc('get_user_ies_id');
-    if (ownIesErr) {
-      console.warn('[DesempenhoV2:Data]', 'Could not resolve own IES:', ownIesErr.message);
-      return null;
-    }
-
-    if (!ownIesId) {
-      console.warn('[DesempenhoV2:Data]', 'Own IES not found for current user');
-      return null;
-    }
-
-    return ownIesId as string;
-  }, [filters.iesId]);
-
   // Fetch simulados whenever IES changes
   useEffect(() => {
     const fetchSimulados = async () => {
-      console.log('[DesempenhoV2:Data]', 'Fetching simulados, iesId:', filters.iesId || 'own');
+      console.log('[DesempenhoInstitucional]', 'Fetching simulados');
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        console.log('[DesempenhoV2:Data]', 'No session, using mock');
+        console.log('[DesempenhoInstitucional]', 'No session, using mock');
         setUsingMock(true);
         setData(getMockViewModel());
         setLoading(false);
         return;
       }
 
-      const targetIesId = await resolveTargetIesId();
-      if (!targetIesId) {
+      try {
+        const targetIesId = await resolveIesId(filters.iesId || undefined);
+        const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
+          p_ies_id: targetIesId,
+        });
+
+        if (simErr) {
+          console.warn('[DesempenhoInstitucional]', 'Simulados fetch failed:', simErr.message);
+          setSimulados([]);
+          setError(`Erro ao carregar simulados: ${simErr.message}`);
+          setLoading(false);
+          return;
+        }
+
+        const mapped = (simData ?? []).map((item: unknown) => {
+          const simulado = item as { id: string; nome: string };
+          return { id: simulado.id, nome: simulado.nome };
+        });
+        setSimulados(mapped);
+        console.log('[DesempenhoInstitucional]', 'Simulados carregados', { total: mapped.length });
+      } catch (err) {
+        console.warn('[DesempenhoInstitucional]', 'Error resolving IES:', err);
         setSimulados([]);
-        return;
       }
-
-      const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
-        p_ies_id: targetIesId,
-      });
-
-      if (simErr) {
-        console.warn('[DesempenhoV2:Data]', 'Simulados fetch failed:', simErr.message);
-        setSimulados([]);
-        setError(`Erro ao carregar simulados: ${simErr.message}`);
-        setLoading(false);
-        return;
-      }
-
-      const mapped = (simData ?? []).map((item: unknown) => {
-        const simulado = item as { id: string; nome: string };
-        return { id: simulado.id, nome: simulado.nome };
-      });
-      setSimulados(mapped);
-      console.log('[DesempenhoInstitucionalV2]', 'Simulados carregados', { total: mapped.length });
     };
     fetchSimulados();
-  }, [filters.iesId, resolveTargetIesId]);
+  }, [filters.iesId]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
-      console.log('[DesempenhoV2:Data]', 'No simulado selected, skipping fetch');
+      console.log('[DesempenhoInstitucional]', 'No simulado selected, skipping fetch');
       return;
     }
 
     setLoading(true);
     setError(null);
     setUsingMock(false);
-    console.log('[DesempenhoV2:Data]', 'Fetching performance for simulado:', filters.simuladoId);
+    console.log('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId);
 
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        console.log('[DesempenhoV2:Data]', 'No session, falling back to mock');
+        console.log('[DesempenhoInstitucional]', 'No session, falling back to mock');
         setUsingMock(true);
         setData(getMockViewModel());
         setLoading(false);
         return;
       }
 
-      const targetIesId = await resolveTargetIesId();
-      if (!targetIesId) {
-        throw new Error('IES do usuário não encontrada para carregar desempenho institucional');
-      }
+      const targetIesId = await resolveIesId(filters.iesId || undefined);
 
-      const rpcBaseArgs = {
-        p_simulado_id: filters.simuladoId,
-        p_ies_id: targetIesId,
-      };
-
-      // Parallel RPC calls
-      const [perfResult, evoResult, scoresResult] = await Promise.all([
-        supabase.rpc('get_institutional_performance', rpcBaseArgs),
-        supabase.rpc('get_institutional_evolution', { p_ies_id: targetIesId }),
-        supabase.rpc('get_institutional_student_scores', rpcBaseArgs),
+      // Parallel RPC calls with retry + timeout
+      const [perfData, scoresData, evoData] = await Promise.all([
+        fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
+        fetchStudentScores(filters.simuladoId, targetIesId),
+        fetchInstitutionalEvolution(targetIesId),
       ]);
 
-      if (perfResult.error) throw new Error(`Performance: ${perfResult.error.message}`);
-      if (evoResult.error) throw new Error(`Evolution: ${evoResult.error.message}`);
-      if (scoresResult.error) throw new Error(`Scores: ${scoresResult.error.message}`);
-
-      const perfData = perfResult.data as unknown as RpcPerformanceResponse;
-      const evoData = (evoResult.data ?? []) as unknown as RpcEvolutionEntry[];
-      const scoresData = scoresResult.data as unknown as RpcStudentScoresResponse;
-
       if (!perfData?.overallStats || !scoresData?.students) {
-        console.warn('[DesempenhoV2:Data]', 'Incomplete data, using mock fallback');
-        setUsingMock(true);
-        setData(getMockViewModel());
-        setLoading(false);
-        return;
+        throw new Error('Dados incompletos retornados pelas RPCs');
       }
 
       const viewModel = mapInstitutionalRpcToViewModel(perfData, evoData, scoresData);
       setData(viewModel);
-      console.log('[DesempenhoInstitucionalV2]', 'Dados reais carregados');
+      console.log('[DesempenhoInstitucional]', 'Dados reais carregados', {
+        totalStudents: viewModel.allStudents.length,
+        areas: viewModel.curricular.areas.length,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
-      console.error('[DesempenhoInstitucionalV2]', 'Falha no carregamento', { message });
+      console.error('[DesempenhoInstitucional]', 'Falha no carregamento:', message);
       setError(message);
-      // Fallback to mock on error
-      setUsingMock(true);
-      setData(getMockViewModel());
+      // Do NOT fallback to mock when authenticated — show real error
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, resolveTargetIesId]);
+  }, [filters.simuladoId, filters.iesId]);
 
   useEffect(() => {
     fetchPerformance();
   }, [fetchPerformance]);
-
-  // If no simulado selected yet but simulados are available, auto-select the first one
-  // This is handled by the parent component via filter updates
 
   return { data, simulados, iesList, loading, error, usingMock, refetch: fetchPerformance };
 }

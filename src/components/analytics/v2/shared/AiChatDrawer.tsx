@@ -79,13 +79,13 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   }
 
   if (q.includes('risco') || q.includes('crítico')) {
-    const criticos = data.alunosAbaixo.filter(s => s.percentual < 45).length;
-    const atencao = data.alunosAbaixo.filter(s => s.percentual >= 45 && s.percentual < 55).length;
+    const criticos = data.allStudents.filter(s => s.percentual < 45).length;
+    const atencao = data.allStudents.filter(s => s.percentual >= 45 && s.percentual < 55).length;
     return `**Distribuição de risco:**\n\n` +
       `- 🔴 Crítico (< 45%): **${criticos}** alunos\n` +
       `- 🟡 Atenção (45-55%): **${atencao}** alunos\n` +
-      `- 🔵 Oportunidade (55-60%): **${data.alunosAbaixo.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
-      `- 🟢 Proficientes (≥60%): **${data.alunosAbaixo.filter(s => s.percentual >= 60).length}** alunos\n\n` +
+      `- 🔵 Oportunidade (55-60%): **${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
+      `- 🟢 Proficientes (≥60%): **${data.allStudents.filter(s => s.percentual >= 60).length}** alunos\n\n` +
       `_Os alunos em "Oportunidade" são os com maior potencial de impacto com intervenções pontuais._`;
   }
 
@@ -103,8 +103,8 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   if (q.includes('ação') || q.includes('urgente') || q.includes('intervenção')) {
     return `**3 ações mais urgentes:**\n\n` +
       `1. **Reforço em temas críticos** — Focar nos temas com <50% de acurácia com sessões intensivas.\n` +
-      `2. **Tutoria para alunos próximos** — Os ${data.alunosAbaixo.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
-      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.alunosAbaixo.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
+      `2. **Tutoria para alunos próximos** — Os ${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
+      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.allStudents.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
       `_Estas recomendações são baseadas nos dados do simulado atual._`;
   }
 

@@ -212,17 +212,18 @@ export function applyDesempenhoV2Filters(
 ): InstitutionalViewModel | null {
   if (!data) return null;
 
-  const filteredStudents = applyStudentFilters(data.alunosAbaixo, filters);
+  const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
+  const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
-  const filteredHeader = computeHeader(filteredStudents);
-  const filteredFaixas = computeFaixas(filteredStudents);
-  const filteredDistanciaFaixa = computeDistanciaFaixa(filteredStudents);
-  const filteredKpis = updateKpis(data, filteredStudents);
+  const filteredHeader = computeHeader(filteredAllStudents);
+  const filteredFaixas = computeFaixas(filteredAllStudents);
+  const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
+  const filteredKpis = updateKpis(data, filteredAllStudents);
 
   const acuraciaMedia =
-    filteredStudents.length > 0
+    filteredAllStudents.length > 0
       ? Math.round(
-          (filteredStudents.reduce((sum, student) => sum + student.percentual, 0) / filteredStudents.length) *
+          (filteredAllStudents.reduce((sum, student) => sum + student.percentual, 0) / filteredAllStudents.length) *
             10,
         ) / 10
       : 0;
@@ -241,7 +242,8 @@ export function applyDesempenhoV2Filters(
 
   return {
     ...data,
-    alunosAbaixo: filteredStudents,
+    alunosAbaixo: filteredAbaixo,
+    allStudents: filteredAllStudents,
     curricular: { areas: filteredCurricular },
     headerSummary: filteredHeader,
     faixas: filteredFaixas,
@@ -264,5 +266,5 @@ export function hasActiveSecondaryFilters(filters: DesempenhoV2Filters): boolean
 
 export function hasNoResultData(data: InstitutionalViewModel | null): boolean {
   if (!data) return false;
-  return data.alunosAbaixo.length === 0 && data.curricular.areas.length === 0;
+  return data.allStudents.length === 0 && data.curricular.areas.length === 0;
 }

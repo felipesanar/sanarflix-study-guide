@@ -241,6 +241,7 @@ export function mapInstitutionalRpcToViewModel(
     evolucao,
     distanciaFaixa,
     alunosAbaixo: alunosAbaixoSorted,
+    allStudents: [...students].sort((a, b) => b.percentual - a.percentual),
     headerSummary,
     curricular,
   };

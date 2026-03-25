@@ -52,7 +52,7 @@ interface DecisionItem {
 
 function buildDecisionItems(data: InstitutionalViewModel): DecisionItem[] {
   const totalQuestions = data.curricular.areas.reduce((s, a) => s + a.total, 0) || 1;
-  const totalStudents = data.alunosAbaixo.length || 1;
+  const totalStudents = data.allStudents.length || 1;
   const items: DecisionItem[] = [];
 
   for (const area of data.curricular.areas) {
@@ -83,7 +83,7 @@ function buildDecisionItems(data: InstitutionalViewModel): DecisionItem[] {
         else category = 'quick-win';
 
         items.push({
-          id: `${tema.name}-${sp.name}`,
+          id: `${area.name}::${sp.name}::${tema.name}`,
           category,
           title: tema.name,
           subtitle: `${area.name} → ${sp.name}`,
@@ -382,7 +382,7 @@ const DecisionDetailSheet: React.FC<{
   const cfg = categoryConfig[item.category];
 
   // Related students
-  const relatedStudents = data.alunosAbaixo
+  const relatedStudents = data.allStudents
     .map(s => ({
       ...s,
       areaScore: s.scoresByArea[item.areaName] ?? s.percentual,

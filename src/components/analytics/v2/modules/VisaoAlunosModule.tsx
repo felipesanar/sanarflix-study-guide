@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
@@ -87,8 +87,8 @@ function buildTemaSummaries(data: InstitutionalViewModel): TemaSummary[] {
           gap,
           risk: computeRiskLevel(tema.percentual),
           // Estimate: proportional to gap
-          alunosCriticos: tema.percentual < 50 ? Math.ceil(data.alunosAbaixo.length * 0.6) : Math.ceil(data.alunosAbaixo.length * 0.3),
-          alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.alunosAbaixo.length * 0.4) : Math.ceil(data.alunosAbaixo.length * 0.15),
+          alunosCriticos: tema.percentual < 50 ? Math.ceil(data.allStudents.length * 0.6) : Math.ceil(data.allStudents.length * 0.3),
+          alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.allStudents.length * 0.4) : Math.ceil(data.allStudents.length * 0.15),
         });
       }
     }
@@ -101,7 +101,15 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   const [sortKey, setSortKey] = useState<SortKey>('percentual');
   const [sortAsc, setSortAsc] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [segmentFilter, setSegmentFilter] = useState<SegmentFilter>('todos');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Debounce search
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
   const [selectedStudent, setSelectedStudent] = useState<StudentScore | null>(null);
   const [selectedTema, setSelectedTema] = useState<TemaSummary | null>(null);
 
@@ -109,8 +117,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   const sortedStudents = useMemo(() => {
     if (!data) return [];
-    const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    let list = [...data.alunosAbaixo];
+    const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
       list = list.filter(s => computeRiskLevel(s.percentual) === segmentFilter);
@@ -129,16 +137,16 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [data, searchQuery, sortKey, sortAsc, segmentFilter]);
+  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter]);
 
   const sortedTemas = useMemo(() => {
-    const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...temaSummaries];
     if (q) list = list.filter(t => t.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q)
       || t.areaName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     list.sort((a, b) => sortAsc ? a.percentual - b.percentual : b.percentual - a.percentual);
     return list;
-  }, [temaSummaries, searchQuery, sortAsc]);
+  }, [temaSummaries, debouncedQuery, sortAsc]);
 
   const toggleSort = useCallback((key: SortKey) => {
     if (sortKey === key) setSortAsc(prev => !prev);
@@ -173,7 +181,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     );
   }
 
-  if (data.alunosAbaixo.length === 0) {
+  if (data.allStudents.length === 0) {
     return (
       <ModuleEmptyState
         title="Sem alunos no recorte atual"
@@ -183,10 +191,10 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   }
 
   // Summary stats
-  const totalStudents = data.headerSummary.totalAlunos;
-  const proficientes = Math.max(0, totalStudents - data.alunosAbaixo.length);
-  const oportunidade = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
-  const criticos = data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
+  const totalStudents = data.allStudents.length;
+  const proficientes = data.allStudents.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
+  const oportunidade = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
+  const criticos = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
 
   console.log('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
@@ -242,8 +250,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
           {SEGMENT_OPTIONS.map(seg => {
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
-            const count = seg.value === 'todos' ? data.alunosAbaixo.length
-              : data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
+            const count = seg.value === 'todos' ? data.allStudents.length
+              : data.allStudents.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
             return (
               <Button
                 key={seg.value}
@@ -373,7 +381,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       {/* Tema detail drawer */}
       <TemaDetailSheet
         tema={selectedTema}
-        students={data.alunosAbaixo}
+        students={data.allStudents}
         onClose={() => setSelectedTema(null)}
         onOpenStudent={(s) => { setSelectedTema(null); setTimeout(() => setSelectedStudent(s), 200); }}
       />

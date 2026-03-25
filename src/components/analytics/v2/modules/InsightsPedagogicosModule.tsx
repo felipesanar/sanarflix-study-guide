@@ -54,7 +54,7 @@ interface PrioritizedInsight {
 function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
   const insights: PrioritizedInsight[] = [];
   const totalQuestions = data.curricular.areas.reduce((sum, a) => sum + a.total, 0);
-  const totalStudents = data.alunosAbaixo.length || 1;
+  const totalStudents = data.allStudents.length || 1;
 
   for (const area of data.curricular.areas) {
     const areaPrevalencia = totalQuestions > 0 ? (area.total / totalQuestions) * 100 : 0;
@@ -384,7 +384,7 @@ const InsightDetailSheet: React.FC<{
   const cfg = getInsightConfig(insight.type);
 
   // Find related students
-  const relatedStudents = data.alunosAbaixo
+  const relatedStudents = data.allStudents
     .filter(s => {
       const areaScore = s.scoresByArea[insight.areaName];
       return areaScore !== undefined ? areaScore < PROFICIENCY_THRESHOLD : s.percentual < PROFICIENCY_THRESHOLD;

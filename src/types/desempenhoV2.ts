@@ -94,7 +94,10 @@ export interface InstitutionalViewModel {
   meta: import('@/mocks/desempenhoInstitucionalV2').MetaInstitucional;
   evolucao: import('@/mocks/desempenhoInstitucionalV2').EvolucaoSimulado[];
   distanciaFaixa: import('@/mocks/desempenhoInstitucionalV2').DistanciaFaixa[];
+  /** @deprecated Use allStudents instead. Kept for backward compat — contains only below-threshold students */
   alunosAbaixo: StudentScore[];
+  /** All students (proficient + below threshold) */
+  allStudents: StudentScore[];
   headerSummary: HeaderSummary;
   curricular: CurricularBreakdown;
 }
