@@ -52,7 +52,7 @@ interface DecisionItem {
 
 function buildDecisionItems(data: InstitutionalViewModel): DecisionItem[] {
   const totalQuestions = data.curricular.areas.reduce((s, a) => s + a.total, 0) || 1;
-  const totalStudents = data.alunosAbaixo.length || 1;
+  const totalStudents = data.allStudents.length || 1;
   const items: DecisionItem[] = [];
 
   for (const area of data.curricular.areas) {

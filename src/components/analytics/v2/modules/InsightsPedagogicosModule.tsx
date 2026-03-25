@@ -54,7 +54,7 @@ interface PrioritizedInsight {
 function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
   const insights: PrioritizedInsight[] = [];
   const totalQuestions = data.curricular.areas.reduce((sum, a) => sum + a.total, 0);
-  const totalStudents = data.alunosAbaixo.length || 1;
+  const totalStudents = data.allStudents.length || 1;
 
   for (const area of data.curricular.areas) {
     const areaPrevalencia = totalQuestions > 0 ? (area.total / totalQuestions) * 100 : 0;

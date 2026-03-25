@@ -266,5 +266,5 @@ export function hasActiveSecondaryFilters(filters: DesempenhoV2Filters): boolean
 
 export function hasNoResultData(data: InstitutionalViewModel | null): boolean {
   if (!data) return false;
-  return data.alunosAbaixo.length === 0 && data.curricular.areas.length === 0;
+  return data.allStudents.length === 0 && data.curricular.areas.length === 0;
 }

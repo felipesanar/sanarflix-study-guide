@@ -87,8 +87,8 @@ function buildTemaSummaries(data: InstitutionalViewModel): TemaSummary[] {
           gap,
           risk: computeRiskLevel(tema.percentual),
           // Estimate: proportional to gap
-          alunosCriticos: tema.percentual < 50 ? Math.ceil(data.alunosAbaixo.length * 0.6) : Math.ceil(data.alunosAbaixo.length * 0.3),
-          alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.alunosAbaixo.length * 0.4) : Math.ceil(data.alunosAbaixo.length * 0.15),
+          alunosCriticos: tema.percentual < 50 ? Math.ceil(data.allStudents.length * 0.6) : Math.ceil(data.allStudents.length * 0.3),
+          alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.allStudents.length * 0.4) : Math.ceil(data.allStudents.length * 0.15),
         });
       }
     }
@@ -250,8 +250,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
           {SEGMENT_OPTIONS.map(seg => {
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
-            const count = seg.value === 'todos' ? data.alunosAbaixo.length
-              : data.alunosAbaixo.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
+            const count = seg.value === 'todos' ? data.allStudents.length
+              : data.allStudents.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
             return (
               <Button
                 key={seg.value}
@@ -381,7 +381,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       {/* Tema detail drawer */}
       <TemaDetailSheet
         tema={selectedTema}
-        students={data.alunosAbaixo}
+        students={data.allStudents}
         onClose={() => setSelectedTema(null)}
         onOpenStudent={(s) => { setSelectedTema(null); setTimeout(() => setSelectedStudent(s), 200); }}
       />
