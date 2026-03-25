@@ -97,8 +97,8 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                             <td className="py-2 pr-4 truncate max-w-[180px]">{aluno.nome}</td>
                             <td className="py-2 px-2 text-center font-medium">{aluno.proficienciaTri}</td>
                             <td className="py-2 px-2 text-center font-medium">{aluno.percentualAcerto}%</td>
-                            <td className="py-2 px-2 text-center text-muted-foreground">{aluno.distanciaAteProficiencia} pts</td>
-                            <td className="py-2 pl-2 text-center text-muted-foreground">{aluno.semestre}º</td>
+                            <td className="py-2 px-2 text-center font-medium">{aluno.distanciaAteProficiencia} pts</td>
+                            <td className="py-2 pl-2 text-center font-medium">{aluno.semestre}º</td>
                           </tr>
                         ))}
                       </tbody>
