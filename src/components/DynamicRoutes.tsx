@@ -260,32 +260,16 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/sanarclass" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
-          {/* Desempenho Institucional - Professores e Admins */}
-          {accessRules.desempenhoInstitucional ? (
-            <Route
-              path="/desempenho-institucional"
-              element={
-                <ProtectedRoute>
-                  <PageWrapper
-                    loadingMessage="Carregando desempenho institucional..."
-                    waitForData={true}
-                  >
-                    <DesempenhoInstitucional />
-                  </PageWrapper>
-                </ProtectedRoute>
-              }
-            />
-          ) : (
-            <Route path="/desempenho-institucional" element={<Navigate to={getDefaultRoute()} replace />} />
-          )}
+          {/* Desempenho Institucional (redirect old route) */}
+          <Route path="/desempenho-institucional" element={<Navigate to="/desempenho-institucional-v2" replace />} />
 
-          {/* Desempenho Institucional v2 - Mock page */}
+          {/* Desempenho Institucional v2 */}
           {accessRules.desempenhoInstitucional ? (
             <Route
               path="/desempenho-institucional-v2"
               element={
                 <ProtectedRoute>
-                  <PageWrapper loadingMessage="Carregando desempenho v2..." waitForData={true}>
+                  <PageWrapper loadingMessage="Carregando desempenho institucional..." waitForData={true}>
                     <DesempenhoInstitucionalV2 />
                   </PageWrapper>
                 </ProtectedRoute>
