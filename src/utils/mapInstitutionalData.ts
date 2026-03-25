@@ -119,10 +119,10 @@ export function mapInstitutionalRpcToViewModel(
   // ── KPIs ──
   const kpis: KpiData[] = [
     { label: 'Total de Alunos', value: totalStudents, icon: 'Users', status: 'neutral', description: 'Alunos que realizaram o simulado' },
-    { label: 'Acurácia Média', value: `${overallAccuracy}%`, icon: 'Target', status: getKpiStatus(overallAccuracy, { good: 60, warning: 40 }), description: 'Percentual geral de acerto' },
+    { label: 'Proficiência Média (TRI)', value: Math.round(overallAccuracy), icon: 'Target', status: getKpiStatus(overallAccuracy, { good: 60, warning: 40 }), description: 'Valor de 0 a 100' },
     { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${proficientes.length} de ${totalStudents} alunos` },
-    { label: 'Conceito da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
-    { label: 'Distância Próxima Faixa', value: `${distanciaMedia} pp`, icon: 'TrendingUp', status: distanciaMedia > 15 ? 'critical' : distanciaMedia > 5 ? 'warning' : 'good', description: 'Distância média dos alunos abaixo' },
+    { label: 'Nota Prevista da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
+    { label: 'Distância Próxima Faixa', value: `${distanciaMedia} pts`, icon: 'TrendingUp', status: distanciaMedia > 15 ? 'critical' : distanciaMedia > 5 ? 'warning' : 'good', description: 'Distância média dos alunos abaixo' },
     { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD}% de acerto` },
     { label: 'Taxa de Adesão', value: `${totalStudents > 0 ? '—' : '0'}`, icon: 'CheckCircle', status: 'neutral', description: 'Dados de adesão indisponíveis' },
   ];
