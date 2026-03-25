@@ -110,7 +110,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   const sortedStudents = useMemo(() => {
     if (!data) return [];
     const q = searchQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    let list = [...data.alunosAbaixo];
+    let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
       list = list.filter(s => computeRiskLevel(s.percentual) === segmentFilter);

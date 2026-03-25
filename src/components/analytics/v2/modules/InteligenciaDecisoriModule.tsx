@@ -83,7 +83,7 @@ function buildDecisionItems(data: InstitutionalViewModel): DecisionItem[] {
         else category = 'quick-win';
 
         items.push({
-          id: `${tema.name}-${sp.name}`,
+          id: `${area.name}::${sp.name}::${tema.name}`,
           category,
           title: tema.name,
           subtitle: `${area.name} → ${sp.name}`,
