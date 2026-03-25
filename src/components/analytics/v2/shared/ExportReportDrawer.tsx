@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   FileDown, FileText, Table2, CheckCircle2, Loader2,
-  Filter, BarChart3, Users, Target, FlaskConical, Sparkles,
+  Filter, BarChart3, Users, Target, Sparkles, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,11 @@ import { Separator } from '@/components/ui/separator';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
+import { toast } from 'sonner';
 import type { InstitutionalViewModel, DesempenhoV2Filters } from '@/types/desempenhoV2';
+import { generateInstitutionalPDF } from '@/utils/institutionalReportPdf';
+import { generateInstitutionalXLSX } from '@/utils/institutionalReportXlsx';
+import { format } from 'date-fns';
 
 type ExportFormat = 'pdf' | 'xlsx';
 type ExportModule = 'visao-institucional' | 'diagnostico-curricular' | 'visao-alunos' | 'inteligencia-decisoria';
@@ -31,10 +35,21 @@ interface ExportReportDrawerProps {
   simuladoNome?: string;
 }
 
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
   open, onClose, data, filters, simuladoNome,
 }) => {
-  const [format, setFormat] = useState<ExportFormat>('pdf');
+  const [fmt, setFmt] = useState<ExportFormat>('pdf');
   const [selectedModules, setSelectedModules] = useState<ExportModule[]>(['visao-institucional']);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -47,12 +62,32 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
   }, []);
 
   const handleGenerate = useCallback(async () => {
+    if (!data) return;
     setGenerating(true);
-    // Simulate generation time — real implementation would call export utils
-    await new Promise(r => setTimeout(r, 2000));
-    setGenerating(false);
-    setGenerated(true);
-  }, []);
+    console.log('[Export]', fmt, { modules: selectedModules, filters });
+
+    try {
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      const filename = `relatorio-desempenho-${dateStr}.${fmt}`;
+
+      if (fmt === 'pdf') {
+        const blob = await generateInstitutionalPDF(data, filters, selectedModules, simuladoNome);
+        triggerDownload(blob, filename);
+      } else {
+        const blob = generateInstitutionalXLSX(data, filters, selectedModules, simuladoNome);
+        triggerDownload(blob, filename);
+      }
+
+      console.log('[ReportData]', { format: fmt, modules: selectedModules, students: data.allStudents.length });
+      setGenerated(true);
+      toast.success('Relatório gerado com sucesso!');
+    } catch (err) {
+      console.error('[Export] Erro ao gerar relatório:', err);
+      toast.error('Erro ao gerar relatório. Tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  }, [data, fmt, selectedModules, filters, simuladoNome]);
 
   const activeFilterCount = [
     filters.turmas.length > 0,
@@ -61,6 +96,8 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
     filters.especialidades.length > 0,
     filters.temas.length > 0,
   ].filter(Boolean).length;
+
+  const largeDataset = (data?.allStudents.length ?? 0) > 500;
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -89,29 +126,41 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
             </CardContent>
           </Card>
 
+          {/* Large dataset warning */}
+          {largeDataset && (
+            <Card className="bg-amber-500/5 border-amber-500/20">
+              <CardContent className="py-3 px-4 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Este relatório contém {data?.allStudents.length} alunos e pode levar alguns segundos para ser gerado.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Format selection */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Formato</p>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { setFormat('pdf'); setGenerated(false); }}
+                onClick={() => { setFmt('pdf'); setGenerated(false); }}
                 className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
-                  format === 'pdf' ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
+                  fmt === 'pdf' ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
                 }`}
               >
-                <FileText className={`h-5 w-5 ${format === 'pdf' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <FileText className={`h-5 w-5 ${fmt === 'pdf' ? 'text-primary' : 'text-muted-foreground'}`} />
                 <div className="text-left">
                   <p className="text-sm font-medium">PDF</p>
                   <p className="text-[10px] text-muted-foreground">Relatório executivo</p>
                 </div>
               </button>
               <button
-                onClick={() => { setFormat('xlsx'); setGenerated(false); }}
+                onClick={() => { setFmt('xlsx'); setGenerated(false); }}
                 className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
-                  format === 'xlsx' ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
+                  fmt === 'xlsx' ? 'border-primary bg-primary/5' : 'hover:bg-accent/50'
                 }`}
               >
-                <Table2 className={`h-5 w-5 ${format === 'xlsx' ? 'text-primary' : 'text-muted-foreground'}`} />
+                <Table2 className={`h-5 w-5 ${fmt === 'xlsx' ? 'text-primary' : 'text-muted-foreground'}`} />
                 <div className="text-left">
                   <p className="text-sm font-medium">Excel</p>
                   <p className="text-[10px] text-muted-foreground">Dados para análise</p>
@@ -149,7 +198,7 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
 
           <Separator />
 
-          {/* Preview of what will be exported */}
+          {/* Preview */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">O relatório incluirá</p>
             <div className="space-y-1 text-xs text-muted-foreground">
@@ -171,7 +220,7 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
                   <div>
                     <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Relatório gerado!</p>
                     <p className="text-xs text-emerald-700/80 dark:text-emerald-400/80">
-                      O download do {format.toUpperCase()} será iniciado automaticamente.
+                      O download do {fmt.toUpperCase()} foi iniciado automaticamente.
                     </p>
                   </div>
                 </CardContent>
@@ -185,12 +234,12 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
                 {generating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Gerando {format.toUpperCase()}...
+                    Gerando {fmt.toUpperCase()}...
                   </>
                 ) : (
                   <>
                     <FileDown className="h-4 w-4" />
-                    Gerar Relatório {format.toUpperCase()}
+                    Gerar Relatório {fmt.toUpperCase()}
                     <Badge variant="secondary" className="text-[10px] ml-1">
                       {selectedModules.length} módulo(s)
                     </Badge>
