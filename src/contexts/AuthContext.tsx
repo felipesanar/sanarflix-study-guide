@@ -65,7 +65,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(updated);
       localStorage.setItem('sanarflix-user', JSON.stringify(updated));
-      Logger.debug('refreshUserProfile: updated', { userId, ies_nome: iesNome, semestre: row.semestre });
+      console.log('[Auth] role from DB:', roles);
+      Logger.debug('refreshUserProfile: updated', { userId, ies_nome: iesNome, semestre: row.semestre, roles });
     } catch (e) {
       Logger.warn('refreshUserProfile: unexpected error', e);
     }
