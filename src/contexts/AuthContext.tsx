@@ -296,6 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsPasswordChange(data.needsPasswordChange || false);
       
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
+      console.log('[Auth] role from DB:', userData.roles);
       Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
       
       broadcast({ type: 'LOGIN', data: userData });
