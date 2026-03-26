@@ -1,61 +1,62 @@
 
 
-# Plano: Exportação de Relatórios Institucionais (PDF e XLSX)
+# Plano: Correção de Leitura de Roles via user_roles
 
-## O que será feito
+## Problemas Identificados
 
-Implementar a geração real de relatórios PDF e XLSX a partir do `ExportReportDrawer` já existente, usando os dados filtrados (`InstitutionalViewModel`) sem novas queries ao Supabase.
+1. **UsersListTable exibe "Aluno" hardcoded** (linha 1103): qualquer usuário não-admin mostra badge "Aluno", ignorando roles como `gestor` e `atendimento` que já estão carregados no array `user.roles`.
 
-## Arquivos novos
+2. **RPCs do Supabase não incluem `gestor`**: as funções `get_institutional_simulados`, `get_institutional_performance`, `get_institutional_student_scores`, `get_institutional_evolution` e `get_institutional_question_details` verificam apenas `admin`, `professor` e `b2b_partner`. Gestores com acesso na sidebar receberão erro "Access denied" ao tentar carregar dados.
 
-### 1. `src/utils/institutionalReportPdf.ts`
-Geração de PDF com **jsPDF** (já instalado no projeto).
+3. **AuthContext já carrega roles corretamente** via `get_user_roles` RPC — não precisa de alteração estrutural, apenas um log de debug.
 
-**Estrutura do documento:**
-- **Capa**: nome da IES, simulado, data, filtros ativos
-- **Visão Institucional**: KPIs (proficiência média, % proficientes, conceito, distância), faixas de distribuição como tabela
-- **Diagnóstico Curricular**: tabela área → especialidade → tema com percentual de acerto
-- **Visão de Alunos**: top alunos críticos (abaixo do limiar) com nome, semestre, acerto, distância
-- **Inteligência Decisória**: top 10 temas prioritários com score composto, gap e impacto potencial
-- **Rodapé**: paginação em todas as páginas
+## Alterações
 
-Reutilizará helpers visuais do padrão `pdfGabarito.ts` (gradient header, rounded rect, progress bar, cores wine/brand).
+### 1. `src/components/admin/UsersListTable.tsx` — Exibir role real
 
-### 2. `src/utils/institutionalReportXlsx.ts`
-Geração de XLSX com **xlsx** (já instalado no projeto).
+Substituir o bloco hardcoded (linhas 1096-1104):
 
-**Abas do arquivo:**
-1. **Resumo Institucional**: metadados (IES, simulado, data, filtros) + KPIs + faixas de distribuição
-2. **Diagnóstico por Área**: tabela hierárquica (área, especialidade, tema, total, acertos, percentual)
-3. **Lista de Alunos**: todos os alunos com nome, semestre, acertos, total, percentual, proficiência TRI
-4. **Temas Prioritários**: temas ordenados por score composto com gap, prevalência, impacto
+```tsx
+// Antes
+{isAdmin ? (
+  <Badge variant="default" className="bg-primary">
+    <Shield className="h-3 w-3 mr-1" />Admin
+  </Badge>
+) : (
+  <Badge variant="secondary">Aluno</Badge>
+)}
 
-Cada aba terá primeira linha congelada e auto-filtros.
-
-## Arquivo modificado
-
-### 3. `src/components/analytics/v2/shared/ExportReportDrawer.tsx`
-- Substituir o `setTimeout` simulado por chamadas reais a `generateInstitutionalPDF` ou `generateInstitutionalXLSX`
-- Passar `data`, `filters`, `simuladoNome`, `selectedModules` aos geradores
-- Trigger download via `Blob` + `URL.createObjectURL` + click automático em `<a>`
-- Manter estados de loading/sucesso/erro existentes
-- Aviso visual se `data.allStudents.length > 500`
-
-## Fluxo de dados
-
-```text
-ExportReportDrawer
-  ├─ format === 'pdf'  → generateInstitutionalPDF(data, filters, modules, simuladoNome)
-  │                        → jsPDF → Blob → download
-  └─ format === 'xlsx' → generateInstitutionalXLSX(data, filters, modules, simuladoNome)
-                           → XLSX.writeFile → download
+// Depois — mapear todas as roles do array user.roles
 ```
+
+Criar um mapa de labels:
+```
+admin → Admin (com ícone Shield, badge primary)
+professor → Professor
+gestor → Gestor
+atendimento → Atendimento
+b2b_partner → Parceiro B2B
+(sem roles) → Aluno (fallback)
+```
+
+### 2. Migration SQL — Adicionar `gestor` às RPCs institucionais
+
+Atualizar 5 RPCs para incluir `has_role(v_user_id, 'gestor')` na verificação de acesso:
+- `get_institutional_simulados`
+- `get_institutional_performance`
+- `get_institutional_student_scores`
+- `get_institutional_evolution`
+- `get_institutional_question_details`
+
+O gestor usará a IES do próprio perfil (mesmo comportamento de professor).
+
+### 3. `src/contexts/AuthContext.tsx` — Log de debug
+
+Adicionar `console.log('[Auth] role from DB:', roles)` após carregamento de roles no `refreshUserProfile` e no `login`.
 
 ## Detalhes técnicos
 
-- **Sem novas queries**: consome apenas o `InstitutionalViewModel` filtrado já disponível
-- **Módulos selecionáveis**: cada seção do PDF/aba do XLSX só é incluída se o módulo correspondente estiver checked
-- **Nomes de arquivo**: `relatorio-desempenho-YYYY-MM-DD.pdf` / `.xlsx`
-- **Geração assíncrona**: `async` para não travar UI, com try/catch mostrando toast em caso de erro
-- **Reutilização de lógica**: `buildDecisionItems()` do `InteligenciaDecisoriModule` será extraída como util compartilhada para PDF/XLSX consumirem os mesmos dados de priorização
+- O `accessRules.ts` e `AppSidebar.tsx` já estão corretos — gestor tem `desempenhoInstitucional: true` e atendimento tem `userManagement: true`
+- O `UserManagement.tsx` já restringe atendimento à aba Usuários
+- A única lacuna real está na **exibição** (badge hardcoded) e no **backend** (RPCs sem gestor)
 
