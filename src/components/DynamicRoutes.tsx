@@ -278,8 +278,8 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/desempenho-institucional-v2" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
-          {/* Caderno de Erros - Apenas para administradores */}
-          {accessRules.errorNotebook && user?.roles?.includes('admin') ? (
+          {/* Caderno de Erros */}
+          {accessRules.errorNotebook ? (
             <Route
               path="/caderno-de-erros"
               element={

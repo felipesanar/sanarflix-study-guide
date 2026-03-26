@@ -18,6 +18,7 @@ import {
   
   LogOut,
   User,
+  School,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
@@ -129,13 +130,16 @@ export function MobileBottomNav() {
     });
 
     // Admin section
-    if (isAdmin(user)) {
+    const adminItems = [
+      { title: "Portal do Admin", url: "/gestao-usuarios", icon: UserCog, show: accessRules.userManagement },
+      { title: "Analytics", url: "/analytics", icon: TrendingUp, show: accessRules.analytics },
+      { title: "Desempenho Institucional", url: "/desempenho-institucional-v2", icon: School, show: accessRules.desempenhoInstitucional },
+    ].filter(item => item.show);
+
+    if (adminItems.length > 0) {
       sections.push({
         title: "Administração",
-        items: [
-          { title: "Portal do Admin", url: "/gestao-usuarios", icon: UserCog, show: true },
-          { title: "Analytics", url: "/analytics", icon: TrendingUp, show: true },
-        ],
+        items: adminItems,
       });
     }
 

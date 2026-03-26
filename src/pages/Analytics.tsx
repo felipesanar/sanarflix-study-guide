@@ -13,6 +13,7 @@ import { DataStatusIndicator } from '@/components/analytics/DataStatusIndicator'
 import { LoginPrompt } from '@/components/analytics/LoginPrompt';
 import { LiveUsersIndicator } from '@/components/analytics/LiveUsersIndicator';
 import { isAdmin } from '@/utils/accessRules';
+import { useAccessRules } from '@/hooks/useAccessRules';
 import { useAnalyticsData } from '@/hooks/useAnalyticsData';
 import { useOnlineUsersCount } from '@/hooks/useOnlineUsersCount';
 import { BarChart3, RefreshCw, Download } from 'lucide-react';
@@ -32,6 +33,7 @@ export interface AnalyticsFilters {
 
 const Analytics = () => {
   const { user } = useAuth();
+  const { accessRules } = useAccessRules();
   const [showExportModal, setShowExportModal] = useState(false);
   const [activeTab, setActiveTab] = useState('engagement');
   const [filters, setFilters] = useState<AnalyticsFilters>({
@@ -62,7 +64,7 @@ const Analytics = () => {
     refetch 
   } = data;
 
-  const hasAnalyticsAccess = isAdmin(user);
+  const hasAnalyticsAccess = accessRules.analytics;
   const { count: onlineUsersCount, isConnected, isLoading: isLoadingOnline } = useOnlineUsersCount();
 
   const handleRefresh = async () => {

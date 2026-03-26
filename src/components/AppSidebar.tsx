@@ -166,12 +166,6 @@ export function AppSidebar() {
   // Filter visible main menu items
   const visibleMenuItems = menuItems.filter((item) => {
     if (item.accessKey === "home") return false; // Rendered separately above
-    if (item.accessKey === "sanarclass") return accessRules.sanarclass;
-    if (item.accessKey === "simulados") return accessRules.simulados;
-    if (item.accessKey === "errorNotebook") return isAdmin(user);
-    if (item.accessKey === "analytics") return isAdmin(user);
-    if (item.accessKey === "desempenhoInstitucional") return isAdmin(user) || isProfessor(user) || isB2BPartner(user) || isGestor(user);
-    if (item.accessKey === "userManagement") return isAdmin(user) || isAtendimento(user);
     return accessRules[(item as (typeof menuItems)[number]).accessKey];
   });
 

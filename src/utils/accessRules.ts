@@ -149,11 +149,12 @@ export const getAccessRules = (user: User | null): AccessRules => {
     };
   }
 
-  // Atendimento: acesso ao portal do admin (apenas aba Usuários)
+  // Atendimento: acesso a todas as páginas, exceto desempenho institucional
+  // No portal do admin, tem acesso apenas à aba Usuários (lógica de abas em UserManagement)
   if (isAtendimento(user)) {
     return {
-      ...DEFAULT_RULES,
-      userManagement: true,
+      ...ADMIN_RULES,
+      desempenhoInstitucional: false,
     };
   }
 
