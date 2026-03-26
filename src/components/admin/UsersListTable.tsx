@@ -1094,14 +1094,29 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                       </TableCell>
 
                       <TableCell>
-                        {isAdmin ? (
-                          <Badge variant="default" className="bg-primary">
-                            <Shield className="h-3 w-3 mr-1" />
-                            Admin
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">Aluno</Badge>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles && user.roles.length > 0 ? (
+                            user.roles.map((role: string) => {
+                              const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
+                                admin: { label: 'Admin', variant: 'default', icon: true },
+                                professor: { label: 'Professor', variant: 'secondary' },
+                                gestor: { label: 'Gestor', variant: 'secondary' },
+                                atendimento: { label: 'Atendimento', variant: 'secondary' },
+                                b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
+                                moderator: { label: 'Moderador', variant: 'secondary' },
+                              };
+                              const c = config[role] || { label: role, variant: 'secondary' as const };
+                              return (
+                                <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
+                                  {c.icon && <Shield className="h-3 w-3 mr-1" />}
+                                  {c.label}
+                                </Badge>
+                              );
+                            })
+                          ) : (
+                            <Badge variant="secondary">Aluno</Badge>
+                          )}
+                        </div>
                       </TableCell>
 
                       <TableCell className="text-right">
