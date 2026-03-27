@@ -123,7 +123,7 @@ export function mapInstitutionalRpcToViewModel(
     { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${proficientes.length} de ${totalStudents} alunos` },
     { label: 'Nota Prevista da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
     { label: 'Distância Próxima Faixa', value: `${distanciaMedia} pts`, icon: 'TrendingUp', status: distanciaMedia > 15 ? 'critical' : distanciaMedia > 5 ? 'warning' : 'good', description: 'Distância média dos alunos abaixo' },
-    { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` }, },
+    { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` },
     { label: 'Taxa de Adesão', value: `${totalStudents > 0 ? '—' : '0'}`, icon: 'CheckCircle', status: 'neutral', description: 'Dados de adesão indisponíveis' },
   ];
 
