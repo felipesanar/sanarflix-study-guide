@@ -137,7 +137,7 @@ function computeDistanciaFaixa(students: StudentScore[]) {
       label: 'Próximos de avançar (até 10pts)',
       value: `${proximos} alunos`,
       status: 'good' as const,
-      description: `A menos de 10pts da proficiência (${PROFICIENCY_THRESHOLD}%)`,
+      description: `A menos de 10pts da proficiência (${PROFICIENCY_THRESHOLD}pts)`,
     },
     {
       label: 'Distância moderada (10-20pts)',
@@ -200,7 +200,7 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
       };
     }
     if (kpi.label === 'Alunos Abaixo do Esperado') {
-      return { ...kpi, value: abaixo.length, description: `Abaixo de ${PROFICIENCY_THRESHOLD}% de acerto` };
+      return { ...kpi, value: abaixo.length, description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` };
     }
     return kpi;
   });
