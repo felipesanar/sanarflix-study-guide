@@ -5,6 +5,7 @@ import {
   ChevronRight, Users, BookOpen, BarChart3, Target,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
