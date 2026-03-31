@@ -41,6 +41,11 @@ function getConceito(percentProficientes: number): { conceito: string; nota: num
   return { conceito: 'Conceito 1', nota: 1 };
 }
 
+/** Estimate affected students heuristic (shared across modules) */
+export function estimateAffectedStudents(totalStudents: number, gap: number): number {
+  return Math.ceil(totalStudents * Math.min(gap / 50, 1) * 0.8);
+}
+
 function getSancao(percentProficientes: number): string | null {
   if (percentProficientes < 40) return 'Redução de 50% das vagas';
   if (percentProficientes < 50) return 'Redução de 25% das vagas';
