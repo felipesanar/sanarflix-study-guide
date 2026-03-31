@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Crosshair, BarChart3 } from 'lucide-react';
+import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
