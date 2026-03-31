@@ -70,10 +70,10 @@ const DEFAULT_SCENARIO: SimulationScenario = {
 };
 
 function getConceito(percentProficientes: number): string {
-  if (percentProficientes >= 80) return '5';
-  if (percentProficientes >= 60) return '4';
-  if (percentProficientes >= 40) return '3';
-  if (percentProficientes >= 20) return '2';
+  if (percentProficientes >= 90) return '5';
+  if (percentProficientes >= 75) return '4';
+  if (percentProficientes >= 60) return '3';
+  if (percentProficientes >= 40) return '2';
   return '1';
 }
 

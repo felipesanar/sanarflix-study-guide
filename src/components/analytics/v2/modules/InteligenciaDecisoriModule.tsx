@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, Crosshair, BarChart3 } from 'lucide-react';
+import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +68,7 @@ function buildChartData(data: InstitutionalViewModel) {
         });
 
         if (gap > 0) {
-          const alunosAfetados = Math.ceil(totalStudents * Math.min(gap / 40, 1) * 0.7);
+          const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
           const impacto = Math.round(prevalencia * alunosAfetados * gap) / 100;
           impactItems.push({
             name: tema.name,

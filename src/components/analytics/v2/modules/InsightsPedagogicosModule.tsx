@@ -5,6 +5,7 @@ import {
   ChevronRight, Users, BookOpen, BarChart3, Target,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -62,7 +63,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     // Area-level insights
     if (area.percentual < PROFICIENCY_THRESHOLD) {
       const gap = PROFICIENCY_THRESHOLD - area.percentual;
-      const alunosAfetados = Math.ceil(totalStudents * (gap / 100) * 1.5);
+      const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
       const priority = Math.min(100, gap * 1.2 + areaPrevalencia * 0.8 + Math.min(alunosAfetados, 30));
       insights.push({
         id: `area-${area.name}`,
@@ -88,7 +89,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
       for (const tema of sp.temas) {
         const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
         const gap = Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual);
-        const alunosAfetados = gap > 0 ? Math.ceil(totalStudents * Math.min(gap / 50, 1) * 0.8) : 0;
+        const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
 
         if (tema.percentual < 50) {
           // Critical tema
