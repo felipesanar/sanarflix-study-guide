@@ -68,7 +68,7 @@ function buildChartData(data: InstitutionalViewModel) {
         });
 
         if (gap > 0) {
-          const alunosAfetados = Math.ceil(totalStudents * Math.min(gap / 40, 1) * 0.7);
+          const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
           const impacto = Math.round(prevalencia * alunosAfetados * gap) / 100;
           impactItems.push({
             name: tema.name,

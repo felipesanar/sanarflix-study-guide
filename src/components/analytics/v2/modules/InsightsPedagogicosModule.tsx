@@ -89,7 +89,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
       for (const tema of sp.temas) {
         const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
         const gap = Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual);
-        const alunosAfetados = gap > 0 ? Math.ceil(totalStudents * Math.min(gap / 50, 1) * 0.8) : 0;
+        const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
 
         if (tema.percentual < 50) {
           // Critical tema
