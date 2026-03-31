@@ -63,7 +63,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     // Area-level insights
     if (area.percentual < PROFICIENCY_THRESHOLD) {
       const gap = PROFICIENCY_THRESHOLD - area.percentual;
-      const alunosAfetados = Math.ceil(totalStudents * (gap / 100) * 1.5);
+      const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
       const priority = Math.min(100, gap * 1.2 + areaPrevalencia * 0.8 + Math.min(alunosAfetados, 30));
       insights.push({
         id: `area-${area.name}`,
