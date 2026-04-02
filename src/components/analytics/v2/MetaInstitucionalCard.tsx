@@ -94,21 +94,23 @@ export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Progress */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Proficientes</span>
-              <span className="font-semibold text-foreground">
-                {percent}% / {info.isTop ? '90%+' : `${info.nextThreshold}%`}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-foreground">Conceito {info.currentConceito}</span>
+              <span className="text-xs text-muted-foreground">
+                {info.isTop
+                  ? 'Conceito 5 alcançado'
+                  : `${info.progressPercent}% do caminho para Conceito ${info.currentConceito + 1}`}
               </span>
             </div>
             <div className="relative">
               <Progress value={info.progressPercent} className="h-2.5" />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>{info.previousThreshold}%</span>
+                <span className="font-medium text-foreground">{percent}% proficientes</span>
+                <span>{info.isTop ? '100%' : `${info.nextThreshold}%`}</span>
+              </div>
             </div>
-            <p className="text-[11px] text-muted-foreground text-right">
-              {info.isTop
-                ? 'Conceito 5 alcançado'
-                : `${info.progressPercent}% da meta para Conceito ${info.currentConceito + 1}`}
-            </p>
           </div>
 
           {/* Key metrics */}
