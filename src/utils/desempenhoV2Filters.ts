@@ -185,9 +185,22 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
       : 0;
   const abaixo = students.filter((student) => student.percentual < PROFICIENCY_THRESHOLD);
 
+  // Conceito thresholds for distância p.p.
+  const conceitoThresholds = [40, 60, 75, 90];
+  const nextConceitoTarget = conceitoThresholds.find((t) => header.percentProficientes < t) ?? 100;
+  const distanciaPP = header.percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - header.percentProficientes) * 10) / 10;
+
+  // Percentual de acertos from filtered students
+  const totalQuestoes = students.reduce((sum, s) => sum + s.total, 0);
+  const totalAcertos = students.reduce((sum, s) => sum + s.acertos, 0);
+  const percentualAcertos = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 1000) / 10 : 0;
+
   return base.kpis.map((kpi) => {
     if (kpi.label === 'Total de Alunos') {
       return { ...kpi, value: header.totalAlunos, description: 'Alunos no recorte aplicado' };
+    }
+    if (kpi.label === 'Percentual de Acertos') {
+      return { ...kpi, value: `${percentualAcertos}%`, description: `${totalAcertos} acertos de ${totalQuestoes} questões aplicadas` };
     }
     if (kpi.label === 'Proficiência Média (TRI)') {
       return { ...kpi, value: Math.round(acuraciaMedia) };
@@ -197,6 +210,13 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
         ...kpi,
         value: `${header.percentProficientes}%`,
         description: `${header.totalAlunos - abaixo.length} de ${header.totalAlunos} alunos`,
+      };
+    }
+    if (kpi.label === 'Distância Próxima Faixa') {
+      return {
+        ...kpi,
+        value: header.percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`,
+        description: 'Distância para alcançar a próxima faixa de conceito',
       };
     }
     if (kpi.label === 'Alunos Abaixo do Esperado') {
