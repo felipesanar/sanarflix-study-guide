@@ -1,96 +1,73 @@
 
 
-# Geração de Dataset Fictício para "Desempenho Institucional"
+# Alterações na Aba "Visão Institucional"
 
 ## Resumo
 
-Criar um script Python que gera e insere dados fictícios diretamente no Supabase via `psql`, populando todas as tabelas necessárias para que o dashboard funcione completamente com dados realistas. O script será executado uma única vez via `code--exec`.
+Corrigir 3 KPI cards existentes e adicionar 1 novo, além de redesenhar o card "Meta Institucional". Requer uma pequena query adicional no hook de dados para obter o total de alunos matriculados na IES (para calcular taxa de adesão).
 
-## Tabelas Envolvidas (Auditoria)
+## Mudanças
+
+### 1. Dados: buscar total de alunos da IES
+
+**Arquivo**: `src/hooks/useInstitutionalPerformanceData.ts`
+
+Adicionar uma query `SELECT count(*) FROM users WHERE id_ies = ?` em paralelo com as RPCs existentes. Passar o resultado (`totalIesUsers`) para o mapper.
+
+### 2. Mapper: ajustar KPIs e Meta
+
+**Arquivo**: `src/utils/mapInstitutionalData.ts`
+
+- **Aceitar `totalIesUsers`** como parâmetro adicional em `mapInstitutionalRpcToViewModel`
+- **KPI "Distância Próxima Faixa"**: mudar de "distância média dos alunos abaixo" para distância em p.p. até o próximo conceito. Ex: se `percentProficientes = 25%`, conceito atual = 1, próximo threshold = 40%, distância = `15 p.p.`. Descrição: "Distância para alcançar a próxima faixa de conceito"
+- **KPI "Taxa de Adesão"**: calcular `(totalStudents / totalIesUsers) * 100`. Descrição: "X alunos dos Y realizaram o simulado"
+- **Novo KPI "Percentual de Acertos"**: `(overallStats.acertos / overallStats.total) * 100`. Descrição: "X acertos de Y questões aplicadas". Posicionar logo após "Total de Alunos"
+- **Meta Institucional**: atualizar campos para refletir % proficientes vs próximo threshold de conceito, gap em p.p., e adesão real
+
+### 3. Interface MetaInstitucional
+
+**Arquivo**: `src/mocks/desempenhoInstitucionalV2.ts`
+
+Adicionar campos opcionais à interface `MetaInstitucional`: `totalIesUsers`, `totalStudentsSimulado`, `sancaoRegulatoriaLabel`
+
+### 4. Card Meta Institucional
+
+**Arquivo**: `src/components/analytics/v2/MetaInstitucionalCard.tsx`
+
+- **Barra de progresso**: mostrar `percentProficientes` atual vs próximo threshold de conceito (ex: 25% → meta 40%)
+- **Percentual da meta**: calcular como proporção da distância percorrida. Se a IES está em conceito 1 (threshold anterior = 0%), meta = 40%, e tem 25% proficientes, então progresso = (25-0)/(40-0) = 62.5%
+- **Gap de Proficiência**: mostrar distância em p.p. até próximo conceito
+- **Taxa de Adesão**: mostrar % calculado real
+- **Substituir "Percentil Médio"** por **"Sanção Regulatória"** com label da sanção atual ou "Nenhuma"
+
+### 5. Filtros: propagar novos KPIs
+
+**Arquivo**: `src/utils/desempenhoV2Filters.ts`
+
+Atualizar `updateKpis` para recalcular os novos/alterados KPIs ao aplicar filtros secundários (semestre, área, etc.)
+
+## Thresholds de Conceito (referência)
 
 ```text
-┌─────────────────────┬──────────────────────────────────────────────┐
-│ Tabela              │ Uso no Dashboard                             │
-├─────────────────────┼──────────────────────────────────────────────┤
-│ ies                 │ Dropdown de IES no filtro global             │
-│ users               │ Alunos vinculados à IES (id_ies, semestre)   │
-│ user_roles          │ Papel 'gestor' para acessar RPCs             │
-│ simulados_admin     │ Dropdown de simulados (ies_ids, status)      │
-│ questoes_simulado   │ Questões com taxonomia curricular            │
-│ answer_progress     │ Respostas dos alunos (correct, user_id)      │
-└─────────────────────┴──────────────────────────────────────────────┘
+Conceito 1: < 40% proficientes
+Conceito 2: 40–59%
+Conceito 3: 60–74%
+Conceito 4: 75–89%
+Conceito 5: ≥ 90%
+
+Faixa anterior → Meta:
+  0% → 40%  (Conceito 1 → 2)
+ 40% → 60%  (Conceito 2 → 3)
+ 60% → 75%  (Conceito 3 → 4)
+ 75% → 90%  (Conceito 4 → 5)
+ 90% → topo (já Conceito 5)
 ```
 
-Todas as RPCs (`get_institutional_performance`, `get_institutional_student_scores`, `get_institutional_evolution`) fazem JOINs entre `answer_progress → users → questoes_simulado`, filtrando por `id_ies` e `simulado_id`.
+## Arquivos modificados
 
-## Cenário Fictício
-
-- **IES**: "TESTE_IES Performance Acadêmica" (UUID gerado)
-- **3 Simulados**: "TESTE_Simulado 2024.1", "TESTE_Simulado 2024.2", "TESTE_Simulado Diagnóstico"
-- **120 alunos** distribuídos nos semestres 1-12
-- **~100 questões por simulado** (300 total) com taxonomia hierárquica realista
-- **~10.000-15.000 respostas** no `answer_progress`
-
-### Taxonomia Curricular (6 áreas)
-
-```text
-Clínica Médica → Cardiologia, Endocrinologia, Pneumologia
-                  → 3-5 temas cada
-Cirurgia       → Cirurgia Geral, Cirurgia Vascular
-                  → 3-4 temas cada
-Pediatria      → Neonatologia, Puericultura, Infectologia Pediátrica
-                  → 3-4 temas cada (ÁREA CRÍTICA: baixa proficiência)
-GO             → Obstetrícia, Ginecologia
-                  → 3-4 temas cada
-Saúde Coletiva → Epidemiologia, Gestão em Saúde
-                  → 2-3 temas cada
-Med Preventiva → Atenção Primária, Saúde Mental
-                  → 2-3 temas cada (ÁREA FORTE: alta proficiência)
-```
-
-### Padrões Analíticos Intencionais
-
-1. **Pediatria**: Proficiência ~35%, prevalência ~18% → quadrante crítico no scatter
-2. **Cirurgia**: Proficiência ~45%, prevalência ~15% → zona de atenção
-3. **Med Preventiva**: Proficiência ~75%, prevalência ~8% → área forte
-4. **Clínica Médica**: Proficiência ~55%, prevalência ~25% → alta prevalência, gap moderado
-5. **Distribuição de alunos**: ~25% proficientes, ~45% medianos, ~30% críticos → gera sanção e insights
-
-### Evolução entre Simulados
-
-- Simulado 2024.1: proficiência geral ~42%
-- Simulado 2024.2: proficiência geral ~48%
-- Simulado Diagnóstico: proficiência geral ~52%
-
-## Implementação
-
-### Script único Python (`/tmp/generate_mock_data.py`)
-
-1. Gera UUIDs para IES, simulados, alunos, questões
-2. Cria a IES na tabela `ies`
-3. Cria 120 alunos em `auth.users` (via INSERT direto no `users` — não precisa de auth, pois os alunos são fictícios e só precisam existir na tabela `public.users`)
-4. Cria 3 simulados em `simulados_admin` com `status='ativo'`, `liberacao_desempenho='imediato'`, `ies_ids` apontando para a IES fictícia
-5. Gera ~100 questões por simulado com a taxonomia definida
-6. Gera respostas em `answer_progress` com distribuição de performance controlada por perfil de aluno e área
-7. Todos os nomes prefixados com "TESTE_"
-
-### Execução
-
-O script gera SQL e executa via `psql`. Dados são inseridos com `ON CONFLICT DO NOTHING` para segurança.
-
-### Validação
-
-Queries de verificação pós-inserção para confirmar contagens.
-
-## Segurança
-
-- Todos os nomes prefixados com "TESTE_"
-- UUIDs gerados deterministicamente (seed fixa) para facilitar limpeza futura
-- Nenhum dado existente é alterado ou removido
-- Nenhuma RPC, tabela ou lógica de cálculo é modificada
-
-## Arquivos Criados/Modificados
-
-- `/tmp/generate_mock_data.py` — script temporário (não persiste no projeto)
-- **Nenhum arquivo do projeto é modificado**
+1. `src/hooks/useInstitutionalPerformanceData.ts` — query count users
+2. `src/utils/mapInstitutionalData.ts` — novos KPIs + meta
+3. `src/mocks/desempenhoInstitucionalV2.ts` — interface MetaInstitucional
+4. `src/components/analytics/v2/MetaInstitucionalCard.tsx` — redesign
+5. `src/utils/desempenhoV2Filters.ts` — updateKpis
 
