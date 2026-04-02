@@ -65,6 +65,7 @@ export function mapInstitutionalRpcToViewModel(
   performance: RpcPerformanceResponse,
   evolution: RpcEvolutionEntry[],
   studentScores: RpcStudentScoresResponse,
+  totalIesUsers?: number,
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
