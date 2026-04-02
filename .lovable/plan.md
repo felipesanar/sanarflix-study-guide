@@ -1,64 +1,96 @@
 
 
-# Auditoria do Dropdown de Simulados — Resultados
+# Geração de Dataset Fictício para "Desempenho Institucional"
 
-## Diagnóstico: Nenhum bug de código encontrado. O problema é de dados/configuração.
+## Resumo
 
-### Evidências da Auditoria
+Criar um script Python que gera e insere dados fictícios diretamente no Supabase via `psql`, populando todas as tabelas necessárias para que o dashboard funcione completamente com dados realistas. O script será executado uma única vez via `code--exec`.
 
-**Dados reais no banco** — Simulados por IES:
+## Tabelas Envolvidas (Auditoria)
 
 ```text
-IES "Claretiano" (6029b69d):
-  1. "1° Simulado Claretiano 2026" → status=ativo, liberacao=imediato ✅ APARECE
-  2. "Simulado 3 ENAMED"          → status=aguardando, liberacao=ao_encerrar ❌ FILTRADO
-
-IES "B2B" (9f21b138):
-  1. "Simulado Teste"                    → status=ativo, liberacao=imediato ✅
-  2. "2º Simulado Claretiano"            → status=ativo, liberacao=imediato ✅
-  3. "[CLARETIANO] 1_Simulado_2026 (4)"  → status=ativo, liberacao=imediato ✅
-  4. "Teste Gabarito 2"                  → status=ativo, liberacao=imediato ✅
-  5. "TESTE GABARITO"                    → status=encerrado, liberacao=imediato ✅
-  6. "Teste Gabarito Simulado"           → status=encerrado, liberacao=imediato ✅
+┌─────────────────────┬──────────────────────────────────────────────┐
+│ Tabela              │ Uso no Dashboard                             │
+├─────────────────────┼──────────────────────────────────────────────┤
+│ ies                 │ Dropdown de IES no filtro global             │
+│ users               │ Alunos vinculados à IES (id_ies, semestre)   │
+│ user_roles          │ Papel 'gestor' para acessar RPCs             │
+│ simulados_admin     │ Dropdown de simulados (ies_ids, status)      │
+│ questoes_simulado   │ Questões com taxonomia curricular            │
+│ answer_progress     │ Respostas dos alunos (correct, user_id)      │
+└─────────────────────┴──────────────────────────────────────────────┘
 ```
 
-**Resultado**: A IES "Claretiano" realmente só tem **1 simulado elegível** no dropdown. O segundo ("Simulado 3 ENAMED") está com `status='aguardando'` e `liberacao_desempenho='ao_encerrar'`, então a RPC o exclui corretamente.
+Todas as RPCs (`get_institutional_performance`, `get_institutional_student_scores`, `get_institutional_evolution`) fazem JOINs entre `answer_progress → users → questoes_simulado`, filtrando por `id_ies` e `simulado_id`.
 
-### Verificação do Código
+## Cenário Fictício
 
-**RPC `get_institutional_simulados`** — Filtros aplicados:
-- `v_ies_id = ANY(sa.ies_ids)` — correto, filtra por IES
-- `sa.status IN ('ativo', 'encerrado')` — correto, exclui 'aguardando'
-- Condições de liberação de desempenho — corretas
-- **Nenhum `LIMIT`** encontrado
-- **Nenhum filtro por data** que restrinja artificialmente
+- **IES**: "TESTE_IES Performance Acadêmica" (UUID gerado)
+- **3 Simulados**: "TESTE_Simulado 2024.1", "TESTE_Simulado 2024.2", "TESTE_Simulado Diagnóstico"
+- **120 alunos** distribuídos nos semestres 1-12
+- **~100 questões por simulado** (300 total) com taxonomia hierárquica realista
+- **~10.000-15.000 respostas** no `answer_progress`
 
-**Hook `useInstitutionalPerformanceData.ts`** — Populamento do dropdown:
-- Chama a RPC sem LIMIT
-- Mapeia todos os resultados para o estado `simulados`
-- Auto-seleciona o primeiro como padrão (correto)
-- **Nenhuma restrição adicional no frontend**
+### Taxonomia Curricular (6 áreas)
 
-### Causa raiz
+```text
+Clínica Médica → Cardiologia, Endocrinologia, Pneumologia
+                  → 3-5 temas cada
+Cirurgia       → Cirurgia Geral, Cirurgia Vascular
+                  → 3-4 temas cada
+Pediatria      → Neonatologia, Puericultura, Infectologia Pediátrica
+                  → 3-4 temas cada (ÁREA CRÍTICA: baixa proficiência)
+GO             → Obstetrícia, Ginecologia
+                  → 3-4 temas cada
+Saúde Coletiva → Epidemiologia, Gestão em Saúde
+                  → 2-3 temas cada
+Med Preventiva → Atenção Primária, Saúde Mental
+                  → 2-3 temas cada (ÁREA FORTE: alta proficiência)
+```
 
-A impressão de "faltam simulados" vem de:
-1. O "Simulado 3 ENAMED" está com `status='aguardando'` — precisa ser alterado para `'ativo'` no admin
-2. Os simulados com nome "Claretiano" na IES "B2B" (`9f21b138`) estão atribuídos à IES errada — deveriam estar na IES "Claretiano" (`6029b69d`)?
+### Padrões Analíticos Intencionais
 
-### Ação necessária (dados, não código)
+1. **Pediatria**: Proficiência ~35%, prevalência ~18% → quadrante crítico no scatter
+2. **Cirurgia**: Proficiência ~45%, prevalência ~15% → zona de atenção
+3. **Med Preventiva**: Proficiência ~75%, prevalência ~8% → área forte
+4. **Clínica Médica**: Proficiência ~55%, prevalência ~25% → alta prevalência, gap moderado
+5. **Distribuição de alunos**: ~25% proficientes, ~45% medianos, ~30% críticos → gera sanção e insights
 
-Nenhuma alteração de código é necessária. As ações são:
+### Evolução entre Simulados
 
-1. **Se "Simulado 3 ENAMED" deve aparecer**: alterar seu status de `'aguardando'` para `'ativo'` via Portal Admin
-2. **Se os simulados da IES "B2B" pertencem ao Claretiano**: atualizar o `ies_ids` desses simulados para incluir `6029b69d-a2ef-4de5-b907-91f88122bb4e`
+- Simulado 2024.1: proficiência geral ~42%
+- Simulado 2024.2: proficiência geral ~48%
+- Simulado Diagnóstico: proficiência geral ~52%
 
-### Resumo
+## Implementação
 
-| Verificação | Resultado |
-|---|---|
-| LIMIT 1 na query? | Não encontrado |
-| Filtro por data restritivo? | Não encontrado |
-| Frontend descarta resultados? | Não |
-| RPC retorna todos os elegíveis? | Sim |
-| Divergência backend vs UI? | Não — ambos mostram 1 simulado para Claretiano porque só 1 é elegível |
+### Script único Python (`/tmp/generate_mock_data.py`)
+
+1. Gera UUIDs para IES, simulados, alunos, questões
+2. Cria a IES na tabela `ies`
+3. Cria 120 alunos em `auth.users` (via INSERT direto no `users` — não precisa de auth, pois os alunos são fictícios e só precisam existir na tabela `public.users`)
+4. Cria 3 simulados em `simulados_admin` com `status='ativo'`, `liberacao_desempenho='imediato'`, `ies_ids` apontando para a IES fictícia
+5. Gera ~100 questões por simulado com a taxonomia definida
+6. Gera respostas em `answer_progress` com distribuição de performance controlada por perfil de aluno e área
+7. Todos os nomes prefixados com "TESTE_"
+
+### Execução
+
+O script gera SQL e executa via `psql`. Dados são inseridos com `ON CONFLICT DO NOTHING` para segurança.
+
+### Validação
+
+Queries de verificação pós-inserção para confirmar contagens.
+
+## Segurança
+
+- Todos os nomes prefixados com "TESTE_"
+- UUIDs gerados deterministicamente (seed fixa) para facilitar limpeza futura
+- Nenhum dado existente é alterado ou removido
+- Nenhuma RPC, tabela ou lógica de cálculo é modificada
+
+## Arquivos Criados/Modificados
+
+- `/tmp/generate_mock_data.py` — script temporário (não persiste no projeto)
+- **Nenhum arquivo do projeto é modificado**
 
