@@ -156,17 +156,24 @@ export function mapInstitutionalRpcToViewModel(
   }));
 
   // ── Meta ──
+  const conceitoRange = nextConceitoTarget - prevConceitoTarget;
+  const conceitoCovered = percentProficientes - prevConceitoTarget;
+  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
+
   const meta: MetaInstitucional = {
     proficienciaAtual: overallAccuracy,
-    meta: PROFICIENCY_THRESHOLD,
+    meta: nextConceitoTarget,
     status: sancao ? 'Sanção ativa' : 'Regular',
-    progresso: Math.min(100, Math.round((overallAccuracy / PROFICIENCY_THRESHOLD) * 100)),
-    gapProficiencia: Math.max(0, Math.round((PROFICIENCY_THRESHOLD - overallAccuracy) * 10) / 10),
+    progresso: metaProgresso,
+    gapProficiencia: distanciaPP,
     notaAtual,
     notaMeta: 4,
     percentilMedio: Math.round(overallAccuracy),
-    taxaAdesao: 0,
+    taxaAdesao,
     percentProficientes,
+    totalIesUsers: realTotalIesUsers,
+    totalStudentsSimulado: totalStudents,
+    sancaoRegulatoriaLabel: sancao ?? 'Nenhuma',
   };
 
   // ── Evolução ──

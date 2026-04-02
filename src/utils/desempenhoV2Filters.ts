@@ -248,16 +248,24 @@ export function applyDesempenhoV2Filters(
         ) / 10
       : 0;
 
+  // Recompute meta for filtered students
+  const conceitoThresholds = [40, 60, 75, 90];
+  const nextTarget = conceitoThresholds.find((t) => filteredHeader.percentProficientes < t) ?? 100;
+  const prevTarget = conceitoThresholds.filter((t) => filteredHeader.percentProficientes >= t).pop() ?? 0;
+  const conceitoRange = nextTarget - prevTarget;
+  const conceitoCovered = filteredHeader.percentProficientes - prevTarget;
+  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
+  const distPP = filteredHeader.percentProficientes >= 90 ? 0 : Math.round((nextTarget - filteredHeader.percentProficientes) * 10) / 10;
+
   const meta = {
     ...data.meta,
     proficienciaAtual: acuraciaMedia,
     percentProficientes: filteredHeader.percentProficientes,
-    progresso: Math.min(
-      100,
-      Math.round((acuraciaMedia / Math.max(data.meta.meta, 1)) * 100),
-    ),
-    gapProficiencia: Math.max(0, Math.round((PROFICIENCY_THRESHOLD - acuraciaMedia) * 10) / 10),
+    meta: nextTarget,
+    progresso: metaProgresso,
+    gapProficiencia: distPP,
     status: filteredHeader.sancao ? 'Sanção ativa' : 'Regular',
+    sancaoRegulatoriaLabel: filteredHeader.sancao ?? 'Nenhuma',
   };
 
   return {
