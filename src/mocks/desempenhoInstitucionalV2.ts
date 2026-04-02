@@ -26,6 +26,9 @@ export interface MetaInstitucional {
   percentilMedio: number;
   taxaAdesao: number;
   percentProficientes?: number;
+  totalIesUsers?: number;
+  totalStudentsSimulado?: number;
+  sancaoRegulatoriaLabel?: string;
 }
 
 export interface EvolucaoSimulado {

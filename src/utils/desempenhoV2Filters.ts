@@ -185,9 +185,22 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
       : 0;
   const abaixo = students.filter((student) => student.percentual < PROFICIENCY_THRESHOLD);
 
+  // Conceito thresholds for distância p.p.
+  const conceitoThresholds = [40, 60, 75, 90];
+  const nextConceitoTarget = conceitoThresholds.find((t) => header.percentProficientes < t) ?? 100;
+  const distanciaPP = header.percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - header.percentProficientes) * 10) / 10;
+
+  // Percentual de acertos from filtered students
+  const totalQuestoes = students.reduce((sum, s) => sum + s.total, 0);
+  const totalAcertos = students.reduce((sum, s) => sum + s.acertos, 0);
+  const percentualAcertos = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 1000) / 10 : 0;
+
   return base.kpis.map((kpi) => {
     if (kpi.label === 'Total de Alunos') {
       return { ...kpi, value: header.totalAlunos, description: 'Alunos no recorte aplicado' };
+    }
+    if (kpi.label === 'Percentual de Acertos') {
+      return { ...kpi, value: `${percentualAcertos}%`, description: `${totalAcertos} acertos de ${totalQuestoes} questões aplicadas` };
     }
     if (kpi.label === 'Proficiência Média (TRI)') {
       return { ...kpi, value: Math.round(acuraciaMedia) };
@@ -197,6 +210,13 @@ function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
         ...kpi,
         value: `${header.percentProficientes}%`,
         description: `${header.totalAlunos - abaixo.length} de ${header.totalAlunos} alunos`,
+      };
+    }
+    if (kpi.label === 'Distância Próxima Faixa') {
+      return {
+        ...kpi,
+        value: header.percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`,
+        description: 'Distância para alcançar a próxima faixa de conceito',
       };
     }
     if (kpi.label === 'Alunos Abaixo do Esperado') {
@@ -228,16 +248,24 @@ export function applyDesempenhoV2Filters(
         ) / 10
       : 0;
 
+  // Recompute meta for filtered students
+  const conceitoThresholds = [40, 60, 75, 90];
+  const nextTarget = conceitoThresholds.find((t) => filteredHeader.percentProficientes < t) ?? 100;
+  const prevTarget = conceitoThresholds.filter((t) => filteredHeader.percentProficientes >= t).pop() ?? 0;
+  const conceitoRange = nextTarget - prevTarget;
+  const conceitoCovered = filteredHeader.percentProficientes - prevTarget;
+  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
+  const distPP = filteredHeader.percentProficientes >= 90 ? 0 : Math.round((nextTarget - filteredHeader.percentProficientes) * 10) / 10;
+
   const meta = {
     ...data.meta,
     proficienciaAtual: acuraciaMedia,
     percentProficientes: filteredHeader.percentProficientes,
-    progresso: Math.min(
-      100,
-      Math.round((acuraciaMedia / Math.max(data.meta.meta, 1)) * 100),
-    ),
-    gapProficiencia: Math.max(0, Math.round((PROFICIENCY_THRESHOLD - acuraciaMedia) * 10) / 10),
+    meta: nextTarget,
+    progresso: metaProgresso,
+    gapProficiencia: distPP,
     status: filteredHeader.sancao ? 'Sanção ativa' : 'Regular',
+    sancaoRegulatoriaLabel: filteredHeader.sancao ?? 'Nenhuma',
   };
 
   return {

@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, Users, ShieldAlert } from 'lucide-react';
+import { TrendingUp, Users, ShieldAlert, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { MetaInstitucional } from '@/mocks/desempenhoInstitucionalV2';
@@ -11,21 +11,64 @@ interface Props {
   meta: MetaInstitucional;
 }
 
+const CONCEITO_THRESHOLDS = [
+  { min: 0, max: 40, conceito: 1 },
+  { min: 40, max: 60, conceito: 2 },
+  { min: 60, max: 75, conceito: 3 },
+  { min: 75, max: 90, conceito: 4 },
+  { min: 90, max: 100, conceito: 5 },
+];
+
+function getConceitoInfo(percentProficientes: number) {
+  const current = CONCEITO_THRESHOLDS.find(
+    (t) => percentProficientes < t.max
+  ) ?? CONCEITO_THRESHOLDS[CONCEITO_THRESHOLDS.length - 1];
+
+  const currentConceito = current.conceito;
+  const previousThreshold = current.min;
+  const nextThreshold = current.max;
+  const isTop = currentConceito === 5 && percentProficientes >= 90;
+  const gap = isTop ? 0 : Math.round((nextThreshold - percentProficientes) * 10) / 10;
+
+  // Progress toward next threshold from previous threshold
+  const range = nextThreshold - previousThreshold;
+  const covered = percentProficientes - previousThreshold;
+  const progressPercent = range > 0 ? Math.min(100, Math.round((covered / range) * 1000) / 10) : 100;
+
+  return { currentConceito, previousThreshold, nextThreshold, gap, progressPercent, isTop };
+}
+
 export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
   const percent = meta.percentProficientes ?? 0;
-  const conceito =
-    percent < 40 ? 'Conceito 1' :
-    percent < 60 ? 'Conceito 2' :
-    percent < 75 ? 'Conceito 3' :
-    percent < 90 ? 'Conceito 4' : 'Conceito 5';
+  const info = getConceitoInfo(percent);
 
-  const progressColor = meta.progresso >= 80 ? 'bg-emerald-500' : meta.progresso >= 50 ? 'bg-amber-500' : 'bg-red-500';
+  const taxaAdesao = (meta.totalIesUsers && meta.totalIesUsers > 0 && meta.totalStudentsSimulado !== undefined)
+    ? Math.round((meta.totalStudentsSimulado / meta.totalIesUsers) * 1000) / 10
+    : meta.taxaAdesao;
+
+  const sancaoLabel = meta.sancaoRegulatoriaLabel ?? 'Nenhuma';
 
   const metrics = [
-    { label: 'Gap de Proficiência', value: `${meta.gapProficiencia} pts`, icon: TrendingUp },
-    { label: 'Taxa de Adesão', value: `${meta.taxaAdesao}%`, icon: Users },
-    { label: 'Conceito Atual', value: conceito, icon: ShieldAlert },
-    { label: 'Percentil Médio', value: `${meta.percentilMedio}º`, icon: Target },
+    {
+      label: 'Gap de Proficiência',
+      value: info.isTop ? '0 p.p.' : `${info.gap} p.p.`,
+      icon: TrendingUp,
+    },
+    {
+      label: 'Taxa de Adesão',
+      value: `${taxaAdesao}%`,
+      icon: Users,
+    },
+    {
+      label: 'Conceito Atual',
+      value: `Conceito ${info.currentConceito}`,
+      icon: Target,
+    },
+    {
+      label: 'Sanção Regulatória',
+      value: sancaoLabel,
+      icon: ShieldAlert,
+    },
   ];
 
   return (
@@ -38,12 +81,14 @@ export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
               variant="secondary"
               className={cn(
                 'text-[11px]',
-                meta.progresso >= 80
+                info.isTop
                   ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400'
-                  : 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                  : info.progressPercent >= 50
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400'
               )}
             >
-              {meta.status}
+              {info.isTop ? 'Meta alcançada' : meta.status}
             </Badge>
           </div>
         </CardHeader>
@@ -51,13 +96,19 @@ export const MetaInstitucionalCard: React.FC<Props> = ({ meta }) => {
           {/* Progress */}
           <div className="space-y-1.5">
             <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Proficiência</span>
-              <span className="font-semibold text-foreground">{meta.proficienciaAtual} / {meta.meta.toFixed(0)}</span>
+              <span className="text-muted-foreground">Proficientes</span>
+              <span className="font-semibold text-foreground">
+                {percent}% / {info.isTop ? '90%+' : `${info.nextThreshold}%`}
+              </span>
             </div>
             <div className="relative">
-              <Progress value={meta.progresso} className="h-2.5" />
+              <Progress value={info.progressPercent} className="h-2.5" />
             </div>
-            <p className="text-[11px] text-muted-foreground text-right">{meta.progresso}% da meta</p>
+            <p className="text-[11px] text-muted-foreground text-right">
+              {info.isTop
+                ? 'Conceito 5 alcançado'
+                : `${info.progressPercent}% da meta para Conceito ${info.currentConceito + 1}`}
+            </p>
           </div>
 
           {/* Key metrics */}

@@ -216,18 +216,20 @@ export function useInstitutionalPerformanceData(
 
       const targetIesId = await resolveIesId(filters.iesId || undefined);
 
-      // Parallel RPC calls with retry + timeout
-      const [perfData, scoresData, evoData] = await Promise.all([
+      // Parallel RPC calls with retry + timeout + total IES users count
+      const [perfData, scoresData, evoData, iesUsersResult] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
+        supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId),
       ]);
 
       if (!perfData?.overallStats || !scoresData?.students) {
         throw new Error('Dados incompletos retornados pelas RPCs');
       }
 
-      const viewModel = mapInstitutionalRpcToViewModel(perfData, evoData, scoresData);
+      const totalIesUsers = iesUsersResult.count ?? 0;
+      const viewModel = mapInstitutionalRpcToViewModel(perfData, evoData, scoresData, totalIesUsers);
       setData(viewModel);
       console.log('[DesempenhoInstitucional]', 'Dados reais carregados', {
         totalStudents: viewModel.allStudents.length,

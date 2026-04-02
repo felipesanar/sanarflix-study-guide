@@ -65,6 +65,7 @@ export function mapInstitutionalRpcToViewModel(
   performance: RpcPerformanceResponse,
   evolution: RpcEvolutionEntry[],
   studentScores: RpcStudentScoresResponse,
+  totalIesUsers?: number,
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
@@ -111,25 +112,39 @@ export function mapInstitutionalRpcToViewModel(
   const { conceito, nota: notaAtual } = getConceito(percentProficientes);
   const sancao = getSancao(percentProficientes);
 
-  // Next conceito target
-  const conceitoTargets = [40, 50, 60, 75, 90];
-  const nextTarget = conceitoTargets.find((t) => percentProficientes < t) ?? 90;
-  const alunosFaltamMeta = Math.max(0, Math.ceil((nextTarget / 100) * totalStudents) - proficientes.length);
+  // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
+  const conceitoThresholds = [40, 60, 75, 90];
+  const nextConceitoTarget = conceitoThresholds.find((t) => percentProficientes < t) ?? 100;
+  const prevConceitoTarget = conceitoThresholds.filter((t) => percentProficientes >= t).pop() ?? 0;
+  const alunosFaltamMeta = Math.max(0, Math.ceil((nextConceitoTarget / 100) * totalStudents) - proficientes.length);
 
-  // Distância média para proficiência entre alunos abaixo
-  const distanciaMedia = abaixo.length > 0
-    ? Math.round(abaixo.reduce((acc, s) => acc + (PROFICIENCY_THRESHOLD - s.percentual), 0) / abaixo.length)
+  // Distância em p.p. até próxima faixa de conceito
+  const distanciaPP = percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - percentProficientes) * 10) / 10;
+
+  // Taxa de adesão
+  const realTotalIesUsers = totalIesUsers ?? 0;
+  const taxaAdesao = realTotalIesUsers > 0
+    ? Math.round((totalStudents / realTotalIesUsers) * 1000) / 10
+    : 0;
+  const taxaAdesaoLabel = realTotalIesUsers > 0
+    ? `${totalStudents} alunos dos ${realTotalIesUsers} realizaram o simulado`
+    : 'Total de alunos da IES indisponível';
+
+  // Percentual de acertos
+  const percentualAcertos = overallStats.total > 0
+    ? Math.round((overallStats.acertos / overallStats.total) * 1000) / 10
     : 0;
 
   // ── KPIs ──
   const kpis: KpiData[] = [
     { label: 'Total de Alunos', value: totalStudents, icon: 'Users', status: 'neutral', description: 'Alunos que realizaram o simulado' },
+    { label: 'Percentual de Acertos', value: `${percentualAcertos}%`, icon: 'Target', status: getKpiStatus(percentualAcertos, { good: 60, warning: 40 }), description: `${overallStats.acertos} acertos de ${overallStats.total} questões aplicadas` },
     { label: 'Proficiência Média (TRI)', value: Math.round(overallAccuracy), icon: 'Target', status: getKpiStatus(overallAccuracy, { good: 60, warning: 40 }), description: 'Valor de 0 a 100' },
     { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${proficientes.length} de ${totalStudents} alunos` },
     { label: 'Nota Prevista da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
-    { label: 'Distância Próxima Faixa', value: `${distanciaMedia} pts`, icon: 'TrendingUp', status: distanciaMedia > 15 ? 'critical' : distanciaMedia > 5 ? 'warning' : 'good', description: 'Distância média dos alunos abaixo' },
+    { label: 'Distância Próxima Faixa', value: percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`, icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Distância para alcançar a próxima faixa de conceito' },
     { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` },
-    { label: 'Taxa de Adesão', value: `${totalStudents > 0 ? '—' : '0'}`, icon: 'CheckCircle', status: 'neutral', description: 'Dados de adesão indisponíveis' },
+    { label: 'Taxa de Adesão', value: realTotalIesUsers > 0 ? `${taxaAdesao}%` : '—', icon: 'CheckCircle', status: taxaAdesao >= 80 ? 'good' : taxaAdesao >= 50 ? 'warning' : 'neutral', description: taxaAdesaoLabel },
   ];
 
   // ── Faixas ──
@@ -141,17 +156,24 @@ export function mapInstitutionalRpcToViewModel(
   }));
 
   // ── Meta ──
+  const conceitoRange = nextConceitoTarget - prevConceitoTarget;
+  const conceitoCovered = percentProficientes - prevConceitoTarget;
+  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
+
   const meta: MetaInstitucional = {
     proficienciaAtual: overallAccuracy,
-    meta: PROFICIENCY_THRESHOLD,
+    meta: nextConceitoTarget,
     status: sancao ? 'Sanção ativa' : 'Regular',
-    progresso: Math.min(100, Math.round((overallAccuracy / PROFICIENCY_THRESHOLD) * 100)),
-    gapProficiencia: Math.max(0, Math.round((PROFICIENCY_THRESHOLD - overallAccuracy) * 10) / 10),
+    progresso: metaProgresso,
+    gapProficiencia: distanciaPP,
     notaAtual,
     notaMeta: 4,
     percentilMedio: Math.round(overallAccuracy),
-    taxaAdesao: 0,
+    taxaAdesao,
     percentProficientes,
+    totalIesUsers: realTotalIesUsers,
+    totalStudentsSimulado: totalStudents,
+    sancaoRegulatoriaLabel: sancao ?? 'Nenhuma',
   };
 
   // ── Evolução ──
