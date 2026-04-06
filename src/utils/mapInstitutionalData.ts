@@ -177,7 +177,8 @@ export function mapInstitutionalRpcToViewModel(
   };
 
   // ── Evolução ──
-  const evolucao: EvolucaoSimulado[] = evolution.map((e) => {
+  const sortedEvolution = [...evolution].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const evolucao: EvolucaoSimulado[] = sortedEvolution.map((e) => {
     const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
     const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
     const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
