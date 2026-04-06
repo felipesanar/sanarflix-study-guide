@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FlaskConical, RotateCcw, TrendingUp, Users, Target, AlertTriangle,
-  ArrowRight, Info, Sparkles, CheckCircle2, Zap,
+  ArrowRight, Info, Sparkles, CheckCircle2, Zap, Crosshair,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Separator } from '@/components/ui/separator';
 import type {
   InstitutionalViewModel,
@@ -30,6 +31,7 @@ interface Props {
 
 type GranularityLevel = 'area' | 'especialidade' | 'tema';
 type SegmentFilter = 'todos' | 'proximos' | 'risco';
+type SimulationMode = 'effort' | 'goal';
 
 interface SimulationScenario {
   granularity: GranularityLevel;
@@ -38,6 +40,7 @@ interface SimulationScenario {
   selectedTema: string;
   improvement: number;
   segment: SegmentFilter;
+  desiredRecovered: number;
 }
 
 interface SimulationResult {
@@ -54,7 +57,6 @@ interface SimulationResult {
   targetLabel: string;
   explanation: string;
   premisses: string[];
-  // New fields
   totalImpactados: number;
   taxaConversao: number;
   eficiencia: number;
@@ -62,6 +64,10 @@ interface SimulationResult {
   totalQuestions: number;
   weight: number;
   effectiveImprovement: number;
+  // Goal mode specific
+  requiredEffort?: number;
+  isInfeasible?: boolean;
+  isTrivial?: boolean;
 }
 
 const DEFAULT_SCENARIO: SimulationScenario = {
@@ -71,6 +77,7 @@ const DEFAULT_SCENARIO: SimulationScenario = {
   selectedTema: '',
   improvement: 5,
   segment: 'todos',
+  desiredRecovered: 1,
 };
 
 function getConceito(percentProficientes: number): string {
@@ -91,52 +98,62 @@ function getConceitoColor(conceito: string): string {
   }
 }
 
-function simulateImpact(
+function resolveTargetNode(
   data: InstitutionalViewModel,
   scenario: SimulationScenario,
+): { targetNode: { percentual: number; total: number }; targetLabel: string } | null {
+  if (scenario.granularity === 'area' && scenario.selectedArea) {
+    const area = data.curricular.areas.find(a => a.name === scenario.selectedArea);
+    if (!area) return null;
+    return { targetNode: area, targetLabel: area.name };
+  }
+  if (scenario.granularity === 'especialidade' && scenario.selectedSpecialty) {
+    for (const area of data.curricular.areas) {
+      const sp = area.specialties.find(s => s.name === scenario.selectedSpecialty);
+      if (sp) return { targetNode: sp, targetLabel: `${sp.name} (${area.name})` };
+    }
+  }
+  if (scenario.granularity === 'tema' && scenario.selectedTema) {
+    for (const area of data.curricular.areas) {
+      for (const sp of area.specialties) {
+        const tema = sp.temas.find(t => t.name === scenario.selectedTema);
+        if (tema) return { targetNode: tema, targetLabel: `${tema.name} (${sp.name})` };
+      }
+    }
+  }
+  return null;
+}
+
+function getFilteredStudents(data: InstitutionalViewModel, segment: SegmentFilter): StudentScore[] {
+  let students = data.allStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
+  if (segment === 'proximos') {
+    students = students.filter(s => s.percentual >= PROFICIENCY_THRESHOLD - 10);
+  } else if (segment === 'risco') {
+    students = students.filter(s => s.percentual < PROFICIENCY_THRESHOLD - 15);
+  }
+  return students;
+}
+
+function simulateByEffort(
+  data: InstitutionalViewModel,
+  scenario: SimulationScenario,
+  improvementOverride?: number,
 ): SimulationResult | null {
   const totalStudents = data.headerSummary.totalAlunos;
   if (!totalStudents) return null;
 
-  let targetLabel = '';
-  let targetNode: { percentual: number; total: number } | null = null;
-
-  if (scenario.granularity === 'area' && scenario.selectedArea) {
-    const area = data.curricular.areas.find(a => a.name === scenario.selectedArea);
-    if (!area) return null;
-    targetNode = area;
-    targetLabel = area.name;
-  } else if (scenario.granularity === 'especialidade' && scenario.selectedSpecialty) {
-    for (const area of data.curricular.areas) {
-      const sp = area.specialties.find(s => s.name === scenario.selectedSpecialty);
-      if (sp) { targetNode = sp; targetLabel = `${sp.name} (${area.name})`; break; }
-    }
-  } else if (scenario.granularity === 'tema' && scenario.selectedTema) {
-    for (const area of data.curricular.areas) {
-      for (const sp of area.specialties) {
-        const tema = sp.temas.find(t => t.name === scenario.selectedTema);
-        if (tema) { targetNode = tema; targetLabel = `${tema.name} (${sp.name})`; break; }
-      }
-      if (targetNode) break;
-    }
-  }
-
-  if (!targetNode) return null;
+  const resolved = resolveTargetNode(data, scenario);
+  if (!resolved) return null;
+  const { targetNode, targetLabel } = resolved;
 
   const currentProficientes = Math.round(totalStudents * data.headerSummary.percentProficientes / 100);
   const currentPercent = data.headerSummary.percentProficientes;
-
-  let affectedStudents = data.allStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
-
-  if (scenario.segment === 'proximos') {
-    affectedStudents = affectedStudents.filter(s => s.percentual >= PROFICIENCY_THRESHOLD - 10);
-  } else if (scenario.segment === 'risco') {
-    affectedStudents = affectedStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD - 15);
-  }
+  const affectedStudents = getFilteredStudents(data, scenario.segment);
 
   const totalQuestions = data.curricular.areas.reduce((s, a) => s + a.total, 0);
   const weight = totalQuestions > 0 ? targetNode.total / totalQuestions : 0.1;
-  const effectiveImprovement = scenario.improvement * weight;
+  const improvement = improvementOverride ?? scenario.improvement;
+  const effectiveImprovement = improvement * weight;
 
   let newProficientes = 0;
   const movedStudents: StudentScore[] = [];
@@ -151,7 +168,7 @@ function simulateImpact(
 
   const totalImpactados = affectedStudents.length;
   const taxaConversao = totalImpactados > 0 ? Math.round((newProficientes / totalImpactados) * 1000) / 10 : 0;
-  const eficiencia = scenario.improvement > 0 ? Math.round((newProficientes / scenario.improvement) * 10) / 10 : 0;
+  const eficiencia = improvement > 0 ? Math.round((newProficientes / improvement) * 10) / 10 : 0;
 
   const simulatedProficientes = currentProficientes + newProficientes;
   const simulatedPercent = Math.min(100, Math.round((simulatedProficientes / totalStudents) * 100 * 10) / 10);
@@ -164,52 +181,89 @@ function simulateImpact(
     : scenario.segment === 'risco' ? 'alunos em risco' : 'todos os alunos afetados';
 
   const explanation = newProficientes > 0
-    ? `Se a IES melhorar ${scenario.improvement} pontos em ${targetLabel} para ${segmentLabel}, ${newProficientes} aluno(s) podem atingir proficiência, elevando a taxa de ${currentPercent}% para ${simulatedPercent}%.`
-    : `Uma melhoria de ${scenario.improvement} pontos em ${targetLabel} para ${segmentLabel} não seria suficiente para mover alunos acima do limiar de proficiência (${PROFICIENCY_THRESHOLD}%). Considere aumentar a meta ou focar em alunos mais próximos.`;
+    ? `Se a IES melhorar ${improvement} pontos em ${targetLabel} para ${segmentLabel}, ${newProficientes} aluno(s) podem atingir proficiência, elevando a taxa de ${currentPercent}% para ${simulatedPercent}%.`
+    : `Uma melhoria de ${improvement} pontos em ${targetLabel} para ${segmentLabel} não seria suficiente para mover alunos acima do limiar de proficiência (${PROFICIENCY_THRESHOLD}%). Considere aumentar a meta ou focar em alunos mais próximos.`;
 
   const premisses = [
     `Limiar de proficiência: ${PROFICIENCY_THRESHOLD}%`,
     `Peso do alvo no total: ${(weight * 100).toFixed(1)}% (${targetNode.total}/${totalQuestions} questões)`,
-    `Melhoria efetiva por aluno: +${effectiveImprovement.toFixed(1)}pts (${scenario.improvement}pts × ${(weight * 100).toFixed(1)}%)`,
+    `Melhoria efetiva por aluno: +${effectiveImprovement.toFixed(1)}pts (${improvement}pts × ${(weight * 100).toFixed(1)}%)`,
     `Segmento: ${segmentLabel} (${affectedStudents.length} alunos)`,
     'Premissa: melhoria no tema propaga-se proporcionalmente ao score geral',
     'Simulação baseada em dados do último simulado — não é projeção garantida',
   ];
 
   const result: SimulationResult = {
-    currentProficientes,
-    simulatedProficientes,
-    newProficientes,
-    currentPercent,
-    simulatedPercent,
-    deltaPercent,
-    currentConceito,
-    simulatedConceito,
+    currentProficientes, simulatedProficientes, newProficientes,
+    currentPercent, simulatedPercent, deltaPercent,
+    currentConceito, simulatedConceito,
     conceitoChanged: currentConceito !== simulatedConceito,
-    affectedStudents: movedStudents,
-    targetLabel,
-    explanation,
-    premisses,
-    totalImpactados,
-    taxaConversao,
-    eficiencia,
-    targetTotal: targetNode.total,
-    totalQuestions,
-    weight,
-    effectiveImprovement,
+    affectedStudents: movedStudents, targetLabel, explanation, premisses,
+    totalImpactados, taxaConversao, eficiencia,
+    targetTotal: targetNode.total, totalQuestions, weight, effectiveImprovement,
   };
 
-  console.log('[ImpactSimulator]', {
-    inputs: { scenario, totalStudents, weight, effectiveImprovement },
+  console.log('[ImpactSimulator][Effort]', {
+    inputs: { improvement, weight, effectiveImprovement, segment: scenario.segment },
     outputs: { newProficientes, totalImpactados, taxaConversao, eficiencia, deltaPercent },
   });
 
   return result;
 }
 
+function simulateByGoal(
+  data: InstitutionalViewModel,
+  scenario: SimulationScenario,
+): SimulationResult | null {
+  const totalStudents = data.headerSummary.totalAlunos;
+  if (!totalStudents) return null;
+
+  const resolved = resolveTargetNode(data, scenario);
+  if (!resolved) return null;
+  const { targetNode } = resolved;
+
+  const totalQuestions = data.curricular.areas.reduce((s, a) => s + a.total, 0);
+  const weight = totalQuestions > 0 ? targetNode.total / totalQuestions : 0.1;
+
+  if (weight <= 0) return null;
+
+  const eligible = getFilteredStudents(data, scenario.segment)
+    .map(s => ({ ...s, gap: PROFICIENCY_THRESHOLD - s.percentual }))
+    .filter(s => s.gap > 0)
+    .sort((a, b) => a.gap - b.gap);
+
+  const desired = Math.min(scenario.desiredRecovered, eligible.length);
+  if (desired <= 0) return null;
+
+  const targetStudents = eligible.slice(0, desired);
+  const maxGap = Math.max(...targetStudents.map(s => s.gap));
+  const requiredEffort = maxGap / weight;
+  const isInfeasible = requiredEffort > 100;
+  const isTrivial = requiredEffort < 1;
+  const clampedEffort = Math.min(100, Math.max(0, requiredEffort));
+
+  console.log('[ImpactSimulator][Mode]', 'goal');
+  console.log('[ImpactSimulator][Goal]', {
+    desiredRecovered: desired, requiredEffort: Math.round(requiredEffort * 10) / 10,
+    maxGap: Math.round(maxGap * 10) / 10, weight, isInfeasible,
+  });
+
+  // Run the effort simulation with the calculated effort to get unified outputs
+  const result = simulateByEffort(data, scenario, clampedEffort);
+  if (!result) return null;
+
+  return {
+    ...result,
+    requiredEffort: Math.round(requiredEffort * 10) / 10,
+    isInfeasible,
+    isTrivial,
+  };
+}
+
 export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
   const [scenario, setScenario] = useState<SimulationScenario>(DEFAULT_SCENARIO);
   const [showResult, setShowResult] = useState(false);
+  const [mode, setMode] = useState<SimulationMode>('effort');
 
   const areas = useMemo(() => data?.curricular.areas ?? [], [data]);
   const specialties = useMemo(() => {
@@ -227,10 +281,18 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
     areas.flatMap(a => a.specialties.map(sp => ({ ...sp, parentArea: a.name }))),
     [areas]);
 
+  // Count eligible students for goal mode max
+  const eligibleCount = useMemo(() => {
+    if (!data) return 0;
+    return getFilteredStudents(data, scenario.segment)
+      .filter(s => s.percentual < PROFICIENCY_THRESHOLD).length;
+  }, [data, scenario.segment]);
+
   const result = useMemo(() => {
     if (!data || !showResult) return null;
-    return simulateImpact(data, scenario);
-  }, [data, scenario, showResult]);
+    if (mode === 'goal') return simulateByGoal(data, scenario);
+    return simulateByEffort(data, scenario);
+  }, [data, scenario, showResult, mode]);
 
   const updateScenario = useCallback((partial: Partial<SimulationScenario>) => {
     setScenario(prev => ({ ...prev, ...partial }));
@@ -240,6 +302,13 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
   const resetScenario = useCallback(() => {
     setScenario(DEFAULT_SCENARIO);
     setShowResult(false);
+  }, []);
+
+  const handleModeChange = useCallback((value: string) => {
+    if (value === 'effort' || value === 'goal') {
+      setMode(value);
+      setShowResult(false);
+    }
   }, []);
 
   const canSimulate = useMemo(() => {
@@ -314,6 +383,26 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
+          {/* Mode toggle */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-2 block">Modo de simulação</label>
+            <ToggleGroup type="single" value={mode} onValueChange={handleModeChange} className="w-full">
+              <ToggleGroupItem value="effort" className="flex-1 text-xs gap-1.5">
+                <FlaskConical className="h-3.5 w-3.5" />
+                Explorar impacto
+              </ToggleGroupItem>
+              <ToggleGroupItem value="goal" className="flex-1 text-xs gap-1.5">
+                <Crosshair className="h-3.5 w-3.5" />
+                Definir meta
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {mode === 'effort'
+                ? 'Simule uma melhoria e veja quantos alunos se tornam proficientes'
+                : 'Defina quantos alunos quer recuperar e veja o esforço necessário'}
+            </p>
+          </div>
+
           {/* Granularity selection */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-2 block">Nível de intervenção</label>
@@ -399,26 +488,47 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
             )}
           </div>
 
-          {/* Improvement slider */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-muted-foreground">Melhoria simulada</label>
-              <Badge variant="outline" className="text-xs font-mono">+{scenario.improvement}pp</Badge>
+          {/* Conditional slider based on mode */}
+          {mode === 'effort' ? (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-muted-foreground">Melhoria simulada</label>
+                <Badge variant="outline" className="text-xs font-mono">+{scenario.improvement}pp</Badge>
+              </div>
+              <Slider
+                value={[scenario.improvement]}
+                onValueChange={([v]) => updateScenario({ improvement: v })}
+                min={1}
+                max={30}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>+1pp</span>
+                <span>+15pp</span>
+                <span>+30pp</span>
+              </div>
             </div>
-            <Slider
-              value={[scenario.improvement]}
-              onValueChange={([v]) => updateScenario({ improvement: v })}
-              min={1}
-              max={30}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-              <span>+1pp</span>
-              <span>+15pp</span>
-              <span>+30pp</span>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-muted-foreground">Quantos alunos quer tornar proficientes?</label>
+                <Badge variant="outline" className="text-xs font-mono">{scenario.desiredRecovered} {scenario.desiredRecovered === 1 ? 'aluno' : 'alunos'}</Badge>
+              </div>
+              <Slider
+                value={[scenario.desiredRecovered]}
+                onValueChange={([v]) => updateScenario({ desiredRecovered: v })}
+                min={1}
+                max={Math.max(1, eligibleCount)}
+                step={1}
+                className="w-full"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>1 aluno</span>
+                <span>{Math.max(1, eligibleCount)} alunos</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Segment filter */}
           <div>
@@ -443,7 +553,7 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
             onClick={() => setShowResult(true)}
           >
             <FlaskConical className="h-4 w-4" />
-            Simular Impacto
+            {mode === 'effort' ? 'Simular Impacto' : 'Calcular Esforço'}
           </Button>
         </CardContent>
       </Card>
@@ -458,6 +568,38 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
+            {/* Goal mode: infeasible warning */}
+            {mode === 'goal' && result.isInfeasible && (
+              <Card className="border-2 border-destructive/40 bg-destructive/5">
+                <CardContent className="py-4 px-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-destructive">Meta inviável apenas com este tema</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        O esforço necessário ({result.requiredEffort}pp) ultrapassa o limite de 100pp.
+                        Considere combinar com outros temas ou reduzir a meta.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Goal mode: trivial badge */}
+            {mode === 'goal' && result.isTrivial && !result.isInfeasible && (
+              <Card className="border-2 border-emerald-500/40 bg-emerald-500/5">
+                <CardContent className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                      Meta atingível com esforço mínimo ({result.requiredEffort}pp)
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* 1. HERO KPI — Alunos recuperados */}
             <Card className={`border-2 ${result.newProficientes > 0 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-dashed border-muted-foreground/20'}`}>
               <CardContent className="py-6 px-4">
@@ -476,6 +618,14 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
                     <span className="hidden sm:inline">·</span>
                     <span>Taxa de conversão: {result.taxaConversao.toFixed(1)}%</span>
                   </div>
+                  {mode === 'goal' && result.requiredEffort !== undefined && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Crosshair className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-medium text-primary">
+                        Esforço necessário: {result.requiredEffort}pp
+                      </span>
+                    </div>
+                  )}
                   <Badge variant="outline" className="mt-1 text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
                     HIPOTÉTICO
                   </Badge>
@@ -527,11 +677,18 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
                 <div className="flex items-start gap-2">
                   <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <div className="space-y-2">
-                    <p className="text-sm">{result.explanation}</p>
+                    <p className="text-sm">
+                      {mode === 'effort'
+                        ? result.explanation
+                        : result.newProficientes > 0
+                          ? `Para recuperar ${scenario.desiredRecovered} aluno(s), você precisa melhorar aproximadamente ${result.requiredEffort}pp em ${result.targetLabel}. Com esse esforço, ${result.newProficientes} aluno(s) atingiriam proficiência.`
+                          : `Não foi possível encontrar alunos elegíveis para recuperação com os filtros atuais.`
+                      }
+                    </p>
                     <Separator />
                     <p className="text-xs text-muted-foreground">
-                      Este tema representa <strong>{result.targetTotal}</strong> de <strong>{result.totalQuestions}</strong> questões 
-                      ({(result.weight * 100).toFixed(1)}%). Uma melhoria de {scenario.improvement} pontos gera <strong>+{result.effectiveImprovement.toFixed(1)}</strong> pontos no score geral dos alunos.
+                      Este tema representa <strong>{result.targetTotal}</strong> de <strong>{result.totalQuestions}</strong> questões
+                      ({(result.weight * 100).toFixed(1)}%). Uma melhoria de {mode === 'effort' ? scenario.improvement : result.requiredEffort} pontos gera <strong>+{result.effectiveImprovement.toFixed(1)}</strong> pontos no score geral dos alunos.
                     </p>
                   </div>
                 </div>
