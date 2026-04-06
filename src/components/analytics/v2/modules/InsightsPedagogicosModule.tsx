@@ -62,7 +62,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 
     // Area-level insights
     if (area.percentual < PROFICIENCY_THRESHOLD) {
-      const gap = PROFICIENCY_THRESHOLD - area.percentual;
+      const gap = Math.round((PROFICIENCY_THRESHOLD - area.percentual) * 10) / 10;
       const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
       const priority = Math.min(100, gap * 1.2 + areaPrevalencia * 0.8 + Math.min(alunosAfetados, 30));
       insights.push({
@@ -88,7 +88,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     for (const sp of area.specialties) {
       for (const tema of sp.temas) {
         const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
-        const gap = Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual);
+        const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual) * 10) / 10;
         const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
 
         if (tema.percentual < 50) {
@@ -102,7 +102,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             priority,
             priorityFactors: [
               { label: 'Acerto', value: `${tema.percentual}%` },
-              { label: 'Gap', value: `${gap}pts` },
+              { label: 'Gap', value: `${gap.toFixed(1)}pts` },
               { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
               { label: 'Alunos afetados', value: `~${alunosAfetados}` },
             ],
@@ -122,10 +122,10 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             id: `opportunity-${tema.name}-${sp.name}`,
             type: 'quick-win',
             title: `${tema.name} é ganho rápido`,
-            description: `A apenas ${gap}pts da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
+            description: `A apenas ${gap.toFixed(1)}pts da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
             priority,
             priorityFactors: [
-              { label: 'Gap', value: `${gap}pts` },
+              { label: 'Gap', value: `${gap.toFixed(1)}pts` },
               { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
               { label: 'Alunos próximos', value: `~${alunosAfetados}` },
             ],
@@ -282,7 +282,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                   </div>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
                     <span>Prioridade: {Math.round(insight.priority)}/100</span>
-                    <span>{insight.gap > 0 ? `${insight.gap}pts gap` : `${insight.percentual}%`}</span>
+                    <span>{insight.gap > 0 ? `${insight.gap.toFixed(1)}pts gap` : `${insight.percentual}%`}</span>
                   </div>
                   <Progress value={insight.priority} className="h-1.5 mt-1.5" />
                 </CardContent>
