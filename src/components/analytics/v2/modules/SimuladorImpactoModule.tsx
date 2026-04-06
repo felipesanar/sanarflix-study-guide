@@ -2,12 +2,11 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FlaskConical, RotateCcw, TrendingUp, Users, Target, AlertTriangle,
-  ChevronRight, ArrowRight, Info, Sparkles, CheckCircle2,
+  ArrowRight, Info, Sparkles, CheckCircle2, Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Slider } from '@/components/ui/slider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -17,9 +16,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import type {
   InstitutionalViewModel,
-  CurricularAreaNode,
-  CurricularSpecialtyNode,
-  CurricularTemaNode,
   StudentScore,
 } from '@/types/desempenhoV2';
 
@@ -40,7 +36,7 @@ interface SimulationScenario {
   selectedArea: string;
   selectedSpecialty: string;
   selectedTema: string;
-  improvement: number; // pts to add
+  improvement: number;
   segment: SegmentFilter;
 }
 
@@ -58,6 +54,14 @@ interface SimulationResult {
   targetLabel: string;
   explanation: string;
   premisses: string[];
+  // New fields
+  totalImpactados: number;
+  taxaConversao: number;
+  eficiencia: number;
+  targetTotal: number;
+  totalQuestions: number;
+  weight: number;
+  effectiveImprovement: number;
 }
 
 const DEFAULT_SCENARIO: SimulationScenario = {
@@ -94,7 +98,6 @@ function simulateImpact(
   const totalStudents = data.headerSummary.totalAlunos;
   if (!totalStudents) return null;
 
-  // Determine which node we're improving
   let targetLabel = '';
   let targetNode: { percentual: number; total: number } | null = null;
 
@@ -120,11 +123,9 @@ function simulateImpact(
 
   if (!targetNode) return null;
 
-  // Current state
   const currentProficientes = Math.round(totalStudents * data.headerSummary.percentProficientes / 100);
   const currentPercent = data.headerSummary.percentProficientes;
 
-  // Find affected students based on segment
   let affectedStudents = data.allStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
 
   if (scenario.segment === 'proximos') {
@@ -133,9 +134,6 @@ function simulateImpact(
     affectedStudents = affectedStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD - 15);
   }
 
-  // Estimate how many would cross the proficiency threshold
-  // The improvement in a specific topic proportionally improves the student's overall score
-  // Weight = topic questions / total questions
   const totalQuestions = data.curricular.areas.reduce((s, a) => s + a.total, 0);
   const weight = totalQuestions > 0 ? targetNode.total / totalQuestions : 0.1;
   const effectiveImprovement = scenario.improvement * weight;
@@ -144,12 +142,16 @@ function simulateImpact(
   const movedStudents: StudentScore[] = [];
 
   for (const student of affectedStudents) {
-    const simulatedScore = student.percentual + effectiveImprovement;
+    const simulatedScore = Math.min(100, student.percentual + effectiveImprovement);
     if (simulatedScore >= PROFICIENCY_THRESHOLD && student.percentual < PROFICIENCY_THRESHOLD) {
       newProficientes++;
       movedStudents.push(student);
     }
   }
+
+  const totalImpactados = affectedStudents.length;
+  const taxaConversao = totalImpactados > 0 ? Math.round((newProficientes / totalImpactados) * 1000) / 10 : 0;
+  const eficiencia = scenario.improvement > 0 ? Math.round((newProficientes / scenario.improvement) * 10) / 10 : 0;
 
   const simulatedProficientes = currentProficientes + newProficientes;
   const simulatedPercent = Math.min(100, Math.round((simulatedProficientes / totalStudents) * 100 * 10) / 10);
@@ -158,7 +160,6 @@ function simulateImpact(
   const currentConceito = getConceito(currentPercent);
   const simulatedConceito = getConceito(simulatedPercent);
 
-  // Build explanation
   const segmentLabel = scenario.segment === 'proximos' ? 'alunos próximos da proficiência'
     : scenario.segment === 'risco' ? 'alunos em risco' : 'todos os alunos afetados';
 
@@ -175,7 +176,7 @@ function simulateImpact(
     'Simulação baseada em dados do último simulado — não é projeção garantida',
   ];
 
-  return {
+  const result: SimulationResult = {
     currentProficientes,
     simulatedProficientes,
     newProficientes,
@@ -189,14 +190,27 @@ function simulateImpact(
     targetLabel,
     explanation,
     premisses,
+    totalImpactados,
+    taxaConversao,
+    eficiencia,
+    targetTotal: targetNode.total,
+    totalQuestions,
+    weight,
+    effectiveImprovement,
   };
+
+  console.log('[ImpactSimulator]', {
+    inputs: { scenario, totalStudents, weight, effectiveImprovement },
+    outputs: { newProficientes, totalImpactados, taxaConversao, eficiencia, deltaPercent },
+  });
+
+  return result;
 }
 
 export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
   const [scenario, setScenario] = useState<SimulationScenario>(DEFAULT_SCENARIO);
   const [showResult, setShowResult] = useState(false);
 
-  // Build option lists from data
   const areas = useMemo(() => data?.curricular.areas ?? [], [data]);
   const specialties = useMemo(() => {
     if (!scenario.selectedArea) return [];
@@ -209,12 +223,8 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
     return sp?.temas ?? [];
   }, [specialties, scenario.selectedSpecialty]);
 
-  // All flat lists for direct selection
   const allSpecialties = useMemo(() =>
     areas.flatMap(a => a.specialties.map(sp => ({ ...sp, parentArea: a.name }))),
-    [areas]);
-  const allTemas = useMemo(() =>
-    areas.flatMap(a => a.specialties.flatMap(sp => sp.temas.map(t => ({ ...t, parentArea: a.name, parentSpecialty: sp.name })))),
     [areas]);
 
   const result = useMemo(() => {
@@ -448,95 +458,92 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
-            {/* Before vs After comparison */}
-            <Card className="border-2 border-dashed border-primary/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Resultado da Simulação
-                  <Badge variant="outline" className="ml-auto text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
+            {/* 1. HERO KPI — Alunos recuperados */}
+            <Card className={`border-2 ${result.newProficientes > 0 ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-dashed border-muted-foreground/20'}`}>
+              <CardContent className="py-6 px-4">
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={`rounded-full p-3 ${result.newProficientes > 0 ? 'bg-emerald-500/10' : 'bg-muted/50'}`}>
+                    <Users className={`h-6 w-6 ${result.newProficientes > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                  </div>
+                  <p className={`text-4xl sm:text-5xl font-bold ${result.newProficientes > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    {result.newProficientes}
+                  </p>
+                  <p className="text-sm font-medium">
+                    {result.newProficientes === 1 ? 'aluno se torna proficiente' : 'alunos se tornam proficientes'}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1">
+                    <span>{result.totalImpactados} alunos impactados</span>
+                    <span className="hidden sm:inline">·</span>
+                    <span>Taxa de conversão: {result.taxaConversao.toFixed(1)}%</span>
+                  </div>
+                  <Badge variant="outline" className="mt-1 text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
                     HIPOTÉTICO
                   </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Explanation text */}
-                <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
-                  <p className="text-sm">{result.explanation}</p>
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Before/After grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground text-center">📊 Situação Atual</p>
-                    <div className="p-3 rounded-lg bg-muted/50 text-center">
-                      <p className="text-xs text-muted-foreground">Proficientes</p>
-                      <p className="text-2xl font-bold">{result.currentProficientes}</p>
-                      <p className="text-xs text-muted-foreground">{result.currentPercent}%</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted/50 text-center">
-                      <p className="text-xs text-muted-foreground">Conceito</p>
-                      <p className={`text-2xl font-bold ${getConceitoColor(result.currentConceito)}`}>{result.currentConceito}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground text-center">🔬 Cenário Simulado</p>
-                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 text-center">
-                      <p className="text-xs text-muted-foreground">Proficientes</p>
-                      <p className="text-2xl font-bold text-primary">{result.simulatedProficientes}</p>
-                      <p className="text-xs text-primary/80">{result.simulatedPercent}%</p>
-                      {result.newProficientes > 0 && (
-                        <Badge className="mt-1 text-[10px]" variant="default">
-                          +{result.newProficientes} alunos
-                        </Badge>
-                      )}
-                    </div>
-                    <div className={`p-3 rounded-lg text-center ${result.conceitoChanged ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-muted/50'}`}>
-                      <p className="text-xs text-muted-foreground">Conceito</p>
-                      <p className={`text-2xl font-bold ${getConceitoColor(result.simulatedConceito)}`}>{result.simulatedConceito}</p>
-                      {result.conceitoChanged && (
-                        <Badge className="mt-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0">
-                          <TrendingUp className="h-3 w-3 mr-0.5" /> Mudou!
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            {/* 2. Impacto institucional — métricas secundárias */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Card>
+                <CardContent className="py-4 px-4 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Δ Taxa Proficiência</p>
+                  <p className={`text-xl font-bold ${result.deltaPercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    +{result.deltaPercent}pp
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{result.currentPercent}% → {result.simulatedPercent}%</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="py-4 px-4 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Conceito</p>
+                  <p className="text-xl font-bold">
+                    <span className={getConceitoColor(result.currentConceito)}>{result.currentConceito}</span>
+                    <ArrowRight className="inline h-4 w-4 mx-1 text-muted-foreground" />
+                    <span className={getConceitoColor(result.simulatedConceito)}>{result.simulatedConceito}</span>
+                  </p>
+                  {result.conceitoChanged && (
+                    <Badge className="mt-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-0">
+                      <TrendingUp className="h-3 w-3 mr-0.5" /> Mudou!
+                    </Badge>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="py-4 px-4 text-center">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Eficiência</p>
+                  <p className="text-xl font-bold text-foreground flex items-center justify-center gap-1">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    {result.eficiencia.toFixed(1)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">alunos/pp aplicado</p>
+                </CardContent>
+              </Card>
+            </div>
 
-                {/* Delta summary */}
-                <div className="flex items-center justify-center gap-6 py-2">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Δ Proficientes</p>
-                    <p className={`text-lg font-bold ${result.newProficientes > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                      +{result.newProficientes}
-                    </p>
-                  </div>
-                  <Separator orientation="vertical" className="h-10" />
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Δ Taxa</p>
-                    <p className={`text-lg font-bold ${result.deltaPercent > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                      +{result.deltaPercent}pp
-                    </p>
-                  </div>
-                  <Separator orientation="vertical" className="h-10" />
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">Conceito</p>
-                    <p className="text-lg font-bold">
-                      <span className={getConceitoColor(result.currentConceito)}>{result.currentConceito}</span>
-                      <ArrowRight className="inline h-4 w-4 mx-1 text-muted-foreground" />
-                      <span className={getConceitoColor(result.simulatedConceito)}>{result.simulatedConceito}</span>
+            {/* 3. Explicação dinâmica (transparência) */}
+            <Card className="bg-primary/5 border-primary/10">
+              <CardContent className="py-4 px-4 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <p className="text-sm">{result.explanation}</p>
+                    <Separator />
+                    <p className="text-xs text-muted-foreground">
+                      Este tema representa <strong>{result.targetTotal}</strong> de <strong>{result.totalQuestions}</strong> questões 
+                      ({(result.weight * 100).toFixed(1)}%). Uma melhoria de {scenario.improvement} pontos gera <strong>+{result.effectiveImprovement.toFixed(1)}</strong> pontos no score geral dos alunos.
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Moved students */}
+            {/* 4. Alunos recuperados */}
             {result.affectedStudents.length > 0 && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-1.5">
-                    <Users className="h-4 w-4" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     Alunos que atingiriam proficiência ({result.affectedStudents.length})
                   </CardTitle>
                 </CardHeader>
@@ -547,7 +554,7 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
                         <div key={`${s.nome}-${i}`} className="flex items-center justify-between p-2 rounded-md bg-emerald-500/5 text-sm">
                           <div className="min-w-0">
                             <span className="font-medium truncate block">{s.nome}</span>
-                            <span className="text-xs text-muted-foreground">{s.semestre}º sem. · {s.percentual}% atual</span>
+                            <span className="text-xs text-muted-foreground">{s.semestre}º sem. · {s.percentual.toFixed(1)}% atual</span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -561,7 +568,7 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
               </Card>
             )}
 
-            {/* Premisses card */}
+            {/* 5. Premissas */}
             <Card className="border-dashed">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-1.5">
