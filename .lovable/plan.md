@@ -1,40 +1,56 @@
 
 
-# Reformulação do Progresso em "Meta Institucional"
+# Alterações na Página "Desempenho Institucional"
 
-## O que muda
+## 1. Gráfico "Evolução entre Simulados" — Alterar toggle
 
-O card `MetaInstitucionalCard` já possui a função `getConceitoInfo` com a lógica correta de faixas e cálculo de progresso (`(covered / range) * 100`). A mudança é **apenas visual/UX**: destacar o Conceito atual e mostrar os limites inferior/superior nas extremidades da barra.
+**Arquivo**: `src/components/analytics/v2/EvolucaoChart.tsx`
 
-## Arquivo modificado
+O toggle atual mostra "Proficiência" e "Nota". Será alterado para **"% Acertos"** e **"% Proficientes"**.
 
-`src/components/analytics/v2/MetaInstitucionalCard.tsx`
+**Limitação técnica**: A RPC `get_institutional_evolution` retorna apenas agregados por área (total/acertos), sem dados por aluno por simulado histórico. Isso significa que **não é possível calcular "% de alunos proficientes" por simulado passado** a partir dos dados atuais. Para contornar:
 
-### Alterações na UI (seção Progress, linhas 96-112)
+- Adicionar o campo `percentProficientes` à interface `EvolucaoSimulado` (`src/mocks/desempenhoInstitucionalV2.ts`)
+- No mapper (`src/utils/mapInstitutionalData.ts`), estimar o `percentProficientes` por simulado histórico usando a heurística: contar quantas áreas têm `percentual >= 60` como proxy, ou usar a accuracy geral como base para uma estimativa. Alternativa mais precisa: o simulado **atual** (o selecionado) tem dados de student scores — para esse, o cálculo é exato. Para históricos, usaremos a nota/conceito como proxy.
+- Toggle: "% Acertos" (usa campo `proficiencia` que já é accuracy%) | "% Proficientes" (novo campo estimado)
+- Domínio do YAxis: `[0, 100]` para ambos
 
-1. **Conceito em destaque**: Adicionar um Badge ou texto proeminente mostrando "Conceito X" acima ou ao lado da barra
-2. **Limites na barra**: Mostrar `{info.previousThreshold}%` no início (esquerda) e `{info.nextThreshold}%` no final (direita) da barra de progresso
-3. **Label de progresso**: Manter `"{info.progressPercent}% do caminho para Conceito {info.currentConceito + 1}"` — a fórmula já é `((valor - limInf) / (limSup - limInf)) * 100`
-4. **Caso Conceito 5**: Mostrar "Conceito 5 alcançado", barra cheia, limites 90%–100%
+## 2. Gráfico "Distribuição por Faixa" — Cor única + legenda explicativa
 
-### Layout da seção de progresso (novo)
+**Arquivo**: `src/components/analytics/v2/FaixaDistribuicaoChart.tsx`
 
-```text
-┌─────────────────────────────────────────────┐
-│  Conceito 2          25% do caminho p/ C3   │
-│  [40%]  ████████░░░░░░░░░░░░░░░░░  [60%]   │
-│         Proficientes: 45%                    │
-└─────────────────────────────────────────────┘
-```
+- Trocar todas as cores das barras para uma única cor vermelha do design system (a cor `destructive` / primary-red)
+- Adicionar na legenda ou abaixo do título uma explicação das faixas com os ranges:
+  - Insuficiente: 0–30%
+  - Regular: 30–50%
+  - Intermediário: 50–60%
+  - Bom: 60–80%
+  - Excelente: 80–100%
+- Formatar a legenda para mostrar `"Faixa (X%–Y%): N alunos (Z%)"` para cada faixa
 
-### Lógica (sem mudança)
+## 3. "Quick Wins" → "Ganhos Rápidos"
 
-A função `getConceitoInfo` na linha 22 já calcula exatamente o que foi pedido:
-- `previousThreshold` = limite inferior da faixa
-- `nextThreshold` = limite superior
-- `progressPercent = ((percent - previousThreshold) / (nextThreshold - previousThreshold)) * 100`
+**Arquivo**: `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx`
 
-Exemplo: 45% proficientes → Conceito 2 → `((45-40)/(60-40))*100 = 25%` ✓
+- Substituir todas as ocorrências de "Quick Win" / "Quick Wins" por **"Ganhos Rápidos"** / **"Ganho Rápido"**
+- Atualizar o label no chip de filtro, no título do insight e na descrição
 
-Nenhuma alteração no mapper ou na lógica de cálculo é necessária.
+## 4. Gap com casas decimais — Arredondamento
+
+**Arquivo**: `src/components/analytics/v2/shared/StudentAnalyticsDrawer.tsx`
+
+- Linha 145: mudar `Math.max(0, PROFICIENCY_THRESHOLD - student.percentual)` para `Math.round(Math.max(0, PROFICIENCY_THRESHOLD - student.percentual) * 10) / 10` (1 casa decimal)
+- Linha 181: atualizar o template para usar `gap.toFixed(1)` em vez de `${gap}`
+
+**Arquivo**: `src/components/analytics/v2/modules/VisaoAlunosModule.tsx` — verificar se há exibição de gap com decimais e aplicar o mesmo arredondamento
+
+## Arquivos modificados
+
+1. `src/components/analytics/v2/EvolucaoChart.tsx` — toggle % Acertos / % Proficientes
+2. `src/mocks/desempenhoInstitucionalV2.ts` — campo `percentProficientes` em `EvolucaoSimulado`
+3. `src/utils/mapInstitutionalData.ts` — calcular `percentProficientes` na evolução
+4. `src/components/analytics/v2/FaixaDistribuicaoChart.tsx` — cor única vermelha + legenda com ranges
+5. `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx` — "Ganhos Rápidos"
+6. `src/components/analytics/v2/shared/StudentAnalyticsDrawer.tsx` — arredondamento do gap
+7. `src/components/analytics/v2/modules/VisaoAlunosModule.tsx` — arredondamento do gap (se aplicável)
 
