@@ -1,97 +1,79 @@
 
 
-# Refatoração do Simulador de Impacto — Foco em Alunos Recuperados
+# Simulador de Impacto Híbrido (Dual Mode)
 
 ## Resumo
 
-Reestruturar a UI e os outputs do `SimuladorImpactoModule` para priorizar "quantos alunos se tornam proficientes", mantendo a lógica matemática existente (peso proporcional) que já está correta.
-
-## Auditoria da lógica atual (Fase 1)
-
-A lógica em `simulateImpact()` já implementa corretamente:
-- Peso proporcional: `weight = targetNode.total / totalQuestions`
-- Melhoria efetiva: `effectiveImprovement = improvement * weight`
-- Segmentação: todos (<60%), próximos (50-60%), risco (<45%)
-- Simulação aluno a aluno com cap implícito (percentual + improvement, sem ultrapassar threshold check)
-- Contagem de alunos que cruzam 60%
-
-**Correção necessária**: garantir cap em 100% no score simulado (`Math.min(100, simulatedScore)`).
+Adicionar um **Modo Meta** (goal-driven) ao simulador existente, mantendo o **Modo Exploração** atual. O gestor poderá alternar entre "Se eu agir aqui, quantos alunos recupero?" e "Quantos alunos quero recuperar e qual esforço isso exige?".
 
 ## Arquivo modificado
 
-`src/components/analytics/v2/modules/SimuladorImpactoModule.tsx`
+`src/components/analytics/v2/modules/SimuladorImpactoModule.tsx` — unico arquivo alterado.
 
 ## Mudanças
 
-### 1. Expandir `SimulationResult` com novos campos
+### 1. Novo tipo e estado de modo
 
 ```typescript
-// Novos campos:
-totalImpactados: number;      // total de alunos no segmento
-taxaConversao: number;        // newProficientes / totalImpactados * 100
-eficiencia: number;           // newProficientes / improvement
+type SimulationMode = 'effort' | 'goal';
+// Novo campo no SimulationScenario:
+desiredRecovered: number; // usado apenas no modo goal
 ```
 
-### 2. Atualizar `simulateImpact()` para calcular novos outputs
+Estado adicional: `const [mode, setMode] = useState<SimulationMode>('effort');`
 
-- `totalImpactados = affectedStudents.length`
-- `taxaConversao = totalImpactados > 0 ? (newProficientes / totalImpactados) * 100 : 0`
-- `eficiencia = improvement > 0 ? newProficientes / improvement : 0`
-- Cap: `Math.min(100, student.percentual + effectiveImprovement)`
-- Adicionar `console.log('[ImpactSimulator]', { inputs, outputs })`
+### 2. Nova funcao `simulateByGoal()`
 
-### 3. Redesenhar a seção de resultados (hierarquia da informação)
+Logica reversa:
+1. Filtrar alunos elegiveis (`percentual < 60`) no segmento selecionado
+2. Calcular gap de cada um (`60 - percentual`)
+3. Ordenar por proximidade (menor gap primeiro)
+4. Selecionar os N primeiros (input do usuario)
+5. Calcular esforco necessario: `requiredEffort = Math.max(...selected.map(s => gap / weight))`
+6. Clamp entre 0-100; se > 100 marcar como "inviavel"
+7. Depois rodar `simulateByEffort` com o `requiredEffort` calculado para obter todos os outputs unificados
 
-Nova ordem de exibição dos cards de resultado:
+### 3. UI — Toggle de modo no topo do card de configuracao
 
-```text
-┌─────────────────────────────────────────────┐
-│  🎯 X alunos se tornam proficientes         │  ← KPI PRINCIPAL (grande, destaque)
-│     de Y alunos impactados                  │
-│     Taxa de conversão: Z%                   │
-├─────────────────────────────────────────────┤
-│  📊 Impacto institucional: +N pp            │  ← Secundário
-│  Conceito: 2 → 3                            │
-│  Eficiência: W alunos/pp aplicado           │
-├─────────────────────────────────────────────┤
-│  💡 Explicação dinâmica                     │
-│  "Este tema representa 4/120 questões..."   │
-├─────────────────────────────────────────────┤
-│  👥 Lista de alunos recuperados             │
-├─────────────────────────────────────────────┤
-│  ℹ️ Premissas do cálculo                    │
-└─────────────────────────────────────────────┘
+Usar `ToggleGroup` (ja importado no projeto) com duas opcoes:
+- "Explorar impacto" (modo effort)
+- "Definir meta" (modo goal)
+
+### 4. UI — Slider condicional
+
+- **Modo effort**: slider existente (1-30pp de melhoria)
+- **Modo goal**: novo slider com `min=1`, `max=totalAlunosAbaixo60`, `step=1`, label "Quantos alunos voce quer tornar proficientes?"
+
+### 5. Resultados — outputs unificados
+
+Ambos os modos produzem o mesmo `SimulationResult`, exibido na mesma hierarquia:
+1. Hero KPI (alunos recuperados)
+2. Metricas secundarias (delta, conceito, eficiencia)
+3. Explicacao dinamica
+4. Lista de alunos
+5. Premissas
+
+### 6. Explicacao dinamica por modo
+
+- **Effort**: "Voce simulou uma melhoria de Xpp neste tema, que representa Y% da prova."
+- **Goal**: "Para recuperar X alunos, voce precisa melhorar aproximadamente Ypp neste tema."
+
+### 7. Estados especiais (modo goal)
+
+- `requiredEffort > 100`: card de aviso "Nao e possivel atingir essa meta apenas com este tema. Considere combinar com outros temas ou reduzir a meta."
+- `requiredEffort < 1`: badge "Meta atingivel com esforco minimo"
+- `desiredRecovered > eligible`: clamp automatico ao maximo elegivel
+
+### 8. Logs
+
+```
+console.log('[ImpactSimulator][Mode]', mode);
+console.log('[ImpactSimulator][Goal]', { desiredRecovered, requiredEffort });
 ```
 
-### 4. KPI Principal — Card de destaque
+### 9. Responsividade
 
-Substituir o grid "Before vs After" por um card hero:
-- Número grande e centralizado: `{result.newProficientes}` com label "alunos se tornam proficientes"
-- Sub-info: "{totalImpactados} alunos impactados · Taxa de conversão: {taxaConversao}%"
-- Cor verde se > 0, cinza se 0
-
-### 5. Impacto institucional — Card secundário
-
-Grid compacto horizontal com 3 métricas:
-- Δ Taxa: `+{deltaPercent}pp`
-- Conceito: `{current} → {simulated}`
-- Eficiência: `{eficiencia.toFixed(1)} alunos/pp`
-
-### 6. Explicação dinâmica (transparência)
-
-Substituir o bloco de explicação por texto contextualizado:
-- "O impacto é calculado com base na relevância do tema no simulado (peso) e aplicado proporcionalmente ao desempenho dos alunos."
-- Exemplo dinâmico: "Este tema representa {targetNode.total} de {totalQuestions} questões ({weight}%). Uma melhoria de {improvement} pontos gera +{effectiveImprovement.toFixed(1)} pontos no score geral."
-
-### 7. Responsividade
-
-- Cards de KPI empilham verticalmente em mobile
-- Grid de métricas secundárias: `grid-cols-1 sm:grid-cols-3`
-- Slider já funciona em mobile (Radix)
-
-### 8. Validações
-
-- `Math.min(100, simulatedScore)` no loop de simulação
-- Manter check `if (!totalStudents) return null`
-- Resultado `null` renderiza estado vazio informativo
+- ToggleGroup empilha em telas < sm se necessario
+- Slider de meta funcional em touch (Radix)
+- Cards empilhados verticalmente em mobile (ja implementado)
 
