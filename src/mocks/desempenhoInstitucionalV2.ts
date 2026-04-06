@@ -35,6 +35,7 @@ export interface EvolucaoSimulado {
   simulado: string;
   proficiencia: number;
   nota: number;
+  percentProficientes?: number;
 }
 
 export interface DistanciaFaixa {

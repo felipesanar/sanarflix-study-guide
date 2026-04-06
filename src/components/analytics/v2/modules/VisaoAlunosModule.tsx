@@ -295,7 +295,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               sortedStudents.map((s, i) => {
                 const risk = computeRiskLevel(s.percentual);
                 const cfg = getRiskConfig(risk);
-                const gap = Math.max(0, PROFICIENCY_THRESHOLD - s.percentual);
+                const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - s.percentual) * 10) / 10;
                 return (
                   <button
                     key={`${s.nome}-${s.semestre}-${s.total}-${i}`}

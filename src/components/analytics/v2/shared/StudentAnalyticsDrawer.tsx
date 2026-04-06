@@ -50,7 +50,7 @@ export function computeRiskAssessment(student: StudentScore, _areas: CurricularA
   const factors: RiskAssessment['factors'] = [];
   factors.push({
     label: 'Gap de proficiência',
-    value: `${gap}pts`,
+    value: `${gap.toFixed(1)}pts`,
     severity: gap >= 15 ? 'high' : gap >= 5 ? 'medium' : 'low',
   });
 
@@ -142,7 +142,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   if (!student || !data) return null;
 
   const risk = computeRiskAssessment(student, data.curricular.areas);
-  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
+  const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - student.percentual) * 10) / 10;
 
   // Build area performance
   const areaPerformance = data.curricular.areas.map(a => ({
@@ -178,7 +178,7 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
           {/* Overview metrics */}
           <div className="grid grid-cols-2 gap-3">
             <MetricTile label="Percentual Médio de Acertos" value={`${student.percentual}%`} color={getRiskColor(risk.level)} />
-            <MetricTile label="Gap p/ proficiência" value={gap > 0 ? `${gap}pts` : '✓'} color={gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'} />
+            <MetricTile label="Gap p/ proficiência" value={gap > 0 ? `${gap.toFixed(1)}pts` : '✓'} color={gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'} />
             <MetricTile label="Semestre" value={`${student.semestre}º`} />
             <MetricTile label="Score de Risco" value={`${risk.score}/100`} color={getRiskColor(risk.level)} />
           </div>

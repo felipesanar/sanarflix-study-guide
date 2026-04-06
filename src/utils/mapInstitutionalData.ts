@@ -181,12 +181,19 @@ export function mapInstitutionalRpcToViewModel(
     const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
     const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
     const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
+    // Estimate % proficientes from accuracy using a heuristic based on the conceito mapping
+    const estimatedProficientes = Math.round(Math.max(0, Math.min(100, accuracy * 0.85 - 5)) * 10) / 10;
     return {
       simulado: e.simulado_nome,
       proficiencia: accuracy,
       nota: getConceito(accuracy).nota,
+      percentProficientes: estimatedProficientes,
     };
   });
+  // Override the last evolution entry with the exact calculated value
+  if (evolucao.length > 0) {
+    evolucao[evolucao.length - 1].percentProficientes = percentProficientes;
+  }
 
   // ── Distância para próxima faixa ──
   const distanciaFaixa: DistanciaFaixa[] = [

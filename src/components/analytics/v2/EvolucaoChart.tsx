@@ -10,7 +10,7 @@ interface Props {
 }
 
 export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
-  const [metric, setMetric] = useState<'proficiencia' | 'nota'>('proficiencia');
+  const [metric, setMetric] = useState<'proficiencia' | 'percentProficientes'>('proficiencia');
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.3 }}>
@@ -19,7 +19,7 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold">Evolução entre Simulados</CardTitle>
             <div className="flex items-center rounded-lg bg-muted/60 p-0.5">
-              {(['proficiencia', 'nota'] as const).map((m) => (
+              {(['proficiencia', 'percentProficientes'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMetric(m)}
@@ -30,7 +30,7 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {m === 'proficiencia' ? 'Proficiência' : 'Nota'}
+                  {m === 'proficiencia' ? '% Acertos' : '% Proficientes'}
                 </button>
               ))}
             </div>
@@ -52,10 +52,11 @@ export const EvolucaoChart: React.FC<Props> = ({ evolucao }) => {
                   width={32}
                   axisLine={false}
                   tickLine={false}
-                  domain={metric === 'nota' ? [0, 5] : ['auto', 'auto']}
+                  domain={[0, 100]}
+                  tickFormatter={(v) => `${v}%`}
                 />
                 <Tooltip
-                  formatter={(value: number) => [`${value}`, metric === 'nota' ? 'Nota' : 'Proficiência']}
+                  formatter={(value: number) => [`${value}%`, metric === 'proficiencia' ? '% Acertos' : '% Proficientes']}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',

@@ -121,7 +121,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
           insights.push({
             id: `opportunity-${tema.name}-${sp.name}`,
             type: 'quick-win',
-            title: `${tema.name} é quick win`,
+            title: `${tema.name} é ganho rápido`,
             description: `A apenas ${gap}pts da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
             priority,
             priorityFactors: [
@@ -175,7 +175,7 @@ function getInsightConfig(type: PrioritizedInsight['type']) {
     case 'critical-area':
       return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Área Crítica' };
     case 'quick-win':
-      return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10', badge: 'secondary' as const, label: 'Quick Win' };
+      return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10', badge: 'secondary' as const, label: 'Ganho Rápido' };
     case 'opportunity-tema':
       return { icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', badge: 'secondary' as const, label: 'Oportunidade' };
     case 'strength':
@@ -296,7 +296,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
       <div className="flex flex-wrap gap-2">
         <FilterChip label={`Todos (${counts.all})`} active={filterType === 'all'} onClick={() => setFilterType('all')} />
         <FilterChip label={`Críticos (${counts['critical-tema'] + counts['critical-area']})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
-        <FilterChip label={`Quick Wins (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
+        <FilterChip label={`Ganhos Rápidos (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
         <FilterChip label={`Pontos Fortes (${counts.strength})`} active={filterType === 'strength'} onClick={() => setFilterType('strength')} />
       </div>
 
