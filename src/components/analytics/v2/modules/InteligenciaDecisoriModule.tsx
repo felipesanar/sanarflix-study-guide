@@ -12,6 +12,7 @@ import {
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { SimuladorImpactoModule } from './SimuladorImpactoModule';
+import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
