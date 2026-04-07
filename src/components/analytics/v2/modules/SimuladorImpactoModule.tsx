@@ -4,6 +4,7 @@ import {
   FlaskConical, RotateCcw, TrendingUp, Users, Target, AlertTriangle,
   ArrowRight, Info, Sparkles, CheckCircle2, Zap, Crosshair,
 } from 'lucide-react';
+import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -360,7 +361,13 @@ export const SimuladorImpactoModule: React.FC<Props> = ({ data, loading, error, 
           <div className="flex items-start gap-2">
             <FlaskConical className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Simulador de Impacto — Dados Hipotéticos</p>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                Simulador de Impacto — Dados Hipotéticos
+                <TooltipInfo
+                  section="simulador_impacto"
+                  text={"Simule intervenções pedagógicas e veja quantos alunos podem atingir proficiência.\n\nVocê pode:\n• Escolher área, especialidade ou tema\n• Ajustar o nível de melhoria\n• Selecionar o grupo de alunos\n\nO simulador estima o impacto real na taxa de proficiência com base no peso do conteúdo no exame."}
+                />
+              </p>
               <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-0.5">
                 Os resultados abaixo são <strong>simulações</strong> baseadas em premissas estatísticas.
                 Não representam previsões garantidas. Use como ferramenta de apoio à decisão.
