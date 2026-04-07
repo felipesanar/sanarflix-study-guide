@@ -12,6 +12,7 @@ import {
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import { SimuladorImpactoModule } from './SimuladorImpactoModule';
+import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
@@ -213,6 +214,10 @@ export const InteligenciaDecisoriModule: React.FC<Props> = ({ data, loading, err
             <CardTitle className="text-sm flex items-center gap-2">
               <Crosshair className="h-4 w-4 text-primary" />
               Mapa de Prioridades
+              <TooltipInfo
+                section="mapa_prioridades"
+                text={"Este gráfico cruza a prevalência dos temas no exame com o desempenho médio dos alunos.\n\n• Eixo X: representa o quanto o tema aparece na prova\n• Eixo Y: representa a proficiência média dos alunos\n\nTemas no quadrante inferior direito indicam alta prioridade de intervenção: aparecem com frequência e têm baixo desempenho."}
+              />
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               Prevalência no exame vs. proficiência média — quadrante inferior-direito = prioridade de intervenção
@@ -298,6 +303,10 @@ export const InteligenciaDecisoriModule: React.FC<Props> = ({ data, loading, err
             <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-primary" />
               Índice de Impacto Curricular
+              <TooltipInfo
+                section="impacto_curricular"
+                text={"Ranking dos temas com maior impacto potencial na melhora da proficiência institucional.\n\nO impacto considera:\n• Prevalência do tema no exame\n• Número de alunos afetados\n• Gap de desempenho\n\nPriorize os temas no topo para maximizar o ganho institucional."}
+              />
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               Top 10 temas ordenados por impacto = prevalência × alunos afetados × gap
