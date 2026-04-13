@@ -1,44 +1,80 @@
 
 
-# Inserir dados de teste para o usuário João Vitor Nader no ranking de consumo
+# Ajuste da Visão Geral do Tema — Diagnóstico Curricular
 
-## Contexto
+## Resumo
 
-O usuário `joaonader@ufba.br` (UUID `c88037c4-a0e4-4501-afca-e5e40390e0d6`) está na FAME, semestre 5, onde já existem 49 alunos com dados de questões respondidas. O problema é que esse usuário não tem registro nas tabelas `supabase_to_metabase` e `consumo_metabase`, então o RankingCard na Home não mostra dados de consumo para ele.
+Remover métricas incorretas ("Gap p/ Proficiência" e "Progresso") do card "Visão Geral do Tema", reorganizar indicadores em linha horizontal, e adicionar gráfico de evolução da acurácia por tema ao longo dos simulados.
 
-## Plano
+## Desafio de dados
 
-Uma única migration SQL que insere:
+A RPC `get_institutional_evolution` retorna dados apenas no nível de **área** (grande_area), não de tema. Para mostrar a evolução da acurácia por tema, é necessário criar uma **nova RPC** que busque dados de `answer_progress` × `questoes_simulado` filtrados por tema, agrupados por simulado.
 
-1. **`supabase_to_metabase`** — mapeia o UUID do usuário para um ID fictício de metabase (`TESTE_joaonader_mock`)
-2. **`consumo_metabase`** — insere um registro com `questoes_respondidas = 150` e `videos_assistidos = 45` para esse ID fictício
+## Plano de implementação
 
-Isso fará com que a RPC `get_cohort_consumo_ranking` (que já funciona para a FAME) inclua esse usuário no ranking, e o RankingCard + RankingConsumoModal exibirão a posição e os dados corretamente.
+### 1. Nova RPC: `get_theme_evolution`
 
-## SQL da Migration
+Migration SQL criando função `get_theme_evolution(p_tema text, p_ies_id uuid)` que:
+- Busca todos os simulados da IES (mesma lógica de `get_institutional_evolution`)
+- Para cada simulado, calcula acurácia no tema específico (`questoes_simulado.tema = p_tema`)
+- Retorna array de `{ simulado_nome, created_at, total, acertos, percentual }`
+- `SECURITY DEFINER` com controle de role (admin/professor/b2b_partner/gestor)
 
-```sql
--- Mapeamento supabase -> metabase para o usuário de teste
-INSERT INTO supabase_to_metabase (id, user_id_metabase)
-VALUES ('c88037c4-a0e4-4501-afca-e5e40390e0d6', 'TESTE_joaonader_mock')
-ON CONFLICT (id) DO NOTHING;
+### 2. Novo componente: `ThemeAccuracyEvolutionChart.tsx`
 
--- Dados de consumo mockados
-INSERT INTO consumo_metabase (id, videos_assistidos, questoes_respondidas, documentos_lidos)
-VALUES ('TESTE_joaonader_mock', 45, 150, 10)
-ON CONFLICT (id) DO UPDATE SET
-  videos_assistidos = EXCLUDED.videos_assistidos,
-  questoes_respondidas = EXCLUDED.questoes_respondidas,
-  documentos_lidos = EXCLUDED.documentos_lidos;
+Em `src/components/analytics/v2/`:
+- Props: `themeName: string`, `iesId: string`
+- Chama a nova RPC via `supabase.rpc('get_theme_evolution', ...)`
+- Renderiza `LineChart` (Recharts) com eixo X = simulados, eixo Y = acurácia 0-100%
+- Estados: loading (skeleton), empty (mensagem para 0-1 simulados), data
+- Tooltip com nome do simulado + % acerto
+- Console log: `[ThemeAccuracyEvolution]`
+
+### 3. Modificar `TemaDetailPanel`
+
+No arquivo `DiagnosticoCurricularModule.tsx`:
+
+**Remoções:**
+- Grid item "Gap p/ Proficiência" (linhas 387-391)
+- Bloco "Progresso" com barra (linhas 394-400)
+- Import de `Progress`
+
+**Reorganização dos indicadores:**
+- Grid de `grid-cols-2` → `grid-cols-3` com uma linha:
+  1. Acurácia (%) — com cor de status
+  2. Acertos (valor absoluto)
+  3. Questões (total)
+
+**Adição:**
+- Importar e renderizar `ThemeAccuracyEvolutionChart` abaixo dos indicadores
+- Passar `themeName` e `iesId` (iesId vindo do contexto/filters)
+
+### 4. Passar `iesId` ao `TemaDetailPanel`
+
+O componente `DiagnosticoCurricularModule` recebe `data` (InstitutionalViewModel) mas não o `iesId`. Será necessário:
+- Adicionar `iesId?: string` às Props do módulo
+- Passá-lo de `DesempenhoInstitucionalV2.tsx` (já disponível nos filters)
+
+### 5. Service layer
+
+Adicionar função em `src/services/institutional.ts`:
+```typescript
+export async function fetchThemeEvolution(tema: string, iesId: string)
 ```
 
-## O que esperar ao testar
+## Arquivos modificados
 
-- Na Home, o card **Ranking > CONSUMO** deve mostrar a posição do usuário (ex: #X de 121)
-- Ao clicar, o **RankingConsumoModal** mostrará "Questões Respondidas: 150" e "Vídeos Assistidos: 45" com posições relativas
-- Nenhuma alteração de código é necessária — apenas dados no banco
+1. **Nova migration SQL** — RPC `get_theme_evolution`
+2. **`src/components/analytics/v2/ThemeAccuracyEvolutionChart.tsx`** — novo componente
+3. **`src/components/analytics/v2/modules/DiagnosticoCurricularModule.tsx`** — remoções + reorganização + integração do gráfico
+4. **`src/services/institutional.ts`** — nova função de fetch
+5. **`src/pages/DesempenhoInstitucionalV2.tsx`** — passar `iesId` ao módulo
+6. **`src/components/analytics/v2/shell/ModuleContentRenderer.tsx`** — propagar `iesId`
 
-## Nenhum arquivo modificado
+## Sem impacto em
 
-Apenas uma migration de dados.
+- Card "Classificação e Impacto"
+- Breadcrumb
+- Outros módulos/abas
+- Lógica de cálculo global
 
