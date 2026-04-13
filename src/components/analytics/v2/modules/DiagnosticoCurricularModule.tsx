@@ -99,7 +99,7 @@ const CurricularRow: React.FC<{
   );
 };
 
-export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
+export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, error, onRetry, iesId }) => {
   const [drill, setDrill] = useState<DrillState>({ level: 'areas' });
 
   const goToAreas = useCallback(() => {
@@ -338,6 +338,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
               tema={drill.selectedTema}
               area={drill.selectedArea!}
               specialty={drill.selectedSpecialty!}
+              iesId={iesId}
             />
           </motion.div>
         )}
