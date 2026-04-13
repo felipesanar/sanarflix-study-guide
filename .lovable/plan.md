@@ -1,79 +1,44 @@
 
 
-# Simulador de Impacto Híbrido (Dual Mode)
+# Inserir dados de teste para o usuário João Vitor Nader no ranking de consumo
 
-## Resumo
+## Contexto
 
-Adicionar um **Modo Meta** (goal-driven) ao simulador existente, mantendo o **Modo Exploração** atual. O gestor poderá alternar entre "Se eu agir aqui, quantos alunos recupero?" e "Quantos alunos quero recuperar e qual esforço isso exige?".
+O usuário `joaonader@ufba.br` (UUID `c88037c4-a0e4-4501-afca-e5e40390e0d6`) está na FAME, semestre 5, onde já existem 49 alunos com dados de questões respondidas. O problema é que esse usuário não tem registro nas tabelas `supabase_to_metabase` e `consumo_metabase`, então o RankingCard na Home não mostra dados de consumo para ele.
 
-## Arquivo modificado
+## Plano
 
-`src/components/analytics/v2/modules/SimuladorImpactoModule.tsx` — unico arquivo alterado.
+Uma única migration SQL que insere:
 
-## Mudanças
+1. **`supabase_to_metabase`** — mapeia o UUID do usuário para um ID fictício de metabase (`TESTE_joaonader_mock`)
+2. **`consumo_metabase`** — insere um registro com `questoes_respondidas = 150` e `videos_assistidos = 45` para esse ID fictício
 
-### 1. Novo tipo e estado de modo
+Isso fará com que a RPC `get_cohort_consumo_ranking` (que já funciona para a FAME) inclua esse usuário no ranking, e o RankingCard + RankingConsumoModal exibirão a posição e os dados corretamente.
 
-```typescript
-type SimulationMode = 'effort' | 'goal';
-// Novo campo no SimulationScenario:
-desiredRecovered: number; // usado apenas no modo goal
+## SQL da Migration
+
+```sql
+-- Mapeamento supabase -> metabase para o usuário de teste
+INSERT INTO supabase_to_metabase (id, user_id_metabase)
+VALUES ('c88037c4-a0e4-4501-afca-e5e40390e0d6', 'TESTE_joaonader_mock')
+ON CONFLICT (id) DO NOTHING;
+
+-- Dados de consumo mockados
+INSERT INTO consumo_metabase (id, videos_assistidos, questoes_respondidas, documentos_lidos)
+VALUES ('TESTE_joaonader_mock', 45, 150, 10)
+ON CONFLICT (id) DO UPDATE SET
+  videos_assistidos = EXCLUDED.videos_assistidos,
+  questoes_respondidas = EXCLUDED.questoes_respondidas,
+  documentos_lidos = EXCLUDED.documentos_lidos;
 ```
 
-Estado adicional: `const [mode, setMode] = useState<SimulationMode>('effort');`
+## O que esperar ao testar
 
-### 2. Nova funcao `simulateByGoal()`
+- Na Home, o card **Ranking > CONSUMO** deve mostrar a posição do usuário (ex: #X de 121)
+- Ao clicar, o **RankingConsumoModal** mostrará "Questões Respondidas: 150" e "Vídeos Assistidos: 45" com posições relativas
+- Nenhuma alteração de código é necessária — apenas dados no banco
 
-Logica reversa:
-1. Filtrar alunos elegiveis (`percentual < 60`) no segmento selecionado
-2. Calcular gap de cada um (`60 - percentual`)
-3. Ordenar por proximidade (menor gap primeiro)
-4. Selecionar os N primeiros (input do usuario)
-5. Calcular esforco necessario: `requiredEffort = Math.max(...selected.map(s => gap / weight))`
-6. Clamp entre 0-100; se > 100 marcar como "inviavel"
-7. Depois rodar `simulateByEffort` com o `requiredEffort` calculado para obter todos os outputs unificados
+## Nenhum arquivo modificado
 
-### 3. UI — Toggle de modo no topo do card de configuracao
-
-Usar `ToggleGroup` (ja importado no projeto) com duas opcoes:
-- "Explorar impacto" (modo effort)
-- "Definir meta" (modo goal)
-
-### 4. UI — Slider condicional
-
-- **Modo effort**: slider existente (1-30pp de melhoria)
-- **Modo goal**: novo slider com `min=1`, `max=totalAlunosAbaixo60`, `step=1`, label "Quantos alunos voce quer tornar proficientes?"
-
-### 5. Resultados — outputs unificados
-
-Ambos os modos produzem o mesmo `SimulationResult`, exibido na mesma hierarquia:
-1. Hero KPI (alunos recuperados)
-2. Metricas secundarias (delta, conceito, eficiencia)
-3. Explicacao dinamica
-4. Lista de alunos
-5. Premissas
-
-### 6. Explicacao dinamica por modo
-
-- **Effort**: "Voce simulou uma melhoria de Xpp neste tema, que representa Y% da prova."
-- **Goal**: "Para recuperar X alunos, voce precisa melhorar aproximadamente Ypp neste tema."
-
-### 7. Estados especiais (modo goal)
-
-- `requiredEffort > 100`: card de aviso "Nao e possivel atingir essa meta apenas com este tema. Considere combinar com outros temas ou reduzir a meta."
-- `requiredEffort < 1`: badge "Meta atingivel com esforco minimo"
-- `desiredRecovered > eligible`: clamp automatico ao maximo elegivel
-
-### 8. Logs
-
-```
-console.log('[ImpactSimulator][Mode]', mode);
-console.log('[ImpactSimulator][Goal]', { desiredRecovered, requiredEffort });
-```
-
-### 9. Responsividade
-
-- ToggleGroup empilha em telas < sm se necessario
-- Slider de meta funcional em touch (Radix)
-- Cards empilhados verticalmente em mobile (ja implementado)
+Apenas uma migration de dados.
 
