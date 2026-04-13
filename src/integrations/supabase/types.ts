@@ -1512,6 +1512,10 @@ export type Database = {
           total: number
         }[]
       }
+      get_theme_evolution: {
+        Args: { p_ies_id?: string; p_tema: string }
+        Returns: Json
+      }
       get_user_ies_id: { Args: never; Returns: string }
       get_user_performance_aggregates: {
         Args: { p_simulado_id?: string }
