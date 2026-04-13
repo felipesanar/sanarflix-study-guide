@@ -165,6 +165,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         loading={loading}
         error={error}
         onRetry={refetch}
+        iesId={filters.iesId}
       />
 
       {/* Drawers */}

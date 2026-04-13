@@ -5,6 +5,7 @@ import { CurricularSearchBar } from './CurricularSearchBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { ThemeAccuracyEvolutionChart } from '@/components/analytics/v2/ThemeAccuracyEvolutionChart';
 import { Badge } from '@/components/ui/badge';
 import {
   Breadcrumb,
@@ -28,6 +29,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   onRetry?: () => void;
+  iesId?: string;
 }
 
 type DrillLevel = 'areas' | 'specialties' | 'temas' | 'tema-detail';
@@ -97,7 +99,7 @@ const CurricularRow: React.FC<{
   );
 };
 
-export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
+export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, error, onRetry, iesId }) => {
   const [drill, setDrill] = useState<DrillState>({ level: 'areas' });
 
   const goToAreas = useCallback(() => {
@@ -336,6 +338,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
               tema={drill.selectedTema}
               area={drill.selectedArea!}
               specialty={drill.selectedSpecialty!}
+              iesId={iesId}
             />
           </motion.div>
         )}
@@ -349,7 +352,8 @@ const TemaDetailPanel: React.FC<{
   tema: CurricularTemaNode;
   area: CurricularAreaNode;
   specialty: CurricularSpecialtyNode;
-}> = ({ tema, area, specialty }) => {
+  iesId?: string;
+}> = ({ tema, area, specialty, iesId }) => {
   const gap = Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual);
   const isCritical = tema.percentual < PROFICIENCY_THRESHOLD - 10;
   const isOpportunity = tema.percentual >= PROFICIENCY_THRESHOLD - 10 && tema.percentual < PROFICIENCY_THRESHOLD;
@@ -370,34 +374,24 @@ const TemaDetailPanel: React.FC<{
             <p className="text-sm text-muted-foreground">{area.name} → {specialty.name}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Acurácia</p>
               <p className={`text-2xl font-bold ${getStatusColor(tema.percentual)}`}>{tema.percentual}%</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Questões</p>
-              <p className="text-2xl font-bold text-foreground">{tema.total}</p>
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Acertos</p>
               <p className="text-2xl font-bold text-foreground">{tema.acertos}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Gap p/ Proficiência</p>
-              <p className={`text-2xl font-bold ${gap > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {gap > 0 ? `${gap} pts` : '✓'}
-              </p>
+              <p className="text-xs text-muted-foreground">Questões</p>
+              <p className="text-2xl font-bold text-foreground">{tema.total}</p>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progresso</span>
-              <span className="font-medium">{tema.acertos}/{tema.total}</span>
-            </div>
-            <Progress value={tema.percentual} className="h-3" />
-          </div>
+          {iesId && (
+            <ThemeAccuracyEvolutionChart themeName={tema.name} iesId={iesId} />
+          )}
         </CardContent>
       </Card>
 
