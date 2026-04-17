@@ -242,10 +242,6 @@ export const Home: React.FC = () => {
             <SimuladoPerformanceCard data={simuladoData} />
           </motion.div>
 
-          {/* Ranking - more compact on mobile */}
-          <motion.div variants={itemVariants}>
-            <RankingCard data={rankings} />
-          </motion.div>
 
           {/* Semester content */}
           <motion.div variants={itemVariants}>
