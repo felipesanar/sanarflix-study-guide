@@ -138,26 +138,22 @@ export const Home: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Row 2: Meu Dia + Ranking */}
-          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 lg:gap-6">
-            <motion.div variants={itemVariants} className="min-w-0">
-              <MeuDiaCard 
-                items={meuDiaItems} 
-                hasStudyGuide={hasStudyGuide}
-                loading={loading}
-                error={error}
-                onRetry={refetch}
-                nextExam={nextExamInsight}
-                examLoading={examsLoading}
-                onAddExamClick={() => setShowAddExamWizard(true)}
-                onEditExam={handleEditExam}
-                onRemoveExam={handleRemoveExam}
-              />
-            </motion.div>
-            <motion.div variants={itemVariants} className="min-w-0">
-              <RankingCard data={rankings} />
-            </motion.div>
-          </div>
+          {/* Row 2: Meu Dia (full width) */}
+          <motion.div variants={itemVariants} className="min-w-0">
+            <MeuDiaCard 
+              items={meuDiaItems} 
+              hasStudyGuide={hasStudyGuide}
+              loading={loading}
+              error={error}
+              onRetry={refetch}
+              nextExam={nextExamInsight}
+              examLoading={examsLoading}
+              onAddExamClick={() => setShowAddExamWizard(true)}
+              onEditExam={handleEditExam}
+              onRemoveExam={handleRemoveExam}
+              fullWidth
+            />
+          </motion.div>
 
           {/* Row 3: Desempenho + Meu Semestre */}
           <div className="grid grid-cols-2 gap-5 lg:gap-6">
