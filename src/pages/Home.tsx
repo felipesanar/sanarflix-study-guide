@@ -7,7 +7,7 @@ import { useProgressHub } from '@/hooks/useProgressHub';
 import { WelcomeCard } from '@/components/home/WelcomeCard';
 import { AnnouncementsCard } from '@/components/home/AnnouncementsCard';
 import { MeuDiaCard } from '@/components/home/MeuDiaCard';
-import { RankingCard } from '@/components/home/RankingCard';
+
 import { SimuladoPerformanceCard } from '@/components/home/SimuladoPerformanceCard';
 import { MeuSemestreCard } from '@/components/home/MeuSemestreCard';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
@@ -138,26 +138,22 @@ export const Home: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Row 2: Meu Dia + Ranking */}
-          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 lg:gap-6">
-            <motion.div variants={itemVariants} className="min-w-0">
-              <MeuDiaCard 
-                items={meuDiaItems} 
-                hasStudyGuide={hasStudyGuide}
-                loading={loading}
-                error={error}
-                onRetry={refetch}
-                nextExam={nextExamInsight}
-                examLoading={examsLoading}
-                onAddExamClick={() => setShowAddExamWizard(true)}
-                onEditExam={handleEditExam}
-                onRemoveExam={handleRemoveExam}
-              />
-            </motion.div>
-            <motion.div variants={itemVariants} className="min-w-0">
-              <RankingCard data={rankings} />
-            </motion.div>
-          </div>
+          {/* Row 2: Meu Dia (full width) */}
+          <motion.div variants={itemVariants} className="min-w-0">
+            <MeuDiaCard 
+              items={meuDiaItems} 
+              hasStudyGuide={hasStudyGuide}
+              loading={loading}
+              error={error}
+              onRetry={refetch}
+              nextExam={nextExamInsight}
+              examLoading={examsLoading}
+              onAddExamClick={() => setShowAddExamWizard(true)}
+              onEditExam={handleEditExam}
+              onRemoveExam={handleRemoveExam}
+            />
+
+          </motion.div>
 
           {/* Row 3: Desempenho + Meu Semestre */}
           <div className="grid grid-cols-2 gap-5 lg:gap-6">
@@ -182,26 +178,21 @@ export const Home: React.FC = () => {
             </motion.div>
           </div>
           
-          {/* Row 2: Meu Dia + Ranking */}
-          <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 md:gap-5">
-            <motion.div variants={itemVariants} className="min-w-0">
-              <MeuDiaCard 
-                items={meuDiaItems} 
-                hasStudyGuide={hasStudyGuide}
-                loading={loading}
-                error={error}
-                onRetry={refetch}
-                nextExam={nextExamInsight}
-                examLoading={examsLoading}
-                onAddExamClick={() => setShowAddExamWizard(true)}
-                onEditExam={handleEditExam}
-                onRemoveExam={handleRemoveExam}
-              />
-            </motion.div>
-            <motion.div variants={itemVariants} className="min-w-0">
-              <RankingCard data={rankings} />
-            </motion.div>
-          </div>
+          {/* Row 2: Meu Dia (full width) */}
+          <motion.div variants={itemVariants} className="min-w-0">
+            <MeuDiaCard 
+              items={meuDiaItems} 
+              hasStudyGuide={hasStudyGuide}
+              loading={loading}
+              error={error}
+              onRetry={refetch}
+              nextExam={nextExamInsight}
+              examLoading={examsLoading}
+              onAddExamClick={() => setShowAddExamWizard(true)}
+              onEditExam={handleEditExam}
+              onRemoveExam={handleRemoveExam}
+            />
+          </motion.div>
 
           {/* Row 3: Performance + Semester */}
           <div className="grid grid-cols-2 gap-4 md:gap-5">
@@ -251,10 +242,6 @@ export const Home: React.FC = () => {
             <SimuladoPerformanceCard data={simuladoData} />
           </motion.div>
 
-          {/* Ranking - more compact on mobile */}
-          <motion.div variants={itemVariants}>
-            <RankingCard data={rankings} />
-          </motion.div>
 
           {/* Semester content */}
           <motion.div variants={itemVariants}>
