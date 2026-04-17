@@ -7,7 +7,7 @@ import { useProgressHub } from '@/hooks/useProgressHub';
 import { WelcomeCard } from '@/components/home/WelcomeCard';
 import { AnnouncementsCard } from '@/components/home/AnnouncementsCard';
 import { MeuDiaCard } from '@/components/home/MeuDiaCard';
-import { RankingCard } from '@/components/home/RankingCard';
+
 import { SimuladoPerformanceCard } from '@/components/home/SimuladoPerformanceCard';
 import { MeuSemestreCard } from '@/components/home/MeuSemestreCard';
 import { QuickActionsDock } from '@/components/home/QuickActionsDock';
