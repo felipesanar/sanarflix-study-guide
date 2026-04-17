@@ -151,8 +151,8 @@ export const Home: React.FC = () => {
               onAddExamClick={() => setShowAddExamWizard(true)}
               onEditExam={handleEditExam}
               onRemoveExam={handleRemoveExam}
-              fullWidth
             />
+
           </motion.div>
 
           {/* Row 3: Desempenho + Meu Semestre */}
