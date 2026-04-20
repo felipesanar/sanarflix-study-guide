@@ -476,6 +476,10 @@ const InsightDetailSheet: React.FC<{
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <Target className="h-4 w-4" /> Score de Prioridade
+                <TooltipInfo
+                  text={getPriorityFormulaExplanation(insight.type)}
+                  position="right"
+                />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -490,6 +494,13 @@ const InsightDetailSheet: React.FC<{
                     <p className="text-sm font-semibold">{f.value}</p>
                   </div>
                 ))}
+              </div>
+              {/* Inline formula explanation */}
+              <div className="rounded-md bg-muted/30 border border-border/50 p-2.5 mt-2">
+                <p className="text-[11px] font-semibold text-foreground mb-1">Como este score foi calculado</p>
+                <p className="text-[11px] text-muted-foreground whitespace-pre-line leading-relaxed">
+                  {getPriorityFormulaExplanation(insight.type)}
+                </p>
               </div>
             </CardContent>
           </Card>
