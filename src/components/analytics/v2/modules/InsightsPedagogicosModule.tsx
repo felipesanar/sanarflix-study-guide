@@ -275,12 +275,15 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Lightbulb className="h-5 w-5 text-primary" />
         <h2 className="text-base font-semibold">
           {insights.length} insights gerados
         </h2>
-        <span className="text-xs text-muted-foreground">• priorizados por prevalência e impacto</span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          • priorizados por prevalência e impacto
+          <TooltipInfo text={GENERAL_PRIORITY_EXPLANATION} position="bottom" />
+        </span>
       </div>
 
       {/* Top priority highlights */}
