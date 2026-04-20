@@ -304,7 +304,13 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span>Prioridade: {Math.round(insight.priority)}/100</span>
+                    <span className="flex items-center gap-1">
+                      Prioridade: {Math.round(insight.priority)}/100
+                      <TooltipInfo
+                        text={getPriorityFormulaExplanation(insight.type)}
+                        position="top"
+                      />
+                    </span>
                     <span>{insight.gap > 0 ? `${insight.gap.toFixed(1)}pts gap` : `${insight.percentual}%`}</span>
                   </div>
                   <Progress value={insight.priority} className="h-1.5 mt-1.5" />
