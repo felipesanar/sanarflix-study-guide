@@ -417,7 +417,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold">{insight.title}</span>
-                            <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5">{cfg.label}</Badge>
+                            <Badge className={`text-[10px] px-1.5 py-0 h-5 border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">{insight.description}</p>
                           <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground pt-1">
