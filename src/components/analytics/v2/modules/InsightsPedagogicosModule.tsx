@@ -701,7 +701,7 @@ const SingleHighlightCard: React.FC<{
         </div>
         <div className="flex-1 min-w-0 space-y-1.5">
           <h3 className="text-lg sm:text-xl font-semibold leading-tight">{insight.title}</h3>
-          <Badge variant={cfg.badge} className="text-[11px]">{cfg.label}</Badge>
+          <Badge className={`text-[11px] border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
         </div>
       </div>
 
