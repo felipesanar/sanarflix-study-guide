@@ -228,6 +228,34 @@ function getCategoryReason(insight: PrioritizedInsight): string {
   }
 }
 
+function getInterpretation(insight: PrioritizedInsight): string {
+  const P = insight.percentual.toFixed(0);
+  const V = insight.prevalencia.toFixed(1);
+  switch (insight.type) {
+    case 'critical-tema':
+      return `Este tema apresenta baixo desempenho (${P}% de acerto) e alta incidência no simulado (${V}%), indicando forte impacto no resultado institucional.`;
+    case 'critical-area':
+      return `A área ${insight.areaName} concentra ${V}% das questões do simulado e está com desempenho médio de ${P}%, abaixo da proficiência institucional.`;
+    case 'quick-win':
+      return `Os alunos estão próximos da proficiência (${P}% de acerto) em um tema relevante (${V}% de prevalência) — um pequeno reforço pode gerar grande impacto.`;
+    case 'strength':
+      return `A turma demonstra domínio consistente neste tema (${P}% de acerto, ${V}% de prevalência). Manter a abordagem atual.`;
+  }
+}
+
+function getRecommendationText(insight: PrioritizedInsight): string {
+  const alvo = insight.temaName ?? insight.areaName;
+  switch (insight.type) {
+    case 'critical-tema':
+    case 'critical-area':
+      return `Priorizar revisão dirigida em ${alvo} para alunos abaixo da proficiência, com foco nos subtemas de maior incidência.`;
+    case 'quick-win':
+      return `Disponibilizar lista de exercícios direcionada em ${alvo} para consolidar a proficiência da turma.`;
+    case 'strength':
+      return `Manter a estratégia atual de ensino em ${alvo} e usá-lo como referência para outros temas.`;
+  }
+}
+
 export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
   const [selectedInsight, setSelectedInsight] = useState<PrioritizedInsight | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'critical' | 'quick-win' | 'strength'>('all');
@@ -301,107 +329,177 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         </span>
       </div>
 
-      {/* Top priority highlights */}
-      {topPriority.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {topPriority.map((insight) => {
-            const cfg = getInsightConfig(insight.type);
-            return (
-              <Card
-                key={insight.id}
-                className="cursor-pointer hover:shadow-md transition-all border-l-4 border-border/70 hover:border-primary/30"
-                style={{ borderLeftColor: insight.type.includes('critical') ? 'hsl(var(--destructive))' : 'hsl(var(--primary))' }}
-                onClick={() => setSelectedInsight(insight)}
-              >
-                <CardContent className="py-4 px-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <cfg.icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium leading-tight">{insight.title}</p>
-                      <Badge variant={cfg.badge} className="text-[10px] mt-1">{cfg.label}</Badge>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span>{insight.percentual}% acerto</span>
-                    <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      {(() => {
+        const mode: 'single-highlight' | 'compact-grid' | 'default' =
+          filtered.length === 1 ? 'single-highlight' :
+          filtered.length > 1 && filtered.length <= 3 ? 'compact-grid' :
+          'default';
 
-      {/* Filter chips */}
-      <div className="flex flex-wrap gap-2">
-        <FilterChip label={`Todos (${counts.all})`} active={filterType === 'all'} onClick={() => setFilterType('all')} />
-        <FilterChip label={`Críticos (${counts.critical})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
-        <FilterChip label={`Ganhos Rápidos (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
-        <FilterChip label={`Pontos Fortes (${counts.strength})`} active={filterType === 'strength'} onClick={() => setFilterType('strength')} />
-      </div>
+        console.log('[Insights] Layout adaptativo', { totalInsights: filtered.length, mode });
 
-      {/* Insight list */}
-      <div className="space-y-2">
-        {filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Nenhum insight nesta categoria.</p>
-        ) : (
-          filtered.map((insight) => {
-            const cfg = getInsightConfig(insight.type);
-            return (
-              <button
-                key={insight.id}
-                onClick={() => setSelectedInsight(insight)}
-                className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div className={`p-2 rounded-lg ${cfg.bg} shrink-0`}>
-                  <cfg.icon className={`h-4 w-4 ${cfg.color}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-medium truncate">{insight.title}</span>
-                    <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5 shrink-0">{cfg.label}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{insight.description}</p>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground">
-                    <span>{insight.percentual}% acerto</span>
-                    <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-                </div>
-              </button>
-            );
-          })
-        )}
-      </div>
+        const categoryLabel = filtered[0] ? getInsightConfig(filtered[0].type).label.toLowerCase() : '';
 
-      {/* Classification explainer */}
-      <Card className="border-dashed">
-        <CardContent className="py-4 px-4">
-          <div className="flex items-start gap-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Como classificamos os insights</p>
-              <p className="text-xs text-muted-foreground">
-                Cada tema é avaliado por dois critérios objetivos:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1">
-                <li>• <strong>Percentual de acerto</strong> — desempenho médio dos alunos no tema</li>
-                <li>• <strong>Prevalência</strong> — peso do tema no total de questões do simulado</li>
-              </ul>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1 pt-1">
-                <li>🔴 <strong>Crítico</strong> — acerto abaixo de 50% e prevalência ≥ 10%</li>
-                <li>🟡 <strong>Ganho Rápido</strong> — acerto entre 50% e 65% e prevalência ≥ 8%</li>
-                <li>🟢 <strong>Ponto Forte</strong> — acerto igual ou superior a 70%</li>
-              </ul>
-              <p className="text-xs text-muted-foreground pt-1">
-                A ordem dentro de cada grupo prioriza temas com maior impacto (combinação de prevalência alta e desempenho mais baixo).
-              </p>
+        return (
+          <>
+            {/* Top priority highlights — apenas no default */}
+            {mode === 'default' && topPriority.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {topPriority.map((insight) => {
+                  const cfg = getInsightConfig(insight.type);
+                  return (
+                    <Card
+                      key={insight.id}
+                      className="cursor-pointer hover:shadow-md transition-all border-l-4 border-border/70 hover:border-primary/30"
+                      style={{ borderLeftColor: insight.type.includes('critical') ? 'hsl(var(--destructive))' : 'hsl(var(--primary))' }}
+                      onClick={() => setSelectedInsight(insight)}
+                    >
+                      <CardContent className="py-4 px-4">
+                        <div className="flex items-start gap-2 mb-2">
+                          <cfg.icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-tight">{insight.title}</p>
+                            <Badge variant={cfg.badge} className="text-[10px] mt-1">{cfg.label}</Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+                          <span>{insight.percentual}% acerto</span>
+                          <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Filter chips */}
+            <div className="flex flex-wrap gap-2">
+              <FilterChip label={`Todos (${counts.all})`} active={filterType === 'all'} onClick={() => setFilterType('all')} />
+              <FilterChip label={`Críticos (${counts.critical})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
+              <FilterChip label={`Ganhos Rápidos (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
+              <FilterChip label={`Pontos Fortes (${counts.strength})`} active={filterType === 'strength'} onClick={() => setFilterType('strength')} />
             </div>
-          </div>
-        </CardContent>
-      </Card>
+
+            {/* Insight list — adaptive */}
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum insight nesta categoria.</p>
+            ) : mode === 'single-highlight' ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground text-center">
+                  Apenas 1 insight {categoryLabel} identificado
+                </p>
+                <SingleHighlightCard
+                  insight={filtered[0]}
+                  onOpenDetails={() => setSelectedInsight(filtered[0])}
+                />
+              </div>
+            ) : mode === 'compact-grid' ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {filtered.length} insights identificados nesta categoria
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto">
+                  {filtered.map((insight) => {
+                    const cfg = getInsightConfig(insight.type);
+                    const borderColor = insight.type.includes('critical')
+                      ? 'hsl(var(--destructive))'
+                      : 'hsl(var(--primary))';
+                    return (
+                      <button
+                        key={insight.id}
+                        onClick={() => setSelectedInsight(insight)}
+                        className="w-full flex items-start gap-3 p-4 sm:p-5 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        style={{ borderLeftWidth: '4px', borderLeftColor: borderColor }}
+                      >
+                        <div className={`p-2 rounded-lg ${cfg.bg} shrink-0`}>
+                          <cfg.icon className={`h-4 w-4 ${cfg.color}`} />
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold">{insight.title}</span>
+                            <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5">{cfg.label}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{insight.description}</p>
+                          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground pt-1">
+                            <span>{insight.percentual}% acerto</span>
+                            <span>•</span>
+                            <span>{insight.prevalencia.toFixed(1)}% prevalência</span>
+                            {insight.alunosAfetados > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>{insight.alunosAfetados} alunos afetados</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0 mt-1" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filtered.map((insight) => {
+                  const cfg = getInsightConfig(insight.type);
+                  return (
+                    <button
+                      key={insight.id}
+                      onClick={() => setSelectedInsight(insight)}
+                      className="w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border/70 bg-card hover:bg-accent/40 hover:border-primary/20 transition-colors text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <div className={`p-2 rounded-lg ${cfg.bg} shrink-0`}>
+                        <cfg.icon className={`h-4 w-4 ${cfg.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-sm font-medium truncate">{insight.title}</span>
+                          <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5 shrink-0">{cfg.label}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{insight.description}</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground">
+                          <span>{insight.percentual}% acerto</span>
+                          <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Classification explainer */}
+            <Card className="border-dashed">
+              <CardContent className="py-4 px-4">
+                <div className="flex items-start gap-2">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Como classificamos os insights</p>
+                    <p className="text-xs text-muted-foreground">
+                      Cada tema é avaliado por dois critérios objetivos:
+                    </p>
+                    <ul className="text-xs text-muted-foreground space-y-1 ml-1">
+                      <li>• <strong>Percentual de acerto</strong> — desempenho médio dos alunos no tema</li>
+                      <li>• <strong>Prevalência</strong> — peso do tema no total de questões do simulado</li>
+                    </ul>
+                    <ul className="text-xs text-muted-foreground space-y-1 ml-1 pt-1">
+                      <li>🔴 <strong>Crítico</strong> — acerto abaixo de 50% e prevalência ≥ 10%</li>
+                      <li>🟡 <strong>Ganho Rápido</strong> — acerto entre 50% e 65% e prevalência ≥ 8%</li>
+                      <li>🟢 <strong>Ponto Forte</strong> — acerto igual ou superior a 70%</li>
+                    </ul>
+                    <p className="text-xs text-muted-foreground pt-1">
+                      A ordem dentro de cada grupo prioriza temas com maior impacto (combinação de prevalência alta e desempenho mais baixo).
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        );
+      })()}
 
       {/* Insight detail drawer */}
       <InsightDetailSheet
@@ -574,5 +672,89 @@ const InsightDetailSheet: React.FC<{
         </div>
       </SheetContent>
     </Sheet>
+  );
+};
+
+// ── Single highlight card (modo adaptativo: 1 insight) ──
+const SingleHighlightCard: React.FC<{
+  insight: PrioritizedInsight;
+  onOpenDetails: () => void;
+}> = ({ insight, onOpenDetails }) => {
+  const cfg = getInsightConfig(insight.type);
+  const borderColor = insight.type.includes('critical')
+    ? 'hsl(var(--destructive))'
+    : 'hsl(var(--primary))';
+  const showAlunos = insight.alunosAfetados > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="max-w-3xl mx-auto rounded-2xl bg-muted/40 border border-border/60 p-4 sm:p-8 space-y-5"
+      style={{ borderLeftWidth: '4px', borderLeftColor: borderColor }}
+    >
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className={`p-2.5 rounded-lg ${cfg.bg} shrink-0`}>
+          <cfg.icon className={`h-6 w-6 ${cfg.color}`} />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <h3 className="text-lg sm:text-xl font-semibold leading-tight">{insight.title}</h3>
+          <Badge variant={cfg.badge} className="text-[11px]">{cfg.label}</Badge>
+        </div>
+      </div>
+
+      {/* Métricas */}
+      <div className={`grid grid-cols-1 ${showAlunos ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+        <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+          <p className="text-xs text-muted-foreground mb-1">Percentual de acerto</p>
+          <p className={`text-2xl font-bold ${cfg.color}`}>{insight.percentual}%</p>
+        </div>
+        <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+          <p className="text-xs text-muted-foreground mb-1">Prevalência</p>
+          <p className="text-2xl font-bold text-foreground">{insight.prevalencia.toFixed(1)}%</p>
+        </div>
+        {showAlunos && (
+          <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+            <p className="text-xs text-muted-foreground mb-1">Alunos afetados</p>
+            <p className="text-2xl font-bold text-foreground">{insight.alunosAfetados}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Interpretação */}
+      <div className="rounded-lg bg-background/60 border border-border/40 p-4">
+        <p className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+          <span aria-hidden>🔍</span> Interpretação do Insight
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {getInterpretation(insight)}
+        </p>
+      </div>
+
+      {/* Recomendação */}
+      <div className="rounded-lg bg-background/60 border border-border/40 p-4">
+        <p className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+          <span aria-hidden>🎯</span> Recomendação prática
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {getRecommendationText(insight)}
+        </p>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={onOpenDetails}
+        >
+          Ver detalhes completos
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </motion.div>
   );
 };
