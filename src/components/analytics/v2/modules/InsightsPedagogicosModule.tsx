@@ -674,3 +674,87 @@ const InsightDetailSheet: React.FC<{
     </Sheet>
   );
 };
+
+// ── Single highlight card (modo adaptativo: 1 insight) ──
+const SingleHighlightCard: React.FC<{
+  insight: PrioritizedInsight;
+  onOpenDetails: () => void;
+}> = ({ insight, onOpenDetails }) => {
+  const cfg = getInsightConfig(insight.type);
+  const borderColor = insight.type.includes('critical')
+    ? 'hsl(var(--destructive))'
+    : 'hsl(var(--primary))';
+  const showAlunos = insight.alunosAfetados > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="max-w-3xl mx-auto rounded-2xl bg-muted/40 border border-border/60 p-4 sm:p-8 space-y-5"
+      style={{ borderLeftWidth: '4px', borderLeftColor: borderColor }}
+    >
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <div className={`p-2.5 rounded-lg ${cfg.bg} shrink-0`}>
+          <cfg.icon className={`h-6 w-6 ${cfg.color}`} />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <h3 className="text-lg sm:text-xl font-semibold leading-tight">{insight.title}</h3>
+          <Badge variant={cfg.badge} className="text-[11px]">{cfg.label}</Badge>
+        </div>
+      </div>
+
+      {/* Métricas */}
+      <div className={`grid grid-cols-1 ${showAlunos ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-4`}>
+        <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+          <p className="text-xs text-muted-foreground mb-1">Percentual de acerto</p>
+          <p className={`text-2xl font-bold ${cfg.color}`}>{insight.percentual}%</p>
+        </div>
+        <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+          <p className="text-xs text-muted-foreground mb-1">Prevalência</p>
+          <p className="text-2xl font-bold text-foreground">{insight.prevalencia.toFixed(1)}%</p>
+        </div>
+        {showAlunos && (
+          <div className="p-4 rounded-lg bg-background/60 border border-border/40">
+            <p className="text-xs text-muted-foreground mb-1">Alunos afetados</p>
+            <p className="text-2xl font-bold text-foreground">{insight.alunosAfetados}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Interpretação */}
+      <div className="rounded-lg bg-background/60 border border-border/40 p-4">
+        <p className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+          <span aria-hidden>🔍</span> Interpretação do Insight
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {getInterpretation(insight)}
+        </p>
+      </div>
+
+      {/* Recomendação */}
+      <div className="rounded-lg bg-background/60 border border-border/40 p-4">
+        <p className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+          <span aria-hidden>🎯</span> Recomendação prática
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {getRecommendationText(insight)}
+        </p>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end pt-1">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={onOpenDetails}
+        >
+          Ver detalhes completos
+          <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </motion.div>
+  );
+};
