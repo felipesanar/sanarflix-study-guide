@@ -204,13 +204,13 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 function getInsightConfig(type: PrioritizedInsight['type']) {
   switch (type) {
     case 'critical-tema':
-      return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Crítico' };
+      return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Crítico' };
     case 'critical-area':
-      return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Área Crítica' };
+      return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Área Crítica' };
     case 'quick-win':
-      return { icon: Zap, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', badge: 'secondary' as const, label: 'Ganho Rápido' };
+      return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10', badgeClass: 'bg-blue-600 text-white hover:bg-blue-600/90 dark:bg-blue-500 dark:hover:bg-blue-500/90', label: 'Ganho Rápido' };
     case 'strength':
-      return { icon: Target, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', badge: 'default' as const, label: 'Ponto Forte' };
+      return { icon: Target, color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-700/10', badgeClass: 'bg-emerald-700 text-white hover:bg-emerald-700/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90', label: 'Ponto Forte' };
   }
 }
 
