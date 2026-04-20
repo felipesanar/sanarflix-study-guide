@@ -1,88 +1,116 @@
 
 
-# Layout Adaptativo para Poucos Insights (Insights Pedagógicos)
+# Refatoração do Drawer "Visão de Alunos" — Remoção do Score de Risco
 
-## Objetivo
-Quando a lista filtrada tem poucos insights (1, 2 ou 3), o layout deve preencher melhor o espaço disponível para reforçar a percepção de valor — em vez de exibir cards minúsculos com muito espaço vazio. Para 4+ insights, mantém o layout atual.
+## Contexto importante sobre "Nota TRI"
+O backend **não fornece um score TRI individual por aluno** — a única métrica disponível por aluno em `StudentScore` é `percentual` (acertos/total × 100). A instrução pede para usar TRI como base do Gap e do status, mas como esse dado não existe na estrutura atual, vou usar o **`percentual` de acertos como base única** (já é o que alimenta toda a tela hoje) e renomear a métrica para refletir isso de forma honesta. Não criarei dados fictícios. Caso futuramente uma coluna TRI seja adicionada, basta trocar a fonte.
 
-## Arquivo afetado
-- `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx` (único)
+## Arquivos afetados
+- `src/components/analytics/v2/shared/StudentAnalyticsDrawer.tsx` — refatoração principal do drawer
+- `src/components/analytics/v2/modules/VisaoAlunosModule.tsx` — ajuste de imports, badge de status, filtros e ordenação
 
-## Escopo
-A lógica adaptativa é aplicada à **lista principal** (`filtered.map(...)`, atualmente `space-y-2` com botões em linha). O bloco "Top priority highlights" (Top 3) é **removido na prática** quando há ≤3 insights, porque ele duplicaria o conteúdo da lista. Quando há ≥4, o Top 3 destacado continua aparecendo como hoje.
+Nenhum outro arquivo é tocado. Backend, tipos `StudentScore`/`InstitutionalViewModel`, lista de alunos, navegação e demais abas permanecem intactos.
 
-Lógica de modo:
+## Mudanças no `StudentAnalyticsDrawer.tsx`
+
+### Remoções completas
+- `RiskAssessment` interface e `computeRiskAssessment()` — apagados.
+- `getRiskLabel()`, `getRiskVariant()` — apagados.
+- Tile **"Score de Risco"** (linha 183) — apagado.
+- Card **"Nível de Risco"** com justification longa (linhas 186–208) — substituído por badge simples de status.
+- Bloco **"Fatores de Risco"** (linhas 211–226) — renomeado e reescrito como "Indicadores de Desempenho".
+- Texto "Recomendação de Intervenção" — renomeado para "Recomendação de Intervenção Pedagógica" e gerado por nova função sem linguagem de risco.
+
+### Mantido (renomeado)
+- `RiskLevel` é renomeado para `ProficiencyStatus` com valores: `'proficiente' | 'proximo' | 'abaixo'` (3 níveis em vez de 4, alinhado à nova regra).
+- `computeRiskLevel(percentual)` vira `computeProficiencyStatus(percentual)`:
+  - `≥ 60` → `'proficiente'` (verde)
+  - `50–59` → `'proximo'` (amarelo)
+  - `< 50` → `'abaixo'` (vermelho)
+- `getRiskColor` vira `getStatusColor` com a paleta acima.
+
+### Novo: `getStatusBadge(status)` retorna `{ label, className }`
+- `proficiente` → "Proficiente" / verde
+- `proximo` → "Próximo da proficiência" / amarelo
+- `abaixo` → "Abaixo da proficiência" / vermelho
+
+### Novo: `buildPedagogicalIndicators(student, areas)` 
+Retorna lista plana de indicadores neutros:
+- **Gap p/ proficiência**: valor em pontos (ou "Atingido" se ≥60)
+- **Percentual de acertos**: `X.X%` (1 decimal)
+- **Áreas com menor desempenho**: top 2 áreas com menor `scoresByArea`, formato `"Área (XX%)"`
+
+Cada item tem um `tone: 'neutral' | 'attention' | 'good'` controlando um pequeno ponto colorido (suave, sem vermelho agressivo).
+
+### Novo: `buildRecommendation(student)` 
+Texto baseado no status (sem palavra "risco"):
+- `abaixo`: "Plano de reforço pedagógico individualizado, com foco nas áreas de menor desempenho e revisão dos temas críticos."
+- `proximo`: "Acompanhamento próximo com revisão dirigida nas áreas de menor desempenho. Pequenas melhorias podem garantir a proficiência."
+- `proficiente`: "Manter acompanhamento regular. Aluno pode atuar como referência para tutoria entre pares."
+
+### Novo layout dos KPIs superiores (4 tiles fixos)
+Grid `grid-cols-2 lg:grid-cols-4 gap-3`:
+1. **Nota** — `student.percentual.toFixed(1)` (label: "Nota (% de acertos)") — destaque principal, `text-2xl font-bold`
+2. **Gap p/ proficiência**:
+   - Se `percentual ≥ 60`: "Proficiente" / verde
+   - Se `< 60`: `"X.X pts para proficiência"` / vermelho suave
+3. **Percentual Médio de Acertos** — `X.X%` (1 decimal)
+4. **Semestre** — `"4º semestre"` (texto completo)
+
+### Logs (substitui o atual)
 ```ts
-const mode =
-  filtered.length === 1 ? 'single-highlight' :
-  filtered.length <= 3  ? 'compact-grid'      :
-                          'default';
+console.log('[StudentDetailsPanel] Nota:', student.percentual);
+console.log('[StudentDetailsPanel] Gap:', gap);
+console.log('[StudentDetailsPanel] Status:', status);
 ```
-Log: `console.log('[Insights] Layout adaptativo', { totalInsights: filtered.length, mode });`
 
-## Comportamento por modo
+### Ordem final do drawer
+1. Header com nome + **badge de status** (Proficiente/Próximo/Abaixo) ao lado
+2. Grid 4 KPIs (TRI/Nota, Gap, Acertos, Semestre)
+3. Card "Recomendação de Intervenção Pedagógica"
+4. Bloco "Indicadores de Desempenho" (lista plana)
+5. Separator
+6. Evolução entre Simulados (mantido)
+7. Desempenho por Área (mantido — usa `getStatusColor`)
+8. Temas Críticos (mantido — independe de risco)
+9. Temas de Oportunidade (mantido)
 
-### `default` (≥4 insights) — sem mudanças
-- Mantém Top 3 destacado (`grid-cols-1 md:grid-cols-3 gap-3`) e a lista vertical (`space-y-2`) como hoje.
+## Mudanças no `VisaoAlunosModule.tsx`
 
-### `compact-grid` (2 ou 3 insights)
-- **Não renderizar** o bloco "Top priority highlights" (evita duplicação).
-- Microcopy acima: `"{N} insights identificados nesta categoria"` em `text-xs text-muted-foreground`.
-- Lista vira grid de cards mais largos:
-  - Container: `grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto`
-  - Card individual: `p-5` (mobile `p-4`), mantém ícone + título + badge + descrição completa (sem `line-clamp-1`), e linha de métricas (`% acerto` • `% prevalência` • `N alunos afetados` quando aplicável).
-- Para 3 insights: o terceiro card ocupa `md:col-span-2` se ficar sozinho na segunda linha? Não — fica `md:col-span-1` simples; layout 2+1 é aceito.
+### Imports atualizados
+Remove `computeRiskAssessment`, `getRiskLabel`, `getRiskVariant`. Importa novos: `computeProficiencyStatus`, `getStatusColor`, `getStatusBadge`, `type ProficiencyStatus`.
 
-### `single-highlight` (exatamente 1 insight) — Insight Destaque Expandido
-- **Não renderizar** o bloco "Top priority highlights".
-- Microcopy acima do card: `"Apenas 1 insight {categoria} identificado"` (categoria = "crítico"/"ganho rápido"/"ponto forte" conforme `cfg.label` em minúsculas).
-- Card único centralizado:
-  - Container: `max-w-3xl mx-auto`
-  - Estilo: `bg-muted/40`, `border-l-4` na cor da categoria (já existe pattern), `p-6 sm:p-8`, `rounded-2xl`, animação `motion.div` com `initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}`.
-  - Estrutura interna (vertical, `space-y-5`):
-    1. **Header**: ícone grande (`h-6 w-6`) + título (`text-xl font-semibold`) + badge da categoria.
-    2. **Métricas em linha** (`grid grid-cols-1 sm:grid-cols-3 gap-4`): cada bloco com label pequena + valor grande (`text-2xl font-bold`):
-       - "Percentual de acerto" → `{percentual}%`
-       - "Prevalência" → `{prevalencia.toFixed(1)}%`
-       - "Alunos afetados" → `{alunosAfetados}` (oculto se `0`, ex.: pontos fortes — nesse caso mostra apenas 2 colunas em sm)
-    3. **🔍 Interpretação do Insight**: bloco com fundo `bg-background/60`, padding `p-4`, `rounded-lg`. Texto gerado dinamicamente:
-       - Crítico: `"Este tema apresenta baixo desempenho ({P}% de acerto) e alta incidência no simulado ({V}%), indicando forte impacto no resultado institucional."`
-       - Ganho Rápido: `"Os alunos estão próximos da proficiência ({P}% de acerto) em um tema relevante ({V}% de prevalência) — um pequeno reforço pode gerar grande impacto."`
-       - Ponto Forte: `"A turma demonstra domínio consistente neste tema ({P}% de acerto, {V}% de prevalência). Manter a abordagem atual."`
-       - Área Crítica: `"A área {areaName} concentra {V}% das questões do simulado e está com desempenho médio de {P}%, abaixo da proficiência institucional."`
-    4. **🎯 Recomendação prática**: bloco igual ao anterior. Texto:
-       - Crítico/Área Crítica: `"Priorizar revisão dirigida em {temaName ?? areaName} para alunos abaixo da proficiência, com foco nos subtemas de maior incidência."`
-       - Ganho Rápido: `"Disponibilizar lista de exercícios direcionada em {temaName} para consolidar a proficiência da turma."`
-       - Ponto Forte: `"Manter a estratégia atual de ensino em {temaName} e usá-lo como referência para outros temas."`
-    5. **Footer**: botão `"Ver detalhes completos"` (variant `outline`, `size="sm"`, `w-full sm:w-auto`) que abre o `InsightDetailSheet` existente — preserva a funcionalidade do drawer sem duplicar conteúdo.
+### `getRiskConfig` → `getStatusConfig`
+Usa as novas funções; retorna `{ label, className, color }` (sem `variant`).
 
-## Helpers novos (no mesmo arquivo)
-```ts
-function getInterpretation(insight: PrioritizedInsight): string { ... }
-function getRecommendationText(insight: PrioritizedInsight): string { ... }
-```
-Colocados próximos a `getCategoryReason`.
+### `SegmentFilter` reduzido
+De 5 valores para 4: `'todos' | 'proficiente' | 'proximo' | 'abaixo'`.
+- `SEGMENT_OPTIONS` atualizado: "Todos" / "Proficientes" / "Próximos da proficiência" / "Abaixo da proficiência".
+- Cores e ícones revisados (nada de "Risco" como label).
 
-## Estados preservados (sem mudança)
-- `loading`, `error`, `!data`, `insights.length === 0` — tudo igual.
-- Filtro de chips, contadores, drawer lateral, card explicador inferior — tudo igual.
-- Lógica `classify`, `buildInsights`, ordenação — intocada.
+### Ordenação
+Remove `'risco'` de `SortKey`. `SortButton` "Risco" é removido. Ficam: Acerto, Nome, Semestre, Gap.
+
+### Lista de alunos (cards)
+Badge de status passa a usar `cfg.className` em vez de `variant`. Microcopy "X.Xpp p/ virar" mantido apenas para status `proximo`.
+
+### Counts
+Recalculados a partir de `computeProficiencyStatus` (3 categorias). O 4º summary card "Críticos" é mantido — agora mostra "Abaixo da proficiência".
 
 ## Responsividade
-- Mobile (375px):
-  - `single-highlight`: card 100% width, `p-4`, métricas empilham (`grid-cols-1`), título cai para `text-lg`.
-  - `compact-grid`: 1 coluna (`grid-cols-1`), padding `p-4`.
-- Desktop:
-  - `single-highlight`: `max-w-3xl mx-auto`.
-  - `compact-grid`: 2 colunas centralizadas (`max-w-5xl mx-auto`).
+- KPIs: `grid-cols-2 lg:grid-cols-4` — empilhamento 2x2 em mobile/tablet, 4 colunas em desktop ≥1024px.
+- Drawer mantém `w-full sm:max-w-lg`.
+- Sem overflow horizontal.
 
 ## Critérios de aceite
-- [ ] `filtered.length === 1` → renderiza card único expandido com Interpretação + Recomendação; sem Top 3 acima.
-- [ ] `filtered.length` em {2,3} → grid 2 colunas centralizado, cards mais largos, sem Top 3 acima.
-- [ ] `filtered.length >= 4` → layout idêntico ao atual (Top 3 + lista vertical).
-- [ ] Botão "Ver detalhes completos" no card único abre o drawer já existente sem duplicar dados.
-- [ ] Microcopy correto em cada modo.
-- [ ] Console mostra `[Insights] Layout adaptativo` com `totalInsights` e `mode` corretos a cada render.
-- [ ] Sem alteração em backend, tipos, lógica de classificação ou outras abas.
-- [ ] Funciona em viewport 375px sem quebra; sem `NaN`/`undefined` na UI.
+- [ ] Nenhuma menção a "Score de Risco", "Nível de Risco", "Fatores de Risco" ou número 0–100 de risco no drawer.
+- [ ] `computeRiskAssessment`, `getRiskLabel`, `getRiskVariant`, `RiskAssessment` removidos do código.
+- [ ] 4 KPIs no topo: Nota, Gap p/ proficiência, % Acertos, Semestre.
+- [ ] Badge de status no header com 3 estados: Proficiente (verde) / Próximo (amarelo) / Abaixo (vermelho), baseado apenas em `percentual`.
+- [ ] Bloco "Indicadores de Desempenho" substitui "Fatores de Risco".
+- [ ] "Recomendação de Intervenção Pedagógica" — sem palavra "risco".
+- [ ] `VisaoAlunosModule` compila: chips de filtro, ordenação e badges atualizados (sem opção "Risco").
+- [ ] Console mostra `[StudentDetailsPanel] Nota/Gap/Status` ao abrir o drawer.
+- [ ] Layout responsivo 375px sem quebra; sem `NaN`/`undefined` na UI.
+- [ ] Sem referências mortas a `RiskLevel`/`risk*` em nenhum dos dois arquivos.
 
