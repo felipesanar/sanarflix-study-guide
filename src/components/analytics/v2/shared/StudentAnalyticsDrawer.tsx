@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import {
-  User, TrendingDown, TrendingUp, Zap, BarChart3,
-  AlertTriangle, Shield,
+  User, TrendingDown, TrendingUp, Zap, BarChart3, Shield,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,107 +17,101 @@ import type {
 
 const PROFICIENCY_THRESHOLD = 60;
 
-// ── Risk engine ──
-export type RiskLevel = 'critico' | 'atencao' | 'oportunidade' | 'proficiente';
+// ── Proficiency status engine ──
+export type ProficiencyStatus = 'proficiente' | 'proximo' | 'abaixo';
 
-export interface RiskAssessment {
-  level: RiskLevel;
-  score: number; // 0-100, higher = more at risk
-  label: string;
-  justification: string;
-  recommendation: string;
-  factors: { label: string; value: string; severity: 'high' | 'medium' | 'low' }[];
-}
-
-export function computeRiskLevel(percentual: number): RiskLevel {
+export function computeProficiencyStatus(percentual: number): ProficiencyStatus {
   if (percentual >= PROFICIENCY_THRESHOLD) return 'proficiente';
-  if (percentual >= PROFICIENCY_THRESHOLD - 5) return 'oportunidade';
-  if (percentual >= PROFICIENCY_THRESHOLD - 15) return 'atencao';
-  return 'critico';
+  if (percentual >= 50) return 'proximo';
+  return 'abaixo';
 }
 
-export function computeRiskAssessment(student: StudentScore, _areas: CurricularAreaNode[]): RiskAssessment {
-  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
-  const level = computeRiskLevel(student.percentual);
-
-  // Calculate risk score: higher = more risky
-  const gapFactor = Math.min(gap * 2.5, 50);
-  const areaWeaknessFactor = Object.values(student.scoresByArea).filter(v => v < 50).length * 10;
-  const consistencyFactor = student.total > 0 ? Math.max(0, 40 - student.percentual) * 0.5 : 0;
-  const score = Math.min(100, Math.round(gapFactor + areaWeaknessFactor + consistencyFactor));
-
-  const factors: RiskAssessment['factors'] = [];
-  factors.push({
-    label: 'Gap de proficiência',
-    value: `${gap.toFixed(1)}pts`,
-    severity: gap >= 15 ? 'high' : gap >= 5 ? 'medium' : 'low',
-  });
-
-  const weakAreas = Object.entries(student.scoresByArea)
-    .filter(([, v]) => v < 50)
-    .map(([k]) => k);
-  if (weakAreas.length > 0) {
-    factors.push({
-      label: 'Áreas fracas',
-      value: weakAreas.join(', '),
-      severity: weakAreas.length >= 2 ? 'high' : 'medium',
-    });
-  }
-
-  factors.push({
-    label: 'Percentual de acertos',
-    value: `${student.percentual}% (${student.acertos}/${student.total})`,
-    severity: student.percentual < 45 ? 'high' : student.percentual < 55 ? 'medium' : 'low',
-  });
-
-  let justification: string;
-  let recommendation: string;
-
-  switch (level) {
-    case 'critico':
-      justification = `Distante ${gap}pts da proficiência. ${weakAreas.length > 0 ? `Apresenta fragilidade em ${weakAreas.length} área(s): ${weakAreas.join(', ')}.` : 'Desempenho baixo generalizado.'} Score de risco ${score}/100.`;
-      recommendation = 'Plano de recuperação estrutural com tutoria individualizada, reforço nos temas mais críticos e acompanhamento semanal.';
-      break;
-    case 'atencao':
-      justification = `A ${gap}pts da proficiência. ${weakAreas.length > 0 ? `Precisa melhorar em ${weakAreas.join(', ')}.` : 'Desempenho intermediário.'} Score de risco ${score}/100.`;
-      recommendation = 'Monitoramento próximo com revisão focada nos temas de maior gap. Sessões de reforço em grupo podem ser eficazes.';
-      break;
-    case 'oportunidade':
-      justification = `Muito próximo da proficiência — apenas ${gap}pts. Pequena melhoria pode resultar em reclassificação como proficiente. Score de risco ${score}/100.`;
-      recommendation = 'Intervenção focada e pontual. Revisar 2-3 temas mais fracos pode ser suficiente para cruzar o limiar.';
-      break;
-    default:
-      justification = `Acima do limiar de proficiência. Score de risco ${score}/100. Manter acompanhamento regular.`;
-      recommendation = 'Manter monitoramento. Pode servir como referência para tutoria entre pares.';
-  }
-
-  return { level, score, label: getRiskLabel(level), justification, recommendation, factors };
-}
-
-export function getRiskLabel(level: RiskLevel): string {
-  switch (level) {
-    case 'critico': return 'Crítico';
-    case 'atencao': return 'Atenção';
-    case 'oportunidade': return 'Próximo de virar';
-    case 'proficiente': return 'Proficiente';
-  }
-}
-
-export function getRiskVariant(level: RiskLevel): 'destructive' | 'secondary' | 'outline' | 'default' {
-  switch (level) {
-    case 'critico': return 'destructive';
-    case 'atencao': return 'secondary';
-    case 'oportunidade': return 'outline';
-    case 'proficiente': return 'default';
-  }
-}
-
-export function getRiskColor(level: RiskLevel): string {
-  switch (level) {
-    case 'critico': return 'text-destructive';
-    case 'atencao': return 'text-amber-600 dark:text-amber-400';
-    case 'oportunidade': return 'text-blue-600 dark:text-blue-400';
+export function getStatusColor(status: ProficiencyStatus): string {
+  switch (status) {
     case 'proficiente': return 'text-emerald-600 dark:text-emerald-400';
+    case 'proximo': return 'text-amber-600 dark:text-amber-400';
+    case 'abaixo': return 'text-destructive';
+  }
+}
+
+export function getStatusBadge(status: ProficiencyStatus): { label: string; className: string } {
+  switch (status) {
+    case 'proficiente':
+      return {
+        label: 'Proficiente',
+        className: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-900',
+      };
+    case 'proximo':
+      return {
+        label: 'Próximo da proficiência',
+        className: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-900',
+      };
+    case 'abaixo':
+      return {
+        label: 'Abaixo da proficiência',
+        className: 'bg-destructive/10 text-destructive border-destructive/20',
+      };
+  }
+}
+
+// ── Pedagogical indicators ──
+export interface PedagogicalIndicator {
+  label: string;
+  value: string;
+  tone: 'neutral' | 'attention' | 'good';
+}
+
+function buildPedagogicalIndicators(
+  student: StudentScore,
+  _areas: CurricularAreaNode[],
+): PedagogicalIndicator[] {
+  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
+  const indicators: PedagogicalIndicator[] = [];
+
+  indicators.push({
+    label: 'Gap p/ proficiência',
+    value: gap > 0 ? `${gap.toFixed(1)} pts` : 'Atingido',
+    tone: gap > 0 ? 'attention' : 'good',
+  });
+
+  indicators.push({
+    label: 'Percentual de acertos',
+    value: `${student.percentual.toFixed(1)}% (${student.acertos}/${student.total})`,
+    tone: student.percentual >= 60 ? 'good' : student.percentual >= 50 ? 'neutral' : 'attention',
+  });
+
+  // Top 2 weakest areas
+  const weakAreas = Object.entries(student.scoresByArea)
+    .sort(([, a], [, b]) => a - b)
+    .slice(0, 2);
+
+  weakAreas.forEach(([name, value], idx) => {
+    indicators.push({
+      label: idx === 0 ? 'Área de menor desempenho' : 'Segunda área de menor desempenho',
+      value: `${name} (${Math.round(value)}%)`,
+      tone: value < 50 ? 'attention' : 'neutral',
+    });
+  });
+
+  return indicators;
+}
+
+function buildRecommendation(status: ProficiencyStatus): string {
+  switch (status) {
+    case 'abaixo':
+      return 'Plano de reforço pedagógico individualizado, com foco nas áreas de menor desempenho e revisão dos temas críticos.';
+    case 'proximo':
+      return 'Acompanhamento próximo com revisão dirigida nas áreas de menor desempenho. Pequenas melhorias podem garantir a proficiência.';
+    case 'proficiente':
+      return 'Manter acompanhamento regular. Aluno pode atuar como referência para tutoria entre pares.';
+  }
+}
+
+function getToneDot(tone: PedagogicalIndicator['tone']): string {
+  switch (tone) {
+    case 'good': return 'bg-emerald-500';
+    case 'neutral': return 'bg-muted-foreground/40';
+    case 'attention': return 'bg-amber-500';
   }
 }
 
@@ -135,14 +128,21 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
 }) => {
   useEffect(() => {
     if (open && student) {
-      console.log('[GlobalDetailDrawer]', 'Drawer de aluno aberto', { aluno: student.nome });
+      const status = computeProficiencyStatus(student.percentual);
+      const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
+      console.log('[StudentDetailsPanel] Nota:', student.percentual);
+      console.log('[StudentDetailsPanel] Gap:', gap);
+      console.log('[StudentDetailsPanel] Status:', status);
     }
   }, [open, student]);
 
   if (!student || !data) return null;
 
-  const risk = computeRiskAssessment(student, data.curricular.areas);
+  const status = computeProficiencyStatus(student.percentual);
+  const statusBadge = getStatusBadge(status);
   const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - student.percentual) * 10) / 10;
+  const indicators = buildPedagogicalIndicators(student, data.curricular.areas);
+  const recommendation = buildRecommendation(status);
 
   // Build area performance
   const areaPerformance = data.curricular.areas.map(a => ({
@@ -168,61 +168,39 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto px-4 sm:px-6">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+          <SheetTitle className="flex items-center gap-2 flex-wrap">
             <User className="h-5 w-5" />
-            {student.nome}
+            <span className="truncate">{student.nome}</span>
+            <Badge variant="outline" className={`text-[10px] border ${statusBadge.className}`}>
+              {statusBadge.label}
+            </Badge>
           </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-5 mt-4 pb-4">
-          {/* Overview metrics */}
-          <div className="grid grid-cols-2 gap-3">
-            <MetricTile label="Percentual Médio de Acertos" value={`${student.percentual}%`} color={getRiskColor(risk.level)} />
-            <MetricTile label="Gap p/ proficiência" value={gap > 0 ? `${gap.toFixed(1)}pts` : '✓'} color={gap > 0 ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'} />
-            <MetricTile label="Semestre" value={`${student.semestre}º`} />
-            <MetricTile label="Score de Risco" value={`${risk.score}/100`} color={getRiskColor(risk.level)} />
-          </div>
-
-          {/* Risk assessment card */}
-          <Card className={risk.level === 'critico' ? 'bg-destructive/5 border-destructive/20' : risk.level === 'oportunidade' ? 'bg-blue-500/5 border-blue-500/20' : 'border-border/70'}>
-            <CardContent className="py-3 px-4">
-              <div className="flex items-start gap-2">
-                {risk.level === 'critico' ? (
-                  <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-                ) : risk.level === 'oportunidade' ? (
-                  <Zap className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                ) : risk.level === 'atencao' ? (
-                  <TrendingDown className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                ) : (
-                  <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
-                )}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-medium">Nível de Risco</p>
-                    <Badge variant={getRiskVariant(risk.level)}>{risk.label}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{risk.justification}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Risk factors */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Fatores de Risco</h4>
-            <div className="space-y-1.5">
-              {risk.factors.map((f, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm border border-transparent">
-                  <span className="text-muted-foreground">{f.label}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium">{f.value}</span>
-                    <div className={`h-2 w-2 rounded-full ${
-                      f.severity === 'high' ? 'bg-destructive' : f.severity === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
-                    }`} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* KPIs (4 tiles) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <MetricTile
+              label="Nota (% de acertos)"
+              value={student.percentual.toFixed(1)}
+              color={getStatusColor(status)}
+              emphasis
+            />
+            <MetricTile
+              label="Gap p/ proficiência"
+              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts p/ proficiência`}
+              color={student.percentual >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
+              small
+            />
+            <MetricTile
+              label="Percentual médio de acertos"
+              value={`${student.percentual.toFixed(1)}%`}
+            />
+            <MetricTile
+              label="Semestre"
+              value={`${student.semestre}º semestre`}
+              small
+            />
           </div>
 
           {/* Recommendation */}
@@ -231,12 +209,28 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               <div className="flex items-start gap-2">
                 <TrendingUp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Recomendação de Intervenção</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{risk.recommendation}</p>
+                  <p className="text-sm font-medium">Recomendação de Intervenção Pedagógica</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{recommendation}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Pedagogical indicators */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Indicadores de Desempenho</h4>
+            <div className="space-y-1.5">
+              {indicators.map((ind, i) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm border border-transparent">
+                  <span className="text-muted-foreground">{ind.label}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium">{ind.value}</span>
+                    <div className={`h-2 w-2 rounded-full ${getToneDot(ind.tone)}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <Separator />
 
@@ -267,12 +261,12 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
             </h4>
             <div className="space-y-2">
               {areaPerformance.map(a => {
-                const aLevel = computeRiskLevel(a.percentual);
+                const aStatus = computeProficiencyStatus(a.percentual);
                 return (
                   <div key={a.name} className="flex items-center gap-3">
                     <span className="text-xs w-32 truncate text-muted-foreground">{a.name}</span>
                     <Progress value={a.percentual} className="h-2 flex-1" />
-                    <span className={`text-xs font-medium w-10 text-right ${getRiskColor(aLevel)}`}>{a.percentual}%</span>
+                    <span className={`text-xs font-medium w-10 text-right ${getStatusColor(aStatus)}`}>{a.percentual}%</span>
                   </div>
                 );
               })}
@@ -324,9 +318,11 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   );
 };
 
-const MetricTile: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = 'text-foreground' }) => (
+const MetricTile: React.FC<{ label: string; value: string; color?: string; emphasis?: boolean; small?: boolean }> = ({
+  label, value, color = 'text-foreground', emphasis = false, small = false,
+}) => (
   <div className="p-3 rounded-lg bg-muted/50">
     <p className="text-xs text-muted-foreground">{label}</p>
-    <p className={`text-xl font-bold ${color}`}>{value}</p>
+    <p className={`${emphasis ? 'text-2xl' : small ? 'text-base' : 'text-xl'} font-bold ${color}`}>{value}</p>
   </div>
 );

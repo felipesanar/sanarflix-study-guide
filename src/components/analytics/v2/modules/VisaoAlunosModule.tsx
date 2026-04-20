@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, BookOpen, AlertCircle, TrendingUp, TrendingDown,
   ArrowUpDown, Search, X, ChevronRight, User, Zap,
-  Shield, AlertTriangle,
+  Shield,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,12 +19,10 @@ import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skel
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
 import {
   StudentAnalyticsDrawer,
-  computeRiskLevel,
-  computeRiskAssessment,
-  getRiskLabel,
-  getRiskVariant,
-  getRiskColor,
-  type RiskLevel,
+  computeProficiencyStatus,
+  getStatusColor,
+  getStatusBadge,
+  type ProficiencyStatus,
 } from '@/components/analytics/v2/shared/StudentAnalyticsDrawer';
 import type {
   InstitutionalViewModel,
@@ -41,19 +39,19 @@ interface Props {
 }
 
 type SubView = 'alunos' | 'temas';
-type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre' | 'risco';
-type SegmentFilter = 'todos' | 'proficiente' | 'oportunidade' | 'atencao' | 'critico';
+type SortKey = 'nome' | 'percentual' | 'gap' | 'semestre';
+type SegmentFilter = 'todos' | 'proficiente' | 'proximo' | 'abaixo';
 
 const SEGMENT_OPTIONS: { value: SegmentFilter; label: string; icon: React.ElementType }[] = [
   { value: 'todos', label: 'Todos', icon: Users },
-  { value: 'proficiente', label: 'Destaque', icon: Shield },
-  { value: 'oportunidade', label: 'Oportunidade', icon: Zap },
-  { value: 'atencao', label: 'Atenção', icon: AlertTriangle },
-  { value: 'critico', label: 'Risco', icon: TrendingDown },
+  { value: 'proficiente', label: 'Proficientes', icon: Shield },
+  { value: 'proximo', label: 'Próximos da proficiência', icon: Zap },
+  { value: 'abaixo', label: 'Abaixo da proficiência', icon: TrendingDown },
 ];
 
-function getRiskConfig(risk: RiskLevel) {
-  return { label: getRiskLabel(risk), variant: getRiskVariant(risk), color: getRiskColor(risk) };
+function getStatusConfig(status: ProficiencyStatus) {
+  const badge = getStatusBadge(status);
+  return { label: badge.label, className: badge.className, color: getStatusColor(status) };
 }
 
 interface TemaSummary {
@@ -64,7 +62,7 @@ interface TemaSummary {
   acertos: number;
   percentual: number;
   gap: number;
-  risk: RiskLevel;
+  status: ProficiencyStatus;
   /** Students below proficiency on this tema */
   alunosCriticos: number;
   /** Students within 5pp of proficiency */
@@ -85,7 +83,7 @@ function buildTemaSummaries(data: InstitutionalViewModel): TemaSummary[] {
           acertos: tema.acertos,
           percentual: tema.percentual,
           gap,
-          risk: computeRiskLevel(tema.percentual),
+          status: computeProficiencyStatus(tema.percentual),
           // Estimate: proportional to gap
           alunosCriticos: tema.percentual < 50 ? Math.ceil(data.allStudents.length * 0.6) : Math.ceil(data.allStudents.length * 0.3),
           alunosOportunidade: tema.percentual >= 55 && tema.percentual < 60 ? Math.ceil(data.allStudents.length * 0.4) : Math.ceil(data.allStudents.length * 0.15),
@@ -121,7 +119,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
-      list = list.filter(s => computeRiskLevel(s.percentual) === segmentFilter);
+      list = list.filter(s => computeProficiencyStatus(s.percentual) === segmentFilter);
     }
     list.sort((a, b) => {
       let cmp = 0;
@@ -129,11 +127,6 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       else if (sortKey === 'percentual') cmp = a.percentual - b.percentual;
       else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - a.percentual) - (PROFICIENCY_THRESHOLD - b.percentual);
       else if (sortKey === 'semestre') cmp = a.semestre - b.semestre;
-      else if (sortKey === 'risco') {
-        const riskA = computeRiskAssessment(a, data?.curricular.areas ?? []);
-        const riskB = computeRiskAssessment(b, data?.curricular.areas ?? []);
-        cmp = riskB.score - riskA.score; // higher risk first
-      }
       return sortAsc ? cmp : -cmp;
     });
     return list;
@@ -192,15 +185,15 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   // Summary stats
   const totalStudents = data.allStudents.length;
-  const proficientes = data.allStudents.filter(s => s.percentual >= PROFICIENCY_THRESHOLD).length;
-  const oportunidade = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'oportunidade').length;
-  const criticos = data.allStudents.filter(s => computeRiskLevel(s.percentual) === 'critico').length;
+  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proficiente').length;
+  const proximos = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proximo').length;
+  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'abaixo').length;
 
   console.log('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
-    alunosAbaixo: data.alunosAbaixo.length,
-    oportunidade,
-    criticos,
+    proficientes,
+    proximos,
+    abaixo,
     subView,
     searchQuery,
   });
@@ -211,8 +204,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" />
         <SummaryCard icon={TrendingUp} label="Proficientes" value={proficientes} color="text-emerald-600 dark:text-emerald-400" />
-        <SummaryCard icon={Zap} label="Próximos de virar" value={oportunidade} color="text-blue-600 dark:text-blue-400" />
-        <SummaryCard icon={TrendingDown} label="Críticos" value={criticos} color="text-destructive" />
+        <SummaryCard icon={Zap} label="Próximos da proficiência" value={proximos} color="text-amber-600 dark:text-amber-400" />
+        <SummaryCard icon={TrendingDown} label="Abaixo da proficiência" value={abaixo} color="text-destructive" />
       </div>
 
       {/* Sub-view tabs + Search */}
@@ -251,7 +244,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
             const count = seg.value === 'todos' ? data.allStudents.length
-              : data.allStudents.filter(s => computeRiskLevel(s.percentual) === seg.value).length;
+              : data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === seg.value).length;
             return (
               <Button
                 key={seg.value}
@@ -276,7 +269,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         {subView === 'alunos' ? (
           <>
             <SortButton label="Acerto" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
-            <SortButton label="Risco" active={sortKey === 'risco'} asc={sortAsc} onClick={() => toggleSort('risco')} />
+            <SortButton label="Gap" active={sortKey === 'gap'} asc={sortAsc} onClick={() => toggleSort('gap')} />
             <SortButton label="Nome" active={sortKey === 'nome'} asc={sortAsc} onClick={() => toggleSort('nome')} />
             <SortButton label="Semestre" active={sortKey === 'semestre'} asc={sortAsc} onClick={() => toggleSort('semestre')} />
           </>
@@ -293,8 +286,8 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum aluno encontrado.</p>
             ) : (
               sortedStudents.map((s, i) => {
-                const risk = computeRiskLevel(s.percentual);
-                const cfg = getRiskConfig(risk);
+                const status = computeProficiencyStatus(s.percentual);
+                const cfg = getStatusConfig(status);
                 const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - s.percentual) * 10) / 10;
                 return (
                   <button
@@ -308,11 +301,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm font-medium truncate">{s.nome}</span>
-                        <Badge variant={cfg.variant} className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 border ${cfg.className}`}>
                           {cfg.label}
                         </Badge>
-                        {risk === 'oportunidade' && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-blue-500/30 text-blue-600 dark:text-blue-400">
+                        {status === 'proximo' && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-amber-500/30 text-amber-600 dark:text-amber-400">
                             <Zap className="h-3 w-3 mr-0.5" /> {gap}pp p/ virar
                           </Badge>
                         )}
@@ -337,7 +330,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum tema encontrado.</p>
             ) : (
               sortedTemas.map((t, i) => {
-                const cfg = getRiskConfig(t.risk);
+                const cfg = getStatusConfig(t.status);
                 return (
                   <button
                     key={`${t.name}-${t.specialtyName}-${i}`}
@@ -347,7 +340,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm font-medium truncate">{t.name}</span>
-                        <Badge variant={cfg.variant} className="text-[10px] px-1.5 py-0 h-5 shrink-0">{cfg.label}</Badge>
+                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 border ${cfg.className}`}>{cfg.label}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{t.areaName} → {t.specialtyName}</p>
                     </div>
@@ -419,7 +412,7 @@ const TemaDetailSheet: React.FC<{
   onOpenStudent: (s: StudentScore) => void;
 }> = ({ tema, students, onClose, onOpenStudent }) => {
   if (!tema) return null;
-  const cfg = getRiskConfig(tema.risk);
+  const cfg = getStatusConfig(tema.status);
 
   // Simulated student relevance for this tema
   const relevantStudents = students
@@ -461,7 +454,7 @@ const TemaDetailSheet: React.FC<{
             </div>
             <div className="p-3 rounded-lg bg-muted/50">
               <p className="text-xs text-muted-foreground">Status</p>
-              <Badge variant={cfg.variant} className="mt-1">{cfg.label}</Badge>
+              <Badge variant="outline" className={`mt-1 border ${cfg.className}`}>{cfg.label}</Badge>
             </div>
           </div>
 
@@ -489,8 +482,8 @@ const TemaDetailSheet: React.FC<{
             <ScrollArea className="max-h-64">
               <div className="space-y-1">
                 {relevantStudents.map((s, i) => {
-                  const sRisk = computeRiskLevel(s.temaScore);
-                  const sCfg = getRiskConfig(sRisk);
+                  const sStatus = computeProficiencyStatus(s.temaScore);
+                  const sCfg = getStatusConfig(sStatus);
                   return (
                     <button
                       key={`${s.nome}-${i}`}
@@ -504,7 +497,7 @@ const TemaDetailSheet: React.FC<{
                         <span className="font-medium truncate block">{s.nome}</span>
                         <span className="text-xs text-muted-foreground">{s.semestre}º sem.</span>
                       </div>
-                      <Badge variant={sCfg.variant} className="text-[10px] h-5 shrink-0">{s.temaScore}%</Badge>
+                      <Badge variant="outline" className={`text-[10px] h-5 shrink-0 border ${sCfg.className}`}>{s.temaScore}%</Badge>
                       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   );
