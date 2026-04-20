@@ -315,11 +315,11 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   );
 };
 
-const MetricTile: React.FC<{ label: string; value: string; color?: string; emphasis?: boolean; small?: boolean }> = ({
-  label, value, color = 'text-foreground', emphasis = false, small = false,
+const MetricTile: React.FC<{ label: string; value: string; color?: string }> = ({
+  label, value, color = 'text-foreground',
 }) => (
-  <div className="p-3 rounded-lg bg-muted/50">
-    <p className="text-xs text-muted-foreground">{label}</p>
-    <p className={`${emphasis ? 'text-2xl' : small ? 'text-base' : 'text-xl'} font-bold ${color}`}>{value}</p>
+  <div className="p-3 rounded-lg bg-muted/50 flex flex-col justify-between gap-2 min-h-[88px]">
+    <p className="text-xs text-muted-foreground leading-tight line-clamp-2">{label}</p>
+    <p className={`text-2xl font-bold tabular-nums truncate ${color}`}>{value}</p>
   </div>
 );
