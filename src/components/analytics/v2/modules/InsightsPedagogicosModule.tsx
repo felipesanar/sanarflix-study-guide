@@ -18,11 +18,34 @@ import {
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
+import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import type {
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
+
+// ── Explicação do cálculo de prioridade ──
+function getPriorityFormulaExplanation(type: PrioritizedInsight['type']): string {
+  switch (type) {
+    case 'critical-area':
+      return `Score = (Gap × 1,2) + (Prevalência × 0,8) + min(Alunos afetados, 30)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões da área no simulado\n• Alunos afetados: estimativa baseada no gap\n\nLimitado a 100.`;
+    case 'critical-tema':
+      return `Score = (Gap × 1,5) + (Prevalência × 1,2) + (Alunos afetados × 0,5)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões do tema no simulado\n• Alunos afetados: estimativa de impacto\n\nTemas críticos têm pesos maiores por exigirem intervenção urgente. Limitado a 100.`;
+    case 'quick-win':
+    case 'opportunity-tema':
+      return `Score = (Gap × 3) + (Prevalência × 2) + Alunos próximos\n\n• Gap: pontos restantes até ${PROFICIENCY_THRESHOLD}% (ganhos rápidos têm gap pequeno)\n• Prevalência: % de questões do tema no simulado\n• Alunos próximos: alunos que podem subir de faixa\n\nPesos altos no gap pois pequenos esforços geram grande impacto. Limitado a 100.`;
+    case 'strength':
+      return `Pontos fortes recebem score fixo de 10 pois não exigem intervenção — servem apenas como referência de boas práticas.`;
+  }
+}
+
+const GENERAL_PRIORITY_EXPLANATION =
+  'O Score de Prioridade (0–100) combina 3 fatores ponderados:\n\n' +
+  `• Gap de proficiência: distância até ${PROFICIENCY_THRESHOLD}% de acertos\n` +
+  '• Prevalência: peso do tema/área no total de questões do simulado\n' +
+  '• Alunos afetados: estimativa de quantos alunos seriam impactados\n\n' +
+  'Cada tipo de insight (Crítico, Ganho Rápido, etc.) usa pesos diferentes — críticos enfatizam o gap, ganhos rápidos enfatizam a proximidade da meta. Quanto maior o score, maior a urgência.';
 
 interface Props {
   data: InstitutionalViewModel | null;
