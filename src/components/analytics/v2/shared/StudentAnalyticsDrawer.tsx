@@ -184,22 +184,19 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               label="Nota (% de acertos)"
               value={student.percentual.toFixed(1)}
               color={getStatusColor(status)}
-              emphasis
             />
             <MetricTile
               label="Gap p/ proficiência"
-              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts p/ proficiência`}
+              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts`}
               color={student.percentual >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
-              small
             />
             <MetricTile
-              label="Percentual médio de acertos"
+              label="Percentual de Acertos"
               value={`${student.percentual.toFixed(1)}%`}
             />
             <MetricTile
               label="Semestre"
-              value={`${student.semestre}º semestre`}
-              small
+              value={`${student.semestre}º`}
             />
           </div>
 
@@ -318,11 +315,11 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   );
 };
 
-const MetricTile: React.FC<{ label: string; value: string; color?: string; emphasis?: boolean; small?: boolean }> = ({
-  label, value, color = 'text-foreground', emphasis = false, small = false,
+const MetricTile: React.FC<{ label: string; value: string; color?: string }> = ({
+  label, value, color = 'text-foreground',
 }) => (
-  <div className="p-3 rounded-lg bg-muted/50">
-    <p className="text-xs text-muted-foreground">{label}</p>
-    <p className={`${emphasis ? 'text-2xl' : small ? 'text-base' : 'text-xl'} font-bold ${color}`}>{value}</p>
+  <div className="p-3 rounded-lg bg-muted/50 flex flex-col justify-between gap-2 min-h-[88px]">
+    <p className="text-xs text-muted-foreground leading-tight line-clamp-2">{label}</p>
+    <p className={`text-2xl font-bold tabular-nums truncate ${color}`}>{value}</p>
   </div>
 );
