@@ -1,14 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  AlertCircle, Lightbulb, TrendingDown, TrendingUp, Zap,
+  AlertCircle, Lightbulb, TrendingDown, Zap,
   ChevronRight, Users, BookOpen, BarChart3, Target,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -18,34 +17,19 @@ import {
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
-import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import type {
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
 
-// ── Explicação do cálculo de prioridade ──
-function getPriorityFormulaExplanation(type: PrioritizedInsight['type']): string {
-  switch (type) {
-    case 'critical-area':
-      return `Score = (Gap × 1,2) + (Prevalência × 0,8) + min(Alunos afetados, 30)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões da área no simulado\n• Alunos afetados: estimativa baseada no gap\n\nLimitado a 100.`;
-    case 'critical-tema':
-      return `Score = (Gap × 1,5) + (Prevalência × 1,2) + (Alunos afetados × 0,5)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões do tema no simulado\n• Alunos afetados: estimativa de impacto\n\nTemas críticos têm pesos maiores por exigirem intervenção urgente. Limitado a 100.`;
-    case 'quick-win':
-    case 'opportunity-tema':
-      return `Score = (Gap × 3) + (Prevalência × 2) + Alunos próximos\n\n• Gap: pontos restantes até ${PROFICIENCY_THRESHOLD}% (ganhos rápidos têm gap pequeno)\n• Prevalência: % de questões do tema no simulado\n• Alunos próximos: alunos que podem subir de faixa\n\nPesos altos no gap pois pequenos esforços geram grande impacto. Limitado a 100.`;
-    case 'strength':
-      return `Pontos fortes recebem score fixo de 10 pois não exigem intervenção — servem apenas como referência de boas práticas.`;
-  }
-}
-
-const GENERAL_PRIORITY_EXPLANATION =
-  'O Score de Prioridade (0–100) combina 3 fatores ponderados:\n\n' +
-  `• Gap de proficiência: distância até ${PROFICIENCY_THRESHOLD}% de acertos\n` +
-  '• Prevalência: peso do tema/área no total de questões do simulado\n' +
-  '• Alunos afetados: estimativa de quantos alunos seriam impactados\n\n' +
-  'Cada tipo de insight (Crítico, Ganho Rápido, etc.) usa pesos diferentes — críticos enfatizam o gap, ganhos rápidos enfatizam a proximidade da meta. Quanto maior o score, maior a urgência.';
+// Critérios de classificação (centralizados)
+const CRITICAL_ACCURACY_MAX = 50;
+const CRITICAL_PREVALENCE_MIN = 10;
+const QUICKWIN_ACCURACY_MIN = 50;
+const QUICKWIN_ACCURACY_MAX = 65;
+const QUICKWIN_PREVALENCE_MIN = 8;
+const STRENGTH_ACCURACY_MIN = 70;
 
 interface Props {
   data: InstitutionalViewModel | null;
@@ -58,12 +42,9 @@ interface Props {
 
 interface PrioritizedInsight {
   id: string;
-  type: 'critical-tema' | 'opportunity-tema' | 'critical-area' | 'quick-win' | 'strength';
+  type: 'critical-tema' | 'critical-area' | 'quick-win' | 'strength';
   title: string;
   description: string;
-  /** 0-100 priority score */
-  priority: number;
-  priorityFactors: { label: string; value: string }[];
   // Context for drill-down
   areaName: string;
   specialtyName?: string;
@@ -73,6 +54,28 @@ interface PrioritizedInsight {
   questoes: number;
   alunosAfetados: number;
   prevalencia: number; // % of total questions
+  /** Internal sort key — não exibido na UI */
+  impacto: number;
+}
+
+function classify(
+  percentualAcerto: number,
+  prevalencia: number,
+): 'critical' | 'quick-win' | 'strength' | 'neutral' {
+  if (percentualAcerto < CRITICAL_ACCURACY_MAX && prevalencia >= CRITICAL_PREVALENCE_MIN) {
+    return 'critical';
+  }
+  if (
+    percentualAcerto >= QUICKWIN_ACCURACY_MIN &&
+    percentualAcerto <= QUICKWIN_ACCURACY_MAX &&
+    prevalencia >= QUICKWIN_PREVALENCE_MIN
+  ) {
+    return 'quick-win';
+  }
+  if (percentualAcerto >= STRENGTH_ACCURACY_MIN) {
+    return 'strength';
+  }
+  return 'neutral';
 }
 
 function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
@@ -82,53 +85,58 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 
   for (const area of data.curricular.areas) {
     const areaPrevalencia = totalQuestions > 0 ? (area.total / totalQuestions) * 100 : 0;
+    const areaCategoria = classify(area.percentual, areaPrevalencia);
 
-    // Area-level insights
-    if (area.percentual < PROFICIENCY_THRESHOLD) {
+    console.log('[Insights] Classificação', {
+      nome: `Área: ${area.name}`,
+      percentualAcerto: area.percentual,
+      prevalencia: Math.round(areaPrevalencia * 10) / 10,
+      categoria: areaCategoria,
+    });
+
+    // Áreas só geram insight quando críticas
+    if (areaCategoria === 'critical') {
       const gap = Math.round((PROFICIENCY_THRESHOLD - area.percentual) * 10) / 10;
       const alunosAfetados = estimateAffectedStudents(totalStudents, gap);
-      const priority = Math.min(100, gap * 1.2 + areaPrevalencia * 0.8 + Math.min(alunosAfetados, 30));
       insights.push({
         id: `area-${area.name}`,
         type: 'critical-area',
         title: `Área ${area.name} abaixo da proficiência`,
-        description: `${area.name} está a ${gap.toFixed(0)}pts da proficiência com ${area.specialties.length} especialidades e ${area.total} questões no simulado.`,
-        priority,
-        priorityFactors: [
-          { label: 'Gap', value: `${gap.toFixed(0)}pts` },
-          { label: 'Prevalência', value: `${areaPrevalencia.toFixed(0)}%` },
-          { label: 'Especialidades', value: String(area.specialties.length) },
-        ],
+        description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
         areaName: area.name,
         percentual: area.percentual,
         gap,
         questoes: area.total,
         alunosAfetados,
         prevalencia: areaPrevalencia,
+        impacto: areaPrevalencia * (100 - area.percentual),
       });
     }
 
     for (const sp of area.specialties) {
       for (const tema of sp.temas) {
         const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
+        const categoria = classify(tema.percentual, temaPrevalencia);
+
+        console.log('[Insights] Classificação', {
+          nome: tema.name,
+          percentualAcerto: tema.percentual,
+          prevalencia: Math.round(temaPrevalencia * 10) / 10,
+          categoria,
+        });
+
+        if (categoria === 'neutral') continue;
+
         const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual) * 10) / 10;
         const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
+        const impacto = temaPrevalencia * (100 - tema.percentual);
 
-        if (tema.percentual < 50) {
-          // Critical tema
-          const priority = Math.min(100, gap * 1.5 + temaPrevalencia * 1.2 + alunosAfetados * 0.5);
+        if (categoria === 'critical') {
           insights.push({
             id: `critical-${tema.name}-${sp.name}`,
             type: 'critical-tema',
             title: `${tema.name} é crítico`,
-            description: `Apenas ${tema.percentual}% de acerto em ${tema.name} (${sp.name}). Tema requer intervenção prioritária.`,
-            priority,
-            priorityFactors: [
-              { label: 'Acerto', value: `${tema.percentual}%` },
-              { label: 'Gap', value: `${gap.toFixed(1)}pts` },
-              { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
-              { label: 'Alunos afetados', value: `~${alunosAfetados}` },
-            ],
+            description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
             areaName: area.name,
             specialtyName: sp.name,
             temaName: tema.name,
@@ -137,21 +145,14 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             questoes: tema.total,
             alunosAfetados,
             prevalencia: temaPrevalencia,
+            impacto,
           });
-        } else if (tema.percentual >= 55 && tema.percentual < PROFICIENCY_THRESHOLD) {
-          // Opportunity / quick win
-          const priority = Math.min(100, (PROFICIENCY_THRESHOLD - tema.percentual) * 3 + temaPrevalencia * 2 + alunosAfetados);
+        } else if (categoria === 'quick-win') {
           insights.push({
-            id: `opportunity-${tema.name}-${sp.name}`,
+            id: `quickwin-${tema.name}-${sp.name}`,
             type: 'quick-win',
             title: `${tema.name} é ganho rápido`,
-            description: `A apenas ${gap.toFixed(1)}pts da proficiência. Intervenção focada em ${tema.name} pode impactar rapidamente.`,
-            priority,
-            priorityFactors: [
-              { label: 'Gap', value: `${gap.toFixed(1)}pts` },
-              { label: 'Prevalência', value: `${temaPrevalencia.toFixed(1)}%` },
-              { label: 'Alunos próximos', value: `~${alunosAfetados}` },
-            ],
+            description: 'Tema relevante e alunos próximos da proficiência — pequeno esforço, alto impacto.',
             areaName: area.name,
             specialtyName: sp.name,
             temaName: tema.name,
@@ -160,19 +161,14 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             questoes: tema.total,
             alunosAfetados,
             prevalencia: temaPrevalencia,
+            impacto,
           });
-        } else if (tema.percentual >= 75) {
-          // Strength
+        } else if (categoria === 'strength') {
           insights.push({
             id: `strength-${tema.name}-${sp.name}`,
             type: 'strength',
             title: `${tema.name} é ponto forte`,
-            description: `${tema.percentual}% de acerto. Manter monitoramento e usar como referência.`,
-            priority: 10,
-            priorityFactors: [
-              { label: 'Acerto', value: `${tema.percentual}%` },
-              { label: 'Questões', value: String(tema.total) },
-            ],
+            description: 'Tema dominado pela turma — manter consistência.',
             areaName: area.name,
             specialtyName: sp.name,
             temaName: tema.name,
@@ -181,13 +177,27 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
             questoes: tema.total,
             alunosAfetados: 0,
             prevalencia: temaPrevalencia,
+            impacto: 0,
           });
         }
       }
     }
   }
 
-  return insights.sort((a, b) => b.priority - a.priority);
+  // Ordenação: críticos > ganhos rápidos > pontos fortes; dentro de cada grupo por impacto desc
+  const groupOrder: Record<PrioritizedInsight['type'], number> = {
+    'critical-area': 0,
+    'critical-tema': 0,
+    'quick-win': 1,
+    'strength': 2,
+  };
+
+  return insights.sort((a, b) => {
+    const ga = groupOrder[a.type];
+    const gb = groupOrder[b.type];
+    if (ga !== gb) return ga - gb;
+    return b.impacto - a.impacto;
+  });
 }
 
 // ── Type config ──
@@ -198,17 +208,29 @@ function getInsightConfig(type: PrioritizedInsight['type']) {
     case 'critical-area':
       return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Área Crítica' };
     case 'quick-win':
-      return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10', badge: 'secondary' as const, label: 'Ganho Rápido' };
-    case 'opportunity-tema':
-      return { icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', badge: 'secondary' as const, label: 'Oportunidade' };
+      return { icon: Zap, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', badge: 'secondary' as const, label: 'Ganho Rápido' };
     case 'strength':
       return { icon: Target, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', badge: 'default' as const, label: 'Ponto Forte' };
   }
 }
 
+function getCategoryReason(insight: PrioritizedInsight): string {
+  const acerto = `${insight.percentual.toFixed(0)}%`;
+  const prev = `${insight.prevalencia.toFixed(1)}%`;
+  switch (insight.type) {
+    case 'critical-area':
+    case 'critical-tema':
+      return `Classificado como Crítico porque o acerto médio (${acerto}) está abaixo de 50% e a prevalência no simulado (${prev}) é maior ou igual a 10%.`;
+    case 'quick-win':
+      return `Classificado como Ganho Rápido porque o acerto médio (${acerto}) está entre 50% e 65% e a prevalência no simulado (${prev}) é maior ou igual a 8%.`;
+    case 'strength':
+      return `Classificado como Ponto Forte porque o acerto médio (${acerto}) é igual ou superior a 70%.`;
+  }
+}
+
 export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
   const [selectedInsight, setSelectedInsight] = useState<PrioritizedInsight | null>(null);
-  const [filterType, setFilterType] = useState<'all' | 'critical' | 'critical-tema' | 'critical-area' | 'quick-win' | 'strength'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'critical' | 'quick-win' | 'strength'>('all');
 
   const insights = useMemo(() => data ? buildInsights(data) : [], [data]);
 
@@ -222,8 +244,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
 
   const counts = useMemo(() => ({
     all: insights.length,
-    'critical-tema': insights.filter(i => i.type === 'critical-tema').length,
-    'critical-area': insights.filter(i => i.type === 'critical-area').length,
+    critical: insights.filter(i => i.type === 'critical-tema' || i.type === 'critical-area').length,
     'quick-win': insights.filter(i => i.type === 'quick-win').length,
     strength: insights.filter(i => i.type === 'strength').length,
   }), [insights]);
@@ -266,11 +287,6 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   }
 
   const topPriority = filtered.filter(i => i.type !== 'strength').slice(0, 3);
-  console.log('[InsightsPedagogicos]', 'Render do módulo', {
-    totalInsights: insights.length,
-    filteredInsights: filtered.length,
-    filterType,
-  });
 
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
@@ -280,9 +296,8 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         <h2 className="text-base font-semibold">
           {insights.length} insights gerados
         </h2>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          • priorizados por prevalência e impacto
-          <TooltipInfo text={GENERAL_PRIORITY_EXPLANATION} position="bottom" />
+        <span className="text-xs text-muted-foreground">
+          • priorizados por relevância no simulado e desempenho dos alunos
         </span>
       </div>
 
@@ -307,16 +322,9 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      Prioridade: {Math.round(insight.priority)}/100
-                      <TooltipInfo
-                        text={getPriorityFormulaExplanation(insight.type)}
-                        position="top"
-                      />
-                    </span>
-                    <span>{insight.gap > 0 ? `${insight.gap.toFixed(1)}pts gap` : `${insight.percentual}%`}</span>
+                    <span>{insight.percentual}% acerto</span>
+                    <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
                   </div>
-                  <Progress value={insight.priority} className="h-1.5 mt-1.5" />
                 </CardContent>
               </Card>
             );
@@ -327,7 +335,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
       {/* Filter chips */}
       <div className="flex flex-wrap gap-2">
         <FilterChip label={`Todos (${counts.all})`} active={filterType === 'all'} onClick={() => setFilterType('all')} />
-        <FilterChip label={`Críticos (${counts['critical-tema'] + counts['critical-area']})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
+        <FilterChip label={`Críticos (${counts.critical})`} active={filterType === 'critical'} onClick={() => setFilterType('critical')} />
         <FilterChip label={`Ganhos Rápidos (${counts['quick-win']})`} active={filterType === 'quick-win'} onClick={() => setFilterType('quick-win')} />
         <FilterChip label={`Pontos Fortes (${counts.strength})`} active={filterType === 'strength'} onClick={() => setFilterType('strength')} />
       </div>
@@ -357,7 +365,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="hidden sm:flex flex-col items-end text-xs text-muted-foreground">
-                    <span>Prioridade {Math.round(insight.priority)}</span>
+                    <span>{insight.percentual}% acerto</span>
                     <span>{insight.prevalencia.toFixed(0)}% prevalência</span>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
@@ -368,26 +376,27 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         )}
       </div>
 
-      {/* Prioritization explainer */}
+      {/* Classification explainer */}
       <Card className="border-dashed">
         <CardContent className="py-4 px-4">
           <div className="flex items-start gap-2">
             <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="space-y-2">
-              <p className="text-sm font-medium">Como o Score de Prioridade é calculado</p>
+              <p className="text-sm font-medium">Como classificamos os insights</p>
               <p className="text-xs text-muted-foreground">
-                Cada insight recebe uma nota de <strong>0 a 100</strong> que combina três fatores ponderados:
+                Cada tema é avaliado por dois critérios objetivos:
               </p>
               <ul className="text-xs text-muted-foreground space-y-1 ml-1">
-                <li>• <strong>Gap de proficiência</strong> — distância em pontos até o limiar de {PROFICIENCY_THRESHOLD}% de acertos</li>
-                <li>• <strong>Prevalência</strong> — peso do tema/área no total de questões do simulado</li>
-                <li>• <strong>Alunos afetados</strong> — estimativa de quantos alunos seriam impactados pela intervenção</li>
+                <li>• <strong>Percentual de acerto</strong> — desempenho médio dos alunos no tema</li>
+                <li>• <strong>Prevalência</strong> — peso do tema no total de questões do simulado</li>
+              </ul>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-1 pt-1">
+                <li>🔴 <strong>Crítico</strong> — acerto abaixo de 50% e prevalência ≥ 10%</li>
+                <li>🟡 <strong>Ganho Rápido</strong> — acerto entre 50% e 65% e prevalência ≥ 8%</li>
+                <li>🟢 <strong>Ponto Forte</strong> — acerto igual ou superior a 70%</li>
               </ul>
               <p className="text-xs text-muted-foreground pt-1">
-                Os pesos variam por tipo: <strong>insights críticos</strong> enfatizam o gap (×1,5) e a prevalência (×1,2);
-                <strong> ganhos rápidos</strong> dão peso maior ao gap (×3) pois pequenos esforços geram grande impacto;
-                <strong> pontos fortes</strong> recebem score fixo (10) por não exigirem intervenção.
-                Quanto maior o score, maior a urgência de atuação.
+                A ordem dentro de cada grupo prioriza temas com maior impacto (combinação de prevalência alta e desempenho mais baixo).
               </p>
             </div>
           </div>
@@ -474,40 +483,6 @@ const InsightDetailSheet: React.FC<{
             )}
           </div>
 
-          {/* Priority breakdown */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Target className="h-4 w-4" /> Score de Prioridade
-                <TooltipInfo
-                  text={getPriorityFormulaExplanation(insight.type)}
-                  position="right"
-                />
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Progress value={insight.priority} className="h-3 flex-1" />
-                <span className="text-lg font-bold text-foreground">{Math.round(insight.priority)}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {insight.priorityFactors.map(f => (
-                  <div key={f.label} className="p-2 rounded-md bg-muted/50">
-                    <p className="text-xs text-muted-foreground">{f.label}</p>
-                    <p className="text-sm font-semibold">{f.value}</p>
-                  </div>
-                ))}
-              </div>
-              {/* Inline formula explanation */}
-              <div className="rounded-md bg-muted/30 border border-border/50 p-2.5 mt-2">
-                <p className="text-[11px] font-semibold text-foreground mb-1">Como este score foi calculado</p>
-                <p className="text-[11px] text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {getPriorityFormulaExplanation(insight.type)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Metrics */}
           <div className="grid grid-cols-3 gap-3">
             <div className="p-3 rounded-lg bg-muted/50 text-center">
@@ -522,6 +497,14 @@ const InsightDetailSheet: React.FC<{
               <p className="text-xs text-muted-foreground">Alunos afetados</p>
               <p className="text-xl font-bold text-foreground">~{insight.alunosAfetados}</p>
             </div>
+          </div>
+
+          {/* Why classified this way */}
+          <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+            <p className="text-xs font-semibold text-foreground mb-1">Por que este insight foi classificado assim</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {getCategoryReason(insight)}
+            </p>
           </div>
 
           {/* Recommendation */}
