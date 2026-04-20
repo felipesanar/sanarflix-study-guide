@@ -1,114 +1,88 @@
 
 
-# Remover Score de Prioridade + Nova Lógica de Classificação (Insights Pedagógicos)
+# Layout Adaptativo para Poucos Insights (Insights Pedagógicos)
 
 ## Objetivo
-Eliminar o "Score de Prioridade" (número 0–100, barra de progresso e textos explicativos) da aba **Insights Pedagógicos** e substituí-lo por uma classificação simples e transparente baseada apenas em **percentual de acerto** e **prevalência no simulado**.
+Quando a lista filtrada tem poucos insights (1, 2 ou 3), o layout deve preencher melhor o espaço disponível para reforçar a percepção de valor — em vez de exibir cards minúsculos com muito espaço vazio. Para 4+ insights, mantém o layout atual.
 
 ## Arquivo afetado
-- `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx` (único arquivo)
+- `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx` (único)
 
-Nenhuma outra aba (Inteligência Decisória, Diagnóstico Curricular, Visão Institucional, Visão de Alunos) será tocada.
+## Escopo
+A lógica adaptativa é aplicada à **lista principal** (`filtered.map(...)`, atualmente `space-y-2` com botões em linha). O bloco "Top priority highlights" (Top 3) é **removido na prática** quando há ≤3 insights, porque ele duplicaria o conteúdo da lista. Quando há ≥4, o Top 3 destacado continua aparecendo como hoje.
 
-## Nova lógica de classificação
-
-Para cada **tema** (e área quando aplicável), calcular:
-- `percentualAcerto = tema.percentual`
-- `prevalencia = (tema.total / totalQuestoesSimulado) × 100`
-
-Classificação por regras encadeadas:
-
-| Categoria | Regra | Cor / Label |
-|---|---|---|
-| 🔴 **Crítico** | `acerto < 50%` E `prevalencia >= 10%` | `destructive` / "Crítico" |
-| 🟡 **Ganho Rápido** | `acerto entre 50% e 65%` E `prevalencia >= 8%` | `amber/orange` / "Ganho Rápido" |
-| 🟢 **Ponto Forte** | `acerto >= 70%` | `emerald` / "Ponto Forte" |
-| ⚪ **Neutro** | qualquer outro caso | descartado da lista (não exibido) |
-
-**Ordenação dentro de cada grupo:**
-```
-impacto = prevalencia × (100 - percentualAcerto)
-```
-Maior impacto primeiro. Esse valor é interno — **não** é exibido na UI.
-
-**Áreas críticas** (quando `area.percentual < 50%` E prevalência da área `>= 10%`) também viram um insight "Crítico" no nível de área, exibido junto com os temas críticos.
-
-## Mudanças na UI
-
-### Removidos completamente
-1. Constante `getPriorityFormulaExplanation()` e `GENERAL_PRIORITY_EXPLANATION`.
-2. Campo `priority` e `priorityFactors` da interface `PrioritizedInsight`.
-3. Nos **cards do Top 3**: linha "Prioridade: X/100", `<TooltipInfo>` adjacente e `<Progress>` bar.
-4. No **drawer lateral**: todo o `<Card>` "Score de Prioridade" (header + barra + valor + grid de fatores + bloco "Como este score foi calculado"). As métricas abaixo (Percentual Médio, Questões, Alunos afetados) sobem ocupando o espaço.
-5. No **header do módulo**: remover o `<TooltipInfo>` que mostrava a fórmula geral. Trocar texto para "priorizados por relevância no simulado e desempenho dos alunos".
-6. Na **lista de insights** (linhas com chevron): trocar a coluna "Prioridade {N}" por apenas "{prevalencia}% prevalência".
-7. **Card explicador inferior** ("Como o Score de Prioridade é calculado"): substituir conteúdo pela nova explicação simples (ver abaixo).
-
-### Atualizados
-
-**Filtro de chips** — manter a estrutura, ajustando contagens com base nas novas categorias:
-- Todos (N) | Críticos (N) | Ganhos Rápidos (N) | Pontos Fortes (N)
-
-**Tipo `PrioritizedInsight`** — simplificado:
+Lógica de modo:
 ```ts
-type: 'critical-area' | 'critical-tema' | 'quick-win' | 'strength'
-// remover: priority, priorityFactors
-// manter: percentual, prevalencia, gap, questoes, alunosAfetados (usados em recomendação e métricas)
+const mode =
+  filtered.length === 1 ? 'single-highlight' :
+  filtered.length <= 3  ? 'compact-grid'      :
+                          'default';
 ```
+Log: `console.log('[Insights] Layout adaptativo', { totalInsights: filtered.length, mode });`
 
-**Descrições nos insights** — mensagens diretas:
-- Crítico: "Alta incidência no simulado e baixo desempenho dos alunos."
-- Ganho Rápido: "Tema relevante e alunos próximos da proficiência — pequeno esforço, alto impacto."
-- Ponto Forte: "Tema dominado pela turma — manter consistência."
+## Comportamento por modo
 
-**Card explicador inferior** (substitui o atual "Como o Score de Prioridade é calculado"):
-```
-Como classificamos os insights
+### `default` (≥4 insights) — sem mudanças
+- Mantém Top 3 destacado (`grid-cols-1 md:grid-cols-3 gap-3`) e a lista vertical (`space-y-2`) como hoje.
 
-Cada tema é avaliado por dois critérios objetivos:
-• Percentual de acerto — desempenho médio dos alunos no tema
-• Prevalência — peso do tema no total de questões do simulado
+### `compact-grid` (2 ou 3 insights)
+- **Não renderizar** o bloco "Top priority highlights" (evita duplicação).
+- Microcopy acima: `"{N} insights identificados nesta categoria"` em `text-xs text-muted-foreground`.
+- Lista vira grid de cards mais largos:
+  - Container: `grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto`
+  - Card individual: `p-5` (mobile `p-4`), mantém ícone + título + badge + descrição completa (sem `line-clamp-1`), e linha de métricas (`% acerto` • `% prevalência` • `N alunos afetados` quando aplicável).
+- Para 3 insights: o terceiro card ocupa `md:col-span-2` se ficar sozinho na segunda linha? Não — fica `md:col-span-1` simples; layout 2+1 é aceito.
 
-🔴 Crítico — acerto abaixo de 50% e prevalência ≥ 10%
-🟡 Ganho Rápido — acerto entre 50% e 65% e prevalência ≥ 8%
-🟢 Ponto Forte — acerto igual ou superior a 70%
+### `single-highlight` (exatamente 1 insight) — Insight Destaque Expandido
+- **Não renderizar** o bloco "Top priority highlights".
+- Microcopy acima do card: `"Apenas 1 insight {categoria} identificado"` (categoria = "crítico"/"ganho rápido"/"ponto forte" conforme `cfg.label` em minúsculas).
+- Card único centralizado:
+  - Container: `max-w-3xl mx-auto`
+  - Estilo: `bg-muted/40`, `border-l-4` na cor da categoria (já existe pattern), `p-6 sm:p-8`, `rounded-2xl`, animação `motion.div` com `initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}`.
+  - Estrutura interna (vertical, `space-y-5`):
+    1. **Header**: ícone grande (`h-6 w-6`) + título (`text-xl font-semibold`) + badge da categoria.
+    2. **Métricas em linha** (`grid grid-cols-1 sm:grid-cols-3 gap-4`): cada bloco com label pequena + valor grande (`text-2xl font-bold`):
+       - "Percentual de acerto" → `{percentual}%`
+       - "Prevalência" → `{prevalencia.toFixed(1)}%`
+       - "Alunos afetados" → `{alunosAfetados}` (oculto se `0`, ex.: pontos fortes — nesse caso mostra apenas 2 colunas em sm)
+    3. **🔍 Interpretação do Insight**: bloco com fundo `bg-background/60`, padding `p-4`, `rounded-lg`. Texto gerado dinamicamente:
+       - Crítico: `"Este tema apresenta baixo desempenho ({P}% de acerto) e alta incidência no simulado ({V}%), indicando forte impacto no resultado institucional."`
+       - Ganho Rápido: `"Os alunos estão próximos da proficiência ({P}% de acerto) em um tema relevante ({V}% de prevalência) — um pequeno reforço pode gerar grande impacto."`
+       - Ponto Forte: `"A turma demonstra domínio consistente neste tema ({P}% de acerto, {V}% de prevalência). Manter a abordagem atual."`
+       - Área Crítica: `"A área {areaName} concentra {V}% das questões do simulado e está com desempenho médio de {P}%, abaixo da proficiência institucional."`
+    4. **🎯 Recomendação prática**: bloco igual ao anterior. Texto:
+       - Crítico/Área Crítica: `"Priorizar revisão dirigida em {temaName ?? areaName} para alunos abaixo da proficiência, com foco nos subtemas de maior incidência."`
+       - Ganho Rápido: `"Disponibilizar lista de exercícios direcionada em {temaName} para consolidar a proficiência da turma."`
+       - Ponto Forte: `"Manter a estratégia atual de ensino em {temaName} e usá-lo como referência para outros temas."`
+    5. **Footer**: botão `"Ver detalhes completos"` (variant `outline`, `size="sm"`, `w-full sm:w-auto`) que abre o `InsightDetailSheet` existente — preserva a funcionalidade do drawer sem duplicar conteúdo.
 
-A ordem dentro de cada grupo prioriza temas com maior impacto
-(combinação de prevalência alta e desempenho mais baixo).
-```
-
-### Drawer reorganizado (ordem final)
-1. Descrição
-2. Breadcrumb (Área › Especialidade › Tema)
-3. Grid de 3 métricas (Percentual Médio | Questões | Alunos afetados) — agora é o primeiro bloco visual após o breadcrumb
-4. **Novo bloco compacto** "Por que este insight foi classificado assim" — texto curto explicando que a categoria foi atribuída por acerto X% + prevalência Y%
-5. Recomendação (mantida)
-6. Alunos relacionados (mantido)
-7. Outros temas (mantido)
-
-Espaçamento `space-y-5` mantido para evitar buracos visuais.
-
-## Logs de debug
-Substituir o `console.log` atual de render por logs por insight durante a classificação:
+## Helpers novos (no mesmo arquivo)
 ```ts
-console.log('[Insights] Classificação', { 
-  nome, percentualAcerto, prevalencia, categoria 
-});
+function getInterpretation(insight: PrioritizedInsight): string { ... }
+function getRecommendationText(insight: PrioritizedInsight): string { ... }
 ```
+Colocados próximos a `getCategoryReason`.
+
+## Estados preservados (sem mudança)
+- `loading`, `error`, `!data`, `insights.length === 0` — tudo igual.
+- Filtro de chips, contadores, drawer lateral, card explicador inferior — tudo igual.
+- Lógica `classify`, `buildInsights`, ordenação — intocada.
 
 ## Responsividade
-- Cards Top 3: `grid-cols-1 md:grid-cols-3` mantido. Sem `<Progress>`, ficam mais compactos.
-- Drawer: `w-full sm:max-w-lg` mantido. Grid de métricas continua `grid-cols-3` (legível em ≥375px).
-- Lista: layout flex existente mantido; coluna direita simplificada.
+- Mobile (375px):
+  - `single-highlight`: card 100% width, `p-4`, métricas empilham (`grid-cols-1`), título cai para `text-lg`.
+  - `compact-grid`: 1 coluna (`grid-cols-1`), padding `p-4`.
+- Desktop:
+  - `single-highlight`: `max-w-3xl mx-auto`.
+  - `compact-grid`: 2 colunas centralizadas (`max-w-5xl mx-auto`).
 
 ## Critérios de aceite
-- [ ] Nenhuma menção a "Score de Prioridade" ou número 0–100 em qualquer lugar do módulo.
-- [ ] Nenhuma `<Progress>` bar relacionada à prioridade.
-- [ ] Insights aparecem apenas se classificados como Crítico, Ganho Rápido ou Ponto Forte (neutros são descartados).
-- [ ] Ordenação dentro de cada categoria por `prevalencia × (100 - acerto)` decrescente.
-- [ ] Cores: vermelho (crítico), amarelo/laranja (ganho rápido), verde (ponto forte).
-- [ ] Card explicador inferior reescrito com a nova lógica simples.
-- [ ] Drawer não tem espaços vazios após remoção do bloco Score.
-- [ ] Console mostra logs `[Insights] Classificação` para cada tema avaliado.
-- [ ] Funciona em viewport 375px sem quebra.
+- [ ] `filtered.length === 1` → renderiza card único expandido com Interpretação + Recomendação; sem Top 3 acima.
+- [ ] `filtered.length` em {2,3} → grid 2 colunas centralizado, cards mais largos, sem Top 3 acima.
+- [ ] `filtered.length >= 4` → layout idêntico ao atual (Top 3 + lista vertical).
+- [ ] Botão "Ver detalhes completos" no card único abre o drawer já existente sem duplicar dados.
+- [ ] Microcopy correto em cada modo.
+- [ ] Console mostra `[Insights] Layout adaptativo` com `totalInsights` e `mode` corretos a cada render.
+- [ ] Sem alteração em backend, tipos, lógica de classificação ou outras abas.
+- [ ] Funciona em viewport 375px sem quebra; sem `NaN`/`undefined` na UI.
 
