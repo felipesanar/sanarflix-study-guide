@@ -358,7 +358,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                           <cfg.icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
                           <div className="min-w-0">
                             <p className="text-sm font-medium leading-tight">{insight.title}</p>
-                            <Badge variant={cfg.badge} className="text-[10px] mt-1">{cfg.label}</Badge>
+                            <Badge className={`text-[10px] mt-1 border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
