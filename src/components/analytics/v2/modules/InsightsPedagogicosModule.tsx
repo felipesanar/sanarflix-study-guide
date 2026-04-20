@@ -204,13 +204,13 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 function getInsightConfig(type: PrioritizedInsight['type']) {
   switch (type) {
     case 'critical-tema':
-      return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Crítico' };
+      return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Crítico' };
     case 'critical-area':
-      return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badge: 'destructive' as const, label: 'Área Crítica' };
+      return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Área Crítica' };
     case 'quick-win':
-      return { icon: Zap, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10', badge: 'secondary' as const, label: 'Ganho Rápido' };
+      return { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10', badgeClass: 'bg-blue-600 text-white hover:bg-blue-600/90 dark:bg-blue-500 dark:hover:bg-blue-500/90', label: 'Ganho Rápido' };
     case 'strength':
-      return { icon: Target, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10', badge: 'default' as const, label: 'Ponto Forte' };
+      return { icon: Target, color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-700/10', badgeClass: 'bg-emerald-700 text-white hover:bg-emerald-700/90 dark:bg-emerald-600 dark:hover:bg-emerald-600/90', label: 'Ponto Forte' };
   }
 }
 
@@ -358,7 +358,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                           <cfg.icon className={`h-4 w-4 mt-0.5 shrink-0 ${cfg.color}`} />
                           <div className="min-w-0">
                             <p className="text-sm font-medium leading-tight">{insight.title}</p>
-                            <Badge variant={cfg.badge} className="text-[10px] mt-1">{cfg.label}</Badge>
+                            <Badge className={`text-[10px] mt-1 border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
@@ -417,7 +417,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                         <div className="flex-1 min-w-0 space-y-2">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold">{insight.title}</span>
-                            <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5">{cfg.label}</Badge>
+                            <Badge className={`text-[10px] px-1.5 py-0 h-5 border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">{insight.description}</p>
                           <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground pt-1">
@@ -454,7 +454,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-sm font-medium truncate">{insight.title}</span>
-                          <Badge variant={cfg.badge} className="text-[10px] px-1.5 py-0 h-5 shrink-0">{cfg.label}</Badge>
+                          <Badge className={`text-[10px] px-1.5 py-0 h-5 shrink-0 border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-1">{insight.description}</p>
                       </div>
@@ -701,7 +701,7 @@ const SingleHighlightCard: React.FC<{
         </div>
         <div className="flex-1 min-w-0 space-y-1.5">
           <h3 className="text-lg sm:text-xl font-semibold leading-tight">{insight.title}</h3>
-          <Badge variant={cfg.badge} className="text-[11px]">{cfg.label}</Badge>
+          <Badge className={`text-[11px] border-transparent ${cfg.badgeClass}`}>{cfg.label}</Badge>
         </div>
       </div>
 
