@@ -184,22 +184,19 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               label="Nota (% de acertos)"
               value={student.percentual.toFixed(1)}
               color={getStatusColor(status)}
-              emphasis
             />
             <MetricTile
               label="Gap p/ proficiência"
-              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts p/ proficiência`}
+              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts`}
               color={student.percentual >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
-              small
             />
             <MetricTile
-              label="Percentual médio de acertos"
+              label="Percentual de Acertos"
               value={`${student.percentual.toFixed(1)}%`}
             />
             <MetricTile
               label="Semestre"
-              value={`${student.semestre}º semestre`}
-              small
+              value={`${student.semestre}º`}
             />
           </div>
 
