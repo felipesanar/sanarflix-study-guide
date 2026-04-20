@@ -367,15 +367,24 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
 
       {/* Prioritization explainer */}
       <Card className="border-dashed">
-        <CardContent className="py-3 px-4">
+        <CardContent className="py-4 px-4">
           <div className="flex items-start gap-2">
             <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Como a priorização funciona</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                O score de prioridade combina: <strong>gap de proficiência</strong> (peso da distância ao limiar de {PROFICIENCY_THRESHOLD}%),
-                <strong> prevalência</strong> (peso do tema no total de questões) e <strong>alunos afetados</strong> (estimativa de impacto).
-                Quanto maior o score, maior a urgência de intervenção.
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Como o Score de Prioridade é calculado</p>
+              <p className="text-xs text-muted-foreground">
+                Cada insight recebe uma nota de <strong>0 a 100</strong> que combina três fatores ponderados:
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-1">
+                <li>• <strong>Gap de proficiência</strong> — distância em pontos até o limiar de {PROFICIENCY_THRESHOLD}% de acertos</li>
+                <li>• <strong>Prevalência</strong> — peso do tema/área no total de questões do simulado</li>
+                <li>• <strong>Alunos afetados</strong> — estimativa de quantos alunos seriam impactados pela intervenção</li>
+              </ul>
+              <p className="text-xs text-muted-foreground pt-1">
+                Os pesos variam por tipo: <strong>insights críticos</strong> enfatizam o gap (×1,5) e a prevalência (×1,2);
+                <strong> ganhos rápidos</strong> dão peso maior ao gap (×3) pois pequenos esforços geram grande impacto;
+                <strong> pontos fortes</strong> recebem score fixo (10) por não exigirem intervenção.
+                Quanto maior o score, maior a urgência de atuação.
               </p>
             </div>
           </div>
