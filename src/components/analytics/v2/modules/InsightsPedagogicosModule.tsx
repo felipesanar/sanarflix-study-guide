@@ -18,11 +18,34 @@ import {
 } from '@/components/ui/sheet';
 import { DesempenhoV2Skeleton } from '@/components/analytics/v2/DesempenhoV2Skeleton';
 import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptyState';
+import { TooltipInfo } from '@/components/analytics/v2/TooltipInfo';
 import type {
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
 
 const PROFICIENCY_THRESHOLD = 60;
+
+// ── Explicação do cálculo de prioridade ──
+function getPriorityFormulaExplanation(type: PrioritizedInsight['type']): string {
+  switch (type) {
+    case 'critical-area':
+      return `Score = (Gap × 1,2) + (Prevalência × 0,8) + min(Alunos afetados, 30)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões da área no simulado\n• Alunos afetados: estimativa baseada no gap\n\nLimitado a 100.`;
+    case 'critical-tema':
+      return `Score = (Gap × 1,5) + (Prevalência × 1,2) + (Alunos afetados × 0,5)\n\n• Gap: distância em pontos até ${PROFICIENCY_THRESHOLD}% de proficiência\n• Prevalência: % de questões do tema no simulado\n• Alunos afetados: estimativa de impacto\n\nTemas críticos têm pesos maiores por exigirem intervenção urgente. Limitado a 100.`;
+    case 'quick-win':
+    case 'opportunity-tema':
+      return `Score = (Gap × 3) + (Prevalência × 2) + Alunos próximos\n\n• Gap: pontos restantes até ${PROFICIENCY_THRESHOLD}% (ganhos rápidos têm gap pequeno)\n• Prevalência: % de questões do tema no simulado\n• Alunos próximos: alunos que podem subir de faixa\n\nPesos altos no gap pois pequenos esforços geram grande impacto. Limitado a 100.`;
+    case 'strength':
+      return `Pontos fortes recebem score fixo de 10 pois não exigem intervenção — servem apenas como referência de boas práticas.`;
+  }
+}
+
+const GENERAL_PRIORITY_EXPLANATION =
+  'O Score de Prioridade (0–100) combina 3 fatores ponderados:\n\n' +
+  `• Gap de proficiência: distância até ${PROFICIENCY_THRESHOLD}% de acertos\n` +
+  '• Prevalência: peso do tema/área no total de questões do simulado\n' +
+  '• Alunos afetados: estimativa de quantos alunos seriam impactados\n\n' +
+  'Cada tipo de insight (Crítico, Ganho Rápido, etc.) usa pesos diferentes — críticos enfatizam o gap, ganhos rápidos enfatizam a proximidade da meta. Quanto maior o score, maior a urgência.';
 
 interface Props {
   data: InstitutionalViewModel | null;
@@ -252,12 +275,15 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Header */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Lightbulb className="h-5 w-5 text-primary" />
         <h2 className="text-base font-semibold">
           {insights.length} insights gerados
         </h2>
-        <span className="text-xs text-muted-foreground">• priorizados por prevalência e impacto</span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          • priorizados por prevalência e impacto
+          <TooltipInfo text={GENERAL_PRIORITY_EXPLANATION} position="bottom" />
+        </span>
       </div>
 
       {/* Top priority highlights */}
@@ -281,7 +307,13 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-                    <span>Prioridade: {Math.round(insight.priority)}/100</span>
+                    <span className="flex items-center gap-1">
+                      Prioridade: {Math.round(insight.priority)}/100
+                      <TooltipInfo
+                        text={getPriorityFormulaExplanation(insight.type)}
+                        position="top"
+                      />
+                    </span>
                     <span>{insight.gap > 0 ? `${insight.gap.toFixed(1)}pts gap` : `${insight.percentual}%`}</span>
                   </div>
                   <Progress value={insight.priority} className="h-1.5 mt-1.5" />
@@ -338,15 +370,24 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
 
       {/* Prioritization explainer */}
       <Card className="border-dashed">
-        <CardContent className="py-3 px-4">
+        <CardContent className="py-4 px-4">
           <div className="flex items-start gap-2">
             <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Como a priorização funciona</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                O score de prioridade combina: <strong>gap de proficiência</strong> (peso da distância ao limiar de {PROFICIENCY_THRESHOLD}%),
-                <strong> prevalência</strong> (peso do tema no total de questões) e <strong>alunos afetados</strong> (estimativa de impacto).
-                Quanto maior o score, maior a urgência de intervenção.
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Como o Score de Prioridade é calculado</p>
+              <p className="text-xs text-muted-foreground">
+                Cada insight recebe uma nota de <strong>0 a 100</strong> que combina três fatores ponderados:
+              </p>
+              <ul className="text-xs text-muted-foreground space-y-1 ml-1">
+                <li>• <strong>Gap de proficiência</strong> — distância em pontos até o limiar de {PROFICIENCY_THRESHOLD}% de acertos</li>
+                <li>• <strong>Prevalência</strong> — peso do tema/área no total de questões do simulado</li>
+                <li>• <strong>Alunos afetados</strong> — estimativa de quantos alunos seriam impactados pela intervenção</li>
+              </ul>
+              <p className="text-xs text-muted-foreground pt-1">
+                Os pesos variam por tipo: <strong>insights críticos</strong> enfatizam o gap (×1,5) e a prevalência (×1,2);
+                <strong> ganhos rápidos</strong> dão peso maior ao gap (×3) pois pequenos esforços geram grande impacto;
+                <strong> pontos fortes</strong> recebem score fixo (10) por não exigirem intervenção.
+                Quanto maior o score, maior a urgência de atuação.
               </p>
             </div>
           </div>
@@ -438,6 +479,10 @@ const InsightDetailSheet: React.FC<{
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <Target className="h-4 w-4" /> Score de Prioridade
+                <TooltipInfo
+                  text={getPriorityFormulaExplanation(insight.type)}
+                  position="right"
+                />
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -452,6 +497,13 @@ const InsightDetailSheet: React.FC<{
                     <p className="text-sm font-semibold">{f.value}</p>
                   </div>
                 ))}
+              </div>
+              {/* Inline formula explanation */}
+              <div className="rounded-md bg-muted/30 border border-border/50 p-2.5 mt-2">
+                <p className="text-[11px] font-semibold text-foreground mb-1">Como este score foi calculado</p>
+                <p className="text-[11px] text-muted-foreground whitespace-pre-line leading-relaxed">
+                  {getPriorityFormulaExplanation(insight.type)}
+                </p>
               </div>
             </CardContent>
           </Card>
