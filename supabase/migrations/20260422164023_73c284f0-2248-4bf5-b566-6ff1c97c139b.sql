@@ -1,0 +1,1 @@
+INSERT INTO public.ies (nome) VALUES ('FAI');
