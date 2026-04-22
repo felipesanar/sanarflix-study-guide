@@ -50,7 +50,6 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
     segmentacaoArea,
     segmentacaoEspecialidade,
     segmentacaoTema,
-    segmentacaoDificuldade,
     simulados,
     questoesProblematicas,
     comportamento,
@@ -74,10 +73,9 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
     segmentacaoArea,
     segmentacaoEspecialidade,
     segmentacaoTema,
-    segmentacaoDificuldade,
     questoesProblematicas,
     comportamento,
-  }), [executive, temporal, simulados, segmentacaoIES, segmentacaoSemestre, segmentacaoArea, segmentacaoEspecialidade, segmentacaoTema, segmentacaoDificuldade, questoesProblematicas, comportamento]);
+  }), [executive, temporal, simulados, segmentacaoIES, segmentacaoSemestre, segmentacaoArea, segmentacaoEspecialidade, segmentacaoTema, questoesProblematicas, comportamento]);
 
   const handleExportCSV = () => {
     exportToCSV(exportData, filters);
@@ -189,7 +187,6 @@ export const RealSimuladosTab: React.FC<RealSimuladosTabProps> = ({ filters }) =
           byArea={segmentacaoArea}
           byEspecialidade={segmentacaoEspecialidade}
           byTema={segmentacaoTema}
-          byDificuldade={segmentacaoDificuldade}
           isLoading={isLoading}
         />
       </section>

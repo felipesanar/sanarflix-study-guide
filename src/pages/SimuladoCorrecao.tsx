@@ -595,17 +595,6 @@ export const SimuladoCorrecao: React.FC = () => {
 
                     {/* Meta badges */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {currentQuestion.grau_dificuldade && (
-                        <span className={cn(
-                          'px-2.5 py-1 rounded-lg text-[11px] font-semibold tracking-wide',
-                          currentQuestion.grau_dificuldade === 'Fácil' && 'bg-green-500/10 text-green-600 dark:text-green-400',
-                          (currentQuestion.grau_dificuldade === 'Moderado' || currentQuestion.grau_dificuldade === 'Médio') && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-                          currentQuestion.grau_dificuldade === 'Difícil' && 'bg-red-500/10 text-red-600 dark:text-red-400',
-                          !['Fácil', 'Moderado', 'Médio', 'Difícil'].includes(currentQuestion.grau_dificuldade) && 'bg-muted text-muted-foreground',
-                        )}>
-                          {currentQuestion.grau_dificuldade}
-                        </span>
-                      )}
                       {currentQuestion.grande_area && (
                         <span className="text-[11px] text-muted-foreground bg-muted/80 px-2.5 py-1 rounded-lg font-medium">
                           {currentQuestion.grande_area}

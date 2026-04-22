@@ -23,7 +23,6 @@ interface SegmentacaoChartsProps {
   byArea: SegmentacaoDimensao[];
   byEspecialidade: SegmentacaoDimensao[];
   byTema: SegmentacaoDimensao[];
-  byDificuldade: SegmentacaoDimensao[];
   isLoading?: boolean;
 }
 
@@ -162,7 +161,6 @@ export const SegmentacaoCharts: React.FC<SegmentacaoChartsProps> = ({
   byArea,
   byEspecialidade,
   byTema,
-  byDificuldade,
   isLoading,
 }) => {
   const [activeTab, setActiveTab] = useState('ies');
@@ -190,7 +188,7 @@ export const SegmentacaoCharts: React.FC<SegmentacaoChartsProps> = ({
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 mb-4">
+          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 mb-4">
             <TabsTrigger value="ies" className="gap-1 text-xs">
               <Building2 className="w-3 h-3 hidden sm:block" />
               IES
@@ -210,10 +208,6 @@ export const SegmentacaoCharts: React.FC<SegmentacaoChartsProps> = ({
             <TabsTrigger value="tema" className="gap-1 text-xs">
               <Layers className="w-3 h-3 hidden sm:block" />
               Tema
-            </TabsTrigger>
-            <TabsTrigger value="dificuldade" className="gap-1 text-xs">
-              <Target className="w-3 h-3 hidden sm:block" />
-              Dific.
             </TabsTrigger>
           </TabsList>
 
@@ -258,14 +252,6 @@ export const SegmentacaoCharts: React.FC<SegmentacaoChartsProps> = ({
               data={byTema}
               title="Tema"
               icon={<Layers className="w-4 h-4" />}
-            />
-          </TabsContent>
-
-          <TabsContent value="dificuldade">
-            <DimensaoList 
-              data={byDificuldade}
-              title="Dificuldade"
-              icon={<Target className="w-4 h-4" />}
             />
           </TabsContent>
         </Tabs>
