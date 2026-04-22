@@ -58,8 +58,7 @@ const getErrorBadgeClass = (taxa: number) => {
 // Extract unique values for filters
 const extractFilterOptions = (questoes: QuestaoProblematica[]) => {
   const areas = [...new Set(questoes.map(q => q.grande_area).filter(Boolean))] as string[];
-  const dificuldades = [...new Set(questoes.map(q => q.dificuldade).filter(Boolean))] as string[];
-  return { areas, dificuldades };
+  return { areas };
 };
 
 export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps> = ({
@@ -69,7 +68,6 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
   const [incluirAnuladas, setIncluirAnuladas] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filtroArea, setFiltroArea] = useState<string>('all');
-  const [filtroDificuldade, setFiltroDificuldade] = useState<string>('all');
   const [filtroFaixaErro, setFiltroFaixaErro] = useState<string>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -83,9 +81,6 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
       // Area filter
       if (filtroArea !== 'all' && q.grande_area !== filtroArea) return false;
       
-      // Dificuldade filter
-      if (filtroDificuldade !== 'all' && q.dificuldade !== filtroDificuldade) return false;
-      
       // Error range filter
       if (filtroFaixaErro !== 'all') {
         const taxa = q.taxa_erro;
@@ -96,7 +91,7 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
       
       return true;
     });
-  }, [questoes, incluirAnuladas, filtroArea, filtroDificuldade, filtroFaixaErro]);
+  }, [questoes, incluirAnuladas, filtroArea, filtroFaixaErro]);
 
   const handleCopyId = async (id: string) => {
     try {
@@ -353,9 +348,6 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
                                   )}
                                   {questao.especialidade && (
                                     <span className="bg-muted px-2 py-0.5 rounded">{questao.especialidade}</span>
-                                  )}
-                                  {questao.dificuldade && (
-                                    <span className="bg-muted px-2 py-0.5 rounded">{questao.dificuldade}</span>
                                   )}
                                   <span className="text-muted-foreground/70">
                                     n={questao.n_respostas}
