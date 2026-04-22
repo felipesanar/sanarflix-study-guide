@@ -105,7 +105,7 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
   };
 
   const anuladasCount = questoes.filter(q => q.anulada).length;
-  const hasActiveFilters = filtroArea !== 'all' || filtroDificuldade !== 'all' || filtroFaixaErro !== 'all';
+  const hasActiveFilters = filtroArea !== 'all' || filtroFaixaErro !== 'all';
 
   if (isLoading) {
     return (
@@ -217,18 +217,6 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
               </SelectContent>
             </Select>
 
-            <Select value={filtroDificuldade} onValueChange={setFiltroDificuldade}>
-              <SelectTrigger className="w-[130px] h-8 text-xs">
-                <SelectValue placeholder="Dificuldade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {filterOptions.dificuldades.map(dif => (
-                  <SelectItem key={dif} value={dif}>{dif}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={filtroFaixaErro} onValueChange={setFiltroFaixaErro}>
               <SelectTrigger className="w-[130px] h-8 text-xs">
                 <SelectValue placeholder="Taxa de Erro" />
@@ -248,7 +236,6 @@ export const QuestoesProblematicasCard: React.FC<QuestoesProblematicasCardProps>
                 className="h-8 text-xs text-muted-foreground hover:text-foreground"
                 onClick={() => {
                   setFiltroArea('all');
-                  setFiltroDificuldade('all');
                   setFiltroFaixaErro('all');
                 }}
               >

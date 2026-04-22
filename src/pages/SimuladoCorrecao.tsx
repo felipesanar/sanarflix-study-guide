@@ -39,7 +39,6 @@ interface CorrectedQuestion {
   grande_area: string | null;
   especialidade: string | null;
   tema: string | null;
-  grau_dificuldade: string | null;
   anulada: boolean;
   resposta_usuario: string | null;
   acertou: boolean | null;
@@ -239,7 +238,7 @@ export const SimuladoCorrecao: React.FC = () => {
         const [questoesRes, respostasRes] = await Promise.all([
           supabase
             .from('questoes_simulado')
-            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, grau_dificuldade, anulada')
+            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, anulada')
             .eq('simulado_id', selectedSimulado)
             .order('ordem', { ascending: true }),
           supabase
@@ -345,7 +344,6 @@ export const SimuladoCorrecao: React.FC = () => {
           grandeArea: q.grande_area || 'Geral',
           especialidade: q.especialidade || '',
           tema: q.tema || '',
-          dificuldade: q.grau_dificuldade || 'Médio',
           anulada: q.anulada,
         };
       });
@@ -367,22 +365,10 @@ export const SimuladoCorrecao: React.FC = () => {
         area, acertos: d.acertos, total: d.total, percentual: d.total > 0 ? Math.round((d.acertos / d.total) * 100) : 0,
       }));
 
-      const diffMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => {
-        const nivel = q.dificuldade || 'Médio';
-        const existing = diffMap.get(nivel) || { acertos: 0, total: 0 };
-        existing.total++;
-        if (q.acertou === true) existing.acertos++;
-        diffMap.set(nivel, existing);
-      });
-      const porDificuldade = Array.from(diffMap.entries()).map(([nivel, d]) => ({
-        nivel, acertos: d.acertos, total: d.total, percentual: d.total > 0 ? Math.round((d.acertos / d.total) * 100) : 0,
-      }));
-
       const provaStats: ProvaRevisadaStats = {
         acertos, erros, naoRespondidas, total,
         percentual: total > 0 ? Math.round((acertos / total) * 100) : 0,
-        porArea, porDificuldade,
+        porArea,
       };
 
       await generateProvaRevisadaPDF(simuladoNome, user.email || 'Aluno', questoesRevisadas, provaStats, (stage, current, totalItems) => {

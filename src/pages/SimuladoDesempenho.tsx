@@ -65,7 +65,6 @@ interface SpecialtyPerformanceData extends PerformanceData { area_name?: string;
 interface SubspecialtyPerformanceData extends PerformanceData { specialty_name?: string; specialty_id?: number; area_name?: string; }
 interface RankingData { rank: number; total: number; }
 interface OverallStats { total: number; acertos: number; percentual: number; }
-interface DifficultyData { name: string; value: number; fill: string; total: number; acertos: number; }
 interface UserData { semestre: number; }
 interface ReviewedQuestion {
   id: string;
@@ -74,7 +73,6 @@ interface ReviewedQuestion {
   a: string; b: string; c: string; d: string;
   comentario: string;
   imagem: string | null;
-  dificuldade: 'Fácil' | 'Médio' | 'Difícil' | string;
   acertou: boolean;
   user_answer?: string | null;
   anulada?: boolean;
@@ -109,19 +107,7 @@ const CustomBarLabel = (props: any) => {
   );
 };
 
-const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
-  const styles: Record<string, string> = {
-    Fácil: "bg-green-500/10 text-green-600 dark:text-green-400",
-    Moderado: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    Médio: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    Difícil: "bg-red-500/10 text-red-600 dark:text-red-400",
-  };
-  return (
-    <span className={cn("px-2.5 py-1 rounded-lg text-[11px] font-semibold", styles[difficulty] || "bg-muted text-muted-foreground")}>
-      {difficulty}
-    </span>
-  );
-};
+
 
 // --- Premium Question Modal ---
 const QuestionModal: React.FC<{
@@ -150,12 +136,10 @@ const QuestionModal: React.FC<{
           <div className="flex justify-between items-center gap-3">
             <DialogTitle className="text-base font-bold tracking-tight">Revisão de Questão</DialogTitle>
             <div className="flex items-center gap-2">
-              {question?.anulada ? (
+              {question?.anulada && (
                 <Badge variant="outline" className="bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 gap-1 rounded-lg text-[11px] font-semibold">
                   <Ban className="h-3 w-3" /> ANULADA
                 </Badge>
-              ) : (
-                question?.dificuldade && <DifficultyBadge difficulty={question.dificuldade} />
               )}
               {question && (() => {
                 const notAnswered = !question.user_answer;
