@@ -779,7 +779,6 @@ export type Database = {
           especialidade: string | null
           feedback_corretas: string | null
           grande_area: string | null
-          grau_dificuldade: string | null
           id: string
           imagem: string | null
           numero_questao: number | null
@@ -804,7 +803,6 @@ export type Database = {
           especialidade?: string | null
           feedback_corretas?: string | null
           grande_area?: string | null
-          grau_dificuldade?: string | null
           id?: string
           imagem?: string | null
           numero_questao?: number | null
@@ -829,7 +827,6 @@ export type Database = {
           especialidade?: string | null
           feedback_corretas?: string | null
           grande_area?: string | null
-          grau_dificuldade?: string | null
           id?: string
           imagem?: string | null
           numero_questao?: number | null
@@ -1496,7 +1493,6 @@ export type Database = {
           c: string
           comentario: string
           d: string
-          dificuldade: string
           enunciado: string
           gabarito: string
           id: string
