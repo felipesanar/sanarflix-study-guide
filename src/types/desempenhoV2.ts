@@ -138,7 +138,6 @@ export interface RpcPerformanceResponse {
   byArea: RpcAreaData[];
   bySpecialty: (RpcAreaData & { area_name: string })[];
   bySubspecialty: (RpcAreaData & { specialty_name: string; area_name: string })[];
-  byDifficulty: RpcAreaData[];
 }
 
 export interface RpcEvolutionEntry {

@@ -77,7 +77,6 @@ export interface QuestaoProblematica {
   grande_area: string | null;
   especialidade: string | null;
   tema: string | null;
-  dificuldade: string | null;
   taxa_erro: number;
   n_respostas: number;
   anulada: boolean;
@@ -111,7 +110,6 @@ export interface SimuladosAnalyticsData {
   segmentacaoArea: SegmentacaoDimensao[];
   segmentacaoEspecialidade: SegmentacaoDimensao[];
   segmentacaoTema: SegmentacaoDimensao[];
-  segmentacaoDificuldade: SegmentacaoDimensao[];
   simulados: SimuladoOverview[];
   questoesProblematicas: QuestaoProblematica[];
   comportamento: ComportamentoMetrics;
@@ -203,7 +201,6 @@ const initialData: SimuladosAnalyticsData = {
   segmentacaoArea: [],
   segmentacaoEspecialidade: [],
   segmentacaoTema: [],
-  segmentacaoDificuldade: [],
   simulados: [],
   questoesProblematicas: [],
   comportamento: {
@@ -306,7 +303,7 @@ export async function fetchSimuladosAnalyticsData(
       .lte('finalizado_em', endDate),
     supabase
       .from('questoes_simulado')
-      .select('id, simulado_id, enunciado, grande_area, especialidade, tema, grau_dificuldade, anulada, comentario'),
+      .select('id, simulado_id, enunciado, grande_area, especialidade, tema, anulada, comentario'),
     supabase.from('ies').select('id, nome'),
   ]);
 
@@ -573,7 +570,7 @@ export async function fetchSimuladosAnalyticsData(
     });
 
   // Content dimension segmentation
-  const buildDimensaoMap = (field: 'grande_area' | 'especialidade' | 'tema' | 'grau_dificuldade') => {
+  const buildDimensaoMap = (field: 'grande_area' | 'especialidade' | 'tema') => {
     const map = new Map<string, { corretas: number; total: number }>();
     respostas.forEach(r => {
       const questao = questaoMap.get(r.question_id);
@@ -598,7 +595,6 @@ export async function fetchSimuladosAnalyticsData(
   const segmentacaoArea = buildDimensaoMap('grande_area');
   const segmentacaoEspecialidade = buildDimensaoMap('especialidade');
   const segmentacaoTema = buildDimensaoMap('tema');
-  const segmentacaoDificuldade = buildDimensaoMap('grau_dificuldade');
 
   // Simulados overview
   const simuladosOverview: SimuladoOverview[] = relevantSimulados.map(s => {
@@ -692,7 +688,6 @@ export async function fetchSimuladosAnalyticsData(
         grande_area: q?.grande_area || null,
         especialidade: q?.especialidade || null,
         tema: q?.tema || null,
-        dificuldade: q?.grau_dificuldade || null,
         taxa_erro: Math.round(((stats.total - stats.corretas) / stats.total) * 100),
         n_respostas: stats.total,
         anulada: q?.anulada || false,
@@ -762,7 +757,6 @@ export async function fetchSimuladosAnalyticsData(
     segmentacaoArea,
     segmentacaoEspecialidade,
     segmentacaoTema,
-    segmentacaoDificuldade,
     simulados: simuladosOverview,
     questoesProblematicas,
     comportamento,

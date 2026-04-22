@@ -120,8 +120,7 @@ export const simuladosApi = {
       imagem: q.imagem || undefined,
       tema: q.tema || 'Geral',
       especialidade: q.especialidade || 'Geral',
-      subespecialidade: q.grande_area || 'Geral',
-      dificuldade: q.grau_dificuldade || 'Médio'
+      subespecialidade: q.grande_area || 'Geral'
     }));
   },
 
