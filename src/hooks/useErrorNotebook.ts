@@ -34,7 +34,6 @@ export interface QuestionDetails {
   correta: string;
   comentario: string | null;
   imagem: string | null;
-  grau_dificuldade: string | null;
 }
 
 export interface AddEntryParams {
@@ -118,7 +117,7 @@ export const useErrorNotebook = () => {
       console.log('[ErrorNotebookUI] Fetching question details for:', questionId);
       const { data, error: fetchError } = await supabase
         .from('questoes_simulado')
-        .select('id, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grau_dificuldade')
+        .select('id, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem')
         .eq('id', questionId)
         .single();
 

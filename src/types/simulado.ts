@@ -26,7 +26,6 @@ export interface Questao {
   tema: string;
   especialidade: string;
   subespecialidade: string;
-  dificuldade: 'Fácil' | 'Médio' | 'Difícil';
 }
 
 export interface RespostaSimulado {

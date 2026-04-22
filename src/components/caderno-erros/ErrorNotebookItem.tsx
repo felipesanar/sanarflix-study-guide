@@ -266,11 +266,6 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                 <div className="flex items-center gap-2 mb-1">
                   <BookOpen className="h-3.5 w-3.5 text-muted-foreground/60" />
                   <span className="text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider">Questão Original</span>
-                  {questionDetails.grau_dificuldade && (
-                    <Badge variant="outline" className="text-[10px] rounded-full px-2 py-0 ml-auto border-border/40 font-medium">
-                      {questionDetails.grau_dificuldade}
-                    </Badge>
-                  )}
                 </div>
                 <p className="text-sm text-foreground/85 leading-relaxed whitespace-pre-line">{questionDetails.enunciado}</p>
 
