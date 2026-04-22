@@ -64,7 +64,6 @@ interface Questao {
   grande_area?: string;
   especialidade?: string;
   tema?: string;
-  grau_dificuldade?: string;
   competencia?: string;
   enunciado: string;
   alternativa_a: string;
@@ -209,7 +208,6 @@ export default function SimuladosTab() {
           'Grande Área': 'Clínica Médica',
           'Especialidade': 'Cardiologia',
           'Tema': 'Insuficiência Cardíaca',
-          'Grau de dificuldade': 'Média',
           'Competência': 'Diagnóstico',
           'Enunciado da questão': 'Paciente de 65 anos apresenta dispneia progressiva há 3 meses. Qual o exame inicial mais indicado?',
           'Alternativa A': 'Radiografia de tórax',
@@ -225,7 +223,6 @@ export default function SimuladosTab() {
           'Grande Área': 'Cirurgia',
           'Especialidade': 'Cirurgia Geral',
           'Tema': 'Apendicite Aguda',
-          'Grau de dificuldade': 'Fácil',
           'Competência': 'Conduta',
           'Enunciado da questão': 'Qual o tratamento padrão-ouro para apendicite aguda não complicada?',
           'Alternativa A': 'Antibioticoterapia isolada',
@@ -248,7 +245,6 @@ export default function SimuladosTab() {
         { wch: 15 }, // Grande Área
         { wch: 15 }, // Especialidade
         { wch: 20 }, // Tema
-        { wch: 18 }, // Grau de dificuldade
         { wch: 15 }, // Competência
         { wch: 50 }, // Enunciado
         { wch: 30 }, // Alt A
@@ -301,7 +297,6 @@ export default function SimuladosTab() {
             'grande área',
             'especialidade',
             'tema',
-            'grau de dificuldade',
             'competência',
             'enunciado da questão',
             'alternativa a',
@@ -345,7 +340,6 @@ export default function SimuladosTab() {
               grande_area: normalizedRow['grande área'] || '',
               especialidade: normalizedRow['especialidade'] || '',
               tema: normalizedRow['tema'] || '',
-              grau_dificuldade: normalizedRow['grau de dificuldade'] || '',
               competencia: normalizedRow['competência'] || '',
               enunciado: normalizedRow['enunciado da questão'] || '',
               alternativa_a: normalizedRow['alternativa a'] || '',
@@ -689,7 +683,6 @@ export default function SimuladosTab() {
           grande_area: editingQuestao.grande_area,
           especialidade: editingQuestao.especialidade,
           tema: editingQuestao.tema,
-          grau_dificuldade: editingQuestao.grau_dificuldade,
           imagem: editingQuestao.imagem
         })
         .eq('id', editingQuestao.id);
@@ -1097,10 +1090,6 @@ export default function SimuladosTab() {
                     <div>
                       <span className="font-semibold text-muted-foreground">Tema:</span>
                       <p>{questao.tema || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-muted-foreground">Dificuldade:</span>
-                      <p>{questao.grau_dificuldade || 'N/A'}</p>
                     </div>
                     <div className="col-span-2">
                       <span className="font-semibold text-muted-foreground">Competência:</span>
@@ -1617,31 +1606,13 @@ export default function SimuladosTab() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-tema">Tema</Label>
-                  <Input
-                    id="edit-tema"
-                    value={editingQuestao.tema || ''}
-                    onChange={(e) => setEditingQuestao({ ...editingQuestao, tema: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-dificuldade">Dificuldade</Label>
-                  <Select
-                    value={editingQuestao.grau_dificuldade || ''}
-                    onValueChange={(value) => setEditingQuestao({ ...editingQuestao, grau_dificuldade: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Fácil">Fácil</SelectItem>
-                      <SelectItem value="Média">Média</SelectItem>
-                      <SelectItem value="Difícil">Difícil</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label htmlFor="edit-tema">Tema</Label>
+                <Input
+                  id="edit-tema"
+                  value={editingQuestao.tema || ''}
+                  onChange={(e) => setEditingQuestao({ ...editingQuestao, tema: e.target.value })}
+                />
               </div>
 
               <div>
