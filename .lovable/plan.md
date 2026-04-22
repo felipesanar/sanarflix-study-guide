@@ -1,91 +1,93 @@
 
 
-# Topo de Destaques (até 3) + Lista Inferior Linear
+# Remoção completa do campo "Dificuldade" (back + front)
 
-## Objetivo
-1. **Topo**: sempre exibir até 3 cards de destaque, ordenados por prioridade (Críticos → Ganhos Rápidos → Pontos Fortes), em grid responsivo (1/2/3 colunas).
-2. **Lista inferior**: reverter para layout linear simples — sem modos `single-highlight` / `compact-grid`. Filtros e estrutura dos cards permanecem intactos.
+## Escopo
+Eliminar toda referência à dificuldade das questões — do banco, dos RPCs, dos serviços, das telas de admin, das telas do aluno, do PDF de prova revisada, do Analytics e dos exports. Nada na UX deve mais exibir, pedir, filtrar ou usar "Fácil / Médio / Difícil / Moderado".
 
-## Arquivo afetado
-- `src/components/analytics/v2/modules/InsightsPedagogicosModule.tsx` (único)
+## 1. Banco de dados (migração aditiva — mas removendo coluna é destrutivo; exige confirmação)
 
-## Mudanças
+⚠️ **Atenção**: remover `questoes_simulado.grau_dificuldade` é uma operação **destrutiva** (viola a Core rule "DB migrations must be purely additive"). Como o usuário pediu explicitamente a remoção em back e front, farei `DROP COLUMN` — mas registro aqui como exceção explicitamente autorizada por este pedido. Dados existentes nessa coluna serão perdidos.
 
-### 1. Cálculo dos destaques (`featuredInsights`)
-Substituir o atual:
-```ts
-const topPriority = filtered.filter(i => i.type !== 'strength').slice(0, 3);
-```
-Por:
-```ts
-const featuredInsights = insights.slice(0, 3); // já vem ordenado por buildInsights:
-                                               // critical → quick-win → strength
-console.log('[Insights] total:', insights.length);
-console.log('[Insights] featured:', featuredInsights.length);
-```
-Observação: `buildInsights` já ordena por `groupOrder` (críticos = 0, quick-win = 1, strength = 2) e dentro de cada grupo por `impacto` desc. Logo, `slice(0, 3)` cumpre exatamente a regra pedida (críticos primeiro, depois ganhos rápidos, depois pontos fortes). O destaque usa `insights` (lista global), **não** `filtered` — assim os cards do topo independem do chip ativo, refletindo as prioridades reais.
+Migração:
+1. `ALTER TABLE questoes_simulado DROP COLUMN grau_dificuldade;`
+2. Recriar os RPCs que referenciam essa coluna **sem** o campo/bloco de dificuldade:
+   - `get_questions_by_subspecialty` (migrations 20260128135226, 20260128134007) — remover `coalesce(q.grau_dificuldade, 'Médio')` do RETURNS TABLE e do SELECT.
+   - `get_performance_analysis_for_simulado` (migrations 20260326132253, 20260306142117, 20260205223128, 20260123203748, 20251112193840, 20250914002844) — remover a CTE `difficulty`, a chave `byDifficulty` do JSON retornado e o campo `dificuldade` em `get_question_details`.
+3. Consultas JS que fazem `.select('... grau_dificuldade ...')` deixam de incluir a coluna (ver Front).
 
-### 2. Renderização do topo (sempre que houver insights)
-Remover o gating `mode === 'default'`. O bloco passa a aparecer sempre que `featuredInsights.length > 0`:
+## 2. Frontend — arquivos a editar
 
-```tsx
-{featuredInsights.length > 0 && (
-  <motion.div
-    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.25 }}
-  >
-    {featuredInsights.map(insight => /* mesmo card existente */)}
-  </motion.div>
-)}
-```
-- Card visual **idêntico** ao atual (mesma estrutura de `Card` com `border-l-4`, ícone, título, badge e linha de métricas).
-- Cor da borda lateral: vermelho se crítico, azul se quick-win, verde-escuro se strength (consistente com `getInsightConfig`).
-- `gap-4`, breakpoints: `grid-cols-1` (mobile) → `md:grid-cols-2` (tablet) → `lg:grid-cols-3` (desktop).
+### `src/types/simulado.ts`
+- Remover `dificuldade: 'Fácil' | 'Médio' | 'Difícil'` da interface `Questao`.
 
-### 3. Lista inferior — voltar para linear simples
-Remover toda a lógica adaptativa `mode === 'single-highlight' | 'compact-grid'` e o componente `SingleHighlightCard` deixa de ser referenciado aqui (manter o componente no arquivo caso seja reaproveitado depois — sem impacto). 
+### `src/types/desempenhoV2.ts`
+- Remover `byDifficulty: RpcAreaData[]` de `SimuladoAnalysisData`.
 
-A renderização da lista vira sempre o bloco linear que já existe hoje (linhas 442–471: `<div className="space-y-2">` com `filtered.map(...)`):
-```tsx
-{filtered.length === 0 ? (
-  <p className="text-sm text-muted-foreground text-center py-8">Nenhum insight nesta categoria.</p>
-) : (
-  <div className="space-y-2">
-    {filtered.map(insight => /* mesmo botão linear existente */)}
-  </div>
-)}
-```
-- Filtros (`Todos / Críticos / Ganhos Rápidos / Pontos Fortes`) seguem inalterados.
-- Microcopies "Apenas 1 insight..." e "X insights identificados nesta categoria" são removidas (não fazem mais sentido sem os modos adaptativos).
+### `src/services/simuladosApi.ts`
+- Remover `dificuldade: q.grau_dificuldade || 'Médio'` do mapeamento em `buscarQuestoesSimulado`.
 
-### 4. Card explicador inferior
-Mantido sem alterações.
+### `src/hooks/useSimuladosAnalytics.ts`
+- Remover campo `dificuldade` do tipo `QuestaoProblematica`.
+- Remover `segmentacaoDificuldade` do tipo de retorno, estado inicial e payload retornado.
+- Remover `grau_dificuldade` do `.select()` de `questoes_simulado`.
+- Remover `buildDimensaoMap('grau_dificuldade')` e a variável `segmentacaoDificuldade`.
+- Remover `dificuldade: q?.grau_dificuldade || null` do builder de `questoesProblematicas`.
 
-### 5. Drawer (`InsightDetailSheet`)
-Mantido sem alterações — clique em qualquer card (topo ou lista) continua abrindo o mesmo drawer.
+### `src/hooks/useErrorNotebook.ts`
+- Remover `grau_dificuldade` da interface `QuestionDetails` e do `.select()`.
 
-## Comportamento esperado
-| Cenário | Topo | Lista inferior |
-|---|---|---|
-| 1 Crítico, 0 Ganho, 7 Fortes | [Crítico] [Forte] [Forte] | 8 itens lineares com filtros |
-| 0 Crítico, 2 Ganhos, 5 Fortes | [Ganho] [Ganho] [Forte] | 7 itens lineares |
-| 5 Críticos, 3 Ganhos, 0 Fortes | [Crítico] [Crítico] [Crítico] | 8 itens lineares |
-| 1 insight total | [único card] | 1 item linear |
+### `src/components/admin/SimuladosTab.tsx`
+- Remover campo `grau_dificuldade` da interface `Questao`.
+- Remover coluna "Grau de dificuldade" do template XLSX (linhas ~210–253), do array de colunas esperadas e do parsing do upload.
+- Remover o bloco `<div>Dificuldade:</div>` da lista de questões (linha ~1101) e o `<Select>` "Dificuldade" do formulário de edição (linhas ~1628–1634).
+- Remover `grau_dificuldade` do payload do `update`.
 
-## Responsividade
-- `grid-cols-1` em < 768px (mobile)
-- `md:grid-cols-2` em 768–1023px (tablet)
-- `lg:grid-cols-3` em ≥ 1024px (desktop)
-- Mesmo `gap-4` em todos os breakpoints.
+### `src/pages/SimuladoCorrecao.tsx`
+- Remover `grau_dificuldade` do tipo `CorrectedQuestion`, do `.select()`, do mapeamento e do badge visual (linhas ~610–622).
+- Remover o cálculo de `porDificuldade` (diffMap) e removê-lo do objeto `stats` passado ao PDF.
 
-## Critérios de aceite
-- [ ] Topo sempre exibe entre 1 e 3 cards (nunca 0 quando há insights).
-- [ ] Ordem do topo respeita: críticos → ganhos rápidos → pontos fortes.
-- [ ] Lista inferior permanece linear (vertical), com filtros funcionando.
-- [ ] Sem duplicação visual entre topo e lista (aceito que itens do topo apareçam também na lista — comportamento esperado).
-- [ ] Console mostra `[Insights] total:` e `[Insights] featured:` a cada render.
-- [ ] Layout responsivo verificado em 375px (1 col), 768px (2 col), 1280px (3 col).
-- [ ] Sem erros no console; sem mudanças em backend, tipos, classify ou demais abas.
+### `src/pages/SimuladoDesempenho.tsx`
+- Remover `interface DifficultyData`, `DifficultyBadge` e o campo `dificuldade` de `ReviewedQuestion`.
+- Remover `byDifficulty` do state, cache, fetch e dos props de `PerformanceSummary`.
+- Remover o bloco que exibe "pior dificuldade" no summary.
+- Remover passagem de `difficulty` para o PDF.
+
+### `src/utils/pdfProvaRevisada.ts`
+- Remover `dificuldade` de `QuestaoRevisada` e `porDificuldade` de `ProvaRevisadaStats`.
+- Remover o bloco de render "por dificuldade" em `drawAnalysisPage` (linhas ~1009–1025).
+
+### `src/utils/exportSimuladosAnalytics.ts`
+- Remover `segmentacaoDificuldade` do tipo.
+- Remover a seção "Dificuldade" do CSV (linhas ~250–255).
+- Remover a aba "POR DIFICULDADE" do XLSX (linhas ~573–578).
+
+### `src/components/analytics/RealSimuladosTab.tsx`
+- Remover `segmentacaoDificuldade` do destructuring, do `exportData` e do prop `byDificuldade` passado a `SegmentacaoCharts`.
+
+### `src/components/analytics/simulados/SegmentacaoCharts.tsx`
+- Remover `byDificuldade` das props.
+- Remover o `<TabsTrigger value="dificuldade">` e o `<TabsContent value="dificuldade">`.
+- Ajustar `grid-cols` do `TabsList` para acomodar uma aba a menos.
+
+### `src/components/caderno-erros/ErrorNotebookItem.tsx`
+- Remover o `<Badge>` que exibe `questionDetails.grau_dificuldade` (linhas ~269–273).
+
+### `src/pages/DesempenhoInstitucional.tsx`
+- Remover `dificuldade: string` da interface `QuestionDetail` (linha 26) e qualquer render associado.
+
+## 3. Não mexer (strings em contexto descritivo, não relacionadas ao campo)
+Strings como "dificuldade" em tooltips de `RealOverviewTab.tsx` ("usuários podem estar tendo dificuldade", "revise a dificuldade das questões") referem-se a interpretações textuais de KPIs de sessão/abandono, não ao campo. Vou manter essas microcopies para não alterar insights não solicitados — **salvo** se o usuário quiser remover também a palavra em contextos interpretativos.
+
+## 4. Nomenclatura final
+Nenhuma tela, badge, tab, coluna de tabela, coluna de export, campo de formulário, template XLSX ou tooltip referente a **dificuldade de questão** permanece. A cadeia toda (DB → RPC → hook → componente → PDF/export) é simplificada.
+
+## 5. Critérios de aceite
+- [ ] Coluna `questoes_simulado.grau_dificuldade` removida.
+- [ ] Todos os RPCs recriados sem referência a `grau_dificuldade` / `difficulty` / `byDifficulty`.
+- [ ] Nenhum `grep` por `grau_dificuldade`, `byDifficulty`, `DifficultyBadge`, `porDificuldade`, `segmentacaoDificuldade`, `DifficultyData` retorna resultado em `src/` e `supabase/migrations/` novos.
+- [ ] Template XLSX do admin não contém mais a coluna "Grau de dificuldade".
+- [ ] Tela de correção do aluno, PDF revisado, Analytics (aba Segmentação), exportações CSV/XLSX e caderno de erros não exibem mais dificuldade.
+- [ ] Sem erros de TypeScript; `src/integrations/supabase/types.ts` será regenerado automaticamente após a migração.
+- [ ] Nenhuma quebra visual (grids e tabs reequilibrados onde havia a aba/coluna removida).
 
