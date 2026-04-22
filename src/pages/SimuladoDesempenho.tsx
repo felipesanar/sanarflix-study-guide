@@ -258,15 +258,13 @@ const PerformanceSummary: React.FC<{
   stats: OverallStats;
   performancePorArea: PerformanceData[];
   bySpecialty: SpecialtyPerformanceData[];
-  byDifficulty: PerformanceData[];
-}> = ({ stats, performancePorArea, bySpecialty, byDifficulty }) => {
+}> = ({ stats, performancePorArea, bySpecialty }) => {
   if (performancePorArea.length === 0) return null;
   const sortedAreas = [...performancePorArea].sort((a, b) => b.percentual - a.percentual);
   const bestArea = sortedAreas[0];
   const worstArea = sortedAreas[sortedAreas.length - 1];
   const bestSpecialtyInBestArea = bySpecialty.filter(s => s.area_name === bestArea.name).sort((a, b) => b.percentual - a.percentual)[0];
   const specialtiesToImprove = bySpecialty.filter(s => s.area_name === worstArea.name).sort((a, b) => a.percentual - b.percentual).slice(0, 2);
-  const worstDifficulty = [...byDifficulty].sort((a, b) => a.percentual - b.percentual)[0];
 
   return (
     <motion.div
@@ -323,17 +321,11 @@ const PerformanceSummary: React.FC<{
             </div>
           </div>
 
-          {worstDifficulty && (
-            <div className="rounded-xl border border-amber-500/15 bg-amber-500/[0.03] p-4 space-y-1.5">
-              <h3 className="font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400 text-sm">
-                <HelpCircle className="h-4 w-4" /> Análise por Dificuldade
-              </h3>
-              <p className="text-muted-foreground text-[13px] leading-relaxed">
-                Seu maior desafio foi em questões <strong className="text-foreground">{worstDifficulty.name}</strong>, com <strong className="text-foreground">{worstDifficulty.percentual}%</strong> de acertos.
-              </p>
-            </div>
-          )}
         </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
       </Card>
     </motion.div>
   );
@@ -588,7 +580,6 @@ export const SimuladoDesempenho: React.FC = () => {
   const [performancePorArea, setPerformancePorArea] = useState<PerformanceData[]>(cachedData?.performancePorArea || []);
   const [bySpecialty, setBySpecialty] = useState<SpecialtyPerformanceData[]>(cachedData?.bySpecialty || []);
   const [bySubspecialty, setBySubspecialty] = useState<SubspecialtyPerformanceData[]>(cachedData?.bySubspecialty || []);
-  const [byDifficulty, setByDifficulty] = useState<PerformanceData[]>(cachedData?.byDifficulty || []);
   const [ranking, setRanking] = useState<{ ies: RankingData, semester: RankingData } | null>(cachedData?.ranking || null);
   const [userData, setUserData] = useState<UserData | null>(cachedData?.userData || null);
   const [loading, setLoading] = useState(!cachedData);
@@ -610,7 +601,7 @@ export const SimuladoDesempenho: React.FC = () => {
     const PERFORMANCE_CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId || 'all'}`;
     if (!forceRefresh && sessionStorage.getItem(PERFORMANCE_CACHE_KEY)) {
       const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
-      setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setByDifficulty(parsedData.byDifficulty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
+      setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
       setLoading(false);
       return;
     }
@@ -625,13 +616,13 @@ export const SimuladoDesempenho: React.FC = () => {
       const simuladosData = simuladosResult.data || [];
       setSimulados(simuladosData.map((s: any) => ({ ...s, id: s.id })));
       if (performanceResult.data) {
-        const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = performanceResult.data as any;
+        const { overallStats, byArea, bySpecialty, bySubspecialty } = performanceResult.data as any;
         const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
         const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
         const rankingData = rankingResult.data as any;
-        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
+        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
         sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
-        setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setByDifficulty(processData(byDifficulty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
+        setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
       }
     } catch (error) { console.error("[UIUX] Fetch error:", error); }
     finally { setLoading(false); }
@@ -683,11 +674,11 @@ export const SimuladoDesempenho: React.FC = () => {
             supabase.rpc('get_user_rankings', { p_simulado_id: simuladoId }).single()
           ]);
           if (pResult.data) {
-            const { overallStats, byArea, bySpecialty, bySubspecialty, byDifficulty } = pResult.data as any;
+            const { overallStats, byArea, bySpecialty, bySubspecialty } = pResult.data as any;
             const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
             const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
             const rankingData = rResult.data as any;
-            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), byDifficulty: processData(byDifficulty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados };
+            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados };
             sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache));
           }
         } catch (error) { console.error(`[UIUX] Preload error ${simuladoId}:`, error); }
@@ -722,7 +713,7 @@ export const SimuladoDesempenho: React.FC = () => {
     setIsDownloadingProvaRevisada(true);
     setDownloadProgress('Preparando...');
     try {
-      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, grau_dificuldade, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
+      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
       if (questoesError) throw questoesError;
       if (!questoesCompletas || questoesCompletas.length === 0) throw new Error('Nenhuma questão encontrada');
       setDownloadProgress('Carregando respostas...');
@@ -743,7 +734,7 @@ export const SimuladoDesempenho: React.FC = () => {
           { letra: 'D', texto: q.alternativa_d || '', isCorreta: gabarito === 'D', isMarcadaPeloAluno: respostaUsuario === 'D' },
         ];
         if (q.alternativa_e) alternativas.push({ letra: 'E', texto: q.alternativa_e, isCorreta: gabarito === 'E', isMarcadaPeloAluno: respostaUsuario === 'E' });
-        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', dificuldade: q.grau_dificuldade || 'Médio', anulada: q.anulada || false };
+        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
       });
       const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
       const erros = questoesRevisadas.filter(q => q.acertou === false).length;
@@ -752,10 +743,7 @@ export const SimuladoDesempenho: React.FC = () => {
       const areaMap = new Map<string, { acertos: number; total: number }>();
       questoesRevisadas.forEach(q => { const area = q.grandeArea || 'Outros'; const existing = areaMap.get(area) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; areaMap.set(area, existing); });
       const porArea = Array.from(areaMap.entries()).map(([area, data]) => ({ area, acertos: data.acertos, total: data.total, percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0 }));
-      const diffMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => { const nivel = q.dificuldade || 'Médio'; const existing = diffMap.get(nivel) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; diffMap.set(nivel, existing); });
-      const porDificuldade = Array.from(diffMap.entries()).map(([nivel, data]) => ({ nivel, acertos: data.acertos, total: data.total, percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0 }));
-      const provaStats: ProvaRevisadaStats = { acertos, erros, naoRespondidas, total, percentual: total > 0 ? Math.round((acertos / total) * 100) : 0, porArea, porDificuldade };
+      const provaStats: ProvaRevisadaStats = { acertos, erros, naoRespondidas, total, percentual: total > 0 ? Math.round((acertos / total) * 100) : 0, porArea };
       const simuladoNome = simulados.find(s => s.id === selectedSimulado)?.nome || 'Simulado';
       await generateProvaRevisadaPDF(simuladoNome, user.email || 'Aluno', questoesRevisadas, provaStats, (stage, current, totalItems) => {
         switch (stage) { case 'preparing': setDownloadProgress('Preparando...'); break; case 'loading_images': setDownloadProgress(`Imagens (${current}/${totalItems})...`); break; case 'generating': setDownloadProgress(`Gerando (${current}/${totalItems})...`); break; case 'complete': setDownloadProgress('Concluído!'); break; }
@@ -771,22 +759,13 @@ export const SimuladoDesempenho: React.FC = () => {
       const { data, error } = await supabase.rpc('get_questions_by_subspecialty', { sub_name: subspecialtyName, p_simulado_id: selectedSimulado, area_name: areaName, specialty_name: specialtyName } as any);
       if (error) throw error;
       if (data && data.length > 0) {
-        setSelectedQuestions(data.map((q: any) => ({ ...q, dificuldade: q.dificuldade || 'Médio', acertou: q.acertou === true, user_answer: q.user_answer })));
+        setSelectedQuestions(data.map((q: any) => ({ ...q, acertou: q.acertou === true, user_answer: q.user_answer })));
       }
     } catch (error) { console.error("[UIUX] Question fetch error:", error); }
     finally { setIsLoadingQuestion(false); }
   };
 
-  const barData: DifficultyData[] = byDifficulty.sort((a, b) => {
-    const order: Record<string, number> = { 'Fácil': 1, 'Moderado': 2, 'Médio': 2, 'Difícil': 3 };
-    return (order[a.name] || 4) - (order[b.name] || 4);
-  }).map((item) => ({
-    name: item.name,
-    value: item.percentual,
-    fill: 'hsl(var(--primary))',
-    total: item.total,
-    acertos: item.acertos
-  }));
+
 
   // --- Loading State ---
   if (loading) {
@@ -974,32 +953,6 @@ export const SimuladoDesempenho: React.FC = () => {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Dificuldade */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }}>
-          <Card className="rounded-2xl border-border/40 shadow-sm h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
-                <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                </div>
-                Acertos por Dificuldade
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="h-[240px] sm:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart data={barData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-                  <XAxis type="number" domain={[0, 100]} hide />
-                  <YAxis type="category" dataKey="name" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} width={80} axisLine={false} tickLine={false} />
-                  <RechartsTooltip content={<PremiumChartTooltip />} cursor={{ fill: 'hsl(var(--accent) / 0.3)' }} />
-                  <Bar dataKey="value" name="Acertos" radius={[0, 8, 8, 0]} label={<CustomBarLabel />}>
-                    {barData.map((entry) => (<rect key={`cell-${entry.name}`} fill={entry.fill} />))}
-                  </Bar>
-                </RechartsBarChart>
-              </ResponsiveContainer>
             </CardContent>
           </Card>
         </motion.div>
