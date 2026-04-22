@@ -326,10 +326,6 @@ const PerformanceSummary: React.FC<{
     </motion.div>
   );
 };
-      </Card>
-    </motion.div>
-  );
-};
 
 // --- Decomposition Tree Components ---
 const Node: React.FC<{ name: string; percentage: number; isSelected: boolean; onClick: () => void; }> = ({ name, percentage, isSelected, onClick }) => (
