@@ -10,7 +10,6 @@ interface ExportData {
   segmentacaoArea: SegmentacaoDimensao[];
   segmentacaoEspecialidade: SegmentacaoDimensao[];
   segmentacaoTema: SegmentacaoDimensao[];
-  segmentacaoDificuldade: SegmentacaoDimensao[];
   questoesProblematicas: QuestaoProblematica[];
   comportamento: ComportamentoMetrics;
 }
@@ -246,18 +245,7 @@ export function exportToCSV(data: ExportData, filters: ExportFilters): void {
     ].join(',')),
     '',
     '# ═══════════════════════════════════════════════════════════════════════════════════════',
-    '# SEÇÃO 8: SEGMENTAÇÃO POR DIFICULDADE',
-    '# ═══════════════════════════════════════════════════════════════════════════════════════',
-    '',
-    'Dificuldade,Acurácia,N Respostas',
-    ...data.segmentacaoDificuldade.map(s => [
-      `"${s.nome.replace(/"/g, '""')}"`,
-      formatPercent(s.acuracia),
-      formatNumber(s.n_respostas),
-    ].join(',')),
-    '',
-    '# ═══════════════════════════════════════════════════════════════════════════════════════',
-    '# SEÇÃO 9: GAPS PEDAGÓGICOS PRIORIZADOS (EXCLUSIVO)',
+    '# SEÇÃO 8: GAPS PEDAGÓGICOS PRIORIZADOS (EXCLUSIVO)',
     '# ═══════════════════════════════════════════════════════════════════════════════════════',
     '',
     'Tema/Especialidade,Tipo,Acurácia,N Respostas,Prioridade Intervenção',
@@ -294,7 +282,7 @@ export function exportToCSV(data: ExportData, filters: ExportFilters): void {
     '# SEÇÃO 13: QUESTÕES PROBLEMÁTICAS (TOP 50 COM DISTRIBUIÇÃO)',
     '# ═══════════════════════════════════════════════════════════════════════════════════════',
     '',
-    'Enunciado (truncado),Grande Área,Especialidade,Tema,Dificuldade,Taxa Erro,N Respostas,Anulada,Dist. A,Dist. B,Dist. C,Dist. D,Dist. E',
+    'Enunciado (truncado),Grande Área,Especialidade,Tema,Taxa Erro,N Respostas,Anulada,Dist. A,Dist. B,Dist. C,Dist. D,Dist. E',
     ...data.questoesProblematicas.slice(0, 50).map(q => {
       const distMap = new Map(q.distribuicao.map(d => [d.alternativa, d.percent]));
       return [
@@ -302,7 +290,6 @@ export function exportToCSV(data: ExportData, filters: ExportFilters): void {
         `"${q.grande_area || 'N/A'}"`,
         `"${q.especialidade || 'N/A'}"`,
         `"${q.tema || 'N/A'}"`,
-        `"${q.dificuldade || 'N/A'}"`,
         formatPercent(q.taxa_erro),
         q.n_respostas,
         q.anulada ? 'Sim' : 'Não',
@@ -571,18 +558,7 @@ export function exportToXLSX(data: ExportData, filters: ExportFilters): void {
   }
   XLSX.utils.book_append_sheet(wb, wsTema, '8. Por Tema');
 
-  // ============== ABA 9: POR DIFICULDADE ==============
-  const difHeader = ['Dificuldade', 'Acurácia', 'N Respostas'];
-  const difRows = data.segmentacaoDificuldade.map(s => [s.nome, s.acuracia / 100, s.n_respostas]);
-  const wsDif = XLSX.utils.aoa_to_sheet([difHeader, ...difRows]);
-  wsDif['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 15 }];
-  for (let r = 1; r <= difRows.length; r++) {
-    const cell = `B${r + 1}`;
-    if (wsDif[cell]) wsDif[cell].z = '0.0%';
-  }
-  XLSX.utils.book_append_sheet(wb, wsDif, '9. Por Dificuldade');
-
-  // ============== ABA 10: GAPS PRIORIZADOS (EXCLUSIVO) ==============
+  // ============== ABA 9: GAPS PRIORIZADOS (EXCLUSIVO) ==============
   const gapsHeader = ['Prioridade', 'Tema/Especialidade', 'Tipo', 'Acurácia', 'N Respostas', 'Ação Sugerida'];
   const gapsRows = gaps.slice(0, 50).map(g => [
     g.prioridade,
@@ -668,7 +644,7 @@ export function exportToXLSX(data: ExportData, filters: ExportFilters): void {
 
   // ============== ABA 13: QUESTÕES PROBLEMÁTICAS ==============
   const questoesHeader = [
-    'Enunciado', 'Grande Área', 'Especialidade', 'Tema', 'Dificuldade', 
+    'Enunciado', 'Grande Área', 'Especialidade', 'Tema',
     'Taxa Erro', 'N Respostas', 'Anulada', 'Comentário',
     '% Alt. A', '% Alt. B', '% Alt. C', '% Alt. D', '% Alt. E'
   ];
@@ -679,7 +655,6 @@ export function exportToXLSX(data: ExportData, filters: ExportFilters): void {
       q.grande_area || 'N/A',
       q.especialidade || 'N/A',
       q.tema || 'N/A',
-      q.dificuldade || 'N/A',
       q.taxa_erro / 100,
       q.n_respostas,
       q.anulada ? 'Sim' : 'Não',

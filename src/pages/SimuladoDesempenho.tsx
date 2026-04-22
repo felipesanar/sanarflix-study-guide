@@ -906,7 +906,7 @@ export const SimuladoDesempenho: React.FC = () => {
 
       {/* ─── Performance Summary ─── */}
       {stats && performancePorArea.length > 0 && (
-        <PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} byDifficulty={byDifficulty} />
+        <PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} />
       )}
 
       {/* ─── Resumo + Dificuldade Grid ─── */}

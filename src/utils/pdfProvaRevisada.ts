@@ -25,7 +25,6 @@ export interface QuestaoRevisada {
   grandeArea: string;
   especialidade: string;
   tema: string;
-  dificuldade: string;
   anulada: boolean;
 }
 
@@ -36,7 +35,6 @@ export interface ProvaRevisadaStats {
   total: number;
   percentual: number;
   porArea: { area: string; acertos: number; total: number; percentual: number }[];
-  porDificuldade: { nivel: string; acertos: number; total: number; percentual: number }[];
 }
 
 export interface OnProgressCallback {
@@ -1006,34 +1004,6 @@ const drawAnalysisPage = (
       yPos += 5;
     });
     yPos += 15;
-  }
-  
-  if (stats.porDificuldade.length > 0) {
-    doc.setTextColor(...COLORS.text.dark);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ANÁLISE POR DIFICULDADE', marginX, yPos);
-    yPos += 12;
-    
-    const barWidth = pageWidth - marginX * 2 - 80;
-    
-    stats.porDificuldade.forEach(diff => {
-      const barColor = getPercentageColor(diff.percentual);
-      
-      doc.setTextColor(...COLORS.text.dark);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(diff.nivel, marginX, yPos + 4);
-      
-      drawProgressBar(doc, marginX + 50, yPos, barWidth, 6, diff.percentual, barColor);
-      
-      doc.setTextColor(...barColor);
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${diff.percentual}% (${diff.acertos}/${diff.total})`, marginX + 50 + barWidth + 5, yPos + 5);
-      
-      yPos += 14;
-    });
   }
   
   doc.setTextColor(...COLORS.text.muted);
