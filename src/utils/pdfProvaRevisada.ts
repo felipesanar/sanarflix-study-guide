@@ -749,10 +749,10 @@ const drawQuestionBlock = (
   doc.setFont('helvetica', 'bold');
   doc.text(`QUESTÃO ${questao.numero}`, marginX + 6, yPos + headerBarHeight / 2 + 10 * 0.35 * 0.7);
   
-  // Difficulty and area - slightly larger font
+  // Area - slightly larger font
   doc.setFontSize(8.5); // Was 8
   doc.setFont('helvetica', 'normal');
-  const metaText = `${questao.dificuldade || 'Médio'} | ${questao.grandeArea || 'Geral'}`;
+  const metaText = questao.grandeArea || 'Geral';
   doc.text(metaText, pageWidth / 2, yPos + headerBarHeight / 2 + 8.5 * 0.35 * 0.7, { align: 'center' });
   
   // Status badge - adjusted position for new header height
