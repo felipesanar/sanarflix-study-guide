@@ -57,6 +57,11 @@ interface Simulado {
   data_liberacao_desempenho?: string | null;
 }
 
+interface EmbeddedImage {
+  base64: string;
+  mimeType: string;
+}
+
 interface Questao {
   id?: string;
   ordem: number;
@@ -75,8 +80,13 @@ interface Questao {
   comentario: string | null;
   feedback_corretas: string | null;
   imagem: string | null;
+  imagem_comentario?: string | null;
   observacao: string | null;
   anulada?: boolean;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedEnunciado?: EmbeddedImage;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedComentario?: EmbeddedImage;
 }
 
 interface IES {
@@ -210,11 +220,13 @@ export default function SimuladosTab() {
           'Tema': 'Insuficiência Cardíaca',
           'Competência': 'Diagnóstico',
           'Enunciado da questão': 'Paciente de 65 anos apresenta dispneia progressiva há 3 meses. Qual o exame inicial mais indicado?',
+          'Imagem do Enunciado': '',
           'Alternativa A': 'Radiografia de tórax',
           'Alternativa B': 'Ecocardiograma',
           'Alternativa C': 'Cateterismo cardíaco',
           'Alternativa D': 'Ressonância magnética cardíaca',
           'Comentário da questão': 'A radiografia de tórax é o exame inicial de escolha para avaliar dispneia, permitindo identificar cardiomegalia e congestão pulmonar.',
+          'Imagem do Comentário': '',
           'Alternativa Correta': 'A',
           'Imagem/Gráfico/Tabela': ''
         },
@@ -225,11 +237,13 @@ export default function SimuladosTab() {
           'Tema': 'Apendicite Aguda',
           'Competência': 'Conduta',
           'Enunciado da questão': 'Qual o tratamento padrão-ouro para apendicite aguda não complicada?',
+          'Imagem do Enunciado': '',
           'Alternativa A': 'Antibioticoterapia isolada',
           'Alternativa B': 'Apendicectomia',
           'Alternativa C': 'Drenagem percutânea',
           'Alternativa D': 'Observação clínica',
           'Comentário da questão': 'A apendicectomia continua sendo o tratamento padrão-ouro para apendicite aguda.',
+          'Imagem do Comentário': '',
           'Alternativa Correta': 'B',
           'Imagem/Gráfico/Tabela': ''
         }
@@ -247,20 +261,22 @@ export default function SimuladosTab() {
         { wch: 20 }, // Tema
         { wch: 15 }, // Competência
         { wch: 50 }, // Enunciado
+        { wch: 22 }, // Imagem do Enunciado (cole a imagem dentro da célula)
         { wch: 30 }, // Alt A
         { wch: 30 }, // Alt B
         { wch: 30 }, // Alt C
         { wch: 30 }, // Alt D
         { wch: 40 }, // Comentário
+        { wch: 22 }, // Imagem do Comentário (cole a imagem dentro da célula)
         { wch: 18 }, // Correta
-        { wch: 25 }  // Imagem
+        { wch: 25 }  // Imagem/Gráfico/Tabela (URL — fallback opcional)
       ];
 
       XLSXLib.writeFile(workbook, 'modelo_simulado.xlsx');
 
       toast({
         title: 'Modelo baixado',
-        description: 'Use este arquivo como referência para criar seus simulados.'
+        description: 'Cole imagens diretamente nas colunas "Imagem do Enunciado" e "Imagem do Comentário" (Inserir → Imagem na célula).'
       });
     } catch (error: any) {
       toast({

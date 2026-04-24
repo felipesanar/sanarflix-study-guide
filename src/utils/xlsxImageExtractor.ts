@@ -1,0 +1,284 @@
+/**
+ * Extrator de imagens embutidas em planilhas .xlsx.
+ *
+ * Um arquivo .xlsx é, internamente, um ZIP contendo XML + mídia.
+ * Bibliotecas como SheetJS leem só o conteúdo textual; aqui abrimos o ZIP
+ * manualmente para extrair as imagens e descobrir em qual célula cada uma
+ * está ancorada (linha + coluna). Em seguida, filtramos apenas as colunas
+ * que nos interessam (Imagem do Enunciado e Imagem do Comentário).
+ *
+ * A vinculação imagem ↔ questão é geométrica (âncora da imagem na célula),
+ * não por fórmula — é como o Excel/LibreOffice salva imagens "soltas".
+ */
+
+import JSZip from 'jszip';
+
+export type ExtractedImage = {
+  base64: string;
+  mimeType: string;
+};
+
+export type ExtractedImagesResult = {
+  /** Mapa rowIndex (0-based, descontando header) → imagem do enunciado */
+  enunciadoImages: Record<number, ExtractedImage>;
+  /** Mapa rowIndex (0-based, descontando header) → imagem do comentário */
+  comentarioImages: Record<number, ExtractedImage>;
+  /** Estatísticas para log/debug */
+  stats: {
+    totalMedia: number;
+    matchedEnunciado: number;
+    matchedComentario: number;
+    skippedNoAnchor: number;
+    skippedWrongColumn: number;
+  };
+};
+
+export type ExtractImagesOptions = {
+  /** Índice 0-based da coluna alvo para imagens do enunciado */
+  enunciadoColIndex: number;
+  /** Índice 0-based da coluna alvo para imagens do comentário */
+  comentarioColIndex: number;
+};
+
+const MIME_BY_EXT: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  webp: 'image/webp',
+};
+
+function inferMimeFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  return MIME_BY_EXT[ext] ?? 'image/png';
+}
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  // Conversão eficiente sem estourar a stack em arquivos grandes
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  return btoa(binary);
+}
+
+function parseXml(xmlString: string): Document {
+  return new DOMParser().parseFromString(xmlString, 'application/xml');
+}
+
+/**
+ * Lê um *.rels e retorna mapa { rId -> Target }.
+ * Os Targets são paths relativos ao próprio .rels (ex: "../media/image1.png").
+ */
+function parseRels(xmlString: string): Record<string, string> {
+  const doc = parseXml(xmlString);
+  const map: Record<string, string> = {};
+  const relations = Array.from(doc.getElementsByTagName('Relationship'));
+  for (const rel of relations) {
+    const id = rel.getAttribute('Id');
+    const target = rel.getAttribute('Target');
+    if (id && target) map[id] = target;
+  }
+  return map;
+}
+
+/**
+ * Resolve um path relativo dentro do ZIP.
+ * Ex: base="xl/worksheets/sheet1.xml.rels", target="../drawings/drawing1.xml"
+ *  -> "xl/drawings/drawing1.xml"
+ */
+function resolveZipPath(basePath: string, relativeTarget: string): string {
+  const baseSegments = basePath.split('/').slice(0, -1);
+  const relSegments = relativeTarget.split('/');
+  for (const seg of relSegments) {
+    if (seg === '..') baseSegments.pop();
+    else if (seg !== '.' && seg !== '') baseSegments.push(seg);
+  }
+  return baseSegments.join('/');
+}
+
+/**
+ * Extrai imagens da primeira sheet de um arquivo .xlsx.
+ *
+ * @param fileBuffer ArrayBuffer do .xlsx
+ * @param options índices das colunas alvo (0-based)
+ */
+export async function extractImagesFromXlsx(
+  fileBuffer: ArrayBuffer,
+  options: ExtractImagesOptions
+): Promise<ExtractedImagesResult> {
+  const zip = await JSZip.loadAsync(fileBuffer);
+
+  const stats = {
+    totalMedia: 0,
+    matchedEnunciado: 0,
+    matchedComentario: 0,
+    skippedNoAnchor: 0,
+    skippedWrongColumn: 0,
+  };
+
+  // 1. Lê todos os binários em xl/media/*
+  const mediaFiles: Record<string, Uint8Array> = {};
+  for (const [path, file] of Object.entries(zip.files)) {
+    if (path.startsWith('xl/media/') && !file.dir) {
+      mediaFiles[path] = await file.async('uint8array');
+      stats.totalMedia += 1;
+    }
+  }
+
+  if (stats.totalMedia === 0) {
+    return { enunciadoImages: {}, comentarioImages: {}, stats };
+  }
+
+  // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
+  // Procuramos sheet1.xml.rels (caso comum) ou qualquer worksheet rels.
+  const sheetRelsCandidates = [
+    'xl/worksheets/_rels/sheet1.xml.rels',
+  ];
+  // Fallback: procura qualquer sheet*.xml.rels que tenha drawing
+  if (!zip.files[sheetRelsCandidates[0]]) {
+    for (const path of Object.keys(zip.files)) {
+      if (/^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(path)) {
+        sheetRelsCandidates.unshift(path);
+        break;
+      }
+    }
+  }
+
+  let drawingPath: string | null = null;
+  for (const sheetRelsPath of sheetRelsCandidates) {
+    const file = zip.files[sheetRelsPath];
+    if (!file) continue;
+    const xml = await file.async('string');
+    const rels = parseRels(xml);
+    for (const target of Object.values(rels)) {
+      if (target.includes('drawings/drawing')) {
+        drawingPath = resolveZipPath(sheetRelsPath, target);
+        break;
+      }
+    }
+    if (drawingPath) break;
+  }
+
+  if (!drawingPath || !zip.files[drawingPath]) {
+    // Sem drawing → sem imagens ancoradas
+    return { enunciadoImages: {}, comentarioImages: {}, stats };
+  }
+
+  // 3. Lê os rels do drawing para mapear rId → caminho de mídia
+  const drawingRelsPath = resolveZipPath(
+    drawingPath,
+    `_rels/${drawingPath.split('/').pop()}.rels`
+  );
+  const drawingRelsFile = zip.files[drawingRelsPath];
+  if (!drawingRelsFile) {
+    return { enunciadoImages: {}, comentarioImages: {}, stats };
+  }
+  const drawingRelsXml = await drawingRelsFile.async('string');
+  const drawingRels = parseRels(drawingRelsXml);
+
+  const ridToMediaPath: Record<string, string> = {};
+  for (const [rid, target] of Object.entries(drawingRels)) {
+    ridToMediaPath[rid] = resolveZipPath(drawingRelsPath, target);
+  }
+
+  // 4. Parseia o drawing.xml e captura cada âncora
+  const drawingXml = await zip.files[drawingPath].async('string');
+  const drawingDoc = parseXml(drawingXml);
+
+  // Suporta tanto twoCellAnchor quanto oneCellAnchor (ambos usam <xdr:from>)
+  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor'];
+  const anchors: Element[] = [];
+  for (const tag of anchorTags) {
+    const list = drawingDoc.getElementsByTagName(tag);
+    for (let i = 0; i < list.length; i++) anchors.push(list.item(i)!);
+  }
+
+  const enunciadoImages: Record<number, ExtractedImage> = {};
+  const comentarioImages: Record<number, ExtractedImage> = {};
+
+  for (const anchor of anchors) {
+    const fromEl = anchor.getElementsByTagName('xdr:from')[0];
+    if (!fromEl) continue;
+    const colText = fromEl.getElementsByTagName('xdr:col')[0]?.textContent;
+    const rowText = fromEl.getElementsByTagName('xdr:row')[0]?.textContent;
+    if (colText == null || rowText == null) continue;
+    const col = parseInt(colText, 10);
+    const row = parseInt(rowText, 10);
+    const blip = anchor.getElementsByTagName('a:blip')[0];
+    const embed = blip?.getAttribute('r:embed');
+    if (!embed) continue;
+    const mediaPath = ridToMediaPath[embed];
+    const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
+    if (!bytes) continue;
+    const rowIndex = row - 1;
+    if (rowIndex < 0) continue;
+
+    const image: ExtractedImage = {
+      base64: uint8ToBase64(bytes),
+      mimeType: inferMimeFromPath(mediaPath),
+    };
+
+    if (col === options.enunciadoColIndex) {
+      enunciadoImages[rowIndex] = image;
+      stats.matchedEnunciado += 1;
+    } else if (col === options.comentarioColIndex) {
+      comentarioImages[rowIndex] = image;
+      stats.matchedComentario += 1;
+    } else {
+      stats.skippedWrongColumn += 1;
+    }
+  }
+
+  return { enunciadoImages, comentarioImages, stats };
+}
+
+/**
+ * Comprime/redimensiona uma imagem em base64 para reduzir o payload enviado
+ * à edge function. Mantém aspect ratio e usa JPEG para imagens opacas.
+ *
+ * @param maxDimension lado máximo (px). Imagens menores não são alteradas.
+ * @param quality 0..1 (apenas para JPEG)
+ */
+export async function compressBase64Image(
+  base64: string,
+  mimeType: string,
+  maxDimension = 1280,
+  quality = 0.85
+): Promise<{ base64: string; mimeType: string }> {
+  // PNGs com transparência não são convertidos para JPEG (perderia alpha)
+  const keepPng = mimeType === 'image/png';
+
+  const dataUrl = `data:${mimeType};base64,${base64}`;
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Falha ao carregar imagem para compressão'));
+    img.src = dataUrl;
+  });
+
+  const longest = Math.max(img.width, img.height);
+  if (longest <= maxDimension && base64.length < 200_000) {
+    // Imagem já pequena → não recomprime
+    return { base64, mimeType };
+  }
+
+  const scale = longest > maxDimension ? maxDimension / longest : 1;
+  const targetW = Math.round(img.width * scale);
+  const targetH = Math.round(img.height * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { base64, mimeType };
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+
+  const outputMime = keepPng ? 'image/png' : 'image/jpeg';
+  const outputDataUrl = canvas.toDataURL(outputMime, keepPng ? undefined : quality);
+  const outputBase64 = outputDataUrl.split(',')[1] ?? base64;
+  return { base64: outputBase64, mimeType: outputMime };
+}
