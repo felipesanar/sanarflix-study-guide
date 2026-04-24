@@ -100,6 +100,15 @@ function resolveZipPath(basePath: string, relativeTarget: string): string {
   return baseSegments.join('/');
 }
 
+/** Converte letras de coluna do Excel (A, B, ..., AA) em índice 0-based. */
+function colLettersToIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters.toUpperCase()) {
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n - 1;
+}
+
 /**
  * Extrai imagens da primeira sheet de um arquivo .xlsx.
  *
@@ -129,8 +138,94 @@ export async function extractImagesFromXlsx(
     }
   }
 
+  // Diagnóstico: lista todos os arquivos relevantes do XLSX
+  const xlsxStructure = {
+    totalMedia: stats.totalMedia,
+    mediaFiles: Object.keys(mediaFiles),
+    hasCellImages: !!zip.files['xl/cellimages.xml'],
+    hasCellImagesRels: !!zip.files['xl/_rels/cellimages.xml.rels'],
+    drawings: Object.keys(zip.files).filter((p) => p.startsWith('xl/drawings/') && p.endsWith('.xml')),
+    sheetRels: Object.keys(zip.files).filter((p) => /^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(p)),
+    options,
+  };
+  console.log('[xlsxImageExtractor] Estrutura do XLSX:', xlsxStructure);
+
   if (stats.totalMedia === 0) {
+    console.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
     return { enunciadoImages: {}, comentarioImages: {}, stats };
+  }
+
+  const enunciadoImages: Record<number, ExtractedImage> = {};
+  const comentarioImages: Record<number, ExtractedImage> = {};
+
+  // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
+  if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
+    try {
+      const cellImagesXml = await zip.files['xl/cellimages.xml'].async('string');
+      const cellImagesRelsXml = await zip.files['xl/_rels/cellimages.xml.rels'].async('string');
+      const cellRels = parseRels(cellImagesRelsXml);
+
+      // Mapa: nome lógico da imagem (ex: "ID_xxx") → caminho de mídia
+      const cellDoc = parseXml(cellImagesXml);
+      const cellImageEls = Array.from(cellDoc.getElementsByTagName('etc:cellImage'));
+      const nameToMedia: Record<string, string> = {};
+      for (const el of cellImageEls) {
+        const pic = el.getElementsByTagName('xdr:pic')[0];
+        const nvPr = pic?.getElementsByTagName('xdr:nvPicPr')[0]?.getElementsByTagName('xdr:cNvPr')[0];
+        const name = nvPr?.getAttribute('name') ?? '';
+        const blip = pic?.getElementsByTagName('a:blip')[0];
+        const embed = blip?.getAttribute('r:embed');
+        if (name && embed && cellRels[embed]) {
+          nameToMedia[name] = resolveZipPath('xl/_rels/cellimages.xml.rels', cellRels[embed]);
+        }
+      }
+      console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
+
+      // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
+      const sheetPath = Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+      if (sheetPath) {
+        const sheetXml = await zip.files[sheetPath].async('string');
+        // Regex robusta: captura ref da célula (ex: E2) + nome do recurso dentro de DISPIMG
+        const dispRegex = /<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*&quot;([^&]+)&quot;|<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*"([^"]+)"/g;
+        let match: RegExpExecArray | null;
+        let dispMatches = 0;
+        while ((match = dispRegex.exec(sheetXml)) !== null) {
+          const colLetters = match[1] ?? match[4];
+          const rowNum = parseInt(match[2] ?? match[5], 10);
+          const imgName = match[3] ?? match[6];
+          if (!colLetters || !rowNum || !imgName) continue;
+          dispMatches += 1;
+          const colIdx = colLettersToIndex(colLetters); // 0-based
+          const rowIdx = rowNum - 1; // sheet rows são 1-based; row 1 = header, row 2 = questão 1
+          const mediaPath = nameToMedia[imgName];
+          const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
+          if (!bytes) continue;
+          const image: ExtractedImage = {
+            base64: uint8ToBase64(bytes),
+            mimeType: inferMimeFromPath(mediaPath),
+          };
+          // questão N corresponde a sheet row N+1 (header=1, questão1=row2) → questionRow = rowIdx (já é 0-based)
+          const questionRow = rowIdx; // se header é a row 1 (rowIdx=0), questão 1 está em rowIdx=1
+          if (questionRow < 1) continue;
+          if (colIdx === options.enunciadoColIndex) {
+            enunciadoImages[questionRow] = image;
+            stats.matchedEnunciado += 1;
+          } else if (colIdx === options.comentarioColIndex) {
+            comentarioImages[questionRow] = image;
+            stats.matchedComentario += 1;
+          } else {
+            stats.skippedWrongColumn += 1;
+          }
+        }
+        console.log('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
+      }
+
+      if (stats.matchedEnunciado + stats.matchedComentario > 0) {
+        return { enunciadoImages, comentarioImages, stats };
+      }
+    } catch (e) {
+      console.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
+    }
   }
 
   // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
@@ -189,25 +284,36 @@ export async function extractImagesFromXlsx(
   const drawingXml = await zip.files[drawingPath].async('string');
   const drawingDoc = parseXml(drawingXml);
 
-  // Suporta tanto twoCellAnchor quanto oneCellAnchor (ambos usam <xdr:from>)
-  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor'];
-  const anchors: Element[] = [];
+  // Suporta twoCellAnchor, oneCellAnchor e absoluteAnchor
+  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor', 'xdr:absoluteAnchor'];
+  const anchors: Array<{ el: Element; tag: string }> = [];
   for (const tag of anchorTags) {
     const list = drawingDoc.getElementsByTagName(tag);
-    for (let i = 0; i < list.length; i++) anchors.push(list.item(i)!);
+    for (let i = 0; i < list.length; i++) anchors.push({ el: list.item(i)!, tag });
   }
+  console.log('[xlsxImageExtractor] Caminho clássico (drawings): âncoras encontradas:', anchors.length, '| breakdown:', {
+    twoCell: anchors.filter((a) => a.tag === 'xdr:twoCellAnchor').length,
+    oneCell: anchors.filter((a) => a.tag === 'xdr:oneCellAnchor').length,
+    absolute: anchors.filter((a) => a.tag === 'xdr:absoluteAnchor').length,
+  });
 
-  const enunciadoImages: Record<number, ExtractedImage> = {};
-  const comentarioImages: Record<number, ExtractedImage> = {};
+  const anchorDebug: Array<{ row: number; col: number; tag: string }> = [];
 
-  for (const anchor of anchors) {
+  for (const { el: anchor, tag } of anchors) {
     const fromEl = anchor.getElementsByTagName('xdr:from')[0];
-    if (!fromEl) continue;
+    if (!fromEl) {
+      stats.skippedNoAnchor += 1;
+      continue;
+    }
     const colText = fromEl.getElementsByTagName('xdr:col')[0]?.textContent;
     const rowText = fromEl.getElementsByTagName('xdr:row')[0]?.textContent;
-    if (colText == null || rowText == null) continue;
+    if (colText == null || rowText == null) {
+      stats.skippedNoAnchor += 1;
+      continue;
+    }
     const col = parseInt(colText, 10);
     const row = parseInt(rowText, 10);
+    anchorDebug.push({ row, col, tag });
     const blip = anchor.getElementsByTagName('a:blip')[0];
     const embed = blip?.getAttribute('r:embed');
     if (!embed) continue;
@@ -215,7 +321,6 @@ export async function extractImagesFromXlsx(
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
     if (!bytes) continue;
     // xdr:row é 0-based: xdr:row=0 é a linha do header; xdr:row=N corresponde à questão N (1-based).
-    // Indexamos diretamente por xdr:row para casar com `xlsxRow = index + 1` no consumidor.
     if (row < 1) continue;
     const rowIndex = row;
 
@@ -234,6 +339,9 @@ export async function extractImagesFromXlsx(
       stats.skippedWrongColumn += 1;
     }
   }
+
+  console.log('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
+  console.log('[xlsxImageExtractor] Stats finais:', stats);
 
   return { enunciadoImages, comentarioImages, stats };
 }

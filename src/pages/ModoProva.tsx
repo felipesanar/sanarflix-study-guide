@@ -104,6 +104,18 @@ export const ModoProva = () => {
       const questoesData = await simuladosApi.buscarQuestoesSimulado(simuladoId);
       setQuestoes(questoesData);
 
+      // Diagnóstico: verifica se as imagens vieram do banco para o aluno
+      const comImagem = questoesData.filter((q) => q.imagem).length;
+      console.log('[ModoProva] Simulado aberto', {
+        simuladoId,
+        totalQuestoes: questoesData.length,
+        questoesComImagem: comImagem,
+        primeirasComImagem: questoesData
+          .filter((q) => q.imagem)
+          .slice(0, 5)
+          .map((q) => ({ id: q.id, imagem: q.imagem })),
+      });
+
       const { titulo, dataEncerramento: deadline, duracaoMinutos } = await simuladosApi.buscarDadosSimulado(simuladoId);
       setSimuladoTitulo(titulo);
 

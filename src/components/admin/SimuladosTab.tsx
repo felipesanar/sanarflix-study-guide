@@ -448,6 +448,12 @@ export default function SimuladosTab() {
               title: 'Imagens detectadas',
               description: `${extracted.stats.matchedEnunciado} no enunciado e ${extracted.stats.matchedComentario} no comentário.`,
             });
+          } else if (extracted.stats.totalMedia > 0) {
+            toast({
+              title: 'Imagens não vinculadas',
+              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada nas colunas "Enunciado" (índice ${enunciadoColIndex}) ou "Comentário" (índice ${comentarioColIndex}). Verifique o console (F12) para detalhes do formato.`,
+              variant: 'destructive',
+            });
           }
         } catch (error: any) {
           toast({
