@@ -1,67 +1,54 @@
-## Problema
+## Diagnóstico atual
 
-Você subiu o `SIMULADO_I_-_PLANILHA_OFICIAL_3.xlsx` e as imagens não foram salvas. Investigando:
+Confirmei via banco e logs:
 
-- Edge function `admin-upload-simulado-images` **não tem nenhum log** → ela nunca foi chamada.
-- A planilha **tem 19 imagens embutidas** (em `xl/media/`), corretamente ancoradas:
-  - Coluna 5 (= F = `Imagem do Enunciado`) ✅
-  - Coluna 12 (= M = `Imagem do Comentário`) ✅
-- A estrutura é direta: linha 1 = header, linha 2 = questão 1, linha 3 = questão 2, etc.
+1. **A Edge Function `admin-upload-simulado-images` NUNCA foi chamada** (sem logs de execução).
+2. O simulado mais recente "SIMULADO I - PLANILHA OFICIAL (3)" tem **0 imagens salvas** (nem `imagem`, nem `imagem_comentario`).
+3. O bucket `imagensSimulado` tem apenas **1 arquivo legado** (de um simulado antigo). Nenhuma imagem nova foi enviada.
+4. O bucket está **público** e as **RLS de `questoes_simulado` estão corretas** — alunos da IES conseguem ler. Não é problema de policy.
 
-## Causa raiz: off-by-one no extractor
+**Causa real:** o extrator `xlsxImageExtractor.ts` está retornando `matchedEnunciado=0, matchedComentario=0` para essa planilha. O log do console mostrou `[SimuladosTab] Imagens extraídas: Object` mas você não expandiu — é quase certo que todos os contadores estão em zero. Sem imagens detectadas no cliente, o `imagesPayload` fica vazio e a Edge Function nem é invocada.
 
-O `xdr:row` no XML do drawing já é **0-based**, onde `xdr:row=0` é a linha do header e `xdr:row=N` é a linha da questão N (1-based).
+**Hipóteses prováveis** (ordem de probabilidade):
+- A planilha usa **"Inserir Imagem na Célula"** (recurso recente do Excel/Sheets) — essas imagens ficam em `xl/cellimages.xml` + função `=IMAGE()`, **não em `xl/drawings/drawing1.xml`**. O extrator atual só lê drawings clássicos, então acha 0 âncoras.
+- Ou as imagens estão como `xdr:absoluteAnchor` (sem célula de origem) — também não suportado.
+- Ou estão em `xl/media/` mas o `drawing1.xml` referencia `xdr:colOff/rowOff` apontando para fora das colunas 4 (Enunciado) e 10 (Comentário).
 
-No `xlsxImageExtractor.ts` (linha 219), fazemos:
-```ts
-const rowIndex = row - 1;  // ❌ subtrai um a mais
-```
+## Plano
 
-E no `SimuladosTab.tsx` o consumidor faz:
-```ts
-const xlsxRow = index + 1;             // questão 1 → xlsxRow = 1
-const rawEnunciado = extracted.enunciadoImages[xlsxRow];
-```
+### 1. Logs verbosos no extrator (`src/utils/xlsxImageExtractor.ts`)
+- Logar `totalMedia`, lista de `xdr:row`/`xdr:col` de cada âncora encontrada.
+- Logar se `xl/cellimages.xml` existe (formato novo).
+- Logar âncoras `absoluteAnchor` separadamente.
 
-Resultado: imagem da **questão 1** (em `xdr:row=1`) vira chave `0`, mas o consumidor busca `1`. Tudo desloca em 1 e nada bate → array de imagens enviado para a edge function fica vazio → função nem é chamada.
+### 2. Suporte ao formato "Imagem na célula" (`xl/cellimages.xml`)
+Quando o XLSX usa esse formato, mapear cada `cellimage` por seu `r:id` → arquivo de mídia, e cruzar com células da planilha que contêm `=DISPIMG("ID_…", …)` ou `=_xlfn.DISPIMG(...)`. Isso permite identificar a linha/coluna da imagem mesmo sem âncora geométrica.
 
-Por isso:
-- Sem logs na edge function
-- Nenhuma imagem persistida no `imagensSimulado`
-- Campos `imagem` e `imagem_comentario` ficaram nulos
+### 3. Suporte a `xdr:absoluteAnchor`
+Se houver âncoras absolutas, calcular linha/coluna pelo offset em EMUs (914400 EMU/in) usando largura padrão de coluna — fallback aproximado.
 
-## Correção (1 linha de código)
-
-Em `src/utils/xlsxImageExtractor.ts`, trocar:
+### 4. Console.log no modo prova (`src/pages/ModoProva.tsx`)
+Após `buscarQuestoesSimulado`, adicionar:
 
 ```ts
-const rowIndex = row - 1;
-if (rowIndex < 0) continue;
+const comImagem = questoesData.filter(q => q.imagem).length;
+console.log('[ModoProva] Simulado aberto', {
+  simuladoId,
+  totalQuestoes: questoesData.length,
+  questoesComImagem: comImagem,
+  primeirasImagens: questoesData.slice(0, 5).map(q => ({ id: q.id, imagem: q.imagem ?? null })),
+});
 ```
 
-por:
+Isso confirma de forma definitiva, no lado do aluno, se o problema é (a) imagens nunca salvas no banco ou (b) salvas mas não renderizadas.
 
-```ts
-if (row < 1) continue;          // ignora qualquer ancoragem na linha do header
-const rowIndex = row;            // xdr:row N == questão N (1-based)
-```
+### 5. Toast mais informativo no admin
+Quando `totalEmbedded === 0` mas o XLSX tem `totalMedia > 0`, mostrar toast de **alerta** explicando: "Detectamos N imagens no arquivo, mas nenhuma está ancorada nas colunas Enunciado/Comentário. Verifique o formato."
 
-Assim `enunciadoImages[1]` corresponde à questão 1, casando com `xlsxRow = index + 1` no `SimuladosTab.tsx`.
+### 6. Verificação prática após o deploy
+Você re-sobe a planilha; com os novos logs eu vejo exatamente onde está a quebra (formato da planilha vs. extrator) e ajusto o parser conforme necessário.
 
-## Como recuperar as imagens das 100 questões já cadastradas
-
-A migração precisa ser feita **manualmente** porque o INSERT em `questoes_simulado` já rodou sem as URLs. Duas opções:
-
-1. **Recomendada (limpa)**: na tela do simulado, usar o botão "Limpar questões" do simulado FUNEPE recém-criado, depois fazer upload do mesmo XLSX novamente — agora com a correção, as imagens serão extraídas e vinculadas.
-2. **Alternativa**: criar um simulado novo com o XLSX corrigido e deletar o antigo.
-
-## Arquivos alterados
-
-- `src/utils/xlsxImageExtractor.ts` — 2 linhas (mudança do cálculo de `rowIndex`)
-
-## Validação após o fix
-
-1. Refazer o upload do `SIMULADO_I_-_PLANILHA_OFICIAL_3.xlsx`.
-2. No modal de preview, conferir que aparecem miniaturas ao lado das questões correspondentes (questão 3 deve mostrar imagem do enunciado, questão 28 deve mostrar imagem do comentário, etc.).
-3. Após confirmar, verificar nos logs de `admin-upload-simulado-images` o registro `count=19` (ou similar).
-4. Abrir uma questão como aluno → imagem renderizada.
+## Arquivos afetados
+- `src/utils/xlsxImageExtractor.ts` (logs + suporte cellimages/absoluteAnchor)
+- `src/pages/ModoProva.tsx` (console.log de abertura)
+- `src/components/admin/SimuladosTab.tsx` (toast de alerta quando 0 matches)
