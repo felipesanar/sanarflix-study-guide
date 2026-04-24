@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as XLSXLibStatic from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { extractImagesFromXlsx, compressBase64Image } from '@/utils/xlsxImageExtractor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -298,16 +299,15 @@ export default function SimuladosTab() {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const data = event.target?.result;
+          const arrayBuffer = event.target?.result as ArrayBuffer;
           const XLSXLib = await loadXLSX();
-          const workbook = XLSXLib.read(data, { type: 'binary' });
+          const workbook = XLSXLib.read(arrayBuffer, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSXLib.utils.sheet_to_json(worksheet);
 
           setUploadProgress(40);
 
-          // Validar colunas obrigatórias (novo padrão)
           const requiredColumns = [
             'número da questão',
             'grande área',
@@ -322,9 +322,10 @@ export default function SimuladosTab() {
             'comentário da questão',
             'alternativa correta'
           ];
-          
+
           const firstRow = jsonData[0] as any;
-          const columns = Object.keys(firstRow).map(k => k.toLowerCase().trim());
+          const originalKeys = Object.keys(firstRow);
+          const columns = originalKeys.map(k => k.toLowerCase().trim());
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
@@ -333,45 +334,89 @@ export default function SimuladosTab() {
             );
           }
 
-          setUploadProgress(60);
+          // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col)
+          const enunciadoColIndex = originalKeys.findIndex(
+            k => k.toLowerCase().trim() === 'imagem do enunciado'
+          );
+          const comentarioColIndex = originalKeys.findIndex(
+            k => k.toLowerCase().trim() === 'imagem do comentário'
+          );
 
-          // Processar questões com novo padrão
-          const questoes: Questao[] = jsonData.map((row: any, index) => {
-            const normalizedRow: any = {};
-            Object.keys(row).forEach(key => {
-              normalizedRow[key.toLowerCase().trim()] = row[key];
-            });
+          setUploadProgress(55);
 
-            // Validar alternativa correta
-            const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
-            if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
-              throw new Error(
-                `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
-              );
+          let extracted = {
+            enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
+            comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0 }
+          };
+          if (enunciadoColIndex >= 0 || comentarioColIndex >= 0) {
+            try {
+              extracted = await extractImagesFromXlsx(arrayBuffer, {
+                enunciadoColIndex: enunciadoColIndex >= 0 ? enunciadoColIndex : -1,
+                comentarioColIndex: comentarioColIndex >= 0 ? comentarioColIndex : -1,
+              });
+              console.log('[SimuladosTab] Imagens extraídas:', extracted.stats);
+            } catch (extractErr) {
+              console.warn('[SimuladosTab] Falha ao extrair imagens embutidas:', extractErr);
             }
+          }
 
-            return {
-              ordem: index + 1,
-              numero_questao: normalizedRow['número da questão'] || index + 1,
-              grande_area: normalizedRow['grande área'] || '',
-              especialidade: normalizedRow['especialidade'] || '',
-              tema: normalizedRow['tema'] || '',
-              competencia: normalizedRow['competência'] || '',
-              enunciado: normalizedRow['enunciado da questão'] || '',
-              alternativa_a: normalizedRow['alternativa a'] || '',
-              alternativa_b: normalizedRow['alternativa b'] || '',
-              alternativa_c: normalizedRow['alternativa c'] || '',
-              alternativa_d: normalizedRow['alternativa d'] || '',
-              alternativa_e: null,
-              correta: correta as 'A' | 'B' | 'C' | 'D',
-              comentario: normalizedRow['comentário da questão'] || null,
-              feedback_corretas: null,
-              imagem: normalizedRow['imagem/gráfico/tabela'] || null,
-              observacao: null
-            };
-          });
+          setUploadProgress(70);
 
-          setUploadProgress(80);
+          const questoes: Questao[] = await Promise.all(
+            jsonData.map(async (row: any, index) => {
+              const normalizedRow: any = {};
+              Object.keys(row).forEach(key => {
+                normalizedRow[key.toLowerCase().trim()] = row[key];
+              });
+
+              const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
+              if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
+                throw new Error(
+                  `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
+                );
+              }
+
+              // No xlsx: header = linha 0, primeira questão = linha 1 → xdr:row para a 1ª questão = 1
+              const xlsxRow = index + 1;
+              const rawEnunciado = extracted.enunciadoImages[xlsxRow];
+              const rawComentario = extracted.comentarioImages[xlsxRow];
+
+              const [embeddedEnunciado, embeddedComentario] = await Promise.all([
+                rawEnunciado
+                  ? compressBase64Image(rawEnunciado.base64, rawEnunciado.mimeType)
+                  : Promise.resolve(undefined),
+                rawComentario
+                  ? compressBase64Image(rawComentario.base64, rawComentario.mimeType)
+                  : Promise.resolve(undefined),
+              ]);
+
+              return {
+                ordem: index + 1,
+                numero_questao: normalizedRow['número da questão'] || index + 1,
+                grande_area: normalizedRow['grande área'] || '',
+                especialidade: normalizedRow['especialidade'] || '',
+                tema: normalizedRow['tema'] || '',
+                competencia: normalizedRow['competência'] || '',
+                enunciado: normalizedRow['enunciado da questão'] || '',
+                alternativa_a: normalizedRow['alternativa a'] || '',
+                alternativa_b: normalizedRow['alternativa b'] || '',
+                alternativa_c: normalizedRow['alternativa c'] || '',
+                alternativa_d: normalizedRow['alternativa d'] || '',
+                alternativa_e: null,
+                correta: correta as 'A' | 'B' | 'C' | 'D',
+                comentario: normalizedRow['comentário da questão'] || null,
+                feedback_corretas: null,
+                imagem: normalizedRow['imagem/gráfico/tabela'] || null,
+                imagem_comentario: null,
+                observacao: null,
+                _embeddedEnunciado: embeddedEnunciado as any,
+                _embeddedComentario: embeddedComentario as any,
+              };
+            })
+          );
+
+          setUploadProgress(90);
 
           setPreviewData({
             questoes,
@@ -386,6 +431,14 @@ export default function SimuladosTab() {
 
           setUploadProgress(100);
           setShowPreviewModal(true);
+
+          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedComentario;
+          if (totalEmbedded > 0) {
+            toast({
+              title: 'Imagens detectadas',
+              description: `${extracted.stats.matchedEnunciado} no enunciado e ${extracted.stats.matchedComentario} no comentário.`,
+            });
+          }
         } catch (error: any) {
           toast({
             title: 'Erro ao processar arquivo',
@@ -398,7 +451,7 @@ export default function SimuladosTab() {
         }
       };
 
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } catch (error: any) {
       toast({
         title: 'Erro no upload',
@@ -576,18 +629,81 @@ export default function SimuladosTab() {
 
         if (simuladoError) throw simuladoError;
 
-        // Inserir questões
+        // Upload de imagens embutidas (se houver) e inserção das questões
         if (previewData) {
-          const questoesComSimuladoId = previewData.questoes.map(q => ({
-            ...q,
-            simulado_id: simulado.id
-          }));
+          // 1. Coleta todas as imagens base64 para envio à edge function
+          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'comentario'; data: string; mime: string }> = [];
+          for (const q of previewData.questoes) {
+            if (q._embeddedEnunciado) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'enunciado',
+                data: q._embeddedEnunciado.base64,
+                mime: q._embeddedEnunciado.mimeType,
+              });
+            }
+            if (q._embeddedComentario) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'comentario',
+                data: q._embeddedComentario.base64,
+                mime: q._embeddedComentario.mimeType,
+              });
+            }
+          }
+
+          // Mapa ordem → { enunciado, comentario } com URLs vindas do Storage
+          const urlsByOrdem: Record<number, { enunciado?: string; comentario?: string }> = {};
+
+          if (imagesPayload.length > 0) {
+            try {
+              const { data: uploadData, error: uploadError } = await supabase.functions.invoke(
+                'admin-upload-simulado-images',
+                { body: { simulado_id: simulado.id, images: imagesPayload } }
+              );
+              if (uploadError) throw uploadError;
+              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'comentario'; url: string }>;
+              for (const u of returnedUrls) {
+                if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
+                urlsByOrdem[u.ordem][u.slot] = u.url;
+              }
+              const uploadErrors = (uploadData?.errors ?? []) as Array<{ ordem: number; message: string }>;
+              if (uploadErrors.length > 0) {
+                console.warn('[SimuladosTab] Falhas parciais no upload de imagens:', uploadErrors);
+                toast({
+                  title: 'Algumas imagens falharam',
+                  description: `${uploadErrors.length} imagem(ns) não foram enviadas. As questões serão criadas sem elas.`,
+                  variant: 'destructive',
+                });
+              }
+            } catch (imgErr: any) {
+              // Rollback do simulado para não deixar órfão
+              await supabase.from('simulados_admin').delete().eq('id', simulado.id);
+              throw new Error(`Falha no upload das imagens: ${imgErr?.message ?? imgErr}. O simulado foi revertido — tente novamente.`);
+            }
+          }
+
+          // 2. Monta payload final, removendo campos internos e injetando URLs
+          const questoesComSimuladoId = previewData.questoes.map(q => {
+            const { _embeddedEnunciado, _embeddedComentario, ...clean } = q;
+            const slotUrls = urlsByOrdem[q.ordem] ?? {};
+            return {
+              ...clean,
+              simulado_id: simulado.id,
+              imagem: slotUrls.enunciado ?? clean.imagem ?? null,
+              imagem_comentario: slotUrls.comentario ?? clean.imagem_comentario ?? null,
+            };
+          });
 
           const { error: questoesError } = await supabase
             .from('questoes_simulado')
             .insert(questoesComSimuladoId);
 
-          if (questoesError) throw questoesError;
+          if (questoesError) {
+            // Rollback se a inserção falhar
+            await supabase.from('simulados_admin').delete().eq('id', simulado.id);
+            throw questoesError;
+          }
         }
 
         toast({
@@ -637,6 +753,7 @@ export default function SimuladosTab() {
         comentario: q.comentario,
         feedback_corretas: q.feedback_corretas,
         imagem: q.imagem,
+        imagem_comentario: (q as any).imagem_comentario ?? null,
         observacao: q.observacao,
         anulada: q.anulada ?? false
       }));
@@ -1118,13 +1235,25 @@ export default function SimuladosTab() {
                     <p className="font-medium">{questao.enunciado}</p>
                   </div>
 
-                  {/* Imagem/Gráfico/Tabela */}
+                  {/* Imagem/Gráfico/Tabela (URL legacy) */}
                   {questao.imagem && (
                     <div>
                       <img 
                         src={questao.imagem} 
                         alt="Imagem/Gráfico/Tabela da questão" 
                         className="max-w-full h-auto rounded-lg border"
+                      />
+                    </div>
+                  )}
+
+                  {/* Imagem do Enunciado (embutida no XLSX) */}
+                  {questao._embeddedEnunciado && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem do enunciado (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedEnunciado.mimeType};base64,${questao._embeddedEnunciado.base64}`}
+                        alt="Imagem do enunciado"
+                        className="max-w-xs h-auto rounded-lg border"
                       />
                     </div>
                   )}
@@ -1155,6 +1284,18 @@ export default function SimuladosTab() {
                     <div className="bg-muted/50 p-2 rounded">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">Comentário:</p>
                       <p className="text-xs">{questao.comentario}</p>
+                    </div>
+                  )}
+
+                  {/* Imagem do Comentário (embutida no XLSX) */}
+                  {questao._embeddedComentario && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem do comentário (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedComentario.mimeType};base64,${questao._embeddedComentario.base64}`}
+                        alt="Imagem do comentário"
+                        className="max-w-xs h-auto rounded-lg border"
+                      />
                     </div>
                   )}
                 </CardContent>
