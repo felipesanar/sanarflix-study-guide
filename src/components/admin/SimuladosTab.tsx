@@ -363,10 +363,10 @@ export default function SimuladosTab() {
                 normalizedRow[key.toLowerCase().trim()] = row[key];
               });
 
-              const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
+              const correta = normalizedRow['gabarito']?.toString().toUpperCase();
               if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
                 throw new Error(
-                  `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
+                  `Questão ${index + 1}: Campo "Gabarito" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
                 );
               }
 
@@ -386,21 +386,21 @@ export default function SimuladosTab() {
 
               return {
                 ordem: index + 1,
-                numero_questao: normalizedRow['número da questão'] || index + 1,
+                numero_questao: normalizedRow['numero'] || index + 1,
                 grande_area: normalizedRow['grande área'] || '',
                 especialidade: normalizedRow['especialidade'] || '',
                 tema: normalizedRow['tema'] || '',
-                competencia: normalizedRow['competência'] || '',
-                enunciado: normalizedRow['enunciado da questão'] || '',
+                competencia: '',
+                enunciado: normalizedRow['enunciado'] || '',
                 alternativa_a: normalizedRow['alternativa a'] || '',
                 alternativa_b: normalizedRow['alternativa b'] || '',
                 alternativa_c: normalizedRow['alternativa c'] || '',
                 alternativa_d: normalizedRow['alternativa d'] || '',
                 alternativa_e: null,
                 correta: correta as 'A' | 'B' | 'C' | 'D',
-                comentario: normalizedRow['comentário da questão'] || null,
+                comentario: normalizedRow['comentário'] || null,
                 feedback_corretas: null,
-                imagem: normalizedRow['imagem/gráfico/tabela'] || null,
+                imagem: null,
                 imagem_comentario: null,
                 observacao: null,
                 _embeddedEnunciado: embeddedEnunciado as any,
