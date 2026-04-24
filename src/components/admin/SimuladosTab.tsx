@@ -328,27 +328,46 @@ export default function SimuladosTab() {
           }
 
           // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col).
-          // Na planilha oficial, as imagens são coladas DENTRO das colunas "enunciado" e "comentário"
-          // (não há colunas dedicadas). Mantemos fallback para o formato antigo.
-          let enunciadoColIndex = originalKeys.findIndex(
-            k => k.toLowerCase().trim() === 'imagem do enunciado'
-          );
-          if (enunciadoColIndex < 0) {
-            enunciadoColIndex = originalKeys.findIndex(
-              k => k.toLowerCase().trim() === 'enunciado'
-            );
-          }
-          let comentarioColIndex = originalKeys.findIndex(
-            k => k.toLowerCase().trim() === 'imagem do comentário'
-          );
-          if (comentarioColIndex < 0) {
-            comentarioColIndex = originalKeys.findIndex(
-              k => k.toLowerCase().trim() === 'comentário'
-            );
-          }
-          const numeroColIndex = originalKeys.findIndex(
-            k => k.toLowerCase().trim() === 'numero'
-          );
+          //
+          // O usuário tipicamente cola a imagem em uma de três posições:
+          //   (a) Numa coluna dedicada "Imagem do Enunciado"/"Imagem do Comentário" (quando
+          //       o template tem essa coluna extra — é o caso do modelo baixado aqui).
+          //   (b) Dentro da própria célula do texto (raro, só quando usa "Inserir imagem
+          //       NA célula" do Excel/Google Sheets em cima da célula já com texto).
+          //   (c) Na célula à direita do texto — comportamento padrão de "colar" no Excel
+          //       quando o cursor está no canto da célula. É o mais frequente em planilhas
+          //       feitas à mão a partir de um template só-texto (o caso real dos simulados
+          //       importados: a planilha não tinha colunas dedicadas e as âncoras ficaram
+          //       todas em col=5, logo ao lado de "Enunciado" na coluna 4).
+          //
+          // Para cobrir as três, montamos arrays de CANDIDATOS e deixamos o extractor
+          // casar a primeira âncora encontrada.
+          const findColByHeader = (name: string) =>
+            originalKeys.findIndex(k => k.toLowerCase().trim() === name);
+
+          const imagemEnunciadoHeaderCol = findColByHeader('imagem do enunciado');
+          const enunciadoTextCol = findColByHeader('enunciado');
+          const imagemComentarioHeaderCol = findColByHeader('imagem do comentário');
+          const comentarioTextCol = findColByHeader('comentário');
+          const numeroColIndex = findColByHeader('numero');
+
+          // Candidatos em ordem de preferência (o extractor usa o primeiro que bater).
+          // Deduplicado e filtrado de -1. A posição "texto+1" cobre a convenção de
+          // colar na célula adjacente. F(5)/M(12) são a convenção histórica de outros
+          // projetos, mantidos como fallback final caso nenhuma coluna seja encontrada.
+          const uniq = (arr: number[]) => Array.from(new Set(arr.filter(i => i >= 0)));
+          const enunciadoColCandidates = uniq([
+            imagemEnunciadoHeaderCol,
+            enunciadoTextCol + 1,
+            enunciadoTextCol,
+            5, // F - convenção histórica
+          ]);
+          const comentarioColCandidates = uniq([
+            imagemComentarioHeaderCol,
+            comentarioTextCol + 1,
+            comentarioTextCol,
+            12, // M - convenção histórica
+          ]);
 
           // Validação rigorosa da coluna `numero` — chave canônica de vinculação
           // imagem ↔ questão (path no Storage, linha em `questoes_simulado`, render).
@@ -393,8 +412,12 @@ export default function SimuladosTab() {
           }
 
           console.log('[SimuladosTab] Colunas de imagem detectadas:', {
-            enunciadoColIndex,
-            comentarioColIndex,
+            imagemEnunciadoHeaderCol,
+            enunciadoTextCol,
+            imagemComentarioHeaderCol,
+            comentarioTextCol,
+            enunciadoColCandidates,
+            comentarioColCandidates,
             numeroColIndex,
             originalKeys,
           });
@@ -406,11 +429,11 @@ export default function SimuladosTab() {
             comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
             stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
           };
-          if (enunciadoColIndex >= 0 || comentarioColIndex >= 0) {
+          if (enunciadoColCandidates.length > 0 || comentarioColCandidates.length > 0) {
             try {
               extracted = await extractImagesFromXlsx(arrayBuffer, {
-                enunciadoColIndex: enunciadoColIndex >= 0 ? enunciadoColIndex : -1,
-                comentarioColIndex: comentarioColIndex >= 0 ? comentarioColIndex : -1,
+                enunciadoColCandidates,
+                comentarioColCandidates,
                 numeroColIndex,
               });
               console.log('[SimuladosTab] Imagens extraídas:', extracted.stats);
@@ -500,7 +523,7 @@ export default function SimuladosTab() {
           } else if (extracted.stats.totalMedia > 0) {
             toast({
               title: 'Imagens não vinculadas',
-              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada nas colunas "Enunciado" (índice ${enunciadoColIndex}) ou "Comentário" (índice ${comentarioColIndex}). Verifique o console (F12) para detalhes do formato.`,
+              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada em colunas esperadas. Colunas testadas para enunciado: [${enunciadoColCandidates.join(', ')}], comentário: [${comentarioColCandidates.join(', ')}]. Verifique o console (F12) para ver onde as imagens estão ancoradas.`,
               variant: 'destructive',
             });
           }

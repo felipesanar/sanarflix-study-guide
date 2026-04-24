@@ -709,7 +709,7 @@ export const SimuladoDesempenho: React.FC = () => {
     setIsDownloadingProvaRevisada(true);
     setDownloadProgress('Preparando...');
     try {
-      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
+      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_comentario, grande_area, especialidade, tema, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
       if (questoesError) throw questoesError;
       if (!questoesCompletas || questoesCompletas.length === 0) throw new Error('Nenhuma questão encontrada');
       setDownloadProgress('Carregando respostas...');
@@ -730,7 +730,7 @@ export const SimuladoDesempenho: React.FC = () => {
           { letra: 'D', texto: q.alternativa_d || '', isCorreta: gabarito === 'D', isMarcadaPeloAluno: respostaUsuario === 'D' },
         ];
         if (q.alternativa_e) alternativas.push({ letra: 'E', texto: q.alternativa_e, isCorreta: gabarito === 'E', isMarcadaPeloAluno: respostaUsuario === 'E' });
-        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
+        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, imagemComentario: (q as any).imagem_comentario || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
       });
       const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
       const erros = questoesRevisadas.filter(q => q.acertou === false).length;

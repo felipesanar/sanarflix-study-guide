@@ -36,6 +36,7 @@ interface CorrectedQuestion {
   correta: string;
   comentario: string | null;
   imagem: string | null;
+  imagem_comentario: string | null;
   grande_area: string | null;
   especialidade: string | null;
   tema: string | null;
@@ -238,7 +239,7 @@ export const SimuladoCorrecao: React.FC = () => {
         const [questoesRes, respostasRes] = await Promise.all([
           supabase
             .from('questoes_simulado')
-            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, grande_area, especialidade, tema, anulada')
+            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_comentario, grande_area, especialidade, tema, anulada')
             .eq('simulado_id', selectedSimulado)
             .order('ordem', { ascending: true }),
           supabase
@@ -341,6 +342,7 @@ export const SimuladoCorrecao: React.FC = () => {
           acertou: q.acertou,
           comentario: q.comentario,
           imagem: q.imagem,
+          imagemComentario: (q as any).imagem_comentario ?? null,
           grandeArea: q.grande_area || 'Geral',
           especialidade: q.especialidade || '',
           tema: q.tema || '',
@@ -686,7 +688,7 @@ export const SimuladoCorrecao: React.FC = () => {
                     </div>
 
                     {/* ── Comment / Explanation ── */}
-                    {currentQuestion.comentario && (
+                    {(currentQuestion.comentario || currentQuestion.imagem_comentario) && (
                       <Collapsible open={commentOpen} onOpenChange={setCommentOpen}>
                         <CollapsibleTrigger asChild>
                           <button className={cn(
@@ -718,10 +720,21 @@ export const SimuladoCorrecao: React.FC = () => {
                                 Explicação
                               </span>
                             </div>
-                            <div className="px-5 py-5">
-                              <p className="text-sm sm:text-[15px] text-muted-foreground leading-[1.85] whitespace-pre-wrap">
-                                {currentQuestion.comentario}
-                              </p>
+                            <div className="px-5 py-5 space-y-4">
+                              {currentQuestion.comentario && (
+                                <p className="text-sm sm:text-[15px] text-muted-foreground leading-[1.85] whitespace-pre-wrap">
+                                  {currentQuestion.comentario}
+                                </p>
+                              )}
+                              {currentQuestion.imagem_comentario && (
+                                <div className="flex justify-center">
+                                  <ImageLightbox
+                                    src={currentQuestion.imagem_comentario}
+                                    alt={`Imagem do comentário da questão ${currentIndex + 1}`}
+                                    className="max-w-full max-h-80 rounded-xl object-contain"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         </CollapsibleContent>

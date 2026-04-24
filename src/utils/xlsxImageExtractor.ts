@@ -36,10 +36,19 @@ export type ExtractedImagesResult = {
 };
 
 export type ExtractImagesOptions = {
-  /** Índice 0-based da coluna alvo para imagens do enunciado */
-  enunciadoColIndex: number;
-  /** Índice 0-based da coluna alvo para imagens do comentário */
-  comentarioColIndex: number;
+  /**
+   * Índices 0-based candidatos para imagens do enunciado.
+   *
+   * Aceita array porque na prática o usuário cola a imagem em diferentes lugares:
+   * (a) na coluna dedicada "Imagem do Enunciado" se o template a tiver,
+   * (b) dentro da própria célula de "Enunciado",
+   * (c) na célula imediatamente à direita do enunciado (é o mais comum).
+   *
+   * Qualquer imagem ancorada em uma dessas colunas vira imagem de enunciado.
+   */
+  enunciadoColCandidates: number[];
+  /** Mesmo esquema para imagens do comentário. */
+  comentarioColCandidates: number[];
   /** Índice 0-based da coluna `numero` na planilha (chave de vinculação) */
   numeroColIndex: number;
 };
@@ -386,12 +395,18 @@ export async function extractImagesFromXlsx(
             console.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
             continue;
           }
-          if (colIdx === options.enunciadoColIndex) {
-            enunciadoImages[numeroQuestao] = image;
-            stats.matchedEnunciado += 1;
-          } else if (colIdx === options.comentarioColIndex) {
-            comentarioImages[numeroQuestao] = image;
-            stats.matchedComentario += 1;
+          if (options.enunciadoColCandidates.includes(colIdx)) {
+            // Primeira imagem ganha — se o usuário colou em múltiplas colunas candidatas
+            // (raro), ficamos com a mais à esquerda (primeira detectada).
+            if (!enunciadoImages[numeroQuestao]) {
+              enunciadoImages[numeroQuestao] = image;
+              stats.matchedEnunciado += 1;
+            }
+          } else if (options.comentarioColCandidates.includes(colIdx)) {
+            if (!comentarioImages[numeroQuestao]) {
+              comentarioImages[numeroQuestao] = image;
+              stats.matchedComentario += 1;
+            }
           } else {
             stats.skippedWrongColumn += 1;
           }
@@ -523,12 +538,16 @@ export async function extractImagesFromXlsx(
       mimeType: inferMimeFromPath(mediaPath),
     };
 
-    if (col === options.enunciadoColIndex) {
-      enunciadoImages[numeroQuestao] = image;
-      stats.matchedEnunciado += 1;
-    } else if (col === options.comentarioColIndex) {
-      comentarioImages[numeroQuestao] = image;
-      stats.matchedComentario += 1;
+    if (options.enunciadoColCandidates.includes(col)) {
+      if (!enunciadoImages[numeroQuestao]) {
+        enunciadoImages[numeroQuestao] = image;
+        stats.matchedEnunciado += 1;
+      }
+    } else if (options.comentarioColCandidates.includes(col)) {
+      if (!comentarioImages[numeroQuestao]) {
+        comentarioImages[numeroQuestao] = image;
+        stats.matchedComentario += 1;
+      }
     } else {
       stats.skippedWrongColumn += 1;
     }
