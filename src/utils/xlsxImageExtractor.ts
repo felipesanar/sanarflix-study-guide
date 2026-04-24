@@ -284,25 +284,36 @@ export async function extractImagesFromXlsx(
   const drawingXml = await zip.files[drawingPath].async('string');
   const drawingDoc = parseXml(drawingXml);
 
-  // Suporta tanto twoCellAnchor quanto oneCellAnchor (ambos usam <xdr:from>)
-  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor'];
-  const anchors: Element[] = [];
+  // Suporta twoCellAnchor, oneCellAnchor e absoluteAnchor
+  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor', 'xdr:absoluteAnchor'];
+  const anchors: Array<{ el: Element; tag: string }> = [];
   for (const tag of anchorTags) {
     const list = drawingDoc.getElementsByTagName(tag);
-    for (let i = 0; i < list.length; i++) anchors.push(list.item(i)!);
+    for (let i = 0; i < list.length; i++) anchors.push({ el: list.item(i)!, tag });
   }
+  console.log('[xlsxImageExtractor] Caminho clássico (drawings): âncoras encontradas:', anchors.length, '| breakdown:', {
+    twoCell: anchors.filter((a) => a.tag === 'xdr:twoCellAnchor').length,
+    oneCell: anchors.filter((a) => a.tag === 'xdr:oneCellAnchor').length,
+    absolute: anchors.filter((a) => a.tag === 'xdr:absoluteAnchor').length,
+  });
 
-  const enunciadoImages: Record<number, ExtractedImage> = {};
-  const comentarioImages: Record<number, ExtractedImage> = {};
+  const anchorDebug: Array<{ row: number; col: number; tag: string }> = [];
 
-  for (const anchor of anchors) {
+  for (const { el: anchor, tag } of anchors) {
     const fromEl = anchor.getElementsByTagName('xdr:from')[0];
-    if (!fromEl) continue;
+    if (!fromEl) {
+      stats.skippedNoAnchor += 1;
+      continue;
+    }
     const colText = fromEl.getElementsByTagName('xdr:col')[0]?.textContent;
     const rowText = fromEl.getElementsByTagName('xdr:row')[0]?.textContent;
-    if (colText == null || rowText == null) continue;
+    if (colText == null || rowText == null) {
+      stats.skippedNoAnchor += 1;
+      continue;
+    }
     const col = parseInt(colText, 10);
     const row = parseInt(rowText, 10);
+    anchorDebug.push({ row, col, tag });
     const blip = anchor.getElementsByTagName('a:blip')[0];
     const embed = blip?.getAttribute('r:embed');
     if (!embed) continue;
@@ -310,7 +321,6 @@ export async function extractImagesFromXlsx(
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
     if (!bytes) continue;
     // xdr:row é 0-based: xdr:row=0 é a linha do header; xdr:row=N corresponde à questão N (1-based).
-    // Indexamos diretamente por xdr:row para casar com `xlsxRow = index + 1` no consumidor.
     if (row < 1) continue;
     const rowIndex = row;
 
@@ -329,6 +339,9 @@ export async function extractImagesFromXlsx(
       stats.skippedWrongColumn += 1;
     }
   }
+
+  console.log('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
+  console.log('[xlsxImageExtractor] Stats finais:', stats);
 
   return { enunciadoImages, comentarioImages, stats };
 }
