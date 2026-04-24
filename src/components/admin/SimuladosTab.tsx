@@ -753,6 +753,7 @@ export default function SimuladosTab() {
         comentario: q.comentario,
         feedback_corretas: q.feedback_corretas,
         imagem: q.imagem,
+        imagem_comentario: (q as any).imagem_comentario ?? null,
         observacao: q.observacao,
         anulada: q.anulada ?? false
       }));
