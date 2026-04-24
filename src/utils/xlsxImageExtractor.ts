@@ -337,10 +337,9 @@ export async function extractImagesFromXlsx(
       console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
 
       // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
-      const sheetPath = await resolveFirstSheetPath(zip);
+      const sheetPath = sheetPathGlobal;
       if (sheetPath) {
         const sheetXml = await zip.files[sheetPath].async('string');
-        // Regex robusta: captura ref da célula (ex: E2) + nome do recurso dentro de DISPIMG
         const dispRegex = /<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*&quot;([^&]+)&quot;|<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*"([^"]+)"/g;
         let match: RegExpExecArray | null;
         let dispMatches = 0;
@@ -350,8 +349,7 @@ export async function extractImagesFromXlsx(
           const imgName = match[3] ?? match[6];
           if (!colLetters || !rowNum || !imgName) continue;
           dispMatches += 1;
-          const colIdx = colLettersToIndex(colLetters); // 0-based
-          const rowIdx = rowNum - 1; // sheet rows são 1-based; row 1 = header, row 2 = questão 1
+          const colIdx = colLettersToIndex(colLetters);
           const mediaPath = nameToMedia[imgName];
           const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
           if (!bytes) continue;
@@ -359,14 +357,17 @@ export async function extractImagesFromXlsx(
             base64: uint8ToBase64(bytes),
             mimeType: inferMimeFromPath(mediaPath),
           };
-          // questão N corresponde a sheet row N+1 (header=1, questão1=row2) → questionRow = rowIdx (já é 0-based)
-          const questionRow = rowIdx; // se header é a row 1 (rowIdx=0), questão 1 está em rowIdx=1
-          if (questionRow < 1) continue;
+          const numeroQuestao = rowToQuestionNumber[rowNum];
+          if (!numeroQuestao) {
+            stats.skippedNoQuestionNumber += 1;
+            console.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
+            continue;
+          }
           if (colIdx === options.enunciadoColIndex) {
-            enunciadoImages[questionRow] = image;
+            enunciadoImages[numeroQuestao] = image;
             stats.matchedEnunciado += 1;
           } else if (colIdx === options.comentarioColIndex) {
-            comentarioImages[questionRow] = image;
+            comentarioImages[numeroQuestao] = image;
             stats.matchedComentario += 1;
           } else {
             stats.skippedWrongColumn += 1;
