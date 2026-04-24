@@ -1235,13 +1235,25 @@ export default function SimuladosTab() {
                     <p className="font-medium">{questao.enunciado}</p>
                   </div>
 
-                  {/* Imagem/Gráfico/Tabela */}
+                  {/* Imagem/Gráfico/Tabela (URL legacy) */}
                   {questao.imagem && (
                     <div>
                       <img 
                         src={questao.imagem} 
                         alt="Imagem/Gráfico/Tabela da questão" 
                         className="max-w-full h-auto rounded-lg border"
+                      />
+                    </div>
+                  )}
+
+                  {/* Imagem do Enunciado (embutida no XLSX) */}
+                  {questao._embeddedEnunciado && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem do enunciado (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedEnunciado.mimeType};base64,${questao._embeddedEnunciado.base64}`}
+                        alt="Imagem do enunciado"
+                        className="max-w-xs h-auto rounded-lg border"
                       />
                     </div>
                   )}
@@ -1272,6 +1284,18 @@ export default function SimuladosTab() {
                     <div className="bg-muted/50 p-2 rounded">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">Comentário:</p>
                       <p className="text-xs">{questao.comentario}</p>
+                    </div>
+                  )}
+
+                  {/* Imagem do Comentário (embutida no XLSX) */}
+                  {questao._embeddedComentario && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem do comentário (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedComentario.mimeType};base64,${questao._embeddedComentario.base64}`}
+                        alt="Imagem do comentário"
+                        className="max-w-xs h-auto rounded-lg border"
+                      />
                     </div>
                   )}
                 </CardContent>
