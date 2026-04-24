@@ -119,7 +119,7 @@ async function resolveFirstSheetPath(zip: JSZip): Promise<string | null> {
     return Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p)) ?? null;
   }
 
-  return resolveZipPath('xl/_rels/workbook.xml.rels', target);
+  return resolveZipPath(relsOwnerPath('xl/_rels/workbook.xml.rels'), target);
 }
 
 /**
@@ -139,11 +139,19 @@ function parseRels(xmlString: string): Record<string, string> {
 }
 
 /**
- * Resolve um path relativo dentro do ZIP.
- * Ex: base="xl/worksheets/sheet1.xml.rels", target="../drawings/drawing1.xml"
+ * Resolve um path relativo dentro do ZIP, a partir de uma base.
+ * Ex: base="xl/worksheets/sheet1.xml", target="../drawings/drawing1.xml"
  *  -> "xl/drawings/drawing1.xml"
+ *
+ * IMPORTANTE: a base deve ser o *part owner* (o arquivo dono), NÃO o próprio
+ * `.rels`. Em OOXML, Targets em `.rels` são relativos ao dono. Use
+ * `relsOwnerPath` para converter `xl/_rels/workbook.xml.rels` → `xl/workbook.xml`.
  */
 function resolveZipPath(basePath: string, relativeTarget: string): string {
+  // Targets absolutos (começam com "/") são relativos à raiz do pacote
+  if (relativeTarget.startsWith('/')) {
+    return relativeTarget.replace(/^\/+/, '');
+  }
   const baseSegments = basePath.split('/').slice(0, -1);
   const relSegments = relativeTarget.split('/');
   for (const seg of relSegments) {
@@ -151,6 +159,21 @@ function resolveZipPath(basePath: string, relativeTarget: string): string {
     else if (seg !== '.' && seg !== '') baseSegments.push(seg);
   }
   return baseSegments.join('/');
+}
+
+/**
+ * Converte um path de `.rels` para o path do seu *part owner* (arquivo dono).
+ * Ex: "xl/_rels/workbook.xml.rels" → "xl/workbook.xml"
+ *     "xl/worksheets/_rels/sheet1.xml.rels" → "xl/worksheets/sheet1.xml"
+ *
+ * Usar como base ao resolver Targets que vêm de dentro de um `.rels`.
+ */
+function relsOwnerPath(relsPath: string): string {
+  const noSuffix = relsPath.replace(/\.rels$/, '');
+  const segments = noSuffix.split('/');
+  const relsIdx = segments.lastIndexOf('_rels');
+  if (relsIdx >= 0) segments.splice(relsIdx, 1);
+  return segments.join('/');
 }
 
 /** Converte letras de coluna do Excel (A, B, ..., AA) em índice 0-based. */
@@ -331,7 +354,7 @@ export async function extractImagesFromXlsx(
         const blip = getFirstElementByLocalName(pic ?? el, 'blip');
         const embed = getAttributeAny(blip, ['r:embed', 'embed']);
         if (name && embed && cellRels[embed]) {
-          nameToMedia[name] = resolveZipPath('xl/_rels/cellimages.xml.rels', cellRels[embed]);
+          nameToMedia[name] = resolveZipPath(relsOwnerPath('xl/_rels/cellimages.xml.rels'), cellRels[embed]);
         }
       }
       console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
@@ -415,7 +438,7 @@ export async function extractImagesFromXlsx(
     console.log('[xlsxImageExtractor] Rels da sheet', sheetRelsPath, ':', rels);
     for (const target of Object.values(rels)) {
       if (target.includes('drawings/drawing')) {
-        drawingPath = resolveZipPath(sheetRelsPath, target);
+        drawingPath = resolveZipPath(relsOwnerPath(sheetRelsPath), target);
         break;
       }
     }
@@ -443,7 +466,7 @@ export async function extractImagesFromXlsx(
 
   const ridToMediaPath: Record<string, string> = {};
   for (const [rid, target] of Object.entries(drawingRels)) {
-    ridToMediaPath[rid] = resolveZipPath(drawingRelsPath, target);
+    ridToMediaPath[rid] = resolveZipPath(relsOwnerPath(drawingRelsPath), target);
   }
   console.log('[xlsxImageExtractor] ridToMediaPath:', ridToMediaPath);
 
