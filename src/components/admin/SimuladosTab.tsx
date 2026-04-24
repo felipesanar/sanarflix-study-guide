@@ -346,9 +346,14 @@ export default function SimuladosTab() {
               k => k.toLowerCase().trim() === 'comentário'
             );
           }
+          const numeroColIndex = originalKeys.findIndex(
+            k => k.toLowerCase().trim() === 'numero'
+          );
+
           console.log('[SimuladosTab] Colunas de imagem detectadas:', {
             enunciadoColIndex,
             comentarioColIndex,
+            numeroColIndex,
             originalKeys,
           });
 
@@ -357,13 +362,14 @@ export default function SimuladosTab() {
           let extracted = {
             enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
             comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
-            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0 }
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
           };
           if (enunciadoColIndex >= 0 || comentarioColIndex >= 0) {
             try {
               extracted = await extractImagesFromXlsx(arrayBuffer, {
                 enunciadoColIndex: enunciadoColIndex >= 0 ? enunciadoColIndex : -1,
                 comentarioColIndex: comentarioColIndex >= 0 ? comentarioColIndex : -1,
+                numeroColIndex,
               });
               console.log('[SimuladosTab] Imagens extraídas:', extracted.stats);
             } catch (extractErr) {
