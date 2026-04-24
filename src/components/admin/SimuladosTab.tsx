@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as XLSXLibStatic from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { extractImagesFromXlsx, compressBase64Image } from '@/utils/xlsxImageExtractor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
