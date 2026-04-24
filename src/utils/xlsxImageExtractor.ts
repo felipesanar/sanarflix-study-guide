@@ -285,6 +285,34 @@ export async function extractImagesFromXlsx(
 
   console.log('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
 
+  // Resolve sheet path UMA VEZ e constrói o mapa rowNumber → numeroQuestao.
+  // Esse mapa é a chave canônica de vinculação imagem ↔ questão (em vez do
+  // índice geométrico da âncora, que descasa com linhas em branco).
+  const sheetPathGlobal = await resolveFirstSheetPath(zip);
+  let rowToQuestionNumber: Record<number, number> = {};
+  if (sheetPathGlobal && options.numeroColIndex >= 0) {
+    try {
+      rowToQuestionNumber = await buildRowToQuestionNumberMap(
+        zip,
+        sheetPathGlobal,
+        options.numeroColIndex,
+      );
+      console.log(
+        '[xlsxImageExtractor] Mapa rowNumber→numeroQuestao construído:',
+        Object.keys(rowToQuestionNumber).length,
+        'linhas mapeadas. Amostra:',
+        Object.entries(rowToQuestionNumber).slice(0, 5),
+      );
+    } catch (e) {
+      console.warn('[xlsxImageExtractor] Falha ao construir mapa de números de questão:', e);
+    }
+  } else {
+    console.warn(
+      '[xlsxImageExtractor] numeroColIndex não fornecido ou sheet não encontrada — vinculação por número de questão desativada.',
+      { sheetPathGlobal, numeroColIndex: options.numeroColIndex },
+    );
+  }
+
   // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
   if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
     try {
