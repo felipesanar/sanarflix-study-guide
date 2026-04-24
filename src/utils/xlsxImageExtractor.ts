@@ -216,14 +216,14 @@ export async function extractImagesFromXlsx(
 
       // Mapa: nome lógico da imagem (ex: "ID_xxx") → caminho de mídia
       const cellDoc = parseXml(cellImagesXml);
-      const cellImageEls = Array.from(cellDoc.getElementsByTagName('etc:cellImage'));
+      const cellImageEls = getElementsByLocalName(cellDoc, 'cellImage');
       const nameToMedia: Record<string, string> = {};
       for (const el of cellImageEls) {
-        const pic = el.getElementsByTagName('xdr:pic')[0];
-        const nvPr = pic?.getElementsByTagName('xdr:nvPicPr')[0]?.getElementsByTagName('xdr:cNvPr')[0];
+        const pic = getFirstElementByLocalName(el, 'pic');
+        const nvPr = getFirstElementByLocalName(pic ?? el, 'cNvPr');
         const name = nvPr?.getAttribute('name') ?? '';
-        const blip = pic?.getElementsByTagName('a:blip')[0];
-        const embed = blip?.getAttribute('r:embed');
+        const blip = getFirstElementByLocalName(pic ?? el, 'blip');
+        const embed = getAttributeAny(blip, ['r:embed', 'embed']);
         if (name && embed && cellRels[embed]) {
           nameToMedia[name] = resolveZipPath('xl/_rels/cellimages.xml.rels', cellRels[embed]);
         }
@@ -231,7 +231,7 @@ export async function extractImagesFromXlsx(
       console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
 
       // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
-      const sheetPath = Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+      const sheetPath = await resolveFirstSheetPath(zip);
       if (sheetPath) {
         const sheetXml = await zip.files[sheetPath].async('string');
         // Regex robusta: captura ref da célula (ex: E2) + nome do recurso dentro de DISPIMG
@@ -279,8 +279,12 @@ export async function extractImagesFromXlsx(
 
   // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
   // Procuramos sheet1.xml.rels (caso comum) ou qualquer worksheet rels.
-  const sheetRelsCandidates = [
-    'xl/worksheets/_rels/sheet1.xml.rels',
+   const firstSheetPath = await resolveFirstSheetPath(zip);
+   const firstSheetRels = firstSheetPath
+    ? resolveZipPath(firstSheetPath, `_rels/${firstSheetPath.split('/').pop()}.rels`)
+    : null;
+   const sheetRelsCandidates = [
+    firstSheetRels || 'xl/worksheets/_rels/sheet1.xml.rels',
   ];
   // Fallback: procura qualquer sheet*.xml.rels que tenha drawing
   if (!zip.files[sheetRelsCandidates[0]]) {
@@ -334,28 +338,28 @@ export async function extractImagesFromXlsx(
   const drawingDoc = parseXml(drawingXml);
 
   // Suporta twoCellAnchor, oneCellAnchor e absoluteAnchor
-  const anchorTags = ['xdr:twoCellAnchor', 'xdr:oneCellAnchor', 'xdr:absoluteAnchor'];
+  const anchorTags = ['twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor'];
   const anchors: Array<{ el: Element; tag: string }> = [];
   for (const tag of anchorTags) {
-    const list = drawingDoc.getElementsByTagName(tag);
-    for (let i = 0; i < list.length; i++) anchors.push({ el: list.item(i)!, tag });
+    const list = getElementsByLocalName(drawingDoc, tag);
+    for (const item of list) anchors.push({ el: item, tag });
   }
   console.log('[xlsxImageExtractor] Caminho clássico (drawings): âncoras encontradas:', anchors.length, '| breakdown:', {
-    twoCell: anchors.filter((a) => a.tag === 'xdr:twoCellAnchor').length,
-    oneCell: anchors.filter((a) => a.tag === 'xdr:oneCellAnchor').length,
-    absolute: anchors.filter((a) => a.tag === 'xdr:absoluteAnchor').length,
+    twoCell: anchors.filter((a) => a.tag === 'twoCellAnchor').length,
+    oneCell: anchors.filter((a) => a.tag === 'oneCellAnchor').length,
+    absolute: anchors.filter((a) => a.tag === 'absoluteAnchor').length,
   });
 
   const anchorDebug: Array<{ row: number; col: number; tag: string }> = [];
 
   for (const { el: anchor, tag } of anchors) {
-    const fromEl = anchor.getElementsByTagName('xdr:from')[0];
+    const fromEl = getFirstElementByLocalName(anchor, 'from');
     if (!fromEl) {
       stats.skippedNoAnchor += 1;
       continue;
     }
-    const colText = fromEl.getElementsByTagName('xdr:col')[0]?.textContent;
-    const rowText = fromEl.getElementsByTagName('xdr:row')[0]?.textContent;
+    const colText = getFirstElementByLocalName(fromEl, 'col')?.textContent;
+    const rowText = getFirstElementByLocalName(fromEl, 'row')?.textContent;
     if (colText == null || rowText == null) {
       stats.skippedNoAnchor += 1;
       continue;
@@ -363,8 +367,8 @@ export async function extractImagesFromXlsx(
     const col = parseInt(colText, 10);
     const row = parseInt(rowText, 10);
     anchorDebug.push({ row, col, tag });
-    const blip = anchor.getElementsByTagName('a:blip')[0];
-    const embed = blip?.getAttribute('r:embed');
+    const blip = getFirstElementByLocalName(anchor, 'blip');
+    const embed = getAttributeAny(blip, ['r:embed', 'embed']);
     if (!embed) continue;
     const mediaPath = ridToMediaPath[embed];
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
