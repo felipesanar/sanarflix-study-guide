@@ -119,7 +119,7 @@ async function resolveFirstSheetPath(zip: JSZip): Promise<string | null> {
     return Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p)) ?? null;
   }
 
-  return resolveZipPath('xl/_rels/workbook.xml.rels', target);
+  return resolveZipPath(relsOwnerPath('xl/_rels/workbook.xml.rels'), target);
 }
 
 /**
