@@ -19,9 +19,9 @@ export type ExtractedImage = {
 };
 
 export type ExtractedImagesResult = {
-  /** Mapa rowIndex (0-based, descontando header) → imagem do enunciado */
+  /** Mapa NÚMERO DA QUESTÃO (lido da coluna `numero` da planilha) → imagem do enunciado */
   enunciadoImages: Record<number, ExtractedImage>;
-  /** Mapa rowIndex (0-based, descontando header) → imagem do comentário */
+  /** Mapa NÚMERO DA QUESTÃO → imagem do comentário */
   comentarioImages: Record<number, ExtractedImage>;
   /** Estatísticas para log/debug */
   stats: {
@@ -30,6 +30,8 @@ export type ExtractedImagesResult = {
     matchedComentario: number;
     skippedNoAnchor: number;
     skippedWrongColumn: number;
+    /** Âncoras cujas linhas não tinham número de questão preenchido */
+    skippedNoQuestionNumber: number;
   };
 };
 
@@ -38,6 +40,8 @@ export type ExtractImagesOptions = {
   enunciadoColIndex: number;
   /** Índice 0-based da coluna alvo para imagens do comentário */
   comentarioColIndex: number;
+  /** Índice 0-based da coluna `numero` na planilha (chave de vinculação) */
+  numeroColIndex: number;
 };
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -159,6 +163,77 @@ function colLettersToIndex(letters: string): number {
 }
 
 /**
+ * Constrói um mapa rowNumber (1-based, da própria planilha) → valor numérico
+ * encontrado na coluna `numeroColIndex` daquela linha.
+ *
+ * Lê o XML da sheet diretamente, resolvendo sharedStrings quando o tipo é "s".
+ * Isso é fundamental para vincular imagens ao NÚMERO DA QUESTÃO (chave canônica),
+ * em vez de depender do índice geométrico da âncora — que descasa quando há
+ * linhas em branco, células mescladas ou reordenação.
+ */
+async function buildRowToQuestionNumberMap(
+  zip: JSZip,
+  sheetPath: string,
+  numeroColIndex: number,
+): Promise<Record<number, number>> {
+  const result: Record<number, number> = {};
+  if (numeroColIndex < 0) return result;
+
+  let sharedStrings: string[] = [];
+  const ssFile = zip.files['xl/sharedStrings.xml'];
+  if (ssFile) {
+    const ssXml = await ssFile.async('string');
+    const ssDoc = parseXml(ssXml);
+    const siList = getElementsByLocalName(ssDoc, 'si');
+    sharedStrings = siList.map((si) => {
+      const tList = getElementsByLocalName(si, 't');
+      return tList.map((t) => t.textContent ?? '').join('');
+    });
+  }
+
+  const sheetXml = await zip.files[sheetPath].async('string');
+  const sheetDoc = parseXml(sheetXml);
+  const rows = getElementsByLocalName(sheetDoc, 'row');
+  for (const row of rows) {
+    const rAttr = row.getAttribute('r');
+    if (!rAttr) continue;
+    const rowNumber = parseInt(rAttr, 10);
+    if (!rowNumber) continue;
+
+    const cells = getElementsByLocalName(row, 'c');
+    for (const c of cells) {
+      const ref = c.getAttribute('r');
+      if (!ref) continue;
+      const colLetters = ref.match(/^([A-Z]+)/)?.[1];
+      if (!colLetters) continue;
+      const colIdx = colLettersToIndex(colLetters);
+      if (colIdx !== numeroColIndex) continue;
+
+      const type = c.getAttribute('t');
+      let rawValue: string | null = null;
+      if (type === 's') {
+        const v = getFirstElementByLocalName(c, 'v')?.textContent;
+        const idx = v ? parseInt(v, 10) : NaN;
+        rawValue = Number.isFinite(idx) ? sharedStrings[idx] ?? null : null;
+      } else if (type === 'inlineStr') {
+        const isEl = getFirstElementByLocalName(c, 'is');
+        const tEls = isEl ? getElementsByLocalName(isEl, 't') : [];
+        rawValue = tEls.map((t) => t.textContent ?? '').join('');
+      } else {
+        rawValue = getFirstElementByLocalName(c, 'v')?.textContent ?? null;
+      }
+
+      const num = rawValue != null ? parseInt(String(rawValue).trim(), 10) : NaN;
+      if (Number.isFinite(num)) {
+        result[rowNumber] = num;
+      }
+      break;
+    }
+  }
+  return result;
+}
+
+/**
  * Extrai imagens da primeira sheet de um arquivo .xlsx.
  *
  * @param fileBuffer ArrayBuffer do .xlsx
@@ -176,6 +251,7 @@ export async function extractImagesFromXlsx(
     matchedComentario: 0,
     skippedNoAnchor: 0,
     skippedWrongColumn: 0,
+    skippedNoQuestionNumber: 0,
   };
 
   // 1. Lê todos os binários em xl/media/*
@@ -209,6 +285,34 @@ export async function extractImagesFromXlsx(
 
   console.log('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
 
+  // Resolve sheet path UMA VEZ e constrói o mapa rowNumber → numeroQuestao.
+  // Esse mapa é a chave canônica de vinculação imagem ↔ questão (em vez do
+  // índice geométrico da âncora, que descasa com linhas em branco).
+  const sheetPathGlobal = await resolveFirstSheetPath(zip);
+  let rowToQuestionNumber: Record<number, number> = {};
+  if (sheetPathGlobal && options.numeroColIndex >= 0) {
+    try {
+      rowToQuestionNumber = await buildRowToQuestionNumberMap(
+        zip,
+        sheetPathGlobal,
+        options.numeroColIndex,
+      );
+      console.log(
+        '[xlsxImageExtractor] Mapa rowNumber→numeroQuestao construído:',
+        Object.keys(rowToQuestionNumber).length,
+        'linhas mapeadas. Amostra:',
+        Object.entries(rowToQuestionNumber).slice(0, 5),
+      );
+    } catch (e) {
+      console.warn('[xlsxImageExtractor] Falha ao construir mapa de números de questão:', e);
+    }
+  } else {
+    console.warn(
+      '[xlsxImageExtractor] numeroColIndex não fornecido ou sheet não encontrada — vinculação por número de questão desativada.',
+      { sheetPathGlobal, numeroColIndex: options.numeroColIndex },
+    );
+  }
+
   // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
   if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
     try {
@@ -233,10 +337,9 @@ export async function extractImagesFromXlsx(
       console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
 
       // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
-      const sheetPath = await resolveFirstSheetPath(zip);
+      const sheetPath = sheetPathGlobal;
       if (sheetPath) {
         const sheetXml = await zip.files[sheetPath].async('string');
-        // Regex robusta: captura ref da célula (ex: E2) + nome do recurso dentro de DISPIMG
         const dispRegex = /<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*&quot;([^&]+)&quot;|<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*"([^"]+)"/g;
         let match: RegExpExecArray | null;
         let dispMatches = 0;
@@ -246,8 +349,7 @@ export async function extractImagesFromXlsx(
           const imgName = match[3] ?? match[6];
           if (!colLetters || !rowNum || !imgName) continue;
           dispMatches += 1;
-          const colIdx = colLettersToIndex(colLetters); // 0-based
-          const rowIdx = rowNum - 1; // sheet rows são 1-based; row 1 = header, row 2 = questão 1
+          const colIdx = colLettersToIndex(colLetters);
           const mediaPath = nameToMedia[imgName];
           const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
           if (!bytes) continue;
@@ -255,14 +357,17 @@ export async function extractImagesFromXlsx(
             base64: uint8ToBase64(bytes),
             mimeType: inferMimeFromPath(mediaPath),
           };
-          // questão N corresponde a sheet row N+1 (header=1, questão1=row2) → questionRow = rowIdx (já é 0-based)
-          const questionRow = rowIdx; // se header é a row 1 (rowIdx=0), questão 1 está em rowIdx=1
-          if (questionRow < 1) continue;
+          const numeroQuestao = rowToQuestionNumber[rowNum];
+          if (!numeroQuestao) {
+            stats.skippedNoQuestionNumber += 1;
+            console.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
+            continue;
+          }
           if (colIdx === options.enunciadoColIndex) {
-            enunciadoImages[questionRow] = image;
+            enunciadoImages[numeroQuestao] = image;
             stats.matchedEnunciado += 1;
           } else if (colIdx === options.comentarioColIndex) {
-            comentarioImages[questionRow] = image;
+            comentarioImages[numeroQuestao] = image;
             stats.matchedComentario += 1;
           } else {
             stats.skippedWrongColumn += 1;
@@ -382,9 +487,13 @@ export async function extractImagesFromXlsx(
     const mediaPath = ridToMediaPath[embed];
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
     if (!bytes) continue;
-    // xdr:row é 0-based: xdr:row=0 é a linha do header; xdr:row=N corresponde à questão N (1-based).
-    if (row < 1) continue;
-    const rowIndex = row;
+    // `row` (xdr:row) é 0-based; o número da linha real do Excel (1-based) é row+1.
+    const xlsxRowNumber = row + 1;
+    const numeroQuestao = rowToQuestionNumber[xlsxRowNumber];
+    if (!numeroQuestao) {
+      stats.skippedNoQuestionNumber += 1;
+      continue;
+    }
 
     const image: ExtractedImage = {
       base64: uint8ToBase64(bytes),
@@ -392,10 +501,10 @@ export async function extractImagesFromXlsx(
     };
 
     if (col === options.enunciadoColIndex) {
-      enunciadoImages[rowIndex] = image;
+      enunciadoImages[numeroQuestao] = image;
       stats.matchedEnunciado += 1;
     } else if (col === options.comentarioColIndex) {
-      comentarioImages[rowIndex] = image;
+      comentarioImages[numeroQuestao] = image;
       stats.matchedComentario += 1;
     } else {
       stats.skippedWrongColumn += 1;
