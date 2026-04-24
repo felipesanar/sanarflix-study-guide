@@ -197,60 +197,6 @@ export async function extractImagesFromXlsx(
     for (let i = 0; i < list.length; i++) anchors.push(list.item(i)!);
   }
 
-  for (const anchor of anchors) {
-    // <xdr:from><xdr:col>5</xdr:col><xdr:row>1</xdr:row></xdr:from>
-    const fromEl = anchor.getElementsByTagName('xdr:from')[0];
-    if (!fromEl) {
-      stats.skippedNoAnchor += 1;
-      continue;
-    }
-    const colText = fromEl.getElementsByTagName('xdr:col')[0]?.textContent;
-    const rowText = fromEl.getElementsByTagName('xdr:row')[0]?.textContent;
-    if (colText == null || rowText == null) {
-      stats.skippedNoAnchor += 1;
-      continue;
-    }
-    const col = parseInt(colText, 10);
-    const row = parseInt(rowText, 10);
-
-    // Pega o rId do <a:blip r:embed="rId1" />
-    const blip = anchor.getElementsByTagName('a:blip')[0];
-    const embed = blip?.getAttribute('r:embed');
-    if (!embed) {
-      stats.skippedNoAnchor += 1;
-      continue;
-    }
-    const mediaPath = ridToMediaPath[embed];
-    const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
-    if (!bytes) {
-      stats.skippedNoAnchor += 1;
-      continue;
-    }
-
-    // Linha 0 do XML = header → questões começam em row=1 (rowIndex=0)
-    const rowIndex = row - 1;
-    if (rowIndex < 0) continue;
-
-    const image: ExtractedImage = {
-      base64: uint8ToBase64(bytes),
-      mimeType: inferMimeFromPath(mediaPath),
-    };
-
-    if (col === options.enunciadoColIndex) {
-      // Se já existir, mantém a primeira (evita duplicação por imagens sobrepostas)
-      if (!Object.prototype.hasOwnProperty.call({}, rowIndex)) {
-        // Sempre sobrescreve: imagem mais recente vence (raríssimo ter 2)
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (Object as any).assign({}, {});
-      // (uso direto de propriedade — o lint acima é só placeholder, removemos abaixo)
-      // Atribuição final:
-      // enunciadoImages[rowIndex] = image;
-    }
-    // Mais simples — atribuição direta:
-  }
-
-  // (Re)processa atribuições de forma direta para clareza:
   const enunciadoImages: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
