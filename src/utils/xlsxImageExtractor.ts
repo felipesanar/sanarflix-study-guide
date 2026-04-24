@@ -100,6 +100,15 @@ function resolveZipPath(basePath: string, relativeTarget: string): string {
   return baseSegments.join('/');
 }
 
+/** Converte letras de coluna do Excel (A, B, ..., AA) em índice 0-based. */
+function colLettersToIndex(letters: string): number {
+  let n = 0;
+  for (const ch of letters.toUpperCase()) {
+    n = n * 26 + (ch.charCodeAt(0) - 64);
+  }
+  return n - 1;
+}
+
 /**
  * Extrai imagens da primeira sheet de um arquivo .xlsx.
  *
