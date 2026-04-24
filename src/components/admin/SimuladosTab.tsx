@@ -303,18 +303,17 @@ export default function SimuladosTab() {
           setUploadProgress(40);
 
           const requiredColumns = [
-            'número da questão',
+            'numero',
             'grande área',
             'especialidade',
             'tema',
-            'competência',
-            'enunciado da questão',
+            'enunciado',
             'alternativa a',
             'alternativa b',
             'alternativa c',
             'alternativa d',
-            'comentário da questão',
-            'alternativa correta'
+            'gabarito',
+            'comentário'
           ];
 
           const firstRow = jsonData[0] as any;
