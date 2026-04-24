@@ -163,6 +163,77 @@ function colLettersToIndex(letters: string): number {
 }
 
 /**
+ * Constrói um mapa rowNumber (1-based, da própria planilha) → valor numérico
+ * encontrado na coluna `numeroColIndex` daquela linha.
+ *
+ * Lê o XML da sheet diretamente, resolvendo sharedStrings quando o tipo é "s".
+ * Isso é fundamental para vincular imagens ao NÚMERO DA QUESTÃO (chave canônica),
+ * em vez de depender do índice geométrico da âncora — que descasa quando há
+ * linhas em branco, células mescladas ou reordenação.
+ */
+async function buildRowToQuestionNumberMap(
+  zip: JSZip,
+  sheetPath: string,
+  numeroColIndex: number,
+): Promise<Record<number, number>> {
+  const result: Record<number, number> = {};
+  if (numeroColIndex < 0) return result;
+
+  let sharedStrings: string[] = [];
+  const ssFile = zip.files['xl/sharedStrings.xml'];
+  if (ssFile) {
+    const ssXml = await ssFile.async('string');
+    const ssDoc = parseXml(ssXml);
+    const siList = getElementsByLocalName(ssDoc, 'si');
+    sharedStrings = siList.map((si) => {
+      const tList = getElementsByLocalName(si, 't');
+      return tList.map((t) => t.textContent ?? '').join('');
+    });
+  }
+
+  const sheetXml = await zip.files[sheetPath].async('string');
+  const sheetDoc = parseXml(sheetXml);
+  const rows = getElementsByLocalName(sheetDoc, 'row');
+  for (const row of rows) {
+    const rAttr = row.getAttribute('r');
+    if (!rAttr) continue;
+    const rowNumber = parseInt(rAttr, 10);
+    if (!rowNumber) continue;
+
+    const cells = getElementsByLocalName(row, 'c');
+    for (const c of cells) {
+      const ref = c.getAttribute('r');
+      if (!ref) continue;
+      const colLetters = ref.match(/^([A-Z]+)/)?.[1];
+      if (!colLetters) continue;
+      const colIdx = colLettersToIndex(colLetters);
+      if (colIdx !== numeroColIndex) continue;
+
+      const type = c.getAttribute('t');
+      let rawValue: string | null = null;
+      if (type === 's') {
+        const v = getFirstElementByLocalName(c, 'v')?.textContent;
+        const idx = v ? parseInt(v, 10) : NaN;
+        rawValue = Number.isFinite(idx) ? sharedStrings[idx] ?? null : null;
+      } else if (type === 'inlineStr') {
+        const isEl = getFirstElementByLocalName(c, 'is');
+        const tEls = isEl ? getElementsByLocalName(isEl, 't') : [];
+        rawValue = tEls.map((t) => t.textContent ?? '').join('');
+      } else {
+        rawValue = getFirstElementByLocalName(c, 'v')?.textContent ?? null;
+      }
+
+      const num = rawValue != null ? parseInt(String(rawValue).trim(), 10) : NaN;
+      if (Number.isFinite(num)) {
+        result[rowNumber] = num;
+      }
+      break;
+    }
+  }
+  return result;
+}
+
+/**
  * Extrai imagens da primeira sheet de um arquivo .xlsx.
  *
  * @param fileBuffer ArrayBuffer do .xlsx
