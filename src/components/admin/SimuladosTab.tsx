@@ -80,7 +80,7 @@ interface Questao {
   comentario: string | null;
   feedback_corretas: string | null;
   imagem: string | null;
-  imagem_comentario: string | null;
+  imagem_comentario?: string | null;
   observacao: string | null;
   anulada?: boolean;
   /** Apenas no preview (cliente) — não vai pro banco */
