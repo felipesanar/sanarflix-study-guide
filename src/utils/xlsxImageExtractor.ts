@@ -487,9 +487,13 @@ export async function extractImagesFromXlsx(
     const mediaPath = ridToMediaPath[embed];
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
     if (!bytes) continue;
-    // xdr:row é 0-based: xdr:row=0 é a linha do header; xdr:row=N corresponde à questão N (1-based).
-    if (row < 1) continue;
-    const rowIndex = row;
+    // `row` (xdr:row) é 0-based; o número da linha real do Excel (1-based) é row+1.
+    const xlsxRowNumber = row + 1;
+    const numeroQuestao = rowToQuestionNumber[xlsxRowNumber];
+    if (!numeroQuestao) {
+      stats.skippedNoQuestionNumber += 1;
+      continue;
+    }
 
     const image: ExtractedImage = {
       base64: uint8ToBase64(bytes),
@@ -497,10 +501,10 @@ export async function extractImagesFromXlsx(
     };
 
     if (col === options.enunciadoColIndex) {
-      enunciadoImages[rowIndex] = image;
+      enunciadoImages[numeroQuestao] = image;
       stats.matchedEnunciado += 1;
     } else if (col === options.comentarioColIndex) {
-      comentarioImages[rowIndex] = image;
+      comentarioImages[numeroQuestao] = image;
       stats.matchedComentario += 1;
     } else {
       stats.skippedWrongColumn += 1;
