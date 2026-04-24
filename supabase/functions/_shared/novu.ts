@@ -23,6 +23,16 @@ export interface TriggerNovuEventResult {
   error?: string;
 }
 
+function markHtmlLinksAsNoTrack(html: string): string {
+  return html.replace(/<a\s+([^>]*?)href=/gi, (match, attrs) => {
+    if (/\bclicktracking\s*=\s*["']?off["']?/i.test(attrs)) {
+      return match;
+    }
+
+    return `<a ${attrs}clicktracking="off" href=`;
+  });
+}
+
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -69,6 +79,8 @@ export async function triggerNovuEvent(input: TriggerNovuEventInput): Promise<Tr
     if (input.disableTracking) {
       mergedOverrides = mergedOverrides ?? {};
       mergedOverrides.email = mergedOverrides.email ?? {};
+      mergedOverrides.providers = mergedOverrides.providers ?? {};
+      mergedOverrides.providers.sendgrid = mergedOverrides.providers.sendgrid ?? {};
 
       // SendGrid-native format (preferred): tracking_settings on the email override.
       mergedOverrides.email.tracking_settings = {
@@ -86,6 +98,18 @@ export async function triggerNovuEvent(input: TriggerNovuEventInput): Promise<Tr
           open_tracking: { enable: false },
         },
       };
+
+      // Novu provider override format for SendGrid.
+      mergedOverrides.providers.sendgrid.trackingSettings = {
+        ...(mergedOverrides.providers.sendgrid.trackingSettings ?? {}),
+        clickTracking: { enable: false, enableText: false },
+        openTracking: { enable: false },
+      };
+
+      if (typeof mergedOverrides.email.html === 'string') {
+        mergedOverrides.email.html = markHtmlLinksAsNoTrack(mergedOverrides.email.html);
+        console.log('[Novu] Added clicktracking="off" to HTML anchors for auth email:', input.name);
+      }
 
       console.log('[Novu] Tracking disabled for auth email:', input.name);
     }
