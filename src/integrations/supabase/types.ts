@@ -781,6 +781,7 @@ export type Database = {
           grande_area: string | null
           id: string
           imagem: string | null
+          imagem_comentario: string | null
           numero_questao: number | null
           observacao: string | null
           ordem: number
@@ -805,6 +806,7 @@ export type Database = {
           grande_area?: string | null
           id?: string
           imagem?: string | null
+          imagem_comentario?: string | null
           numero_questao?: number | null
           observacao?: string | null
           ordem: number
@@ -829,6 +831,7 @@ export type Database = {
           grande_area?: string | null
           id?: string
           imagem?: string | null
+          imagem_comentario?: string | null
           numero_questao?: number | null
           observacao?: string | null
           ordem?: number
