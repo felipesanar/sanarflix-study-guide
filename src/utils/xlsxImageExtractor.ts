@@ -129,8 +129,94 @@ export async function extractImagesFromXlsx(
     }
   }
 
+  // Diagnóstico: lista todos os arquivos relevantes do XLSX
+  const xlsxStructure = {
+    totalMedia: stats.totalMedia,
+    mediaFiles: Object.keys(mediaFiles),
+    hasCellImages: !!zip.files['xl/cellimages.xml'],
+    hasCellImagesRels: !!zip.files['xl/_rels/cellimages.xml.rels'],
+    drawings: Object.keys(zip.files).filter((p) => p.startsWith('xl/drawings/') && p.endsWith('.xml')),
+    sheetRels: Object.keys(zip.files).filter((p) => /^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(p)),
+    options,
+  };
+  console.log('[xlsxImageExtractor] Estrutura do XLSX:', xlsxStructure);
+
   if (stats.totalMedia === 0) {
+    console.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
     return { enunciadoImages: {}, comentarioImages: {}, stats };
+  }
+
+  const enunciadoImages: Record<number, ExtractedImage> = {};
+  const comentarioImages: Record<number, ExtractedImage> = {};
+
+  // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
+  if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
+    try {
+      const cellImagesXml = await zip.files['xl/cellimages.xml'].async('string');
+      const cellImagesRelsXml = await zip.files['xl/_rels/cellimages.xml.rels'].async('string');
+      const cellRels = parseRels(cellImagesRelsXml);
+
+      // Mapa: nome lógico da imagem (ex: "ID_xxx") → caminho de mídia
+      const cellDoc = parseXml(cellImagesXml);
+      const cellImageEls = Array.from(cellDoc.getElementsByTagName('etc:cellImage'));
+      const nameToMedia: Record<string, string> = {};
+      for (const el of cellImageEls) {
+        const pic = el.getElementsByTagName('xdr:pic')[0];
+        const nvPr = pic?.getElementsByTagName('xdr:nvPicPr')[0]?.getElementsByTagName('xdr:cNvPr')[0];
+        const name = nvPr?.getAttribute('name') ?? '';
+        const blip = pic?.getElementsByTagName('a:blip')[0];
+        const embed = blip?.getAttribute('r:embed');
+        if (name && embed && cellRels[embed]) {
+          nameToMedia[name] = resolveZipPath('xl/_rels/cellimages.xml.rels', cellRels[embed]);
+        }
+      }
+      console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
+
+      // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
+      const sheetPath = Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+      if (sheetPath) {
+        const sheetXml = await zip.files[sheetPath].async('string');
+        // Regex robusta: captura ref da célula (ex: E2) + nome do recurso dentro de DISPIMG
+        const dispRegex = /<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*&quot;([^&]+)&quot;|<c\s+r="([A-Z]+)(\d+)"[^>]*>[\s\S]*?DISPIMG\(\s*"([^"]+)"/g;
+        let match: RegExpExecArray | null;
+        let dispMatches = 0;
+        while ((match = dispRegex.exec(sheetXml)) !== null) {
+          const colLetters = match[1] ?? match[4];
+          const rowNum = parseInt(match[2] ?? match[5], 10);
+          const imgName = match[3] ?? match[6];
+          if (!colLetters || !rowNum || !imgName) continue;
+          dispMatches += 1;
+          const colIdx = colLettersToIndex(colLetters); // 0-based
+          const rowIdx = rowNum - 1; // sheet rows são 1-based; row 1 = header, row 2 = questão 1
+          const mediaPath = nameToMedia[imgName];
+          const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
+          if (!bytes) continue;
+          const image: ExtractedImage = {
+            base64: uint8ToBase64(bytes),
+            mimeType: inferMimeFromPath(mediaPath),
+          };
+          // questão N corresponde a sheet row N+1 (header=1, questão1=row2) → questionRow = rowIdx (já é 0-based)
+          const questionRow = rowIdx; // se header é a row 1 (rowIdx=0), questão 1 está em rowIdx=1
+          if (questionRow < 1) continue;
+          if (colIdx === options.enunciadoColIndex) {
+            enunciadoImages[questionRow] = image;
+            stats.matchedEnunciado += 1;
+          } else if (colIdx === options.comentarioColIndex) {
+            comentarioImages[questionRow] = image;
+            stats.matchedComentario += 1;
+          } else {
+            stats.skippedWrongColumn += 1;
+          }
+        }
+        console.log('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
+      }
+
+      if (stats.matchedEnunciado + stats.matchedComentario > 0) {
+        return { enunciadoImages, comentarioImages, stats };
+      }
+    } catch (e) {
+      console.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
+    }
   }
 
   // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
