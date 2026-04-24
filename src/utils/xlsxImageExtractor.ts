@@ -207,6 +207,8 @@ export async function extractImagesFromXlsx(
   const enunciadoImages: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
+  console.log('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
+
   // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
   if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
     try {
@@ -277,16 +279,18 @@ export async function extractImagesFromXlsx(
     }
   }
 
+  console.log('[xlsxImageExtractor] >>> Entrando no caminho CLÁSSICO (drawings)');
+
   // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
-  // Procuramos sheet1.xml.rels (caso comum) ou qualquer worksheet rels.
-   const firstSheetPath = await resolveFirstSheetPath(zip);
-   const firstSheetRels = firstSheetPath
+  const firstSheetPath = await resolveFirstSheetPath(zip);
+  const firstSheetRels = firstSheetPath
     ? resolveZipPath(firstSheetPath, `_rels/${firstSheetPath.split('/').pop()}.rels`)
     : null;
-   const sheetRelsCandidates = [
+  console.log('[xlsxImageExtractor] firstSheetPath:', firstSheetPath, '| firstSheetRels:', firstSheetRels);
+
+  const sheetRelsCandidates = [
     firstSheetRels || 'xl/worksheets/_rels/sheet1.xml.rels',
   ];
-  // Fallback: procura qualquer sheet*.xml.rels que tenha drawing
   if (!zip.files[sheetRelsCandidates[0]]) {
     for (const path of Object.keys(zip.files)) {
       if (/^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(path)) {
@@ -295,6 +299,7 @@ export async function extractImagesFromXlsx(
       }
     }
   }
+  console.log('[xlsxImageExtractor] sheetRelsCandidates:', sheetRelsCandidates);
 
   let drawingPath: string | null = null;
   for (const sheetRelsPath of sheetRelsCandidates) {
@@ -302,6 +307,7 @@ export async function extractImagesFromXlsx(
     if (!file) continue;
     const xml = await file.async('string');
     const rels = parseRels(xml);
+    console.log('[xlsxImageExtractor] Rels da sheet', sheetRelsPath, ':', rels);
     for (const target of Object.values(rels)) {
       if (target.includes('drawings/drawing')) {
         drawingPath = resolveZipPath(sheetRelsPath, target);
@@ -310,19 +316,21 @@ export async function extractImagesFromXlsx(
     }
     if (drawingPath) break;
   }
+  console.log('[xlsxImageExtractor] drawingPath resolvido:', drawingPath);
 
   if (!drawingPath || !zip.files[drawingPath]) {
-    // Sem drawing → sem imagens ancoradas
+    console.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
     return { enunciadoImages: {}, comentarioImages: {}, stats };
   }
 
-  // 3. Lê os rels do drawing para mapear rId → caminho de mídia
+  // 3. Lê os rels do drawing
   const drawingRelsPath = resolveZipPath(
     drawingPath,
     `_rels/${drawingPath.split('/').pop()}.rels`
   );
   const drawingRelsFile = zip.files[drawingRelsPath];
   if (!drawingRelsFile) {
+    console.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
     return { enunciadoImages: {}, comentarioImages: {}, stats };
   }
   const drawingRelsXml = await drawingRelsFile.async('string');
@@ -332,19 +340,20 @@ export async function extractImagesFromXlsx(
   for (const [rid, target] of Object.entries(drawingRels)) {
     ridToMediaPath[rid] = resolveZipPath(drawingRelsPath, target);
   }
+  console.log('[xlsxImageExtractor] ridToMediaPath:', ridToMediaPath);
 
-  // 4. Parseia o drawing.xml e captura cada âncora
+  // 4. Parseia o drawing.xml
   const drawingXml = await zip.files[drawingPath].async('string');
+  console.log('[xlsxImageExtractor] drawing.xml (primeiros 2000 chars):', drawingXml.slice(0, 2000));
   const drawingDoc = parseXml(drawingXml);
 
-  // Suporta twoCellAnchor, oneCellAnchor e absoluteAnchor
   const anchorTags = ['twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor'];
   const anchors: Array<{ el: Element; tag: string }> = [];
   for (const tag of anchorTags) {
     const list = getElementsByLocalName(drawingDoc, tag);
     for (const item of list) anchors.push({ el: item, tag });
   }
-  console.log('[xlsxImageExtractor] Caminho clássico (drawings): âncoras encontradas:', anchors.length, '| breakdown:', {
+  console.log('[xlsxImageExtractor] Âncoras encontradas:', anchors.length, '| breakdown:', {
     twoCell: anchors.filter((a) => a.tag === 'twoCellAnchor').length,
     oneCell: anchors.filter((a) => a.tag === 'oneCellAnchor').length,
     absolute: anchors.filter((a) => a.tag === 'absoluteAnchor').length,
