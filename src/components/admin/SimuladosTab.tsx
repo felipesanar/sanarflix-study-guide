@@ -393,10 +393,11 @@ export default function SimuladosTab() {
                 );
               }
 
-              // No xlsx: header = linha 0, primeira questão = linha 1 → xdr:row para a 1ª questão = 1
-              const xlsxRow = index + 1;
-              const rawEnunciado = extracted.enunciadoImages[xlsxRow];
-              const rawComentario = extracted.comentarioImages[xlsxRow];
+              // Vinculação imagem ↔ questão pelo NÚMERO DA QUESTÃO (chave canônica),
+              // exatamente como o resto do pipeline (Storage path, render no app, PDF).
+              const numeroQuestao = Number(normalizedRow['numero']) || (index + 1);
+              const rawEnunciado = extracted.enunciadoImages[numeroQuestao];
+              const rawComentario = extracted.comentarioImages[numeroQuestao];
 
               const [embeddedEnunciado, embeddedComentario] = await Promise.all([
                 rawEnunciado
