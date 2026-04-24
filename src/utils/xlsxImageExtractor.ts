@@ -139,11 +139,19 @@ function parseRels(xmlString: string): Record<string, string> {
 }
 
 /**
- * Resolve um path relativo dentro do ZIP.
- * Ex: base="xl/worksheets/sheet1.xml.rels", target="../drawings/drawing1.xml"
+ * Resolve um path relativo dentro do ZIP, a partir de uma base.
+ * Ex: base="xl/worksheets/sheet1.xml", target="../drawings/drawing1.xml"
  *  -> "xl/drawings/drawing1.xml"
+ *
+ * IMPORTANTE: a base deve ser o *part owner* (o arquivo dono), NÃO o próprio
+ * `.rels`. Em OOXML, Targets em `.rels` são relativos ao dono. Use
+ * `relsOwnerPath` para converter `xl/_rels/workbook.xml.rels` → `xl/workbook.xml`.
  */
 function resolveZipPath(basePath: string, relativeTarget: string): string {
+  // Targets absolutos (começam com "/") são relativos à raiz do pacote
+  if (relativeTarget.startsWith('/')) {
+    return relativeTarget.replace(/^\/+/, '');
+  }
   const baseSegments = basePath.split('/').slice(0, -1);
   const relSegments = relativeTarget.split('/');
   for (const seg of relSegments) {
