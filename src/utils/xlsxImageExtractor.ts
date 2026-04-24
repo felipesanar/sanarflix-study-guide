@@ -19,9 +19,9 @@ export type ExtractedImage = {
 };
 
 export type ExtractedImagesResult = {
-  /** Mapa rowIndex (0-based, descontando header) → imagem do enunciado */
+  /** Mapa NÚMERO DA QUESTÃO (lido da coluna `numero` da planilha) → imagem do enunciado */
   enunciadoImages: Record<number, ExtractedImage>;
-  /** Mapa rowIndex (0-based, descontando header) → imagem do comentário */
+  /** Mapa NÚMERO DA QUESTÃO → imagem do comentário */
   comentarioImages: Record<number, ExtractedImage>;
   /** Estatísticas para log/debug */
   stats: {
@@ -30,6 +30,8 @@ export type ExtractedImagesResult = {
     matchedComentario: number;
     skippedNoAnchor: number;
     skippedWrongColumn: number;
+    /** Âncoras cujas linhas não tinham número de questão preenchido */
+    skippedNoQuestionNumber: number;
   };
 };
 
@@ -38,6 +40,8 @@ export type ExtractImagesOptions = {
   enunciadoColIndex: number;
   /** Índice 0-based da coluna alvo para imagens do comentário */
   comentarioColIndex: number;
+  /** Índice 0-based da coluna `numero` na planilha (chave de vinculação) */
+  numeroColIndex: number;
 };
 
 const MIME_BY_EXT: Record<string, string> = {
