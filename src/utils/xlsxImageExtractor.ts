@@ -438,7 +438,7 @@ export async function extractImagesFromXlsx(
     console.log('[xlsxImageExtractor] Rels da sheet', sheetRelsPath, ':', rels);
     for (const target of Object.values(rels)) {
       if (target.includes('drawings/drawing')) {
-        drawingPath = resolveZipPath(sheetRelsPath, target);
+        drawingPath = resolveZipPath(relsOwnerPath(sheetRelsPath), target);
         break;
       }
     }
