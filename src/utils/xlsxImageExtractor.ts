@@ -207,6 +207,8 @@ export async function extractImagesFromXlsx(
   const enunciadoImages: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
+  console.log('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
+
   // === Caminho A: formato moderno "Imagem na célula" (xl/cellimages.xml + DISPIMG) ===
   if (zip.files['xl/cellimages.xml'] && zip.files['xl/_rels/cellimages.xml.rels']) {
     try {
