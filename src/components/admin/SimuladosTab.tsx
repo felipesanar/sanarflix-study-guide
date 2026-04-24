@@ -299,16 +299,15 @@ export default function SimuladosTab() {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const data = event.target?.result;
+          const arrayBuffer = event.target?.result as ArrayBuffer;
           const XLSXLib = await loadXLSX();
-          const workbook = XLSXLib.read(data, { type: 'binary' });
+          const workbook = XLSXLib.read(arrayBuffer, { type: 'array' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSXLib.utils.sheet_to_json(worksheet);
 
           setUploadProgress(40);
 
-          // Validar colunas obrigatórias (novo padrão)
           const requiredColumns = [
             'número da questão',
             'grande área',
@@ -323,9 +322,10 @@ export default function SimuladosTab() {
             'comentário da questão',
             'alternativa correta'
           ];
-          
+
           const firstRow = jsonData[0] as any;
-          const columns = Object.keys(firstRow).map(k => k.toLowerCase().trim());
+          const originalKeys = Object.keys(firstRow);
+          const columns = originalKeys.map(k => k.toLowerCase().trim());
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
@@ -334,45 +334,89 @@ export default function SimuladosTab() {
             );
           }
 
-          setUploadProgress(60);
+          // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col)
+          const enunciadoColIndex = originalKeys.findIndex(
+            k => k.toLowerCase().trim() === 'imagem do enunciado'
+          );
+          const comentarioColIndex = originalKeys.findIndex(
+            k => k.toLowerCase().trim() === 'imagem do comentário'
+          );
 
-          // Processar questões com novo padrão
-          const questoes: Questao[] = jsonData.map((row: any, index) => {
-            const normalizedRow: any = {};
-            Object.keys(row).forEach(key => {
-              normalizedRow[key.toLowerCase().trim()] = row[key];
-            });
+          setUploadProgress(55);
 
-            // Validar alternativa correta
-            const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
-            if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
-              throw new Error(
-                `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
-              );
+          let extracted = {
+            enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
+            comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0 }
+          };
+          if (enunciadoColIndex >= 0 || comentarioColIndex >= 0) {
+            try {
+              extracted = await extractImagesFromXlsx(arrayBuffer, {
+                enunciadoColIndex: enunciadoColIndex >= 0 ? enunciadoColIndex : -1,
+                comentarioColIndex: comentarioColIndex >= 0 ? comentarioColIndex : -1,
+              });
+              console.log('[SimuladosTab] Imagens extraídas:', extracted.stats);
+            } catch (extractErr) {
+              console.warn('[SimuladosTab] Falha ao extrair imagens embutidas:', extractErr);
             }
+          }
 
-            return {
-              ordem: index + 1,
-              numero_questao: normalizedRow['número da questão'] || index + 1,
-              grande_area: normalizedRow['grande área'] || '',
-              especialidade: normalizedRow['especialidade'] || '',
-              tema: normalizedRow['tema'] || '',
-              competencia: normalizedRow['competência'] || '',
-              enunciado: normalizedRow['enunciado da questão'] || '',
-              alternativa_a: normalizedRow['alternativa a'] || '',
-              alternativa_b: normalizedRow['alternativa b'] || '',
-              alternativa_c: normalizedRow['alternativa c'] || '',
-              alternativa_d: normalizedRow['alternativa d'] || '',
-              alternativa_e: null,
-              correta: correta as 'A' | 'B' | 'C' | 'D',
-              comentario: normalizedRow['comentário da questão'] || null,
-              feedback_corretas: null,
-              imagem: normalizedRow['imagem/gráfico/tabela'] || null,
-              observacao: null
-            };
-          });
+          setUploadProgress(70);
 
-          setUploadProgress(80);
+          const questoes: Questao[] = await Promise.all(
+            jsonData.map(async (row: any, index) => {
+              const normalizedRow: any = {};
+              Object.keys(row).forEach(key => {
+                normalizedRow[key.toLowerCase().trim()] = row[key];
+              });
+
+              const correta = normalizedRow['alternativa correta']?.toString().toUpperCase();
+              if (!correta || !['A', 'B', 'C', 'D'].includes(correta)) {
+                throw new Error(
+                  `Questão ${index + 1}: Campo "Alternativa Correta" inválido. Deve ser A, B, C ou D. Valor encontrado: "${correta}"`
+                );
+              }
+
+              // No xlsx: header = linha 0, primeira questão = linha 1 → xdr:row para a 1ª questão = 1
+              const xlsxRow = index + 1;
+              const rawEnunciado = extracted.enunciadoImages[xlsxRow];
+              const rawComentario = extracted.comentarioImages[xlsxRow];
+
+              const [embeddedEnunciado, embeddedComentario] = await Promise.all([
+                rawEnunciado
+                  ? compressBase64Image(rawEnunciado.base64, rawEnunciado.mimeType)
+                  : Promise.resolve(undefined),
+                rawComentario
+                  ? compressBase64Image(rawComentario.base64, rawComentario.mimeType)
+                  : Promise.resolve(undefined),
+              ]);
+
+              return {
+                ordem: index + 1,
+                numero_questao: normalizedRow['número da questão'] || index + 1,
+                grande_area: normalizedRow['grande área'] || '',
+                especialidade: normalizedRow['especialidade'] || '',
+                tema: normalizedRow['tema'] || '',
+                competencia: normalizedRow['competência'] || '',
+                enunciado: normalizedRow['enunciado da questão'] || '',
+                alternativa_a: normalizedRow['alternativa a'] || '',
+                alternativa_b: normalizedRow['alternativa b'] || '',
+                alternativa_c: normalizedRow['alternativa c'] || '',
+                alternativa_d: normalizedRow['alternativa d'] || '',
+                alternativa_e: null,
+                correta: correta as 'A' | 'B' | 'C' | 'D',
+                comentario: normalizedRow['comentário da questão'] || null,
+                feedback_corretas: null,
+                imagem: normalizedRow['imagem/gráfico/tabela'] || null,
+                imagem_comentario: null,
+                observacao: null,
+                _embeddedEnunciado: embeddedEnunciado as any,
+                _embeddedComentario: embeddedComentario as any,
+              };
+            })
+          );
+
+          setUploadProgress(90);
 
           setPreviewData({
             questoes,
@@ -387,6 +431,14 @@ export default function SimuladosTab() {
 
           setUploadProgress(100);
           setShowPreviewModal(true);
+
+          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedComentario;
+          if (totalEmbedded > 0) {
+            toast({
+              title: 'Imagens detectadas',
+              description: `${extracted.stats.matchedEnunciado} no enunciado e ${extracted.stats.matchedComentario} no comentário.`,
+            });
+          }
         } catch (error: any) {
           toast({
             title: 'Erro ao processar arquivo',
@@ -399,7 +451,7 @@ export default function SimuladosTab() {
         }
       };
 
-      reader.readAsBinaryString(file);
+      reader.readAsArrayBuffer(file);
     } catch (error: any) {
       toast({
         title: 'Erro no upload',
