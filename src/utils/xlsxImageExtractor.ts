@@ -354,7 +354,7 @@ export async function extractImagesFromXlsx(
         const blip = getFirstElementByLocalName(pic ?? el, 'blip');
         const embed = getAttributeAny(blip, ['r:embed', 'embed']);
         if (name && embed && cellRels[embed]) {
-          nameToMedia[name] = resolveZipPath('xl/_rels/cellimages.xml.rels', cellRels[embed]);
+          nameToMedia[name] = resolveZipPath(relsOwnerPath('xl/_rels/cellimages.xml.rels'), cellRels[embed]);
         }
       }
       console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
