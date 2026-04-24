@@ -59,8 +59,39 @@ export async function triggerNovuEvent(input: TriggerNovuEventInput): Promise<Tr
       payload: input.payload,
       to: input.to,
     };
-    if (input.overrides) {
-      body.overrides = input.overrides;
+
+    // Build overrides — start with caller-supplied overrides, then optionally
+    // inject tracking disablement for auth emails.
+    let mergedOverrides: Record<string, any> | undefined = input.overrides
+      ? JSON.parse(JSON.stringify(input.overrides))
+      : undefined;
+
+    if (input.disableTracking) {
+      mergedOverrides = mergedOverrides ?? {};
+      mergedOverrides.email = mergedOverrides.email ?? {};
+
+      // SendGrid-native format (preferred): tracking_settings on the email override.
+      mergedOverrides.email.tracking_settings = {
+        ...(mergedOverrides.email.tracking_settings ?? {}),
+        click_tracking: { enable: false, enable_text: false },
+        open_tracking: { enable: false },
+      };
+
+      // Novu legacy format fallback: also nest under customData so older
+      // Novu→SendGrid bridges propagate the flag correctly.
+      mergedOverrides.email.customData = {
+        ...(mergedOverrides.email.customData ?? {}),
+        tracking_settings: {
+          click_tracking: { enable: false, enable_text: false },
+          open_tracking: { enable: false },
+        },
+      };
+
+      console.log('[Novu] Tracking disabled for auth email:', input.name);
+    }
+
+    if (mergedOverrides) {
+      body.overrides = mergedOverrides;
     }
 
     const response = await fetch(NOVU_TRIGGER_URL, {
