@@ -251,6 +251,7 @@ export async function extractImagesFromXlsx(
     matchedComentario: 0,
     skippedNoAnchor: 0,
     skippedWrongColumn: 0,
+    skippedNoQuestionNumber: 0,
   };
 
   // 1. Lê todos os binários em xl/media/*
