@@ -109,6 +109,20 @@ export const simuladosApi = {
 
     if (error) throw error;
 
+    const total = (data || []).length;
+    const comImagem = (data || []).filter((q: any) => q.imagem).length;
+    const comImagemComentario = (data || []).filter((q: any) => q.imagem_comentario).length;
+    console.log('[simuladosApi] buscarQuestoesSimulado', {
+      simuladoId: String(simuladoId),
+      total,
+      comImagem,
+      comImagemComentario,
+      primeirasImagens: (data || [])
+        .filter((q: any) => q.imagem)
+        .slice(0, 5)
+        .map((q: any) => ({ ordem: q.ordem, id: q.id, imagem: q.imagem })),
+    });
+
     return (data || []).map((q: any) => ({
       id: q.id,
       enunciado: q.enunciado || '',
