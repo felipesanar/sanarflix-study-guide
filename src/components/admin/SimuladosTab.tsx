@@ -57,6 +57,11 @@ interface Simulado {
   data_liberacao_desempenho?: string | null;
 }
 
+interface EmbeddedImage {
+  base64: string;
+  mimeType: string;
+}
+
 interface Questao {
   id?: string;
   ordem: number;
@@ -75,8 +80,13 @@ interface Questao {
   comentario: string | null;
   feedback_corretas: string | null;
   imagem: string | null;
+  imagem_comentario: string | null;
   observacao: string | null;
   anulada?: boolean;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedEnunciado?: EmbeddedImage;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedComentario?: EmbeddedImage;
 }
 
 interface IES {
