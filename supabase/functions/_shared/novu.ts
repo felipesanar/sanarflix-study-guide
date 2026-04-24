@@ -7,6 +7,13 @@ export interface TriggerNovuEventInput {
   to: Array<{ subscriberId: string; firstName?: string; lastName?: string; email: string }>;
   payload: Record<string, any>;
   overrides?: Record<string, any>;
+  /**
+   * When true, injects SendGrid tracking_settings into overrides.email to disable
+   * click and open tracking. Required for auth emails (welcome, recovery, reset)
+   * to prevent SendGrid from rewrapping links into the broken tracking domain
+   * (url*.sanarsaude.com) which has an invalid SSL certificate.
+   */
+  disableTracking?: boolean;
 }
 
 export interface TriggerNovuEventResult {
