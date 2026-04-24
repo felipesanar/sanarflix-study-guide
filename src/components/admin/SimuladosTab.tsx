@@ -327,13 +327,30 @@ export default function SimuladosTab() {
             );
           }
 
-          // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col)
-          const enunciadoColIndex = originalKeys.findIndex(
+          // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col).
+          // Na planilha oficial, as imagens são coladas DENTRO das colunas "enunciado" e "comentário"
+          // (não há colunas dedicadas). Mantemos fallback para o formato antigo.
+          let enunciadoColIndex = originalKeys.findIndex(
             k => k.toLowerCase().trim() === 'imagem do enunciado'
           );
-          const comentarioColIndex = originalKeys.findIndex(
+          if (enunciadoColIndex < 0) {
+            enunciadoColIndex = originalKeys.findIndex(
+              k => k.toLowerCase().trim() === 'enunciado'
+            );
+          }
+          let comentarioColIndex = originalKeys.findIndex(
             k => k.toLowerCase().trim() === 'imagem do comentário'
           );
+          if (comentarioColIndex < 0) {
+            comentarioColIndex = originalKeys.findIndex(
+              k => k.toLowerCase().trim() === 'comentário'
+            );
+          }
+          console.log('[SimuladosTab] Colunas de imagem detectadas:', {
+            enunciadoColIndex,
+            comentarioColIndex,
+            originalKeys,
+          });
 
           setUploadProgress(55);
 
