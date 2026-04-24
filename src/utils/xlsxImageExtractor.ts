@@ -161,6 +161,21 @@ function resolveZipPath(basePath: string, relativeTarget: string): string {
   return baseSegments.join('/');
 }
 
+/**
+ * Converte um path de `.rels` para o path do seu *part owner* (arquivo dono).
+ * Ex: "xl/_rels/workbook.xml.rels" → "xl/workbook.xml"
+ *     "xl/worksheets/_rels/sheet1.xml.rels" → "xl/worksheets/sheet1.xml"
+ *
+ * Usar como base ao resolver Targets que vêm de dentro de um `.rels`.
+ */
+function relsOwnerPath(relsPath: string): string {
+  const noSuffix = relsPath.replace(/\.rels$/, '');
+  const segments = noSuffix.split('/');
+  const relsIdx = segments.lastIndexOf('_rels');
+  if (relsIdx >= 0) segments.splice(relsIdx, 1);
+  return segments.join('/');
+}
+
 /** Converte letras de coluna do Excel (A, B, ..., AA) em índice 0-based. */
 function colLettersToIndex(letters: string): number {
   let n = 0;
