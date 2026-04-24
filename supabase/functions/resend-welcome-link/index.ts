@@ -172,6 +172,7 @@ Deno.serve(async (req) => {
       name: 'workflow-email',
       payload: { name: nome, email: normalizedEmail, confirmationUrl },
       to: [{ subscriberId: userRecord.id, firstName, lastName, email: normalizedEmail }],
+      disableTracking: true,
       overrides: {
         email: {
           from: '<atendimento@sanar.com.br>',
