@@ -106,14 +106,28 @@ export const ModoProva = () => {
 
       // Diagnóstico: verifica se as imagens vieram do banco para o aluno
       const comImagem = questoesData.filter((q) => q.imagem).length;
+      const comImagemComentario = questoesData.filter((q: any) => q.imagem_comentario).length;
       console.log('[ModoProva] Simulado aberto', {
         simuladoId,
         totalQuestoes: questoesData.length,
         questoesComImagem: comImagem,
+        questoesComImagemComentario: comImagemComentario,
+        questoesSemImagem: questoesData.length - comImagem,
         primeirasComImagem: questoesData
           .filter((q) => q.imagem)
           .slice(0, 5)
           .map((q) => ({ id: q.id, imagem: q.imagem })),
+        primeirasComImagemComentario: questoesData
+          .filter((q: any) => q.imagem_comentario)
+          .slice(0, 5)
+          .map((q: any) => ({ id: q.id, imagem_comentario: q.imagem_comentario })),
+      });
+
+      console.log('[ModoProva] Questão atual inicial', {
+        simuladoId,
+        primeiraQuestaoId: questoesData[0]?.id,
+        primeiraQuestaoTemImagem: Boolean(questoesData[0]?.imagem),
+        primeiraQuestaoImagemUrl: questoesData[0]?.imagem ?? null,
       });
 
       const { titulo, dataEncerramento: deadline, duracaoMinutos } = await simuladosApi.buscarDadosSimulado(simuladoId);
