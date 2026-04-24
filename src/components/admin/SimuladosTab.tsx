@@ -350,6 +350,48 @@ export default function SimuladosTab() {
             k => k.toLowerCase().trim() === 'numero'
           );
 
+          // Validação rigorosa da coluna `numero` — chave canônica de vinculação
+          // imagem ↔ questão (path no Storage, linha em `questoes_simulado`, render).
+          if (numeroColIndex < 0) {
+            throw new Error(
+              'Coluna obrigatória "numero" não encontrada.\n\n' +
+              'Adicione uma coluna chamada exatamente "numero" (sem acentos, em minúsculas) com o número sequencial de cada questão (1, 2, 3...).\n\n' +
+              'Sem essa coluna não é possível vincular as imagens embutidas às questões corretas.'
+            );
+          }
+
+          const numeroErrors: string[] = [];
+          const numerosVistos = new Map<number, number>(); // numero → primeira linha onde apareceu
+          jsonData.forEach((row: any, idx) => {
+            const linhaPlanilha = idx + 2; // +1 header, +1 base 1
+            const normalized: any = {};
+            Object.keys(row).forEach(k => { normalized[k.toLowerCase().trim()] = row[k]; });
+            const raw = normalized['numero'];
+            if (raw === undefined || raw === null || String(raw).trim() === '') {
+              numeroErrors.push(`Linha ${linhaPlanilha}: coluna "numero" está vazia`);
+              return;
+            }
+            const num = Number(String(raw).trim());
+            if (!Number.isInteger(num) || num <= 0) {
+              numeroErrors.push(`Linha ${linhaPlanilha}: "numero" deve ser um inteiro positivo (encontrado: "${raw}")`);
+              return;
+            }
+            if (numerosVistos.has(num)) {
+              numeroErrors.push(`Linha ${linhaPlanilha}: número ${num} duplicado (já usado na linha ${numerosVistos.get(num)})`);
+              return;
+            }
+            numerosVistos.set(num, linhaPlanilha);
+          });
+
+          if (numeroErrors.length > 0) {
+            const preview = numeroErrors.slice(0, 10).join('\n');
+            const extra = numeroErrors.length > 10 ? `\n\n…e mais ${numeroErrors.length - 10} erro(s).` : '';
+            throw new Error(
+              `Problemas na coluna "numero":\n\n${preview}${extra}\n\n` +
+              'Cada questão deve ter um número único, inteiro e positivo. Esse número é usado para vincular as imagens embutidas.'
+            );
+          }
+
           console.log('[SimuladosTab] Colunas de imagem detectadas:', {
             enunciadoColIndex,
             comentarioColIndex,
