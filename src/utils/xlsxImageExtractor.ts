@@ -466,7 +466,7 @@ export async function extractImagesFromXlsx(
 
   const ridToMediaPath: Record<string, string> = {};
   for (const [rid, target] of Object.entries(drawingRels)) {
-    ridToMediaPath[rid] = resolveZipPath(drawingRelsPath, target);
+    ridToMediaPath[rid] = resolveZipPath(relsOwnerPath(drawingRelsPath), target);
   }
   console.log('[xlsxImageExtractor] ridToMediaPath:', ridToMediaPath);
 
