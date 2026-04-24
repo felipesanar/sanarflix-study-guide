@@ -629,18 +629,81 @@ export default function SimuladosTab() {
 
         if (simuladoError) throw simuladoError;
 
-        // Inserir questões
+        // Upload de imagens embutidas (se houver) e inserção das questões
         if (previewData) {
-          const questoesComSimuladoId = previewData.questoes.map(q => ({
-            ...q,
-            simulado_id: simulado.id
-          }));
+          // 1. Coleta todas as imagens base64 para envio à edge function
+          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'comentario'; data: string; mime: string }> = [];
+          for (const q of previewData.questoes) {
+            if (q._embeddedEnunciado) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'enunciado',
+                data: q._embeddedEnunciado.base64,
+                mime: q._embeddedEnunciado.mimeType,
+              });
+            }
+            if (q._embeddedComentario) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'comentario',
+                data: q._embeddedComentario.base64,
+                mime: q._embeddedComentario.mimeType,
+              });
+            }
+          }
+
+          // Mapa ordem → { enunciado, comentario } com URLs vindas do Storage
+          const urlsByOrdem: Record<number, { enunciado?: string; comentario?: string }> = {};
+
+          if (imagesPayload.length > 0) {
+            try {
+              const { data: uploadData, error: uploadError } = await supabase.functions.invoke(
+                'admin-upload-simulado-images',
+                { body: { simulado_id: simulado.id, images: imagesPayload } }
+              );
+              if (uploadError) throw uploadError;
+              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'comentario'; url: string }>;
+              for (const u of returnedUrls) {
+                if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
+                urlsByOrdem[u.ordem][u.slot] = u.url;
+              }
+              const uploadErrors = (uploadData?.errors ?? []) as Array<{ ordem: number; message: string }>;
+              if (uploadErrors.length > 0) {
+                console.warn('[SimuladosTab] Falhas parciais no upload de imagens:', uploadErrors);
+                toast({
+                  title: 'Algumas imagens falharam',
+                  description: `${uploadErrors.length} imagem(ns) não foram enviadas. As questões serão criadas sem elas.`,
+                  variant: 'destructive',
+                });
+              }
+            } catch (imgErr: any) {
+              // Rollback do simulado para não deixar órfão
+              await supabase.from('simulados_admin').delete().eq('id', simulado.id);
+              throw new Error(`Falha no upload das imagens: ${imgErr?.message ?? imgErr}. O simulado foi revertido — tente novamente.`);
+            }
+          }
+
+          // 2. Monta payload final, removendo campos internos e injetando URLs
+          const questoesComSimuladoId = previewData.questoes.map(q => {
+            const { _embeddedEnunciado, _embeddedComentario, ...clean } = q;
+            const slotUrls = urlsByOrdem[q.ordem] ?? {};
+            return {
+              ...clean,
+              simulado_id: simulado.id,
+              imagem: slotUrls.enunciado ?? clean.imagem ?? null,
+              imagem_comentario: slotUrls.comentario ?? clean.imagem_comentario ?? null,
+            };
+          });
 
           const { error: questoesError } = await supabase
             .from('questoes_simulado')
             .insert(questoesComSimuladoId);
 
-          if (questoesError) throw questoesError;
+          if (questoesError) {
+            // Rollback se a inserção falhar
+            await supabase.from('simulados_admin').delete().eq('id', simulado.id);
+            throw questoesError;
+          }
         }
 
         toast({
