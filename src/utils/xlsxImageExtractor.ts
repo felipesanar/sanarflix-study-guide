@@ -69,6 +69,55 @@ function parseXml(xmlString: string): Document {
   return new DOMParser().parseFromString(xmlString, 'application/xml');
 }
 
+function getElementsByLocalName(parent: Document | Element, localName: string): Element[] {
+  return Array.from(parent.getElementsByTagName('*')).filter(
+    (el) => el.localName === localName,
+  );
+}
+
+function getFirstElementByLocalName(parent: Document | Element, localName: string): Element | null {
+  return getElementsByLocalName(parent, localName)[0] ?? null;
+}
+
+function getAttributeAny(el: Element | null | undefined, names: string[]): string | null {
+  if (!el) return null;
+  for (const name of names) {
+    const value = el.getAttribute(name);
+    if (value) return value;
+  }
+  for (const attr of Array.from(el.attributes)) {
+    if (names.includes(attr.name) || names.includes(attr.localName)) {
+      return attr.value;
+    }
+  }
+  return null;
+}
+
+async function resolveFirstSheetPath(zip: JSZip): Promise<string | null> {
+  const workbookFile = zip.files['xl/workbook.xml'];
+  const workbookRelsFile = zip.files['xl/_rels/workbook.xml.rels'];
+  if (!workbookFile || !workbookRelsFile) {
+    return Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p)) ?? null;
+  }
+
+  const [workbookXml, workbookRelsXml] = await Promise.all([
+    workbookFile.async('string'),
+    workbookRelsFile.async('string'),
+  ]);
+
+  const workbookDoc = parseXml(workbookXml);
+  const workbookRels = parseRels(workbookRelsXml);
+  const firstSheet = getFirstElementByLocalName(workbookDoc, 'sheet');
+  const relId = getAttributeAny(firstSheet, ['r:id', 'id']);
+  const target = relId ? workbookRels[relId] : null;
+
+  if (!target) {
+    return Object.keys(zip.files).find((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p)) ?? null;
+  }
+
+  return resolveZipPath('xl/_rels/workbook.xml.rels', target);
+}
+
 /**
  * Lê um *.rels e retorna mapa { rId -> Target }.
  * Os Targets são paths relativos ao próprio .rels (ex: "../media/image1.png").
