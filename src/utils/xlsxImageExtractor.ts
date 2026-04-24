@@ -214,8 +214,10 @@ export async function extractImagesFromXlsx(
     const mediaPath = ridToMediaPath[embed];
     const bytes = mediaPath ? mediaFiles[mediaPath] : undefined;
     if (!bytes) continue;
-    const rowIndex = row - 1;
-    if (rowIndex < 0) continue;
+    // xdr:row é 0-based: xdr:row=0 é a linha do header; xdr:row=N corresponde à questão N (1-based).
+    // Indexamos diretamente por xdr:row para casar com `xlsxRow = index + 1` no consumidor.
+    if (row < 1) continue;
+    const rowIndex = row;
 
     const image: ExtractedImage = {
       base64: uint8ToBase64(bytes),
