@@ -180,6 +180,7 @@ serve(async (req) => {
         name: 'welcome-academy-email',
         payload: { name: publicUser.nome, email: normalizedEmail, confirmationUrl },
         to: [{ subscriberId: newAuthUser.user.id, firstName, email: normalizedEmail }],
+        disableTracking: true,
       });
       emailSent = novuResult.ok;
       if (!emailSent) {
