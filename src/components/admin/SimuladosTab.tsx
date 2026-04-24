@@ -276,7 +276,7 @@ export default function SimuladosTab() {
 
       toast({
         title: 'Modelo baixado',
-        description: 'Use este arquivo como referência para criar seus simulados.'
+        description: 'Cole imagens diretamente nas colunas "Imagem do Enunciado" e "Imagem do Comentário" (Inserir → Imagem na célula).'
       });
     } catch (error: any) {
       toast({
