@@ -171,22 +171,13 @@ Deno.serve(async (req) => {
       name: 'workflow-email',
       payload: { name: nome, email: normalizedEmail, confirmationUrl },
       to: [{ subscriberId: userRecord.id, firstName, lastName, email: normalizedEmail }],
+      disableTracking: true,
       overrides: {
         email: {
           from: '<atendimento@sanar.com.br>',
           replyTo: 'atendimento@sanar.com.br',
           subject: 'Redefinição de Senha — SanarFlix Academy',
           html: htmlContent,
-        },
-        providers: {
-          sendgrid: {
-            trackingSettings: {
-              clickTracking: {
-                enable: false,
-                enableText: false,
-              },
-            },
-          },
         },
       },
     }).then(result => {

@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
       name: 'welcome-academy-email',
       payload: { name: nome, email, confirmationUrl },
       to: [{ subscriberId: authData.user.id, firstName, email }],
+      disableTracking: true,
     });
 
     if (!novuResult.ok) {

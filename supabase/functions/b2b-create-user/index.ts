@@ -221,6 +221,7 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
     name: 'workflow-email',
     payload: { name: nome, email, confirmationUrl },
     to: [{ subscriberId: userId, firstName, lastName, email }],
+    disableTracking: true,
     overrides: {
       email: {
         from: '<atendimento@sanar.com.br>',
