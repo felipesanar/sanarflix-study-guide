@@ -909,10 +909,10 @@ export const SimuladoDesempenho: React.FC = () => {
         <PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} />
       )}
 
-      {/* ─── Resumo + Dificuldade Grid ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ─── Resumo + Evolução Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* Resumo */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }} className="h-full">
           <Card className="rounded-2xl border-border/40 shadow-sm h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
@@ -952,6 +952,11 @@ export const SimuladoDesempenho: React.FC = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Evolução entre Simulados */}
+        <div className="h-full">
+          <EvolutionChart allPerformanceData={allPerformanceData} />
+        </div>
       </div>
 
       {/* ─── Decomposition Tree ─── */}
@@ -965,9 +970,6 @@ export const SimuladoDesempenho: React.FC = () => {
           selectedSimulado={selectedSimulado}
         />
       )}
-
-      {/* ─── Evolution Chart ─── */}
-      <EvolutionChart allPerformanceData={allPerformanceData} />
 
       {/* ─── Question Modal ─── */}
       <QuestionModal
