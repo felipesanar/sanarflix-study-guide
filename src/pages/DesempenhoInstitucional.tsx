@@ -23,7 +23,7 @@ interface SubspecialtyData extends AreaData { specialty_name: string; area_name:
 interface OverallStats { total: number; acertos: number; totalStudents: number; }
 interface QuestionDetail {
   id: string; enunciado: string; a: string; b: string; c: string; d: string;
-  gabarito: string; comentario: string; imagem: string | null; anulada: boolean; dificuldade: string;
+  gabarito: string; comentario: string; imagem: string | null; anulada: boolean;
   semester_distribution: SemesterData[];
   students: { nome: string; semestre: number; acertou: boolean; resposta: string; }[];
 }
