@@ -504,8 +504,8 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
 
   if (evolutionData.data.length === 0 || evolutionData.simulados.length < 2) {
     return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }}>
-        <Card className="rounded-2xl border-border/40 shadow-sm">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }} className="h-full">
+        <Card className="rounded-2xl border-border/40 shadow-sm h-full flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
               <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -514,7 +514,7 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
               Evolução entre Simulados
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center justify-center py-16">
+          <CardContent className="flex-1 flex items-center justify-center py-16">
             <p className="text-sm text-muted-foreground text-center">Realize pelo menos dois simulados para ver sua evolução.</p>
           </CardContent>
         </Card>
@@ -523,8 +523,8 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }}>
-      <Card className="rounded-2xl border-border/40 shadow-sm">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }} className="h-full">
+      <Card className="rounded-2xl border-border/40 shadow-sm h-full flex flex-col">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
             <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -533,7 +533,7 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
             Evolução entre Simulados
           </CardTitle>
         </CardHeader>
-        <CardContent className="h-[300px] sm:h-[400px]">
+        <CardContent className="flex-1 min-h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <RechartsBarChart data={evolutionData.data} margin={{ top: 30, right: 10, left: -10, bottom: 5 }}>
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={60} />
@@ -909,10 +909,10 @@ export const SimuladoDesempenho: React.FC = () => {
         <PerformanceSummary stats={stats} performancePorArea={performancePorArea} bySpecialty={bySpecialty} />
       )}
 
-      {/* ─── Resumo + Dificuldade Grid ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ─── Resumo + Evolução Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* Resumo */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }} className="h-full">
           <Card className="rounded-2xl border-border/40 shadow-sm h-full">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
@@ -952,6 +952,11 @@ export const SimuladoDesempenho: React.FC = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Evolução entre Simulados */}
+        <div className="h-full">
+          <EvolutionChart allPerformanceData={allPerformanceData} />
+        </div>
       </div>
 
       {/* ─── Decomposition Tree ─── */}
@@ -965,9 +970,6 @@ export const SimuladoDesempenho: React.FC = () => {
           selectedSimulado={selectedSimulado}
         />
       )}
-
-      {/* ─── Evolution Chart ─── */}
-      <EvolutionChart allPerformanceData={allPerformanceData} />
 
       {/* ─── Question Modal ─── */}
       <QuestionModal
