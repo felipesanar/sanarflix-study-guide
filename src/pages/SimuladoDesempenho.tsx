@@ -504,8 +504,8 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
 
   if (evolutionData.data.length === 0 || evolutionData.simulados.length < 2) {
     return (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }}>
-        <Card className="rounded-2xl border-border/40 shadow-sm">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.3 }} className="h-full">
+        <Card className="rounded-2xl border-border/40 shadow-sm h-full flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2.5 text-base font-bold tracking-tight">
               <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -514,7 +514,7 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
               Evolução entre Simulados
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center justify-center py-16">
+          <CardContent className="flex-1 flex items-center justify-center py-16">
             <p className="text-sm text-muted-foreground text-center">Realize pelo menos dois simulados para ver sua evolução.</p>
           </CardContent>
         </Card>
