@@ -1,32 +1,9 @@
 project_id = "gvqvrmkizemwsasmupmo"
 
-[api]
-enabled = true
-port = 54321
-schemas = ["public", "graphql_public"]
-extra_search_path = ["public", "extensions"]
-max_rows = 1000
-
-[auth]
-enabled = true
-site_url = "https://academy.sanar.com.br"
-
-[db]
-port = 54322
-
-[functions.auth-login]
+[functions.corrigir-simulado]
 verify_jwt = false
 
-[functions.update-password]
-verify_jwt = false
-
-[functions.enamed-proxy]
-verify_jwt = false
-
-[functions.study-guide-proxy]
-verify_jwt = false
-
-[functions.cronograma-enamed-proxy]
+[functions.delete-user]
 verify_jwt = false
 
 [functions.session-security]
@@ -35,37 +12,31 @@ verify_jwt = false
 [functions.b2c-signup]
 verify_jwt = false
 
+[functions.auth-login]
+verify_jwt = false
+
+[functions.request-password-reset]
+verify_jwt = false
+
+[functions.update-password]
+verify_jwt = false
+
+[functions.generate-user-link]
+verify_jwt = false
+
+[functions.resend-welcome-link]
+verify_jwt = false
+
 [functions.b2b-create-user]
-verify_jwt = false
-
-[functions.custom-email-templates]
-verify_jwt = false
-
-[functions.get-study-contents]
-verify_jwt = false
-
-[functions.save-calendar-arrangement]
-verify_jwt = false
-
-[functions.send-study-reminder]
-verify_jwt = false
-
-[functions.check-and-send-reminders]
 verify_jwt = false
 
 [functions.sync-user-auth]
 verify_jwt = false
 
-[functions.health-check]
+[functions.admin-user-support]
 verify_jwt = false
 
-[functions.save-push-subscription]
-verify_jwt = false
-
-[functions.get-vapid-key]
-verify_jwt = false
-
-[functions.corrigir-simulado]
+[functions.admin-upload-simulado-images]
 verify_jwt = false
 
 [functions.admin-upload-study-guide]
@@ -74,32 +45,62 @@ verify_jwt = false
 [functions.get-progress-hub]
 verify_jwt = false
 
-[functions.notify-performance-released]
+[functions.get-study-contents]
 verify_jwt = false
 
 [functions.image-proxy]
 verify_jwt = false
 
-[functions.migrate_users]
+[functions.health-check]
+verify_jwt = false
+
+[functions.cronograma-enamed-proxy]
+verify_jwt = false
+
+[functions.enamed-proxy]
+verify_jwt = false
+
+[functions.study-guide-proxy]
+verify_jwt = false
+
+[functions.notify-performance-released]
+verify_jwt = false
+
+[functions.check-and-send-reminders]
+verify_jwt = false
+
+[functions.send-study-reminder]
+verify_jwt = false
+
+[functions.save-calendar-arrangement]
+verify_jwt = false
+
+[functions.save-push-subscription]
+verify_jwt = false
+
+[functions.get-vapid-key]
 verify_jwt = false
 
 [functions.ai-study-recommendation]
 verify_jwt = false
 
-[functions.delete-user]
-verify_jwt = false
-
 [functions.analyze-error-patterns]
 verify_jwt = false
 
-[functions.admin-user-support]
+[functions.create-test-user]
 verify_jwt = false
 
-[functions.resend-welcome-link]
+[functions.delete_all_users]
 verify_jwt = false
 
-[functions.generate-user-link]
+[functions.migrate_users]
 verify_jwt = false
 
-[functions.request-password-reset]
+[functions.old-user-creation]
+verify_jwt = false
+
+[functions.custom-email-templates]
+verify_jwt = false
+
+[functions.admin-import-simulado-responses]
 verify_jwt = false
