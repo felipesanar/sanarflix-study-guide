@@ -618,10 +618,18 @@ export const SimuladoDesempenho: React.FC = () => {
     
     const PERFORMANCE_CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId || 'all'}`;
     if (!forceRefresh && sessionStorage.getItem(PERFORMANCE_CACHE_KEY)) {
-      const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
-      setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
-      setLoading(false);
-      return;
+      try {
+        const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
+        // Use cache only when it's fresh AND has data. Otherwise drop it and refetch.
+        if (isCacheFresh(parsedData) && !isCacheEmpty(parsedData)) {
+          setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
+          setLoading(false);
+          return;
+        }
+        sessionStorage.removeItem(PERFORMANCE_CACHE_KEY);
+      } catch {
+        sessionStorage.removeItem(PERFORMANCE_CACHE_KEY);
+      }
     }
     try {
       const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([
