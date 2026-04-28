@@ -552,11 +552,33 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
 };
 
 // --- Main Component ---
+// TTL of 5 minutes for the performance cache. Beyond that we always refetch.
+const PERFORMANCE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const isCacheFresh = (cached: any): boolean => {
+  if (!cached || typeof cached.cachedAt !== 'number') return false;
+  return Date.now() - cached.cachedAt < PERFORMANCE_CACHE_TTL_MS;
+};
+
+const isCacheEmpty = (cached: any): boolean => {
+  if (!cached) return true;
+  const totalAnswers = cached?.stats?.total ?? 0;
+  const simuladosCount = Array.isArray(cached?.simulados) ? cached.simulados.length : 0;
+  return totalAnswers === 0 && simuladosCount === 0;
+};
+
 const readPerformanceCache = (userId: string, simuladoId: string | null): any | null => {
   try {
     const cacheKey = `performanceData_${userId}_${simuladoId || 'all'}`;
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    // Drop stale or empty entries so the UI doesn't render a permanent empty state.
+    if (!isCacheFresh(parsed) || isCacheEmpty(parsed)) {
+      sessionStorage.removeItem(cacheKey);
+      return null;
+    }
+    return parsed;
   } catch (e) {
     console.warn('[UIUX] Cache read failure:', e);
   }
