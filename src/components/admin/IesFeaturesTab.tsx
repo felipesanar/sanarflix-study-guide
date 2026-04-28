@@ -26,6 +26,8 @@ const AVAILABLE_FEATURES: { key: keyof AccessRules; label: string; description: 
   { key: 'sanarclass', label: 'SanarClass', description: 'Aulas e materiais complementares' },
   { key: 'simulados', label: 'Simulados', description: 'Acesso aos simulados' },
   { key: 'analytics', label: 'Analytics', description: 'Estatísticas avançadas' },
+  { key: 'desempenhoInstitucional', label: 'Desempenho Institucional', description: 'Painel institucional (v2) com KPIs e evolução' },
+  { key: 'errorNotebook', label: 'Caderno de Erros', description: 'Registro de erros para revisão' },
 ];
 
 const IesFeaturesTab: React.FC = () => {
