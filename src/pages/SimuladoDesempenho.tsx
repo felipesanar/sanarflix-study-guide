@@ -646,7 +646,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
         const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
         const rankingData = rankingResult.data as any;
-        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
+        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData, cachedAt: Date.now() };
         sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
         setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
       }
