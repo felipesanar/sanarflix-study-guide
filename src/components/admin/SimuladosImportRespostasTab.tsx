@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,7 @@ export default function SimuladosImportRespostasTab() {
   const selectedSimuladoData = simulados.find((s) => s.id === selectedSimulado);
 
   // Carregar simulados ao montar
-  useMemo(() => {
+  useEffect(() => {
     (async () => {
       setLoadingSimulados(true);
       const { data, error } = await supabase
