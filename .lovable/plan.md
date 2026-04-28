@@ -1,59 +1,75 @@
-## Objetivo
+# Plano: Simular execução de 2 simulados para [fauditore2912@gmail.com](mailto:fauditore2912@gmail.com)
 
-Liberar a tela **Desempenho Institucional (v2)** para alunos da IES `TESTE_IES Performance Acadêmica` (`00000000-0000-5000-a000-00003ef75c87`) e garantir que, quando não houver dados reais (RPCs vazias ou erro), a tela mostre os mocks já existentes em vez de erro.
+## Contexto
 
-## Contexto descoberto
+- **Usuário alvo:** Felipe Souza (`fauditore2912@gmail.com`) — id `a2b29342-5c5b-4557-a018-81ef7ffca5f0`, IES `3e51663e-8766-4881-bfd1-0921678ed014`, semestre 8.
+- **Simulados:** ambos com 100 questões e status `encerrado`.
+  - `7abd436c-4ff3-44d1-b2ca-d4952ccd0ad7` — Simulado FUNEPE 24/03/2026
+  - `9e0216dc-550f-490e-ab73-1b133671d1c7` — Simulado FUNEPE 14/04/2026
+- **Estado atual:** o usuário não possui nenhum registro em `answer_progress` nem em `simulados_finalizados` para esses simulados.
 
-- `desempenhoInstitucional` é uma feature do tipo `AccessRules` (já existe em `src/types/index.ts` e `src/utils/accessRules.ts`).
-- A liberação para alunos B2B é controlada pela tabela `ies_features` via `useIesFeatures` + `useAccessRules`.
-- A rota `/desempenho-institucional-v2` em `DynamicRoutes.tsx` já consome `accessRules.desempenhoInstitucional`.
-- **Bug atual:** o componente admin `IesFeaturesTab.tsx` não inclui `desempenhoInstitucional` em `AVAILABLE_FEATURES`, então não há toggle na UI para ativá-la.
-- **TESTE_IES não tem registro algum** de `desempenhoInstitucional` em `ies_features` hoje (apenas `home`, `studyGuide`, `dashboard`).
-- O hook `useInstitutionalPerformanceData` já tem `getMockViewModel()`, mas só cai em mock quando **não há sessão**. Quando há sessão e as RPCs falham/retornam vazio, ele exibe erro.
-- A página V2 já lida com `usingMock`, então basta acionar esse fallback de forma controlada.
+## Estratégia das respostas
 
-## Mudanças
+Para cada simulado, gerar 100 respostas com:
 
-### 1. Migração SQL — habilitar a feature para TESTE_IES
-Inserir/atualizar 1 linha em `ies_features` (additivo, sem DELETE/TRUNCATE):
+- **Distribuição de acertos:** 70% corretas, ~30% incorretas, ~0% em branco (`resposta_usuario = NULL`, `respondida? = false`). Isso gera resultado realista (70% de acerto).
+- **Determinismo por questão:** seleção pseudoaleatória usando `md5(question_id || simulado_id)` para garantir consistência e evitar o mesmo padrão entre os dois simulados.
+- **Questões anuladas (`anulada = true`):** sempre `correct = true` (regra já usada pelo `corrigir-simulado`).
+- **Erros:** quando "errar", escolher uma alternativa diferente da `correta` (entre A–D, respeitando alternativas existentes).
+
+## Passos de implementação (modo default)
+
+1. **Migração SQL idempotente** (additiva, sem DELETE) que executa, para cada simulado:
+  - `INSERT INTO simulados_iniciados` (started_at retroativo: finalização menos duração simulada).
+  - `INSERT INTO answer_progress` com 100 linhas geradas via CTE a partir de `questoes_simulado`, com `answer_id = gen_random_uuid()`, `resposta_usuario`, `correct`, `respondida?` conforme estratégia acima.
+  - `INSERT INTO simulados_finalizados` com `tentativa_numero = 1`, `liberado_novamente = false`, `tempo_total_segundos` realista (≈ 70% da `duracao_minutos * 60`), `saidas_de_aba = 0`, `saidas_de_fullscreen = 0`, `finalizado_em = now()`.
+  - Guardas `WHERE NOT EXISTS` para não duplicar caso o script seja reaplicado.
+2. **Validação pós-inserção** via `supabase--read_query`:
+  - Conferir 100 linhas em `answer_progress` por simulado.
+  - Conferir % de acertos próximo de 70%.
+  - Conferir 1 linha em `simulados_finalizados` por simulado.
+
+## Detalhes técnicos da geração
 
 ```sql
-INSERT INTO ies_features (ies_id, feature_key, enabled)
-VALUES ('00000000-0000-5000-a000-00003ef75c87', 'desempenhoInstitucional', true)
-ON CONFLICT (ies_id, feature_key) DO UPDATE SET enabled = true, updated_at = now();
+WITH base AS (
+  SELECT
+    q.id AS question_id,
+    q.simulado_id,
+    q.correta,
+    q.anulada,
+    -- bucket determinístico 0..99
+    ('x' || substr(md5(q.id::text || q.simulado_id::text), 1, 8))::bit(32)::int % 100 AS bucket
+  FROM questoes_simulado q
+  WHERE q.simulado_id = $SIM
+)
+INSERT INTO answer_progress (answer_id, user_id, simulado, question_id, resposta_usuario, correct, "respondida?")
+SELECT
+  gen_random_uuid(),
+  $USER,
+  simulado_id,
+  question_id,
+  CASE
+    WHEN bucket < 5  THEN NULL                              -- 5% em branco
+    WHEN bucket < 75 THEN correta                            -- 70% corretas
+    ELSE                                                     -- 25% erradas: pega 1ª letra != correta
+      (ARRAY['A','B','C','D'] - ARRAY[correta])[1 + (bucket % 3)]
+  END,
+  CASE
+    WHEN anulada THEN true
+    WHEN bucket < 5 THEN false
+    WHEN bucket < 75 THEN true
+    ELSE false
+  END,
+  CASE WHEN bucket < 5 THEN false ELSE true END
+FROM base;
 ```
 
-### 2. Admin UI — `src/components/admin/IesFeaturesTab.tsx`
-Adicionar `desempenhoInstitucional` (e, por consistência, `errorNotebook`) em `AVAILABLE_FEATURES` para que admins consigam ativar/desativar pela tela de gerenciamento de features.
+(Detalhe do array-diff em Postgres: usar `unnest`+`EXCEPT` ou função auxiliar; ajustarei na migração final para garantir compatibilidade.)
 
-### 3. Sidebar / navegação — `src/components/AppSidebar.tsx` e `MobileBottomNav.tsx`
-Confirmar que o item "Desempenho Institucional" aparece no menu quando `accessRules.desempenhoInstitucional === true`. Já existe lógica baseada em accessRules; apenas validar que o link aponta para `/desempenho-institucional-v2`.
+## Riscos / observações
 
-### 4. Fallback de mock — `src/hooks/useInstitutionalPerformanceData.ts`
-Hoje só cai em mock quando não há sessão. Vou estender o comportamento para cair em mock quando:
-- `simulados` carregados retornam lista vazia para a IES (não há simulados → não há dados a mostrar), **ou**
-- as RPCs `get_institutional_performance`/`get_institutional_student_scores` retornarem dados vazios/incompletos, **ou**
-- ocorrer erro nas RPCs.
+- Migração é puramente **additiva** (somente INSERTs com guarda `NOT EXISTS`), respeitando a regra do projeto.
+- Se desejar, posso ajustar a taxa-alvo de acertos (ex.: 60% / 80%) — basta avisar antes da execução.
 
-Comportamento:
-- Setar `setUsingMock(true)` e popular `data` com `getMockViewModel()`.
-- Manter `error = null` (a página exibe banner "usando dados de demonstração" via `usingMock` no `GlobalFilterBar`).
-- Manter logs de console para diagnóstico.
-
-Esse fallback é seguro porque o componente já trata a flag `usingMock` na barra de filtros.
-
-### 5. (Opcional, leve) Indicador visual
-Garantir que o aviso de "dados de demonstração" do `GlobalFilterBar` esteja claro. Sem alterações de design, apenas validar texto. Se já existir, sem mudança.
-
-## Detalhes técnicos
-
-- A RPC `get_institutional_simulados` provavelmente retornará vazio para TESTE_IES (sem simulados configurados). O hook detecta isso e aciona mock antes de tentar `fetchInstitutionalPerformance`.
-- A página `DesempenhoInstitucionalV2` já chama `autoSelectSimulado` — quando estamos em mock, não há `simuladoId` real; seguimos exibindo o mock independente do filtro.
-- Nenhuma alteração em RLS é necessária (mocks são client-side; tabela `ies_features` já tem políticas adequadas).
-- Migração é purely additive (em conformidade com a regra de migrações).
-
-## Resultado esperado
-
-- Alunos da IES TESTE_IES passam a ver "Desempenho Institucional" no menu e conseguem abrir a tela.
-- Sem dados reais, a tela renderiza com os mocks (KPIs, faixas, evolução, alunos abaixo etc.) e um aviso discreto de "dados de demonstração".
-- Admins ganham toggle no painel "Gerenciamento de Features por IES" para ativar/desativar Desempenho Institucional (e Caderno de Erros) em qualquer IES.
+Aprove para eu aplicar a migração e validar os dados.
