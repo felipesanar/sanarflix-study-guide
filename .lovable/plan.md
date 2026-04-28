@@ -1,75 +1,54 @@
-# Plano: Simular execução de 2 simulados para [fauditore2912@gmail.com](mailto:fauditore2912@gmail.com)
+## Diagnóstico
 
-## Contexto
+Investiguei o fluxo completo e os dados estão **100% corretos no banco**:
 
-- **Usuário alvo:** Felipe Souza (`fauditore2912@gmail.com`) — id `a2b29342-5c5b-4557-a018-81ef7ffca5f0`, IES `3e51663e-8766-4881-bfd1-0921678ed014`, semestre 8.
-- **Simulados:** ambos com 100 questões e status `encerrado`.
-  - `7abd436c-4ff3-44d1-b2ca-d4952ccd0ad7` — Simulado FUNEPE 24/03/2026
-  - `9e0216dc-550f-490e-ab73-1b133671d1c7` — Simulado FUNEPE 14/04/2026
-- **Estado atual:** o usuário não possui nenhum registro em `answer_progress` nem em `simulados_finalizados` para esses simulados.
+- Usuário `fauditore2912@gmail.com` (Felipe Souza, FUNEPE, 8º semestre): OK
+- `answer_progress`: 200 respostas (100 + 100), 148 acertos
+- `simulados_finalizados`: 2 finalizações registradas
+- Ambos simulados FUNEPE estão com `status='encerrado'` e `liberacao_desempenho='imediato'`
 
-## Estratégia das respostas
+Testei os RPCs simulando a sessão JWT do usuário:
 
-Para cada simulado, gerar 100 respostas com:
+- `get_user_simulados()` → retorna os 2 simulados ✅
+- `get_user_performance_aggregates()` → retorna `{total: 200, acertos: 148}` ✅
 
-- **Distribuição de acertos:** 70% corretas, ~30% incorretas, ~0% em branco (`resposta_usuario = NULL`, `respondida? = false`). Isso gera resultado realista (70% de acerto).
-- **Determinismo por questão:** seleção pseudoaleatória usando `md5(question_id || simulado_id)` para garantir consistência e evitar o mesmo padrão entre os dois simulados.
-- **Questões anuladas (`anulada = true`):** sempre `correct = true` (regra já usada pelo `corrigir-simulado`).
-- **Erros:** quando "errar", escolher uma alternativa diferente da `correta` (entre A–D, respeitando alternativas existentes).
+**Conclusão: o backend está correto. O bug é client-side.**
 
-## Passos de implementação (modo default)
+## Causa raiz
 
-1. **Migração SQL idempotente** (additiva, sem DELETE) que executa, para cada simulado:
-  - `INSERT INTO simulados_iniciados` (started_at retroativo: finalização menos duração simulada).
-  - `INSERT INTO answer_progress` com 100 linhas geradas via CTE a partir de `questoes_simulado`, com `answer_id = gen_random_uuid()`, `resposta_usuario`, `correct`, `respondida?` conforme estratégia acima.
-  - `INSERT INTO simulados_finalizados` com `tentativa_numero = 1`, `liberado_novamente = false`, `tempo_total_segundos` realista (≈ 70% da `duracao_minutos * 60`), `saidas_de_aba = 0`, `saidas_de_fullscreen = 0`, `finalizado_em = now()`.
-  - Guardas `WHERE NOT EXISTS` para não duplicar caso o script seja reaplicado.
-2. **Validação pós-inserção** via `supabase--read_query`:
-  - Conferir 100 linhas em `answer_progress` por simulado.
-  - Conferir % de acertos próximo de 70%.
-  - Conferir 1 linha em `simulados_finalizados` por simulado.
+`src/pages/SimuladoDesempenho.tsx` usa cache agressivo em `sessionStorage` com a chave `performanceData_${userId}_${simuladoId|all}`:
 
-## Detalhes técnicos da geração
+1. Linha 570-581: na montagem, lê cache do sessionStorage e inicializa `stats`/`simulados` a partir dele.
+2. Linha 598-603: dentro de `fetchDataForView`, se existir entrada em sessionStorage, **retorna imediatamente sem refazer o fetch**, mesmo que os dados em cache sejam vazios.
+3. O cache **só é invalidado** quando o usuário clica manualmente no botão "Refresh" (linha 687: `sessionStorage.clear()`).
 
-```sql
-WITH base AS (
-  SELECT
-    q.id AS question_id,
-    q.simulado_id,
-    q.correta,
-    q.anulada,
-    -- bucket determinístico 0..99
-    ('x' || substr(md5(q.id::text || q.simulado_id::text), 1, 8))::bit(32)::int % 100 AS bucket
-  FROM questoes_simulado q
-  WHERE q.simulado_id = $SIM
-)
-INSERT INTO answer_progress (answer_id, user_id, simulado, question_id, resposta_usuario, correct, "respondida?")
-SELECT
-  gen_random_uuid(),
-  $USER,
-  simulado_id,
-  question_id,
-  CASE
-    WHEN bucket < 5  THEN NULL                              -- 5% em branco
-    WHEN bucket < 75 THEN correta                            -- 70% corretas
-    ELSE                                                     -- 25% erradas: pega 1ª letra != correta
-      (ARRAY['A','B','C','D'] - ARRAY[correta])[1 + (bucket % 3)]
-  END,
-  CASE
-    WHEN anulada THEN true
-    WHEN bucket < 5 THEN false
-    WHEN bucket < 75 THEN true
-    ELSE false
-  END,
-  CASE WHEN bucket < 5 THEN false ELSE true END
-FROM base;
+Como o usuário visitou a aba "Desempenho" **antes** da migração que populou as respostas, ficou cacheado `{stats: {total: 0}, simulados: []}` e a tela exibe permanentemente "Nenhum dado de simulado", mesmo com dados novos no banco.
+
+A condição de empty state (linha 788) reforça isso:
+```ts
+if (!stats || (stats.total === 0 && simulados.length === 0)) { /* Nenhum dado */ }
 ```
 
-(Detalhe do array-diff em Postgres: usar `unnest`+`EXCEPT` ou função auxiliar; ajustarei na migração final para garantir compatibilidade.)
+## Plano de correção
 
-## Riscos / observações
+### 1. Invalidação de cache mais inteligente em `SimuladoDesempenho.tsx`
 
-- Migração é puramente **additiva** (somente INSERTs com guarda `NOT EXISTS`), respeitando a regra do projeto.
-- Se desejar, posso ajustar a taxa-alvo de acertos (ex.: 60% / 80%) — basta avisar antes da execução.
+- Sempre disparar o fetch real em background quando `stats.total === 0` ou `simulados.length === 0` no cache (stale-while-revalidate), mesmo se houver entrada cacheada — assim, dados que chegam após a primeira visita aparecem automaticamente.
+- Adicionar TTL ao cache (ex: 5 min) salvando `cachedAt` no payload e ignorando entradas antigas.
+- Limpar caches antigos sem TTL ao montar.
 
-Aprove para eu aplicar a migração e validar os dados.
+### 2. Realtime opcional (curto prazo)
+
+Adicionar subscrição realtime nas tabelas `answer_progress` e `simulados_finalizados` filtrando por `user_id`, invalidando o sessionStorage e refazendo `fetchDataForView` quando houver INSERT. Isso garante atualização instantânea quando admin gera dados de teste.
+
+### 3. Mitigação imediata para o seu caso
+
+No próximo deploy, o código já vai detectar o cache "vazio" e refetchar. Mas para destravar **agora sem esperar**, basta o usuário:
+- Clicar no botão "Atualizar" (ícone `RefreshCw`) na própria tela de Desempenho, **ou**
+- Abrir DevTools → Application → Session Storage → limpar e recarregar.
+
+## Arquivos a alterar
+
+- `src/pages/SimuladoDesempenho.tsx` — lógica de cache (`fetchDataForView`, leitura inicial, useEffect de cache).
+
+Sem migrações de banco. Sem mudanças em RPCs.

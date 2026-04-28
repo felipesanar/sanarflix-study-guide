@@ -552,11 +552,33 @@ const EvolutionChart: React.FC<{ allPerformanceData: any[] }> = ({ allPerformanc
 };
 
 // --- Main Component ---
+// TTL of 5 minutes for the performance cache. Beyond that we always refetch.
+const PERFORMANCE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const isCacheFresh = (cached: any): boolean => {
+  if (!cached || typeof cached.cachedAt !== 'number') return false;
+  return Date.now() - cached.cachedAt < PERFORMANCE_CACHE_TTL_MS;
+};
+
+const isCacheEmpty = (cached: any): boolean => {
+  if (!cached) return true;
+  const totalAnswers = cached?.stats?.total ?? 0;
+  const simuladosCount = Array.isArray(cached?.simulados) ? cached.simulados.length : 0;
+  return totalAnswers === 0 && simuladosCount === 0;
+};
+
 const readPerformanceCache = (userId: string, simuladoId: string | null): any | null => {
   try {
     const cacheKey = `performanceData_${userId}_${simuladoId || 'all'}`;
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached) return JSON.parse(cached);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    // Drop stale or empty entries so the UI doesn't render a permanent empty state.
+    if (!isCacheFresh(parsed) || isCacheEmpty(parsed)) {
+      sessionStorage.removeItem(cacheKey);
+      return null;
+    }
+    return parsed;
   } catch (e) {
     console.warn('[UIUX] Cache read failure:', e);
   }
@@ -596,10 +618,18 @@ export const SimuladoDesempenho: React.FC = () => {
     
     const PERFORMANCE_CACHE_KEY = `${CACHE_KEY_PREFIX}_${simuladoId || 'all'}`;
     if (!forceRefresh && sessionStorage.getItem(PERFORMANCE_CACHE_KEY)) {
-      const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
-      setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
-      setLoading(false);
-      return;
+      try {
+        const parsedData = JSON.parse(sessionStorage.getItem(PERFORMANCE_CACHE_KEY)!);
+        // Use cache only when it's fresh AND has data. Otherwise drop it and refetch.
+        if (isCacheFresh(parsedData) && !isCacheEmpty(parsedData)) {
+          setStats(parsedData.stats); setPerformancePorArea(parsedData.performancePorArea); setBySpecialty(parsedData.bySpecialty); setBySubspecialty(parsedData.bySubspecialty); setRanking(parsedData.ranking); setUserData(parsedData.userData); setSimulados(parsedData.simulados);
+          setLoading(false);
+          return;
+        }
+        sessionStorage.removeItem(PERFORMANCE_CACHE_KEY);
+      } catch {
+        sessionStorage.removeItem(PERFORMANCE_CACHE_KEY);
+      }
     }
     try {
       const [simuladosResult, performanceResult, rankingResult, userDataResult] = await Promise.all([
@@ -616,7 +646,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
         const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
         const rankingData = rankingResult.data as any;
-        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData };
+        const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userDataResult.data, simulados: simuladosData, cachedAt: Date.now() };
         sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
         setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
       }
@@ -674,7 +704,7 @@ export const SimuladoDesempenho: React.FC = () => {
             const processData = (d: any[]) => (d || []).map(item => ({ ...item, percentual: item.total > 0 ? Math.round((item.acertos / item.total) * 100) : 0 }));
             const newStats = { total: overallStats?.total || 0, acertos: overallStats?.acertos || 0, percentual: overallStats?.total > 0 ? Math.round((overallStats.acertos / overallStats.total) * 100) : 0 };
             const rankingData = rResult.data as any;
-            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados };
+            const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados, cachedAt: Date.now() };
             sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache));
           }
         } catch (error) { console.error(`[UIUX] Preload error ${simuladoId}:`, error); }
