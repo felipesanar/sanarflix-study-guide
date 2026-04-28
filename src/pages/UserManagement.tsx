@@ -6,6 +6,7 @@ import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
 import SanarClassTab from '@/components/admin/SanarClassTab';
 import SimuladosTab from '@/components/admin/SimuladosTab';
 import LiberacoesTab from '@/components/admin/LiberacoesTab';
+import SimuladosImportRespostasTab from '@/components/admin/SimuladosImportRespostasTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
 import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
 import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload } from 'lucide-react';
@@ -114,6 +115,10 @@ const UserManagement: React.FC = () => {
                       <Unlock className="h-4 w-4" />
                       Liberações
                     </TabsTrigger>
+                    <TabsTrigger value="importar-respostas" className="flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Importar respostas
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="simulados" className="mt-6">
@@ -121,6 +126,9 @@ const UserManagement: React.FC = () => {
                   </TabsContent>
                   <TabsContent value="liberacoes" className="mt-6">
                     <LiberacoesTab />
+                  </TabsContent>
+                  <TabsContent value="importar-respostas" className="mt-6">
+                    <SimuladosImportRespostasTab />
                   </TabsContent>
                 </Tabs>
               </TabsContent>
