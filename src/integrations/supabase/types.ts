@@ -41,6 +41,95 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_import_batches: {
+        Row: {
+          conflict_mode: string
+          created_at: string
+          created_by: string
+          failed_count: number
+          finished_at: string | null
+          id: string
+          imported_count: number
+          replaced_count: number
+          simulado_id: string
+          skipped_count: number
+          source_label: string
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          conflict_mode: string
+          created_at?: string
+          created_by: string
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          imported_count?: number
+          replaced_count?: number
+          simulado_id: string
+          skipped_count?: number
+          source_label: string
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          conflict_mode?: string
+          created_at?: string
+          created_by?: string
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          imported_count?: number
+          replaced_count?: number
+          simulado_id?: string
+          skipped_count?: number
+          source_label?: string
+          status?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
+      admin_import_records: {
+        Row: {
+          batch_id: string
+          created_at: string
+          finalizacao_id: string | null
+          id: string
+          reason: string | null
+          simulado_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          finalizacao_id?: string | null
+          id?: string
+          reason?: string | null
+          simulado_id: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          finalizacao_id?: string | null
+          id?: string
+          reason?: string | null
+          simulado_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_import_records_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "admin_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       analytics_events: {
         Row: {
           created_at: string
@@ -1373,6 +1462,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_import_one_response: {
+        Args: {
+          p_answers: Json
+          p_batch_id: string
+          p_conflict_mode: string
+          p_finalizado_em: string
+          p_saidas_aba: number
+          p_simulado_id: string
+          p_tempo_segundos: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      admin_lookup_users_by_email_in_ies: {
+        Args: { p_emails: string[]; p_ies_ids: string[] }
+        Returns: {
+          email: string
+          in_ies: boolean
+          semestre: number
+          user_id: string
+        }[]
+      }
+      admin_simulado_question_map: {
+        Args: { p_simulado_id: string }
+        Returns: {
+          anulada: boolean
+          correta: string
+          numero_questao: number
+          ordem: number
+          question_id: string
+        }[]
+      }
       complete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
