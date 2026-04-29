@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle, Lightbulb, TrendingDown, Zap,
-  ChevronRight, Users, BookOpen, BarChart3, Target,
+  ChevronRight, Users, BookOpen, Target,
 } from 'lucide-react';
+import { InsightsInfoTooltip } from '@/components/analytics/v2/modules/InsightsInfoTooltip';
 import { Card, CardContent } from '@/components/ui/card';
 import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Button } from '@/components/ui/button';
