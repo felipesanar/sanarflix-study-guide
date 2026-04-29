@@ -186,7 +186,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 // ── Type config ──
 function getInsightConfig(type: PrioritizedInsight['type']) {
   switch (type) {
-    case 'critical-tema':
+    case 'critical-specialty':
       return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Crítico' };
     case 'critical-area':
       return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Área Crítica' };
@@ -202,7 +202,7 @@ function getCategoryReason(insight: PrioritizedInsight): string {
   const prev = `${insight.prevalencia.toFixed(1)}%`;
   switch (insight.type) {
     case 'critical-area':
-    case 'critical-tema':
+    case 'critical-specialty':
       return `Classificado como Crítico porque o acerto médio (${acerto}) está abaixo de 50% e a prevalência no simulado (${prev}) é maior ou igual a 10%.`;
     case 'quick-win':
       return `Classificado como Ganho Rápido porque o acerto médio (${acerto}) está entre 50% e 65% e a prevalência no simulado (${prev}) é maior ou igual a 8%.`;
@@ -215,27 +215,27 @@ function getInterpretation(insight: PrioritizedInsight): string {
   const P = insight.percentual.toFixed(0);
   const V = insight.prevalencia.toFixed(1);
   switch (insight.type) {
-    case 'critical-tema':
-      return `Este tema apresenta baixo desempenho (${P}% de acerto) e alta incidência no simulado (${V}%), indicando forte impacto no resultado institucional.`;
+    case 'critical-specialty':
+      return `Esta especialidade apresenta baixo desempenho (${P}% de acerto) e alta incidência no simulado (${V}%), indicando forte impacto no resultado institucional.`;
     case 'critical-area':
       return `A área ${insight.areaName} concentra ${V}% das questões do simulado e está com desempenho médio de ${P}%, abaixo da proficiência institucional.`;
     case 'quick-win':
-      return `Os alunos estão próximos da proficiência (${P}% de acerto) em um tema relevante (${V}% de prevalência) — um pequeno reforço pode gerar grande impacto.`;
+      return `Os alunos estão próximos da proficiência (${P}% de acerto) em uma especialidade relevante (${V}% de prevalência) — um pequeno reforço pode gerar grande impacto.`;
     case 'strength':
-      return `A turma demonstra domínio consistente neste tema (${P}% de acerto, ${V}% de prevalência). Manter a abordagem atual.`;
+      return `A turma demonstra domínio consistente nesta especialidade (${P}% de acerto, ${V}% de prevalência). Manter a abordagem atual.`;
   }
 }
 
 function getRecommendationText(insight: PrioritizedInsight): string {
-  const alvo = insight.temaName ?? insight.areaName;
+  const alvo = insight.specialtyName ?? insight.areaName;
   switch (insight.type) {
-    case 'critical-tema':
+    case 'critical-specialty':
     case 'critical-area':
-      return `Priorizar revisão dirigida em ${alvo} para alunos abaixo da proficiência, com foco nos subtemas de maior incidência.`;
+      return `Priorizar revisão dirigida em ${alvo} para alunos abaixo da proficiência, com foco nos temas de maior incidência.`;
     case 'quick-win':
       return `Disponibilizar lista de exercícios direcionada em ${alvo} para consolidar a proficiência da turma.`;
     case 'strength':
-      return `Manter a estratégia atual de ensino em ${alvo} e usá-lo como referência para outros temas.`;
+      return `Manter a estratégia atual de ensino em ${alvo} e usá-la como referência para outras especialidades.`;
   }
 }
 
