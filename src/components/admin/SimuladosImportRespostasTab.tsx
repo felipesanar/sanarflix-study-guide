@@ -336,7 +336,21 @@ export default function SimuladosImportRespostasTab() {
           })),
         },
       });
-      if (error) throw error;
+      if (error) {
+        // Tenta extrair corpo de resposta do FunctionsHttpError pra mostrar a causa real
+        let detail = error.message ?? 'Falha desconhecida';
+        try {
+          const ctx = (error as { context?: Response }).context;
+          if (ctx && typeof ctx.text === 'function') {
+            const body = await ctx.text();
+            if (body) detail = body.length > 500 ? `${body.slice(0, 500)}…` : body;
+          }
+        } catch {
+          /* ignore */
+        }
+        console.error('[import-preview] edge function error', error, detail);
+        throw new Error(detail);
+      }
       const d = data as { results: PreviewResult[]; summary: PreviewSummary };
       setPreviewResults(d.results);
       setPreviewSummary(d.summary);
