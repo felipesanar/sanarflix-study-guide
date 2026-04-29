@@ -1685,6 +1685,7 @@ export type Database = {
         | "professor"
         | "gestor"
         | "atendimento"
+        | "gestor_formal"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
       progress_source: "manual" | "bulk" | "auto"
     }
@@ -1832,6 +1833,7 @@ export const Constants = {
         "professor",
         "gestor",
         "atendimento",
+        "gestor_formal",
       ],
       progress_node_type: ["aula", "subtema", "tema", "materia"],
       progress_source: ["manual", "bulk", "auto"],
