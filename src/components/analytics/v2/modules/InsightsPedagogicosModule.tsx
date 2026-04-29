@@ -255,7 +255,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
 
   const counts = useMemo(() => ({
     all: insights.length,
-    critical: insights.filter(i => i.type === 'critical-tema' || i.type === 'critical-area').length,
+    critical: insights.filter(i => i.type === 'critical-specialty' || i.type === 'critical-area').length,
     'quick-win': insights.filter(i => i.type === 'quick-win').length,
     strength: insights.filter(i => i.type === 'strength').length,
   }), [insights]);
