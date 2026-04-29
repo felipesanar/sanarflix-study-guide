@@ -309,6 +309,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         <h2 className="text-base font-semibold">
           {insights.length} insights gerados
         </h2>
+        <InsightsInfoTooltip />
         <span className="text-xs text-muted-foreground">
           • priorizados por relevância no simulado e desempenho dos alunos
         </span>
