@@ -165,7 +165,14 @@ export default function SimuladosImportRespostasTab() {
         })),
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const anyErr = err as { message?: string; details?: string; hint?: string; code?: string };
+      const msg =
+        err instanceof Error
+          ? err.message
+          : anyErr?.message
+            ? `${anyErr.message}${anyErr.code ? ` (${anyErr.code})` : ''}${anyErr.details ? ` — ${anyErr.details}` : ''}`
+            : (() => { try { return JSON.stringify(err); } catch { return String(err); } })();
+      console.error('[ImportRespostas] loadSimulados error:', err);
       setSimuladosError(msg);
       toast({ title: 'Erro ao carregar simulados', description: msg, variant: 'destructive' });
     } finally {
