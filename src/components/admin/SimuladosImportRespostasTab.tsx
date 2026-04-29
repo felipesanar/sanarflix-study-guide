@@ -141,22 +141,19 @@ export default function SimuladosImportRespostasTab() {
       const ids = (data ?? []).map((s) => s.id);
       const counts: Record<string, number> = {};
 
-      // Contagem em chunks pra não estourar o limite default do PostgREST (1000 linhas)
-      // ao buscar todas as questões de todos os simulados de uma vez.
+      // Contagem por simulado via HEAD count (não retorna linhas → não estoura limite de 1000).
       if (ids.length > 0) {
-        const SIM_CHUNK = 25;
-        for (let i = 0; i < ids.length; i += SIM_CHUNK) {
-          const chunk = ids.slice(i, i + SIM_CHUNK);
-          const { data: qs, error: qErr } = await supabase
-            .from('questoes_simulado')
-            .select('simulado_id', { count: 'exact', head: false })
-            .in('simulado_id', chunk);
-          if (qErr) throw qErr;
-          for (const r of qs ?? []) {
-            const sid = (r as { simulado_id: string }).simulado_id;
-            counts[sid] = (counts[sid] || 0) + 1;
-          }
-        }
+        const results = await Promise.all(
+          ids.map(async (sid) => {
+            const { count, error: qErr } = await supabase
+              .from('questoes_simulado')
+              .select('id', { count: 'exact', head: true })
+              .eq('simulado_id', sid);
+            if (qErr) throw new Error(`Falha ao contar questões do simulado ${sid}: ${qErr.message}`);
+            return [sid, count ?? 0] as const;
+          }),
+        );
+        for (const [sid, c] of results) counts[sid] = c;
       }
 
       setSimulados(
@@ -168,7 +165,14 @@ export default function SimuladosImportRespostasTab() {
         })),
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const anyErr = err as { message?: string; details?: string; hint?: string; code?: string };
+      const msg =
+        err instanceof Error
+          ? err.message
+          : anyErr?.message
+            ? `${anyErr.message}${anyErr.code ? ` (${anyErr.code})` : ''}${anyErr.details ? ` — ${anyErr.details}` : ''}`
+            : (() => { try { return JSON.stringify(err); } catch { return String(err); } })();
+      console.error('[ImportRespostas] loadSimulados error:', err);
       setSimuladosError(msg);
       toast({ title: 'Erro ao carregar simulados', description: msg, variant: 'destructive' });
     } finally {
