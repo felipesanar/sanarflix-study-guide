@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle, Lightbulb, TrendingDown, Zap,
-  ChevronRight, Users, BookOpen, BarChart3, Target,
+  ChevronRight, Users, BookOpen, Target,
 } from 'lucide-react';
+import { InsightsInfoTooltip } from '@/components/analytics/v2/modules/InsightsInfoTooltip';
 import { Card, CardContent } from '@/components/ui/card';
 import { estimateAffectedStudents } from '@/utils/mapInstitutionalData';
 import { Button } from '@/components/ui/button';
@@ -42,13 +43,12 @@ interface Props {
 
 interface PrioritizedInsight {
   id: string;
-  type: 'critical-tema' | 'critical-area' | 'quick-win' | 'strength';
+  type: 'critical-specialty' | 'critical-area' | 'quick-win' | 'strength';
   title: string;
   description: string;
   // Context for drill-down
   areaName: string;
   specialtyName?: string;
-  temaName?: string;
   percentual: number;
   gap: number;
   questoes: number;
@@ -87,13 +87,6 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     const areaPrevalencia = totalQuestions > 0 ? (area.total / totalQuestions) * 100 : 0;
     const areaCategoria = classify(area.percentual, areaPrevalencia);
 
-    console.log('[Insights] Classificação', {
-      nome: `Área: ${area.name}`,
-      percentualAcerto: area.percentual,
-      prevalencia: Math.round(areaPrevalencia * 10) / 10,
-      categoria: areaCategoria,
-    });
-
     // Áreas só geram insight quando críticas
     if (areaCategoria === 'critical') {
       const gap = Math.round((PROFICIENCY_THRESHOLD - area.percentual) * 10) / 10;
@@ -114,72 +107,62 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     }
 
     for (const sp of area.specialties) {
-      for (const tema of sp.temas) {
-        const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
-        const categoria = classify(tema.percentual, temaPrevalencia);
+      const spPrevalencia = totalQuestions > 0 ? (sp.total / totalQuestions) * 100 : 0;
+      const categoria = classify(sp.percentual, spPrevalencia);
 
-        console.log('[Insights] Classificação', {
-          nome: tema.name,
-          percentualAcerto: tema.percentual,
-          prevalencia: Math.round(temaPrevalencia * 10) / 10,
-          categoria,
+      console.log('[Insights]', sp.name, sp.percentual, Math.round(spPrevalencia * 10) / 10);
+
+      if (categoria === 'neutral') continue;
+
+      const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - sp.percentual) * 10) / 10;
+      const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
+      const impacto = spPrevalencia * (100 - sp.percentual);
+
+      if (categoria === 'critical') {
+        insights.push({
+          id: `critical-sp-${area.name}-${sp.name}`,
+          type: 'critical-specialty',
+          title: `${sp.name} está abaixo da proficiência`,
+          description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap,
+          questoes: sp.total,
+          alunosAfetados,
+          prevalencia: spPrevalencia,
+          impacto,
         });
-
-        if (categoria === 'neutral') continue;
-
-        const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual) * 10) / 10;
-        const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
-        const impacto = temaPrevalencia * (100 - tema.percentual);
-
-        if (categoria === 'critical') {
-          insights.push({
-            id: `critical-${tema.name}-${sp.name}`,
-            type: 'critical-tema',
-            title: `${tema.name} é crítico`,
-            description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap,
-            questoes: tema.total,
-            alunosAfetados,
-            prevalencia: temaPrevalencia,
-            impacto,
-          });
-        } else if (categoria === 'quick-win') {
-          insights.push({
-            id: `quickwin-${tema.name}-${sp.name}`,
-            type: 'quick-win',
-            title: `${tema.name} é ganho rápido`,
-            description: 'Tema relevante e alunos próximos da proficiência — pequeno esforço, alto impacto.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap,
-            questoes: tema.total,
-            alunosAfetados,
-            prevalencia: temaPrevalencia,
-            impacto,
-          });
-        } else if (categoria === 'strength') {
-          insights.push({
-            id: `strength-${tema.name}-${sp.name}`,
-            type: 'strength',
-            title: `${tema.name} é ponto forte`,
-            description: 'Tema dominado pela turma — manter consistência.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap: 0,
-            questoes: tema.total,
-            alunosAfetados: 0,
-            prevalencia: temaPrevalencia,
-            impacto: 0,
-          });
-        }
+      } else if (categoria === 'quick-win') {
+        insights.push({
+          id: `quickwin-sp-${area.name}-${sp.name}`,
+          type: 'quick-win',
+          title: `${sp.name} é ganho rápido`,
+          description: 'Alta incidência e desempenho intermediário — oportunidade clara de ganho.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap,
+          questoes: sp.total,
+          alunosAfetados,
+          prevalencia: spPrevalencia,
+          impacto,
+        });
+      } else if (categoria === 'strength') {
+        insights.push({
+          id: `strength-sp-${area.name}-${sp.name}`,
+          type: 'strength',
+          title: `${sp.name} é ponto forte`,
+          description: 'Especialidade bem dominada pela turma — manter consistência.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap: 0,
+          questoes: sp.total,
+          alunosAfetados: 0,
+          prevalencia: spPrevalencia,
+          impacto: 0,
+        });
       }
     }
   }
@@ -187,7 +170,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
   // Ordenação: críticos > ganhos rápidos > pontos fortes; dentro de cada grupo por impacto desc
   const groupOrder: Record<PrioritizedInsight['type'], number> = {
     'critical-area': 0,
-    'critical-tema': 0,
+    'critical-specialty': 0,
     'quick-win': 1,
     'strength': 2,
   };
@@ -203,7 +186,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
 // ── Type config ──
 function getInsightConfig(type: PrioritizedInsight['type']) {
   switch (type) {
-    case 'critical-tema':
+    case 'critical-specialty':
       return { icon: TrendingDown, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Crítico' };
     case 'critical-area':
       return { icon: AlertCircle, color: 'text-destructive', bg: 'bg-destructive/10', badgeClass: 'bg-destructive text-destructive-foreground hover:bg-destructive/90', label: 'Área Crítica' };
@@ -219,7 +202,7 @@ function getCategoryReason(insight: PrioritizedInsight): string {
   const prev = `${insight.prevalencia.toFixed(1)}%`;
   switch (insight.type) {
     case 'critical-area':
-    case 'critical-tema':
+    case 'critical-specialty':
       return `Classificado como Crítico porque o acerto médio (${acerto}) está abaixo de 50% e a prevalência no simulado (${prev}) é maior ou igual a 10%.`;
     case 'quick-win':
       return `Classificado como Ganho Rápido porque o acerto médio (${acerto}) está entre 50% e 65% e a prevalência no simulado (${prev}) é maior ou igual a 8%.`;
@@ -232,27 +215,27 @@ function getInterpretation(insight: PrioritizedInsight): string {
   const P = insight.percentual.toFixed(0);
   const V = insight.prevalencia.toFixed(1);
   switch (insight.type) {
-    case 'critical-tema':
-      return `Este tema apresenta baixo desempenho (${P}% de acerto) e alta incidência no simulado (${V}%), indicando forte impacto no resultado institucional.`;
+    case 'critical-specialty':
+      return `Esta especialidade apresenta baixo desempenho (${P}% de acerto) e alta incidência no simulado (${V}%), indicando forte impacto no resultado institucional.`;
     case 'critical-area':
       return `A área ${insight.areaName} concentra ${V}% das questões do simulado e está com desempenho médio de ${P}%, abaixo da proficiência institucional.`;
     case 'quick-win':
-      return `Os alunos estão próximos da proficiência (${P}% de acerto) em um tema relevante (${V}% de prevalência) — um pequeno reforço pode gerar grande impacto.`;
+      return `Os alunos estão próximos da proficiência (${P}% de acerto) em uma especialidade relevante (${V}% de prevalência) — um pequeno reforço pode gerar grande impacto.`;
     case 'strength':
-      return `A turma demonstra domínio consistente neste tema (${P}% de acerto, ${V}% de prevalência). Manter a abordagem atual.`;
+      return `A turma demonstra domínio consistente nesta especialidade (${P}% de acerto, ${V}% de prevalência). Manter a abordagem atual.`;
   }
 }
 
 function getRecommendationText(insight: PrioritizedInsight): string {
-  const alvo = insight.temaName ?? insight.areaName;
+  const alvo = insight.specialtyName ?? insight.areaName;
   switch (insight.type) {
-    case 'critical-tema':
+    case 'critical-specialty':
     case 'critical-area':
-      return `Priorizar revisão dirigida em ${alvo} para alunos abaixo da proficiência, com foco nos subtemas de maior incidência.`;
+      return `Priorizar revisão dirigida em ${alvo} para alunos abaixo da proficiência, com foco nos temas de maior incidência.`;
     case 'quick-win':
       return `Disponibilizar lista de exercícios direcionada em ${alvo} para consolidar a proficiência da turma.`;
     case 'strength':
-      return `Manter a estratégia atual de ensino em ${alvo} e usá-lo como referência para outros temas.`;
+      return `Manter a estratégia atual de ensino em ${alvo} e usá-la como referência para outras especialidades.`;
   }
 }
 
@@ -265,14 +248,14 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   const filtered = useMemo(() => {
     if (filterType === 'all') return insights;
     if (filterType === 'critical') {
-      return insights.filter((insight) => insight.type === 'critical-tema' || insight.type === 'critical-area');
+      return insights.filter((insight) => insight.type === 'critical-specialty' || insight.type === 'critical-area');
     }
     return insights.filter(i => i.type === filterType);
   }, [insights, filterType]);
 
   const counts = useMemo(() => ({
     all: insights.length,
-    critical: insights.filter(i => i.type === 'critical-tema' || i.type === 'critical-area').length,
+    critical: insights.filter(i => i.type === 'critical-specialty' || i.type === 'critical-area').length,
     'quick-win': insights.filter(i => i.type === 'quick-win').length,
     strength: insights.filter(i => i.type === 'strength').length,
   }), [insights]);
@@ -326,6 +309,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         <h2 className="text-base font-semibold">
           {insights.length} insights gerados
         </h2>
+        <InsightsInfoTooltip />
         <span className="text-xs text-muted-foreground">
           • priorizados por relevância no simulado e desempenho dos alunos
         </span>
@@ -416,33 +400,6 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         </div>
       )}
 
-      {/* Classification explainer */}
-      <Card className="border-dashed">
-        <CardContent className="py-4 px-4">
-          <div className="flex items-start gap-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Como classificamos os insights</p>
-              <p className="text-xs text-muted-foreground">
-                Cada tema é avaliado por dois critérios objetivos:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1">
-                <li>• <strong>Percentual de acerto</strong> — desempenho médio dos alunos no tema</li>
-                <li>• <strong>Prevalência</strong> — peso do tema no total de questões do simulado</li>
-              </ul>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1 pt-1">
-                <li>🔴 <strong>Crítico</strong> — acerto abaixo de 50% e prevalência ≥ 10%</li>
-                <li>🟡 <strong>Ganho Rápido</strong> — acerto entre 50% e 65% e prevalência ≥ 8%</li>
-                <li>🟢 <strong>Ponto Forte</strong> — acerto igual ou superior a 70%</li>
-              </ul>
-              <p className="text-xs text-muted-foreground pt-1">
-                A ordem dentro de cada grupo prioriza temas com maior impacto (combinação de prevalência alta e desempenho mais baixo).
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Insight detail drawer */}
       <InsightDetailSheet
         insight={selectedInsight}
@@ -483,11 +440,11 @@ const InsightDetailSheet: React.FC<{
     .sort((a, b) => (a.scoresByArea[insight.areaName] ?? a.percentual) - (b.scoresByArea[insight.areaName] ?? b.percentual))
     .slice(0, 10);
 
-  // Find related temas in same area
+  // Find related specialties in same area
   const area = data.curricular.areas.find(a => a.name === insight.areaName);
-  const relatedTemas = area
-    ? area.specialties.flatMap(sp => sp.temas.map(t => ({ ...t, specialty: sp.name })))
-        .filter(t => t.name !== insight.temaName)
+  const relatedSpecialties = area
+    ? area.specialties
+        .filter(sp => sp.name !== insight.specialtyName)
         .sort((a, b) => a.percentual - b.percentual)
         .slice(0, 5)
     : [];
@@ -513,12 +470,6 @@ const InsightDetailSheet: React.FC<{
               <>
                 <ChevronRight className="h-3 w-3" />
                 <span>{insight.specialtyName}</span>
-              </>
-            )}
-            {insight.temaName && (
-              <>
-                <ChevronRight className="h-3 w-3" />
-                <span className="font-medium text-foreground">{insight.temaName}</span>
               </>
             )}
           </div>
@@ -555,11 +506,11 @@ const InsightDetailSheet: React.FC<{
                 <div>
                   <p className="text-sm font-medium">Recomendação</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {insight.type === 'critical-tema' || insight.type === 'critical-area'
-                      ? `Priorizar revisão de conteúdo e reforço em ${insight.temaName ?? insight.areaName}. Considerar atividades de recuperação dirigida para os ${insight.alunosAfetados} alunos afetados.`
+                    {insight.type === 'critical-specialty' || insight.type === 'critical-area'
+                      ? `Priorizar revisão de conteúdo e reforço em ${insight.specialtyName ?? insight.areaName}. Considerar atividades de recuperação dirigida para os ${insight.alunosAfetados} alunos afetados.`
                       : insight.type === 'quick-win'
                         ? `Investir em intervenção focada — faltam apenas ${insight.gap}pts para proficiência. Potencial de mover ~${insight.alunosAfetados} alunos para faixa proficiente com esforço direcionado.`
-                        : `Manter monitoramento de ${insight.temaName}. Usar como referência de boas práticas para áreas com desempenho inferior.`}
+                        : `Manter monitoramento de ${insight.specialtyName ?? insight.areaName}. Usar como referência de boas práticas para áreas com desempenho inferior.`}
                   </p>
                 </div>
               </div>
@@ -590,21 +541,20 @@ const InsightDetailSheet: React.FC<{
             </div>
           )}
 
-          {/* Related temas */}
-          {relatedTemas.length > 0 && (
+          {/* Related specialties */}
+          {relatedSpecialties.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <BookOpen className="h-4 w-4" /> Outros Temas em {insight.areaName}
+                <BookOpen className="h-4 w-4" /> Outras Especialidades em {insight.areaName}
               </h4>
               <div className="space-y-1">
-                {relatedTemas.map((t, i) => (
-                  <div key={`${t.name}-${i}`} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm">
+                {relatedSpecialties.map((sp, i) => (
+                  <div key={`${sp.name}-${i}`} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm">
                     <div className="min-w-0">
-                      <span className="font-medium truncate block">{t.name}</span>
-                      <span className="text-xs text-muted-foreground">{t.specialty}</span>
+                      <span className="font-medium truncate block">{sp.name}</span>
                     </div>
-                    <span className={`font-semibold shrink-0 ${t.percentual < 50 ? 'text-destructive' : t.percentual < 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {t.percentual}%
+                    <span className={`font-semibold shrink-0 ${sp.percentual < 50 ? 'text-destructive' : sp.percentual < 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {sp.percentual}%
                     </span>
                   </div>
                 ))}
