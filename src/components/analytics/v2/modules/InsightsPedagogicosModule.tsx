@@ -472,12 +472,6 @@ const InsightDetailSheet: React.FC<{
                 <span>{insight.specialtyName}</span>
               </>
             )}
-            {insight.temaName && (
-              <>
-                <ChevronRight className="h-3 w-3" />
-                <span className="font-medium text-foreground">{insight.temaName}</span>
-              </>
-            )}
           </div>
 
           {/* Metrics */}
