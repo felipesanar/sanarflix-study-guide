@@ -400,33 +400,6 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
         </div>
       )}
 
-      {/* Classification explainer */}
-      <Card className="border-dashed">
-        <CardContent className="py-4 px-4">
-          <div className="flex items-start gap-2">
-            <BarChart3 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Como classificamos os insights</p>
-              <p className="text-xs text-muted-foreground">
-                Cada tema é avaliado por dois critérios objetivos:
-              </p>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1">
-                <li>• <strong>Percentual de acerto</strong> — desempenho médio dos alunos no tema</li>
-                <li>• <strong>Prevalência</strong> — peso do tema no total de questões do simulado</li>
-              </ul>
-              <ul className="text-xs text-muted-foreground space-y-1 ml-1 pt-1">
-                <li>🔴 <strong>Crítico</strong> — acerto abaixo de 50% e prevalência ≥ 10%</li>
-                <li>🟡 <strong>Ganho Rápido</strong> — acerto entre 50% e 65% e prevalência ≥ 8%</li>
-                <li>🟢 <strong>Ponto Forte</strong> — acerto igual ou superior a 70%</li>
-              </ul>
-              <p className="text-xs text-muted-foreground pt-1">
-                A ordem dentro de cada grupo prioriza temas com maior impacto (combinação de prevalência alta e desempenho mais baixo).
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Insight detail drawer */}
       <InsightDetailSheet
         insight={selectedInsight}
