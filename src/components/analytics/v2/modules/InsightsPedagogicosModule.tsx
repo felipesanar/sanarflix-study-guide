@@ -506,11 +506,11 @@ const InsightDetailSheet: React.FC<{
                 <div>
                   <p className="text-sm font-medium">Recomendação</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {insight.type === 'critical-tema' || insight.type === 'critical-area'
-                      ? `Priorizar revisão de conteúdo e reforço em ${insight.temaName ?? insight.areaName}. Considerar atividades de recuperação dirigida para os ${insight.alunosAfetados} alunos afetados.`
+                    {insight.type === 'critical-specialty' || insight.type === 'critical-area'
+                      ? `Priorizar revisão de conteúdo e reforço em ${insight.specialtyName ?? insight.areaName}. Considerar atividades de recuperação dirigida para os ${insight.alunosAfetados} alunos afetados.`
                       : insight.type === 'quick-win'
                         ? `Investir em intervenção focada — faltam apenas ${insight.gap}pts para proficiência. Potencial de mover ~${insight.alunosAfetados} alunos para faixa proficiente com esforço direcionado.`
-                        : `Manter monitoramento de ${insight.temaName}. Usar como referência de boas práticas para áreas com desempenho inferior.`}
+                        : `Manter monitoramento de ${insight.specialtyName ?? insight.areaName}. Usar como referência de boas práticas para áreas com desempenho inferior.`}
                   </p>
                 </div>
               </div>
