@@ -221,25 +221,30 @@ Deno.serve(async (req) => {
     const results: RowResult[] = [];
     let imported = 0, skipped = 0, replaced = 0, failed = 0;
 
+    // ---- 1) Particiona linhas em "válidas" (vão pro batch RPC) e "inválidas"
+    type ValidRow = {
+      email: string;
+      user_id: string;
+      answers: { question_id: string; resposta: Resposta; correct: boolean }[];
+      tempo_segundos: number;
+      saidas_aba: number;
+      finalizado_em: string;
+    };
+    const validRows: ValidRow[] = [];
+    const invalidFailures: { user_id: string; email: string; reason: string }[] = [];
+
     for (const row of payload.rows) {
       const email = (row.email ?? '').trim().toLowerCase();
       const v = validateRow(row, email, byNumero, expectedNumeros, userByEmail, emailCount);
       if (v.status === 'preview_error') {
+        const userId = userByEmail.get(email)?.user_id ?? '00000000-0000-0000-0000-000000000000';
+        invalidFailures.push({ user_id: userId, email, reason: v.reason ?? 'validation_failed' });
         results.push({ email, status: 'failed', reason: v.reason, details: v.details });
         failed++;
-        // registrar falha
-        await supabaseAdmin.from('admin_import_records').upsert({
-          batch_id: batchId,
-          user_id: userByEmail.get(email)?.user_id ?? '00000000-0000-0000-0000-000000000000',
-          simulado_id: payload.simulado_id,
-          status: 'failed',
-          reason: v.reason ?? 'validation_failed',
-        }, { onConflict: 'batch_id,user_id,simulado_id', ignoreDuplicates: true });
         continue;
       }
 
       const user = userByEmail.get(email)!;
-      // Montar payload de respostas com correct calculado
       const answersPayload = expectedNumeros.map((n) => {
         const q = byNumero.get(n)!;
         const raw = row.answers[String(n)] ?? row.answers[String(n).padStart(2, '0')] ?? null;
@@ -252,55 +257,93 @@ Deno.serve(async (req) => {
       const tempoSeg = row.tempo_segundos ?? payload.default_tempo_segundos ?? (simulado.duracao_minutos ?? 180) * 60;
       const saidasAba = row.saidas_aba ?? 0;
 
-      try {
-        const { data: rpcResult, error: rpcErr } = await supabaseAdmin.rpc(
-          'admin_import_one_response',
-          {
-            p_batch_id: batchId,
-            p_simulado_id: payload.simulado_id,
-            p_user_id: user.user_id,
-            p_answers: answersPayload,
-            p_tempo_segundos: tempoSeg,
-            p_saidas_aba: saidasAba,
-            p_finalizado_em: finalizadoEm,
-            p_conflict_mode: payload.conflict_mode,
-          },
+      validRows.push({
+        email,
+        user_id: user.user_id,
+        answers: answersPayload,
+        tempo_segundos: tempoSeg,
+        saidas_aba: saidasAba,
+        finalizado_em: finalizadoEm,
+      });
+    }
+
+    // ---- 2) Bulk insert das falhas de validação numa única chamada
+    if (invalidFailures.length > 0) {
+      // Filtra placeholder UUID — não tem FK válida; só registra os que têm user_id real
+      const realFailures = invalidFailures.filter((f) => f.user_id !== '00000000-0000-0000-0000-000000000000');
+      if (realFailures.length > 0) {
+        await supabaseAdmin.from('admin_import_records').upsert(
+          realFailures.map((f) => ({
+            batch_id: batchId,
+            user_id: f.user_id,
+            simulado_id: payload.simulado_id,
+            status: 'failed' as const,
+            reason: f.reason,
+          })),
+          { onConflict: 'batch_id,user_id,simulado_id', ignoreDuplicates: true },
         );
-        if (rpcErr) throw rpcErr;
-        const status = (rpcResult as { status: string })?.status;
-        if (status === 'imported') {
-          imported++;
-          results.push({ email, status: 'imported' });
-        } else if (status === 'replaced') {
-          replaced++;
-          results.push({ email, status: 'replaced' });
-        } else if (status === 'skipped') {
-          skipped++;
-          results.push({ email, status: 'skipped', reason: 'already_finalized' });
-        } else if (status === 'already_in_batch') {
-          // idempotência: contabilizar como o que já foi
-          const { data: prev } = await supabaseAdmin
-            .from('admin_import_records')
-            .select('status')
-            .eq('batch_id', batchId)
-            .eq('user_id', user.user_id)
-            .eq('simulado_id', payload.simulado_id)
-            .maybeSingle();
-          const prevStatus = (prev as { status: string } | null)?.status ?? 'imported';
-          results.push({ email, status: prevStatus as RowResult['status'], reason: 'already_processed' });
+      }
+    }
+
+    // ---- 3) Chama o batch RPC (uma única round-trip pra todas as linhas válidas)
+    if (validRows.length > 0) {
+      const userIdToEmail = new Map(validRows.map((r) => [r.user_id, r.email]));
+      const { data: batchResult, error: batchRpcErr } = await supabaseAdmin.rpc(
+        'admin_import_responses_batch',
+        {
+          p_batch_id: batchId,
+          p_simulado_id: payload.simulado_id,
+          p_conflict_mode: payload.conflict_mode,
+          p_rows: validRows.map((r) => ({
+            user_id: r.user_id,
+            answers: r.answers,
+            tempo_segundos: r.tempo_segundos,
+            saidas_aba: r.saidas_aba,
+            finalizado_em: r.finalizado_em,
+          })),
+        },
+      );
+
+      if (batchRpcErr) {
+        console.error('[admin-import] batch rpc failed', batchRpcErr);
+        // Toda a chamada falhou — marcar todos os válidos como failed
+        for (const r of validRows) {
+          failed++;
+          results.push({ email: r.email, status: 'failed', reason: batchRpcErr.message ?? 'batch_rpc_failed' });
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error('[admin-import] Erro no aluno', email, msg);
-        failed++;
-        results.push({ email, status: 'failed', reason: msg });
-        await supabaseAdmin.from('admin_import_records').upsert({
-          batch_id: batchId,
-          user_id: user.user_id,
-          simulado_id: payload.simulado_id,
-          status: 'failed',
-          reason: msg.slice(0, 500),
-        }, { onConflict: 'batch_id,user_id,simulado_id', ignoreDuplicates: true });
+      } else {
+        const br = batchResult as {
+          results: { user_id: string; status: string; reason?: string; finalizacao_id?: string }[];
+          summary: { imported: number; skipped: number; replaced: number; failed: number; already_in_batch: number };
+        };
+        for (const rr of br.results ?? []) {
+          const email = userIdToEmail.get(rr.user_id) ?? '?';
+          const status = rr.status as RowResult['status'] | 'already_in_batch';
+          if (status === 'imported') {
+            imported++;
+            results.push({ email, status: 'imported' });
+          } else if (status === 'replaced') {
+            replaced++;
+            results.push({ email, status: 'replaced' });
+          } else if (status === 'skipped') {
+            skipped++;
+            results.push({ email, status: 'skipped', reason: rr.reason ?? 'already_finalized' });
+          } else if (status === 'failed') {
+            failed++;
+            results.push({ email, status: 'failed', reason: rr.reason });
+          } else if (status === 'already_in_batch') {
+            // idempotência: olhar o status anterior gravado
+            const { data: prev } = await supabaseAdmin
+              .from('admin_import_records')
+              .select('status, reason')
+              .eq('batch_id', batchId)
+              .eq('user_id', rr.user_id)
+              .eq('simulado_id', payload.simulado_id)
+              .maybeSingle();
+            const prevStatus = (prev as { status: string; reason: string } | null)?.status ?? 'imported';
+            results.push({ email, status: prevStatus as RowResult['status'], reason: 'already_processed' });
+          }
+        }
       }
     }
 
