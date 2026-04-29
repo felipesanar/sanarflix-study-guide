@@ -1462,6 +1462,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_get_batch_records: {
+        Args: { p_batch_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          finalizacao_id: string
+          reason: string
+          status: string
+          user_id: string
+        }[]
+      }
       admin_import_one_response: {
         Args: {
           p_answers: Json
@@ -1474,6 +1485,35 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      admin_import_responses_batch: {
+        Args: {
+          p_batch_id: string
+          p_conflict_mode: string
+          p_rows: Json
+          p_simulado_id: string
+        }
+        Returns: Json
+      }
+      admin_list_import_batches: {
+        Args: { p_limit?: number }
+        Returns: {
+          conflict_mode: string
+          created_at: string
+          created_by: string
+          created_by_email: string
+          failed_count: number
+          finished_at: string
+          id: string
+          imported_count: number
+          replaced_count: number
+          simulado_id: string
+          simulado_nome: string
+          skipped_count: number
+          source_label: string
+          status: string
+          total_rows: number
+        }[]
       }
       admin_lookup_users_by_email_in_ies: {
         Args: { p_emails: string[]; p_ies_ids: string[] }
