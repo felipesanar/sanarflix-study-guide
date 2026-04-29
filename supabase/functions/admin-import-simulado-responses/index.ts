@@ -80,8 +80,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'invalid_json' }, 400);
     }
 
+    console.log('[admin-import] payload received', {
+      simulado_id: payload?.simulado_id,
+      conflict_mode: payload?.conflict_mode,
+      dry_run: payload?.dry_run,
+      rows_count: Array.isArray(payload?.rows) ? payload.rows.length : 'not_array',
+      first_row_keys: Array.isArray(payload?.rows) && payload.rows[0] ? Object.keys(payload.rows[0]) : null,
+    });
+
     const errors = validatePayload(payload);
     if (errors.length > 0) {
+      console.error('[admin-import] payload validation failed', errors);
       return jsonResponse({ error: 'invalid_payload', details: errors }, 400);
     }
 
