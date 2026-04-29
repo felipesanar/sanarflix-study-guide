@@ -440,11 +440,11 @@ const InsightDetailSheet: React.FC<{
     .sort((a, b) => (a.scoresByArea[insight.areaName] ?? a.percentual) - (b.scoresByArea[insight.areaName] ?? b.percentual))
     .slice(0, 10);
 
-  // Find related temas in same area
+  // Find related specialties in same area
   const area = data.curricular.areas.find(a => a.name === insight.areaName);
-  const relatedTemas = area
-    ? area.specialties.flatMap(sp => sp.temas.map(t => ({ ...t, specialty: sp.name })))
-        .filter(t => t.name !== insight.temaName)
+  const relatedSpecialties = area
+    ? area.specialties
+        .filter(sp => sp.name !== insight.specialtyName)
         .sort((a, b) => a.percentual - b.percentual)
         .slice(0, 5)
     : [];
