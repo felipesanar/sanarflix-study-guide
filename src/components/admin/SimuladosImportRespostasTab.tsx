@@ -134,33 +134,15 @@ export default function SimuladosImportRespostasTab() {
     try {
       const { data, error } = await supabase
         .from('simulados_admin')
-        .select('id, nome, ies_ids')
+        .select('id, nome, ies_ids, questoes_simulado(count)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-
-      const ids = (data ?? []).map((s) => s.id);
-      const counts: Record<string, number> = {};
-
-      // Contagem por simulado via HEAD count (não retorna linhas → não estoura limite de 1000).
-      if (ids.length > 0) {
-        const results = await Promise.all(
-          ids.map(async (sid) => {
-            const { count, error: qErr } = await supabase
-              .from('questoes_simulado')
-              .select('id', { count: 'exact', head: true })
-              .eq('simulado_id', sid);
-            if (qErr) throw new Error(`Falha ao contar questões do simulado ${sid}: ${qErr.message}`);
-            return [sid, count ?? 0] as const;
-          }),
-        );
-        for (const [sid, c] of results) counts[sid] = c;
-      }
 
       setSimulados(
         (data ?? []).map((s) => ({
           id: s.id,
           nome: s.nome,
-          total_questoes: counts[s.id] ?? 0,
+          total_questoes: s.questoes_simulado?.[0]?.count ?? 0,
           ies_count: Array.isArray(s.ies_ids) ? s.ies_ids.length : 0,
         })),
       );
