@@ -43,13 +43,12 @@ interface Props {
 
 interface PrioritizedInsight {
   id: string;
-  type: 'critical-tema' | 'critical-area' | 'quick-win' | 'strength';
+  type: 'critical-specialty' | 'critical-area' | 'quick-win' | 'strength';
   title: string;
   description: string;
   // Context for drill-down
   areaName: string;
   specialtyName?: string;
-  temaName?: string;
   percentual: number;
   gap: number;
   questoes: number;
@@ -88,13 +87,6 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     const areaPrevalencia = totalQuestions > 0 ? (area.total / totalQuestions) * 100 : 0;
     const areaCategoria = classify(area.percentual, areaPrevalencia);
 
-    console.log('[Insights] Classificação', {
-      nome: `Área: ${area.name}`,
-      percentualAcerto: area.percentual,
-      prevalencia: Math.round(areaPrevalencia * 10) / 10,
-      categoria: areaCategoria,
-    });
-
     // Áreas só geram insight quando críticas
     if (areaCategoria === 'critical') {
       const gap = Math.round((PROFICIENCY_THRESHOLD - area.percentual) * 10) / 10;
@@ -115,72 +107,62 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
     }
 
     for (const sp of area.specialties) {
-      for (const tema of sp.temas) {
-        const temaPrevalencia = totalQuestions > 0 ? (tema.total / totalQuestions) * 100 : 0;
-        const categoria = classify(tema.percentual, temaPrevalencia);
+      const spPrevalencia = totalQuestions > 0 ? (sp.total / totalQuestions) * 100 : 0;
+      const categoria = classify(sp.percentual, spPrevalencia);
 
-        console.log('[Insights] Classificação', {
-          nome: tema.name,
-          percentualAcerto: tema.percentual,
-          prevalencia: Math.round(temaPrevalencia * 10) / 10,
-          categoria,
+      console.log('[Insights]', sp.name, sp.percentual, Math.round(spPrevalencia * 10) / 10);
+
+      if (categoria === 'neutral') continue;
+
+      const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - sp.percentual) * 10) / 10;
+      const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
+      const impacto = spPrevalencia * (100 - sp.percentual);
+
+      if (categoria === 'critical') {
+        insights.push({
+          id: `critical-sp-${area.name}-${sp.name}`,
+          type: 'critical-specialty',
+          title: `${sp.name} está abaixo da proficiência`,
+          description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap,
+          questoes: sp.total,
+          alunosAfetados,
+          prevalencia: spPrevalencia,
+          impacto,
         });
-
-        if (categoria === 'neutral') continue;
-
-        const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - tema.percentual) * 10) / 10;
-        const alunosAfetados = gap > 0 ? estimateAffectedStudents(totalStudents, gap) : 0;
-        const impacto = temaPrevalencia * (100 - tema.percentual);
-
-        if (categoria === 'critical') {
-          insights.push({
-            id: `critical-${tema.name}-${sp.name}`,
-            type: 'critical-tema',
-            title: `${tema.name} é crítico`,
-            description: 'Alta incidência no simulado e baixo desempenho dos alunos.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap,
-            questoes: tema.total,
-            alunosAfetados,
-            prevalencia: temaPrevalencia,
-            impacto,
-          });
-        } else if (categoria === 'quick-win') {
-          insights.push({
-            id: `quickwin-${tema.name}-${sp.name}`,
-            type: 'quick-win',
-            title: `${tema.name} é ganho rápido`,
-            description: 'Tema relevante e alunos próximos da proficiência — pequeno esforço, alto impacto.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap,
-            questoes: tema.total,
-            alunosAfetados,
-            prevalencia: temaPrevalencia,
-            impacto,
-          });
-        } else if (categoria === 'strength') {
-          insights.push({
-            id: `strength-${tema.name}-${sp.name}`,
-            type: 'strength',
-            title: `${tema.name} é ponto forte`,
-            description: 'Tema dominado pela turma — manter consistência.',
-            areaName: area.name,
-            specialtyName: sp.name,
-            temaName: tema.name,
-            percentual: tema.percentual,
-            gap: 0,
-            questoes: tema.total,
-            alunosAfetados: 0,
-            prevalencia: temaPrevalencia,
-            impacto: 0,
-          });
-        }
+      } else if (categoria === 'quick-win') {
+        insights.push({
+          id: `quickwin-sp-${area.name}-${sp.name}`,
+          type: 'quick-win',
+          title: `${sp.name} é ganho rápido`,
+          description: 'Alta incidência e desempenho intermediário — oportunidade clara de ganho.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap,
+          questoes: sp.total,
+          alunosAfetados,
+          prevalencia: spPrevalencia,
+          impacto,
+        });
+      } else if (categoria === 'strength') {
+        insights.push({
+          id: `strength-sp-${area.name}-${sp.name}`,
+          type: 'strength',
+          title: `${sp.name} é ponto forte`,
+          description: 'Especialidade bem dominada pela turma — manter consistência.',
+          areaName: area.name,
+          specialtyName: sp.name,
+          percentual: sp.percentual,
+          gap: 0,
+          questoes: sp.total,
+          alunosAfetados: 0,
+          prevalencia: spPrevalencia,
+          impacto: 0,
+        });
       }
     }
   }
@@ -188,7 +170,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
   // Ordenação: críticos > ganhos rápidos > pontos fortes; dentro de cada grupo por impacto desc
   const groupOrder: Record<PrioritizedInsight['type'], number> = {
     'critical-area': 0,
-    'critical-tema': 0,
+    'critical-specialty': 0,
     'quick-win': 1,
     'strength': 2,
   };
