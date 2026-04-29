@@ -541,21 +541,20 @@ const InsightDetailSheet: React.FC<{
             </div>
           )}
 
-          {/* Related temas */}
-          {relatedTemas.length > 0 && (
+          {/* Related specialties */}
+          {relatedSpecialties.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <BookOpen className="h-4 w-4" /> Outros Temas em {insight.areaName}
+                <BookOpen className="h-4 w-4" /> Outras Especialidades em {insight.areaName}
               </h4>
               <div className="space-y-1">
-                {relatedTemas.map((t, i) => (
-                  <div key={`${t.name}-${i}`} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm">
+                {relatedSpecialties.map((sp, i) => (
+                  <div key={`${sp.name}-${i}`} className="flex items-center justify-between p-2 rounded-md bg-muted/30 text-sm">
                     <div className="min-w-0">
-                      <span className="font-medium truncate block">{t.name}</span>
-                      <span className="text-xs text-muted-foreground">{t.specialty}</span>
+                      <span className="font-medium truncate block">{sp.name}</span>
                     </div>
-                    <span className={`font-semibold shrink-0 ${t.percentual < 50 ? 'text-destructive' : t.percentual < 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      {t.percentual}%
+                    <span className={`font-semibold shrink-0 ${sp.percentual < 50 ? 'text-destructive' : sp.percentual < 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      {sp.percentual}%
                     </span>
                   </div>
                 ))}
