@@ -248,7 +248,7 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   const filtered = useMemo(() => {
     if (filterType === 'all') return insights;
     if (filterType === 'critical') {
-      return insights.filter((insight) => insight.type === 'critical-tema' || insight.type === 'critical-area');
+      return insights.filter((insight) => insight.type === 'critical-specialty' || insight.type === 'critical-area');
     }
     return insights.filter(i => i.type === filterType);
   }, [insights, filterType]);
