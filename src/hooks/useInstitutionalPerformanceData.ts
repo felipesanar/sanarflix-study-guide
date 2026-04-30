@@ -191,7 +191,8 @@ export function useInstitutionalPerformanceData(
       }
 
       try {
-        const targetIesId = await resolveIesId(filters.iesId || undefined);
+        const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+        const targetIesId = await resolveIesId(requestedIesId);
         const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
           p_ies_id: targetIesId,
         });
