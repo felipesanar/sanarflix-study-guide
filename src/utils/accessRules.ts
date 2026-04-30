@@ -70,11 +70,23 @@ export const isB2BPartner = (user: User | null): boolean => {
 };
 
 /**
- * Verifica se usuário é gestor
+ * Verifica se usuário é gestor (inclui variantes 'gestor' e 'gestor_formal')
  */
 export const isGestor = (user: User | null): boolean => {
   if (!user) return false;
-  return user.roles?.includes('gestor') || false;
+  return (
+    user.roles?.includes('gestor') ||
+    user.roles?.includes('gestor_formal') ||
+    false
+  );
+};
+
+/**
+ * Verifica se usuário é gestor_formal especificamente
+ */
+export const isGestorFormal = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.includes('gestor_formal') || false;
 };
 
 /**
