@@ -230,7 +230,7 @@ export function useInstitutionalPerformanceData(
       }
     };
     fetchSimulados();
-  }, [filters.iesId]);
+  }, [filters.iesId, canSeeAllIes, user?.id_ies]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
