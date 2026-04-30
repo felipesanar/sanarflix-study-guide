@@ -253,7 +253,8 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const targetIesId = await resolveIesId(filters.iesId || undefined);
+      const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+      const targetIesId = await resolveIesId(requestedIesId);
 
       // Parallel RPC calls with retry + timeout + total IES users count
       const [perfData, scoresData, evoData, iesUsersResult] = await Promise.all([
