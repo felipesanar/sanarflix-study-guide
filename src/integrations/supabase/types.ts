@@ -1269,6 +1269,24 @@ export type Database = {
           },
         ]
       }
+      temp_correcao_ids: {
+        Row: {
+          id: number
+          id_certo: string | null
+          id_errado: string | null
+        }
+        Insert: {
+          id?: number
+          id_certo?: string | null
+          id_errado?: string | null
+        }
+        Update: {
+          id?: number
+          id_certo?: string | null
+          id_errado?: string | null
+        }
+        Relationships: []
+      }
       user_exams: {
         Row: {
           created_at: string | null
