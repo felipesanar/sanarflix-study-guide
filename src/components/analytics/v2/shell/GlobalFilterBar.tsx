@@ -109,7 +109,7 @@ export const GlobalFilterBar: React.FC<Props> = ({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Primary selects */}
-      {iesList.length > 0 && (
+      {iesList.length > 1 && (
         <Select
           value={filters.iesId || 'all'}
           onValueChange={(v) => onFilterChange('iesId', v === 'all' ? '' : v)}
