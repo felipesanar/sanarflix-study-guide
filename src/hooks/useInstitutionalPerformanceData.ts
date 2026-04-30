@@ -7,6 +7,8 @@ import {
   fetchInstitutionalEvolution,
   resolveIesId,
 } from '@/services/institutional';
+import { useAuth } from '@/contexts/AuthContext';
+import { isAdmin, isB2BPartner, isGestor } from '@/utils/accessRules';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
@@ -131,6 +133,7 @@ function getMockViewModel(): InstitutionalViewModel {
 export function useInstitutionalPerformanceData(
   filters: DesempenhoV2Filters,
 ): UseInstitutionalPerformanceResult {
+  const { user } = useAuth();
   const [data, setData] = useState<InstitutionalViewModel | null>(null);
   const [simulados, setSimulados] = useState<SimuladoOption[]>([]);
   const [iesList, setIesList] = useState<IesOption[]>([]);
@@ -138,9 +141,31 @@ export function useInstitutionalPerformanceData(
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
 
-  // Fetch IES list for admin/b2b
+  // Determina se o usuário pode ver todas as IES (apenas admin e b2b_partner).
+  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES.
+  const canSeeAllIes = isAdmin(user) || isB2BPartner(user);
+
+  // Fetch IES list — admin/b2b veem todas; gestor/aluno veem somente a sua IES
   useEffect(() => {
     const fetchIes = async () => {
+      if (!canSeeAllIes) {
+        // Restringe à IES do próprio usuário
+        if (user?.id_ies) {
+          const { data: iesRow } = await supabase
+            .from('ies')
+            .select('id, nome')
+            .eq('id', user.id_ies)
+            .maybeSingle();
+          if (iesRow) {
+            setIesList([{ id: iesRow.id, nome: iesRow.nome }]);
+          } else {
+            setIesList([]);
+          }
+        } else {
+          setIesList([]);
+        }
+        return;
+      }
       const { data: iesData, error: iesErr } = await supabase
         .from('ies')
         .select('id, nome')
@@ -150,7 +175,7 @@ export function useInstitutionalPerformanceData(
       }
     };
     fetchIes();
-  }, []);
+  }, [canSeeAllIes, user?.id_ies]);
 
   // Fetch simulados whenever IES changes
   useEffect(() => {
@@ -166,7 +191,8 @@ export function useInstitutionalPerformanceData(
       }
 
       try {
-        const targetIesId = await resolveIesId(filters.iesId || undefined);
+        const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+        const targetIesId = await resolveIesId(requestedIesId);
         const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
           p_ies_id: targetIesId,
         });
@@ -204,7 +230,7 @@ export function useInstitutionalPerformanceData(
       }
     };
     fetchSimulados();
-  }, [filters.iesId]);
+  }, [filters.iesId, canSeeAllIes, user?.id_ies]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
@@ -227,7 +253,8 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const targetIesId = await resolveIesId(filters.iesId || undefined);
+      const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+      const targetIesId = await resolveIesId(requestedIesId);
 
       // Parallel RPC calls with retry + timeout + total IES users count
       const [perfData, scoresData, evoData, iesUsersResult] = await Promise.all([
@@ -259,7 +286,7 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId]);
+  }, [filters.simuladoId, filters.iesId, canSeeAllIes, user?.id_ies]);
 
   useEffect(() => {
     fetchPerformance();
