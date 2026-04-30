@@ -286,7 +286,7 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId]);
+  }, [filters.simuladoId, filters.iesId, canSeeAllIes, user?.id_ies]);
 
   useEffect(() => {
     fetchPerformance();
