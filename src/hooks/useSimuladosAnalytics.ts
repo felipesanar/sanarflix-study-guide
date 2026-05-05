@@ -609,7 +609,10 @@ export async function fetchSimuladosAnalyticsData(
     const simSaidasAba = simFinalizados.map(f => f.saidas_de_aba || 0);
     const simSaidasFs = simFinalizados.map(f => f.saidas_de_fullscreen || 0);
     const simTentativas = simFinalizados.map(f => f.tentativa_numero || 1);
-    const totalCorr = simRespostas.filter(r => r.correct).length;
+    // Excluir respostas de questões anuladas dos cálculos
+    const anuladaIds = new Set(simQuestoes.filter(q => q.anulada).map(q => q.id));
+    const simRespostasValidas = simRespostas.filter(r => !anuladaIds.has(r.question_id));
+    const totalCorr = simRespostasValidas.filter(r => r.correct).length;
 
     const totalQuestoes = simQuestoes.filter(q => !q.anulada).length;
     
@@ -651,7 +654,7 @@ export async function fetchSimuladosAnalyticsData(
       iniciados_unicos: uniqueInic.size,
       concluintes_unicos: uniqueFin.size,
       taxa_conclusao: uniqueInic.size > 0 ? Math.round((uniqueFin.size / uniqueInic.size) * 100) : 0,
-      acuracia_media: simRespostas.length > 0 ? Math.round((totalCorr / simRespostas.length) * 100) : 0,
+      acuracia_media: simRespostasValidas.length > 0 ? Math.round((totalCorr / simRespostasValidas.length) * 100) : 0,
       tempo_mediano_segundos: median(simTempos),
       tempo_medio_segundos: simTempos.length > 0 ? simTempos.reduce((a, b) => a + b, 0) / simTempos.length : 0,
       saidas_aba_media: simSaidasAba.length > 0 ? simSaidasAba.reduce((a, b) => a + b, 0) / simSaidasAba.length : 0,

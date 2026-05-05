@@ -263,7 +263,8 @@ export const SimuladoCorrecao: React.FC = () => {
 
           let acertou: boolean | null = null;
           if (q.anulada) {
-            acertou = true;
+            // Questões anuladas não contam — acertou fica null
+            acertou = null;
           } else if (respostaUsuario) {
             acertou = respostaUsuario === gabarito;
           }
@@ -305,10 +306,11 @@ export const SimuladoCorrecao: React.FC = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const total = questions.length;
-    const acertos = questions.filter(q => q.acertou === true).length;
-    const erros = questions.filter(q => q.acertou === false).length;
-    const naoRespondidas = questions.filter(q => q.acertou === null).length;
+    const questoesValidas = questions.filter(q => !q.anulada);
+    const total = questoesValidas.length;
+    const acertos = questoesValidas.filter(q => q.acertou === true).length;
+    const erros = questoesValidas.filter(q => q.acertou === false).length;
+    const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
     const percentual = total > 0 ? Math.round((acertos / total) * 100) : 0;
     return { total, acertos, erros, naoRespondidas, percentual };
   }, [questions]);
@@ -350,13 +352,14 @@ export const SimuladoCorrecao: React.FC = () => {
         };
       });
 
-      const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
-      const erros = questoesRevisadas.filter(q => q.acertou === false).length;
-      const naoRespondidas = questoesRevisadas.filter(q => q.acertou === null).length;
-      const total = questoesRevisadas.length;
+      const questoesValidas = questoesRevisadas.filter(q => !q.anulada);
+      const acertos = questoesValidas.filter(q => q.acertou === true).length;
+      const erros = questoesValidas.filter(q => q.acertou === false).length;
+      const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
+      const total = questoesValidas.length;
 
       const areaMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => {
+      questoesValidas.forEach(q => {
         const area = q.grandeArea || 'Outros';
         const existing = areaMap.get(area) || { acertos: 0, total: 0 };
         existing.total++;

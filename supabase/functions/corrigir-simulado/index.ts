@@ -227,10 +227,9 @@ Deno.serve(async (req) => {
     const gabaritos = new Map(questoes?.map(q => [q.id, { correta: q.correta, anulada: q.anulada }]) || []);
 
     // PASSO 5: Processar TODAS as questões (respondidas e não respondidas)
-    // Questões anuladas são sempre contabilizadas como corretas
+    // Questões anuladas NÃO são contabilizadas — correct é baseado apenas no gabarito real
     const respostasParaSalvar = respostas.map(r => {
       const questaoInfo = gabaritos.get(r.questao_id);
-      const isAnulada = questaoInfo?.anulada === true;
       const gabarito = questaoInfo?.correta;
       
       return {
@@ -239,8 +238,8 @@ Deno.serve(async (req) => {
         question_id: r.questao_id,
         resposta_usuario: r.resposta,
         answer_id: crypto.randomUUID(),
-        // Se a questão está anulada, sempre é correta; caso contrário, verifica gabarito
-        correct: isAnulada ? true : (r.resposta !== null ? gabarito === r.resposta : false),
+        // Questões anuladas: correct reflete o gabarito real (serão excluídas dos cálculos)
+        correct: r.resposta !== null ? gabarito === r.resposta : false,
         'respondida?': r.respondida ?? (r.resposta !== null)
       };
     });
@@ -257,11 +256,16 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    const questoesRespondidas = respostasParaSalvar.filter(r => r['respondida?']);
+    // Excluir questões anuladas dos cálculos de acertos/total
+    const idsAnuladas = new Set(
+      [...gabaritos.entries()].filter(([_, info]) => info.anulada === true).map(([id]) => id)
+    );
+    const questoesValidas = respostasParaSalvar.filter(r => !idsAnuladas.has(r.question_id));
+    const questoesRespondidas = questoesValidas.filter(r => r['respondida?']);
     const acertos = questoesRespondidas.filter(r => r.correct).length;
     const total = questoesRespondidas.length;
 
-    console.log(`[corrigir-simulado] Acertos: ${acertos}/${total}`);
+    console.log(`[corrigir-simulado] Questões anuladas: ${idsAnuladas.size}, Acertos: ${acertos}/${total}`);
 
     // PASSO 7: Registrar simulado como finalizado usando cliente ADMIN (bypassa RLS)
     // SEMPRE faz INSERT - cada tentativa é um novo registro

@@ -143,15 +143,20 @@ const QuestionModal: React.FC<{
               )}
               {question && (() => {
                 const notAnswered = !question.user_answer;
-                const isCorrect = question.anulada ? true : userGotItRight;
-                const statusClass = notAnswered && !question.anulada
+                const isCorrect = question.anulada ? null : userGotItRight;
+                const isAnulada = question.anulada;
+                const statusClass = isAnulada
+                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                  : notAnswered
                   ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                   : (isCorrect ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-red-600 dark:text-red-400");
-                const icon = notAnswered && !question.anulada
+                const icon = isAnulada
+                  ? <Ban className="h-3.5 w-3.5" />
+                  : notAnswered
                   ? <HelpCircle className="h-3.5 w-3.5" />
                   : (isCorrect ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />);
-                const label = question.anulada
-                  ? "Pontuação garantida"
+                const label = isAnulada
+                  ? "Não contabilizada"
                   : (notAnswered ? "Não respondida" : (userGotItRight ? "Você acertou" : "Você errou"));
                 return (
                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold", statusClass)}>
@@ -751,7 +756,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const respostaUsuario = resposta?.resposta_usuario?.toUpperCase() || null;
         const gabarito = q.correta?.toUpperCase() || 'A';
         let acertou: boolean | null = null;
-        if (q.anulada) acertou = true;
+        if (q.anulada) acertou = null; // Anuladas não contam
         else if (respostaUsuario) acertou = respostaUsuario === gabarito;
         const alternativas: Array<{ letra: 'A' | 'B' | 'C' | 'D' | 'E'; texto: string; isCorreta: boolean; isMarcadaPeloAluno: boolean }> = [
           { letra: 'A', texto: q.alternativa_a || '', isCorreta: gabarito === 'A', isMarcadaPeloAluno: respostaUsuario === 'A' },
@@ -762,12 +767,13 @@ export const SimuladoDesempenho: React.FC = () => {
         if (q.alternativa_e) alternativas.push({ letra: 'E', texto: q.alternativa_e, isCorreta: gabarito === 'E', isMarcadaPeloAluno: respostaUsuario === 'E' });
         return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, imagemComentario: (q as any).imagem_comentario || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
       });
-      const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
-      const erros = questoesRevisadas.filter(q => q.acertou === false).length;
-      const naoRespondidas = questoesRevisadas.filter(q => q.acertou === null).length;
-      const total = questoesRevisadas.length;
+      const questoesValidas = questoesRevisadas.filter(q => !q.anulada);
+      const acertos = questoesValidas.filter(q => q.acertou === true).length;
+      const erros = questoesValidas.filter(q => q.acertou === false).length;
+      const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
+      const total = questoesValidas.length;
       const areaMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => { const area = q.grandeArea || 'Outros'; const existing = areaMap.get(area) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; areaMap.set(area, existing); });
+      questoesValidas.forEach(q => { const area = q.grandeArea || 'Outros'; const existing = areaMap.get(area) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; areaMap.set(area, existing); });
       const porArea = Array.from(areaMap.entries()).map(([area, data]) => ({ area, acertos: data.acertos, total: data.total, percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0 }));
       const provaStats: ProvaRevisadaStats = { acertos, erros, naoRespondidas, total, percentual: total > 0 ? Math.round((acertos / total) * 100) : 0, porArea };
       const simuladoNome = simulados.find(s => s.id === selectedSimulado)?.nome || 'Simulado';
