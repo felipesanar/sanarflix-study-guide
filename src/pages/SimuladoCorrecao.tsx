@@ -306,10 +306,11 @@ export const SimuladoCorrecao: React.FC = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const total = questions.length;
-    const acertos = questions.filter(q => q.acertou === true).length;
-    const erros = questions.filter(q => q.acertou === false).length;
-    const naoRespondidas = questions.filter(q => q.acertou === null).length;
+    const questoesValidas = questions.filter(q => !q.anulada);
+    const total = questoesValidas.length;
+    const acertos = questoesValidas.filter(q => q.acertou === true).length;
+    const erros = questoesValidas.filter(q => q.acertou === false).length;
+    const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
     const percentual = total > 0 ? Math.round((acertos / total) * 100) : 0;
     return { total, acertos, erros, naoRespondidas, percentual };
   }, [questions]);
