@@ -143,15 +143,20 @@ const QuestionModal: React.FC<{
               )}
               {question && (() => {
                 const notAnswered = !question.user_answer;
-                const isCorrect = question.anulada ? true : userGotItRight;
-                const statusClass = notAnswered && !question.anulada
+                const isCorrect = question.anulada ? null : userGotItRight;
+                const isAnulada = question.anulada;
+                const statusClass = isAnulada
+                  ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                  : notAnswered
                   ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                   : (isCorrect ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-red-500/10 text-red-600 dark:text-red-400");
-                const icon = notAnswered && !question.anulada
+                const icon = isAnulada
+                  ? <Ban className="h-3.5 w-3.5" />
+                  : notAnswered
                   ? <HelpCircle className="h-3.5 w-3.5" />
                   : (isCorrect ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />);
-                const label = question.anulada
-                  ? "Pontuação garantida"
+                const label = isAnulada
+                  ? "Não contabilizada"
                   : (notAnswered ? "Não respondida" : (userGotItRight ? "Você acertou" : "Você errou"));
                 return (
                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold", statusClass)}>
