@@ -256,11 +256,16 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    const questoesRespondidas = respostasParaSalvar.filter(r => r['respondida?']);
+    // Excluir questões anuladas dos cálculos de acertos/total
+    const idsAnuladas = new Set(
+      [...gabaritos.entries()].filter(([_, info]) => info.anulada === true).map(([id]) => id)
+    );
+    const questoesValidas = respostasParaSalvar.filter(r => !idsAnuladas.has(r.question_id));
+    const questoesRespondidas = questoesValidas.filter(r => r['respondida?']);
     const acertos = questoesRespondidas.filter(r => r.correct).length;
     const total = questoesRespondidas.length;
 
-    console.log(`[corrigir-simulado] Acertos: ${acertos}/${total}`);
+    console.log(`[corrigir-simulado] Questões anuladas: ${idsAnuladas.size}, Acertos: ${acertos}/${total}`);
 
     // PASSO 7: Registrar simulado como finalizado usando cliente ADMIN (bypassa RLS)
     // SEMPRE faz INSERT - cada tentativa é um novo registro
