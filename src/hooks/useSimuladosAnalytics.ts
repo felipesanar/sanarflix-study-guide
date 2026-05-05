@@ -609,7 +609,10 @@ export async function fetchSimuladosAnalyticsData(
     const simSaidasAba = simFinalizados.map(f => f.saidas_de_aba || 0);
     const simSaidasFs = simFinalizados.map(f => f.saidas_de_fullscreen || 0);
     const simTentativas = simFinalizados.map(f => f.tentativa_numero || 1);
-    const totalCorr = simRespostas.filter(r => r.correct).length;
+    // Excluir respostas de questões anuladas dos cálculos
+    const anuladaIds = new Set(simQuestoes.filter(q => q.anulada).map(q => q.id));
+    const simRespostasValidas = simRespostas.filter(r => !anuladaIds.has(r.question_id));
+    const totalCorr = simRespostasValidas.filter(r => r.correct).length;
 
     const totalQuestoes = simQuestoes.filter(q => !q.anulada).length;
     
