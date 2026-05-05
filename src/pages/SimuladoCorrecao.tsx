@@ -263,7 +263,8 @@ export const SimuladoCorrecao: React.FC = () => {
 
           let acertou: boolean | null = null;
           if (q.anulada) {
-            acertou = true;
+            // Questões anuladas não contam — acertou fica null
+            acertou = null;
           } else if (respostaUsuario) {
             acertou = respostaUsuario === gabarito;
           }
