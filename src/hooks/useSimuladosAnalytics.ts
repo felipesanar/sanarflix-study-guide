@@ -654,7 +654,7 @@ export async function fetchSimuladosAnalyticsData(
       iniciados_unicos: uniqueInic.size,
       concluintes_unicos: uniqueFin.size,
       taxa_conclusao: uniqueInic.size > 0 ? Math.round((uniqueFin.size / uniqueInic.size) * 100) : 0,
-      acuracia_media: simRespostas.length > 0 ? Math.round((totalCorr / simRespostas.length) * 100) : 0,
+      acuracia_media: simRespostasValidas.length > 0 ? Math.round((totalCorr / simRespostasValidas.length) * 100) : 0,
       tempo_mediano_segundos: median(simTempos),
       tempo_medio_segundos: simTempos.length > 0 ? simTempos.reduce((a, b) => a + b, 0) / simTempos.length : 0,
       saidas_aba_media: simSaidasAba.length > 0 ? simSaidasAba.reduce((a, b) => a + b, 0) / simSaidasAba.length : 0,
