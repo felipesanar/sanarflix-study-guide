@@ -30,15 +30,25 @@ export const useSimuladoPerformance = () => {
 
       const latestSimulado = lastFinalization.simulado_id;
 
-      // 2. Get answers for this specific simulado
+      // 2. Get answers for this specific simulado, excluding annulled questions
       const { data: answerData } = await supabase
         .from('answer_progress')
-        .select('correct')
+        .select('correct, question_id')
         .eq('user_id', user.id)
         .eq('simulado', latestSimulado);
 
-      const total = answerData?.length || 0;
-      const corrects = answerData?.filter((a) => a.correct).length || 0;
+      // Get annulled question IDs
+      const { data: annulledQuestions } = await supabase
+        .from('questoes_simulado')
+        .select('id')
+        .eq('simulado_id', latestSimulado)
+        .eq('anulada', true);
+
+      const annulledIds = new Set((annulledQuestions || []).map(q => q.id));
+      const validAnswers = (answerData || []).filter(a => !annulledIds.has(a.question_id));
+
+      const total = validAnswers.length;
+      const corrects = validAnswers.filter((a) => a.correct).length;
       const nota = total > 0 ? Math.round((corrects / total) * 100) : 0;
 
       // 3. Format actual time from seconds
