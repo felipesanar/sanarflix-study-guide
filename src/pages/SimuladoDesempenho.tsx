@@ -756,7 +756,7 @@ export const SimuladoDesempenho: React.FC = () => {
         const respostaUsuario = resposta?.resposta_usuario?.toUpperCase() || null;
         const gabarito = q.correta?.toUpperCase() || 'A';
         let acertou: boolean | null = null;
-        if (q.anulada) acertou = true;
+        if (q.anulada) acertou = null; // Anuladas não contam
         else if (respostaUsuario) acertou = respostaUsuario === gabarito;
         const alternativas: Array<{ letra: 'A' | 'B' | 'C' | 'D' | 'E'; texto: string; isCorreta: boolean; isMarcadaPeloAluno: boolean }> = [
           { letra: 'A', texto: q.alternativa_a || '', isCorreta: gabarito === 'A', isMarcadaPeloAluno: respostaUsuario === 'A' },
@@ -767,12 +767,13 @@ export const SimuladoDesempenho: React.FC = () => {
         if (q.alternativa_e) alternativas.push({ letra: 'E', texto: q.alternativa_e, isCorreta: gabarito === 'E', isMarcadaPeloAluno: respostaUsuario === 'E' });
         return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, imagemComentario: (q as any).imagem_comentario || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
       });
-      const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
-      const erros = questoesRevisadas.filter(q => q.acertou === false).length;
-      const naoRespondidas = questoesRevisadas.filter(q => q.acertou === null).length;
-      const total = questoesRevisadas.length;
+      const questoesValidas = questoesRevisadas.filter(q => !q.anulada);
+      const acertos = questoesValidas.filter(q => q.acertou === true).length;
+      const erros = questoesValidas.filter(q => q.acertou === false).length;
+      const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
+      const total = questoesValidas.length;
       const areaMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => { const area = q.grandeArea || 'Outros'; const existing = areaMap.get(area) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; areaMap.set(area, existing); });
+      questoesValidas.forEach(q => { const area = q.grandeArea || 'Outros'; const existing = areaMap.get(area) || { acertos: 0, total: 0 }; existing.total++; if (q.acertou === true) existing.acertos++; areaMap.set(area, existing); });
       const porArea = Array.from(areaMap.entries()).map(([area, data]) => ({ area, acertos: data.acertos, total: data.total, percentual: data.total > 0 ? Math.round((data.acertos / data.total) * 100) : 0 }));
       const provaStats: ProvaRevisadaStats = { acertos, erros, naoRespondidas, total, percentual: total > 0 ? Math.round((acertos / total) * 100) : 0, porArea };
       const simuladoNome = simulados.find(s => s.id === selectedSimulado)?.nome || 'Simulado';
