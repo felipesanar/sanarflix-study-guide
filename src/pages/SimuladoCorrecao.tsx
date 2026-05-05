@@ -352,13 +352,14 @@ export const SimuladoCorrecao: React.FC = () => {
         };
       });
 
-      const acertos = questoesRevisadas.filter(q => q.acertou === true).length;
-      const erros = questoesRevisadas.filter(q => q.acertou === false).length;
-      const naoRespondidas = questoesRevisadas.filter(q => q.acertou === null).length;
-      const total = questoesRevisadas.length;
+      const questoesValidas = questoesRevisadas.filter(q => !q.anulada);
+      const acertos = questoesValidas.filter(q => q.acertou === true).length;
+      const erros = questoesValidas.filter(q => q.acertou === false).length;
+      const naoRespondidas = questoesValidas.filter(q => q.acertou === null).length;
+      const total = questoesValidas.length;
 
       const areaMap = new Map<string, { acertos: number; total: number }>();
-      questoesRevisadas.forEach(q => {
+      questoesValidas.forEach(q => {
         const area = q.grandeArea || 'Outros';
         const existing = areaMap.get(area) || { acertos: 0, total: 0 };
         existing.total++;
