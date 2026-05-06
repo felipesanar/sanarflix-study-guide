@@ -205,7 +205,7 @@ export default function SanarClassTab() {
 
       if (error) throw error;
 
-      toast.success('Aula adicionada com sucesso ✅');
+      toast.success(`Aula adicionada para ${rows.length} semestre(s) ✅`);
       setAddModalOpen(false);
       resetForm();
       fetchData();
