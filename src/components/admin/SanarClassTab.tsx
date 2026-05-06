@@ -84,7 +84,7 @@ export default function SanarClassTab() {
     titulo: "",
     professor: "",
     disciplina: "",
-    semestre: "",
+    semestres: [],
     formato: "pdf",
     arquivo_url: "",
     ies_id: "",
