@@ -59,7 +59,7 @@ interface LessonFormData {
   titulo: string;
   professor: string;
   disciplina: string;
-  semestre: string;
+  semestres: string[];
   formato: 'pdf' | 'pptx';
   arquivo_url: string;
   ies_id: string;
