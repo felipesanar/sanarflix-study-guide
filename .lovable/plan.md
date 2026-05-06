@@ -1,71 +1,37 @@
+## Plano: Multiseleção de Semestres no SanarClass Admin
 
-# Questões Anuladas: Excluir do Total (não contar como acerto)
+### O que muda
 
-## Situação Atual
-Questões anuladas são tratadas como **acerto automático** em todo o sistema:
-- Edge function `corrigir-simulado`: salva `correct = true` para anuladas
-- Páginas de correção e desempenho: `acertou = true` para anuladas
-- Ranking RPC (`get_user_rankings`): conta anuladas como acerto no ranking
-- Home (`useSimuladoPerformance`): inclui anuladas no cálculo de nota
+No modal "Adicionar nova aula", o campo de semestre passa de seleção única para multiseleção com checkboxes. Ao salvar, o sistema cria uma row na tabela `sanarclass_lessons` para cada semestre selecionado (mesmo título, professor, disciplina, arquivo, IES — apenas o semestre difere).
 
-## Nova Regra
-Questões anuladas devem ser **completamente ignoradas** nos cálculos. Se um simulado tem 100 questões e 7 anuladas, o total passa a ser 93.
+### Implementação
 
-## Alterações Necessárias
+**Arquivo:** `src/components/admin/SanarClassTab.tsx`
 
-### 1. Edge Function `corrigir-simulado`
-- Marcar questões anuladas com `correct = null` (ou manter o valor real) em vez de `correct = true`
-- No cálculo de acertos/total retornado, excluir anuladas do count
+1. **Alterar `LessonFormData.semestre`** de `string` para `string[]` (array de semestres selecionados).
 
-### 2. Página `SimuladoCorrecao.tsx`
-- Na merge de questões: setar `acertou = null` para anuladas (em vez de `true`)
-- No cálculo de `stats`: filtrar questões anuladas do total, acertos e percentual
-- Manter badge visual "ANULADA" e não mostrar "Você errou" para anuladas
+2. **Substituir o `<Select>` de semestre no modal de adição** por um componente de checkboxes ou um dropdown multi-select que permite marcar vários semestres (1º ao 12º). Exibir os semestres selecionados como chips/tags no trigger.
 
-### 3. Página `SimuladoDesempenho.tsx`
-- No cálculo de questões revisadas: `acertou = null` para anuladas
-- Nos totais de acertos/erros/percentual: excluir anuladas
-- No cálculo por área: excluir anuladas do total de cada área
-- No PDF de prova revisada: ajustar totais
+3. **Alterar `handleAddLesson`**: após o upload do arquivo, fazer um `.insert()` com um array de objetos — um para cada semestre selecionado. Isso usa uma única chamada ao Supabase e é atômico.
 
-### 4. Hook `useSimuladoPerformance.ts` (Home)
-- Buscar questões do simulado para identificar anuladas
-- Subtrair anuladas do total ao calcular nota
+4. **Manter o modal de edição com seleção única** (editar uma aula já existente altera apenas aquela row específica).
 
-### 5. RPC `get_user_rankings`
-- Excluir respostas de questões anuladas do count de acertos
-- JOIN com `questoes_simulado` para filtrar `anulada = false`
+### Detalhes técnicos
 
-### 6. Hook `useSimuladosAnalytics.ts` (Admin)
-- Já exclui anuladas do `totalQuestoes` (linha 614) - OK
-- Verificar se `acuracia_media` (linha 654) exclui respostas de anuladas dos counts
-
-### 7. Componente `QuestionNavigationRail.tsx`
-- Manter visual distinto (purple) para anuladas - sem mudança
-
-### 8. PDF `pdfProvaRevisada.ts`
-- Ajustar totais no cabeçalho do PDF para excluir anuladas
-
-## Detalhes Técnicos
-
-### Migração SQL (RPC ranking)
-```sql
-CREATE OR REPLACE FUNCTION public.get_user_rankings(p_simulado_id uuid DEFAULT NULL)
-  -- Adicionar JOIN com questoes_simulado para filtrar anuladas
-  -- WHERE qs.anulada = false no cálculo de acertos
+- O insert múltiplo fica:
+```ts
+const rows = formData.semestre.map(sem => ({
+  titulo: formData.titulo,
+  professor: formData.professor,
+  disciplina: formData.disciplina,
+  semestre: parseInt(sem),
+  formato: formData.formato,
+  arquivo_url: arquivoUrl,
+  preview_url: arquivoUrl,
+  ies_id: formData.ies_id,
+}));
+await supabase.from('sanarclass_lessons').insert(rows);
 ```
 
-### Edge Function
-```typescript
-// Ao invés de: correct: isAnulada ? true : ...
-// Usar: correct: isAnulada ? false : ... (ou null se possível)
-// E no count final: excluir anuladas
-```
-
-### Frontend (padrão em todas as telas)
-```typescript
-// Filtrar anuladas do cálculo
-const questoesValidas = questions.filter(q => !q.anulada);
-const total = questoesValidas.length;
-const acertos = questoesValidas.filter(q => q.acertou === true).length;
-```
+- Não requer migração de banco — a tabela já suporta múltiplas rows com semestres diferentes.
+- O toast de sucesso indicará quantos semestres foram cadastrados.
