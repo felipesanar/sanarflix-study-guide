@@ -600,7 +600,7 @@ export default function SanarClassTab() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-semestre">Semestre *</Label>
-                <Select value={formData.semestre} onValueChange={(value) => setFormData({ ...formData, semestre: value })}>
+                <Select value={formData.semestres[0] || ''} onValueChange={(value) => setFormData({ ...formData, semestres: [value] })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
