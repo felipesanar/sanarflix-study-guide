@@ -126,7 +126,7 @@ export default function SanarClassTab() {
       titulo: "",
       professor: "",
       disciplina: "",
-      semestre: "",
+      semestres: [],
       formato: "pdf",
       arquivo_url: "",
       ies_id: "",
@@ -171,7 +171,7 @@ export default function SanarClassTab() {
 
   const handleAddLesson = async () => {
     if (!formData.titulo || !formData.professor || !formData.disciplina || 
-        !formData.semestre || !formData.ies_id) {
+        formData.semestres.length === 0 || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -186,18 +186,20 @@ export default function SanarClassTab() {
       // Upload do arquivo
       const arquivoUrl = await handleFileUpload(formData.arquivo);
 
+      const rows = formData.semestres.map(sem => ({
+        titulo: formData.titulo,
+        professor: formData.professor,
+        disciplina: formData.disciplina,
+        semestre: parseInt(sem),
+        formato: formData.formato,
+        arquivo_url: arquivoUrl,
+        preview_url: arquivoUrl,
+        ies_id: formData.ies_id,
+      }));
+
       const { error } = await supabase
         .from('sanarclass_lessons')
-        .insert({
-          titulo: formData.titulo,
-          professor: formData.professor,
-          disciplina: formData.disciplina,
-          semestre: parseInt(formData.semestre),
-          formato: formData.formato,
-          arquivo_url: arquivoUrl,
-          preview_url: arquivoUrl,
-          ies_id: formData.ies_id,
-        });
+        .insert(rows);
 
       if (error) throw error;
 
@@ -217,7 +219,7 @@ export default function SanarClassTab() {
     if (!selectedLesson) return;
     
     if (!formData.titulo || !formData.professor || !formData.disciplina || 
-        !formData.semestre || !formData.ies_id) {
+        formData.semestres.length === 0 || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -247,7 +249,7 @@ export default function SanarClassTab() {
           titulo: formData.titulo,
           professor: formData.professor,
           disciplina: formData.disciplina,
-          semestre: parseInt(formData.semestre),
+          semestre: parseInt(formData.semestres[0]),
           formato: formData.formato,
           arquivo_url: arquivoUrl,
           preview_url: arquivoUrl,
@@ -310,7 +312,7 @@ export default function SanarClassTab() {
       titulo: lesson.titulo,
       professor: lesson.professor,
       disciplina: lesson.disciplina,
-      semestre: lesson.semestre.toString(),
+      semestres: [lesson.semestre.toString()],
       formato: lesson.formato,
       arquivo_url: lesson.arquivo_url,
       ies_id: lesson.ies_id,
