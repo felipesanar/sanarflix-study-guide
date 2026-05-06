@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -453,17 +455,38 @@ export default function SanarClassTab() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="semestre">Semestre *</Label>
-                <Select value={formData.semestre} onValueChange={(value) => setFormData({ ...formData, semestre: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
-                      <SelectItem key={sem} value={sem.toString()}>{sem}º Semestre</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Semestre(s) *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="justify-start font-normal h-10">
+                      {formData.semestres.length === 0
+                        ? "Selecione"
+                        : formData.semestres.length === 1
+                          ? `${formData.semestres[0]}º Semestre`
+                          : `${formData.semestres.length} semestres`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="grid gap-1 max-h-60 overflow-y-auto">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(sem => (
+                        <label key={sem} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer">
+                          <Checkbox
+                            checked={formData.semestres.includes(sem.toString())}
+                            onCheckedChange={(checked) => {
+                              setFormData(prev => ({
+                                ...prev,
+                                semestres: checked
+                                  ? [...prev.semestres, sem.toString()]
+                                  : prev.semestres.filter(s => s !== sem.toString())
+                              }));
+                            }}
+                          />
+                          <span className="text-sm">{sem}º Semestre</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="grid gap-2">
