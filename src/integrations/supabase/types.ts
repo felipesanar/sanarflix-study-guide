@@ -1630,7 +1630,39 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      mv_evolucao_institucional_tri: {
+        Row: {
+          college_id: string | null
+          concept: number | null
+          data_liberacao: string | null
+          is_restricted: boolean | null
+          mean_score: number | null
+          median_score: number | null
+          num_proficient: number | null
+          num_students: number | null
+          pcp: number | null
+          sanctions: string | null
+          simulado_id: string | null
+          simulado_nome: string | null
+          std_score: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies_tri_ies"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ies_tri_simulado"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_get_batch_records: {
@@ -1773,6 +1805,22 @@ export type Database = {
           simulado_nome: string
         }[]
       }
+      get_institutional_longitudinal_tri: {
+        Args: { p_ies_id?: string }
+        Returns: {
+          concept: number
+          data_liberacao: string
+          delta_concept: number
+          delta_mean_score: number
+          delta_pcp: number
+          mean_score: number
+          num_students: number
+          pcp: number
+          sanctions: string
+          simulado_id: string
+          simulado_nome: string
+        }[]
+      }
       get_institutional_performance: {
         Args: { p_ies_id?: string; p_simulado_id: string }
         Returns: Json
@@ -1873,6 +1921,19 @@ export type Database = {
           total: number
         }[]
       }
+      get_student_growth_tri: {
+        Args: { p_ies_id?: string }
+        Returns: {
+          delta_score_enamed: number
+          delta_theta: number
+          first_score_enamed: number
+          first_theta: number
+          last_score_enamed: number
+          last_theta: number
+          num_simulados: number
+          student_id: string
+        }[]
+      }
       get_theme_evolution: {
         Args: { p_ies_id?: string; p_tema: string }
         Returns: Json
@@ -1912,6 +1973,7 @@ export type Database = {
         Args: { p_feature: string; p_ies_id: string }
         Returns: boolean
       }
+      refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
