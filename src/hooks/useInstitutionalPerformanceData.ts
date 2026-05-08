@@ -5,6 +5,8 @@ import {
   fetchInstitutionalPerformance,
   fetchStudentScores,
   fetchInstitutionalEvolution,
+  fetchInstitutionalTri,
+  fetchInstitutionalTriEvolution,
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
