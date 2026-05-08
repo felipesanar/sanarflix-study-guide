@@ -144,6 +144,79 @@ export async function fetchInstitutionalTriEvolution(
   }
 }
 
+// ── Phase 4: Longitudinal evolution & individual growth (TRI) ──
+
+export interface InstitutionalLongitudinalEntry {
+  simulado_id: string;
+  simulado_nome: string;
+  data_liberacao: string | null;
+  mean_score: number | null;
+  pcp: number | null;
+  concept: number | null;
+  sanctions: string | null;
+  num_students: number | null;
+  delta_mean_score: number | null;
+  delta_pcp: number | null;
+  delta_concept: number | null;
+}
+
+export interface StudentGrowthEntry {
+  student_id: string;
+  num_simulados: number;
+  first_theta: number | null;
+  last_theta: number | null;
+  delta_theta: number | null;
+  first_score_enamed: number | null;
+  last_score_enamed: number | null;
+  delta_score_enamed: number | null;
+}
+
+export async function fetchInstitutionalLongitudinalTri(
+  iesId: string,
+): Promise<InstitutionalLongitudinalEntry[]> {
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('get_institutional_longitudinal_tri', { p_ies_id: iesId }),
+      ),
+      RPC_TIMEOUT,
+      'get_institutional_longitudinal_tri',
+    );
+    if (result.error) {
+      console.warn('[TRI] get_institutional_longitudinal_tri failed:', result.error.message);
+      return [];
+    }
+    return (result.data ?? []) as InstitutionalLongitudinalEntry[];
+  } catch (err) {
+    console.warn('[TRI] get_institutional_longitudinal_tri error:', err);
+    return [];
+  }
+}
+
+export async function fetchStudentGrowthTri(
+  iesId: string,
+): Promise<StudentGrowthEntry[]> {
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('get_student_growth_tri', { p_ies_id: iesId }),
+      ),
+      RPC_TIMEOUT,
+      'get_student_growth_tri',
+    );
+    if (result.error) {
+      console.warn('[TRI] get_student_growth_tri failed:', result.error.message);
+      return [];
+    }
+    return (result.data ?? []) as StudentGrowthEntry[];
+  } catch (err) {
+    console.warn('[TRI] get_student_growth_tri error:', err);
+    return [];
+  }
+}
+
 export async function resolveIesId(explicitIesId?: string): Promise<string> {
   if (explicitIesId) return explicitIesId;
   const { data, error } = await supabase.rpc('get_user_ies_id');
