@@ -209,14 +209,14 @@ export function mapInstitutionalRpcToViewModel(
   const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
 
   const meta: MetaInstitucional = {
-    proficienciaAtual: overallAccuracy,
+    proficienciaAtual: proficiencyForKpi,
     meta: nextConceitoTarget,
     status: sancao ? 'Sanção ativa' : 'Regular',
     progresso: metaProgresso,
     gapProficiencia: distanciaPP,
     notaAtual,
     notaMeta: 4,
-    percentilMedio: Math.round(overallAccuracy),
+    percentilMedio: Math.round(proficiencyForKpi),
     taxaAdesao,
     percentProficientes,
     totalIesUsers: realTotalIesUsers,
@@ -225,23 +225,43 @@ export function mapInstitutionalRpcToViewModel(
   };
 
   // ── Evolução ──
-  const sortedEvolution = [...evolution].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const evolucao: EvolucaoSimulado[] = sortedEvolution.map((e) => {
-    const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
-    const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
-    const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
-    // Estimate % proficientes from accuracy using a heuristic based on the conceito mapping
-    const estimatedProficientes = Math.round(Math.max(0, Math.min(100, accuracy * 0.85 - 5)) * 10) / 10;
-    return {
-      simulado: e.simulado_nome,
-      proficiencia: accuracy,
-      nota: getConceito(accuracy).nota,
-      percentProficientes: estimatedProficientes,
-    };
-  });
-  // Override the last evolution entry with the exact calculated value
-  if (evolucao.length > 0) {
-    evolucao[evolucao.length - 1].percentProficientes = percentProficientes;
+  // When TRI evolution data is provided, use authoritative mean_score / pcp / concept.
+  // Otherwise fall back to the legacy accuracy-based heuristic from RpcEvolutionEntry.
+  let evolucao: EvolucaoSimulado[];
+  if (triEvolution && triEvolution.length > 0) {
+    evolucao = triEvolution.map((e) => {
+      const proficiencia = e.mean_score !== null && e.mean_score !== undefined
+        ? Math.round(e.mean_score * 10) / 10
+        : 0;
+      const pcpRaw = e.pcp ?? 0;
+      const pct = Math.round((pcpRaw <= 1 ? pcpRaw * 100 : pcpRaw) * 10) / 10;
+      const nota = e.concept !== null && e.concept !== undefined
+        ? e.concept
+        : getConceito(pct).nota;
+      return {
+        simulado: e.simulado_nome,
+        proficiencia,
+        nota,
+        percentProficientes: pct,
+      };
+    });
+  } else {
+    const sortedEvolution = [...evolution].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    evolucao = sortedEvolution.map((e) => {
+      const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
+      const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
+      const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
+      const estimatedProficientes = Math.round(Math.max(0, Math.min(100, accuracy * 0.85 - 5)) * 10) / 10;
+      return {
+        simulado: e.simulado_nome,
+        proficiencia: accuracy,
+        nota: getConceito(accuracy).nota,
+        percentProficientes: estimatedProficientes,
+      };
+    });
+    if (evolucao.length > 0) {
+      evolucao[evolucao.length - 1].percentProficientes = percentProficientes;
+    }
   }
 
   // ── Distância para próxima faixa ──
