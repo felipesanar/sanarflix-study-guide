@@ -5,6 +5,8 @@ import {
   fetchInstitutionalPerformance,
   fetchStudentScores,
   fetchInstitutionalEvolution,
+  fetchInstitutionalTri,
+  fetchInstitutionalTriEvolution,
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
@@ -256,12 +258,14 @@ export function useInstitutionalPerformanceData(
       const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
       const targetIesId = await resolveIesId(requestedIesId);
 
-      // Parallel RPC calls with retry + timeout + total IES users count
-      const [perfData, scoresData, evoData, iesUsersResult] = await Promise.all([
+      // Parallel RPC calls with retry + timeout + total IES users count + TRI snapshot/evolution
+      const [perfData, scoresData, evoData, iesUsersResult, triData, triEvoData] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId),
+        fetchInstitutionalTri(filters.simuladoId, targetIesId),
+        fetchInstitutionalTriEvolution(targetIesId),
       ]);
 
       if (!perfData?.overallStats || !scoresData?.students) {
@@ -269,11 +273,19 @@ export function useInstitutionalPerformanceData(
       }
 
       const totalIesUsers = iesUsersResult.count ?? 0;
-      const viewModel = mapInstitutionalRpcToViewModel(perfData, evoData, scoresData, totalIesUsers);
+      const viewModel = mapInstitutionalRpcToViewModel(
+        perfData,
+        evoData,
+        scoresData,
+        totalIesUsers,
+        triData,
+        triEvoData,
+      );
       setData(viewModel);
       console.log('[DesempenhoInstitucional]', 'Dados reais carregados', {
         totalStudents: viewModel.allStudents.length,
         areas: viewModel.curricular.areas.length,
+        triAvailable: !!triData,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';

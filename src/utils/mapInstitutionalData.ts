@@ -17,6 +17,10 @@ import type {
   EvolucaoSimulado,
   DistanciaFaixa,
 } from '@/mocks/desempenhoInstitucionalV2';
+import type {
+  InstitutionalTriSnapshot,
+  InstitutionalTriEvolutionEntry,
+} from '@/services/institutional';
 
 // ── Proficiency rules (single source of truth) ──
 
@@ -39,6 +43,12 @@ function getConceito(percentProficientes: number): { conceito: string; nota: num
   if (percentProficientes >= 60) return { conceito: 'Conceito 3', nota: 3 };
   if (percentProficientes >= 40) return { conceito: 'Conceito 2', nota: 2 };
   return { conceito: 'Conceito 1', nota: 1 };
+}
+
+/** Map a numeric concept (1..5) coming from TRI tables to label */
+function conceitoFromNota(nota: number): string {
+  const clamped = Math.max(1, Math.min(5, Math.round(nota)));
+  return `Conceito ${clamped}`;
 }
 
 /** Estimate affected students heuristic (shared across modules) */
@@ -66,12 +76,16 @@ export function mapInstitutionalRpcToViewModel(
   evolution: RpcEvolutionEntry[],
   studentScores: RpcStudentScoresResponse,
   totalIesUsers?: number,
+  triSnapshot?: InstitutionalTriSnapshot | null,
+  triEvolution?: InstitutionalTriEvolutionEntry[],
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
   const overallAccuracy = overallStats.total > 0
     ? Math.round((overallStats.acertos / overallStats.total) * 100 * 10) / 10
     : 0;
+
+  const hasTri = !!triSnapshot && triSnapshot.mean_score !== null && triSnapshot.mean_score !== undefined;
 
   // Map students
   const students: StudentScore[] = studentScores.students.map((s) => ({
@@ -105,18 +119,47 @@ export function mapInstitutionalRpcToViewModel(
     }
   });
 
-  const percentProficientes = totalStudents > 0
+  // Accuracy-based proficient count (used as fallback when TRI snapshot is absent)
+  const percentProficientesAccuracy = totalStudents > 0
     ? Math.round((proficientes.length / totalStudents) * 1000) / 10
     : 0;
 
-  const { conceito, nota: notaAtual } = getConceito(percentProficientes);
-  const sancao = getSancao(percentProficientes);
+  // ── TRI authoritative overrides (when snapshot exists) ──
+  const triPcpRaw = triSnapshot?.pcp ?? null;
+  const triPercentProficientes = triPcpRaw !== null
+    ? Math.round((triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw) * 10) / 10
+    : null;
+  const triMeanScore = triSnapshot?.mean_score ?? null;
+  const triNumStudents = triSnapshot?.num_students ?? null;
+  const triNumProficient = triSnapshot?.num_proficient ?? null;
+  const triConceptNota = triSnapshot?.concept ?? null;
+  const triSanctions = triSnapshot?.sanctions ?? null;
+
+  const percentProficientes = hasTri && triPercentProficientes !== null
+    ? triPercentProficientes
+    : percentProficientesAccuracy;
+
+  const proficiencyForKpi = hasTri && triMeanScore !== null
+    ? Math.round(triMeanScore * 10) / 10
+    : overallAccuracy;
+
+  const { conceito: conceitoFromAccuracy, nota: notaFromAccuracy } = getConceito(percentProficientes);
+  const notaAtual = hasTri && triConceptNota !== null ? triConceptNota : notaFromAccuracy;
+  const conceito = hasTri && triConceptNota !== null
+    ? conceitoFromNota(triConceptNota)
+    : conceitoFromAccuracy;
+
+  const sancao = hasTri
+    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
+    : getSancao(percentProficientes);
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
   const conceitoThresholds = [40, 60, 75, 90];
   const nextConceitoTarget = conceitoThresholds.find((t) => percentProficientes < t) ?? 100;
   const prevConceitoTarget = conceitoThresholds.filter((t) => percentProficientes >= t).pop() ?? 0;
-  const alunosFaltamMeta = Math.max(0, Math.ceil((nextConceitoTarget / 100) * totalStudents) - proficientes.length);
+  const baseProficientCount = hasTri && triNumProficient !== null ? triNumProficient : proficientes.length;
+  const baseTotalForMeta = hasTri && triNumStudents !== null && triNumStudents > 0 ? triNumStudents : totalStudents;
+  const alunosFaltamMeta = Math.max(0, Math.ceil((nextConceitoTarget / 100) * baseTotalForMeta) - baseProficientCount);
 
   // Distância em p.p. até próxima faixa de conceito
   const distanciaPP = percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - percentProficientes) * 10) / 10;
@@ -135,12 +178,17 @@ export function mapInstitutionalRpcToViewModel(
     ? Math.round((overallStats.acertos / overallStats.total) * 1000) / 10
     : 0;
 
+  const proficienciaLabel = hasTri ? 'Proficiência Média (TRI)' : 'Proficiência Média (acurácia)';
+  const proficienciaDesc = hasTri
+    ? 'Score TRI médio da IES (0 a 100), calculado com Teoria de Resposta ao Item'
+    : 'Estimativa baseada em acurácia (TRI indisponível para este simulado)';
+
   // ── KPIs ──
   const kpis: KpiData[] = [
     { label: 'Total de Alunos', value: totalStudents, icon: 'Users', status: 'neutral', description: 'Alunos que realizaram o simulado' },
     { label: 'Percentual de Acertos', value: `${percentualAcertos}%`, icon: 'Target', status: getKpiStatus(percentualAcertos, { good: 60, warning: 40 }), description: `${overallStats.acertos} acertos de ${overallStats.total} questões aplicadas` },
-    { label: 'Proficiência Média (TRI)', value: Math.round(overallAccuracy), icon: 'Target', status: getKpiStatus(overallAccuracy, { good: 60, warning: 40 }), description: 'Valor de 0 a 100' },
-    { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${proficientes.length} de ${totalStudents} alunos` },
+    { label: proficienciaLabel, value: Math.round(proficiencyForKpi), icon: 'Target', status: getKpiStatus(proficiencyForKpi, { good: 60, warning: 40 }), description: proficienciaDesc },
+    { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${baseProficientCount} de ${baseTotalForMeta} alunos` },
     { label: 'Nota Prevista da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
     { label: 'Distância Próxima Faixa', value: percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`, icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Distância para alcançar a próxima faixa de conceito' },
     { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` },
@@ -161,14 +209,14 @@ export function mapInstitutionalRpcToViewModel(
   const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
 
   const meta: MetaInstitucional = {
-    proficienciaAtual: overallAccuracy,
+    proficienciaAtual: proficiencyForKpi,
     meta: nextConceitoTarget,
     status: sancao ? 'Sanção ativa' : 'Regular',
     progresso: metaProgresso,
     gapProficiencia: distanciaPP,
     notaAtual,
     notaMeta: 4,
-    percentilMedio: Math.round(overallAccuracy),
+    percentilMedio: Math.round(proficiencyForKpi),
     taxaAdesao,
     percentProficientes,
     totalIesUsers: realTotalIesUsers,
@@ -177,23 +225,43 @@ export function mapInstitutionalRpcToViewModel(
   };
 
   // ── Evolução ──
-  const sortedEvolution = [...evolution].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const evolucao: EvolucaoSimulado[] = sortedEvolution.map((e) => {
-    const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
-    const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
-    const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
-    // Estimate % proficientes from accuracy using a heuristic based on the conceito mapping
-    const estimatedProficientes = Math.round(Math.max(0, Math.min(100, accuracy * 0.85 - 5)) * 10) / 10;
-    return {
-      simulado: e.simulado_nome,
-      proficiencia: accuracy,
-      nota: getConceito(accuracy).nota,
-      percentProficientes: estimatedProficientes,
-    };
-  });
-  // Override the last evolution entry with the exact calculated value
-  if (evolucao.length > 0) {
-    evolucao[evolucao.length - 1].percentProficientes = percentProficientes;
+  // When TRI evolution data is provided, use authoritative mean_score / pcp / concept.
+  // Otherwise fall back to the legacy accuracy-based heuristic from RpcEvolutionEntry.
+  let evolucao: EvolucaoSimulado[];
+  if (triEvolution && triEvolution.length > 0) {
+    evolucao = triEvolution.map((e) => {
+      const proficiencia = e.mean_score !== null && e.mean_score !== undefined
+        ? Math.round(e.mean_score * 10) / 10
+        : 0;
+      const pcpRaw = e.pcp ?? 0;
+      const pct = Math.round((pcpRaw <= 1 ? pcpRaw * 100 : pcpRaw) * 10) / 10;
+      const nota = e.concept !== null && e.concept !== undefined
+        ? e.concept
+        : getConceito(pct).nota;
+      return {
+        simulado: e.simulado_nome,
+        proficiencia,
+        nota,
+        percentProficientes: pct,
+      };
+    });
+  } else {
+    const sortedEvolution = [...evolution].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    evolucao = sortedEvolution.map((e) => {
+      const totalAll = e.areas.reduce((acc, a) => acc + a.total, 0);
+      const acertosAll = e.areas.reduce((acc, a) => acc + a.acertos, 0);
+      const accuracy = totalAll > 0 ? Math.round((acertosAll / totalAll) * 1000) / 10 : 0;
+      const estimatedProficientes = Math.round(Math.max(0, Math.min(100, accuracy * 0.85 - 5)) * 10) / 10;
+      return {
+        simulado: e.simulado_nome,
+        proficiencia: accuracy,
+        nota: getConceito(accuracy).nota,
+        percentProficientes: estimatedProficientes,
+      };
+    });
+    if (evolucao.length > 0) {
+      evolucao[evolucao.length - 1].percentProficientes = percentProficientes;
+    }
   }
 
   // ── Distância para próxima faixa ──

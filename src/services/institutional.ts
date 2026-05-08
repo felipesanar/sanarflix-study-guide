@@ -65,6 +65,85 @@ export async function fetchInstitutionalEvolution(
   });
 }
 
+// ── TRI (Item Response Theory) data ──
+
+export interface InstitutionalTriSnapshot {
+  college_id: string;
+  simulado_id: string;
+  num_students: number | null;
+  num_proficient: number | null;
+  pcp: number | null;
+  mean_score: number | null;
+  median_score: number | null;
+  std_score: number | null;
+  min_score: number | null;
+  max_score: number | null;
+  concept: number | null;
+  sanctions: string | null;
+  is_restricted: boolean | null;
+}
+
+export interface InstitutionalTriEvolutionEntry {
+  simulado_id: string;
+  simulado_nome: string;
+  data_liberacao: string | null;
+  num_students: number | null;
+  mean_score: number | null;
+  pcp: number | null;
+  concept: number | null;
+}
+
+export async function fetchInstitutionalTri(
+  simuladoId: string,
+  iesId: string,
+): Promise<InstitutionalTriSnapshot | null> {
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('get_institutional_tri', {
+          p_simulado_id: simuladoId,
+          p_ies_id: iesId,
+        }),
+      ),
+      RPC_TIMEOUT,
+      'get_institutional_tri',
+    );
+    if (result.error) {
+      console.warn('[TRI] get_institutional_tri failed:', result.error.message);
+      return null;
+    }
+    const rows = (result.data ?? []) as InstitutionalTriSnapshot[];
+    return rows.length > 0 ? rows[0] : null;
+  } catch (err) {
+    console.warn('[TRI] get_institutional_tri error:', err);
+    return null;
+  }
+}
+
+export async function fetchInstitutionalTriEvolution(
+  iesId: string,
+): Promise<InstitutionalTriEvolutionEntry[]> {
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('get_institutional_evolution_tri', { p_ies_id: iesId }),
+      ),
+      RPC_TIMEOUT,
+      'get_institutional_evolution_tri',
+    );
+    if (result.error) {
+      console.warn('[TRI] get_institutional_evolution_tri failed:', result.error.message);
+      return [];
+    }
+    return (result.data ?? []) as InstitutionalTriEvolutionEntry[];
+  } catch (err) {
+    console.warn('[TRI] get_institutional_evolution_tri error:', err);
+    return [];
+  }
+}
+
 export async function resolveIesId(explicitIesId?: string): Promise<string> {
   if (explicitIesId) return explicitIesId;
   const { data, error } = await supabase.rpc('get_user_ies_id');
