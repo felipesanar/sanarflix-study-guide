@@ -76,12 +76,16 @@ export function mapInstitutionalRpcToViewModel(
   evolution: RpcEvolutionEntry[],
   studentScores: RpcStudentScoresResponse,
   totalIesUsers?: number,
+  triSnapshot?: InstitutionalTriSnapshot | null,
+  triEvolution?: InstitutionalTriEvolutionEntry[],
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
   const overallAccuracy = overallStats.total > 0
     ? Math.round((overallStats.acertos / overallStats.total) * 100 * 10) / 10
     : 0;
+
+  const hasTri = !!triSnapshot && triSnapshot.mean_score !== null && triSnapshot.mean_score !== undefined;
 
   // Map students
   const students: StudentScore[] = studentScores.students.map((s) => ({
