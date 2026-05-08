@@ -978,7 +978,7 @@ export type Database = {
       }
       resultados_alunos_tri: {
         Row: {
-          college_id: string | null
+          college_id: string
           is_extreme: boolean | null
           is_proficient_enamed: boolean | null
           is_proficient_proprio: boolean | null
@@ -987,13 +987,13 @@ export type Database = {
           proportion_correct: number | null
           score_enamed: number | null
           score_proprio: number | null
-          simulado_id: string | null
+          simulado_id: string
           std_error: number | null
           student_id: string
           theta: number | null
         }
         Insert: {
-          college_id?: string | null
+          college_id?: string
           is_extreme?: boolean | null
           is_proficient_enamed?: boolean | null
           is_proficient_proprio?: boolean | null
@@ -1002,13 +1002,13 @@ export type Database = {
           proportion_correct?: number | null
           score_enamed?: number | null
           score_proprio?: number | null
-          simulado_id?: string | null
+          simulado_id: string
           std_error?: number | null
           student_id?: string
           theta?: number | null
         }
         Update: {
-          college_id?: string | null
+          college_id?: string
           is_extreme?: boolean | null
           is_proficient_enamed?: boolean | null
           is_proficient_proprio?: boolean | null
@@ -1017,7 +1017,7 @@ export type Database = {
           proportion_correct?: number | null
           score_enamed?: number | null
           score_proprio?: number | null
-          simulado_id?: string | null
+          simulado_id?: string
           std_error?: number | null
           student_id?: string
           theta?: number | null
@@ -1040,16 +1040,9 @@ export type Database = {
           {
             foreignKeyName: "fk_alunos_tri_user"
             columns: ["student_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "resultados_alunos_tri_college_id_fkey"
-            columns: ["college_id"]
-            isOneToOne: false
-            referencedRelation: "resultados_ies_tri"
-            referencedColumns: ["college_id"]
           },
         ]
       }
@@ -1066,7 +1059,7 @@ export type Database = {
           num_students: number | null
           pcp: number | null
           sanctions: string | null
-          simulado_id: string | null
+          simulado_id: string
           std_score: number | null
         }
         Insert: {
@@ -1081,7 +1074,7 @@ export type Database = {
           num_students?: number | null
           pcp?: number | null
           sanctions?: string | null
-          simulado_id?: string | null
+          simulado_id: string
           std_score?: number | null
         }
         Update: {
@@ -1096,14 +1089,14 @@ export type Database = {
           num_students?: number | null
           pcp?: number | null
           sanctions?: string | null
-          simulado_id?: string | null
+          simulado_id?: string
           std_score?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "fk_ies_tri_ies"
             columns: ["college_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "ies"
             referencedColumns: ["id"]
           },
