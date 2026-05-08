@@ -1761,6 +1761,18 @@ export type Database = {
         Args: { p_ies_id?: string }
         Returns: Json
       }
+      get_institutional_evolution_tri: {
+        Args: { p_ies_id?: string }
+        Returns: {
+          concept: number
+          data_liberacao: string
+          mean_score: number
+          num_students: number
+          pcp: number
+          simulado_id: string
+          simulado_nome: string
+        }[]
+      }
       get_institutional_performance: {
         Args: { p_ies_id?: string; p_simulado_id: string }
         Returns: Json
@@ -1786,6 +1798,24 @@ export type Database = {
       get_institutional_student_scores: {
         Args: { p_ies_id?: string; p_simulado_id: string }
         Returns: Json
+      }
+      get_institutional_tri: {
+        Args: { p_ies_id?: string; p_simulado_id: string }
+        Returns: {
+          college_id: string
+          concept: number
+          is_restricted: boolean
+          max_score: number
+          mean_score: number
+          median_score: number
+          min_score: number
+          num_proficient: number
+          num_students: number
+          pcp: number
+          sanctions: string
+          simulado_id: string
+          std_score: number
+        }[]
       }
       get_progress_hub_summary: { Args: never; Returns: Json }
       get_question_by_subspecialty:
