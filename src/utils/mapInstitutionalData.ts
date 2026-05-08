@@ -119,18 +119,47 @@ export function mapInstitutionalRpcToViewModel(
     }
   });
 
-  const percentProficientes = totalStudents > 0
+  // Accuracy-based proficient count (used as fallback when TRI snapshot is absent)
+  const percentProficientesAccuracy = totalStudents > 0
     ? Math.round((proficientes.length / totalStudents) * 1000) / 10
     : 0;
 
-  const { conceito, nota: notaAtual } = getConceito(percentProficientes);
-  const sancao = getSancao(percentProficientes);
+  // ── TRI authoritative overrides (when snapshot exists) ──
+  const triPcpRaw = triSnapshot?.pcp ?? null;
+  const triPercentProficientes = triPcpRaw !== null
+    ? Math.round((triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw) * 10) / 10
+    : null;
+  const triMeanScore = triSnapshot?.mean_score ?? null;
+  const triNumStudents = triSnapshot?.num_students ?? null;
+  const triNumProficient = triSnapshot?.num_proficient ?? null;
+  const triConceptNota = triSnapshot?.concept ?? null;
+  const triSanctions = triSnapshot?.sanctions ?? null;
+
+  const percentProficientes = hasTri && triPercentProficientes !== null
+    ? triPercentProficientes
+    : percentProficientesAccuracy;
+
+  const proficiencyForKpi = hasTri && triMeanScore !== null
+    ? Math.round(triMeanScore * 10) / 10
+    : overallAccuracy;
+
+  const { conceito: conceitoFromAccuracy, nota: notaFromAccuracy } = getConceito(percentProficientes);
+  const notaAtual = hasTri && triConceptNota !== null ? triConceptNota : notaFromAccuracy;
+  const conceito = hasTri && triConceptNota !== null
+    ? conceitoFromNota(triConceptNota)
+    : conceitoFromAccuracy;
+
+  const sancao = hasTri
+    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
+    : getSancao(percentProficientes);
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
   const conceitoThresholds = [40, 60, 75, 90];
   const nextConceitoTarget = conceitoThresholds.find((t) => percentProficientes < t) ?? 100;
   const prevConceitoTarget = conceitoThresholds.filter((t) => percentProficientes >= t).pop() ?? 0;
-  const alunosFaltamMeta = Math.max(0, Math.ceil((nextConceitoTarget / 100) * totalStudents) - proficientes.length);
+  const baseProficientCount = hasTri && triNumProficient !== null ? triNumProficient : proficientes.length;
+  const baseTotalForMeta = hasTri && triNumStudents !== null && triNumStudents > 0 ? triNumStudents : totalStudents;
+  const alunosFaltamMeta = Math.max(0, Math.ceil((nextConceitoTarget / 100) * baseTotalForMeta) - baseProficientCount);
 
   // Distância em p.p. até próxima faixa de conceito
   const distanciaPP = percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - percentProficientes) * 10) / 10;
@@ -149,12 +178,17 @@ export function mapInstitutionalRpcToViewModel(
     ? Math.round((overallStats.acertos / overallStats.total) * 1000) / 10
     : 0;
 
+  const proficienciaLabel = hasTri ? 'Proficiência Média (TRI)' : 'Proficiência Média (acurácia)';
+  const proficienciaDesc = hasTri
+    ? 'Score TRI médio da IES (0 a 100), calculado com Teoria de Resposta ao Item'
+    : 'Estimativa baseada em acurácia (TRI indisponível para este simulado)';
+
   // ── KPIs ──
   const kpis: KpiData[] = [
     { label: 'Total de Alunos', value: totalStudents, icon: 'Users', status: 'neutral', description: 'Alunos que realizaram o simulado' },
     { label: 'Percentual de Acertos', value: `${percentualAcertos}%`, icon: 'Target', status: getKpiStatus(percentualAcertos, { good: 60, warning: 40 }), description: `${overallStats.acertos} acertos de ${overallStats.total} questões aplicadas` },
-    { label: 'Proficiência Média (TRI)', value: Math.round(overallAccuracy), icon: 'Target', status: getKpiStatus(overallAccuracy, { good: 60, warning: 40 }), description: 'Valor de 0 a 100' },
-    { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${proficientes.length} de ${totalStudents} alunos` },
+    { label: proficienciaLabel, value: Math.round(proficiencyForKpi), icon: 'Target', status: getKpiStatus(proficiencyForKpi, { good: 60, warning: 40 }), description: proficienciaDesc },
+    { label: 'Alunos Proficientes', value: `${percentProficientes}%`, icon: 'CheckCircle', status: getKpiStatus(percentProficientes, { good: 60, warning: 40 }), description: `${baseProficientCount} de ${baseTotalForMeta} alunos` },
     { label: 'Nota Prevista da IES', value: conceito, icon: 'School', status: getKpiStatus(notaAtual, { good: 4, warning: 3 }), description: `Nota ${notaAtual}` },
     { label: 'Distância Próxima Faixa', value: percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`, icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Distância para alcançar a próxima faixa de conceito' },
     { label: 'Alunos Abaixo do Esperado', value: abaixo.length, icon: 'AlertTriangle', status: getKpiStatus(100 - (abaixo.length / Math.max(totalStudents, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` },
