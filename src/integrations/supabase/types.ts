@@ -591,6 +591,44 @@ export type Database = {
           },
         ]
       }
+      dim_questoes_tri: {
+        Row: {
+          difficulty_b: number | null
+          flag_reason: string | null
+          infit: number | null
+          is_flagged: number | null
+          item_id: string
+          outfit: number | null
+          std_error: number | null
+        }
+        Insert: {
+          difficulty_b?: number | null
+          flag_reason?: string | null
+          infit?: number | null
+          is_flagged?: number | null
+          item_id?: string
+          outfit?: number | null
+          std_error?: number | null
+        }
+        Update: {
+          difficulty_b?: number | null
+          flag_reason?: string | null
+          infit?: number | null
+          is_flagged?: number | null
+          item_id?: string
+          outfit?: number | null
+          std_error?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_dim_questoes_simulado"
+            columns: ["item_id"]
+            isOneToOne: true
+            referencedRelation: "questoes_simulado"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       error_notebook_entries: {
         Row: {
           created_at: string
@@ -938,6 +976,146 @@ export type Database = {
           },
         ]
       }
+      resultados_alunos_tri: {
+        Row: {
+          college_id: string | null
+          is_extreme: boolean | null
+          is_proficient_enamed: boolean | null
+          is_proficient_proprio: boolean | null
+          num_correct: number | null
+          num_items_answered: number | null
+          proportion_correct: number | null
+          score_enamed: number | null
+          score_proprio: number | null
+          simulado_id: string | null
+          std_error: number | null
+          student_id: string
+          theta: number | null
+        }
+        Insert: {
+          college_id?: string | null
+          is_extreme?: boolean | null
+          is_proficient_enamed?: boolean | null
+          is_proficient_proprio?: boolean | null
+          num_correct?: number | null
+          num_items_answered?: number | null
+          proportion_correct?: number | null
+          score_enamed?: number | null
+          score_proprio?: number | null
+          simulado_id?: string | null
+          std_error?: number | null
+          student_id?: string
+          theta?: number | null
+        }
+        Update: {
+          college_id?: string | null
+          is_extreme?: boolean | null
+          is_proficient_enamed?: boolean | null
+          is_proficient_proprio?: boolean | null
+          num_correct?: number | null
+          num_items_answered?: number | null
+          proportion_correct?: number | null
+          score_enamed?: number | null
+          score_proprio?: number | null
+          simulado_id?: string | null
+          std_error?: number | null
+          student_id?: string
+          theta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_alunos_tri_ies"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_alunos_tri_simulado"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_alunos_tri_user"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resultados_alunos_tri_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "resultados_ies_tri"
+            referencedColumns: ["college_id"]
+          },
+        ]
+      }
+      resultados_ies_tri: {
+        Row: {
+          college_id: string
+          concept: number | null
+          is_restricted: boolean | null
+          max_score: number | null
+          mean_score: number | null
+          median_score: number | null
+          min_score: number | null
+          num_proficient: number | null
+          num_students: number | null
+          pcp: number | null
+          sanctions: string | null
+          simulado_id: string | null
+          std_score: number | null
+        }
+        Insert: {
+          college_id?: string
+          concept?: number | null
+          is_restricted?: boolean | null
+          max_score?: number | null
+          mean_score?: number | null
+          median_score?: number | null
+          min_score?: number | null
+          num_proficient?: number | null
+          num_students?: number | null
+          pcp?: number | null
+          sanctions?: string | null
+          simulado_id?: string | null
+          std_score?: number | null
+        }
+        Update: {
+          college_id?: string
+          concept?: number | null
+          is_restricted?: boolean | null
+          max_score?: number | null
+          mean_score?: number | null
+          median_score?: number | null
+          min_score?: number | null
+          num_proficient?: number | null
+          num_students?: number | null
+          pcp?: number | null
+          sanctions?: string | null
+          simulado_id?: string | null
+          std_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ies_tri_ies"
+            columns: ["college_id"]
+            isOneToOne: true
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ies_tri_simulado"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sanarclass_lessons: {
         Row: {
           arquivo_url: string
@@ -1268,24 +1446,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      temp_correcao_ids: {
-        Row: {
-          id: number
-          id_certo: string | null
-          id_errado: string | null
-        }
-        Insert: {
-          id?: number
-          id_certo?: string | null
-          id_errado?: string | null
-        }
-        Update: {
-          id?: number
-          id_certo?: string | null
-          id_errado?: string | null
-        }
-        Relationships: []
       }
       user_exams: {
         Row: {
