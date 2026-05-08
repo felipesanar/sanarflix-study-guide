@@ -45,6 +45,12 @@ function getConceito(percentProficientes: number): { conceito: string; nota: num
   return { conceito: 'Conceito 1', nota: 1 };
 }
 
+/** Map a numeric concept (1..5) coming from TRI tables to label */
+function conceitoFromNota(nota: number): string {
+  const clamped = Math.max(1, Math.min(5, Math.round(nota)));
+  return `Conceito ${clamped}`;
+}
+
 /** Estimate affected students heuristic (shared across modules) */
 export function estimateAffectedStudents(totalStudents: number, gap: number): number {
   return Math.ceil(totalStudents * Math.min(gap / 50, 1) * 0.8);
