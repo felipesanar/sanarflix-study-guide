@@ -17,6 +17,10 @@ import type {
   EvolucaoSimulado,
   DistanciaFaixa,
 } from '@/mocks/desempenhoInstitucionalV2';
+import type {
+  InstitutionalTriSnapshot,
+  InstitutionalTriEvolutionEntry,
+} from '@/services/institutional';
 
 // ── Proficiency rules (single source of truth) ──
 
