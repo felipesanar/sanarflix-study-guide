@@ -113,24 +113,30 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   const temaSummaries = useMemo(() => data ? buildTemaSummaries(data) : [], [data]);
 
+  const getScoreFor = useCallback((s: StudentScore): number => {
+    return s.triScore !== null && s.triScore !== undefined ? (s.triScore as number) : s.percentual;
+  }, []);
+
   const sortedStudents = useMemo(() => {
     if (!data) return [];
     const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
-      list = list.filter(s => computeProficiencyStatus(s.percentual) === segmentFilter);
+      list = list.filter(s => computeProficiencyStatus(getScoreFor(s)) === segmentFilter);
     }
     list.sort((a, b) => {
       let cmp = 0;
+      const sa = getScoreFor(a);
+      const sb = getScoreFor(b);
       if (sortKey === 'nome') cmp = a.nome.localeCompare(b.nome);
-      else if (sortKey === 'percentual') cmp = a.percentual - b.percentual;
-      else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - a.percentual) - (PROFICIENCY_THRESHOLD - b.percentual);
+      else if (sortKey === 'percentual') cmp = sa - sb;
+      else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - sa) - (PROFICIENCY_THRESHOLD - sb);
       else if (sortKey === 'semestre') cmp = a.semestre - b.semestre;
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter]);
+  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter, getScoreFor]);
 
   const sortedTemas = useMemo(() => {
     const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
