@@ -148,8 +148,7 @@ export async function fetchInstitutionalTriEvolution(
 
 export interface StudentTriScore {
   student_id: string;
-  score_enamed: number | null;
-  is_proficient_enamed: boolean | null;
+  score_proprio: number | null;
 }
 
 export async function fetchStudentTriScores(
@@ -159,7 +158,7 @@ export async function fetchStudentTriScores(
   try {
     const { data, error } = await supabase
       .from('resultados_alunos_tri')
-      .select('student_id, score_enamed, is_proficient_enamed')
+      .select('student_id, score_proprio')
       .eq('simulado_id', simuladoId)
       .eq('college_id', iesId);
     if (error) {
