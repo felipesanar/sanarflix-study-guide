@@ -103,12 +103,15 @@ export interface InstitutionalViewModel {
 }
 
 export interface StudentScore {
+  studentId?: string;
   nome: string;
   semestre: number;
   acertos: number;
   total: number;
   percentual: number;
   scoresByArea: Record<string, number>;
+  /** TRI score (score_enamed) from resultados_alunos_tri, when available */
+  triScore?: number | null;
 }
 
 export interface HeaderSummary {
@@ -150,6 +153,7 @@ export interface RpcEvolutionEntry {
 export interface RpcStudentScoresResponse {
   areas: string[];
   students: {
+    student_id?: string;
     nome: string;
     semestre: number;
     score_total: number;

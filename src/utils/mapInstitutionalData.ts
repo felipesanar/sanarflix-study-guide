@@ -95,6 +95,7 @@ export function mapInstitutionalRpcToViewModel(
   totalIesUsers?: number,
   triSnapshot?: InstitutionalTriSnapshot | null,
   triEvolution?: InstitutionalTriEvolutionEntry[],
+  studentTriScores?: { student_id: string; score_enamed: number | null }[],
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
@@ -102,16 +103,21 @@ export function mapInstitutionalRpcToViewModel(
     ? Math.round((overallStats.acertos / overallStats.total) * 100 * 10) / 10
     : 0;
 
-  
+  const triScoreById = new Map<string, number | null>();
+  (studentTriScores ?? []).forEach((row) => {
+    if (row.student_id) triScoreById.set(row.student_id, row.score_enamed);
+  });
 
   // Map students
   const students: StudentScore[] = studentScores.students.map((s) => ({
+    studentId: s.student_id,
     nome: s.nome,
     semestre: s.semestre ?? 0,
     acertos: s.score_total,
     total: s.total_questions,
     percentual: s.total_questions > 0 ? Math.round((s.score_total / s.total_questions) * 1000) / 10 : 0,
     scoresByArea: s.scores_by_area ?? {},
+    triScore: s.student_id ? triScoreById.get(s.student_id) ?? null : null,
   }));
 
   // Classify students into faixas

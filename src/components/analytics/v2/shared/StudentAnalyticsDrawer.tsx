@@ -65,14 +65,24 @@ function buildPedagogicalIndicators(
   student: StudentScore,
   _areas: CurricularAreaNode[],
 ): PedagogicalIndicator[] {
-  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
   const indicators: PedagogicalIndicator[] = [];
 
-  indicators.push({
-    label: 'Gap p/ proficiência',
-    value: gap > 0 ? `${gap.toFixed(1)} pts` : 'Atingido',
-    tone: gap > 0 ? 'attention' : 'good',
-  });
+  // Gap p/ proficiência derivado do score TRI quando disponível
+  const triScore = student.triScore;
+  if (triScore !== null && triScore !== undefined) {
+    const triGap = Math.max(0, PROFICIENCY_THRESHOLD - triScore);
+    indicators.push({
+      label: 'Gap p/ proficiência',
+      value: triGap > 0 ? `${triGap.toFixed(1)} pts` : 'Atingido',
+      tone: triGap > 0 ? 'attention' : 'good',
+    });
+  } else {
+    indicators.push({
+      label: 'Gap p/ proficiência',
+      value: 'Score TRI indisponível',
+      tone: 'neutral',
+    });
+  }
 
   indicators.push({
     label: 'Percentual de acertos',
@@ -80,7 +90,7 @@ function buildPedagogicalIndicators(
     tone: student.percentual >= 60 ? 'good' : student.percentual >= 50 ? 'neutral' : 'attention',
   });
 
-  // Top 2 weakest areas
+  // Top 2 weakest areas (by % de acertos)
   const weakAreas = Object.entries(student.scoresByArea)
     .sort(([, a], [, b]) => a - b)
     .slice(0, 2);
@@ -140,29 +150,25 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
 
   const status = computeProficiencyStatus(student.percentual);
   const statusBadge = getStatusBadge(status);
-  const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - student.percentual) * 10) / 10;
+  const triScore = student.triScore;
+  const hasTri = triScore !== null && triScore !== undefined;
+  const triGap = hasTri ? Math.round(Math.max(0, PROFICIENCY_THRESHOLD - (triScore as number)) * 10) / 10 : null;
   const indicators = buildPedagogicalIndicators(student, data.curricular.areas);
   const recommendation = buildRecommendation(status);
 
-  // Build area performance
+  // Build area performance (sempre por % de acertos)
   const areaPerformance = data.curricular.areas.map(a => ({
     name: a.name,
     percentual: student.scoresByArea[a.name] ?? a.percentual,
   })).sort((a, b) => a.percentual - b.percentual);
 
-  // Build all temas for critical/opportunity
+  // Build all temas for critical/opportunity (sempre por % de acertos)
   const allTemas: { name: string; area: string; specialty: string; percentual: number }[] = [];
   data.curricular.areas.forEach(a => a.specialties.forEach(sp => sp.temas.forEach(t => {
     allTemas.push({ name: t.name, area: a.name, specialty: sp.name, percentual: t.percentual });
   })));
   const criticalTemas = allTemas.filter(t => t.percentual < 50).sort((a, b) => a.percentual - b.percentual).slice(0, 5);
   const opportunityTemas = allTemas.filter(t => t.percentual >= 55 && t.percentual < 65).sort((a, b) => b.percentual - a.percentual).slice(0, 5);
-
-  // Evolution from mock data (simulated)
-  const evolution = data.evolucao?.map((e, i) => ({
-    simulado: e.simulado,
-    score: Math.max(30, student.percentual - (data.evolucao.length - i - 1) * (2 + Math.random() * 3)),
-  })) ?? [];
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -178,17 +184,21 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
         </SheetHeader>
 
         <div className="space-y-5 mt-4 pb-4">
-          {/* KPIs (4 tiles) */}
+          {/* KPIs (4 tiles) — primeiros 2 = Score TRI; últimos 2 = % de acertos */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricTile
-              label="Nota (% de acertos)"
-              value={student.percentual.toFixed(1)}
-              color={getStatusColor(status)}
+              label="Nota (Score TRI)"
+              value={hasTri ? (triScore as number).toFixed(1) : '—'}
+              color={hasTri ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive') : 'text-muted-foreground'}
             />
             <MetricTile
               label="Gap p/ proficiência"
-              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts`}
-              color={student.percentual >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
+              value={hasTri
+                ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${(triGap as number).toFixed(1)} pts`)
+                : '—'}
+              color={hasTri
+                ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')
+                : 'text-muted-foreground'}
             />
             <MetricTile
               label="Percentual de Acertos"
@@ -230,26 +240,6 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
           </div>
 
           <Separator />
-
-          {/* Evolution */}
-          {evolution.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <BarChart3 className="h-4 w-4" /> Evolução entre Simulados
-              </h4>
-              <div className="space-y-2">
-                {evolution.map((e, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs w-24 truncate text-muted-foreground">{e.simulado}</span>
-                    <Progress value={e.score} className="h-2 flex-1" />
-                    <span className={`text-xs font-medium w-10 text-right ${e.score >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                      {Math.round(e.score)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Performance by area */}
           <div>
