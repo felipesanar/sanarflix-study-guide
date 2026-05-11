@@ -8,12 +8,6 @@ import type {
 
 const PROFICIENCY_THRESHOLD = 60;
 
-function getSancao(percentProficientes: number): string | null {
-  if (percentProficientes < 40) return 'Redução de 50% das vagas';
-  if (percentProficientes < 50) return 'Redução de 25% das vagas';
-  if (percentProficientes < 60) return 'Proibição de aumento de vagas';
-  return null;
-}
 
 function computePercentual(acertos: number, total: number): number {
   if (total <= 0) return 0;
