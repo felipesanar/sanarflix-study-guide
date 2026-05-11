@@ -63,6 +63,23 @@ function getSancao(percentProficientes: number): string | null {
   return null;
 }
 
+/**
+ * Sanção regulatória derivada exclusivamente do conceito institucional (TRI).
+ * Mapeamento legado restaurado:
+ *   1 → Suspensão de novos ingressos
+ *   2 → Redução de vagas
+ *   3 → Proibição de aumento de vagas
+ *   ≥4 → Sem sanção
+ */
+function getSancaoFromConcept(concept: number | null | undefined): string | null {
+  if (concept === null || concept === undefined) return null;
+  const c = Math.round(concept);
+  if (c <= 1) return 'Suspensão de novos ingressos';
+  if (c === 2) return 'Redução de vagas';
+  if (c === 3) return 'Proibição de aumento de vagas';
+  return null;
+}
+
 function getKpiStatus(value: number, thresholds: { good: number; warning: number }): 'good' | 'warning' | 'critical' {
   if (value >= thresholds.good) return 'good';
   if (value >= thresholds.warning) return 'warning';
