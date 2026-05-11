@@ -250,7 +250,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
             const count = seg.value === 'todos' ? data.allStudents.length
-              : data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === seg.value).length;
+              : data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === seg.value).length;
             return (
               <Button
                 key={seg.value}
