@@ -184,17 +184,21 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
         </SheetHeader>
 
         <div className="space-y-5 mt-4 pb-4">
-          {/* KPIs (4 tiles) */}
+          {/* KPIs (4 tiles) — primeiros 2 = Score TRI; últimos 2 = % de acertos */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <MetricTile
-              label="Nota (% de acertos)"
-              value={student.percentual.toFixed(1)}
-              color={getStatusColor(status)}
+              label="Nota (Score TRI)"
+              value={hasTri ? (triScore as number).toFixed(1) : '—'}
+              color={hasTri ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive') : 'text-muted-foreground'}
             />
             <MetricTile
               label="Gap p/ proficiência"
-              value={student.percentual >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${gap.toFixed(1)} pts`}
-              color={student.percentual >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}
+              value={hasTri
+                ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'Proficiente' : `${(triGap as number).toFixed(1)} pts`)
+                : '—'}
+              color={hasTri
+                ? ((triScore as number) >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive')
+                : 'text-muted-foreground'}
             />
             <MetricTile
               label="Percentual de Acertos"
