@@ -110,7 +110,7 @@ export interface StudentScore {
   total: number;
   percentual: number;
   scoresByArea: Record<string, number>;
-  /** TRI score (score_enamed) from resultados_alunos_tri, when available */
+  /** TRI score (score_proprio) from resultados_alunos_tri, when available */
   triScore?: number | null;
 }
 
