@@ -136,10 +136,6 @@ export function mapInstitutionalRpcToViewModel(
     }
   });
 
-  // Accuracy-based proficient count (legacy, used only for non-TRI fallbacks)
-  const percentProficientesAccuracy = totalStudents > 0
-    ? Math.round((proficientes.length / totalStudents) * 1000) / 10
-    : 0;
 
   // ── TRI authoritative values (resultados_ies_tri) — única fonte para
   // proficiência média, % proficientes, num_proficient e conceito. ──
