@@ -8,12 +8,6 @@ import type {
 
 const PROFICIENCY_THRESHOLD = 60;
 
-function getSancao(percentProficientes: number): string | null {
-  if (percentProficientes < 40) return 'Redução de 50% das vagas';
-  if (percentProficientes < 50) return 'Redução de 25% das vagas';
-  if (percentProficientes < 60) return 'Proibição de aumento de vagas';
-  return null;
-}
 
 function computePercentual(acertos: number, total: number): number {
   if (total <= 0) return 0;
@@ -154,77 +148,23 @@ function computeDistanciaFaixa(students: StudentScore[]) {
   ];
 }
 
-function computeHeader(students: StudentScore[], originalSancao: string | null = null) {
-  const totalAlunos = students.length;
-  const proficientes = students.filter((student) => student.percentual >= PROFICIENCY_THRESHOLD).length;
-  const percentProficientes =
-    totalAlunos > 0 ? Math.round((proficientes / totalAlunos) * 1000) / 10 : 0;
-
-  const conceitoTargets = [40, 50, 60, 75, 90];
-  const nextTarget = conceitoTargets.find((target) => percentProficientes < target) ?? 90;
-  const alunosFaltamMeta = Math.max(
-    0,
-    Math.ceil((nextTarget / 100) * Math.max(totalAlunos, 1)) - proficientes,
-  );
-
-  // Sanção é institucional (vem do concept TRI) — preserva a original quando disponível;
-  // senão usa fallback legado por % proficientes.
-  const sancao = originalSancao !== null ? originalSancao : getSancao(percentProficientes);
-
-  return {
-    totalAlunos,
-    percentProficientes,
-    alunosFaltamMeta,
-    sancao,
-  };
-}
 
 function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
-  const header = computeHeader(students, base.headerSummary?.sancao ?? null);
-  const acuraciaMedia =
-    students.length > 0
-      ? Math.round(
-          (students.reduce((sum, student) => sum + student.percentual, 0) / students.length) * 10,
-        ) / 10
-      : 0;
-  const abaixo = students.filter((student) => student.percentual < PROFICIENCY_THRESHOLD);
-
-  // Conceito thresholds for distância p.p.
-  const conceitoThresholds = [40, 60, 75, 90];
-  const nextConceitoTarget = conceitoThresholds.find((t) => header.percentProficientes < t) ?? 100;
-  const distanciaPP = header.percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - header.percentProficientes) * 10) / 10;
-
   // Percentual de acertos from filtered students
   const totalQuestoes = students.reduce((sum, s) => sum + s.total, 0);
   const totalAcertos = students.reduce((sum, s) => sum + s.acertos, 0);
   const percentualAcertos = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 1000) / 10 : 0;
 
+  // KPIs derivados de TRI (Proficiência Média, Alunos Proficientes, Nota Prevista,
+  // Distância Próxima Faixa, Alunos Abaixo do Esperado) são institucionais e
+  // vêm exclusivamente da tabela `resultados_ies_tri`. Não são recalculados
+  // a partir do recorte de alunos filtrados — preservamos os valores originais.
   return base.kpis.map((kpi) => {
     if (kpi.label === 'Total de Alunos') {
-      return { ...kpi, value: header.totalAlunos, description: 'Alunos no recorte aplicado' };
+      return { ...kpi, value: students.length, description: 'Alunos no recorte aplicado' };
     }
     if (kpi.label === 'Percentual de Acertos') {
       return { ...kpi, value: `${percentualAcertos}%`, description: `${totalAcertos} acertos de ${totalQuestoes} questões aplicadas` };
-    }
-    if (kpi.label === 'Proficiência Média (TRI)') {
-      return { ...kpi, value: Math.round(acuraciaMedia) };
-    }
-    if (kpi.label === 'Alunos Proficientes') {
-      return {
-        ...kpi,
-        value: `${header.percentProficientes}%`,
-        description: `${header.totalAlunos - abaixo.length} de ${header.totalAlunos} alunos`,
-      };
-    }
-    if (kpi.label === 'Distância Próxima Faixa') {
-      return {
-        ...kpi,
-        value: header.percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`,
-        description: 'Distância para alcançar a próxima faixa de conceito',
-      };
-    }
-    if (kpi.label === 'Alunos Abaixo do Esperado') {
-      return { ...kpi, value: abaixo.length, description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` };
     }
     return kpi;
   });
@@ -239,38 +179,21 @@ export function applyDesempenhoV2Filters(
   const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
   const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
-  const filteredHeader = computeHeader(filteredAllStudents, data.headerSummary?.sancao ?? null);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
   const filteredKpis = updateKpis(data, filteredAllStudents);
 
-  const acuraciaMedia =
-    filteredAllStudents.length > 0
-      ? Math.round(
-          (filteredAllStudents.reduce((sum, student) => sum + student.percentual, 0) / filteredAllStudents.length) *
-            10,
-        ) / 10
-      : 0;
-
-  // Recompute meta for filtered students
-  const conceitoThresholds = [40, 60, 75, 90];
-  const nextTarget = conceitoThresholds.find((t) => filteredHeader.percentProficientes < t) ?? 100;
-  const prevTarget = conceitoThresholds.filter((t) => filteredHeader.percentProficientes >= t).pop() ?? 0;
-  const conceitoRange = nextTarget - prevTarget;
-  const conceitoCovered = filteredHeader.percentProficientes - prevTarget;
-  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
-  const distPP = filteredHeader.percentProficientes >= 90 ? 0 : Math.round((nextTarget - filteredHeader.percentProficientes) * 10) / 10;
-
-  const meta = {
-    ...data.meta,
-    proficienciaAtual: acuraciaMedia,
-    percentProficientes: filteredHeader.percentProficientes,
-    meta: nextTarget,
-    progresso: metaProgresso,
-    gapProficiencia: distPP,
-    status: filteredHeader.sancao ? 'Sanção ativa' : 'Regular',
-    sancaoRegulatoriaLabel: filteredHeader.sancao ?? 'Nenhuma',
+  // Header preserva percentProficientes / sanção da tabela `resultados_ies_tri`.
+  // Atualizamos apenas o totalAlunos para refletir o recorte de filtros.
+  const filteredHeader = {
+    ...data.headerSummary,
+    totalAlunos: filteredAllStudents.length,
   };
+
+  // Meta institucional preserva valores derivados de TRI (proficienciaAtual,
+  // percentProficientes, notaAtual, etc.). Apenas o rótulo de sanção segue
+  // o snapshot original.
+  const meta = { ...data.meta };
 
   return {
     ...data,
