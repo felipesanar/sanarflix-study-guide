@@ -154,7 +154,7 @@ function computeDistanciaFaixa(students: StudentScore[]) {
   ];
 }
 
-function computeHeader(students: StudentScore[]) {
+function computeHeader(students: StudentScore[], originalSancao: string | null = null) {
   const totalAlunos = students.length;
   const proficientes = students.filter((student) => student.percentual >= PROFICIENCY_THRESHOLD).length;
   const percentProficientes =
@@ -167,16 +167,20 @@ function computeHeader(students: StudentScore[]) {
     Math.ceil((nextTarget / 100) * Math.max(totalAlunos, 1)) - proficientes,
   );
 
+  // Sanção é institucional (vem do concept TRI) — preserva a original quando disponível;
+  // senão usa fallback legado por % proficientes.
+  const sancao = originalSancao !== null ? originalSancao : getSancao(percentProficientes);
+
   return {
     totalAlunos,
     percentProficientes,
     alunosFaltamMeta,
-    sancao: getSancao(percentProficientes),
+    sancao,
   };
 }
 
 function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
-  const header = computeHeader(students);
+  const header = computeHeader(students, base.headerSummary?.sancao ?? null);
   const acuraciaMedia =
     students.length > 0
       ? Math.round(
@@ -235,7 +239,7 @@ export function applyDesempenhoV2Filters(
   const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
   const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
-  const filteredHeader = computeHeader(filteredAllStudents);
+  const filteredHeader = computeHeader(filteredAllStudents, data.headerSummary?.sancao ?? null);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
   const filteredKpis = updateKpis(data, filteredAllStudents);

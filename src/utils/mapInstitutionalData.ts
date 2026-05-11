@@ -63,6 +63,23 @@ function getSancao(percentProficientes: number): string | null {
   return null;
 }
 
+/**
+ * Sanção regulatória derivada exclusivamente do conceito institucional (TRI).
+ * Mapeamento legado restaurado:
+ *   1 → Suspensão de novos ingressos
+ *   2 → Redução de vagas
+ *   3 → Proibição de aumento de vagas
+ *   ≥4 → Sem sanção
+ */
+function getSancaoFromConcept(concept: number | null | undefined): string | null {
+  if (concept === null || concept === undefined) return null;
+  const c = Math.round(concept);
+  if (c <= 1) return 'Suspensão de novos ingressos';
+  if (c === 2) return 'Redução de vagas';
+  if (c === 3) return 'Proibição de aumento de vagas';
+  return null;
+}
+
 function getKpiStatus(value: number, thresholds: { good: number; warning: number }): 'good' | 'warning' | 'critical' {
   if (value >= thresholds.good) return 'good';
   if (value >= thresholds.warning) return 'warning';
@@ -133,7 +150,9 @@ export function mapInstitutionalRpcToViewModel(
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
   const triConceptNota = triSnapshot?.concept ?? null;
-  const triSanctions = triSnapshot?.sanctions ?? null;
+  // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
+  // A sanção é derivada do `concept` (lógica legada por conceito), não do banco.
+
 
   const percentProficientes = hasTri && triPercentProficientes !== null
     ? triPercentProficientes
@@ -149,9 +168,12 @@ export function mapInstitutionalRpcToViewModel(
     ? conceitoFromNota(triConceptNota)
     : conceitoFromAccuracy;
 
-  const sancao = hasTri
-    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
+  const sancao = (hasTri && triConceptNota !== null)
+    ? getSancaoFromConcept(triConceptNota)
     : getSancao(percentProficientes);
+
+  console.log('[TRI] Concept loaded:', triConceptNota);
+  console.log('[TRI] Regulatory status derived from concept:', sancao);
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
   const conceitoThresholds = [40, 60, 75, 90];
