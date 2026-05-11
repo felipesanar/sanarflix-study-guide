@@ -153,6 +153,7 @@ export interface RpcEvolutionEntry {
 export interface RpcStudentScoresResponse {
   areas: string[];
   students: {
+    student_id?: string;
     nome: string;
     semestre: number;
     score_total: number;
