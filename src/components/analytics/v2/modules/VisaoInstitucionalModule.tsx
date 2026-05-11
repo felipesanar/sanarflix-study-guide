@@ -71,15 +71,19 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
       {/* KPIs */}
       <KpiCardsGrid
         kpis={data.kpis}
-        alunosAbaixo={data.alunosAbaixo.map((s) => ({
-          nome: s.nome,
-          proficienciaTri: s.percentual,
-          percentualAcerto: s.percentual,
-          distanciaAteProficiencia: Math.round(60 - s.percentual),
-          turma: '',
-          periodo: '',
-          semestre: s.semestre,
-        }))}
+        alunosAbaixo={data.alunosAbaixo.map((s) => {
+          const hasTri = s.triScore !== null && s.triScore !== undefined;
+          const triRef = hasTri ? (s.triScore as number) : s.percentual;
+          return {
+            nome: s.nome,
+            proficienciaTri: hasTri ? Math.round(triRef) : Math.round(s.percentual),
+            percentualAcerto: Math.round(s.percentual),
+            distanciaAteProficiencia: Math.max(0, Math.round(60 - triRef)),
+            turma: '',
+            periodo: '',
+            semestre: s.semestre,
+          };
+        })}
       />
 
       {/* Distância para próxima faixa — clean cards */}
