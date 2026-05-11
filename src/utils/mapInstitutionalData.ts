@@ -236,18 +236,18 @@ export function mapInstitutionalRpcToViewModel(
   const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
 
   const meta: MetaInstitucional = {
-    proficienciaAtual: proficiencyForKpi,
+    proficienciaAtual: proficiencyForKpi ?? 0,
     meta: nextConceitoTarget,
     status: sancao ? 'Sanção ativa' : 'Regular',
     progresso: metaProgresso,
     gapProficiencia: distanciaPP,
-    notaAtual,
+    notaAtual: notaAtual ?? 0,
     notaMeta: 4,
-    percentilMedio: Math.round(proficiencyForKpi),
+    percentilMedio: proficiencyForKpi ?? 0,
     taxaAdesao,
     percentProficientes,
     totalIesUsers: realTotalIesUsers,
-    totalStudentsSimulado: totalStudents,
+    totalStudentsSimulado: baseTotalForMeta ?? totalStudents,
     sancaoRegulatoriaLabel: sancao ?? 'Nenhuma',
   };
 
