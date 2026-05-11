@@ -136,41 +136,36 @@ export function mapInstitutionalRpcToViewModel(
     }
   });
 
-  // Accuracy-based proficient count (used as fallback when TRI snapshot is absent)
+  // Accuracy-based proficient count (legacy, used only for non-TRI fallbacks)
   const percentProficientesAccuracy = totalStudents > 0
     ? Math.round((proficientes.length / totalStudents) * 1000) / 10
     : 0;
 
-  // ── TRI authoritative overrides (when snapshot exists) ──
+  // ── TRI authoritative values (resultados_ies_tri) — única fonte para
+  // proficiência média, % proficientes, num_proficient e conceito. ──
   const triPcpRaw = triSnapshot?.pcp ?? null;
+  // pcp pode vir como fração (0..1) ou percentual (0..100). Normaliza e arredonda a 0 casas.
   const triPercentProficientes = triPcpRaw !== null
-    ? Math.round((triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw) * 10) / 10
+    ? Math.round(triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw)
     : null;
   const triMeanScore = triSnapshot?.mean_score ?? null;
+  const triMeanScoreRounded = triMeanScore !== null ? Math.round(triMeanScore) : null;
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
   const triConceptNota = triSnapshot?.concept ?? null;
   // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
   // A sanção é derivada do `concept` (lógica legada por conceito), não do banco.
 
+  // % proficientes — usa exclusivamente pcp da tabela TRI; sem fallback de acurácia.
+  const percentProficientes = triPercentProficientes !== null ? triPercentProficientes : 0;
 
-  const percentProficientes = hasTri && triPercentProficientes !== null
-    ? triPercentProficientes
-    : percentProficientesAccuracy;
+  // Proficiência média — usa exclusivamente mean_score da tabela TRI.
+  const proficiencyForKpi = triMeanScoreRounded;
 
-  const proficiencyForKpi = hasTri && triMeanScore !== null
-    ? Math.round(triMeanScore * 10) / 10
-    : overallAccuracy;
+  const notaAtual = triConceptNota;
+  const conceito = triConceptNota !== null ? conceitoFromNota(triConceptNota) : null;
 
-  const { conceito: conceitoFromAccuracy, nota: notaFromAccuracy } = getConceito(percentProficientes);
-  const notaAtual = hasTri && triConceptNota !== null ? triConceptNota : notaFromAccuracy;
-  const conceito = hasTri && triConceptNota !== null
-    ? conceitoFromNota(triConceptNota)
-    : conceitoFromAccuracy;
-
-  const sancao = (hasTri && triConceptNota !== null)
-    ? getSancaoFromConcept(triConceptNota)
-    : getSancao(percentProficientes);
+  const sancao = triConceptNota !== null ? getSancaoFromConcept(triConceptNota) : null;
 
   console.log('[TRI] Concept loaded:', triConceptNota);
   console.log('[TRI] Regulatory status derived from concept:', sancao);

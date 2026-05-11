@@ -1,82 +1,57 @@
 ## Objetivo
 
-Derivar a sanção regulatória **exclusivamente a partir do `concept`** (vindo de `resultados_ies_tri`), parando de usar as colunas `sanctions` e `is_restricted` do banco. Manter o `concept`, `pcp`, `mean_score` e `num_proficient` como única contribuição da tabela TRI.
+Garantir que, na tela "Visão Institucional" (`/desempenho-institucional-v2?modulo=visao-institucional`), todas as métricas relacionadas a **Proficiência Média (TRI)**, **Alunos Proficientes**, **número de proficientes**, **TRI médio** e **Conceito** venham exclusivamente da tabela `resultados_ies_tri` (via RPC `get_institutional_tri`), com arredondamento para 0 casas decimais.
 
-## Escopo da mudança
+## Estado atual
 
-Apenas frontend (mapeamento + tipos + UI que exibe a sanção). Nenhuma migração de banco, nenhuma alteração em RPCs, queries, cálculos TRI, simulador, autenticação ou layout.
+`src/utils/mapInstitutionalData.ts` já consome o snapshot TRI quando disponível (`hasTri`), mas:
+- Usa fallback de acurácia quando o snapshot é ausente, podendo exibir valores que **não** vêm da tabela TRI.
+- Arredonda `pcp` e `mean_score` com 1 casa decimal (`Math.round(x * 10) / 10`), em vez de 0.
+- O label "Alunos Abaixo do Esperado" usa contagem por acurácia (`abaixo.length`), não `num_students - num_proficient` da tabela TRI.
+- "Distância Próxima Faixa" e meta usam `percentProficientes` arredondado em 1 casa.
 
-## Arquivos afetados
+## Mudanças (apenas `src/utils/mapInstitutionalData.ts`)
 
-1. `src/utils/mapInstitutionalData.ts` — origem da sanção
-2. `src/services/institutional.ts` — tipagem do snapshot TRI
-3. `src/types/desempenhoV2.ts` — checar se há tipo derivado
-4. `src/utils/desempenhoV2Filters.ts` — recálculo de sanção pós-filtro
-5. `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx` — apenas verificar consumo (já lê `sancao` do header)
-6. `src/components/analytics/v2/MetaInstitucionalCard.tsx` — verificar consumo
-7. `src/components/analytics/v2/shared/AiChatDrawer.tsx` — verificar consumo
-8. `src/hooks/useInstitutionalPerformanceData.ts` — sem mudança lógica, só remoção de uso futuro de `is_restricted` se houver
+1. **Proficiência Média (TRI)**
+   - Valor: `Math.round(triSnapshot.mean_score)` (0 casas).
+   - Quando `mean_score` ausente → exibir `'—'` e status `neutral`. Descrição mantida: "Score TRI médio da IES (0 a 100)…".
+   - Não usar mais `overallAccuracy` como fallback nesse KPI.
 
-## Nova regra de mapeamento (concept → sanção)
+2. **Alunos Proficientes**
+   - Percentual: `Math.round(pcp%)` (0 casas) → ex.: `48%`.
+   - Quantitativo (descrição inferior): `${num_proficient} de ${num_students} alunos`, ambos da `resultados_ies_tri`.
+   - Sem TRI → valor `'—'` e descrição "Dados TRI indisponíveis".
 
-```text
-concept = 1  → "Suspensão de novos ingressos"
-concept = 2  → "Redução de vagas"
-concept = 3  → "Proibição de aumento de vagas"
-concept >= 4 → null (sem sanção)
-concept null/ausente → fallback legado por % proficientes (getSancao atual)
-```
+3. **Nota Prevista da IES (Conceito)**
+   - Já vem de `triSnapshot.concept`. Sem TRI → valor `'—'`.
+   - Remover o cálculo `getConceito(percentProficientes)` como fallback nesse KPI.
 
-Essa regra substitui a leitura direta de `triSanctions`. O fallback legado por % proficientes só é usado quando o `concept` não está disponível, garantindo retrocompatibilidade.
+4. **Distância Próxima Faixa**
+   - `percentProficientes` passa a ser inteiro (`Math.round(pcp%)`).
+   - Distância em p.p. arredondada a 0 casas: `Math.round(nextConceitoTarget - pct)`.
 
-## Passos
+5. **Alunos Abaixo do Esperado**
+   - Valor: `num_students - num_proficient` (da tabela TRI), quando disponível.
+   - Sem TRI → manter contagem atual baseada em acurácia (compatibilidade).
 
-### Passo 1 — Criar `getSancaoFromConcept(concept)` em `mapInstitutionalData.ts`
-Função pura que recebe o `concept` numérico e devolve string ou `null` conforme a tabela acima.
+6. **Header summary / Meta**
+   - `headerSummary.percentProficientes` e `meta.percentProficientes` passam a ser inteiros vindos de `pcp`.
+   - `meta.proficienciaAtual` = `Math.round(mean_score)`.
+   - `meta.notaAtual` = `triSnapshot.concept`.
+   - `meta.totalStudentsSimulado` segue o `num_students` do TRI quando disponível.
+   - `alunosFaltamMeta` calculado com `num_proficient`/`num_students` do TRI.
 
-### Passo 2 — Substituir uso de `triSanctions` no mapper
-Em `mapInstitutionalRpcToViewModel`:
-- Remover a leitura `const triSanctions = triSnapshot?.sanctions ?? null;`
-- Remover a derivação atual:
-  ```ts
-  const sancao = hasTri
-    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
-    : getSancao(percentProficientes);
-  ```
-- Substituir por:
-  ```ts
-  const sancao = (hasTri && triConceptNota !== null)
-    ? getSancaoFromConcept(triConceptNota)
-    : getSancao(percentProficientes);
-  ```
-- Adicionar logs temporários conforme solicitado:
-  ```ts
-  console.log('[TRI] Concept loaded:', triConceptNota);
-  console.log('[TRI] Regulatory status derived from concept:', sancao);
-  ```
+7. **Sanção regulatória**
+   - Mantém-se a lógica atual (derivada do `concept`). Sem alteração.
 
-### Passo 3 — Limpar tipo (opcional, seguro)
-Em `src/services/institutional.ts`:
-- Manter os campos `sanctions` e `is_restricted` no tipo `InstitutionalTriSnapshot` (a RPC ainda retorna), mas **não consumi-los** em lugar nenhum. Isso preserva compatibilidade com o tipo do retorno da RPC sem tocar no banco.
+## Fora de escopo
 
-### Passo 4 — Ajustar `desempenhoV2Filters.ts`
-Verificar se há um recálculo paralelo de `sancao` ao aplicar filtros (memória do projeto indica que sim, via heurística por % proficientes). Substituir essa heurística para preservar o `sancao` derivado pelo `concept` quando o conceito estiver disponível no view-model original; caso contrário, manter o fallback por % proficientes existente.
+- Faixas de distribuição, evolução, breakdown curricular, tabelas de alunos: continuam vindo das RPCs atuais (`get_institutional_performance` / `get_institutional_student_scores`) — o usuário pediu somente as métricas de TRI/conceito/proficientes.
+- Nenhuma mudança de schema, RPC, RLS ou backend.
+- Nenhuma alteração visual além do número de casas decimais e do texto da descrição quando TRI estiver ausente.
 
-### Passo 5 — Verificação de consumidores
-- `InstitutionalAlertBanner` lê `sancao` do `headerSummary` → já compatível.
-- `MetaInstitucionalCard` lê `sancaoRegulatoriaLabel` do `meta` → já compatível.
-- `AiChatDrawer` lê `headerSummary.sancao` → já compatível.
-Nenhum desses precisa de mudança funcional além do que vier naturalmente do mapper.
+## Validação
 
-### Passo 6 — Validação
-- Buscar com `rg` por usos remanescentes de `triSanctions`, `is_restricted` e `sanctions` em `src/` para garantir que nenhum consumidor depende deles.
-- Conferir build TypeScript (sem editar `types.ts`).
-- Validar visualmente no `/desempenho-institucional` que a faixa do banner muda conforme o `concept` (1→crítico, 4–5→sem sanção).
-
-## Critérios de sucesso
-
-- `triSnapshot.sanctions` e `triSnapshot.is_restricted` não são lidos em lugar nenhum do `src/`.
-- A sanção exibida (banner, meta card, IA, export) vem 100% do `concept` quando ele existe.
-- Fallback por % proficientes preservado quando `concept` é nulo.
-- Nenhum visual, layout, cálculo TRI, RPC ou tabela alterado.
-- Sem erros de TypeScript ou console.
+- Conferir KPI cards na tela com a IES atual (`2c458bcb-…`) e simulado `f2621d1e-…`: valores devem coincidir com `SELECT mean_score, pcp, num_proficient, num_students, concept FROM resultados_ies_tri WHERE college_id=… AND simulado_id=…`.
+- Testar IES/simulado sem linha em `resultados_ies_tri` → KPIs TRI mostram `'—'` sem quebrar layout.
+- `rg "overallAccuracy|percentProficientesAccuracy"` confirma que esses fallbacks não são mais usados nos KPIs TRI.
