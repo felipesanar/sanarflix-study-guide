@@ -296,22 +296,32 @@ export function mapInstitutionalRpcToViewModel(
   }
 
   // ── Distância para próxima faixa ──
+  // Classificação EXCLUSIVA por score TRI (resultados_alunos_tri.score_proprio).
+  // Distância = 60 - score_proprio (arredondado). Alunos sem TRI são ignorados.
+  // Faixas: <=10 (próximos), 11-20 (moderada), >20 (muito abaixo).
+  const distanciaBuckets = { proximos: 0, moderada: 0, critico: 0 };
+  alunosAbaixoStrict.forEach((s) => {
+    const dist = Math.round(PROFICIENCY_THRESHOLD - (s.triScore as number));
+    if (dist <= 10) distanciaBuckets.proximos++;
+    else if (dist <= 20) distanciaBuckets.moderada++;
+    else distanciaBuckets.critico++;
+  });
   const distanciaFaixa: DistanciaFaixa[] = [
     {
       label: 'Próximos de avançar (até 10pts)',
-      value: `${proximosDeAvancar.length} alunos`,
+      value: `${distanciaBuckets.proximos} alunos`,
       status: 'good' as const,
       description: `A menos de 10pts da proficiência (${PROFICIENCY_THRESHOLD}pts)`,
     },
     {
       label: 'Distância moderada (10-20pts)',
-      value: `${abaixo.filter((s) => s.percentual >= PROFICIENCY_THRESHOLD - 20 && s.percentual < PROFICIENCY_THRESHOLD - 10).length} alunos`,
+      value: `${distanciaBuckets.moderada} alunos`,
       status: 'neutral' as const,
       description: 'Entre 10pts e 20pts da proficiência',
     },
     {
       label: 'Muito abaixo (>20pts)',
-      value: `${abaixo.filter((s) => s.percentual < PROFICIENCY_THRESHOLD - 20).length} alunos`,
+      value: `${distanciaBuckets.critico} alunos`,
       status: 'critical' as const,
       description: 'Mais de 20pts da proficiência',
     },
