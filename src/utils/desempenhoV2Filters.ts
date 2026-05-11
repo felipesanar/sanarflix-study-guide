@@ -180,7 +180,7 @@ function computeHeader(students: StudentScore[], originalSancao: string | null =
 }
 
 function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
-  const header = computeHeader(students);
+  const header = computeHeader(students, base.headerSummary?.sancao ?? null);
   const acuraciaMedia =
     students.length > 0
       ? Math.round(
