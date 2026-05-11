@@ -186,15 +186,13 @@ export function mapInstitutionalRpcToViewModel(
   // Distância em p.p. até próxima faixa de conceito (0 casas decimais)
   const distanciaPP = percentProficientes >= 90 ? 0 : Math.round(nextConceitoTarget - percentProficientes);
 
-  // Alunos abaixo do esperado: derivado de num_students - num_proficient (TRI).
-  // Sem TRI snapshot → fallback à contagem por score TRI individual (ou acurácia).
-  const alunosAbaixoFallback = students.filter((s) => {
-    const ref = s.triScore !== null && s.triScore !== undefined ? s.triScore : s.percentual;
-    return ref < PROFICIENCY_THRESHOLD;
-  }).length;
-  const alunosAbaixoCount = (triNumStudents !== null && triNumProficient !== null)
-    ? Math.max(0, triNumStudents - triNumProficient)
-    : alunosAbaixoFallback;
+  // Alunos abaixo do esperado: contabiliza EXCLUSIVAMENTE alunos com
+  // resultados_alunos_tri.score_enamed < 60. Alunos sem TRI são ignorados
+  // para garantir consistência entre o card e a tabela expandida.
+  const alunosAbaixoStrict = students.filter(
+    (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
+  );
+  const alunosAbaixoCount = alunosAbaixoStrict.length;
 
   // Taxa de adesão
   const realTotalIesUsers = totalIesUsers ?? 0;
