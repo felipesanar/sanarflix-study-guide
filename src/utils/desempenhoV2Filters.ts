@@ -148,30 +148,6 @@ function computeDistanciaFaixa(students: StudentScore[]) {
   ];
 }
 
-function computeHeader(students: StudentScore[], originalSancao: string | null = null) {
-  const totalAlunos = students.length;
-  const proficientes = students.filter((student) => student.percentual >= PROFICIENCY_THRESHOLD).length;
-  const percentProficientes =
-    totalAlunos > 0 ? Math.round((proficientes / totalAlunos) * 1000) / 10 : 0;
-
-  const conceitoTargets = [40, 50, 60, 75, 90];
-  const nextTarget = conceitoTargets.find((target) => percentProficientes < target) ?? 90;
-  const alunosFaltamMeta = Math.max(
-    0,
-    Math.ceil((nextTarget / 100) * Math.max(totalAlunos, 1)) - proficientes,
-  );
-
-  // Sanção é institucional (vem do concept TRI) — preserva a original quando disponível;
-  // senão usa fallback legado por % proficientes.
-  const sancao = originalSancao !== null ? originalSancao : getSancao(percentProficientes);
-
-  return {
-    totalAlunos,
-    percentProficientes,
-    alunosFaltamMeta,
-    sancao,
-  };
-}
 
 function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
   // Percentual de acertos from filtered students
