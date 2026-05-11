@@ -323,10 +323,17 @@ export function mapInstitutionalRpcToViewModel(
     sancao,
   };
 
-  // Alunos abaixo sorted by proximity to threshold
-  const alunosAbaixoSorted = [...abaixo].sort(
-    (a, b) => b.percentual - a.percentual,
-  );
+  // Alunos abaixo do esperado: classificação por score TRI (resultados_alunos_tri.score_enamed).
+  // Fallback ao percentual de acertos quando não houver TRI.
+  const alunosAbaixoTri = students.filter((s) => {
+    const ref = s.triScore !== null && s.triScore !== undefined ? s.triScore : s.percentual;
+    return ref < PROFICIENCY_THRESHOLD;
+  });
+  const alunosAbaixoSorted = [...alunosAbaixoTri].sort((a, b) => {
+    const sa = a.triScore !== null && a.triScore !== undefined ? a.triScore : a.percentual;
+    const sb = b.triScore !== null && b.triScore !== undefined ? b.triScore : b.percentual;
+    return sb - sa;
+  });
 
   // ── Curricular breakdown (area → specialty → tema) ──
   const temaNodes: CurricularTemaNode[] = (performance.bySubspecialty ?? []).map((t) => ({
