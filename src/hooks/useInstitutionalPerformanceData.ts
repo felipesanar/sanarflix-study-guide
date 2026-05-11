@@ -260,13 +260,14 @@ export function useInstitutionalPerformanceData(
       const targetIesId = await resolveIesId(requestedIesId);
 
       // Parallel RPC calls with retry + timeout + total IES users count + TRI snapshot/evolution
-      const [perfData, scoresData, evoData, iesUsersResult, triData, triEvoData] = await Promise.all([
+      const [perfData, scoresData, evoData, iesUsersResult, triData, triEvoData, studentTriData] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId),
         fetchInstitutionalTri(filters.simuladoId, targetIesId),
         fetchInstitutionalTriEvolution(targetIesId),
+        fetchStudentTriScores(filters.simuladoId, targetIesId),
       ]);
 
       if (!perfData?.overallStats || !scoresData?.students) {
@@ -281,6 +282,7 @@ export function useInstitutionalPerformanceData(
         totalIesUsers,
         triData,
         triEvoData,
+        studentTriData,
       );
       setData(viewModel);
       console.log('[DesempenhoInstitucional]', 'Dados reais carregados', {
