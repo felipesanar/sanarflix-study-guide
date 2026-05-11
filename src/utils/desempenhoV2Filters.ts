@@ -209,35 +209,21 @@ export function applyDesempenhoV2Filters(
   const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
   const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
-  const filteredHeader = computeHeader(filteredAllStudents, data.headerSummary?.sancao ?? null);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
   const filteredKpis = updateKpis(data, filteredAllStudents);
 
-  const acuraciaMedia =
-    filteredAllStudents.length > 0
-      ? Math.round(
-          (filteredAllStudents.reduce((sum, student) => sum + student.percentual, 0) / filteredAllStudents.length) *
-            10,
-        ) / 10
-      : 0;
-
-  // Recompute meta for filtered students
-  const conceitoThresholds = [40, 60, 75, 90];
-  const nextTarget = conceitoThresholds.find((t) => filteredHeader.percentProficientes < t) ?? 100;
-  const prevTarget = conceitoThresholds.filter((t) => filteredHeader.percentProficientes >= t).pop() ?? 0;
-  const conceitoRange = nextTarget - prevTarget;
-  const conceitoCovered = filteredHeader.percentProficientes - prevTarget;
-  const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
-  const distPP = filteredHeader.percentProficientes >= 90 ? 0 : Math.round((nextTarget - filteredHeader.percentProficientes) * 10) / 10;
-
-  // Meta institucional preserva proficienciaAtual / percentProficientes / notaAtual
-  // vindos da tabela `resultados_ies_tri` — apenas status/sanção podem refletir o original.
-  const meta = {
-    ...data.meta,
-    status: filteredHeader.sancao ? 'Sanção ativa' : 'Regular',
-    sancaoRegulatoriaLabel: filteredHeader.sancao ?? 'Nenhuma',
+  // Header preserva percentProficientes / sanção da tabela `resultados_ies_tri`.
+  // Atualizamos apenas o totalAlunos para refletir o recorte de filtros.
+  const filteredHeader = {
+    ...data.headerSummary,
+    totalAlunos: filteredAllStudents.length,
   };
+
+  // Meta institucional preserva valores derivados de TRI (proficienciaAtual,
+  // percentProficientes, notaAtual, etc.). Apenas o rótulo de sanção segue
+  // o snapshot original.
+  const meta = { ...data.meta };
 
   return {
     ...data,
