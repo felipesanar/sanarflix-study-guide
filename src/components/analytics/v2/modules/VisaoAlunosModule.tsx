@@ -113,24 +113,30 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   const temaSummaries = useMemo(() => data ? buildTemaSummaries(data) : [], [data]);
 
+  const getScoreFor = useCallback((s: StudentScore): number => {
+    return s.triScore !== null && s.triScore !== undefined ? (s.triScore as number) : s.percentual;
+  }, []);
+
   const sortedStudents = useMemo(() => {
     if (!data) return [];
     const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
-      list = list.filter(s => computeProficiencyStatus(s.percentual) === segmentFilter);
+      list = list.filter(s => computeProficiencyStatus(getScoreFor(s)) === segmentFilter);
     }
     list.sort((a, b) => {
       let cmp = 0;
+      const sa = getScoreFor(a);
+      const sb = getScoreFor(b);
       if (sortKey === 'nome') cmp = a.nome.localeCompare(b.nome);
-      else if (sortKey === 'percentual') cmp = a.percentual - b.percentual;
-      else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - a.percentual) - (PROFICIENCY_THRESHOLD - b.percentual);
+      else if (sortKey === 'percentual') cmp = sa - sb;
+      else if (sortKey === 'gap') cmp = (PROFICIENCY_THRESHOLD - sa) - (PROFICIENCY_THRESHOLD - sb);
       else if (sortKey === 'semestre') cmp = a.semestre - b.semestre;
       return sortAsc ? cmp : -cmp;
     });
     return list;
-  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter]);
+  }, [data, debouncedQuery, sortKey, sortAsc, segmentFilter, getScoreFor]);
 
   const sortedTemas = useMemo(() => {
     const q = debouncedQuery.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -185,9 +191,9 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   // Summary stats
   const totalStudents = data.allStudents.length;
-  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proficiente').length;
-  const proximos = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proximo').length;
-  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'abaixo').length;
+  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proficiente').length;
+  const proximos = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proximo').length;
+  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'abaixo').length;
 
   console.log('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
@@ -244,7 +250,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
             const count = seg.value === 'todos' ? data.allStudents.length
-              : data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === seg.value).length;
+              : data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === seg.value).length;
             return (
               <Button
                 key={seg.value}
@@ -268,7 +274,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
         <span>Ordenar por:</span>
         {subView === 'alunos' ? (
           <>
-            <SortButton label="Acerto" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
+            <SortButton label="Score TRI" active={sortKey === 'percentual'} asc={sortAsc} onClick={() => toggleSort('percentual')} />
             <SortButton label="Gap" active={sortKey === 'gap'} asc={sortAsc} onClick={() => toggleSort('gap')} />
             <SortButton label="Nome" active={sortKey === 'nome'} asc={sortAsc} onClick={() => toggleSort('nome')} />
             <SortButton label="Semestre" active={sortKey === 'semestre'} asc={sortAsc} onClick={() => toggleSort('semestre')} />
@@ -286,9 +292,13 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
               <p className="text-sm text-muted-foreground text-center py-8">Nenhum aluno encontrado.</p>
             ) : (
               sortedStudents.map((s, i) => {
-                const status = computeProficiencyStatus(s.percentual);
+                const score = getScoreFor(s);
+                const hasTri = s.triScore !== null && s.triScore !== undefined;
+                const status = computeProficiencyStatus(score);
                 const cfg = getStatusConfig(status);
-                const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - s.percentual) * 10) / 10;
+                const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - score) * 10) / 10;
+                const scoreLabel = hasTri ? score.toFixed(1) : `${Math.round(score)}%`;
+                const progressValue = hasTri ? Math.min(100, (score / PROFICIENCY_THRESHOLD) * 100) : score;
                 return (
                   <button
                     key={`${s.nome}-${s.semestre}-${s.total}-${i}`}
@@ -306,7 +316,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                         </Badge>
                         {status === 'proximo' && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-amber-500/30 text-amber-600 dark:text-amber-400">
-                            <Zap className="h-3 w-3 mr-0.5" /> {gap}pp p/ virar
+                            <Zap className="h-3 w-3 mr-0.5" /> {gap} p/ virar
                           </Badge>
                         )}
                       </div>
@@ -314,9 +324,9 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       <div className="w-20 hidden sm:block">
-                        <Progress value={s.percentual} className="h-2" />
+                        <Progress value={progressValue} className="h-2" />
                       </div>
-                      <span className={`text-sm font-semibold w-12 text-right ${cfg.color}`}>{s.percentual}%</span>
+                      <span className={`text-sm font-semibold w-14 text-right ${cfg.color}`}>{scoreLabel}</span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </button>
