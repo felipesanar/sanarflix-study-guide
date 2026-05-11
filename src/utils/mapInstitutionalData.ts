@@ -187,10 +187,14 @@ export function mapInstitutionalRpcToViewModel(
   const distanciaPP = percentProficientes >= 90 ? 0 : Math.round(nextConceitoTarget - percentProficientes);
 
   // Alunos abaixo do esperado: derivado de num_students - num_proficient (TRI).
-  // Sem TRI → fallback à contagem por acurácia.
+  // Sem TRI snapshot → fallback à contagem por score TRI individual (ou acurácia).
+  const alunosAbaixoFallback = students.filter((s) => {
+    const ref = s.triScore !== null && s.triScore !== undefined ? s.triScore : s.percentual;
+    return ref < PROFICIENCY_THRESHOLD;
+  }).length;
   const alunosAbaixoCount = (triNumStudents !== null && triNumProficient !== null)
     ? Math.max(0, triNumStudents - triNumProficient)
-    : abaixo.length;
+    : alunosAbaixoFallback;
 
   // Taxa de adesão
   const realTotalIesUsers = totalIesUsers ?? 0;
@@ -323,10 +327,17 @@ export function mapInstitutionalRpcToViewModel(
     sancao,
   };
 
-  // Alunos abaixo sorted by proximity to threshold
-  const alunosAbaixoSorted = [...abaixo].sort(
-    (a, b) => b.percentual - a.percentual,
-  );
+  // Alunos abaixo do esperado: classificação por score TRI (resultados_alunos_tri.score_enamed).
+  // Fallback ao percentual de acertos quando não houver TRI.
+  const alunosAbaixoTri = students.filter((s) => {
+    const ref = s.triScore !== null && s.triScore !== undefined ? s.triScore : s.percentual;
+    return ref < PROFICIENCY_THRESHOLD;
+  });
+  const alunosAbaixoSorted = [...alunosAbaixoTri].sort((a, b) => {
+    const sa = a.triScore !== null && a.triScore !== undefined ? a.triScore : a.percentual;
+    const sb = b.triScore !== null && b.triScore !== undefined ? b.triScore : b.percentual;
+    return sb - sa;
+  });
 
   // ── Curricular breakdown (area → specialty → tema) ──
   const temaNodes: CurricularTemaNode[] = (performance.bySubspecialty ?? []).map((t) => ({
