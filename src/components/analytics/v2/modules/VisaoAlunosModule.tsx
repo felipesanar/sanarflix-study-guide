@@ -191,9 +191,9 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 
   // Summary stats
   const totalStudents = data.allStudents.length;
-  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proficiente').length;
-  const proximos = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'proximo').length;
-  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(s.percentual) === 'abaixo').length;
+  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proficiente').length;
+  const proximos = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proximo').length;
+  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'abaixo').length;
 
   console.log('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
