@@ -154,7 +154,7 @@ function computeDistanciaFaixa(students: StudentScore[]) {
   ];
 }
 
-function computeHeader(students: StudentScore[]) {
+function computeHeader(students: StudentScore[], originalSancao: string | null = null) {
   const totalAlunos = students.length;
   const proficientes = students.filter((student) => student.percentual >= PROFICIENCY_THRESHOLD).length;
   const percentProficientes =
@@ -167,11 +167,15 @@ function computeHeader(students: StudentScore[]) {
     Math.ceil((nextTarget / 100) * Math.max(totalAlunos, 1)) - proficientes,
   );
 
+  // Sanção é institucional (vem do concept TRI) — preserva a original quando disponível;
+  // senão usa fallback legado por % proficientes.
+  const sancao = originalSancao !== null ? originalSancao : getSancao(percentProficientes);
+
   return {
     totalAlunos,
     percentProficientes,
     alunosFaltamMeta,
-    sancao: getSancao(percentProficientes),
+    sancao,
   };
 }
 
