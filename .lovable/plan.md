@@ -1,59 +1,82 @@
-# Diagnóstico — Alice Miguel (FAI) sem acesso ao Desempenho do Simulado
+## Objetivo
 
-## O que encontrei no banco
+Derivar a sanção regulatória **exclusivamente a partir do `concept`** (vindo de `resultados_ies_tri`), parando de usar as colunas `sanctions` e `is_restricted` do banco. Manter o `concept`, `pcp`, `mean_score` e `num_proficient` como única contribuição da tabela TRI.
 
-**Usuária:**
-- Nome: `Alice Miguel`
-- Email: `alicemiguel@fai.com.br` (sem ponto — a Ju digitou `alice.miguel@fai.com.br` no Slack, mas não existe esse email no banco)
-- ID: `6dfa5f73-8d32-41b3-a845-d77e5e131a02`
-- IES: FAI (`2c458bcb-98f0-4dc2-8b43-298e85298845`) ✅
-- Semestre: 11
-- **Roles em `user_roles`: NENHUMA** ❌
+## Escopo da mudança
 
-**Por isso ela não vê o Desempenho do Simulado:**
-1. No frontend, `getAccessRules` (sem role) retorna `desempenhoInstitucional: false` → o item de menu nem aparece.
-2. As RLS de `resultados_ies_tri`, `resultados_alunos_tri`, `simulados_admin`, `answer_progress` e `questoes_simulado` exigem `gestor`, `professor`, `b2b_partner` ou `admin`. Sem role, ela é tratada como aluna comum.
+Apenas frontend (mapeamento + tipos + UI que exibe a sanção). Nenhuma migração de banco, nenhuma alteração em RPCs, queries, cálculos TRI, simulador, autenticação ou layout.
 
-## Bug colateral grave (descoberto na investigação)
+## Arquivos afetados
 
-Os **6 outros docentes/coordenadores da FAI** (Alessandro/coordmed, Estevão/proensino, João Vitor Nader, Osmar, Sérgio, Valter) estão todos com a role `gestor_formal`. Mas:
+1. `src/utils/mapInstitutionalData.ts` — origem da sanção
+2. `src/services/institutional.ts` — tipagem do snapshot TRI
+3. `src/types/desempenhoV2.ts` — checar se há tipo derivado
+4. `src/utils/desempenhoV2Filters.ts` — recálculo de sanção pós-filtro
+5. `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx` — apenas verificar consumo (já lê `sancao` do header)
+6. `src/components/analytics/v2/MetaInstitucionalCard.tsx` — verificar consumo
+7. `src/components/analytics/v2/shared/AiChatDrawer.tsx` — verificar consumo
+8. `src/hooks/useInstitutionalPerformanceData.ts` — sem mudança lógica, só remoção de uso futuro de `is_restricted` se houver
 
-- A memória `mem://constraints/gestor-formal-excluido-do-desempenho-institucional` já documenta que `gestor_formal` é **excluído** das RPCs/RLS institucionais.
-- Em `accessRules.ts`, `isGestor()` aceita `gestor_formal` e libera `desempenhoInstitucional` no menu — mas as RLS do banco bloqueiam o acesso real aos dados.
+## Nova regra de mapeamento (concept → sanção)
 
-→ Provavelmente todos esses 6 docentes vivem o mesmo problema da Alice (veem a tela vazia ou erro de permissão). É a mesma queixa recorrente.
-
-## Plano
-
-### 1. Liberar acesso da Alice Miguel (correção pontual)
-
-Migration aditiva para atribuir a role `gestor` (não `gestor_formal`, que está bloqueada por RLS):
-
-```sql
-INSERT INTO public.user_roles (user_id, role)
-VALUES ('6dfa5f73-8d32-41b3-a845-d77e5e131a02', 'gestor')
-ON CONFLICT (user_id, role) DO NOTHING;
+```text
+concept = 1  → "Suspensão de novos ingressos"
+concept = 2  → "Redução de vagas"
+concept = 3  → "Proibição de aumento de vagas"
+concept >= 4 → null (sem sanção)
+concept null/ausente → fallback legado por % proficientes (getSancao atual)
 ```
 
-Após isso ela passa a ver o item "Desempenho Institucional" no menu e os dados da FAI carregam normalmente (RLS ok).
+Essa regra substitui a leitura direta de `triSanctions`. O fallback legado por % proficientes só é usado quando o `concept` não está disponível, garantindo retrocompatibilidade.
 
-### 2. Corrigir bug estrutural dos `gestor_formal` (correção global)
+## Passos
 
-Duas opções (escolha sua):
+### Passo 1 — Criar `getSancaoFromConcept(concept)` em `mapInstitutionalData.ts`
+Função pura que recebe o `concept` numérico e devolve string ou `null` conforme a tabela acima.
 
-- **(A) Promover todos os `gestor_formal` para `gestor`** — uma única migration aditiva (`INSERT … SELECT user_id, 'gestor' FROM user_roles WHERE role = 'gestor_formal' ON CONFLICT DO NOTHING`). Mantém `gestor_formal` para auditoria, mas garante acesso real. Resolve FAI inteira e qualquer outra IES afetada.
-- **(B) Incluir `gestor_formal` nas RLS institucionais** — alterar policies de `resultados_ies_tri`, `resultados_alunos_tri`, `simulados_admin`, `answer_progress`, `questoes_simulado` para aceitar `gestor_formal` também. Mais invasivo, contraria a memória existente, e exige reescrever várias RPCs.
+### Passo 2 — Substituir uso de `triSanctions` no mapper
+Em `mapInstitutionalRpcToViewModel`:
+- Remover a leitura `const triSanctions = triSnapshot?.sanctions ?? null;`
+- Remover a derivação atual:
+  ```ts
+  const sancao = hasTri
+    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
+    : getSancao(percentProficientes);
+  ```
+- Substituir por:
+  ```ts
+  const sancao = (hasTri && triConceptNota !== null)
+    ? getSancaoFromConcept(triConceptNota)
+    : getSancao(percentProficientes);
+  ```
+- Adicionar logs temporários conforme solicitado:
+  ```ts
+  console.log('[TRI] Concept loaded:', triConceptNota);
+  console.log('[TRI] Regulatory status derived from concept:', sancao);
+  ```
 
-Recomendo **(A)**: é aditivo, reversível, não toca em RLS/RPC, e alinha com a memória atual. Também alinha o frontend (que já trata os dois como gestores no menu).
+### Passo 3 — Limpar tipo (opcional, seguro)
+Em `src/services/institutional.ts`:
+- Manter os campos `sanctions` e `is_restricted` no tipo `InstitutionalTriSnapshot` (a RPC ainda retorna), mas **não consumi-los** em lugar nenhum. Isso preserva compatibilidade com o tipo do retorno da RPC sem tocar no banco.
 
-### 3. Não-mexer
+### Passo 4 — Ajustar `desempenhoV2Filters.ts`
+Verificar se há um recálculo paralelo de `sancao` ao aplicar filtros (memória do projeto indica que sim, via heurística por % proficientes). Substituir essa heurística para preservar o `sancao` derivado pelo `concept` quando o conceito estiver disponível no view-model original; caso contrário, manter o fallback por % proficientes existente.
 
-- Não há mudança em código frontend necessária.
-- Não há alteração em RLS.
-- Nenhum dado é deletado (todas as operações são `INSERT … ON CONFLICT DO NOTHING`).
+### Passo 5 — Verificação de consumidores
+- `InstitutionalAlertBanner` lê `sancao` do `headerSummary` → já compatível.
+- `MetaInstitucionalCard` lê `sancaoRegulatoriaLabel` do `meta` → já compatível.
+- `AiChatDrawer` lê `headerSummary.sancao` → já compatível.
+Nenhum desses precisa de mudança funcional além do que vier naturalmente do mapper.
 
-## Perguntas antes de migrar
+### Passo 6 — Validação
+- Buscar com `rg` por usos remanescentes de `triSanctions`, `is_restricted` e `sanctions` em `src/` para garantir que nenhum consumidor depende deles.
+- Conferir build TypeScript (sem editar `types.ts`).
+- Validar visualmente no `/desempenho-institucional` que a faixa do banner muda conforme o `concept` (1→crítico, 4–5→sem sanção).
 
-1. Confirma que o email correto é `alicemiguel@fai.com.br` (sem ponto)?
-2. Quer apenas a correção pontual da Alice (passo 1) ou já incluo a correção global dos 6 `gestor_formal` da FAI (passo 2A)?
-3. Se incluir o passo 2A, aplico **só na FAI** ou em **todas as IES** que tenham `gestor_formal`?
+## Critérios de sucesso
+
+- `triSnapshot.sanctions` e `triSnapshot.is_restricted` não são lidos em lugar nenhum do `src/`.
+- A sanção exibida (banner, meta card, IA, export) vem 100% do `concept` quando ele existe.
+- Fallback por % proficientes preservado quando `concept` é nulo.
+- Nenhum visual, layout, cálculo TRI, RPC ou tabela alterado.
+- Sem erros de TypeScript ou console.
