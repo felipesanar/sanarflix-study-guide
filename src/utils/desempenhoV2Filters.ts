@@ -239,7 +239,7 @@ export function applyDesempenhoV2Filters(
   const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
   const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
-  const filteredHeader = computeHeader(filteredAllStudents);
+  const filteredHeader = computeHeader(filteredAllStudents, data.headerSummary?.sancao ?? null);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
   const filteredKpis = updateKpis(data, filteredAllStudents);
