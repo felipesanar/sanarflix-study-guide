@@ -117,14 +117,20 @@ function computeFaixas(students: StudentScore[]) {
 }
 
 function computeDistanciaFaixa(students: StudentScore[]) {
-  const abaixo = students.filter((student) => student.percentual < PROFICIENCY_THRESHOLD);
-  const proximos = abaixo.filter((student) => student.percentual >= PROFICIENCY_THRESHOLD - 10).length;
-  const moderados = abaixo.filter(
-    (student) =>
-      student.percentual >= PROFICIENCY_THRESHOLD - 20 &&
-      student.percentual < PROFICIENCY_THRESHOLD - 10,
-  ).length;
-  const criticos = abaixo.filter((student) => student.percentual < PROFICIENCY_THRESHOLD - 20).length;
+  // Classificação EXCLUSIVA por score TRI (resultados_alunos_tri.score_proprio).
+  // Distância = 60 - score_proprio. Alunos sem TRI são ignorados.
+  const abaixo = students.filter(
+    (student) => student.triScore !== null && student.triScore !== undefined && (student.triScore as number) < PROFICIENCY_THRESHOLD,
+  );
+  let proximos = 0;
+  let moderados = 0;
+  let criticos = 0;
+  abaixo.forEach((student) => {
+    const dist = Math.round(PROFICIENCY_THRESHOLD - (student.triScore as number));
+    if (dist <= 10) proximos++;
+    else if (dist <= 20) moderados++;
+    else criticos++;
+  });
 
   return [
     {
