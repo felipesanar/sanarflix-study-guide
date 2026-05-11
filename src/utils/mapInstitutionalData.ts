@@ -187,7 +187,7 @@ export function mapInstitutionalRpcToViewModel(
   const distanciaPP = percentProficientes >= 90 ? 0 : Math.round(nextConceitoTarget - percentProficientes);
 
   // Alunos abaixo do esperado: contabiliza EXCLUSIVAMENTE alunos com
-  // resultados_alunos_tri.score_enamed < 60. Alunos sem TRI são ignorados
+  // resultados_alunos_tri.score_proprio < 60. Alunos sem TRI são ignorados
   // para garantir consistência entre o card e a tabela expandida.
   const alunosAbaixoStrict = students.filter(
     (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
@@ -326,7 +326,7 @@ export function mapInstitutionalRpcToViewModel(
   };
 
   // Alunos abaixo do esperado: classificação EXCLUSIVA por score TRI
-  // (resultados_alunos_tri.score_enamed < 60). Alunos sem TRI não entram.
+  // (resultados_alunos_tri.score_proprio < 60). Alunos sem TRI não entram.
   const alunosAbaixoSorted = [...alunosAbaixoStrict].sort((a, b) => {
     const sa = a.triScore as number;
     const sb = b.triScore as number;
