@@ -149,8 +149,8 @@ export function mapInstitutionalRpcToViewModel(
   const triMeanScore = triSnapshot?.mean_score ?? null;
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
-  const triConceptNota = triSnapshot?.concept ?? null;
-  const triSanctions = triSnapshot?.sanctions ?? null;
+  // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
+  // A sanção é derivada do `concept` (lógica legada por conceito), não do banco.
 
   const percentProficientes = hasTri && triPercentProficientes !== null
     ? triPercentProficientes
@@ -166,9 +166,12 @@ export function mapInstitutionalRpcToViewModel(
     ? conceitoFromNota(triConceptNota)
     : conceitoFromAccuracy;
 
-  const sancao = hasTri
-    ? (triSanctions && triSanctions.trim().length > 0 ? triSanctions : null)
+  const sancao = (hasTri && triConceptNota !== null)
+    ? getSancaoFromConcept(triConceptNota)
     : getSancao(percentProficientes);
+
+  console.log('[TRI] Concept loaded:', triConceptNota);
+  console.log('[TRI] Regulatory status derived from concept:', sancao);
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
   const conceitoThresholds = [40, 60, 75, 90];
