@@ -144,7 +144,36 @@ export async function fetchInstitutionalTriEvolution(
   }
 }
 
-// ── Phase 4: Longitudinal evolution & individual growth (TRI) ──
+// ── Per-student TRI scores for a given simulado ──
+
+export interface StudentTriScore {
+  student_id: string;
+  score_enamed: number | null;
+  is_proficient_enamed: boolean | null;
+}
+
+export async function fetchStudentTriScores(
+  simuladoId: string,
+  iesId: string,
+): Promise<StudentTriScore[]> {
+  try {
+    const { data, error } = await supabase
+      .from('resultados_alunos_tri')
+      .select('student_id, score_enamed, is_proficient_enamed')
+      .eq('simulado_id', simuladoId)
+      .eq('college_id', iesId);
+    if (error) {
+      console.warn('[TRI] fetchStudentTriScores failed:', error.message);
+      return [];
+    }
+    return (data ?? []) as StudentTriScore[];
+  } catch (err) {
+    console.warn('[TRI] fetchStudentTriScores error:', err);
+    return [];
+  }
+}
+
+
 
 export interface InstitutionalLongitudinalEntry {
   simulado_id: string;
