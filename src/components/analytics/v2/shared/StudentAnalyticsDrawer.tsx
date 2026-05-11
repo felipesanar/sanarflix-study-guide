@@ -150,29 +150,25 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
 
   const status = computeProficiencyStatus(student.percentual);
   const statusBadge = getStatusBadge(status);
-  const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - student.percentual) * 10) / 10;
+  const triScore = student.triScore;
+  const hasTri = triScore !== null && triScore !== undefined;
+  const triGap = hasTri ? Math.round(Math.max(0, PROFICIENCY_THRESHOLD - (triScore as number)) * 10) / 10 : null;
   const indicators = buildPedagogicalIndicators(student, data.curricular.areas);
   const recommendation = buildRecommendation(status);
 
-  // Build area performance
+  // Build area performance (sempre por % de acertos)
   const areaPerformance = data.curricular.areas.map(a => ({
     name: a.name,
     percentual: student.scoresByArea[a.name] ?? a.percentual,
   })).sort((a, b) => a.percentual - b.percentual);
 
-  // Build all temas for critical/opportunity
+  // Build all temas for critical/opportunity (sempre por % de acertos)
   const allTemas: { name: string; area: string; specialty: string; percentual: number }[] = [];
   data.curricular.areas.forEach(a => a.specialties.forEach(sp => sp.temas.forEach(t => {
     allTemas.push({ name: t.name, area: a.name, specialty: sp.name, percentual: t.percentual });
   })));
   const criticalTemas = allTemas.filter(t => t.percentual < 50).sort((a, b) => a.percentual - b.percentual).slice(0, 5);
   const opportunityTemas = allTemas.filter(t => t.percentual >= 55 && t.percentual < 65).sort((a, b) => b.percentual - a.percentual).slice(0, 5);
-
-  // Evolution from mock data (simulated)
-  const evolution = data.evolucao?.map((e, i) => ({
-    simulado: e.simulado,
-    score: Math.max(30, student.percentual - (data.evolucao.length - i - 1) * (2 + Math.random() * 3)),
-  })) ?? [];
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
