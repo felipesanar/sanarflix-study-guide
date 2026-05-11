@@ -149,8 +149,10 @@ export function mapInstitutionalRpcToViewModel(
   const triMeanScore = triSnapshot?.mean_score ?? null;
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
+  const triConceptNota = triSnapshot?.concept ?? null;
   // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
   // A sanção é derivada do `concept` (lógica legada por conceito), não do banco.
+
 
   const percentProficientes = hasTri && triPercentProficientes !== null
     ? triPercentProficientes
