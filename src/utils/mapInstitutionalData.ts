@@ -102,7 +102,7 @@ export function mapInstitutionalRpcToViewModel(
     ? Math.round((overallStats.acertos / overallStats.total) * 100 * 10) / 10
     : 0;
 
-  const hasTri = !!triSnapshot && triSnapshot.mean_score !== null && triSnapshot.mean_score !== undefined;
+  
 
   // Map students
   const students: StudentScore[] = studentScores.students.map((s) => ({
