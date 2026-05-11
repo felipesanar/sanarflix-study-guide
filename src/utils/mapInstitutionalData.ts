@@ -105,7 +105,7 @@ export function mapInstitutionalRpcToViewModel(
 
   const triScoreById = new Map<string, number | null>();
   (studentTriScores ?? []).forEach((row) => {
-    if (row.student_id) triScoreById.set(row.student_id, row.score_enamed);
+    if (row.student_id) triScoreById.set(row.student_id, row.score_proprio);
   });
 
   // Map students
