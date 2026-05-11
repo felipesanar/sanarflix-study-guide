@@ -180,51 +180,21 @@ function computeHeader(students: StudentScore[], originalSancao: string | null =
 }
 
 function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
-  const header = computeHeader(students, base.headerSummary?.sancao ?? null);
-  const acuraciaMedia =
-    students.length > 0
-      ? Math.round(
-          (students.reduce((sum, student) => sum + student.percentual, 0) / students.length) * 10,
-        ) / 10
-      : 0;
-  const abaixo = students.filter((student) => student.percentual < PROFICIENCY_THRESHOLD);
-
-  // Conceito thresholds for distância p.p.
-  const conceitoThresholds = [40, 60, 75, 90];
-  const nextConceitoTarget = conceitoThresholds.find((t) => header.percentProficientes < t) ?? 100;
-  const distanciaPP = header.percentProficientes >= 90 ? 0 : Math.round((nextConceitoTarget - header.percentProficientes) * 10) / 10;
-
   // Percentual de acertos from filtered students
   const totalQuestoes = students.reduce((sum, s) => sum + s.total, 0);
   const totalAcertos = students.reduce((sum, s) => sum + s.acertos, 0);
   const percentualAcertos = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 1000) / 10 : 0;
 
+  // KPIs derivados de TRI (Proficiência Média, Alunos Proficientes, Nota Prevista,
+  // Distância Próxima Faixa, Alunos Abaixo do Esperado) são institucionais e
+  // vêm exclusivamente da tabela `resultados_ies_tri`. Não são recalculados
+  // a partir do recorte de alunos filtrados — preservamos os valores originais.
   return base.kpis.map((kpi) => {
     if (kpi.label === 'Total de Alunos') {
-      return { ...kpi, value: header.totalAlunos, description: 'Alunos no recorte aplicado' };
+      return { ...kpi, value: students.length, description: 'Alunos no recorte aplicado' };
     }
     if (kpi.label === 'Percentual de Acertos') {
       return { ...kpi, value: `${percentualAcertos}%`, description: `${totalAcertos} acertos de ${totalQuestoes} questões aplicadas` };
-    }
-    if (kpi.label === 'Proficiência Média (TRI)') {
-      return { ...kpi, value: Math.round(acuraciaMedia) };
-    }
-    if (kpi.label === 'Alunos Proficientes') {
-      return {
-        ...kpi,
-        value: `${header.percentProficientes}%`,
-        description: `${header.totalAlunos - abaixo.length} de ${header.totalAlunos} alunos`,
-      };
-    }
-    if (kpi.label === 'Distância Próxima Faixa') {
-      return {
-        ...kpi,
-        value: header.percentProficientes >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`,
-        description: 'Distância para alcançar a próxima faixa de conceito',
-      };
-    }
-    if (kpi.label === 'Alunos Abaixo do Esperado') {
-      return { ...kpi, value: abaixo.length, description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts` };
     }
     return kpi;
   });
