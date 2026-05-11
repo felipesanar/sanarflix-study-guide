@@ -65,14 +65,24 @@ function buildPedagogicalIndicators(
   student: StudentScore,
   _areas: CurricularAreaNode[],
 ): PedagogicalIndicator[] {
-  const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
   const indicators: PedagogicalIndicator[] = [];
 
-  indicators.push({
-    label: 'Gap p/ proficiência',
-    value: gap > 0 ? `${gap.toFixed(1)} pts` : 'Atingido',
-    tone: gap > 0 ? 'attention' : 'good',
-  });
+  // Gap p/ proficiência derivado do score TRI quando disponível
+  const triScore = student.triScore;
+  if (triScore !== null && triScore !== undefined) {
+    const triGap = Math.max(0, PROFICIENCY_THRESHOLD - triScore);
+    indicators.push({
+      label: 'Gap p/ proficiência',
+      value: triGap > 0 ? `${triGap.toFixed(1)} pts` : 'Atingido',
+      tone: triGap > 0 ? 'attention' : 'good',
+    });
+  } else {
+    indicators.push({
+      label: 'Gap p/ proficiência',
+      value: 'Score TRI indisponível',
+      tone: 'neutral',
+    });
+  }
 
   indicators.push({
     label: 'Percentual de acertos',
@@ -80,7 +90,7 @@ function buildPedagogicalIndicators(
     tone: student.percentual >= 60 ? 'good' : student.percentual >= 50 ? 'neutral' : 'attention',
   });
 
-  // Top 2 weakest areas
+  // Top 2 weakest areas (by % de acertos)
   const weakAreas = Object.entries(student.scoresByArea)
     .sort(([, a], [, b]) => a - b)
     .slice(0, 2);
