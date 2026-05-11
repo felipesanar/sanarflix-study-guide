@@ -591,44 +591,6 @@ export type Database = {
           },
         ]
       }
-      dim_questoes_tri: {
-        Row: {
-          difficulty_b: number | null
-          flag_reason: string | null
-          infit: number | null
-          is_flagged: number | null
-          item_id: string
-          outfit: number | null
-          std_error: number | null
-        }
-        Insert: {
-          difficulty_b?: number | null
-          flag_reason?: string | null
-          infit?: number | null
-          is_flagged?: number | null
-          item_id?: string
-          outfit?: number | null
-          std_error?: number | null
-        }
-        Update: {
-          difficulty_b?: number | null
-          flag_reason?: string | null
-          infit?: number | null
-          is_flagged?: number | null
-          item_id?: string
-          outfit?: number | null
-          std_error?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_dim_questoes_simulado"
-            columns: ["item_id"]
-            isOneToOne: true
-            referencedRelation: "questoes_simulado"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       error_notebook_entries: {
         Row: {
           created_at: string
