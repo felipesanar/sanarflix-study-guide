@@ -177,7 +177,9 @@ export function applyDesempenhoV2Filters(
   if (!data) return null;
 
   const filteredAllStudents = applyStudentFilters(data.allStudents, filters);
-  const filteredAbaixo = filteredAllStudents.filter(s => s.percentual < PROFICIENCY_THRESHOLD);
+  const filteredAbaixo = filteredAllStudents.filter(
+    (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
+  );
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
