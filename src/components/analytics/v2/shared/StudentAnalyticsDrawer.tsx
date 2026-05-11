@@ -241,26 +241,6 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
 
           <Separator />
 
-          {/* Evolution */}
-          {evolution.length > 0 && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                <BarChart3 className="h-4 w-4" /> Evolução entre Simulados
-              </h4>
-              <div className="space-y-2">
-                {evolution.map((e, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-xs w-24 truncate text-muted-foreground">{e.simulado}</span>
-                    <Progress value={e.score} className="h-2 flex-1" />
-                    <span className={`text-xs font-medium w-10 text-right ${e.score >= PROFICIENCY_THRESHOLD ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                      {Math.round(e.score)}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Performance by area */}
           <div>
             <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
