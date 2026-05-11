@@ -231,13 +231,10 @@ export function applyDesempenhoV2Filters(
   const metaProgresso = conceitoRange > 0 ? Math.min(100, Math.round((conceitoCovered / conceitoRange) * 1000) / 10) : 100;
   const distPP = filteredHeader.percentProficientes >= 90 ? 0 : Math.round((nextTarget - filteredHeader.percentProficientes) * 10) / 10;
 
+  // Meta institucional preserva proficienciaAtual / percentProficientes / notaAtual
+  // vindos da tabela `resultados_ies_tri` — apenas status/sanção podem refletir o original.
   const meta = {
     ...data.meta,
-    proficienciaAtual: acuraciaMedia,
-    percentProficientes: filteredHeader.percentProficientes,
-    meta: nextTarget,
-    progresso: metaProgresso,
-    gapProficiencia: distPP,
     status: filteredHeader.sancao ? 'Sanção ativa' : 'Regular',
     sancaoRegulatoriaLabel: filteredHeader.sancao ?? 'Nenhuma',
   };
