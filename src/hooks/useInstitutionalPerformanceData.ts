@@ -277,7 +277,7 @@ export function useInstitutionalPerformanceData(
         throw new Error('Dados incompletos retornados pelas RPCs');
       }
 
-      const totalIesUsers = iesUsersResult.count ?? 0;
+      const totalIesUsers = (iesUsersResult.data as number | null) ?? 0;
       const viewModel = mapInstitutionalRpcToViewModel(
         perfData,
         evoData,
