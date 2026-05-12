@@ -1,53 +1,34 @@
 ## Problema
 
-O card "Taxa de Adesão" usa como denominador `count(*) from users where id_ies = X`, que inclui admins, professores, gestores, atendimento e gestor_formal. No IES atual: 116 usuários totais, mas apenas 100 são alunos.
+No dashboard institucional V2 (FAI):
+- "Total de Alunos" mostra **100** (numerador atual = `COUNT(DISTINCT user_id)` em `answer_progress` para o simulado, pelo IES, excluindo apenas `gestor_formal`).
+- "Alunos Proficientes" mostra **63% (62 de 99)** — esse 99 vem de `resultados_ies_tri.num_students`, que já trata corretamente apenas alunos.
+- "Taxa de Adesão" mostra **100% (100/100)** — incongruente com o 99 do TRI.
 
-## Como identificar "aluno"
+A causa: as RPCs `get_institutional_performance` e `get_institutional_student_scores` filtram apenas `gestor_formal`, mas contam usuários como Sérgio (`1f618ac7-…`), que tem role `gestor`. Pela convenção do projeto, **aluno = usuário sem nenhuma entrada em `user_roles`** (mesma regra já usada em `get_ies_student_count`).
 
-Não há role `aluno` no enum `app_role`. A convenção do projeto é: **aluno = usuário sem nenhuma linha em `user_roles`** (ou seja, sem nenhum papel administrativo/staff atribuído). Confirmado via consulta: na IES `2c458bcb-…` há 100 usuários sem entrada em `user_roles`, batendo com o número esperado pelo usuário ("100 alunos dos 116").
+## Mudança
 
-## Mudanças
+Migration única alterando as duas RPCs para trocar o filtro:
 
-### 1. Migration — nova RPC `get_ies_student_count`
-
-```sql
-create or replace function public.get_ies_student_count(p_ies_id uuid)
-returns integer
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select count(*)::int
-  from public.users u
-  where u.id_ies = p_ies_id
-    and not exists (
-      select 1 from public.user_roles ur where ur.user_id = u.id
-    );
-$$;
-
-grant execute on function public.get_ies_student_count(uuid) to authenticated;
+```text
+- AND NOT has_role(u.id, 'gestor_formal')
++ AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id)
 ```
 
-Aditiva, sem alterar dados existentes.
-
-### 2. `src/hooks/useInstitutionalPerformanceData.ts`
-
-Substituir a chamada atual:
-```ts
-supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId)
-```
-por:
-```ts
-supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId })
-```
-e ler o valor diretamente em `totalIesUsers` (em vez de `iesUsersResult.count`).
-
-### 3. Sem outras mudanças
-
-- O numerador (alunos que realizaram o simulado) já vem de `score_total`/`students` da RPC de performance e não inclui staff (o cálculo de proficiência/TRI já é feito sobre quem efetivamente respondeu o simulado).
-- Labels e KPIs permanecem iguais — apenas o denominador muda, então "100 dos 116" passará a exibir, ex.: "100 dos 100" (100%) na IES de teste.
+Aplicado em:
+1. `get_institutional_performance` — CTE `ies_answers` (afeta `overallStats.totalStudents`, `overallStats.total/acertos`, `bySemester`, `byArea`, `bySpecialty`, `bySubspecialty`).
+2. `get_institutional_student_scores` — bloco `students` (afeta a lista de alunos retornada e portanto `studentScores.students.length`).
 
 ## Resultado esperado
 
-Card "Taxa de Adesão" passa a mostrar "X alunos dos Y realizaram o simulado", onde Y é a contagem de alunos reais (sem staff) da IES.
+- "Total de Alunos" passa a contar apenas alunos com registro em `answer_progress` (Sérgio e quaisquer outros admin/professor/gestor/b2b/gestor_formal são excluídos) → **99** para FAI.
+- "Taxa de Adesão" → **99/100 = 99%**.
+- "Percentual de Acertos", `byArea/Especialidade/Tema` e tabelas de alunos passam a refletir somente alunos.
+- Alinha com `resultados_ies_tri.num_students` (99) e com `get_ies_student_count` (100).
+
+## Não muda
+
+- Nenhuma alteração de código frontend.
+- TRI (numerador/denominador de proficiência) já estava correto.
+- `get_ies_student_count` permanece como está (denominador da Taxa de Adesão).
