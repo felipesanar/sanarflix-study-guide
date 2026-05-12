@@ -165,5 +165,8 @@ export interface RpcStudentScoresResponse {
     score_total: number;
     total_questions: number;
     scores_by_area: Record<string, number> | null;
+    totals_by_area?: Record<string, number> | null;
+    scores_by_tema?: Record<string, number> | null;
+    totals_by_tema?: Record<string, number> | null;
   }[];
 }
