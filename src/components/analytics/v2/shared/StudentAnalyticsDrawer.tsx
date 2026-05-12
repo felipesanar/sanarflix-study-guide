@@ -191,9 +191,9 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
     .sort((a, b) => a.percentual - b.percentual)
     .slice(0, 5)
     .sort((a, b) => b.percentual - a.percentual);
-  // Oportunidade: temas abaixo de 60%, top 5 mais próximos de 60%, ordem decrescente
+  // Oportunidade: temas com acerto > 0 e abaixo de 60%, até 5 mais próximos de 60%, ordem decrescente
   const opportunityTemas = allTemas
-    .filter(t => t.percentual < 60)
+    .filter(t => t.percentual > 0 && t.percentual < 60)
     .sort((a, b) => b.percentual - a.percentual)
     .slice(0, 5);
 
