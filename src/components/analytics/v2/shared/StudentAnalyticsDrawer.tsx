@@ -160,19 +160,42 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   const indicators = buildPedagogicalIndicators(student, data.curricular.areas);
   const recommendation = buildRecommendation(status);
 
-  // Build area performance (sempre por % de acertos)
-  const areaPerformance = data.curricular.areas.map(a => ({
-    name: a.name,
-    percentual: student.scoresByArea[a.name] ?? a.percentual,
-  })).sort((a, b) => a.percentual - b.percentual);
+  // Build area performance (% de acertos do aluno na área = acertos/total no simulado)
+  const areaPerformance = Object.entries(student.totalsByArea ?? {})
+    .filter(([, total]) => total > 0)
+    .map(([name, total]) => {
+      const acertos = student.scoresByArea?.[name] ?? 0;
+      return { name, percentual: Math.round((acertos / total) * 100) };
+    })
+    .sort((a, b) => b.percentual - a.percentual);
 
-  // Build all temas for critical/opportunity (sempre por % de acertos)
-  const allTemas: { name: string; area: string; specialty: string; percentual: number }[] = [];
+  // Lookup area name por tema (apenas para rótulo de subtítulo)
+  const temaToArea = new Map<string, string>();
   data.curricular.areas.forEach(a => a.specialties.forEach(sp => sp.temas.forEach(t => {
-    allTemas.push({ name: t.name, area: a.name, specialty: sp.name, percentual: t.percentual });
+    temaToArea.set(t.name, a.name);
   })));
-  const criticalTemas = allTemas.filter(t => t.percentual < 50).sort((a, b) => a.percentual - b.percentual).slice(0, 5);
-  const opportunityTemas = allTemas.filter(t => t.percentual >= 55 && t.percentual < 65).sort((a, b) => b.percentual - a.percentual).slice(0, 5);
+
+  // Temas: % de acertos do aluno no tema = acertos_aluno / total_tema_no_simulado
+  const allTemas: { name: string; area: string; percentual: number }[] = [];
+  Object.entries(student.totalsByTema ?? {}).forEach(([name, total]) => {
+    if (!total || total <= 0) return;
+    const acertos = student.scoresByTema?.[name] ?? 0;
+    allTemas.push({
+      name,
+      area: temaToArea.get(name) ?? '',
+      percentual: Math.round((acertos / total) * 100),
+    });
+  });
+  // Críticos: 5 menores percentuais → exibidos em ordem decrescente
+  const criticalTemas = [...allTemas]
+    .sort((a, b) => a.percentual - b.percentual)
+    .slice(0, 5)
+    .sort((a, b) => b.percentual - a.percentual);
+  // Oportunidade: temas abaixo de 60%, top 5 mais próximos de 60%, ordem decrescente
+  const opportunityTemas = allTemas
+    .filter(t => t.percentual < 60)
+    .sort((a, b) => b.percentual - a.percentual)
+    .slice(0, 5);
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
