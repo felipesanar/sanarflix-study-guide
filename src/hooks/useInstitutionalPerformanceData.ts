@@ -267,7 +267,7 @@ export function useInstitutionalPerformanceData(
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
-        supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId),
+        supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId }),
         fetchInstitutionalTri(filters.simuladoId, targetIesId),
         fetchInstitutionalTriEvolution(targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
