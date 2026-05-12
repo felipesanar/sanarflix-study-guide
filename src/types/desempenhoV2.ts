@@ -110,6 +110,12 @@ export interface StudentScore {
   total: number;
   percentual: number;
   scoresByArea: Record<string, number>;
+  /** Total questions per area in the simulado (excluding annulled) */
+  totalsByArea: Record<string, number>;
+  /** Student hits per tema in the simulado */
+  scoresByTema: Record<string, number>;
+  /** Total questions per tema in the simulado (excluding annulled) */
+  totalsByTema: Record<string, number>;
   /** TRI score (score_proprio) from resultados_alunos_tri, when available */
   triScore?: number | null;
 }
@@ -159,5 +165,8 @@ export interface RpcStudentScoresResponse {
     score_total: number;
     total_questions: number;
     scores_by_area: Record<string, number> | null;
+    totals_by_area?: Record<string, number> | null;
+    scores_by_tema?: Record<string, number> | null;
+    totals_by_tema?: Record<string, number> | null;
   }[];
 }

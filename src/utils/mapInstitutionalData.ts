@@ -117,6 +117,9 @@ export function mapInstitutionalRpcToViewModel(
     total: s.total_questions,
     percentual: s.total_questions > 0 ? Math.round((s.score_total / s.total_questions) * 1000) / 10 : 0,
     scoresByArea: s.scores_by_area ?? {},
+    totalsByArea: s.totals_by_area ?? {},
+    scoresByTema: s.scores_by_tema ?? {},
+    totalsByTema: s.totals_by_tema ?? {},
     triScore: s.student_id ? triScoreById.get(s.student_id) ?? null : null,
   }));
 

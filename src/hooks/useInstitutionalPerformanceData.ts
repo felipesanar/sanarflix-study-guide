@@ -45,6 +45,9 @@ function getMockViewModel(): InstitutionalViewModel {
     total: 100,
     percentual: a.percentualAcerto,
     scoresByArea: {},
+    totalsByArea: {},
+    scoresByTema: {},
+    totalsByTema: {},
   }));
 
   return {
