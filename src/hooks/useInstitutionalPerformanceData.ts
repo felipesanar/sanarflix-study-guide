@@ -267,7 +267,7 @@ export function useInstitutionalPerformanceData(
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
-        supabase.from('users').select('id', { count: 'exact', head: true }).eq('id_ies', targetIesId),
+        supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId }),
         fetchInstitutionalTri(filters.simuladoId, targetIesId),
         fetchInstitutionalTriEvolution(targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
@@ -277,7 +277,7 @@ export function useInstitutionalPerformanceData(
         throw new Error('Dados incompletos retornados pelas RPCs');
       }
 
-      const totalIesUsers = iesUsersResult.count ?? 0;
+      const totalIesUsers = (iesUsersResult.data as number | null) ?? 0;
       const viewModel = mapInstitutionalRpcToViewModel(
         perfData,
         evoData,
