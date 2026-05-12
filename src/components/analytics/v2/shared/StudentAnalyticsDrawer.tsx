@@ -90,16 +90,20 @@ function buildPedagogicalIndicators(
     tone: student.percentual >= 60 ? 'good' : student.percentual >= 50 ? 'neutral' : 'attention',
   });
 
-  // Top 2 weakest areas (by % de acertos)
-  const weakAreas = Object.entries(student.scoresByArea)
-    .sort(([, a], [, b]) => a - b)
-    .slice(0, 2);
+  // Top 2 weakest areas (por % de acertos do aluno na área)
+  const areaPcts: { name: string; pct: number }[] = [];
+  Object.entries(student.totalsByArea ?? {}).forEach(([name, total]) => {
+    if (!total || total <= 0) return;
+    const acertos = student.scoresByArea?.[name] ?? 0;
+    areaPcts.push({ name, pct: Math.round((acertos / total) * 100) });
+  });
+  const weakAreas = areaPcts.sort((a, b) => a.pct - b.pct).slice(0, 2);
 
-  weakAreas.forEach(([name, value], idx) => {
+  weakAreas.forEach(({ name, pct }, idx) => {
     indicators.push({
       label: idx === 0 ? 'Área de menor desempenho' : 'Segunda área de menor desempenho',
-      value: `${name} (${Math.round(value)}%)`,
-      tone: value < 50 ? 'attention' : 'neutral',
+      value: `${name} (${pct}%)`,
+      tone: pct < 50 ? 'attention' : 'neutral',
     });
   });
 
