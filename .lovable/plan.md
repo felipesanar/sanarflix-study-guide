@@ -1,52 +1,62 @@
-## Problema
+## Objetivo
+Corrigir os números mostrados no drawer "Visão de Alunos" (`StudentAnalyticsDrawer`) para que **Desempenho por Área**, **Temas Críticos** e **Temas de Oportunidade** reflitam o desempenho **individual do aluno** no simulado selecionado, com as fórmulas e ordenações pedidas.
 
-Os 3 cards "Próximos de avançar / Distância moderada / Muito abaixo" continuam sendo calculados a partir do **percentual de acertos** dos alunos, e não do **score TRI (`resultados_alunos_tri.score_proprio`)**. Por isso, mesmo após termos corrigido a contagem do KPI "Alunos Abaixo do Esperado", o total dos 3 cards (28 + 12 + 12 = 52) não bate com os 37 alunos abaixo do esperado da FAI, e a distribuição entre faixas está incorreta.
+## Comportamento esperado
 
-A causa está em dois lugares:
+**Desempenho por Área** (uma barra por área)
+- `% área = acertos do aluno na área ÷ total de questões da área no simulado × 100`
+- "Total de questões da área" = nº de questões da área naquele simulado (constante para todos os alunos), **excluindo questões anuladas**.
+- Ordenação: **decrescente** por percentual.
 
-1. `src/utils/mapInstitutionalData.ts` — bloco `distanciaFaixa` (linhas ~298–318) faz `s.percentual >= PROFICIENCY_THRESHOLD - 10` etc. usando o `percentual` de acertos, não o `triScore`.
-2. `src/utils/desempenhoV2Filters.ts` — função `computeDistanciaFaixa` (linhas ~119–149) refaz o mesmo cálculo por `student.percentual` quando os filtros são aplicados.
+**Temas Críticos** (até 5 temas)
+- `% tema = acertos do aluno no tema ÷ total de questões do tema no simulado × 100` (anuladas excluídas).
+- Mostrar os **5 temas com menor %** do aluno.
+- Ordenação final: **decrescente** por percentual (ou seja, do menos pior para o pior dentro do top 5 — conforme pedido).
 
-Como a fonte verdadeira é `resultados_alunos_tri.score_proprio` (já carregado em `StudentScore.triScore`), as faixas devem ser derivadas dele, e alunos sem TRI devem ser ignorados — exatamente como já fizemos para o card "Alunos Abaixo do Esperado".
+**Temas de Oportunidade** (até 5 temas)
+- Mesma fórmula por aluno/tema.
+- Critério: temas com `% < 60` (ainda não proficientes) — top 5 **mais próximos de 60%**.
+- Ordenação final: **decrescente** por percentual.
 
-## Regra de classificação acordada
+Apenas temas em que o aluno respondeu pelo menos 1 questão entram nos rankings de Críticos/Oportunidade.
 
-Universo: apenas alunos com `triScore != null` **e** `triScore < 60` (mesma base do card "Alunos Abaixo do Esperado", garantindo soma consistente).
+## Mudanças técnicas
 
-Distância até a proficiência = `60 - score_proprio` (arredondada como inteiro, conforme já é feito no drawer).
+### 1) RPC `get_institutional_student_scores` (migração aditiva)
+Estender o JSON retornado por aluno para incluir:
+- `totals_by_area: { [area]: total_questoes_area_no_simulado }` — igual para todos os alunos, mas devolvido por aluno por simplicidade de consumo.
+- `scores_by_tema: { [tema]: acertos_aluno_no_tema }`
+- `totals_by_tema: { [tema]: total_questoes_tema_no_simulado }`
 
-Faixas (intervalos `0–10`, `11–20`, `>20`):
+Filtros mantidos:
+- `q.anulada = false` em todas as agregações (Áreas e Temas), conforme regra de "questões anuladas excluídas".
+- Exclusão de `gestor_formal` mantida.
+- `scores_by_area` (acertos) preservado por compatibilidade.
 
-- **Próximos de avançar (até 10 pts)**: `distancia <= 10`
-- **Distância moderada (10–20 pts)**: `distancia >= 11 && distancia <= 20`
-- **Muito abaixo (>20 pts)**: `distancia > 20`
+### 2) Tipos `src/types/desempenhoV2.ts`
+- `RpcStudentScoresResponse.students[*]`: adicionar `totals_by_area`, `scores_by_tema`, `totals_by_tema` (todos `Record<string, number> | null`).
+- `StudentScore`: adicionar `totalsByArea`, `scoresByTema`, `totalsByTema` (mesmos `Record<string, number>`).
 
-Garantia: a soma das 3 faixas == total do card "Alunos Abaixo do Esperado".
+### 3) `src/utils/mapInstitutionalData.ts`
+- Mapear os novos campos do RPC para `StudentScore`.
 
-## Mudanças
+### 4) `src/components/analytics/v2/shared/StudentAnalyticsDrawer.tsx`
+Substituir as construções atuais de `areaPerformance`, `criticalTemas`, `opportunityTemas`:
 
-### 1. `src/utils/mapInstitutionalData.ts`
+- **Áreas**: iterar `student.totalsByArea`. Para cada `area`, `pct = round((scoresByArea[area] ?? 0) / total * 100)` quando `total > 0`. Ordenar **desc**.
+- **Temas**: iterar `student.totalsByTema`. Calcular `pct` por tema (apenas onde `total > 0`).
+  - `criticalTemas`: pegar os 5 menores → ordenar **desc** por `pct` para exibição.
+  - `opportunityTemas`: filtrar `pct < 60`, pegar os 5 maiores → ordenar **desc**.
+- A fonte do nome da área para temas pode usar um lookup auxiliar a partir de `data.curricular.areas` (procurar `tema.name → area.name`) só para o rótulo "área" exibido no item. Se não encontrado, omitir o subtítulo.
 
-Substituir o bloco `distanciaFaixa` (linhas 298–318) para classificar a partir de `alunosAbaixoStrict` (já filtrado por `triScore < 60`), usando `Math.round(60 - triScore)` como distância e os limites `<=10`, `11–20`, `>20`.
-
-### 2. `src/utils/desempenhoV2Filters.ts`
-
-Reescrever `computeDistanciaFaixa(students)` para:
-
-- Filtrar `students` com `triScore != null && triScore < 60`.
-- Calcular `distancia = Math.round(60 - triScore)` por aluno.
-- Aplicar os mesmos cortes `<=10`, `11–20`, `>20`.
-- Atualizar a chamada em `applyDesempenhoV2Filters` para passar o conjunto correto (continua sendo `filteredAllStudents`, pois os filtros de semestre/área devem afetar essas faixas também).
-
-### 3. Verificação
-
-- Abrir `/desempenho-institucional-v2` na FAI no simulado atual e confirmar:
-  - Soma dos 3 cards == 37 (mesmo número de "Alunos Abaixo do Esperado").
-  - "Muito abaixo" = 7 (contagem manual do usuário).
-- Conferir no console do navegador (`[DesempenhoV2:Mapper]`) que não há regressão em outros KPIs.
+Indicadores pedagógicos (`buildPedagogicalIndicators`) que usam `student.scoresByArea` para "Área de menor desempenho" passam a usar o `pct` corrigido por área (mesma fórmula) — mantendo a consistência visual.
 
 ## Fora de escopo
+- KPIs institucionais, cards de "Distância", `VisaoAlunosModule` (lista/tabela), `InsightsPedagogicosModule`.
+- Mudanças em `get_institutional_performance` ou `get_institutional_evolution`.
+- Lógica de proficiência / Score TRI (já usa `score_proprio`).
 
-- Não alterar `KpiCardsGrid` nem o KPI "Alunos Abaixo do Esperado" (já corrigido).
-- Não mudar `FaixaDistribuicaoChart` (faixas Insuficiente/Regular/.../Excelente, baseadas em % de acertos por design — confirmado em memória).
-- Não tocar em RPCs nem em backend; toda a correção é frontend.
+## Verificação
+- Conferir manualmente para um aluno conhecido na IES FAI: somatório de acertos por área = `acertos` totais do aluno no simulado.
+- `totals_by_area` somados = total de questões não-anuladas do simulado.
+- Sanity: `criticalTemas` e `opportunityTemas` exibem percentuais entre 0–100, sem valores absurdos.
