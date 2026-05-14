@@ -103,6 +103,7 @@ export const UsersTab: React.FC = () => {
           email: singleUser.email.toLowerCase().trim(),
           id_ies: singleUser.id_ies,
           semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
+          ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role } : {}),
         },
       });
 
