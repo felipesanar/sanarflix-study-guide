@@ -27,9 +27,21 @@ interface IES {
   nome: string;
 }
 
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'aluno', label: 'Aluno (padrão)' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'gestor', label: 'Gestor' },
+  { value: 'gestor_formal', label: 'Gestor Formal' },
+  { value: 'b2b_partner', label: 'B2B Partner' },
+  { value: 'atendimento', label: 'Atendimento' },
+  { value: 'moderator', label: 'Moderator' },
+  { value: 'user', label: 'User' },
+];
+
 export const UsersTab: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
-  const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
+  const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [batchIesId, setBatchIesId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
