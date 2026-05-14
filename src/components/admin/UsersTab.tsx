@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User, XCircle } from 'lucide-react';
+import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User, XCircle, ShieldCheck } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 import { UsersListTable } from './UsersListTable';
@@ -27,9 +27,21 @@ interface IES {
   nome: string;
 }
 
+const ROLE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'aluno', label: 'Aluno (padrão)' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'professor', label: 'Professor' },
+  { value: 'gestor', label: 'Gestor' },
+  { value: 'gestor_formal', label: 'Gestor Formal' },
+  { value: 'b2b_partner', label: 'B2B Partner' },
+  { value: 'atendimento', label: 'Atendimento' },
+  { value: 'moderator', label: 'Moderator' },
+  { value: 'user', label: 'User' },
+];
+
 export const UsersTab: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
-  const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '' });
+  const [singleUser, setSingleUser] = useState({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [batchIesId, setBatchIesId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,6 +103,7 @@ export const UsersTab: React.FC = () => {
           email: singleUser.email.toLowerCase().trim(),
           id_ies: singleUser.id_ies,
           semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
+          ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role } : {}),
         },
       });
 
@@ -124,7 +137,7 @@ export const UsersTab: React.FC = () => {
       
       toast.success(actionMsg);
       addLog(`${singleUser.email}: ${actionMsg}`);
-      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
+      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
     } catch (err) {
       console.error('Create user error:', err);
       toast.error('Erro inesperado ao criar usuário');
@@ -629,6 +642,24 @@ export const UsersTab: React.FC = () => {
                 max="12"
                 className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="role" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Role
+              </Label>
+              <Select value={singleUser.role} onValueChange={(v) => setSingleUser({ ...singleUser, role: v })}>
+                <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
+                  <SelectValue placeholder="Aluno (padrão)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -39,8 +39,25 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
     .nullable()
     .optional(),
+  role: z.enum(['admin', 'moderator', 'user', 'b2b_partner', 'professor', 'gestor', 'atendimento', 'gestor_formal']).optional(),
   resend_email: z.boolean().optional(),
 });
+
+/** Grant a role in user_roles (idempotent). 'aluno' = no row. */
+async function grantRoleIfNeeded(
+  supabaseAdmin: any,
+  userId: string,
+  role: string | undefined,
+  grantedBy: string | null,
+  email: string,
+) {
+  if (!role || role === 'aluno') return;
+  const { error } = await supabaseAdmin
+    .from('user_roles')
+    .upsert({ user_id: userId, role, granted_by: grantedBy }, { onConflict: 'user_id,role' });
+  if (error) console.error(`[RBAC] Failed to grant role '${role}' to ${email}:`, error);
+  else console.log(`[RBAC] Role '${role}' granted to ${email}`);
+}
 
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
@@ -308,7 +325,7 @@ Deno.serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
-    const { nome, email, id_ies, semestre, resend_email } = validationResult.data;
+    const { nome, email, id_ies, semestre, role, resend_email } = validationResult.data;
 
     // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
@@ -378,8 +395,9 @@ Deno.serve(async (req) => {
           .from('user_roles')
           .upsert({ user_id: existingUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
         if (rErr) console.error('[RBAC] Failed to ensure admin role:', rErr);
-        else console.log(`[RBAC] Admin role ensured for B2B user: ${email}`);
       }
+
+      await grantRoleIfNeeded(supabaseAdmin, existingUser.id, role, callerUserId, email);
 
       // Resend welcome email if requested
       let emailSent = false;
@@ -455,8 +473,8 @@ Deno.serve(async (req) => {
               }
               if (id_ies === B2B_IES_ID) {
                 await supabaseAdmin.from('user_roles')
-                  .upsert({ user_id: found.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
               }
+              await grantRoleIfNeeded(supabaseAdmin, found.id, role, callerUserId, email);
               const emailOk = await sendWelcomeEmail(supabaseAdmin, found.id, nome, email).catch(() => false);
               return successResponse('updated', found.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
             }
@@ -473,8 +491,8 @@ Deno.serve(async (req) => {
             // B2B admin role
             if (id_ies === B2B_IES_ID) {
               await supabaseAdmin.from('user_roles')
-                .upsert({ user_id: authUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
             }
+            await grantRoleIfNeeded(supabaseAdmin, authUser.id, role, callerUserId, email);
             // Send welcome email (awaited for accurate status)
             const emailOk = await sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => false);
             console.log(`[CreateUser] User ${email} recovered successfully. ID: ${authUser.id}`);
@@ -513,8 +531,9 @@ Deno.serve(async (req) => {
           .from('user_roles')
           .upsert({ user_id: userId, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
         if (rErr) console.error('[RBAC] Failed to grant admin role:', rErr);
-        else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
+
+      await grantRoleIfNeeded(supabaseAdmin, userId, role, callerUserId, email);
 
       // Fix #4: Await welcome email for accurate status reporting
       let emailSent = false;

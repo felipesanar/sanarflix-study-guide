@@ -1,34 +1,34 @@
-## Problema
+## Objetivo
+Adicionar um campo "Role" (menu suspenso) na seção **Criar Usuário Individual** do Portal do Admin (`/gestao-usuarios`), permitindo definir o papel do novo usuário no momento da criação. O default é **Aluno** (nenhuma linha em `user_roles`).
 
-No dashboard institucional V2 (FAI):
-- "Total de Alunos" mostra **100** (numerador atual = `COUNT(DISTINCT user_id)` em `answer_progress` para o simulado, pelo IES, excluindo apenas `gestor_formal`).
-- "Alunos Proficientes" mostra **63% (62 de 99)** — esse 99 vem de `resultados_ies_tri.num_students`, que já trata corretamente apenas alunos.
-- "Taxa de Adesão" mostra **100% (100/100)** — incongruente com o 99 do TRI.
+## Mudanças
 
-A causa: as RPCs `get_institutional_performance` e `get_institutional_student_scores` filtram apenas `gestor_formal`, mas contam usuários como Sérgio (`1f618ac7-…`), que tem role `gestor`. Pela convenção do projeto, **aluno = usuário sem nenhuma entrada em `user_roles`** (mesma regra já usada em `get_ies_student_count`).
+### 1. Frontend — `src/components/admin/UsersTab.tsx`
+- Acrescentar `role: 'aluno'` no estado `singleUser` (linha 32) e no reset (linha 127).
+- Adicionar um novo `<Select>` ao lado de "Semestre" (mesmo padrão visual do select de Instituição), com as opções vindas do enum `app_role`:
+  - **Aluno** (valor `aluno`, default — não cria linha em `user_roles`)
+  - **Admin** (`admin`)
+  - **Professor** (`professor`)
+  - **Gestor** (`gestor`)
+  - **Gestor Formal** (`gestor_formal`)
+  - **B2B Partner** (`b2b_partner`)
+  - **Atendimento** (`atendimento`)
+  - **Moderator** (`moderator`)
+  - **User** (`user`)
+- No `handleSingleCreate`, enviar `role` no body do invoke `b2b-create-user` apenas quando diferente de `aluno`.
+- Layout: o grid atual é 2 colunas (Nome/Email, IES/Semestre). Vamos passar IES/Semestre/Role para 3 colunas em telas md+ (mantém responsivo) — apenas no segundo bloco. Sem alteração no fluxo de upload em massa.
 
-## Mudança
+### 2. Edge Function — `supabase/functions/b2b-create-user/index.ts`
+- Estender o `createUserSchema` com `role: z.enum([...app_roles]).optional()`.
+- Após criar/atualizar o usuário com sucesso, se `role` foi enviado e é diferente de `aluno`:
+  - Fazer `supabaseAdmin.from('user_roles').insert({ user_id, role })` com `onConflict: 'user_id,role'` (ignore duplicates).
+  - Logar erro mas não falhar a criação do usuário (o usuário base já está criado).
+- Se `role` ausente ou `aluno`: comportamento atual inalterado (não insere em `user_roles`).
 
-Migration única alterando as duas RPCs para trocar o filtro:
+### 3. Sem migração de banco
+A tabela `user_roles` e o enum `app_role` já existem com as roles necessárias. Não há mudanças de schema.
 
-```text
-- AND NOT has_role(u.id, 'gestor_formal')
-+ AND NOT EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = u.id)
-```
-
-Aplicado em:
-1. `get_institutional_performance` — CTE `ies_answers` (afeta `overallStats.totalStudents`, `overallStats.total/acertos`, `bySemester`, `byArea`, `bySpecialty`, `bySubspecialty`).
-2. `get_institutional_student_scores` — bloco `students` (afeta a lista de alunos retornada e portanto `studentScores.students.length`).
-
-## Resultado esperado
-
-- "Total de Alunos" passa a contar apenas alunos com registro em `answer_progress` (Sérgio e quaisquer outros admin/professor/gestor/b2b/gestor_formal são excluídos) → **99** para FAI.
-- "Taxa de Adesão" → **99/100 = 99%**.
-- "Percentual de Acertos", `byArea/Especialidade/Tema` e tabelas de alunos passam a refletir somente alunos.
-- Alinha com `resultados_ies_tri.num_students` (99) e com `get_ies_student_count` (100).
-
-## Não muda
-
-- Nenhuma alteração de código frontend.
-- TRI (numerador/denominador de proficiência) já estava correto.
-- `get_ies_student_count` permanece como está (denominador da Taxa de Adesão).
+## Comportamento esperado
+- Default (Aluno): idêntico ao atual — nenhuma linha em `user_roles`, dashboards continuam contando o usuário como aluno.
+- Outras roles: linha inserida em `user_roles` automaticamente; usuário passa a ter os acessos correspondentes (regras já existentes em `accessRules.ts` e RLS).
+- Importação em massa (CSV): **sem alteração** nesta entrega — todos continuam como aluno.
