@@ -473,8 +473,8 @@ Deno.serve(async (req) => {
               }
               if (id_ies === B2B_IES_ID) {
                 await supabaseAdmin.from('user_roles')
-                  .upsert({ user_id: found.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
               }
+              await grantRoleIfNeeded(supabaseAdmin, found.id, role, callerUserId, email);
               const emailOk = await sendWelcomeEmail(supabaseAdmin, found.id, nome, email).catch(() => false);
               return successResponse('updated', found.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
             }
