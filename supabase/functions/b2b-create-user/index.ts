@@ -39,8 +39,25 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
     .nullable()
     .optional(),
+  role: z.enum(['admin', 'moderator', 'user', 'b2b_partner', 'professor', 'gestor', 'atendimento', 'gestor_formal']).optional(),
   resend_email: z.boolean().optional(),
 });
+
+/** Grant a role in user_roles (idempotent). 'aluno' = no row. */
+async function grantRoleIfNeeded(
+  supabaseAdmin: any,
+  userId: string,
+  role: string | undefined,
+  grantedBy: string | null,
+  email: string,
+) {
+  if (!role || role === 'aluno') return;
+  const { error } = await supabaseAdmin
+    .from('user_roles')
+    .upsert({ user_id: userId, role, granted_by: grantedBy }, { onConflict: 'user_id,role' });
+  if (error) console.error(`[RBAC] Failed to grant role '${role}' to ${email}:`, error);
+  else console.log(`[RBAC] Role '${role}' granted to ${email}`);
+}
 
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
