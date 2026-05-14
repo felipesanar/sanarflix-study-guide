@@ -491,8 +491,8 @@ Deno.serve(async (req) => {
             // B2B admin role
             if (id_ies === B2B_IES_ID) {
               await supabaseAdmin.from('user_roles')
-                .upsert({ user_id: authUser.id, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
             }
+            await grantRoleIfNeeded(supabaseAdmin, authUser.id, role, callerUserId, email);
             // Send welcome email (awaited for accurate status)
             const emailOk = await sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => false);
             console.log(`[CreateUser] User ${email} recovered successfully. ID: ${authUser.id}`);
