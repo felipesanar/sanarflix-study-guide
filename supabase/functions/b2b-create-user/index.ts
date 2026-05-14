@@ -531,8 +531,9 @@ Deno.serve(async (req) => {
           .from('user_roles')
           .upsert({ user_id: userId, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
         if (rErr) console.error('[RBAC] Failed to grant admin role:', rErr);
-        else console.log(`[RBAC] Admin role granted for B2B user: ${email}`);
       }
+
+      await grantRoleIfNeeded(supabaseAdmin, userId, role, callerUserId, email);
 
       // Fix #4: Await welcome email for accurate status reporting
       let emailSent = false;
