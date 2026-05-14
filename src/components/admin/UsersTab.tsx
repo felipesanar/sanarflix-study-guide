@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
-import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User, XCircle } from 'lucide-react';
+import { Upload, Download, Users, Shield, Loader2, Mail, UserPlus, FileSpreadsheet, Building2, GraduationCap, AtSign, User, XCircle, ShieldCheck } from 'lucide-react';
 import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 import { UsersListTable } from './UsersListTable';
