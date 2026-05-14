@@ -137,7 +137,7 @@ export const UsersTab: React.FC = () => {
       
       toast.success(actionMsg);
       addLog(`${singleUser.email}: ${actionMsg}`);
-      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '' });
+      setSingleUser({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
     } catch (err) {
       console.error('Create user error:', err);
       toast.error('Erro inesperado ao criar usuário');
