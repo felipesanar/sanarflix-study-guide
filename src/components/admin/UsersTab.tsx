@@ -643,6 +643,24 @@ export const UsersTab: React.FC = () => {
                 className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors"
               />
             </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="role" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Role
+              </Label>
+              <Select value={singleUser.role} onValueChange={(v) => setSingleUser({ ...singleUser, role: v })}>
+                <SelectTrigger className="h-11 bg-secondary/50 border-border/60 focus:bg-background transition-colors">
+                  <SelectValue placeholder="Aluno (padrão)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Button
