@@ -105,6 +105,4 @@ verify_jwt = false
 [functions.admin-import-simulado-responses]
 verify_jwt = false
 
-[functions.import-paracatu]
-verify_jwt = false
 
