@@ -1,12 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rows } from "./data.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (_req) => {
   try {
-    const text = await Deno.readTextFile(new URL("./data.json", import.meta.url));
-    const rows = JSON.parse(text);
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
     const simId = rows[0]?.simulado_id;
 
