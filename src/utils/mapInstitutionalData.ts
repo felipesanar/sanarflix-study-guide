@@ -56,29 +56,26 @@ export function estimateAffectedStudents(totalStudents: number, gap: number): nu
   return Math.ceil(totalStudents * Math.min(gap / 50, 1) * 0.8);
 }
 
-function getSancao(percentProficientes: number): string | null {
-  if (percentProficientes < 40) return 'Redução de 50% das vagas';
-  if (percentProficientes < 50) return 'Redução de 25% das vagas';
-  if (percentProficientes < 60) return 'Proibição de aumento de vagas';
+/**
+ * Sanção regulatória derivada EXCLUSIVAMENTE do % de alunos proficientes (pcp
+ * de resultados_ies_tri), independentemente do conceito da IES.
+ *
+ *   pcp < 30           → Suspensão imediata de ingresso de novos estudantes
+ *   30 ≤ pcp < 40      → Redução de 50% das vagas autorizadas do curso
+ *   40 ≤ pcp < 50      → Redução de 25% das vagas autorizadas do curso
+ *   50 ≤ pcp < 60      → Abertura de processo de supervisão para monitoramento
+ *   pcp ≥ 60           → Sem sanção
+ */
+function getSancaoFromPcp(percentProficientes: number | null | undefined): string | null {
+  if (percentProficientes === null || percentProficientes === undefined) return null;
+  const p = percentProficientes;
+  if (p < 30) return 'Suspensão imediata de ingresso de novos estudantes';
+  if (p < 40) return 'Redução de 50% das vagas autorizadas do curso';
+  if (p < 50) return 'Redução de 25% das vagas autorizadas do curso';
+  if (p < 60) return 'Abertura de processo de supervisão para monitoramento';
   return null;
 }
 
-/**
- * Sanção regulatória derivada exclusivamente do conceito institucional (TRI).
- * Mapeamento legado restaurado:
- *   1 → Suspensão de novos ingressos
- *   2 → Redução de vagas
- *   3 → Proibição de aumento de vagas
- *   ≥4 → Sem sanção
- */
-function getSancaoFromConcept(concept: number | null | undefined): string | null {
-  if (concept === null || concept === undefined) return null;
-  const c = Math.round(concept);
-  if (c <= 1) return 'Suspensão de novos ingressos';
-  if (c === 2) return 'Redução de vagas';
-  if (c === 3) return 'Proibição de aumento de vagas';
-  return null;
-}
 
 function getKpiStatus(value: number, thresholds: { good: number; warning: number }): 'good' | 'warning' | 'critical' {
   if (value >= thresholds.good) return 'good';
@@ -159,7 +156,7 @@ export function mapInstitutionalRpcToViewModel(
   const triNumProficient = triSnapshot?.num_proficient ?? null;
   const triConceptNota = triSnapshot?.concept ?? null;
   // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
-  // A sanção é derivada do `concept` (lógica legada por conceito), não do banco.
+  // A sanção é derivada do `pcp` (% de alunos proficientes), não do `concept` nem do banco.
 
   // % proficientes — usa exclusivamente pcp da tabela TRI; sem fallback de acurácia.
   const percentProficientes = triPercentProficientes !== null ? triPercentProficientes : 0;
@@ -170,10 +167,11 @@ export function mapInstitutionalRpcToViewModel(
   const notaAtual = triConceptNota;
   const conceito = triConceptNota !== null ? conceitoFromNota(triConceptNota) : null;
 
-  const sancao = triConceptNota !== null ? getSancaoFromConcept(triConceptNota) : null;
+  const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
 
-  console.log('[TRI] Concept loaded:', triConceptNota);
-  console.log('[TRI] Regulatory status derived from concept:', sancao);
+  console.log('[TRI] PCP loaded:', triPercentProficientes);
+  console.log('[TRI] Regulatory sanction derived from pcp:', sancao);
+
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
   const conceitoThresholds = [40, 60, 75, 90];
