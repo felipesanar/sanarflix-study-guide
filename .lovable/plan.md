@@ -1,61 +1,42 @@
-## Alteração: Sanção regulatória baseada em % de proficientes (pcp)
+## Causa raiz
 
-### Contexto
-Hoje, `src/utils/mapInstitutionalData.ts` deriva a sanção a partir do `concept` da tabela `resultados_ies_tri` via `getSancaoFromConcept(concept)`. A função `getSancao(percentProficientes)` existe mas está sem uso (código morto).
+Na página "Desempenho Institucional → Visão de Alunos", o percentual de acertos por aluno é calculado pela RPC `get_institutional_student_scores`, que **exclui questões anuladas** (`COALESCE(q.anulada, false) = false`) em todos os agregados — tanto no `score_total` quanto no `total_questions`.
 
-### Mudanças em `src/utils/mapInstitutionalData.ts`
+Verificação no banco:
 
-1. **Remover** a função morta `getSancao(percentProficientes)` (linhas 59–64).
+| Simulado | Total questões | `anulada = true` |
+|---|---|---|
+| Paracatu (`71982237…`) | 100 | **0** |
+| Sete Lagoas (`4dc199a6…`) | 100 | **100** |
+| Passos (`a0d7fb6c…`) | 100 | **100** |
+| Sorriso (`b6df9cdc…`) | 100 | **100** |
 
-2. **Remover** a função `getSancaoFromConcept(concept)` e substituí-la por uma nova função baseada em `pcp` (percentual de proficientes), com as faixas abaixo. O valor de `pcp` já é normalizado para 0–100 em `triPercentProficientes` mais adiante no arquivo — usaremos essa mesma normalização como entrada.
+As 300 questões dos simulados de Sete Lagoas, Passos e Sorriso foram inseridas ontem com `anulada = true`. Como toda questão é considerada anulada, o RPC retorna `score_total = 0` e `total_questions = 0` para cada aluno → percentual exibido = 0%.
 
-```ts
-/**
- * Sanção regulatória derivada EXCLUSIVAMENTE do % de alunos proficientes (pcp
- * de resultados_ies_tri), independentemente do conceito da IES.
- *
- *   pcp < 30           → Suspensão imediata de ingresso de novos estudantes
- *   30 ≤ pcp < 40      → Redução de 50% das vagas autorizadas do curso
- *   40 ≤ pcp < 50      → Redução de 25% das vagas autorizadas do curso
- *   50 ≤ pcp < 60      → Abertura de processo de supervisão para monitoramento
- *   pcp ≥ 60           → Sem sanção
- */
-function getSancaoFromPcp(percentProficientes: number | null | undefined): string | null {
-  if (percentProficientes === null || percentProficientes === undefined) return null;
-  const p = percentProficientes;
-  if (p < 30) return 'Suspensão imediata de ingresso de novos estudantes';
-  if (p < 40) return 'Redução de 50% das vagas autorizadas do curso';
-  if (p < 50) return 'Redução de 25% das vagas autorizadas do curso';
-  if (p < 60) return 'Abertura de processo de supervisão para monitoramento';
-  return null;
-}
-```
+Os dados em `answer_progress` estão corretos (12 475/17 700 corretas em Sete Lagoas, 14 558/22 000 em Passos, 3 141/4 500 em Sorriso) e os `question_id` casam 1:1 com `questoes_simulado.id`. O problema é exclusivamente a flag `anulada`.
 
-3. **Substituir o cálculo de `sancao`** (atualmente baseado em `triConceptNota`):
+Provável origem: o XLSX dos 3 novos arquivos tinha uma coluna `anulada` que, ao ser convertida para booleano no script de import (executado ontem), foi tratada como sempre-verdadeira (ex.: a célula trazia texto `"Não"`/`"Sim"` mas o cast caiu em `Boolean("Não") = true`, ou o valor default ficou `true`). O import anterior do Paracatu não tinha essa coluna e por isso ficou com o default `false` da tabela.
 
-   De:
-   ```ts
-   const sancao = triConceptNota !== null ? getSancaoFromConcept(triConceptNota) : null;
+## Plano de ação
+
+1. **Confirmar com o usuário** se nos 3 XLSX originais (Sete Lagoas, Passos, Sorriso) alguma questão é de fato anulada. Hipóteses:
+   - (a) Nenhuma questão é anulada → setar todas para `false`.
+   - (b) Algumas são anuladas → reimportar a coluna `anulada` a partir dos XLSX, fazendo o parsing correto (`"Sim"`/`true`/`1` → true; demais → false).
+2. **Aplicar a correção via migration** (UPDATE), restrita aos 3 simulados afetados:
+   ```sql
+   UPDATE public.questoes_simulado
+   SET anulada = false
+   WHERE simulado_id IN (
+     '4dc199a6-dbd8-4d2f-b471-2e6caa26b37e',
+     'a0d7fb6c-7782-4090-a490-e91a7cbe8dd8',
+     'b6df9cdc-84cb-49ef-9f4e-02445819f13a'
+   );
    ```
-   Para:
-   ```ts
-   const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
-   ```
+   (ou um UPDATE seletivo por `numero_questao` no caso (b)).
+3. **Validar**: re-conferir contagem `anulada` por simulado e amostrar `get_institutional_student_scores` para Sete Lagoas — esperar `score_total`/`total_questions` > 0 e percentuais entre ~50–80%.
+4. **Recalcular TRI** (opcional, mas recomendado): `resultados_alunos_tri` / `resultados_ies_tri` não têm linhas para esses 4 simulados, então o "Score TRI" continuará caindo no fallback de percentual (esperado). Se desejado, rodar o pipeline TRI depois.
+5. **Hardening do importador** (preventivo): no próximo import via XLSX, normalizar `anulada` explicitamente — `["sim","true","1","x"].includes(String(v).trim().toLowerCase()) ? true : false` — para não repetir o erro.
 
-   Isso garante que a sanção dependa exclusivamente de `pcp` (mesma faixa do conceito pode ter sanções diferentes conforme o `pcp`).
+## Pergunta para o usuário antes de aplicar
 
-4. **Atualizar os logs** existentes para refletir a nova origem:
-   ```ts
-   console.log('[TRI] PCP loaded:', triPercentProficientes);
-   console.log('[TRI] Regulatory sanction derived from pcp:', sancao);
-   ```
-
-5. **Atualizar o comentário-bloco** acima do cálculo para deixar explícito que a sanção é derivada de `pcp`, não de `concept`. O comentário sobre `triSnapshot.sanctions` e `is_restricted` serem ignorados permanece válido.
-
-### Sem outras alterações necessárias
-- `meta.sancaoRegulatoriaLabel` e `headerSummary.sancao` consomem a mesma variável `sancao` — atualizam automaticamente.
-- `MetaInstitucionalCard.tsx` e `InstitutionalAlertBanner.tsx` apenas exibem o label — não precisam mudar.
-- Nada no backend muda.
-
-### Memória
-Atualizar `mem://architecture/tri-data-source-priority` para registrar que a **sanção regulatória** agora é derivada de `pcp` (não mais do `concept`), enquanto `concept` continua sendo a fonte do label "Conceito N".
+Os 3 XLSX (Sete Lagoas, Passos, Sorriso) tinham **alguma** questão realmente anulada, ou todas devem ficar `anulada = false`? Se houver anuladas reais, me reenvia os XLSX para eu reaplicar o parsing correto.
