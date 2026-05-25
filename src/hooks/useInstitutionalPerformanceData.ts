@@ -11,7 +11,7 @@ import {
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin, isB2BPartner, isGestor } from '@/utils/accessRules';
+import { isAdmin, isB2BPartner, isGestor, isGestorGrupo } from '@/utils/accessRules';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
