@@ -190,7 +190,43 @@ Deno.serve(async (req) => {
       // SECURITY: Log detailed error server-side only
       console.warn('[Internal] Role fetch error:', roleError);
     }
-    
+
+    // Buscar IES acessíveis (própria + via grupos educacionais) e grupos do usuário
+    let accessibleIes: Array<{ id: string; nome: string }> = [];
+    let groups: Array<{ id: string; name: string; ies: Array<{ id: string; nome: string }> }> = [];
+    try {
+      const { data: accIds } = await supabaseAdmin.rpc('get_accessible_ies', { _user: user.id });
+      const ids = (accIds as string[] | null) ?? [];
+      if (ids.length > 0) {
+        const { data: iesRows } = await supabaseAdmin
+          .from('ies')
+          .select('id, nome')
+          .in('id', ids)
+          .order('nome');
+        accessibleIes = (iesRows ?? []).map((r: any) => ({ id: r.id, nome: r.nome }));
+      }
+
+      const { data: groupRows } = await supabaseAdmin
+        .from('user_groups')
+        .select('group_id, educational_groups:group_id (id, name), group_ies:group_id (ies:ies_id (id, nome))')
+        .eq('user_id', user.id);
+      if (groupRows) {
+        groups = (groupRows as any[]).map((g) => ({
+          id: g.educational_groups?.id ?? g.group_id,
+          name: g.educational_groups?.name ?? '',
+          ies: Array.isArray(g.group_ies)
+            ? g.group_ies.map((gi: any) => gi.ies).filter(Boolean)
+            : [],
+        }));
+      }
+    } catch (groupError) {
+      console.warn('[Internal] Accessible IES / groups fetch error:', groupError);
+    }
+
+    console.log('[Auth] User role:', userRoles);
+    console.log('[Auth] Accessible colleges:', accessibleIes.map((i) => i.nome));
+    console.log('[Auth] Group context:', groups.map((g) => g.name));
+
     // ETAPA 4: Construir e retornar a resposta completa para o front-end
     // SECURITY: Removed CPF from response to reduce PII exposure
     const responsePayload = {
@@ -201,7 +237,9 @@ Deno.serve(async (req) => {
         id_ies: userProfile.id_ies,
         semestre: userProfile.semestre,
         ies_nome: iesNome,
-        roles: userRoles
+        roles: userRoles,
+        accessible_ies: accessibleIes,
+        groups,
         // CPF removed from response for security
       },
       session: sessionData.session,
