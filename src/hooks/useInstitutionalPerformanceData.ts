@@ -325,7 +325,7 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId, canSeeAllIes, user?.id_ies]);
+  }, [filters.simuladoId, filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
   useEffect(() => {
     fetchPerformance();
