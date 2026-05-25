@@ -148,40 +148,53 @@ export function useInstitutionalPerformanceData(
   const [usingMock, setUsingMock] = useState(false);
 
   // Determina se o usuário pode ver todas as IES (apenas admin e b2b_partner).
-  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES.
+  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES,
+  // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele.
   const canSeeAllIes = isAdmin(user) || isB2BPartner(user);
+  const isGroupManager = isGestorGrupo(user);
+  const accessibleIes = user?.accessible_ies ?? [];
 
-  // Fetch IES list — admin/b2b veem todas; gestor/aluno veem somente a sua IES
+  // IES "padrão" usada quando o gestor de grupo não tem `id_ies` próprio.
+  const defaultGroupIesId = accessibleIes[0]?.id;
+
+  // Fetch IES list — admin/b2b veem todas; gestor_grupo vê IES do grupo; demais veem só a sua.
   useEffect(() => {
     const fetchIes = async () => {
-      if (!canSeeAllIes) {
-        // Restringe à IES do próprio usuário
-        if (user?.id_ies) {
-          const { data: iesRow } = await supabase
-            .from('ies')
-            .select('id, nome')
-            .eq('id', user.id_ies)
-            .maybeSingle();
-          if (iesRow) {
-            setIesList([{ id: iesRow.id, nome: iesRow.nome }]);
-          } else {
-            setIesList([]);
-          }
-        } else {
-          setIesList([]);
+      if (canSeeAllIes) {
+        const { data: iesData, error: iesErr } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .order('nome');
+        if (!iesErr && iesData) {
+          setIesList(iesData.map((i) => ({ id: i.id, nome: i.nome })));
         }
         return;
       }
-      const { data: iesData, error: iesErr } = await supabase
-        .from('ies')
-        .select('id, nome')
-        .order('nome');
-      if (!iesErr && iesData) {
-        setIesList(iesData.map((i) => ({ id: i.id, nome: i.nome })));
+
+      // gestor_grupo: usa a lista de IES acessíveis vinda do AuthContext
+      if (isGroupManager && accessibleIes.length > 0) {
+        setIesList(accessibleIes.map((i) => ({ id: i.id, nome: i.nome })));
+        return;
+      }
+
+      // Outros perfis: restringe à própria IES
+      if (user?.id_ies) {
+        const { data: iesRow } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .eq('id', user.id_ies)
+          .maybeSingle();
+        if (iesRow) {
+          setIesList([{ id: iesRow.id, nome: iesRow.nome }]);
+        } else {
+          setIesList([]);
+        }
+      } else {
+        setIesList([]);
       }
     };
     fetchIes();
-  }, [canSeeAllIes, user?.id_ies]);
+  }, [canSeeAllIes, isGroupManager, accessibleIes, user?.id_ies]);
 
   // Fetch simulados whenever IES changes
   useEffect(() => {
