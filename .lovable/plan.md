@@ -1,41 +1,40 @@
-## Revisão: `gestor_grupo` deve seguir o mesmo padrão dos outros gestores
+## Adicionar `gestor_grupo` às RPCs institucionais faltantes
 
-### Contexto
-Na iteração anterior, forçamos `semestre = NULL` para usuários com role `gestor_grupo`, com a justificativa de que "gestor não é aluno". Você confirmou que esse não é o comportamento correto: **todos os gestores existentes na plataforma (`gestor`, `gestor_formal`, `professor`, `atendimento`) possuem `semestre` preenchido e estão vinculados a uma IES específica**. O `gestor_grupo` deve seguir exatamente o mesmo padrão — apenas com a diferença de que ele tem acesso a **múltiplas IES** via tabelas `educational_groups` / `group_ies` / `user_groups`.
+### Diagnóstico
+O erro "requires admin, professor, b2b_partner, gestor or gestor_formal role" vem da RPC `get_institutional_simulados`, que é chamada pelo `useInstitutionalPerformanceData.ts` para popular o seletor de simulados. Essa RPC (e mais 2) ainda não foi atualizada para aceitar `gestor_grupo`.
 
-O `semestre` no perfil do gestor é apenas um valor âncora (não define seu nível de acesso); o que governa permissão é o `user_roles` + `get_accessible_ies(user_id)`.
+Auditoria das 10 RPCs institucionais (`get_institutional_*` + `get_ies_*`):
 
-### Mudanças
+| RPC | Aceita gestor_grupo? | Ação |
+|---|---|---|
+| get_institutional_performance | ✅ | ok |
+| get_institutional_evolution | ✅ | ok |
+| get_institutional_student_scores | ✅ | ok |
+| get_institutional_evolution_tri | ✅ | ok |
+| get_institutional_longitudinal_tri | ✅ | ok |
+| **get_institutional_simulados** | ❌ | corrigir |
+| **get_institutional_question_details** | ❌ | corrigir |
+| **get_institutional_tri** | ❌ | corrigir |
+| get_ies_student_count | n/a (sem check) | ok |
+| get_ies_features | n/a (sem check) | ok |
 
-**1. `supabase/functions/b2b-create-user/index.ts`**
+### Migração
 
-Remover a normalização `semestre → null` para `gestor_grupo`. Voltar a usar o `semestre` enviado pelo admin no formulário, igual aos demais roles:
+Recriar as 3 RPCs faltantes seguindo exatamente o padrão já estabelecido em `get_institutional_performance` (migração `20260525150143`):
 
-```ts
-// REMOVER:
-const semestre = role === 'gestor_grupo' ? null : rawSemestre;
+1. **Adicionar `OR has_role(v_user_id, 'gestor_grupo')`** no bloco de autorização inicial.
+2. **Resolver IES via `user_can_access_ies(v_user_id, p_ies_id)`** para `gestor_grupo` — não restringir a `id_ies` do perfil (gestor de grupo acessa N IES via `get_accessible_ies`). Quando `p_ies_id` é informado, validar permissão; quando não, usar a primeira IES acessível como fallback.
+3. Manter comportamento existente para `admin`, `b2b_partner`, `gestor`, `gestor_formal`, `professor`.
 
-// VOLTAR PARA:
-const semestre = rawSemestre;
-```
+Mensagem de erro padronizada para `'Access denied'` (já é o padrão das RPCs corrigidas).
 
-Os blocos de `update` e `insert` (`semestre: semestre ?? null`) permanecem como estão — eles já lidam corretamente com semestre opcional.
-
-**2. Migração de dados — usuário João Vitor (`48436225-55a2-494b-8d69-645cf9fcef39`)**
-
-Nenhuma ação necessária. O usuário já está com `semestre = 1` (PASSOS) e `id_ies` correto. Isso agora é considerado o estado correto. A migração proposta anteriormente para zerar o `semestre` **não será executada**.
-
-**3. Investigação pendente do problema original**
-
-Continua valendo o ajuste no `AuthContext.tsx` (bypass do throttle de 30s quando `roles` em cache está vazio) — esse fix é ortogonal ao tema do `semestre` e ajuda usuários recém-promovidos a ver as roles sem esperar/relogar.
-
-A causa raiz de "Desempenho Institucional" não aparecer para o João Vitor provavelmente é:
-- (a) cache stale de `roles` no `localStorage` (resolvido pelo fix do AuthContext), ou
-- (b) o usuário não está em `user_groups` / o grupo dele não está em `group_ies` — a função `get_accessible_ies(user_id)` retorna array vazio e as RLS de `gestor_grupo` bloqueiam tudo.
-
-Após esta revisão, vou validar (b) via consulta de leitura no banco antes de qualquer outra mudança.
+Migração puramente aditiva (somente `CREATE OR REPLACE FUNCTION`).
 
 ### Critérios de sucesso
-- [ ] `b2b-create-user` grava `semestre` informado pelo admin para qualquer role, incluindo `gestor_grupo`.
-- [ ] João Vitor permanece com `semestre = 1` / `id_ies = PASSOS`.
-- [ ] Próximo passo: diagnosticar via SQL se ele está corretamente vinculado a um `educational_group` que possui IES em `group_ies`.
+- [ ] João Vitor (`gestor_grupo`) consegue ver lista de simulados da IES selecionada (PORTO SEGURO etc.) no Painel de Desempenho.
+- [ ] Drill-down por questão (`get_institutional_question_details`) funciona ao selecionar tema.
+- [ ] Cálculos TRI (`get_institutional_tri`) carregam para qualquer IES do grupo do usuário.
+- [ ] Demais roles (gestor, gestor_formal, admin, b2b) seguem funcionando idênticos.
+
+### Frontend
+Nenhuma alteração. O hook já passa `p_ies_id` corretamente para gestor_grupo.
