@@ -30,13 +30,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastRefreshRef.current = now;
 
     try {
-      const [profileResult, rolesResult] = await Promise.all([
+      const [profileResult, rolesResult, accessibleIdsResult, groupsResult] = await Promise.all([
         supabase
           .from('users')
           .select('id, email, nome, id_ies, semestre, ies:id_ies(nome)')
           .eq('id', userId)
           .maybeSingle(),
         supabase.rpc('get_user_roles', { _user_id: userId }),
+        supabase.rpc('get_accessible_ies', { _user: userId }),
+        supabase
+          .from('user_groups')
+          .select('group_id, educational_groups:group_id (id, name), group_ies:group_id (ies:ies_id (id, nome))')
+          .eq('user_id', userId),
       ]);
 
       if (profileResult.error) {
@@ -53,6 +58,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const iesNome = row.ies?.nome ?? '';
       const roles = rolesResult.data ?? [];
 
+      const accessibleIds = (accessibleIdsResult.data as string[] | null) ?? [];
+      let accessibleIes: { id: string; nome: string }[] = [];
+      if (accessibleIds.length > 0) {
+        const { data: iesRows } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .in('id', accessibleIds)
+          .order('nome');
+        accessibleIes = (iesRows ?? []).map((r: any) => ({ id: r.id, nome: r.nome }));
+      }
+      const groups = ((groupsResult.data as any[]) ?? []).map((g) => ({
+        id: g.educational_groups?.id ?? g.group_id,
+        name: g.educational_groups?.name ?? '',
+        ies: Array.isArray(g.group_ies)
+          ? g.group_ies.map((gi: any) => gi.ies).filter(Boolean)
+          : [],
+      }));
+
       const updated: User = {
         id: row.id,
         email: row.email,
@@ -61,11 +84,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ies_nome: iesNome,
         semestre: row.semestre ?? undefined,
         roles,
+        accessible_ies: accessibleIes,
+        groups,
       };
 
       setUser(updated);
       localStorage.setItem('sanarflix-user', JSON.stringify(updated));
       console.log('[Auth] role from DB:', roles);
+      console.log('[Auth] Accessible colleges:', accessibleIes.map((i) => i.nome));
+      console.log('[Auth] Group context:', groups.map((g) => g.name));
       Logger.debug('refreshUserProfile: updated', { userId, ies_nome: iesNome, semestre: row.semestre, roles });
     } catch (e) {
       Logger.warn('refreshUserProfile: unexpected error', e);
