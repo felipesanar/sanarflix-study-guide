@@ -276,7 +276,11 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+      const requestedIesId = canSeeAllIes
+        ? (filters.iesId || undefined)
+        : isGroupManager
+          ? (filters.iesId || defaultGroupIesId || user?.id_ies || undefined)
+          : (user?.id_ies || undefined);
       const targetIesId = await resolveIesId(requestedIesId);
 
       // Parallel RPC calls with retry + timeout + total IES users count + TRI snapshot/evolution
