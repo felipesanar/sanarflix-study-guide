@@ -325,7 +325,10 @@ Deno.serve(async (req) => {
       return errorResponse('VALIDATION_ERROR', 'Dados inválidos', errorMessages);
     }
 
-    const { nome, email, id_ies, semestre, role, resend_email } = validationResult.data;
+    const { nome, email, id_ies, semestre: rawSemestre, role, resend_email } = validationResult.data;
+    // Para gestor_grupo o `semestre` não faz sentido (não é aluno).
+    // Forçamos NULL para evitar que a UI o trate como aluno do semestre informado.
+    const semestre = role === 'gestor_grupo' ? null : rawSemestre;
 
     // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
