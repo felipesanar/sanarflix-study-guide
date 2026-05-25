@@ -1,68 +1,41 @@
-## Diagnóstico
+## Revisão: `gestor_grupo` deve seguir o mesmo padrão dos outros gestores
 
-### 1. Configuração no backend — está correta ✅ (com 1 ressalva)
+### Contexto
+Na iteração anterior, forçamos `semestre = NULL` para usuários com role `gestor_grupo`, com a justificativa de que "gestor não é aluno". Você confirmou que esse não é o comportamento correto: **todos os gestores existentes na plataforma (`gestor`, `gestor_formal`, `professor`, `atendimento`) possuem `semestre` preenchido e estão vinculados a uma IES específica**. O `gestor_grupo` deve seguir exatamente o mesmo padrão — apenas com a diferença de que ele tem acesso a **múltiplas IES** via tabelas `educational_groups` / `group_ies` / `user_groups`.
 
-Consultas confirmam:
+O `semestre` no perfil do gestor é apenas um valor âncora (não define seu nível de acesso); o que governa permissão é o `user_roles` + `get_accessible_ies(user_id)`.
 
-| Item | Valor |
-|---|---|
-| `users.id` | `48436225-55a2-494b-8d69-645cf9fcef39` |
-| `users.email` | `joaonader@ufba.br` / `nome`: João Vitor Nader Silva |
-| `users.id_ies` | `9baa1401-bf54-4451-b96c-49e4823564fb` (**PASSOS**) |
-| `users.semestre` | `1` |
-| `user_roles` | `gestor_grupo` ✔ (granted em 2026-05-25) |
-| `user_groups` | vinculado ao grupo `UNIATENAS` (`6d761931-…`) |
-| `group_ies` (UNIATENAS) | PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO, VALENÇA ✔ |
-| `app_role` enum | inclui `gestor_grupo` ✔ |
-| RPC `get_user_roles` | `SECURITY DEFINER`, retorna `gestor_grupo` quando consultado direto no banco ✔ |
+### Mudanças
 
-**Ressalva (config "suja"):** o usuário foi criado preenchendo `id_ies = PASSOS` e `semestre = 1`. Para um gestor_grupo puro, esses campos deveriam ser `NULL` (ou usar uma IES "âncora" do grupo). Tê-los preenchidos faz a UI tratá-lo como aluno: o `useIesFeatures` carrega features da IES PASSOS, que são justamente as três opções vistas no print (Início, Simulados, Caderno de Erros). Isso é cosmético — não deveria esconder "Desempenho Institucional".
+**1. `supabase/functions/b2b-create-user/index.ts`**
 
-### 2. Por que "Desempenho Institucional" não aparece
-
-A lógica de visibilidade (`src/utils/accessRules.ts` → `getAccessRules`) já trata `gestor_grupo`:
+Remover a normalização `semestre → null` para `gestor_grupo`. Voltar a usar o `semestre` enviado pelo admin no formulário, igual aos demais roles:
 
 ```ts
-isGestor(user) // true para gestor | gestor_formal | gestor_grupo
-// retorna { ...DEFAULT_RULES, desempenhoInstitucional: true }
+// REMOVER:
+const semestre = role === 'gestor_grupo' ? null : rawSemestre;
+
+// VOLTAR PARA:
+const semestre = rawSemestre;
 ```
 
-E `useAccessRules.ts` faz o curto-circuito correto:
+Os blocos de `update` e `insert` (`semestre: semestre ?? null`) permanecem como estão — eles já lidam corretamente com semestre opcional.
 
-```ts
-if (isAdmin || isProfessor || isGestor(user) || isAtendimento) return baseRules;
-```
+**2. Migração de dados — usuário João Vitor (`48436225-55a2-494b-8d69-645cf9fcef39`)**
 
-Logo, **se o front realmente recebesse `roles = ['gestor_grupo']`, o item apareceria.** Como ele NÃO aparece e o sidebar mostra exatamente o conjunto de features da IES PASSOS, a conclusão é:
+Nenhuma ação necessária. O usuário já está com `semestre = 1` (PASSOS) e `id_ies` correto. Isso agora é considerado o estado correto. A migração proposta anteriormente para zerar o `semestre` **não será executada**.
 
-> No runtime, `user.roles` está chegando **vazio** (ou sem `gestor_grupo`) — então a `useAccessRules` cai no ramo "Aluno B2B" e usa só `ies_features`.
+**3. Investigação pendente do problema original**
 
-Causas prováveis, em ordem de probabilidade:
+Continua valendo o ajuste no `AuthContext.tsx` (bypass do throttle de 30s quando `roles` em cache está vazio) — esse fix é ortogonal ao tema do `semestre` e ajuda usuários recém-promovidos a ver as roles sem esperar/relogar.
 
-**a) Cache de localStorage anterior à atribuição da role.** O usuário foi criado/logado antes da role `gestor_grupo` ser inserida em `user_roles`. O `AuthContext` inicializa o estado a partir de `localStorage.sanarflix-user` (linhas 121-141 e 153-165), e o `refreshUserProfile` é throttled (5s) — se a sessão já estava ativa, o cache antigo prevalece até o próximo login limpo.
+A causa raiz de "Desempenho Institucional" não aparecer para o João Vitor provavelmente é:
+- (a) cache stale de `roles` no `localStorage` (resolvido pelo fix do AuthContext), ou
+- (b) o usuário não está em `user_groups` / o grupo dele não está em `group_ies` — a função `get_accessible_ies(user_id)` retorna array vazio e as RLS de `gestor_grupo` bloqueiam tudo.
 
-**b) `refreshUserProfile` chamando `get_user_roles` pelo client anon.** O RPC é `SECURITY DEFINER` e está acessível, então retorna a role. Mas se por algum motivo o `EXECUTE` para `authenticated` não estiver concedido, `rolesResult.data` viria `null` → `roles = []`. Vale validar.
+Após esta revisão, vou validar (b) via consulta de leitura no banco antes de qualquer outra mudança.
 
-**c) O `auth-login` (edge function) retorna `roles: userRoles` corretamente — mas se houve qualquer falha não-fatal no RPC dentro dele (`rolesError`), o array volta vazio sem erro visível ao cliente.
-
-### 3. Como confirmar a causa raiz (próximos passos sugeridos)
-
-1. Pedir ao usuário João Vitor para **deslogar completamente**, limpar `localStorage` da aba, e logar de novo. Em seguida, abrir o console e procurar os logs:
-   - `[Auth] role from DB:` (deve aparecer `['gestor_grupo']`)
-   - `[Auth] Accessible colleges:` (deve listar as 6 IES do UNIATENAS)
-2. Se mesmo após login limpo `role from DB:` vier `[]`, é problema de permissão/RLS do RPC chamado pelo cliente — corrigir com `GRANT EXECUTE ON FUNCTION public.get_user_roles(uuid) TO authenticated;`
-3. Se vier preenchido mas o item continuar oculto, o problema é de cache/throttle do `useAccessRules` ou ordem de hidratação — investigar `useIesFeatures` que pode estar sobrescrevendo `desempenhoInstitucional` para `false` antes do `isGestor` ser avaliado.
-
-### 4. Correções de configuração recomendadas (independente da causa)
-
-- Normalizar o cadastro de gestor_grupo no `b2b-create-user`: quando `role === 'gestor_grupo'`, **não** exigir/gravar `id_ies` nem `semestre` (ou gravá-los como `NULL`). Caso contrário a sidebar herda features de IES de aluno e fica visualmente inconsistente.
-- Forçar `refreshUserProfile` a ignorar o throttle quando `roles` no estado vier vazio — evita que o cache antigo persista após uma promoção de role.
-
-## Critérios de Sucesso
-
-- [x] Identificada a causa provável (cache stale de `roles` + cadastro com `id_ies`/`semestre` de aluno).
-- [x] Backend (roles, grupos, IES, RPC) verificado e validado como correto.
-- [x] Apontada a ressalva de configuração (`id_ies`/`semestre` preenchidos em um gestor_grupo).
-- [x] Plano de verificação claro (logout/login limpo + checar logs `[Auth] role from DB:`).
-
-Nenhuma alteração de código foi feita — apenas análise, como solicitado.
+### Critérios de sucesso
+- [ ] `b2b-create-user` grava `semestre` informado pelo admin para qualquer role, incluindo `gestor_grupo`.
+- [ ] João Vitor permanece com `semestre = 1` / `id_ies = PASSOS`.
+- [ ] Próximo passo: diagnosticar via SQL se ele está corretamente vinculado a um `educational_group` que possui IES em `group_ies`.
