@@ -1,12 +1,33 @@
 
+export interface AccessibleIes {
+  id: string;
+  nome: string;
+}
+
+export interface UserGroup {
+  id: string;
+  name: string;
+  ies: AccessibleIes[];
+}
+
 export interface User {
   id: string;           // campo 'id' da tabela users
   email: string;
   nome: string;         // renomear de 'name' para 'nome'
-  id_ies: string;       // UUID da instituição
+  id_ies: string;       // UUID da instituição "principal" do usuário (pode ser vazio para gestor_grupo puro)
   ies_nome: string;     // nome da IES (obtido via JOIN)
   semestre?: number;
   roles?: string[];     // User roles from user_roles table
+  /**
+   * Lista de IES acessíveis pelo usuário: união entre `id_ies` próprio e
+   * IES vinculadas via grupos educacionais (gestor_grupo). Para Admin e
+   * B2B Partner, costuma vir vazia e o cliente lista todas via tabela `ies`.
+   */
+  accessible_ies?: AccessibleIes[];
+  /**
+   * Grupos educacionais aos quais o usuário pertence (gestor_grupo).
+   */
+  groups?: UserGroup[];
 }
 
 export interface AccessRules {
