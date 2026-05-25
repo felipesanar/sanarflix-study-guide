@@ -24,9 +24,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Fetches fresh user profile from public.users + ies + roles,
    * updating state and localStorage cache.
    */
-  const refreshUserProfile = useCallback(async (userId: string) => {
+  const refreshUserProfile = useCallback(async (userId: string, force = false) => {
     const now = Date.now();
-    if (now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
+    // Bypass throttle when forced OR when the cached user has no roles —
+    // prevents a stale "empty roles" cache from surviving after a role
+    // (e.g. gestor_grupo) was just granted in the backend.
+    let cachedRolesEmpty = false;
+    try {
+      const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('sanarflix-user') : null;
+      const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+      cachedRolesEmpty = !Array.isArray(cached?.roles) || cached.roles.length === 0;
+    } catch { /* ignore parse errors */ }
+    if (!force && !cachedRolesEmpty && now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
     lastRefreshRef.current = now;
 
     try {

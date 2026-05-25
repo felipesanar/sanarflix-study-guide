@@ -1,103 +1,68 @@
-# Perfil Gestor de Grupo (Multi-IES) — Plano de Implementação
+## Diagnóstico
 
-## Objetivo
-Adicionar um terceiro nível de acesso institucional — **Gestor de Grupo** — capaz de visualizar dashboards, simulados, TRI e respostas de um conjunto arbitrário de IES vinculadas a um Grupo Educacional, sem alterar Admin nem Gestor individual. Arquitetura escalável (sem hardcode): a relação Stela ↔ UNIATENAS ↔ 6 IES é apenas seed inicial.
+### 1. Configuração no backend — está correta ✅ (com 1 ressalva)
 
-## Diagnóstico da arquitetura atual (Fase 1)
+Consultas confirmam:
 
-**IES é resolvida hoje 1:1 user→IES:**
-- `public.users.id_ies uuid` é a fonte única.
-- `public.get_current_user_ies_id()` retorna `users.id_ies` do `auth.uid()`.
-- RLS institucional (`simulados_admin`, `questoes_simulado`, `answer_progress`, `resultados_ies_tri`, `resultados_alunos_tri`, `conteudos`, `sanarclass_lessons`, `announcements`) compara `get_current_user_ies_id()` contra `ies_id` único ou `= ANY(ies_ids)`.
-- RPCs institucionais (`get_institutional_performance`, `get_institutional_student_scores`, `get_institutional_evolution`, `get_institutional_*_tri`, `get_student_growth_tri`) recebem **um `p_ies_id`** e validam `has_role('gestor')` + `users.id_ies = p_ies_id`.
-- Frontend: `AuthContext.user.id_ies` (singular), `useIesFeatures(user.id_ies)`, `useDesempenhoV2State.filters.iesId` (string única no querystring).
-
-**Pontos de quebra para multi-IES:** RLS, validação das RPCs, `useIesFeatures`, ausência de seletor de IES no header e ausência de conceito de "Visão Consolidada".
-
-## Modelagem de dados (Fase 2) — totalmente aditiva
-
-```text
-educational_groups
-  id uuid pk, name text, slug text unique, created_at
-
-group_ies                        -- N:N grupo ↔ IES
-  group_id uuid fk, ies_id uuid fk, PK(group_id, ies_id)
-
-user_groups                      -- N:N usuário ↔ grupo
-  user_id uuid fk, group_id uuid fk,
-  role text default 'gestor_grupo', PK(user_id, group_id)
-```
-
-Novo valor em `app_role`: **`gestor_grupo`** (mantém `gestor` e `gestor_formal` intocados).
-
-Funções `SECURITY DEFINER`:
-
-```text
-get_user_group_ies(_user uuid) RETURNS uuid[]
-user_can_access_ies(_user uuid, _ies uuid) RETURNS bool
-  -- admin OR b2b_partner OR _ies = users.id_ies OR _ies ∈ get_user_group_ies(_user)
-get_accessible_ies(_user uuid) RETURNS uuid[]   -- união IES própria + IES de grupos
-```
-
-**Seed inicial (já com UUIDs confirmados no banco):**
-
-| IES | UUID |
+| Item | Valor |
 |---|---|
-| PARACATU | `d86c32ba-2d09-4c7e-a426-1d981ec7b595` |
-| PASSOS | `9baa1401-bf54-4451-b96c-49e4823564fb` |
-| PORTO SEGURO | `08cc7497-7ce6-49d8-828e-d6c897716cb7` |
-| SETE LAGOAS | `a1f1e8ca-a58e-4f87-abfe-4cc62aa4a686` |
-| SORRISO | `6e69a5e4-daab-4322-b70b-cdcf9f3c2cf9` |
-| VALENÇA | `ac2f94a5-d33b-4547-94ed-ae4d0877fbc7` |
+| `users.id` | `48436225-55a2-494b-8d69-645cf9fcef39` |
+| `users.email` | `joaonader@ufba.br` / `nome`: João Vitor Nader Silva |
+| `users.id_ies` | `9baa1401-bf54-4451-b96c-49e4823564fb` (**PASSOS**) |
+| `users.semestre` | `1` |
+| `user_roles` | `gestor_grupo` ✔ (granted em 2026-05-25) |
+| `user_groups` | vinculado ao grupo `UNIATENAS` (`6d761931-…`) |
+| `group_ies` (UNIATENAS) | PARACATU, PASSOS, PORTO SEGURO, SETE LAGOAS, SORRISO, VALENÇA ✔ |
+| `app_role` enum | inclui `gestor_grupo` ✔ |
+| RPC `get_user_roles` | `SECURITY DEFINER`, retorna `gestor_grupo` quando consultado direto no banco ✔ |
 
-- `educational_groups`: `('UNIATENAS','uniatenas')`.
-- `group_ies`: 6 linhas (uma por IES acima).
-- `user_groups`: `(562bbcc3-328c-4434-9eae-0bacc8d40d37, <id_uniatenas>, 'gestor_grupo')`.
-- `user_roles`: `(562bbcc3-328c-4434-9eae-0bacc8d40d37, 'gestor_grupo')`.
+**Ressalva (config "suja"):** o usuário foi criado preenchendo `id_ies = PASSOS` e `semestre = 1`. Para um gestor_grupo puro, esses campos deveriam ser `NULL` (ou usar uma IES "âncora" do grupo). Tê-los preenchidos faz a UI tratá-lo como aluno: o `useIesFeatures` carrega features da IES PASSOS, que são justamente as três opções vistas no print (Início, Simulados, Caderno de Erros). Isso é cosmético — não deveria esconder "Desempenho Institucional".
 
-RLS das novas tabelas: SELECT para admin e para o próprio `user_id`; INSERT/UPDATE/DELETE apenas admin. Toda nova relação grupo↔IES e usuário↔grupo é cadastrável via admin no futuro — nada hardcoded em código.
+### 2. Por que "Desempenho Institucional" não aparece
 
-## Backend / RLS / RPCs (Fase 3)
+A lógica de visibilidade (`src/utils/accessRules.ts` → `getAccessRules`) já trata `gestor_grupo`:
 
-- Adicionar policies `gestor_grupo` paralelas às de `gestor` em: `simulados_admin`, `questoes_simulado`, `answer_progress`, `resultados_ies_tri`, `resultados_alunos_tri`, `simulados_finalizados` (SELECT), `users` (SELECT alunos da IES), `conteudos`, `sanarclass_lessons`, `announcements` — usando `user_can_access_ies(auth.uid(), <coluna_ies>)` ou `<coluna_ies_ids> && get_accessible_ies(auth.uid())`.
-- Atualizar RPCs institucionais para autorizar via `user_can_access_ies(auth.uid(), p_ies_id)` em vez de `users.id_ies = p_ies_id`. Assinatura e payload inalterados — totalmente retrocompatível com Gestor individual e Admin.
-- Visão Consolidada do MVP: fan-out client-side reaproveitando as RPCs por IES. RPC server-side `get_group_consolidated_*` fica para iteração seguinte sem mudar contrato de componente.
+```ts
+isGestor(user) // true para gestor | gestor_formal | gestor_grupo
+// retorna { ...DEFAULT_RULES, desempenhoInstitucional: true }
+```
 
-## Frontend (Fase 4)
+E `useAccessRules.ts` faz o curto-circuito correto:
 
-1. **Tipos** (`src/types/index.ts`): `User` ganha `accessible_ies?: { id: string; nome: string }[]` e `groups?: { id: string; name: string; ies: { id: string; nome: string }[] }[]`. Mantém `id_ies`/`ies_nome`.
-2. **`auth-login` edge function**: após buscar roles, popular `accessible_ies` (união `users.id_ies` + `get_accessible_ies`) e `groups` (via `user_groups` → `group_ies` → `ies`). Logs obrigatórios: `[Auth] User role`, `[Auth] Accessible colleges`, `[Auth] Group context`.
-3. **`accessRules.ts`**: novo helper `isGestorGrupo(user)`; `getAccessRules` trata `gestor_grupo` como `gestor` (libera `desempenhoInstitucional`).
-4. **Novo hook `useAccessibleIes()`**: retorna lista de IES acessíveis + grupos + flag `isMultiIes`.
-5. **`useDesempenhoV2State`**: aceitar valor especial `iesId = '__group__'` (Visão Consolidada) ou UUID de IES. Default = primeira IES; querystring preservada.
-6. **Novo `IesSelector`** no header de `DesempenhoInstitucionalV2`: aparece se `accessible_ies.length > 1`; opção "Visão Consolidada do Grupo" primeiro, depois as IES. Para gestor individual e admin, comportamento atual preservado.
-7. **`useIesFeatures`**: passa a aceitar a IES atualmente selecionada (fallback ao `user.id_ies`).
-8. **Visão Consolidada (MVP)**: quando `iesId === '__group__'`, fan-out das RPCs por IES e agregação client-side (médias ponderadas por `num_students` para TRI/PCP, somas para contagens).
+```ts
+if (isAdmin || isProfessor || isGestor(user) || isAtendimento) return baseRules;
+```
 
-## Segurança
+Logo, **se o front realmente recebesse `roles = ['gestor_grupo']`, o item apareceria.** Como ele NÃO aparece e o sidebar mostra exatamente o conjunto de features da IES PASSOS, a conclusão é:
 
-- Isolamento garantido por RLS via `user_can_access_ies` — Gestor de Grupo nunca enxerga IES fora do(s) seu(s) grupo(s); tentativas via querystring retornam vazio.
-- `gestor_grupo` **não** ganha permissão administrativa (sem `UserManagement`, sem tabelas `admin_*`).
-- Nenhuma lista fixa em código; tudo via tabelas.
+> No runtime, `user.roles` está chegando **vazio** (ou sem `gestor_grupo`) — então a `useAccessRules` cai no ramo "Aluno B2B" e usa só `ies_features`.
 
-## Fase 5 — Validação
+Causas prováveis, em ordem de probabilidade:
 
-- Admin: nada muda (policies admin permanecem prioritárias).
-- Gestor individual: queries continuam restritas à própria IES.
-- Stela: seletor lista 6 IES + Consolidada; trocar IES recarrega dashboard; `?iesId=<IES_fora_grupo>` → vazio.
-- Console: três `[Auth] …` no login.
-- `tsc --noEmit` limpo após regeneração de `types.ts`.
+**a) Cache de localStorage anterior à atribuição da role.** O usuário foi criado/logado antes da role `gestor_grupo` ser inserida em `user_roles`. O `AuthContext` inicializa o estado a partir de `localStorage.sanarflix-user` (linhas 121-141 e 153-165), e o `refreshUserProfile` é throttled (5s) — se a sessão já estava ativa, o cache antigo prevalece até o próximo login limpo.
 
-## Entregáveis (na ordem)
+**b) `refreshUserProfile` chamando `get_user_roles` pelo client anon.** O RPC é `SECURITY DEFINER` e está acessível, então retorna a role. Mas se por algum motivo o `EXECUTE` para `authenticated` não estiver concedido, `rolesResult.data` viria `null` → `roles = []`. Vale validar.
 
-1. **Migration 1** — tabelas `educational_groups`, `group_ies`, `user_groups`; enum `gestor_grupo`; funções `get_user_group_ies` / `user_can_access_ies` / `get_accessible_ies`; RLS das novas tabelas.
-2. **Migration 2** — policies `gestor_grupo` nas tabelas institucionais + refator das RPCs para usarem `user_can_access_ies`.
-3. **Migration 3 (seed)** — UNIATENAS + 6 vínculos `group_ies` + `user_groups`/`user_roles` da Stela (com os UUIDs acima).
-4. **Edge `auth-login`** — devolve `accessible_ies` e `groups`.
-5. **Frontend** — `types/index.ts`, `accessRules.ts`, `useAccessibleIes`, `IesSelector`, ajustes em `useDesempenhoV2State`, `useIesFeatures` e `DesempenhoInstitucionalV2` (header + fan-out consolidado).
-6. **QA** conforme critérios de sucesso do briefing.
+**c) O `auth-login` (edge function) retorna `roles: userRoles` corretamente — mas se houve qualquer falha não-fatal no RPC dentro dele (`rolesError`), o array volta vazio sem erro visível ao cliente.
 
-## Pontos abertos para confirmar antes de "Implementar"
+### 3. Como confirmar a causa raiz (próximos passos sugeridos)
 
-1. **Nome do role**: `gestor_grupo` está ok, ou prefere outro (`group_manager`, `gestor_de_grupo`)?
-2. **Visão Consolidada do MVP**: aceitamos agregação client-side (fan-out) agora e RPC server-side numa iteração futura, ou já querem o RPC consolidado na primeira leva (atrasa ~1 ciclo)?
+1. Pedir ao usuário João Vitor para **deslogar completamente**, limpar `localStorage` da aba, e logar de novo. Em seguida, abrir o console e procurar os logs:
+   - `[Auth] role from DB:` (deve aparecer `['gestor_grupo']`)
+   - `[Auth] Accessible colleges:` (deve listar as 6 IES do UNIATENAS)
+2. Se mesmo após login limpo `role from DB:` vier `[]`, é problema de permissão/RLS do RPC chamado pelo cliente — corrigir com `GRANT EXECUTE ON FUNCTION public.get_user_roles(uuid) TO authenticated;`
+3. Se vier preenchido mas o item continuar oculto, o problema é de cache/throttle do `useAccessRules` ou ordem de hidratação — investigar `useIesFeatures` que pode estar sobrescrevendo `desempenhoInstitucional` para `false` antes do `isGestor` ser avaliado.
+
+### 4. Correções de configuração recomendadas (independente da causa)
+
+- Normalizar o cadastro de gestor_grupo no `b2b-create-user`: quando `role === 'gestor_grupo'`, **não** exigir/gravar `id_ies` nem `semestre` (ou gravá-los como `NULL`). Caso contrário a sidebar herda features de IES de aluno e fica visualmente inconsistente.
+- Forçar `refreshUserProfile` a ignorar o throttle quando `roles` no estado vier vazio — evita que o cache antigo persista após uma promoção de role.
+
+## Critérios de Sucesso
+
+- [x] Identificada a causa provável (cache stale de `roles` + cadastro com `id_ies`/`semestre` de aluno).
+- [x] Backend (roles, grupos, IES, RPC) verificado e validado como correto.
+- [x] Apontada a ressalva de configuração (`id_ies`/`semestre` preenchidos em um gestor_grupo).
+- [x] Plano de verificação claro (logout/login limpo + checar logs `[Auth] role from DB:`).
+
+Nenhuma alteração de código foi feita — apenas análise, como solicitado.
