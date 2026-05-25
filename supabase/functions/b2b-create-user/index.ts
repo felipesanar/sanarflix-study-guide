@@ -39,7 +39,7 @@ const createUserSchema = z.object({
     .max(12, 'Semestre máximo: 12')
     .nullable()
     .optional(),
-  role: z.enum(['admin', 'moderator', 'user', 'b2b_partner', 'professor', 'gestor', 'atendimento', 'gestor_formal']).optional(),
+  role: z.enum(['admin', 'moderator', 'user', 'b2b_partner', 'professor', 'gestor', 'atendimento', 'gestor_formal', 'gestor_grupo']).optional(),
   resend_email: z.boolean().optional(),
 });
 
