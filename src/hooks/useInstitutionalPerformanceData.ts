@@ -253,7 +253,7 @@ export function useInstitutionalPerformanceData(
       }
     };
     fetchSimulados();
-  }, [filters.iesId, canSeeAllIes, user?.id_ies]);
+  }, [filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
