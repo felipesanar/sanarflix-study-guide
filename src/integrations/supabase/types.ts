@@ -591,6 +591,27 @@ export type Database = {
           },
         ]
       }
+      educational_groups: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       error_notebook_entries: {
         Row: {
           created_at: string
@@ -644,6 +665,39 @@ export type Database = {
           was_correct?: boolean
         }
         Relationships: []
+      }
+      group_ies: {
+        Row: {
+          created_at: string
+          group_id: string
+          ies_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          ies_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          ies_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_ies_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "educational_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_ies_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ies: {
         Row: {
@@ -1432,6 +1486,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_groups: {
+        Row: {
+          created_at: string
+          group_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_groups_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "educational_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_progress: {
         Row: {
           completed_at: string
@@ -1703,6 +1786,7 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      get_accessible_ies: { Args: { _user: string }; Returns: string[] }
       get_all_user_performance_by_area: {
         Args: never
         Returns: {
@@ -1901,6 +1985,7 @@ export type Database = {
         Args: { p_ies_id?: string; p_tema: string }
         Returns: Json
       }
+      get_user_group_ies: { Args: { _user: string }; Returns: string[] }
       get_user_ies_id: { Args: never; Returns: string }
       get_user_performance_aggregates: {
         Args: { p_simulado_id?: string }
@@ -1941,6 +2026,10 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      user_can_access_ies: {
+        Args: { _ies: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
@@ -1952,6 +2041,7 @@ export type Database = {
         | "gestor"
         | "atendimento"
         | "gestor_formal"
+        | "gestor_grupo"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
       progress_source: "manual" | "bulk" | "auto"
     }
@@ -2100,6 +2190,7 @@ export const Constants = {
         "gestor",
         "atendimento",
         "gestor_formal",
+        "gestor_grupo",
       ],
       progress_node_type: ["aula", "subtema", "tema", "materia"],
       progress_source: ["manual", "bulk", "auto"],
