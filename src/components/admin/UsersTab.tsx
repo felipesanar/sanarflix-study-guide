@@ -32,6 +32,7 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'professor', label: 'Professor' },
   { value: 'gestor', label: 'Gestor' },
+  { value: 'gestor_grupo', label: 'Gestor de Grupo' },
   { value: 'gestor_formal', label: 'Gestor Formal' },
   { value: 'b2b_partner', label: 'B2B Partner' },
   { value: 'atendimento', label: 'Atendimento' },

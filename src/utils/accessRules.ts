@@ -70,13 +70,14 @@ export const isB2BPartner = (user: User | null): boolean => {
 };
 
 /**
- * Verifica se usuário é gestor (inclui variantes 'gestor' e 'gestor_formal')
+ * Verifica se usuário é gestor (inclui variantes 'gestor', 'gestor_formal' e 'gestor_grupo')
  */
 export const isGestor = (user: User | null): boolean => {
   if (!user) return false;
   return (
     user.roles?.includes('gestor') ||
     user.roles?.includes('gestor_formal') ||
+    user.roles?.includes('gestor_grupo') ||
     false
   );
 };
@@ -87,6 +88,14 @@ export const isGestor = (user: User | null): boolean => {
 export const isGestorFormal = (user: User | null): boolean => {
   if (!user) return false;
   return user.roles?.includes('gestor_formal') || false;
+};
+
+/**
+ * Verifica se usuário é gestor de grupo educacional (multi-IES).
+ */
+export const isGestorGrupo = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.includes('gestor_grupo') || false;
 };
 
 /**

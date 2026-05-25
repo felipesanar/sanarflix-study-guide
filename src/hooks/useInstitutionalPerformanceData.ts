@@ -11,7 +11,7 @@ import {
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin, isB2BPartner, isGestor } from '@/utils/accessRules';
+import { isAdmin, isB2BPartner, isGestor, isGestorGrupo } from '@/utils/accessRules';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
@@ -148,40 +148,53 @@ export function useInstitutionalPerformanceData(
   const [usingMock, setUsingMock] = useState(false);
 
   // Determina se o usuário pode ver todas as IES (apenas admin e b2b_partner).
-  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES.
+  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES,
+  // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele.
   const canSeeAllIes = isAdmin(user) || isB2BPartner(user);
+  const isGroupManager = isGestorGrupo(user);
+  const accessibleIes = user?.accessible_ies ?? [];
 
-  // Fetch IES list — admin/b2b veem todas; gestor/aluno veem somente a sua IES
+  // IES "padrão" usada quando o gestor de grupo não tem `id_ies` próprio.
+  const defaultGroupIesId = accessibleIes[0]?.id;
+
+  // Fetch IES list — admin/b2b veem todas; gestor_grupo vê IES do grupo; demais veem só a sua.
   useEffect(() => {
     const fetchIes = async () => {
-      if (!canSeeAllIes) {
-        // Restringe à IES do próprio usuário
-        if (user?.id_ies) {
-          const { data: iesRow } = await supabase
-            .from('ies')
-            .select('id, nome')
-            .eq('id', user.id_ies)
-            .maybeSingle();
-          if (iesRow) {
-            setIesList([{ id: iesRow.id, nome: iesRow.nome }]);
-          } else {
-            setIesList([]);
-          }
-        } else {
-          setIesList([]);
+      if (canSeeAllIes) {
+        const { data: iesData, error: iesErr } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .order('nome');
+        if (!iesErr && iesData) {
+          setIesList(iesData.map((i) => ({ id: i.id, nome: i.nome })));
         }
         return;
       }
-      const { data: iesData, error: iesErr } = await supabase
-        .from('ies')
-        .select('id, nome')
-        .order('nome');
-      if (!iesErr && iesData) {
-        setIesList(iesData.map((i) => ({ id: i.id, nome: i.nome })));
+
+      // gestor_grupo: usa a lista de IES acessíveis vinda do AuthContext
+      if (isGroupManager && accessibleIes.length > 0) {
+        setIesList(accessibleIes.map((i) => ({ id: i.id, nome: i.nome })));
+        return;
+      }
+
+      // Outros perfis: restringe à própria IES
+      if (user?.id_ies) {
+        const { data: iesRow } = await supabase
+          .from('ies')
+          .select('id, nome')
+          .eq('id', user.id_ies)
+          .maybeSingle();
+        if (iesRow) {
+          setIesList([{ id: iesRow.id, nome: iesRow.nome }]);
+        } else {
+          setIesList([]);
+        }
+      } else {
+        setIesList([]);
       }
     };
     fetchIes();
-  }, [canSeeAllIes, user?.id_ies]);
+  }, [canSeeAllIes, isGroupManager, accessibleIes, user?.id_ies]);
 
   // Fetch simulados whenever IES changes
   useEffect(() => {
@@ -197,7 +210,11 @@ export function useInstitutionalPerformanceData(
       }
 
       try {
-        const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+        const requestedIesId = canSeeAllIes
+          ? (filters.iesId || undefined)
+          : isGroupManager
+            ? (filters.iesId || defaultGroupIesId || user?.id_ies || undefined)
+            : (user?.id_ies || undefined);
         const targetIesId = await resolveIesId(requestedIesId);
         const { data: simData, error: simErr } = await supabase.rpc('get_institutional_simulados', {
           p_ies_id: targetIesId,
@@ -236,7 +253,7 @@ export function useInstitutionalPerformanceData(
       }
     };
     fetchSimulados();
-  }, [filters.iesId, canSeeAllIes, user?.id_ies]);
+  }, [filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
@@ -259,7 +276,11 @@ export function useInstitutionalPerformanceData(
         return;
       }
 
-      const requestedIesId = canSeeAllIes ? (filters.iesId || undefined) : (user?.id_ies || undefined);
+      const requestedIesId = canSeeAllIes
+        ? (filters.iesId || undefined)
+        : isGroupManager
+          ? (filters.iesId || defaultGroupIesId || user?.id_ies || undefined)
+          : (user?.id_ies || undefined);
       const targetIesId = await resolveIesId(requestedIesId);
 
       // Parallel RPC calls with retry + timeout + total IES users count + TRI snapshot/evolution
@@ -304,7 +325,7 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId, canSeeAllIes, user?.id_ies]);
+  }, [filters.simuladoId, filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
   useEffect(() => {
     fetchPerformance();
