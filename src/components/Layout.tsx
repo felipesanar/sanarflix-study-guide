@@ -15,6 +15,10 @@ import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
 import { SemesterPromptBanner } from './SemesterPromptBanner';
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
+import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
+import { FeedbackFab } from '@/components/feedback/FeedbackFab';
+import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
+
 
 interface LayoutProps {
   children: React.ReactNode;
