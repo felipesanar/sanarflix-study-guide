@@ -80,6 +80,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
   const [showContext, setShowContext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pasteFlash, setPasteFlash] = useState(false);
 
   useEffect(() => {
     if (open) {
