@@ -137,7 +137,9 @@ function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
           <ArrowUp className="h-4 w-4" />
         </Button>
       )}
+      <FeedbackFab />
       <QuickActionsDock position="inline" />
+
     </div>
   );
 }
