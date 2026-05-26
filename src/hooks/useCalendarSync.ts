@@ -25,14 +25,24 @@ const readCacheSync = (): CalendarSubject[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    
+
     const data: StoredData = JSON.parse(stored);
+
+    // Migration check: descarta cache de versão antiga para evitar
+    // estruturas incompatíveis após mudanças de schema.
+    if (data.version !== SYNC_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
+
     // Verificar se o cache é recente
     if (data.subjects && data.lastUpdated && (Date.now() - data.lastUpdated) < CACHE_TTL) {
       return data.subjects;
     }
     return [];
   } catch {
+    // JSON corrompido: limpa para evitar loop de erro nas próximas leituras.
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
     return [];
   }
 };
@@ -48,7 +58,10 @@ export const useCalendarSync = () => {
   const [loading, setLoading] = useState(cachedSubjects.length === 0);
   const [syncing, setSyncing] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const initializedRef = useRef(false);
+  // Chave de inicialização por user.id: garante re-inicialização quando o
+  // usuário muda (ex: impersonation admin). Antes era boolean global,
+  // travando o estado do primeiro usuário carregado.
+  const initializedRef = useRef<string | null>(null);
 
   // Carregar do Local Storage (instantâneo) - apenas como fallback
   const loadFromLocalStorage = useCallback((): CalendarSubject[] => {
@@ -166,9 +179,11 @@ export const useCalendarSync = () => {
 
   // Inicialização: SERVER-FIRST com cache instantâneo
   useEffect(() => {
-    // Evitar múltiplas inicializações
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    const initKey = user?.id ?? '__anonymous__';
+    // Evitar múltiplas inicializações para o mesmo usuário, mas permitir
+    // re-inicialização quando user.id muda (impersonation/logout/login).
+    if (initializedRef.current === initKey) return;
+    initializedRef.current = initKey;
     
     const initialize = async () => {
       if (user?.id) {
@@ -274,21 +289,29 @@ export const useCalendarSync = () => {
     }
   }, [user, saveToLocalStorage, saveToDatabase, loadFromDatabase]);
 
-  // Adicionar matéria com deduplicação
+  // Adicionar matéria com deduplicação.
+  // Usa subjectsRef para ler estado atual síncronamente, evitando stale
+  // closure quando dois cliques rápidos viam o mesmo `subjects` antigo
+  // e ambos passavam pelo check de dedupe (gerando duplicatas).
+  // A defesa em profundidade real é a UNIQUE constraint server-side
+  // (migration §4 do runbook).
+  const subjectsRef = useRef(subjects);
+  subjectsRef.current = subjects;
+
   const addSubject = useCallback(async (subject: CalendarSubject) => {
-    // Verificar se já existe no dia (deduplicação no cliente)
-    const exists = subjects.some(
+    const current = subjectsRef.current;
+    const exists = current.some(
       s => s.name === subject.name && s.dayOfWeek === subject.dayOfWeek
     );
-    
+
     if (exists) {
       toast.info('Esta matéria já está agendada para este dia');
       return;
     }
-    
-    const newSubjects = [...subjects, subject];
+
+    const newSubjects = [...current, subject];
     await saveSubjects(newSubjects);
-  }, [subjects, saveSubjects]);
+  }, [saveSubjects]);
 
   // Remover matéria
   const removeSubject = useCallback(async (dayOfWeek: number, subjectName: string) => {

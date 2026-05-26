@@ -34,7 +34,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const cachedRaw = typeof window !== 'undefined' ? localStorage.getItem('sanarflix-user') : null;
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
       cachedRolesEmpty = !Array.isArray(cached?.roles) || cached.roles.length === 0;
-    } catch { /* ignore parse errors */ }
+    } catch (e) {
+      // localStorage corrompido — limpa para evitar loop e segue como se vazio.
+      try { localStorage.removeItem('sanarflix-user'); } catch { /* noop */ }
+      cachedRolesEmpty = true;
+      // eslint-disable-next-line no-console
+      console.warn('[AuthContext] cached profile inválido, limpando', e);
+    }
     if (!force && !cachedRolesEmpty && now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
     lastRefreshRef.current = now;
 

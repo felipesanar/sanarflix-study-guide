@@ -380,7 +380,6 @@ export const ModoProva = () => {
     'ArrowLeft': handleAnterior,
     'ArrowRight': handleProxima,
     'f': handleMarcarRevisao,
-    'F': handleMarcarRevisao,
     'Escape': () => setMostrarDialogFinalizar(true),
   }), [podeInteragir, questaoAtualData, handleSelecionarAlternativa, handleAnterior, handleProxima, handleMarcarRevisao]);
 
