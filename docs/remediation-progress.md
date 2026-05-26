@@ -4,19 +4,22 @@ Snapshot do estado das 8 fases planejadas. Atualize após cada PR.
 
 ## Resumo executivo
 
-- **Achados resolvidos: 30 de 39** (77%)
+- **Achados resolvidos: 32 de 39** (82%)
   - 🔴 Críticos: **5/5** (100%)
-  - 🟠 Altos: **12/15** (80%)
-  - 🟡 Médios: **12/17** (71%)
+  - 🟠 Altos: **13/15** (87%)
+  - 🟡 Médios: **13/17** (76%)
   - 🔵 Baixos: **1/2** (50%)
 
-- **Commits na branch:** 13
+- **Commits na branch:** 16
 - **Linhas removidas:** ~3500 (deprecated)
 - **Arquivos com `console.*` substituídos:** 91 → 0 em runtime
 - **Edge functions com CORS allowlist (gatekeep):** 22/36
-- **Edge functions migradas para template completo (rate limit + Zod + CORS):** 5 (`save-calendar-arrangement`, `request-password-reset`, `delete-user`, `sync-user-auth`, `corrigir-simulado`)
+- **Edge functions migradas para template completo (rate limit + Zod + CORS):** 5
 - **Edge functions com gatekeep de Origin (defesa em profundidade):** +16 via codemod
-- **Service layer:** `calendarService` completo; `useCalendarSync` migrado (-1 dos 78 imports diretos de supabase em components/hooks)
+- **Service layer:** 4 services (`calendarService`, `authService`, `usersService`, `simuladosApi`/`institutional`/`studyGuideApi` pré-existentes)
+- **`useCalendarSync` migrado para `calendarService`** (-1 dos 78 imports diretos)
+- **TS strict:** `noFallthroughCasesInSwitch` ativado (primeira de 4 flags)
+- **Testes:** 5 suítes unit (`timezone`, `validation`, `env`, `calendarService`, `usersService`) + Playwright smoke do login
 
 ## Fases
 
@@ -26,9 +29,9 @@ Snapshot do estado das 8 fases planejadas. Atualize após cada PR.
 | 1 — Críticos | ✅ Completa | `3ccf863` | 5/5 críticos resolvidos. Requer rotação de anon key (runbook §1) |
 | 2 — Hardening edge fn | 🟡 Parcial | `5b2d96d`, `2407f88`, `f293f52` | Shared utils prontas; 5 funções migradas completas; +16 com gatekeep de Origin via codemod |
 | 3 — Bug fixes hooks | 🟡 Parcial | `2d1b254`, `e7a8394` | useCalendarSync, StudyGuide, AuthContext fixos. Service layer iniciado (calendarService). God file refactor pendente |
-| 4 — TS strict | ❌ Pendente | — | Adiado: sem validação local, risco alto de quebrar CI |
+| 4 — TS strict | 🟡 Iniciada | `0f17d75` | `noFallthroughCasesInSwitch` ativado. 3 flags restantes em PRs separados |
 | 5 — Logger + cleanup | ✅ Completa | `aca5e97`, `c763f82`, `9f72c09` | `_deprecated/` removido, console→Logger codemod, ESLint hardening |
-| 6 — Testes | 🟡 Parcial | `0f73147` | 3 suítes unit cobrindo fixes da Fase 1/2. Cobertura geral ainda baixa |
+| 6 — Testes | 🟡 Parcial | `0f73147`, `0f17d75`, `a2c4109` | 5 suítes unit + Playwright smoke. Cobertura geral ainda baixa |
 | 7 — Documentação | 🟡 Em curso | — | Este documento; runbook completo |
 
 ## Pendências priorizadas para próximos PRs
