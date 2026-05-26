@@ -11,6 +11,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.53.0";
+import { isAllowedOrigin } from "../_shared/cors.ts";
 
 const LOG_PREFIX = "[Edge:admin-upload-study-guide]";
 
@@ -693,6 +694,12 @@ function jsonResponse(body: unknown, status = 200) {
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  // fase-2-cors-gatekeep
+  const __origin = req.headers.get('Origin');
+  if (__origin !== null && !isAllowedOrigin(__origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

@@ -2,20 +2,33 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { maskEmail } from "../_shared/auth.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
+    if (!corsHeaders) return new Response('forbidden', { status: 403 });
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (!corsHeaders) return new Response('forbidden', { status: 403 });
+
   try {
+    // Rate limit por IP — operação de recovery sensível.
+    const rl = await checkRateLimit(req, { key: 'sync-user-auth', limitPerMin: 10 });
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
@@ -36,7 +49,7 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    console.log(`[sync-user-auth] Attempting to sync user: ${normalizedEmail}`);
+    console.log(`[sync-user-auth] Attempting to sync user: ${maskEmail(normalizedEmail)}`);
 
     // 1. Check if user exists in public.users
     const { data: publicUser, error: publicUserError } = await supabaseAdmin
@@ -61,7 +74,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[sync-user-auth] Found public user: ${publicUser.nome} (ID: ${publicUser.id})`);
+    console.log(`[sync-user-auth] Found public user (ID: ${publicUser.id})`);
 
     // 2. Check if user already exists in auth.users
     const { data: authUsersList, error: listError } = await supabaseAdmin.auth.admin.listUsers();

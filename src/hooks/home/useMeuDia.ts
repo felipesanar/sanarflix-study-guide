@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getBrazilDayOfWeek, getBrazilDate } from '@/utils/timezone';
 import { MeuDiaItem } from '@/hooks/useHomeData';
+import { Logger } from '@/utils/logger';
 
 interface User {
   id: string;
@@ -76,7 +77,7 @@ export const useMeuDia = () => {
         await processCalendarSubjects(user, subjectsToProcess, meuDiaItems);
       }
     } catch (e) {
-      console.error('[Meu Dia] Erro ao montar matérias:', e);
+      Logger.error('[Meu Dia] Erro ao montar matérias:', e);
     }
 
     // Simulado disponível
@@ -181,7 +182,7 @@ export const useMeuDia = () => {
         });
       }
     } catch (e) {
-      console.warn('[Meu Dia] Erro ao avaliar simulados:', e);
+      Logger.warn('[Meu Dia] Erro ao avaliar simulados:', e);
     }
   };
 

@@ -21,6 +21,7 @@ import type {
   InstitutionalTriSnapshot,
   InstitutionalTriEvolutionEntry,
 } from '@/services/institutional';
+import { Logger } from '@/utils/logger';
 
 // ── Proficiency rules (single source of truth) ──
 
@@ -169,8 +170,8 @@ export function mapInstitutionalRpcToViewModel(
 
   const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
 
-  console.log('[TRI] PCP loaded:', triPercentProficientes);
-  console.log('[TRI] Regulatory sanction derived from pcp:', sancao);
+  Logger.info('[TRI] PCP loaded:', triPercentProficientes);
+  Logger.info('[TRI] Regulatory sanction derived from pcp:', sancao);
 
 
   // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
@@ -373,7 +374,7 @@ export function mapInstitutionalRpcToViewModel(
 
   const curricular: CurricularBreakdown = { areas: areaNodes };
 
-  console.log('[DesempenhoV2:Mapper]', 'Mapped:', {
+  Logger.info('[DesempenhoV2:Mapper]', 'Mapped:', {
     totalStudents,
     overallAccuracy,
     percentProficientes,
@@ -382,9 +383,9 @@ export function mapInstitutionalRpcToViewModel(
     curricularAreas: areaNodes.length,
   });
 
-  console.log('[Impact Model] audit completed');
-  console.log('[Impact Model] formulas documented');
-  console.log('[Impact Model] changes applied:', true);
+  Logger.info('[Impact Model] audit completed');
+  Logger.info('[Impact Model] formulas documented');
+  Logger.info('[Impact Model] changes applied:', true);
 
   return {
     kpis,

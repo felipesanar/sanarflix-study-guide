@@ -65,6 +65,20 @@ const ChartContainer = React.forwardRef<
 })
 ChartContainer.displayName = "Chart"
 
+// Sanitiza valor CSS para impedir CSS injection via config dinâmica.
+// Aceita apenas caracteres válidos em cores (#abc / hsl(...) / oklch(...) /
+// rgb(...) / nomes / vars / percentuais / espaço). Rejeita caracteres que
+// permitam fechar declaração e injetar diretivas.
+const SAFE_CSS_VALUE = /^[\w#().,\s%/\-]+$/;
+function sanitizeCssValue(value: string): string {
+  return SAFE_CSS_VALUE.test(value) ? value : 'transparent';
+}
+
+// Sanitiza key (usada em --color-${key}) para impedir injeção via nome.
+function sanitizeCssKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
     ([_, config]) => config.theme || config.color
@@ -86,7 +100,11 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    if (!color) return null;
+    // Sanitização defensiva: bloqueia CSS injection via config controlada
+    // por usuário (ex: dashboard customizado). Sem essa proteção, um valor
+    // contendo `}` poderia fechar a regra e injetar declarações arbitrárias.
+    return `  --color-${sanitizeCssKey(key)}: ${sanitizeCssValue(color)};`
   })
   .join("\n")}
 }

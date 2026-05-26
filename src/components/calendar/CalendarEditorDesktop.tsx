@@ -13,6 +13,7 @@ import { DayColumnCard } from './DayColumnCard';
 import { DropZone, EmptyDayState } from './DropZone';
 import { FloatingActionBar } from './FloatingActionBar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Logger } from '@/utils/logger';
 
 interface CalendarEditorDesktopProps {
   events: CalendarEvent[];
@@ -77,12 +78,12 @@ export const CalendarEditorDesktop: React.FC<CalendarEditorDesktopProps> = ({
   }, [eventsByDay]);
 
   const handleDragStart = (subjectName: string) => {
-    console.log('[StudyCalendarEditor] Drag start:', subjectName);
+    Logger.info('[StudyCalendarEditor] Drag start:', subjectName);
     setDraggedItem(subjectName);
   };
 
   const handleDragEnd = () => {
-    console.log('[StudyCalendarEditor] Drag end');
+    Logger.info('[StudyCalendarEditor] Drag end');
     setDraggedItem(null);
     setDragOverDay(null);
   };

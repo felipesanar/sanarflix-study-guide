@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 interface Usuario {
   id: string;
@@ -80,7 +81,7 @@ export const LiberarSimuladoModal = ({ open, onClose }: LiberarSimuladoModalProp
       if (error) throw error;
       setUsuarios(data || []);
     } catch (error: any) {
-      console.error('Erro ao carregar usuários:', error);
+      Logger.error('Erro ao carregar usuários:', error);
       toast.error('Erro ao carregar lista de usuários');
     } finally {
       setLoading(false);
@@ -97,7 +98,7 @@ export const LiberarSimuladoModal = ({ open, onClose }: LiberarSimuladoModalProp
       if (error) throw error;
       setSimulados(data || []);
     } catch (error: any) {
-      console.error('Erro ao carregar simulados:', error);
+      Logger.error('Erro ao carregar simulados:', error);
     }
   };
 
@@ -113,7 +114,7 @@ export const LiberarSimuladoModal = ({ open, onClose }: LiberarSimuladoModalProp
       if (error) throw error;
       setSimuladosFinalizados(data || []);
     } catch (error: any) {
-      console.error('Erro ao carregar simulados finalizados:', error);
+      Logger.error('Erro ao carregar simulados finalizados:', error);
       toast.error('Erro ao carregar simulados do aluno');
     } finally {
       setLoadingSimulados(false);
@@ -145,7 +146,7 @@ export const LiberarSimuladoModal = ({ open, onClose }: LiberarSimuladoModalProp
       await carregarSimuladosFinalizados();
       setSelectedSimulado('');
     } catch (error: any) {
-      console.error('Erro ao liberar simulado:', error);
+      Logger.error('Erro ao liberar simulado:', error);
       toast.error('Erro ao liberar simulado');
     } finally {
       setLiberando(false);

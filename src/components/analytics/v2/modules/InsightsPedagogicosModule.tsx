@@ -21,6 +21,7 @@ import { ModuleEmptyState } from '@/components/analytics/v2/shell/ModuleEmptySta
 import type {
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const PROFICIENCY_THRESHOLD = 60;
 
@@ -110,7 +111,7 @@ function buildInsights(data: InstitutionalViewModel): PrioritizedInsight[] {
       const spPrevalencia = totalQuestions > 0 ? (sp.total / totalQuestions) * 100 : 0;
       const categoria = classify(sp.percentual, spPrevalencia);
 
-      console.log('[Insights]', sp.name, sp.percentual, Math.round(spPrevalencia * 10) / 10);
+      Logger.info('[Insights]', sp.name, sp.percentual, Math.round(spPrevalencia * 10) / 10);
 
       if (categoria === 'neutral') continue;
 
@@ -298,8 +299,8 @@ export const InsightsPedagogicosModule: React.FC<Props> = ({ data, loading, erro
   }
 
   const featuredInsights = insights.slice(0, 3);
-  console.log('[Insights] total:', insights.length);
-  console.log('[Insights] featured:', featuredInsights.length);
+  Logger.info('[Insights] total:', insights.length);
+  Logger.info('[Insights] featured:', featuredInsights.length);
 
   return (
     <motion.div className="space-y-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>

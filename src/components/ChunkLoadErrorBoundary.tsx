@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react';
+import { Logger } from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -30,7 +31,7 @@ export class ChunkLoadErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Chunk loading error:', error, errorInfo);
+    Logger.error('Chunk loading error:', error, errorInfo);
     
     if (this.state.errorType === 'chunk') {
       // Não recarregar automaticamente; permitir ação manual do usuário

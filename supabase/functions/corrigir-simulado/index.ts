@@ -1,9 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 interface RespostaSimulado {
   questao_id: string;
@@ -22,12 +18,31 @@ interface CorrecaoRequest {
   saidas_de_fullscreen?: number;
   finalizado_em?: string;
   auto_finalizado?: boolean;
+  /**
+   * Access token usado apenas no fluxo de sendBeacon (que não permite
+   * cabeçalhos customizados). Quando presente, o servidor o trata como
+   * o token autoritativo equivalente ao header Authorization.
+   * NUNCA confiar em user_id do body — sempre validar contra este token.
+   */
+  __access_token?: string;
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    if (!corsHeaders) {
+      return new Response('forbidden', { status: 403 });
+    }
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Para o fluxo de sendBeacon a Origin pode vir; se for inválida, rejeitamos.
+  // O happy path (academy.sanar.com.br + similares) está na allowlist.
+  if (!corsHeaders) {
+    return new Response('forbidden', { status: 403 });
   }
 
   try {
@@ -45,16 +60,58 @@ Deno.serve(async (req) => {
     // Cliente admin para operações que precisam bypassar RLS
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { 
-      simulado_id, 
-      user_id, 
-      respostas, 
-      tempo_total_segundos, 
-      saidas_de_aba, 
+    const body: CorrecaoRequest = await req.json();
+    const {
+      simulado_id,
+      respostas,
+      tempo_total_segundos,
+      saidas_de_aba,
       saidas_de_fullscreen,
       finalizado_em,
-      auto_finalizado 
-    }: CorrecaoRequest = await req.json();
+      auto_finalizado,
+      __access_token,
+    } = body;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Autenticação autoritativa
+    // ─────────────────────────────────────────────────────────────────────────
+    // O user_id ANTES vinha do body sem validação (IDOR). Agora extraímos o
+    // usuário autenticado do JWT — do header Authorization no fluxo normal,
+    // ou do campo __access_token do body no fluxo de sendBeacon (que não
+    // permite headers customizados).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const headerToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length)
+      : '';
+    const token = headerToken || __access_token || '';
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'unauthorized', detail: 'missing access token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: userData, error: getUserError } = await supabaseAdmin.auth.getUser(token);
+    if (getUserError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ error: 'unauthorized', detail: 'invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const user_id = userData.user.id;
+
+    // Se o cliente enviou user_id, deve coincidir com o autenticado.
+    // Mismatch indica tentativa de IDOR — bloqueamos e logamos.
+    if (body.user_id && body.user_id !== user_id) {
+      console.warn(
+        `[corrigir-simulado] IDOR attempt: body.user_id=${body.user_id} != auth.user_id=${user_id}`
+      );
+      return new Response(
+        JSON.stringify({ error: 'forbidden', detail: 'user mismatch' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`[corrigir-simulado] Processando simulado: ${simulado_id} para usuário: ${user_id}`);
     console.log(`[corrigir-simulado] Auto-finalizado: ${auto_finalizado ? 'SIM (sendBeacon)' : 'NÃO (botão)'}`);

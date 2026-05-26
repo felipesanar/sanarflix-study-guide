@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { User, FileText, BarChart3, Clock, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Logger } from '@/utils/logger';
 
 interface UserSupportPanelProps {
   userId: string | null;
@@ -31,7 +32,7 @@ export const UserSupportPanel: React.FC<UserSupportPanelProps> = ({ userId, user
       if (error) throw error;
       setData(result);
     } catch (err) {
-      console.error('Error fetching support data:', err);
+      Logger.error('Error fetching support data:', err);
     } finally {
       setLoading(false);
     }

@@ -15,6 +15,7 @@ import { HomePageSkeleton } from '@/components/skeletons/HomePageSkeleton';
 import { AddExamWizard } from '@/components/progress-hub/AddExamWizard';
 import { AddExamWizardMobile } from '@/components/progress-hub/AddExamWizardMobile';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Logger } from '@/utils/logger';
 
 export const Home: React.FC = () => {
   const isMobile = useIsMobile();
@@ -83,7 +84,7 @@ export const Home: React.FC = () => {
   // Future: could open a specific edit modal
   const handleEditExam = (examId: string) => {
     // TODO: Implement exam editing - for now just show a toast
-    console.log('[Home] Edit exam:', examId);
+    Logger.info('[Home] Edit exam:', examId);
   };
 
   const containerVariants = {

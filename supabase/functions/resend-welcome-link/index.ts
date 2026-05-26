@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
+import { isAllowedOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +101,12 @@ function buildWelcomeEmailHtml(confirmationUrl: string, email: string): string {
 }
 
 Deno.serve(async (req) => {
+  // fase-2-cors-gatekeep
+  const __origin = req.headers.get('Origin');
+  if (__origin !== null && !isAllowedOrigin(__origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

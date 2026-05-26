@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Logger } from '@/utils/logger';
 
 interface TooltipInfoProps {
   text: string;
@@ -19,7 +20,7 @@ export const TooltipInfo: React.FC<TooltipInfoProps> = ({
   section,
 }) => {
   if (section) {
-    console.log('[TooltipInfo] render', { section });
+    Logger.info('[TooltipInfo] render', { section });
   }
 
   return (

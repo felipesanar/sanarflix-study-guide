@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CalendarEvent, getMateriaColor, getMateriaIcon } from './types';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 interface CalendarViewDesktopProps {
   events: CalendarEvent[];
@@ -24,8 +25,8 @@ export const CalendarViewDesktop: React.FC<CalendarViewDesktopProps> = ({
   onEventClick,
   variant = 'dark'
 }) => {
-  const [activeDay, setActiveDay] = useState<number>(new Date().getDay());
-  const today = new Date().getDay();
+  const [activeDay, setActiveDay] = useState<number>(getBrazilDayOfWeek());
+  const today = getBrazilDayOfWeek();
   const isDark = variant === 'dark';
 
   return (

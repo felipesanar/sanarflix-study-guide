@@ -14,6 +14,7 @@ import type {
   REQUIRED_COLUMNS_CSV,
   REQUIRED_COLUMNS_XLSX,
 } from '../types';
+import { Logger } from '@/utils/logger';
 
 const LOG_PREFIX = '[AdminStudyGuideImport:Parser]';
 
@@ -93,7 +94,7 @@ function detectDelimiter(text: string): string {
   }
 
   const delimName = bestDelimiter === '\t' ? 'TAB' : bestDelimiter;
-  console.log(LOG_PREFIX, `Delimiter detected: "${delimName}" (score: ${bestScore})`);
+  Logger.info(LOG_PREFIX, `Delimiter detected: "${delimName}" (score: ${bestScore})`);
   return bestDelimiter;
 }
 
@@ -120,14 +121,14 @@ function parseCSVText(text: string): { rows: Record<string, string>[]; rawHeader
     return resolveColumnAlias(normalized);
   });
 
-  console.log(LOG_PREFIX, 'Raw headers:', rawHeaders);
-  console.log(LOG_PREFIX, 'Resolved headers:', resolvedHeaders);
+  Logger.info(LOG_PREFIX, 'Raw headers:', rawHeaders);
+  Logger.info(LOG_PREFIX, 'Resolved headers:', resolvedHeaders);
 
   // Check field count consistency between header and first data line
   if (lines.length >= 2) {
     const firstDataFields = parseCSVLine(lines[1], delimiter).length;
     if (firstDataFields !== rawHeaders.length) {
-      console.warn(LOG_PREFIX, `⚠ Field count mismatch: header has ${rawHeaders.length} fields, first data row has ${firstDataFields} fields`);
+      Logger.warn(LOG_PREFIX, `⚠ Field count mismatch: header has ${rawHeaders.length} fields, first data row has ${firstDataFields} fields`);
     }
   }
 
@@ -204,7 +205,7 @@ function validateRequiredHeaders(resolvedHeaders: string[], rawHeaders: string[]
     const msg = `Colunas obrigatórias não encontradas: [${missing.join(', ')}]. ` +
       `Colunas detectadas no arquivo: [${rawHeaders.join(', ')}] → normalizadas para [${resolvedHeaders.join(', ')}]. ` +
       `Verifique o formato e o delimitador do arquivo.`;
-    console.error(LOG_PREFIX, msg);
+    Logger.error(LOG_PREFIX, msg);
     throw new Error(msg);
   }
 }
@@ -216,7 +217,7 @@ export async function parseCSV(file: File): Promise<{
   rows: Record<string, string>[];
   sheetInfo: SheetInfo;
 }> {
-  console.log(LOG_PREFIX, 'Parsing CSV:', file.name);
+  Logger.info(LOG_PREFIX, 'Parsing CSV:', file.name);
 
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -237,10 +238,10 @@ export async function parseCSV(file: File): Promise<{
           autoMatched: false,
         };
 
-        console.log(LOG_PREFIX, `Parsed ${rows.length} rows from CSV`);
+        Logger.info(LOG_PREFIX, `Parsed ${rows.length} rows from CSV`);
         resolve({ rows, sheetInfo });
       } catch (error) {
-        console.error(LOG_PREFIX, 'CSV parse error:', error);
+        Logger.error(LOG_PREFIX, 'CSV parse error:', error);
         reject(error instanceof Error ? error : new Error('Falha ao processar arquivo CSV'));
       }
     };
@@ -372,7 +373,7 @@ function fillDownMergedCells(rows: Record<string, string>[], headers: string[]):
           filledCount++;
         } else {
           // Exceeded limit — stop propagating this column
-          console.warn(LOG_PREFIX, `Fill-down limit reached for column "${col}" after ${MAX_CONSECUTIVE_FILL} consecutive empty rows`);
+          Logger.warn(LOG_PREFIX, `Fill-down limit reached for column "${col}" after ${MAX_CONSECUTIVE_FILL} consecutive empty rows`);
           delete lastValues[col];
         }
       }
@@ -380,7 +381,7 @@ function fillDownMergedCells(rows: Record<string, string>[], headers: string[]):
   }
   
   if (filledCount > 0) {
-    console.log(LOG_PREFIX, `Fill-down: ${filledCount} empty cells filled across columns [${columnsToFill.join(', ')}]`);
+    Logger.info(LOG_PREFIX, `Fill-down: ${filledCount} empty cells filled across columns [${columnsToFill.join(', ')}]`);
   }
 }
 
@@ -397,7 +398,7 @@ export async function parseXLSX(
     sheetInfo: SheetInfo;
   }>;
 }> {
-  console.log(LOG_PREFIX, 'Parsing XLSX:', file.name);
+  Logger.info(LOG_PREFIX, 'Parsing XLSX:', file.name);
   
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -463,7 +464,7 @@ export async function parseXLSX(
               mappedIesId = match.iesId;
               mappedIesName = match.iesName;
               autoMatched = true;
-              console.log(LOG_PREFIX, `Auto-matched sheet "${sheetName}" to IES "${match.iesName}" (score: ${match.score.toFixed(2)})`);
+              Logger.info(LOG_PREFIX, `Auto-matched sheet "${sheetName}" to IES "${match.iesName}" (score: ${match.score.toFixed(2)})`);
             }
           }
           
@@ -480,10 +481,10 @@ export async function parseXLSX(
           });
         }
         
-        console.log(LOG_PREFIX, `Parsed ${sheets.length} sheets from XLSX`);
+        Logger.info(LOG_PREFIX, `Parsed ${sheets.length} sheets from XLSX`);
         resolve({ sheets });
       } catch (error) {
-        console.error(LOG_PREFIX, 'XLSX parse error:', error);
+        Logger.error(LOG_PREFIX, 'XLSX parse error:', error);
         reject(new Error('Falha ao processar arquivo XLSX'));
       }
     };
@@ -579,7 +580,7 @@ export function validateAndNormalize(
   sheetName?: string,
   existingSemestres?: string[]
 ): ValidationResult {
-  console.log(LOG_PREFIX, `Validating ${rawRows.length} rows for IES ${iesId}`);
+  Logger.info(LOG_PREFIX, `Validating ${rawRows.length} rows for IES ${iesId}`);
   
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
@@ -742,7 +743,7 @@ export function validateAndNormalize(
     })),
   };
   
-  console.log(LOG_PREFIX, `Validation complete: ${result.validRows} valid, ${errors.length} errors, ${warnings.length} warnings`);
+  Logger.info(LOG_PREFIX, `Validation complete: ${result.validRows} valid, ${errors.length} errors, ${warnings.length} warnings`);
   
   return result;
 }

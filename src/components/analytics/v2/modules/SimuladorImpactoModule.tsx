@@ -20,6 +20,7 @@ import type {
   InstitutionalViewModel,
   StudentScore,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const PROFICIENCY_THRESHOLD = 60;
 
@@ -204,7 +205,7 @@ function simulateByEffort(
     targetTotal: targetNode.total, totalQuestions, weight, effectiveImprovement,
   };
 
-  console.log('[ImpactSimulator][Effort]', {
+  Logger.info('[ImpactSimulator][Effort]', {
     inputs: { improvement, weight, effectiveImprovement, segment: scenario.segment },
     outputs: { newProficientes, totalImpactados, taxaConversao, eficiencia, deltaPercent },
   });
@@ -243,8 +244,8 @@ function simulateByGoal(
   const isTrivial = requiredEffort < 1;
   const clampedEffort = Math.min(100, Math.max(0, requiredEffort));
 
-  console.log('[ImpactSimulator][Mode]', 'goal');
-  console.log('[ImpactSimulator][Goal]', {
+  Logger.info('[ImpactSimulator][Mode]', 'goal');
+  Logger.info('[ImpactSimulator][Goal]', {
     desiredRecovered: desired, requiredEffort: Math.round(requiredEffort * 10) / 10,
     maxGap: Math.round(maxGap * 10) / 10, weight, isInfeasible,
   });

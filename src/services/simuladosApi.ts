@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
+import { Logger } from '@/utils/logger';
 
 export const simuladosApi = {
   async listarSimulados(userIesId?: string): Promise<Simulado[]> {
@@ -112,7 +113,7 @@ export const simuladosApi = {
     const total = (data || []).length;
     const comImagem = (data || []).filter((q: any) => q.imagem).length;
     const comImagemComentario = (data || []).filter((q: any) => q.imagem_comentario).length;
-    console.log('[simuladosApi] buscarQuestoesSimulado', {
+    Logger.info('[simuladosApi] buscarQuestoesSimulado', {
       simuladoId: String(simuladoId),
       total,
       comImagem,

@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { AnalyticsFilters } from '@/pages/Analytics';
+import { Logger } from '@/utils/logger';
 
 interface ExportModalProps {
   open: boolean;
@@ -42,7 +43,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ open, onOpenChange, fi
   const fetchExportData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    console.log('[ExportModal] Buscando dados para exportação com filtros:', filters);
+    Logger.info('[ExportModal] Buscando dados para exportação com filtros:', filters);
 
     try {
       const startDate = filters.dateRange.start.toISOString();
@@ -160,9 +161,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({ open, onOpenChange, fi
 
       setExportData(exportRows);
       setTotalRecords(exportRows.length);
-      console.log('[ExportModal] Dados carregados:', exportRows.length, 'registros');
+      Logger.info('[ExportModal] Dados carregados:', exportRows.length, 'registros');
     } catch (err) {
-      console.error('[ExportModal] Erro ao buscar dados:', err);
+      Logger.error('[ExportModal] Erro ao buscar dados:', err);
       setError(err instanceof Error ? err.message : 'Erro ao buscar dados');
     } finally {
       setIsLoading(false);
@@ -250,7 +251,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ open, onOpenChange, fi
     } catch (err) {
       clearInterval(progressInterval);
       setIsDownloading(false);
-      console.error('[ExportModal] Erro ao gerar CSV:', err);
+      Logger.error('[ExportModal] Erro ao gerar CSV:', err);
       toast({
         title: "Erro ao exportar",
         description: "Não foi possível gerar o arquivo CSV",

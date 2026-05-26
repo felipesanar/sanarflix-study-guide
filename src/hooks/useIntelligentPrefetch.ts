@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Logger } from '@/utils/logger';
 
 // Mapa de probabilidades de navegação baseado em análise de comportamento
 const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
@@ -72,7 +73,7 @@ class NavigationTracker {
         this.history = JSON.parse(stored);
       }
     } catch (e) {
-      console.warn('Failed to load navigation history', e);
+      Logger.warn('Failed to load navigation history', e);
     }
   }
 
@@ -80,7 +81,7 @@ class NavigationTracker {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.history.slice(-MAX_HISTORY_SIZE)));
     } catch (e) {
-      console.warn('Failed to save navigation history', e);
+      Logger.warn('Failed to save navigation history', e);
     }
   }
 

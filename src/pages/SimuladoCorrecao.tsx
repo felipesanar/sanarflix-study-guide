@@ -22,6 +22,7 @@ import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorN
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { generateProvaRevisadaPDF, QuestaoRevisada, ProvaRevisadaStats } from '@/utils/pdfProvaRevisada';
 import { toast } from '@/hooks/use-toast';
+import { Logger } from '@/utils/logger';
 
 // --- Types ---
 interface CorrectedQuestion {
@@ -190,7 +191,7 @@ export const SimuladoCorrecao: React.FC = () => {
   const [downloadProgress, setDownloadProgress] = useState('');
 
   useEffect(() => {
-    console.log('[ReviewUI] Page mounted');
+    Logger.info('[ReviewUI] Page mounted');
     trackEvent({ eventName: 'correction_page_viewed', category: 'navigation', data: {} });
   }, []);
 
@@ -203,9 +204,9 @@ export const SimuladoCorrecao: React.FC = () => {
         const { data, error } = await supabase.rpc('get_user_simulados');
         if (error) throw error;
         setSimulados((data || []).map((s: any) => ({ id: s.id, nome: s.nome })));
-        console.log('[ReviewUI] Simulados loaded:', data?.length);
+        Logger.info('[ReviewUI] Simulados loaded:', data?.length);
       } catch (err) {
-        console.error('[ReviewUI] Error fetching simulados:', err);
+        Logger.error('[ReviewUI] Error fetching simulados:', err);
       } finally {
         setLoadingSimulados(false);
       }
@@ -232,7 +233,7 @@ export const SimuladoCorrecao: React.FC = () => {
         if (cached) {
           setQuestions(JSON.parse(cached));
           setLoading(false);
-          console.log('[ReviewUI] Loaded from cache');
+          Logger.info('[ReviewUI] Loaded from cache');
           return;
         }
 
@@ -274,9 +275,9 @@ export const SimuladoCorrecao: React.FC = () => {
 
         setQuestions(merged);
         sessionStorage.setItem(cacheKey, JSON.stringify(merged));
-        console.log('[ReviewUI] Questions loaded:', merged.length);
+        Logger.info('[ReviewUI] Questions loaded:', merged.length);
       } catch (err) {
-        console.error('[ReviewUI] Error fetching questions:', err);
+        Logger.error('[ReviewUI] Error fetching questions:', err);
         toast({ title: 'Erro', description: 'Não foi possível carregar as questões.', variant: 'destructive' });
       } finally {
         setLoading(false);
@@ -387,7 +388,7 @@ export const SimuladoCorrecao: React.FC = () => {
 
       toast({ title: 'Prova revisada gerada!', description: 'O PDF foi baixado com sucesso.' });
     } catch (error) {
-      console.error('[ReviewUI] Error generating PDF:', error);
+      Logger.error('[ReviewUI] Error generating PDF:', error);
       toast({ title: 'Erro', description: 'Não foi possível gerar o PDF.', variant: 'destructive' });
     } finally {
       setIsDownloading(false);

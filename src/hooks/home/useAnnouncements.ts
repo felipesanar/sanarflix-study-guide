@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
 import { AlertCircle, AlertTriangle, Bell, Info, LucideIcon } from 'lucide-react';
+import { Logger } from '@/utils/logger';
 
 export interface Announcement {
   id: string;
@@ -66,7 +67,7 @@ export const useAnnouncements = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Erro ao buscar avisos:', error);
+      Logger.error('Erro ao buscar avisos:', error);
       return;
     }
 

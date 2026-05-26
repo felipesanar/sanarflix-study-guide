@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { X, Filter } from 'lucide-react';
+import { Logger } from '@/utils/logger';
 
 interface IES {
   id: string;
@@ -44,7 +45,7 @@ export const RealtimeFilters = ({ filters, onFiltersChange }: RealtimeFiltersPro
       if (iesResult.data) setIesList(iesResult.data);
       if (simuladosResult.data) setSimuladosList(simuladosResult.data);
     } catch (error) {
-      console.error('Erro ao carregar filtros:', error);
+      Logger.error('Erro ao carregar filtros:', error);
     } finally {
       setLoading(false);
     }

@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { UserSupportPanel } from './UserSupportPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { Logger } from '@/utils/logger';
 
 interface IES {
   id: string;
@@ -277,7 +278,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
       onStatsUpdate?.(count || 0, adminCount || 0);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      Logger.error('Error fetching users:', err);
       toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);
@@ -343,7 +344,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           });
         }
       } catch (err) {
-        console.error('[BatchDelete] Chunk error:', err);
+        Logger.error('[BatchDelete] Chunk error:', err);
         totalFailed += chunk.length;
       }
 
@@ -671,7 +672,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       await navigator.clipboard.writeText(data.url);
       toast.success(`Link de ${label} copiado!`);
     } catch (err) {
-      console.error('[copyUserLink]', err);
+      Logger.error('[copyUserLink]', err);
       toast.error(`Erro ao gerar link de ${label}`);
     }
   };

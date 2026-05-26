@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { usersService } from '@/services/usersService';
+import { iesService } from '@/services/iesService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 import { UsersListTable } from './UsersListTable';
 import * as XLSX from 'xlsx';
+import { Logger } from '@/utils/logger';
 
 const MAX_BATCH_ROWS = 1000;
 const CONCURRENCY = 5;
@@ -62,9 +64,9 @@ export const UsersTab: React.FC = () => {
   }, []);
 
   const fetchIesList = async () => {
-    const { data, error } = await supabase.from('ies').select('id, nome').order('nome');
-    if (!error && data) {
-      setIesList(data);
+    const list = await iesService.list();
+    if (list.length > 0) {
+      setIesList(list);
     }
   };
 
@@ -98,30 +100,17 @@ export const UsersTab: React.FC = () => {
     setIsCreating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: {
-          nome: singleUser.nome,
-          email: singleUser.email.toLowerCase().trim(),
-          id_ies: singleUser.id_ies,
-          semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
-          ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role } : {}),
-        },
+      // Via usersService: erro estruturado já é extraído do FunctionsHttpError.
+      const data = await usersService.createUser({
+        nome: singleUser.nome,
+        email: singleUser.email.toLowerCase().trim(),
+        id_ies: singleUser.id_ies,
+        semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
+        ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role as 'aluno' | 'professor' | 'b2b_partner' | 'admin' } : {}),
       });
 
-      if (error || !data?.success) {
-        let msg = data?.error || 'Erro ao criar usuário';
-        let details = data?.details;
-
-        // Extract actual error from FunctionsHttpError response body
-        if (error && !data) {
-          try {
-            const errorBody = await (error as any).context?.json?.();
-            if (errorBody?.error) msg = errorBody.error;
-            if (errorBody?.details) details = errorBody.details;
-          } catch { /* use fallback */ }
-        }
-
-        const displayMsg = details ? `${msg}: ${details}` : msg;
+      if (!data.success) {
+        const displayMsg = data.message ? `${data.error}: ${data.message}` : (data.error ?? 'Erro ao criar usuário');
         toast.error(displayMsg);
         addLog(`Erro ao criar ${singleUser.email}: ${displayMsg}`);
         return;
@@ -129,7 +118,7 @@ export const UsersTab: React.FC = () => {
 
       let actionMsg: string;
       if (data.action === 'created') {
-        actionMsg = data.details?.emailSent 
+        actionMsg = data.details?.emailSent
           ? '✅ Usuário cadastrado. E-mail de boas-vindas enviado.'
           : '⚠️ Usuário cadastrado, mas não foi possível enviar o e-mail.';
       } else {
@@ -140,7 +129,7 @@ export const UsersTab: React.FC = () => {
       addLog(`${singleUser.email}: ${actionMsg}`);
       setSingleUser({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
     } catch (err) {
-      console.error('Create user error:', err);
+      Logger.error('Create user error:', err);
       toast.error('Erro inesperado ao criar usuário');
     } finally {
       setIsCreating(false);
@@ -293,25 +282,18 @@ export const UsersTab: React.FC = () => {
 
         const chunkResults = await Promise.allSettled(
           chunk.map(async (user) => {
-            const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-              body: { nome: user.nome, email: user.email, id_ies: batchIesId, semestre: user.semestre },
+            const data = await usersService.createUser({
+              nome: user.nome,
+              email: user.email,
+              id_ies: batchIesId,
+              semestre: user.semestre,
             });
 
-            if (error || !data?.success) {
-              let errorMsg = data?.details || data?.error || 'Erro desconhecido';
-              let errorCode = data?.code || 'INTERNAL_ERROR';
-
-              if (error && !data) {
-                try {
-                  const errorBody = await (error as any).context?.json?.();
-                  if (errorBody?.error) errorMsg = errorBody.details ? `${errorBody.error}: ${errorBody.details}` : errorBody.error;
-                  if (errorBody?.code) errorCode = errorBody.code;
-                } catch { /* use fallback */ }
-              }
-
+            if (!data.success) {
+              const errorMsg = data.message ? `${data.error}: ${data.message}` : (data.error ?? 'Erro desconhecido');
               return {
                 email: user.email, nome: user.nome, linha: user.linha, success: false as const,
-                error: { code: errorCode, message: errorMsg },
+                error: { code: data.code ?? 'INTERNAL_ERROR', message: errorMsg },
               };
             }
 
@@ -371,7 +353,7 @@ export const UsersTab: React.FC = () => {
       
       toast.success(`Importação concluída. ${report.created} criados, ${report.updated} atualizados, ${emailsSent} e-mails enviados${emailsFailed > 0 ? `, ${emailsFailed} falharam` : ''}.`);
     } catch (err) {
-      console.error('CSV processing error:', err);
+      Logger.error('CSV processing error:', err);
       toast.error('Erro ao processar arquivo');
       addLog(`Erro fatal: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {

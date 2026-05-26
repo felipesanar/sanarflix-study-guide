@@ -56,7 +56,7 @@ export const loginSchema = z.object({
 export const changePasswordSchema = z.object({
   newPassword: z.string()
     .min(8, 'Nova senha deve ter pelo menos 8 caracteres')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
       'Senha deve conter pelo menos: 1 letra minúscula, 1 maiúscula, 1 número e 1 caractere especial'),
   confirmPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmPassword, {

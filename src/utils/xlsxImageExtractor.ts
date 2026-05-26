@@ -12,6 +12,7 @@
  */
 
 import JSZip from 'jszip';
+import { Logger } from '@/utils/logger';
 
 export type ExtractedImage = {
   base64: string;
@@ -305,17 +306,17 @@ export async function extractImagesFromXlsx(
     sheetRels: Object.keys(zip.files).filter((p) => /^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(p)),
     options,
   };
-  console.log('[xlsxImageExtractor] Estrutura do XLSX:', xlsxStructure);
+  Logger.info('[xlsxImageExtractor] Estrutura do XLSX:', xlsxStructure);
 
   if (stats.totalMedia === 0) {
-    console.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
+    Logger.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
     return { enunciadoImages: {}, comentarioImages: {}, stats };
   }
 
   const enunciadoImages: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
-  console.log('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
+  Logger.info('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
 
   // Resolve sheet path UMA VEZ e constrói o mapa rowNumber → numeroQuestao.
   // Esse mapa é a chave canônica de vinculação imagem ↔ questão (em vez do
@@ -329,17 +330,17 @@ export async function extractImagesFromXlsx(
         sheetPathGlobal,
         options.numeroColIndex,
       );
-      console.log(
+      Logger.info(
         '[xlsxImageExtractor] Mapa rowNumber→numeroQuestao construído:',
         Object.keys(rowToQuestionNumber).length,
         'linhas mapeadas. Amostra:',
         Object.entries(rowToQuestionNumber).slice(0, 5),
       );
     } catch (e) {
-      console.warn('[xlsxImageExtractor] Falha ao construir mapa de números de questão:', e);
+      Logger.warn('[xlsxImageExtractor] Falha ao construir mapa de números de questão:', e);
     }
   } else {
-    console.warn(
+    Logger.warn(
       '[xlsxImageExtractor] numeroColIndex não fornecido ou sheet não encontrada — vinculação por número de questão desativada.',
       { sheetPathGlobal, numeroColIndex: options.numeroColIndex },
     );
@@ -366,7 +367,7 @@ export async function extractImagesFromXlsx(
           nameToMedia[name] = resolveZipPath(relsOwnerPath('xl/_rels/cellimages.xml.rels'), cellRels[embed]);
         }
       }
-      console.log('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
+      Logger.info('[xlsxImageExtractor] cellimages.xml: imagens lógicas mapeadas:', Object.keys(nameToMedia).length);
 
       // Lê sheet1.xml para encontrar células com =DISPIMG("ID_xxx", ...)
       const sheetPath = sheetPathGlobal;
@@ -392,7 +393,7 @@ export async function extractImagesFromXlsx(
           const numeroQuestao = rowToQuestionNumber[rowNum];
           if (!numeroQuestao) {
             stats.skippedNoQuestionNumber += 1;
-            console.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
+            Logger.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
             continue;
           }
           if (options.enunciadoColCandidates.includes(colIdx)) {
@@ -411,25 +412,25 @@ export async function extractImagesFromXlsx(
             stats.skippedWrongColumn += 1;
           }
         }
-        console.log('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
+        Logger.info('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
       }
 
       if (stats.matchedEnunciado + stats.matchedComentario > 0) {
         return { enunciadoImages, comentarioImages, stats };
       }
     } catch (e) {
-      console.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
+      Logger.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
     }
   }
 
-  console.log('[xlsxImageExtractor] >>> Entrando no caminho CLÁSSICO (drawings)');
+  Logger.info('[xlsxImageExtractor] >>> Entrando no caminho CLÁSSICO (drawings)');
 
   // 2. Descobre o(s) drawing.xml referenciado(s) pela primeira sheet
   const firstSheetPath = await resolveFirstSheetPath(zip);
   const firstSheetRels = firstSheetPath
     ? resolveZipPath(firstSheetPath, `_rels/${firstSheetPath.split('/').pop()}.rels`)
     : null;
-  console.log('[xlsxImageExtractor] firstSheetPath:', firstSheetPath, '| firstSheetRels:', firstSheetRels);
+  Logger.info('[xlsxImageExtractor] firstSheetPath:', firstSheetPath, '| firstSheetRels:', firstSheetRels);
 
   const sheetRelsCandidates = [
     firstSheetRels || 'xl/worksheets/_rels/sheet1.xml.rels',
@@ -442,7 +443,7 @@ export async function extractImagesFromXlsx(
       }
     }
   }
-  console.log('[xlsxImageExtractor] sheetRelsCandidates:', sheetRelsCandidates);
+  Logger.info('[xlsxImageExtractor] sheetRelsCandidates:', sheetRelsCandidates);
 
   let drawingPath: string | null = null;
   for (const sheetRelsPath of sheetRelsCandidates) {
@@ -450,7 +451,7 @@ export async function extractImagesFromXlsx(
     if (!file) continue;
     const xml = await file.async('string');
     const rels = parseRels(xml);
-    console.log('[xlsxImageExtractor] Rels da sheet', sheetRelsPath, ':', rels);
+    Logger.info('[xlsxImageExtractor] Rels da sheet', sheetRelsPath, ':', rels);
     for (const target of Object.values(rels)) {
       if (target.includes('drawings/drawing')) {
         drawingPath = resolveZipPath(relsOwnerPath(sheetRelsPath), target);
@@ -459,10 +460,10 @@ export async function extractImagesFromXlsx(
     }
     if (drawingPath) break;
   }
-  console.log('[xlsxImageExtractor] drawingPath resolvido:', drawingPath);
+  Logger.info('[xlsxImageExtractor] drawingPath resolvido:', drawingPath);
 
   if (!drawingPath || !zip.files[drawingPath]) {
-    console.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
+    Logger.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
     return { enunciadoImages: {}, comentarioImages: {}, stats };
   }
 
@@ -473,7 +474,7 @@ export async function extractImagesFromXlsx(
   );
   const drawingRelsFile = zip.files[drawingRelsPath];
   if (!drawingRelsFile) {
-    console.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
+    Logger.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
     return { enunciadoImages: {}, comentarioImages: {}, stats };
   }
   const drawingRelsXml = await drawingRelsFile.async('string');
@@ -483,11 +484,11 @@ export async function extractImagesFromXlsx(
   for (const [rid, target] of Object.entries(drawingRels)) {
     ridToMediaPath[rid] = resolveZipPath(relsOwnerPath(drawingRelsPath), target);
   }
-  console.log('[xlsxImageExtractor] ridToMediaPath:', ridToMediaPath);
+  Logger.info('[xlsxImageExtractor] ridToMediaPath:', ridToMediaPath);
 
   // 4. Parseia o drawing.xml
   const drawingXml = await zip.files[drawingPath].async('string');
-  console.log('[xlsxImageExtractor] drawing.xml (primeiros 2000 chars):', drawingXml.slice(0, 2000));
+  Logger.info('[xlsxImageExtractor] drawing.xml (primeiros 2000 chars):', drawingXml.slice(0, 2000));
   const drawingDoc = parseXml(drawingXml);
 
   const anchorTags = ['twoCellAnchor', 'oneCellAnchor', 'absoluteAnchor'];
@@ -496,7 +497,7 @@ export async function extractImagesFromXlsx(
     const list = getElementsByLocalName(drawingDoc, tag);
     for (const item of list) anchors.push({ el: item, tag });
   }
-  console.log('[xlsxImageExtractor] Âncoras encontradas:', anchors.length, '| breakdown:', {
+  Logger.info('[xlsxImageExtractor] Âncoras encontradas:', anchors.length, '| breakdown:', {
     twoCell: anchors.filter((a) => a.tag === 'twoCellAnchor').length,
     oneCell: anchors.filter((a) => a.tag === 'oneCellAnchor').length,
     absolute: anchors.filter((a) => a.tag === 'absoluteAnchor').length,
@@ -553,8 +554,8 @@ export async function extractImagesFromXlsx(
     }
   }
 
-  console.log('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
-  console.log('[xlsxImageExtractor] Stats finais:', stats);
+  Logger.info('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
+  Logger.info('[xlsxImageExtractor] Stats finais:', stats);
 
   return { enunciadoImages, comentarioImages, stats };
 }

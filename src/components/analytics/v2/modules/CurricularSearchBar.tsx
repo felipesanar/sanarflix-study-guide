@@ -9,6 +9,7 @@ import type {
   CurricularTemaNode,
   CurricularBreakdown,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 export interface SearchResult {
   type: 'area' | 'specialty' | 'tema';
@@ -107,7 +108,7 @@ export const CurricularSearchBar: React.FC<Props> = ({
   }, []);
 
   const handleSelect = (result: SearchResult) => {
-    console.log('[DesempenhoV2:Search]', 'Selected:', result.type, result.name);
+    Logger.info('[DesempenhoV2:Search]', 'Selected:', result.type, result.name);
     if (result.type === 'area') {
       onSelectArea(result.area);
     } else if (result.type === 'specialty' && result.specialty) {

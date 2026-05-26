@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 // ============== TYPES ==============
 export interface SimuladoOverview {
@@ -230,13 +231,13 @@ export async function fetchSimuladosAnalyticsData(
   if (analyticsCache && analyticsCache.filterKey === cacheKey) {
     const age = Date.now() - analyticsCache.timestamp;
     if (age < CACHE_TTL) {
-      console.log('[fetchSimuladosAnalyticsData] Cache hit, age:', Math.round(age / 1000), 's');
+      Logger.info('[fetchSimuladosAnalyticsData] Cache hit, age:', Math.round(age / 1000), 's');
       const { isLoading, error, ...rest } = analyticsCache.data;
       return rest;
     }
   }
 
-  console.log('[fetchSimuladosAnalyticsData] Fetching with filters:', filterParams);
+  Logger.info('[fetchSimuladosAnalyticsData] Fetching with filters:', filterParams);
   const startTime = performance.now();
 
   type AnswerRow = {
@@ -307,7 +308,7 @@ export async function fetchSimuladosAnalyticsData(
     supabase.from('ies').select('id, nome'),
   ]);
 
-  console.log('[fetchSimuladosAnalyticsData] Phase 1 complete:', Math.round(performance.now() - startTime), 'ms');
+  Logger.info('[fetchSimuladosAnalyticsData] Phase 1 complete:', Math.round(performance.now() - startTime), 'ms');
 
   const simuladosAdmin = simuladosAdminRes.data || [];
   let iniciados = iniciadosRes.data || [];
@@ -353,7 +354,7 @@ export async function fetchSimuladosAnalyticsData(
   const users = usersResult;
   const adminIds = new Set((adminRolesResult.data || []).map(r => r.user_id));
 
-  console.log('[fetchSimuladosAnalyticsData] Phase 2 complete, excluding', adminIds.size, 'admins');
+  Logger.info('[fetchSimuladosAnalyticsData] Phase 2 complete, excluding', adminIds.size, 'admins');
 
   const iesMap = new Map(iesList.map(i => [i.id, i.nome] as const));
   const userById = new Map(users.map(u => [u.id, u] as const));
@@ -471,7 +472,7 @@ export async function fetchSimuladosAnalyticsData(
   
   const allAnswerCounts = answerCountsRaw;
 
-  console.log('[fetchSimuladosAnalyticsData] Phase 3 complete:', Math.round(performance.now() - startTime), 'ms');
+  Logger.info('[fetchSimuladosAnalyticsData] Phase 3 complete:', Math.round(performance.now() - startTime), 'ms');
 
   let respostas = respostasRaw.filter(r => paresNoPeriodo.has(`${r.user_id}_${r.simulado}`));
   const historicoFiltrado = historicoRaw.filter(r => paresNoPeriodo.has(`${r.user_id}_${r.simulado}`));
@@ -772,7 +773,7 @@ export async function fetchSimuladosAnalyticsData(
     filterKey: cacheKey,
   };
 
-  console.log('[fetchSimuladosAnalyticsData] Total time:', Math.round(performance.now() - startTime), 'ms');
+  Logger.info('[fetchSimuladosAnalyticsData] Total time:', Math.round(performance.now() - startTime), 'ms');
   return result;
 }
 
@@ -803,12 +804,12 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
     if (!skipCache && analyticsCache && analyticsCache.filterKey === cacheKey) {
       const age = Date.now() - analyticsCache.timestamp;
       if (age < CACHE_TTL) {
-        console.log('[useSimuladosAnalytics] Cache hit, age:', Math.round(age / 1000), 's');
+        Logger.info('[useSimuladosAnalytics] Cache hit, age:', Math.round(age / 1000), 's');
         setData(analyticsCache.data);
         return;
       }
       // Stale cache: show immediately but revalidate
-      console.log('[useSimuladosAnalytics] Stale cache, showing and revalidating');
+      Logger.info('[useSimuladosAnalytics] Stale cache, showing and revalidating');
       setData(analyticsCache.data);
     } else {
       setData(prev => ({ ...prev, isLoading: true, error: null }));
@@ -829,7 +830,7 @@ export function useSimuladosAnalytics(filters: SimuladosFilters) {
       // Ignore abort errors
       if (err instanceof DOMException && err.name === 'AbortError') return;
       
-      console.error('[useSimuladosAnalytics] Error:', err);
+      Logger.error('[useSimuladosAnalytics] Error:', err);
       setData(prev => ({
         ...prev,
         isLoading: false,

@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Check, X, Minus, Ban } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Logger } from '@/utils/logger';
 
 interface QuestionStatus {
   id: string;
@@ -183,7 +184,7 @@ export const QuestionNavigationRail: React.FC<QuestionNavigationRailProps> = ({
     };
   }, [checkScroll, questions.length]);
 
-  console.log('[QuestionNav] Rendered with', questions.length, 'questions, current:', currentIndex);
+  Logger.info('[QuestionNav] Rendered with', questions.length, 'questions, current:', currentIndex);
 
   if (questions.length === 0) return null;
 

@@ -16,6 +16,7 @@ import type { InstitutionalViewModel, DesempenhoV2Filters } from '@/types/desemp
 import { generateInstitutionalPDF } from '@/utils/institutionalReportPdf';
 import { generateInstitutionalXLSX } from '@/utils/institutionalReportXlsx';
 import { format } from 'date-fns';
+import { Logger } from '@/utils/logger';
 
 type ExportFormat = 'pdf' | 'xlsx';
 type ExportModule = 'visao-institucional' | 'diagnostico-curricular' | 'visao-alunos' | 'inteligencia-decisoria';
@@ -64,7 +65,7 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
   const handleGenerate = useCallback(async () => {
     if (!data) return;
     setGenerating(true);
-    console.log('[Export]', fmt, { modules: selectedModules, filters });
+    Logger.info('[Export]', fmt, { modules: selectedModules, filters });
 
     try {
       const dateStr = format(new Date(), 'yyyy-MM-dd');
@@ -78,11 +79,11 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
         triggerDownload(blob, filename);
       }
 
-      console.log('[ReportData]', { format: fmt, modules: selectedModules, students: data.allStudents.length });
+      Logger.info('[ReportData]', { format: fmt, modules: selectedModules, students: data.allStudents.length });
       setGenerated(true);
       toast.success('Relatório gerado com sucesso!');
     } catch (err) {
-      console.error('[Export] Erro ao gerar relatório:', err);
+      Logger.error('[Export] Erro ao gerar relatório:', err);
       toast.error('Erro ao gerar relatório. Tente novamente.');
     } finally {
       setGenerating(false);

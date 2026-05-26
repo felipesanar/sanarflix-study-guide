@@ -1,8 +1,27 @@
+/**
+ * StudyContext — fonte canônica de conteúdos de estudo (lista + mutações).
+ *
+ * Relação com useStudyProgress (auditoria 🟡 MED — "Context vs React Query"):
+ *   - StudyContext: dono do estado completo + mutações (toggleContentCompletion).
+ *     Use para componentes que precisam ler studyContents OU disparar mutações.
+ *   - useStudyProgress: hook leve para componentes que SÓ leem progresso
+ *     agregado de um conteúdo. Não duplica estado — consulta direto o
+ *     servidor com cache próprio.
+ *
+ * Não é duplicação real: têm responsabilidades distintas. Manter ambos
+ * é mais simples que unificar tudo em React Query global (que exigiria
+ * migrar todas as ações de mutação para useMutation, refactor amplo).
+ *
+ * Se um dia consolidarmos: criar studyService.ts + useStudyContents hook
+ * via React Query, e remover este Context — fluxo já mapeado no plano
+ * de remediação Fase 3 (PR dedicado).
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { StudyContextType, StudyContent, Progress } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 const StudyContext = createContext<StudyContextType | null>(null);
 
@@ -38,7 +57,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
       if (error) {
-        console.error('Error loading study contents:', error);
+        Logger.error('Error loading study contents:', error);
         setStudyContents([]);
         return;
       }

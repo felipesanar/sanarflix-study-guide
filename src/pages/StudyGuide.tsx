@@ -43,6 +43,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Brain, CheckCircle2, Play, FileText, RefreshCw } from 'lucide-react';
+import { Logger } from '@/utils/logger';
 
 // Types
 interface Aula {
@@ -95,7 +96,7 @@ const readStudyGuideCache = (iesId: string, semestre: number | string | undefine
     }
   } catch (e) {
     if (import.meta.env.DEV) {
-      console.warn('[StudyGuide] Falha ao ler cache:', e);
+      Logger.warn('[StudyGuide] Falha ao ler cache:', e);
     }
   }
   return null;
@@ -161,7 +162,6 @@ export const StudyGuide: React.FC = () => {
   const analyticsRef = useRef(analytics);
   analyticsRef.current = analytics;
   const hasTrackedViewRef = useRef(false);
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Track page time on exit
   usePageTimeTracking({ pageName: 'study_guide', enabled: true });
@@ -264,7 +264,7 @@ export const StudyGuide: React.FC = () => {
       analytics.trackCacheHit('localStorage', 'study_guide', !!cachedContents);
       
       if (import.meta.env.DEV) {
-        console.log('[StudyGuide] Page view tracked', { semestre: selectedSemestre, viewMode, hasCache: !!cachedContents });
+        Logger.info('[StudyGuide] Page view tracked', { semestre: selectedSemestre, viewMode, hasCache: !!cachedContents });
       }
     }
   }, [isLoading, conteudos.length, selectedSemestre, viewMode, cachedContents, analytics]);
@@ -320,7 +320,7 @@ export const StudyGuide: React.FC = () => {
           }
         }
       } catch (e) {
-        if (import.meta.env.DEV) console.warn('[StudyGuide] Failed to fetch semestres list:', e);
+        if (import.meta.env.DEV) Logger.warn('[StudyGuide] Failed to fetch semestres list:', e);
       }
     };
     fetchSemestres();
@@ -351,11 +351,11 @@ export const StudyGuide: React.FC = () => {
       });
       setLoadedSemestres(prev => new Set([...prev, semestre]));
       setLastUpdated(new Date());
-      if (import.meta.env.DEV) console.log('[StudyGuide] Fresh data loaded for semester', semestre, `(${freshData.length} items)`);
+      if (import.meta.env.DEV) Logger.info('[StudyGuide] Fresh data loaded for semester', semestre, `(${freshData.length} items)`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       analyticsRef.current.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
-      if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching contents:', err);
+      if (import.meta.env.DEV) Logger.error('[StudyGuide] Error fetching contents:', err);
       if (isInitial) {
         toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
       }
@@ -404,21 +404,25 @@ export const StudyGuide: React.FC = () => {
       setSelectedSemestre(prev => prev || userSemStr);
       await fetchFreshData(userSemStr, iesId, !cached);
 
-      // After fetching, if no content was loaded for this semester and it's 9-12, try INTERNATO
+      // After fetching, if no content was loaded for this semester and it's 9-12, try INTERNATO.
+      // Antes este fallback estava dentro do updater de setConteudos (anti-pattern —
+      // updaters devem ser puros). Agora consultamos o estado via setter funcional
+      // sem mutar, e disparamos o fetch de forma explícita fora do updater.
       if (shouldTryInternato) {
-        // Check if we actually got data for the numeric semester
+        let hasNumericData = false;
+        let isEmpty = true;
         setConteudos(current => {
-          const hasNumericData = current.some(c => {
+          hasNumericData = current.some(c => {
             const val = c.semestre.toString().replace(/º\s*Semestre/i, '').trim();
             return val === userSemStr;
           });
-          if (!hasNumericData && current.length === 0) {
-            // No data at all — trigger INTERNATO fetch
-            setSelectedSemestre('INTERNATO');
-            fetchFreshData('INTERNATO', iesId, true);
-          }
-          return current;
+          isEmpty = current.length === 0;
+          return current; // sem mutação
         });
+        if (!hasNumericData && isEmpty) {
+          setSelectedSemestre('INTERNATO');
+          await fetchFreshData('INTERNATO', iesId, true);
+        }
       }
     };
     initFetch();
@@ -596,49 +600,12 @@ export const StudyGuide: React.FC = () => {
     return Array.from(materiaMap.values());
   }, [conteudos, selectedSemestre]);
 
-  // Filtered by search with debounced tracking
+  // Filtered by search — função pura (sem side-effects).
+  // O tracking analytics foi extraído para um useEffect separado abaixo.
   const filteredMaterias = useMemo(() => {
     if (!searchQuery.trim()) return groupedData;
     const query = searchQuery.toLowerCase();
-    
-    // Track search with debounce
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-    searchDebounceRef.current = setTimeout(() => {
-      const results = groupedData
-        .map((m) => {
-          const filteredTemas = m.temas
-            .map((t) => {
-              const filteredSubtemas = t.subtemas
-                .map((st) => ({
-                  ...st,
-                  aulas: st.aulas.filter((a) =>
-                    m.materia.toLowerCase().includes(query) ||
-                    t.tema.toLowerCase().includes(query) ||
-                    st.subtema.toLowerCase().includes(query) ||
-                    a.aula.toLowerCase().includes(query)
-                  )
-                }))
-                .filter((st) => st.aulas.length > 0);
-              return { ...t, subtemas: filteredSubtemas };
-            })
-            .filter((t) => t.subtemas.length > 0);
-          return { ...m, temas: filteredTemas };
-        })
-        .filter((m) => m.temas.length > 0);
-      
-      const totalResults = results.reduce((sum, m) => 
-        sum + m.temas.reduce((tSum, t) => 
-          tSum + t.subtemas.reduce((stSum, st) => stSum + st.aulas.length, 0), 0), 0);
-      
-      analytics.trackStudyGuideSearch({
-        query: searchQuery,
-        resultsCount: totalResults,
-        source: 'input'
-      });
-    }, 400);
-    
+
     return groupedData
       .map((m) => {
         const filteredTemas = m.temas
@@ -660,7 +627,25 @@ export const StudyGuide: React.FC = () => {
         return { ...m, temas: filteredTemas };
       })
       .filter((m) => m.temas.length > 0);
-  }, [groupedData, searchQuery, analytics]);
+  }, [groupedData, searchQuery]);
+
+  // Tracking de busca com debounce — antes estava dentro do useMemo (side-effect
+  // em função pura) e sem cleanup. Agora vive em useEffect com clearTimeout no
+  // return, evitando memory leak e duplicação de eventos.
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const timer = setTimeout(() => {
+      const totalResults = filteredMaterias.reduce((sum, m) =>
+        sum + m.temas.reduce((tSum, t) =>
+          tSum + t.subtemas.reduce((stSum, st) => stSum + st.aulas.length, 0), 0), 0);
+      analytics.trackStudyGuideSearch({
+        query: searchQuery,
+        resultsCount: totalResults,
+        source: 'input'
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, filteredMaterias, analytics]);
 
   const availableSubjectNames = useMemo(() => 
     filteredMaterias.map(m => m.materia), [filteredMaterias]);
@@ -712,7 +697,8 @@ export const StudyGuide: React.FC = () => {
     });
     if (!allAulas.length) return 0;
     const completedCount = allAulas.filter(a => isCompleted(a)).length;
-    return Math.round((completedCount / allAulas.length) * 100);
+    // Clamp em [0, 100] para evitar overflow visual (ex: 101%).
+    return Math.min(100, Math.max(0, Math.round((completedCount / allAulas.length) * 100)));
   };
 
   const isMateriaCompleted = (materia: Materia) => getMateriaProgress(materia) === 100;

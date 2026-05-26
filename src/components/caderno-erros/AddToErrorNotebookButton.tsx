@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useErrorNotebook } from '@/hooks/useErrorNotebook';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { Logger } from '@/utils/logger';
 
 interface AddToErrorNotebookButtonProps {
   questionId: string;
@@ -37,7 +38,7 @@ export const AddToErrorNotebookButton: React.FC<AddToErrorNotebookButtonProps> =
 
   const handleClick = () => {
     if (isAdded) return;
-    console.log('[ErrorNotebook] Add button clicked', { questionId, simuladoId });
+    Logger.info('[ErrorNotebook] Add button clicked', { questionId, simuladoId });
     trackEvent({
       eventName: 'ce_add_clicked',
       category: 'interaction',

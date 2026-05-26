@@ -38,6 +38,7 @@ import type {
   WizardState,
   DEFAULT_CONFIG,
 } from './types';
+import { Logger } from '@/utils/logger';
 
 const LOG_PREFIX = '[AdminStudyGuideImport]';
 
@@ -95,20 +96,20 @@ export const StudyGuideImportWizard: React.FC = () => {
   // Load IES list on mount
   useEffect(() => {
     const loadIesList = async () => {
-      console.log(LOG_PREFIX, 'Loading IES list...');
+      Logger.info(LOG_PREFIX, 'Loading IES list...');
       const { data, error } = await supabase
         .from('ies')
         .select('id, nome')
         .order('nome');
 
       if (error) {
-        console.error(LOG_PREFIX, 'Error loading IES:', error);
+        Logger.error(LOG_PREFIX, 'Error loading IES:', error);
         toast.error('Erro ao carregar lista de IES');
         return;
       }
 
       setIesList(data || []);
-      console.log(LOG_PREFIX, `Loaded ${data?.length || 0} IES`);
+      Logger.info(LOG_PREFIX, `Loaded ${data?.length || 0} IES`);
     };
 
     loadIesList();
@@ -116,7 +117,7 @@ export const StudyGuideImportWizard: React.FC = () => {
 
   // Handle file selection
   const handleFileSelect = useCallback(async (selectedFile: File, type: FileType) => {
-    console.log(LOG_PREFIX, `File selected: ${selectedFile.name} (${type})`);
+    Logger.info(LOG_PREFIX, `File selected: ${selectedFile.name} (${type})`);
     setFile(selectedFile);
     setFileType(type);
     setError(null);
@@ -156,13 +157,13 @@ export const StudyGuideImportWizard: React.FC = () => {
         
         // Log auto-matching results
         const autoMatchedCount = autoMappings.length;
-        console.log(LOG_PREFIX, `Auto-matched ${autoMatchedCount}/${newSheets.length} sheets to IES`);
+        Logger.info(LOG_PREFIX, `Auto-matched ${autoMatchedCount}/${newSheets.length} sheets to IES`);
       }
 
       setStatus('idle');
       // Visual feedback is already provided by the green file-selected state in the dropzone
     } catch (err) {
-      console.error(LOG_PREFIX, 'Parse error:', err);
+      Logger.error(LOG_PREFIX, 'Parse error:', err);
       setError(err instanceof Error ? err.message : 'Erro ao processar arquivo');
       setStatus('error');
     }
@@ -209,7 +210,7 @@ export const StudyGuideImportWizard: React.FC = () => {
 
   // Run validation
   const runValidation = useCallback(async () => {
-    console.log(LOG_PREFIX, 'Running validation...');
+    Logger.info(LOG_PREFIX, 'Running validation...');
     setStatus('validating');
     setError(null);
     setApprovedNewSemestres(new Set());
@@ -226,12 +227,12 @@ export const StudyGuideImportWizard: React.FC = () => {
         if (!rpcError && data) {
           existingSemestresMap.set(iesId, data.map((r: { semestre: string }) => r.semestre));
         } else {
-          console.warn(LOG_PREFIX, `Failed to fetch semesters for IES ${iesId}:`, rpcError);
+          Logger.warn(LOG_PREFIX, `Failed to fetch semesters for IES ${iesId}:`, rpcError);
           existingSemestresMap.set(iesId, []);
         }
       }
       
-      console.log(LOG_PREFIX, `Fetched existing semesters for ${uniqueIesIds.length} IES`);
+      Logger.info(LOG_PREFIX, `Fetched existing semesters for ${uniqueIesIds.length} IES`);
 
       const allNormalized: NormalizedRow[] = [];
       const allErrors: ValidationResult['errors'] = [];
@@ -319,7 +320,7 @@ export const StudyGuideImportWizard: React.FC = () => {
 
       // Calculate change plan — for MERGE/REPLACE, call preview_changes to compare with DB
       if ((config.mode === 'MERGE' || config.mode === 'REPLACE') && validationResult.isValid && allNormalized.length > 0) {
-        console.log(LOG_PREFIX, 'Calling preview_changes to compare with database...');
+        Logger.info(LOG_PREFIX, 'Calling preview_changes to compare with database...');
         try {
           const { data: previewData, error: previewError } = await supabase.functions.invoke('admin-upload-study-guide', {
             body: {
@@ -330,7 +331,7 @@ export const StudyGuideImportWizard: React.FC = () => {
           });
 
           if (previewError) {
-            console.warn(LOG_PREFIX, 'preview_changes failed, falling back to static plan:', previewError);
+            Logger.warn(LOG_PREFIX, 'preview_changes failed, falling back to static plan:', previewError);
             setChangePlan({
               inserts: allNormalized.length,
               updates: 0,
@@ -339,7 +340,7 @@ export const StudyGuideImportWizard: React.FC = () => {
               unchanged: 0,
             });
           } else if (previewData?.changePlan) {
-            console.log(LOG_PREFIX, 'preview_changes result:', previewData.changePlan);
+            Logger.info(LOG_PREFIX, 'preview_changes result:', previewData.changePlan);
             setChangePlan({
               inserts: previewData.changePlan.inserts || 0,
               updates: previewData.changePlan.updates || 0,
@@ -349,7 +350,7 @@ export const StudyGuideImportWizard: React.FC = () => {
             });
           }
         } catch (previewErr) {
-          console.warn(LOG_PREFIX, 'preview_changes exception, falling back:', previewErr);
+          Logger.warn(LOG_PREFIX, 'preview_changes exception, falling back:', previewErr);
           setChangePlan({
             inserts: allNormalized.length,
             updates: 0,
@@ -370,9 +371,9 @@ export const StudyGuideImportWizard: React.FC = () => {
       }
 
       setStatus(validationResult.isValid ? 'ready_to_import' : 'idle');
-      console.log(LOG_PREFIX, 'Validation complete:', validationResult);
+      Logger.info(LOG_PREFIX, 'Validation complete:', validationResult);
     } catch (err) {
-      console.error(LOG_PREFIX, 'Validation error:', err);
+      Logger.error(LOG_PREFIX, 'Validation error:', err);
       setError(err instanceof Error ? err.message : 'Erro na validação');
       setStatus('error');
     }
@@ -385,7 +386,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       return;
     }
 
-    console.log(LOG_PREFIX, 'Starting import...');
+    Logger.info(LOG_PREFIX, 'Starting import...');
     setStep('import');
     setStatus('importing');
     setError(null);
@@ -441,7 +442,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       }
     }
 
-    console.log(LOG_PREFIX, `Rows after duplicate strategy (${config.duplicateStrategy}): ${rowsToImport.length}`);
+    Logger.info(LOG_PREFIX, `Rows after duplicate strategy (${config.duplicateStrategy}): ${rowsToImport.length}`);
 
     try {
       // Simulate progress stages
@@ -472,7 +473,7 @@ export const StudyGuideImportWizard: React.FC = () => {
         const SMART_BATCH_SIZE = 5000;
         const totalBatchesSmart = Math.ceil(rowsToImport.length / SMART_BATCH_SIZE);
 
-        console.log(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows in ${totalBatchesSmart} batch(es)`);
+        Logger.info(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows in ${totalBatchesSmart} batch(es)`);
 
         for (let i = 0; i < totalBatchesSmart; i++) {
           const batchRows = rowsToImport.slice(i * SMART_BATCH_SIZE, (i + 1) * SMART_BATCH_SIZE);
@@ -491,7 +492,7 @@ export const StudyGuideImportWizard: React.FC = () => {
           });
 
           if (fnError) {
-            console.error(LOG_PREFIX, `Smart import batch ${i + 1} failed:`, fnError);
+            Logger.error(LOG_PREFIX, `Smart import batch ${i + 1} failed:`, fnError);
             // Register error but continue with next batches
             aggregatedCounts.errors += batchRows.length;
             aggregatedErrors.push({
@@ -520,7 +521,7 @@ export const StudyGuideImportWizard: React.FC = () => {
         }
 
         if (verificationResult && !verificationResult.match) {
-          console.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
+          Logger.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
         }
       } else {
         // ── APPEND mode: simple insert_only batches ──
@@ -579,7 +580,7 @@ export const StudyGuideImportWizard: React.FC = () => {
             localStorage.removeItem(key);
           }
         });
-        console.log(LOG_PREFIX, 'Study guide cache invalidated');
+        Logger.info(LOG_PREFIX, 'Study guide cache invalidated');
       } catch {}
 
       if (importResult.success) {
@@ -589,7 +590,7 @@ export const StudyGuideImportWizard: React.FC = () => {
       }
 
     } catch (err) {
-      console.error(LOG_PREFIX, 'Import error:', err);
+      Logger.error(LOG_PREFIX, 'Import error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido na importação';
       setError(errorMessage);
       setStatus('error');

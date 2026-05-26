@@ -38,6 +38,7 @@ import { Plus, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 interface SanarClassLesson {
   id: string;
@@ -116,7 +117,7 @@ export default function SanarClassTab() {
       setLessons((lessonsResult.data as SanarClassLesson[]) || []);
       setIesList(iesResult.data || []);
     } catch (error) {
-      console.error('Erro ao buscar dados:', error);
+      Logger.error('Erro ao buscar dados:', error);
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
@@ -164,7 +165,7 @@ export default function SanarClassTab() {
 
       return publicUrl;
     } catch (error) {
-      console.error('Erro ao fazer upload:', error);
+      Logger.error('Erro ao fazer upload:', error);
       throw error;
     } finally {
       setUploading(false);
@@ -210,7 +211,7 @@ export default function SanarClassTab() {
       resetForm();
       fetchData();
     } catch (error) {
-      console.error('Erro ao adicionar aula:', error);
+      Logger.error('Erro ao adicionar aula:', error);
       toast.error('Erro ao adicionar aula');
     } finally {
       setSaving(false);
@@ -267,7 +268,7 @@ export default function SanarClassTab() {
       resetForm();
       fetchData();
     } catch (error) {
-      console.error('Erro ao atualizar aula:', error);
+      Logger.error('Erro ao atualizar aula:', error);
       toast.error('Erro ao atualizar aula');
     } finally {
       setSaving(false);
@@ -301,7 +302,7 @@ export default function SanarClassTab() {
       setSelectedLesson(null);
       fetchData();
     } catch (error) {
-      console.error('Erro ao excluir aula:', error);
+      Logger.error('Erro ao excluir aula:', error);
       toast.error('Erro ao excluir aula');
     } finally {
       setSaving(false);

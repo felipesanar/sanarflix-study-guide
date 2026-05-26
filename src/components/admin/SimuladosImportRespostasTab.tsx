@@ -19,6 +19,7 @@ import {
   Loader2, ShieldAlert, Eye, FileCheck, RotateCcw, Info,
   Check, ChevronsUpDown, Search, X, FileX, History, Clock,
 } from 'lucide-react';
+import { Logger } from '@/utils/logger';
 
 interface SimuladoOpt {
   id: string;
@@ -154,7 +155,7 @@ export default function SimuladosImportRespostasTab() {
           : anyErr?.message
             ? `${anyErr.message}${anyErr.code ? ` (${anyErr.code})` : ''}${anyErr.details ? ` — ${anyErr.details}` : ''}`
             : (() => { try { return JSON.stringify(err); } catch { return String(err); } })();
-      console.error('[ImportRespostas] loadSimulados error:', err);
+      Logger.error('[ImportRespostas] loadSimulados error:', err);
       setSimuladosError(msg);
       toast({ title: 'Erro ao carregar simulados', description: msg, variant: 'destructive' });
     } finally {
@@ -348,7 +349,7 @@ export default function SimuladosImportRespostasTab() {
         } catch {
           /* ignore */
         }
-        console.error('[import-preview] edge function error', error, detail);
+        Logger.error('[import-preview] edge function error', error, detail);
         throw new Error(detail);
       }
       const d = data as { results: PreviewResult[]; summary: PreviewSummary };

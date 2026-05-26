@@ -5,6 +5,7 @@ import type {
   RpcEvolutionEntry,
   RpcStudentScoresResponse,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const RPC_TIMEOUT = 15_000;
 
@@ -110,13 +111,13 @@ export async function fetchInstitutionalTri(
       'get_institutional_tri',
     );
     if (result.error) {
-      console.warn('[TRI] get_institutional_tri failed:', result.error.message);
+      Logger.warn('[TRI] get_institutional_tri failed:', result.error.message);
       return null;
     }
     const rows = (result.data ?? []) as InstitutionalTriSnapshot[];
     return rows.length > 0 ? rows[0] : null;
   } catch (err) {
-    console.warn('[TRI] get_institutional_tri error:', err);
+    Logger.warn('[TRI] get_institutional_tri error:', err);
     return null;
   }
 }
@@ -134,12 +135,12 @@ export async function fetchInstitutionalTriEvolution(
       'get_institutional_evolution_tri',
     );
     if (result.error) {
-      console.warn('[TRI] get_institutional_evolution_tri failed:', result.error.message);
+      Logger.warn('[TRI] get_institutional_evolution_tri failed:', result.error.message);
       return [];
     }
     return (result.data ?? []) as InstitutionalTriEvolutionEntry[];
   } catch (err) {
-    console.warn('[TRI] get_institutional_evolution_tri error:', err);
+    Logger.warn('[TRI] get_institutional_evolution_tri error:', err);
     return [];
   }
 }
@@ -162,12 +163,12 @@ export async function fetchStudentTriScores(
       .eq('simulado_id', simuladoId)
       .eq('college_id', iesId);
     if (error) {
-      console.warn('[TRI] fetchStudentTriScores failed:', error.message);
+      Logger.warn('[TRI] fetchStudentTriScores failed:', error.message);
       return [];
     }
     return (data ?? []) as StudentTriScore[];
   } catch (err) {
-    console.warn('[TRI] fetchStudentTriScores error:', err);
+    Logger.warn('[TRI] fetchStudentTriScores error:', err);
     return [];
   }
 }
@@ -212,12 +213,12 @@ export async function fetchInstitutionalLongitudinalTri(
       'get_institutional_longitudinal_tri',
     );
     if (result.error) {
-      console.warn('[TRI] get_institutional_longitudinal_tri failed:', result.error.message);
+      Logger.warn('[TRI] get_institutional_longitudinal_tri failed:', result.error.message);
       return [];
     }
     return (result.data ?? []) as InstitutionalLongitudinalEntry[];
   } catch (err) {
-    console.warn('[TRI] get_institutional_longitudinal_tri error:', err);
+    Logger.warn('[TRI] get_institutional_longitudinal_tri error:', err);
     return [];
   }
 }
@@ -235,12 +236,12 @@ export async function fetchStudentGrowthTri(
       'get_student_growth_tri',
     );
     if (result.error) {
-      console.warn('[TRI] get_student_growth_tri failed:', result.error.message);
+      Logger.warn('[TRI] get_student_growth_tri failed:', result.error.message);
       return [];
     }
     return (result.data ?? []) as StudentGrowthEntry[];
   } catch (err) {
-    console.warn('[TRI] get_student_growth_tri error:', err);
+    Logger.warn('[TRI] get_student_growth_tri error:', err);
     return [];
   }
 }

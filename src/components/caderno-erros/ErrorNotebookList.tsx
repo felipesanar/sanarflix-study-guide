@@ -5,8 +5,9 @@ import { ErrorNotebookEmptyState } from './ErrorNotebookEmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { Logger } from '@/utils/logger';
 
-console.log('[ErrorNotebookUI] ErrorNotebookList loaded');
+Logger.info('[ErrorNotebookUI] ErrorNotebookList loaded');
 
 interface ErrorNotebookListProps {
   entries: ErrorNotebookEntry[];

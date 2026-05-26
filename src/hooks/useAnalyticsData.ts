@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 // Tipos para dados de analytics
 export interface OverviewMetrics {
@@ -337,11 +338,11 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchOverviewMetrics = useCallback(async (): Promise<OverviewMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate, hoje, seteDiasAtras } = filterParams;
 
-    console.log('[Analytics] fetchOverviewMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
+    Logger.info('[Analytics] fetchOverviewMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
     // CRÍTICO: Buscar admin IDs primeiro para exclusão global
     const adminIds = await fetchAdminUserIds();
-    console.log('[Analytics] Excluding', adminIds.size, 'admin users from overview metrics');
+    Logger.info('[Analytics] Excluding', adminIds.size, 'admin users from overview metrics');
 
     // Buscar user IDs da IES filtrada OU usuários excluindo IES (já exclui admins)
     let userIdsFromIES: string[] | null = null;
@@ -514,7 +515,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchEngagementMetrics = useCallback(async (): Promise<EngagementMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchEngagementMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
+    Logger.info('[Analytics] fetchEngagementMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
     // CRÍTICO: Buscar admin IDs primeiro para exclusão global
     const adminIds = await fetchAdminUserIds();
@@ -620,11 +621,11 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchProgressMetrics = useCallback(async (): Promise<ProgressMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchProgressMetrics (NOVO):', { iesFilter, excludedIESIds, startDate, endDate });
+    Logger.info('[Analytics] fetchProgressMetrics (NOVO):', { iesFilter, excludedIESIds, startDate, endDate });
 
     // 1. Buscar admin IDs para exclusão
     const adminIds = await fetchAdminUserIds();
-    console.log('[Analytics Progress] Excluding', adminIds.size, 'admin users');
+    Logger.info('[Analytics Progress] Excluding', adminIds.size, 'admin users');
 
     // 2. Buscar usuários elegíveis (não-admins, filtrados por IES se aplicável)
     let userIdsFromIES: string[] | null = null;
@@ -675,7 +676,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       progressData = progressData.filter(p => userIdSet.has(p.user_id));
     }
 
-    console.log('[Analytics Progress] Users:', usersData.length, 'Conteudos:', conteudosData.length, 'Progress:', progressData.length);
+    Logger.info('[Analytics Progress] Users:', usersData.length, 'Conteudos:', conteudosData.length, 'Progress:', progressData.length);
 
     // 6. Criar mapas para cálculos eficientes
     // Contar aulas por IES + semestre + matéria
@@ -912,11 +913,11 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchDemographicsMetrics = useCallback(async (): Promise<DemographicsMetrics> => {
     const { iesFilter, excludedIESIds } = filterParams;
 
-    console.log('[Analytics] fetchDemographicsMetrics:', { iesFilter, excludedIESIds });
+    Logger.info('[Analytics] fetchDemographicsMetrics:', { iesFilter, excludedIESIds });
 
     // CRÍTICO: Excluir admins (alinhamento com outras abas)
     const adminIds = await fetchAdminUserIds();
-    console.log('[Analytics] Excluding', adminIds.size, 'admin users from demographics');
+    Logger.info('[Analytics] Excluding', adminIds.size, 'admin users from demographics');
 
     // PAGINAÇÃO: Buscar TODOS os usuários (Supabase limita a 1000 por padrão)
     const fetchAllUsers = async () => {
@@ -938,7 +939,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         const { data, error } = await query;
         
         if (error) {
-          console.error('[Analytics] Error fetching users page', page, error);
+          Logger.error('[Analytics] Error fetching users page', page, error);
           break;
         }
         
@@ -951,7 +952,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         }
       }
       
-      console.log('[Analytics] Total users fetched with pagination:', allUsers.length);
+      Logger.info('[Analytics] Total users fetched with pagination:', allUsers.length);
       return allUsers;
     };
 
@@ -1121,11 +1122,11 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchSimuladoMetrics = useCallback(async (): Promise<SimuladoMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
 
-    console.log('[Analytics] fetchSimuladoMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
+    Logger.info('[Analytics] fetchSimuladoMetrics:', { iesFilter, excludedIESIds, startDate, endDate });
 
     // CRÍTICO: Buscar admin IDs primeiro para exclusão global
     const adminIds = await fetchAdminUserIds();
-    console.log('[Analytics] Excluding', adminIds.size, 'admin users from simulado metrics');
+    Logger.info('[Analytics] Excluding', adminIds.size, 'admin users from simulado metrics');
 
     // Buscar user IDs da IES filtrada OU excluindo IES (já exclui admins)
     let userIdsFromIES: string[] | null = null;
@@ -1160,12 +1161,12 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     ]);
 
     // PAGINAÇÃO COMPLETA: Buscar TODAS as respostas (22.000+) sem limite de 1000
-    console.log('[Analytics] Fetching all answers with pagination...');
+    Logger.info('[Analytics] Fetching all answers with pagination...');
     const respostasData = await fetchAllAnswerProgress(
       useUserFilter && userIdsFromIES ? userIdsFromIES : null,
       adminIds
     );
-    console.log('[Analytics] Total answers fetched:', respostasData.length);
+    Logger.info('[Analytics] Total answers fetched:', respostasData.length);
 
     // Buscar questões apenas dos simulados filtrados
     const simuladoIds = simuladosResult.data?.map(s => s.id) || [];
@@ -1285,7 +1286,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
   const fetchTrackingHealth = useCallback(async (): Promise<TrackingHealth[]> => {
     const { seteDiasAtras, iesFilter, excludedIESIds } = filterParams;
 
-    console.log('[Analytics] fetchTrackingHealth:', { seteDiasAtras, iesFilter, excludedIESIds });
+    Logger.info('[Analytics] fetchTrackingHealth:', { seteDiasAtras, iesFilter, excludedIESIds });
 
     // CRÍTICO: Buscar admin IDs primeiro para exclusão global
     const adminIds = await fetchAdminUserIds();
@@ -1363,7 +1364,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     setData((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      console.log('[Analytics] Iniciando fetch com filtros:', filterParams);
+      Logger.info('[Analytics] Iniciando fetch com filtros:', filterParams);
       const startTime = performance.now();
 
       // PARALLEL: Todas as métricas em paralelo
@@ -1377,7 +1378,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       ]);
 
       const endTime = performance.now();
-      console.log(`[Analytics] Dados carregados em ${Math.round(endTime - startTime)}ms`);
+      Logger.info(`[Analytics] Dados carregados em ${Math.round(endTime - startTime)}ms`);
 
       setData({
         overview,
@@ -1391,7 +1392,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
         lastUpdated: getBrazilDate(),
       });
     } catch (error) {
-      console.error('[Analytics] Erro ao carregar dados:', error);
+      Logger.error('[Analytics] Erro ao carregar dados:', error);
       setData((prev) => ({
         ...prev,
         isLoading: false,

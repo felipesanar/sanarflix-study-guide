@@ -31,6 +31,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 interface SanarClassLesson {
   id: string;
@@ -81,7 +82,7 @@ export default function SanarClass() {
         .order('data_publicacao', { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar aulas:', error);
+        Logger.error('Erro ao buscar aulas:', error);
         toast.error('Erro ao carregar aulas do SanarClass');
         throw error;
       }

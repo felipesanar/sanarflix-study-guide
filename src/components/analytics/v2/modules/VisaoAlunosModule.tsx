@@ -28,6 +28,7 @@ import type {
   InstitutionalViewModel,
   StudentScore,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const PROFICIENCY_THRESHOLD = 60;
 
@@ -195,7 +196,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
   const proximos = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proximo').length;
   const abaixo = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'abaixo').length;
 
-  console.log('[VisaoAlunos]', 'Render do módulo', {
+  Logger.info('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
     proficientes,
     proximos,

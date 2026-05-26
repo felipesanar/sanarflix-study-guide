@@ -15,6 +15,7 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from '@/utils/notifications';
+import { Logger } from '@/utils/logger';
 
 interface ReminderConfig {
   enabled: boolean;
@@ -61,7 +62,7 @@ export const ReminderSettings: React.FC = () => {
         .maybeSingle();
 
       if (error) {
-        console.error('Error loading reminder config:', error);
+        Logger.error('Error loading reminder config:', error);
         toast.error('Erro ao carregar configurações de lembrete');
         setLoading(false);
         return;
@@ -79,7 +80,7 @@ export const ReminderSettings: React.FC = () => {
 
       setLoading(false);
     } catch (error) {
-      console.error('Error in loadReminderConfig:', error);
+      Logger.error('Error in loadReminderConfig:', error);
       toast.error('Erro ao carregar configurações');
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export const ReminderSettings: React.FC = () => {
         });
 
       if (error) {
-        console.error('Error saving reminder config:', error);
+        Logger.error('Error saving reminder config:', error);
         toast.error('Erro ao salvar configurações');
         return;
       }
@@ -119,7 +120,7 @@ export const ReminderSettings: React.FC = () => {
         duration: 3000,
       });
     } catch (error) {
-      console.error('Error in handleSave:', error);
+      Logger.error('Error in handleSave:', error);
       toast.error('Erro ao salvar configurações');
     } finally {
       setSaving(false);
@@ -152,7 +153,7 @@ export const ReminderSettings: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Error enabling push notifications:', error);
+      Logger.error('Error enabling push notifications:', error);
       toast.error('Erro ao ativar notificações push');
     }
   };
@@ -163,7 +164,7 @@ export const ReminderSettings: React.FC = () => {
       setConfig({ ...config, notify_push: false });
       toast.success('Notificações push desativadas');
     } catch (error) {
-      console.error('Error disabling push:', error);
+      Logger.error('Error disabling push:', error);
     }
   };
 
@@ -185,7 +186,7 @@ export const ReminderSettings: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Error sending test push notification:', error);
+      Logger.error('Error sending test push notification:', error);
       toast.error('Erro ao enviar notificação de teste');
     }
   };
@@ -214,7 +215,7 @@ export const ReminderSettings: React.FC = () => {
       });
 
       if (error) {
-        console.error('Error sending test reminder:', error);
+        Logger.error('Error sending test reminder:', error);
         toast.error('Erro ao enviar lembrete de teste');
         return;
       }
@@ -224,7 +225,7 @@ export const ReminderSettings: React.FC = () => {
         duration: 5000,
       });
     } catch (error) {
-      console.error('Error in handleTestReminder:', error);
+      Logger.error('Error in handleTestReminder:', error);
       toast.error('Erro ao enviar lembrete de teste');
     }
   };

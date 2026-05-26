@@ -6,8 +6,9 @@ import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tool
 import { subWeeks, startOfWeek, format, isAfter, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import { Logger } from '@/utils/logger';
 
-console.log('[ErrorNotebookUI] ErrorNotebookDashboard loaded');
+Logger.info('[ErrorNotebookUI] ErrorNotebookDashboard loaded');
 
 interface ErrorNotebookDashboardProps {
   entries: ErrorNotebookEntry[];

@@ -13,6 +13,7 @@ import FeedbackAdminTab from '@/components/admin/FeedbackAdminTab';
 import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload, MessageSquare } from 'lucide-react';
 
 import { isAdmin, isAtendimento } from '@/utils/accessRules';
+import { Logger } from '@/utils/logger';
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -21,7 +22,7 @@ const UserManagement: React.FC = () => {
   const userIsAtendimento = isAtendimento(user);
   const hasAccess = userIsAdmin || userIsAtendimento;
 
-  console.log('[Auth] user role loaded:', user?.roles);
+  Logger.info('[Auth] user role loaded:', user?.roles);
 
   if (!hasAccess) {
     return (

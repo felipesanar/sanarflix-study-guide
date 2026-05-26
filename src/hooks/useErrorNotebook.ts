@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { Logger } from '@/utils/logger';
 
 export type ErrorReason = 'did_not_know' | 'did_not_remember' | 'did_not_understand_statement' | 'answered_without_confidence';
 
@@ -103,7 +104,7 @@ export const useErrorNotebook = () => {
 
       setEntries(result);
     } catch (err: any) {
-      console.error('[ErrorNotebook] Fetch error:', err);
+      Logger.error('[ErrorNotebook] Fetch error:', err);
       setError('Erro ao carregar caderno de erros');
     } finally {
       setLoading(false);
@@ -114,7 +115,7 @@ export const useErrorNotebook = () => {
     if (!user?.id || !questionId) return null;
 
     try {
-      console.log('[ErrorNotebookUI] Fetching question details for:', questionId);
+      Logger.info('[ErrorNotebookUI] Fetching question details for:', questionId);
       const { data, error: fetchError } = await supabase
         .from('questoes_simulado')
         .select('id, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem')
@@ -122,13 +123,13 @@ export const useErrorNotebook = () => {
         .single();
 
       if (fetchError) {
-        console.error('[ErrorNotebookUI] Question fetch error:', fetchError);
+        Logger.error('[ErrorNotebookUI] Question fetch error:', fetchError);
         return null;
       }
 
       return data as QuestionDetails;
     } catch (err) {
-      console.error('[ErrorNotebookUI] Question fetch exception:', err);
+      Logger.error('[ErrorNotebookUI] Question fetch exception:', err);
       return null;
     }
   }, [user?.id]);
@@ -175,7 +176,7 @@ export const useErrorNotebook = () => {
 
       return true;
     } catch (err: any) {
-      console.error('[ErrorNotebook] Add error:', err);
+      Logger.error('[ErrorNotebook] Add error:', err);
       setError('Erro ao salvar no caderno de erros');
       return false;
     }
@@ -217,7 +218,7 @@ export const useErrorNotebook = () => {
 
       return true;
     } catch (err: any) {
-      console.error('[ErrorNotebook] Update error:', err);
+      Logger.error('[ErrorNotebook] Update error:', err);
       setError('Erro ao atualizar registro');
       return false;
     }
@@ -240,7 +241,7 @@ export const useErrorNotebook = () => {
       setEntries(prev => prev.filter(e => e.id !== entryId));
       return true;
     } catch (err: any) {
-      console.error('[ErrorNotebook] Delete error:', err);
+      Logger.error('[ErrorNotebook] Delete error:', err);
       setError('Erro ao excluir registro');
       return false;
     }
@@ -261,7 +262,7 @@ export const useErrorNotebook = () => {
       trackEvent({ eventName: 'ce_entry_restored', category: 'interaction', data: { entry_id: entryId } });
       return true;
     } catch (err: any) {
-      console.error('[ErrorNotebook] Restore error:', err);
+      Logger.error('[ErrorNotebook] Restore error:', err);
       return false;
     }
   }, [user?.id, trackEvent]);

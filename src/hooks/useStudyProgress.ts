@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Logger } from '@/utils/logger';
 
 export interface StudyProgressItem {
   id: string;
@@ -64,7 +65,7 @@ export const useStudyProgress = (): UseStudyProgressResult => {
       try {
         const items = JSON.parse(stored);
         if (Array.isArray(items) && items.length > 0) {
-          console.log(`[StudyProgress] Migrating ${items.length} items from localStorage to Supabase`);
+          Logger.info(`[StudyProgress] Migrating ${items.length} items from localStorage to Supabase`);
           
           // Parse IDs and create records
           const records = items.map((id: string) => {
@@ -94,15 +95,15 @@ export const useStudyProgress = (): UseStudyProgressResult => {
             });
           
           if (error) {
-            console.error('[StudyProgress] Migration error:', error);
+            Logger.error('[StudyProgress] Migration error:', error);
           } else {
-            console.log('[StudyProgress] Migration successful');
+            Logger.info('[StudyProgress] Migration successful');
             localStorage.removeItem(LOCALSTORAGE_KEY);
             localStorage.setItem(MIGRATION_FLAG_KEY, 'true');
           }
         }
       } catch (e) {
-        console.error('[StudyProgress] Migration failed:', e);
+        Logger.error('[StudyProgress] Migration failed:', e);
       }
       
       hasMigrated.current = true;
@@ -142,7 +143,7 @@ export const useStudyProgress = (): UseStudyProgressResult => {
 
       setProgress(progressMap);
     } catch (error) {
-      console.error('[StudyProgress] Error loading progress:', error);
+      Logger.error('[StudyProgress] Error loading progress:', error);
       toast.error('Não foi possível carregar o progresso dos estudos');
     } finally {
       setLoading(false);
@@ -175,9 +176,9 @@ export const useStudyProgress = (): UseStudyProgressResult => {
       });
 
       setProgress(progressMap);
-      console.log(`[StudyProgress] Loaded ${data?.length || 0} progress items for semester ${semestre}`);
+      Logger.info(`[StudyProgress] Loaded ${data?.length || 0} progress items for semester ${semestre}`);
     } catch (error) {
-      console.error('[StudyProgress] Error loading all progress:', error);
+      Logger.error('[StudyProgress] Error loading all progress:', error);
       toast.error('Não foi possível carregar o progresso dos estudos');
     } finally {
       setLoading(false);
@@ -242,7 +243,7 @@ export const useStudyProgress = (): UseStudyProgressResult => {
         toast.info('Conteúdo marcado como pendente');
       }
     } catch (error) {
-      console.error('[StudyProgress] Error updating progress:', error);
+      Logger.error('[StudyProgress] Error updating progress:', error);
       toast.error('Não foi possível atualizar o progresso');
     }
   }, [user?.id, user?.email, progress]);

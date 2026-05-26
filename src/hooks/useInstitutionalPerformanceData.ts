@@ -26,6 +26,7 @@ import {
   mockDistanciaFaixa,
   mockAlunosAbaixo,
 } from '@/mocks/desempenhoInstitucionalV2';
+import { Logger } from '@/utils/logger';
 
 interface UseInstitutionalPerformanceResult {
   data: InstitutionalViewModel | null;
@@ -199,10 +200,10 @@ export function useInstitutionalPerformanceData(
   // Fetch simulados whenever IES changes
   useEffect(() => {
     const fetchSimulados = async () => {
-      console.log('[DesempenhoInstitucional]', 'Fetching simulados');
+      Logger.info('[DesempenhoInstitucional]', 'Fetching simulados');
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        console.log('[DesempenhoInstitucional]', 'No session, using mock');
+        Logger.info('[DesempenhoInstitucional]', 'No session, using mock');
         setUsingMock(true);
         setData(getMockViewModel());
         setLoading(false);
@@ -221,7 +222,7 @@ export function useInstitutionalPerformanceData(
         });
 
         if (simErr) {
-          console.warn('[DesempenhoInstitucional]', 'Simulados fetch failed:', simErr.message);
+          Logger.warn('[DesempenhoInstitucional]', 'Simulados fetch failed:', simErr.message);
           setSimulados([]);
           setError(`Erro ao carregar simulados: ${simErr.message}`);
           setLoading(false);
@@ -233,18 +234,18 @@ export function useInstitutionalPerformanceData(
           return { id: simulado.id, nome: simulado.nome };
         });
         setSimulados(mapped);
-        console.log('[DesempenhoInstitucional]', 'Simulados carregados', { total: mapped.length });
+        Logger.info('[DesempenhoInstitucional]', 'Simulados carregados', { total: mapped.length });
 
         // Sem simulados disponíveis para essa IES → exibe mock para que a tela não fique vazia
         if (mapped.length === 0) {
-          console.log('[DesempenhoInstitucional]', 'Nenhum simulado para esta IES, usando dados de demonstração');
+          Logger.info('[DesempenhoInstitucional]', 'Nenhum simulado para esta IES, usando dados de demonstração');
           setUsingMock(true);
           setData(getMockViewModel());
           setError(null);
           setLoading(false);
         }
       } catch (err) {
-        console.warn('[DesempenhoInstitucional]', 'Error resolving IES, falling back to mock:', err);
+        Logger.warn('[DesempenhoInstitucional]', 'Error resolving IES, falling back to mock:', err);
         setSimulados([]);
         setUsingMock(true);
         setData(getMockViewModel());
@@ -257,19 +258,19 @@ export function useInstitutionalPerformanceData(
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
-      console.log('[DesempenhoInstitucional]', 'No simulado selected, skipping fetch');
+      Logger.info('[DesempenhoInstitucional]', 'No simulado selected, skipping fetch');
       return;
     }
 
     setLoading(true);
     setError(null);
     setUsingMock(false);
-    console.log('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId);
+    Logger.info('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId);
 
     try {
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
-        console.log('[DesempenhoInstitucional]', 'No session, falling back to mock');
+        Logger.info('[DesempenhoInstitucional]', 'No session, falling back to mock');
         setUsingMock(true);
         setData(getMockViewModel());
         setLoading(false);
@@ -309,14 +310,14 @@ export function useInstitutionalPerformanceData(
         studentTriData,
       );
       setData(viewModel);
-      console.log('[DesempenhoInstitucional]', 'Dados reais carregados', {
+      Logger.info('[DesempenhoInstitucional]', 'Dados reais carregados', {
         totalStudents: viewModel.allStudents.length,
         areas: viewModel.curricular.areas.length,
         triAvailable: !!triData,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
-      console.error('[DesempenhoInstitucional]', 'Falha no carregamento, usando dados de demonstração:', message);
+      Logger.error('[DesempenhoInstitucional]', 'Falha no carregamento, usando dados de demonstração:', message);
       // Quando RPCs falham ou retornam dados incompletos, exibe mock para
       // que a tela permaneça utilizável (ex.: IES sem simulados ou sem respostas).
       setUsingMock(true);

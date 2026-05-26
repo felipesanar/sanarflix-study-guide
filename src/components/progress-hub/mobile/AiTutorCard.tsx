@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { TutorPlanResponse } from '@/types/aiTutor';
+import { Logger } from '@/utils/logger';
 
 const CACHE_KEY = 'ai-tutor-plan';
 const CACHE_DURATION_MS = 30 * 60 * 1000;
@@ -71,7 +72,7 @@ export const AiTutorCard: React.FC = () => {
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
 
   const fetchPlan = useCallback(async (skipCache = false) => {
-    console.log('[AITutorUI]', 'state', 'loading', skipCache ? '(refresh)' : '(initial)');
+    Logger.info('[AITutorUI]', 'state', 'loading', skipCache ? '(refresh)' : '(initial)');
 
     if (!skipCache) {
       try {
@@ -81,7 +82,7 @@ export const AiTutorCard: React.FC = () => {
           if (Date.now() - timestamp < CACHE_DURATION_MS && data?.headline) {
             setPlan(data);
             setState('success');
-            console.log('[AITutorUI]', 'state', 'cache-hit');
+            Logger.info('[AITutorUI]', 'state', 'cache-hit');
             return;
           }
         }
@@ -108,15 +109,15 @@ export const AiTutorCard: React.FC = () => {
         setState('success');
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: data.plan, timestamp: Date.now() }));
         setCheckedSteps(new Set());
-        console.log('[AITutorUI]', 'state', 'success', `latency=${data.plan.meta?.latencyMs}ms`);
+        Logger.info('[AITutorUI]', 'state', 'success', `latency=${data.plan.meta?.latencyMs}ms`);
       } else if (data?.error) {
-        console.error('[AITutorUI]', 'error from function:', data.error);
+        Logger.error('[AITutorUI]', 'error from function:', data.error);
         setState('error');
       } else {
         setState('error');
       }
     } catch (err) {
-      console.error('[AITutorUI]', 'fetch error:', err);
+      Logger.error('[AITutorUI]', 'fetch error:', err);
       setState('error');
     }
   }, []);

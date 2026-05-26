@@ -47,7 +47,7 @@ export function useProgressHub() {
       const cached: CachedData = { data, timestamp: Date.now() };
       localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
     } catch (e) {
-      console.warn('Failed to cache progress hub data:', e);
+      Logger.warn('Failed to cache progress hub data:', e);
     }
   }, []);
 
@@ -86,13 +86,13 @@ export function useProgressHub() {
       }
 
       if (fetchError) {
-        console.error('Progress hub fetch error:', fetchError);
+        Logger.error('Progress hub fetch error:', fetchError);
         setError('Não foi possível carregar os dados');
         return;
       }
 
       if (response?.error) {
-        console.error('Progress hub response error:', response.error);
+        Logger.error('Progress hub response error:', response.error);
         setError(response.error);
         return;
       }
@@ -111,7 +111,7 @@ export function useProgressHub() {
       setData(responseWithGoal);
       saveToCache(responseWithGoal);
     } catch (err) {
-      console.error('Progress hub unexpected error:', err);
+      Logger.error('Progress hub unexpected error:', err);
       setError('Erro inesperado ao carregar dados');
     } finally {
       setLoading(false);
@@ -158,7 +158,7 @@ export function useProgressHub() {
       });
 
       if (error) {
-        console.error('Complete theme error:', error);
+        Logger.error('Complete theme error:', error);
         toast.error('Erro ao marcar tema como concluído');
         return { success: false };
       }
@@ -217,7 +217,7 @@ export function useProgressHub() {
 
       return { success: true, aulas_completed: aulasCompleted };
     } catch (err) {
-      console.error('Complete theme unexpected error:', err);
+      Logger.error('Complete theme unexpected error:', err);
       toast.error('Erro ao marcar tema');
       return { success: false };
     } finally {
@@ -239,7 +239,7 @@ export function useProgressHub() {
       });
 
       if (error) {
-        console.error('Uncomplete theme error:', error);
+        Logger.error('Uncomplete theme error:', error);
         toast.error('Erro ao desfazer conclusão');
         return { success: false };
       }
@@ -251,7 +251,7 @@ export function useProgressHub() {
 
       return { success: true };
     } catch (err) {
-      console.error('Uncomplete theme unexpected error:', err);
+      Logger.error('Uncomplete theme unexpected error:', err);
       toast.error('Erro ao desfazer');
       return { success: false };
     } finally {

@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import type { AnalyticsFilters as AnalyticsFiltersType } from '@/pages/Analytics';
+import { Logger } from '@/utils/logger';
 
 interface AnalyticsFiltersProps {
   filters: AnalyticsFiltersType;
@@ -45,12 +46,12 @@ export const AnalyticsFilters: React.FC<AnalyticsFiltersProps> = ({
           .order('nome');
 
         if (error) {
-          console.error('[AnalyticsFilters] Erro ao carregar IES:', error);
+          Logger.error('[AnalyticsFilters] Erro ao carregar IES:', error);
           return;
         }
         setIesList(data || []);
       } catch (err) {
-        console.error('[AnalyticsFilters] Erro inesperado:', err);
+        Logger.error('[AnalyticsFilters] Erro inesperado:', err);
       } finally {
         setIsLoadingIES(false);
       }

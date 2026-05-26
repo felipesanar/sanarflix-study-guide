@@ -1,14 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Logger } from '@/utils/logger';
+import { calendarService, type CalendarSubject } from '@/services/calendarService';
 
-export interface CalendarSubject {
-  id?: string;
-  name: string;
-  color: string;
-  dayOfWeek: number;
-}
+export type { CalendarSubject };
 
 interface StoredData {
   subjects: CalendarSubject[];
@@ -25,14 +21,24 @@ const readCacheSync = (): CalendarSubject[] => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return [];
-    
+
     const data: StoredData = JSON.parse(stored);
+
+    // Migration check: descarta cache de versão antiga para evitar
+    // estruturas incompatíveis após mudanças de schema.
+    if (data.version !== SYNC_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      return [];
+    }
+
     // Verificar se o cache é recente
     if (data.subjects && data.lastUpdated && (Date.now() - data.lastUpdated) < CACHE_TTL) {
       return data.subjects;
     }
     return [];
   } catch {
+    // JSON corrompido: limpa para evitar loop de erro nas próximas leituras.
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* noop */ }
     return [];
   }
 };
@@ -47,8 +53,11 @@ export const useCalendarSync = () => {
   const [subjects, setSubjects] = useState<CalendarSubject[]>(cachedSubjects);
   const [loading, setLoading] = useState(cachedSubjects.length === 0);
   const [syncing, setSyncing] = useState(false);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const initializedRef = useRef(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  // Chave de inicialização por user.id: garante re-inicialização quando o
+  // usuário muda (ex: impersonation admin). Antes era boolean global,
+  // travando o estado do primeiro usuário carregado.
+  const initializedRef = useRef<string | null>(null);
 
   // Carregar do Local Storage (instantâneo) - apenas como fallback
   const loadFromLocalStorage = useCallback((): CalendarSubject[] => {
@@ -59,7 +68,7 @@ export const useCalendarSync = () => {
       const data: StoredData = JSON.parse(stored);
       return data.subjects || [];
     } catch (error) {
-      console.error('Erro ao carregar do localStorage:', error);
+      Logger.error('Erro ao carregar do localStorage:', error);
       return [];
     }
   }, []);
@@ -74,101 +83,29 @@ export const useCalendarSync = () => {
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error('Erro ao salvar no localStorage:', error);
+      Logger.error('Erro ao salvar no localStorage:', error);
     }
   }, []);
 
-  // Carregar do banco de dados (fonte de verdade)
+  // Carregar do banco de dados — delega para calendarService.
   const loadFromDatabase = useCallback(async (): Promise<CalendarSubject[]> => {
     if (!user?.id) return [];
-
-    try {
-      const { data, error } = await supabase
-        .from('calendar_subjects')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('day_of_week', { ascending: true });
-
-      if (error) throw error;
-
-      return data?.map(row => ({
-        id: row.id,
-        name: row.name,
-        color: row.color,
-        dayOfWeek: row.day_of_week
-      })) || [];
-    } catch (error) {
-      console.error('Erro ao carregar do banco:', error);
-      return [];
-    }
+    return calendarService.listSubjects(user.id);
   }, [user]);
 
-  // Salvar no banco usando UPSERT + DELETE para itens removidos
-  const saveToDatabase = useCallback(async (newSubjects: CalendarSubject[], currentServerIds: string[]) => {
+  // Salvar no banco — delega para calendarService.
+  const saveToDatabase = useCallback(async (newSubjects: CalendarSubject[]) => {
     if (!user?.id) return;
-
-    try {
-      // 1. UPSERT: inserir/atualizar matérias
-      if (newSubjects.length > 0) {
-        const recordsToUpsert = newSubjects.map(subject => ({
-          id: subject.id || crypto.randomUUID(),
-          user_id: user.id,
-          name: subject.name,
-          color: subject.color,
-          day_of_week: subject.dayOfWeek
-        }));
-
-        const { error: upsertError } = await supabase
-          .from('calendar_subjects')
-          .upsert(recordsToUpsert, { 
-            onConflict: 'user_id,name,day_of_week',
-            ignoreDuplicates: false 
-          });
-
-        if (upsertError) throw upsertError;
-      }
-
-      // 2. DELETE: remover matérias que não estão mais na lista
-      const newSubjectKeys = new Set(
-        newSubjects.map(s => `${s.name}|${s.dayOfWeek}`)
-      );
-      
-      const idsToRemove = currentServerIds.filter((id, index) => {
-        // Precisamos verificar quais IDs do servidor não estão na nova lista
-        // Isso é feito comparando com os subjects originais
-        return false; // Placeholder - será resolvido na lógica de saveSubjects
-      });
-
-      // Deletar matérias removidas pelo usuário (matérias que estavam no servidor mas não estão mais)
-      const { data: currentData } = await supabase
-        .from('calendar_subjects')
-        .select('id, name, day_of_week')
-        .eq('user_id', user.id);
-
-      if (currentData) {
-        const idsToDelete = currentData
-          .filter(row => !newSubjectKeys.has(`${row.name}|${row.day_of_week}`))
-          .map(row => row.id);
-
-        if (idsToDelete.length > 0) {
-          await supabase
-            .from('calendar_subjects')
-            .delete()
-            .in('id', idsToDelete);
-        }
-      }
-
-    } catch (error) {
-      console.error('Erro ao salvar no banco:', error);
-      throw error;
-    }
+    await calendarService.replaceSubjects(user.id, newSubjects);
   }, [user]);
 
   // Inicialização: SERVER-FIRST com cache instantâneo
   useEffect(() => {
-    // Evitar múltiplas inicializações
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    const initKey = user?.id ?? '__anonymous__';
+    // Evitar múltiplas inicializações para o mesmo usuário, mas permitir
+    // re-inicialização quando user.id muda (impersonation/logout/login).
+    if (initializedRef.current === initKey) return;
+    initializedRef.current = initKey;
     
     const initialize = async () => {
       if (user?.id) {
@@ -199,40 +136,26 @@ export const useCalendarSync = () => {
     initialize();
   }, [user, cachedSubjects, loadFromDatabase, loadFromLocalStorage, saveToLocalStorage]);
 
-  // Realtime subscription para sincronização multi-aba
+  // Realtime subscription para sincronização multi-aba — via service.
   useEffect(() => {
     if (!user?.id) return;
 
-    // Limpar channel anterior se existir
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
+    // Limpar subscription anterior se existir
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
     }
 
-    const channel = supabase
-      .channel(`calendar-changes-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'calendar_subjects',
-          filter: `user_id=eq.${user.id}`
-        },
-        async () => {
-          // Recarregar dados do servidor quando houver mudanças
-          const serverSubjects = await loadFromDatabase();
-          setSubjects(serverSubjects);
-          saveToLocalStorage(serverSubjects);
-        }
-      )
-      .subscribe();
-
-    channelRef.current = channel;
+    unsubscribeRef.current = calendarService.subscribeToChanges(user.id, async () => {
+      const serverSubjects = await loadFromDatabase();
+      setSubjects(serverSubjects);
+      saveToLocalStorage(serverSubjects);
+    });
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
     };
   }, [user?.id, loadFromDatabase, saveToLocalStorage]);
@@ -244,24 +167,14 @@ export const useCalendarSync = () => {
       setSubjects(newSubjects);
       saveToLocalStorage(newSubjects);
 
-      // 2. Salvar no banco
+      // 2. Salvar no banco (delete + upsert atômico vivem no service)
       if (user?.id) {
         setSyncing(true);
-        
-        // Buscar IDs atuais do servidor para comparação
-        const { data: currentData } = await supabase
-          .from('calendar_subjects')
-          .select('id, name, day_of_week')
-          .eq('user_id', user.id);
-
-        const currentServerIds = currentData?.map(row => row.id) || [];
-        
-        await saveToDatabase(newSubjects, currentServerIds);
-        
+        await saveToDatabase(newSubjects);
         setSyncing(false);
       }
     } catch (error) {
-      console.error('Erro ao salvar matérias:', error);
+      Logger.error('Erro ao salvar matérias:', error);
       setSyncing(false);
       toast.error('Erro ao sincronizar com o servidor');
       
@@ -274,21 +187,29 @@ export const useCalendarSync = () => {
     }
   }, [user, saveToLocalStorage, saveToDatabase, loadFromDatabase]);
 
-  // Adicionar matéria com deduplicação
+  // Adicionar matéria com deduplicação.
+  // Usa subjectsRef para ler estado atual síncronamente, evitando stale
+  // closure quando dois cliques rápidos viam o mesmo `subjects` antigo
+  // e ambos passavam pelo check de dedupe (gerando duplicatas).
+  // A defesa em profundidade real é a UNIQUE constraint server-side
+  // (migration §4 do runbook).
+  const subjectsRef = useRef(subjects);
+  subjectsRef.current = subjects;
+
   const addSubject = useCallback(async (subject: CalendarSubject) => {
-    // Verificar se já existe no dia (deduplicação no cliente)
-    const exists = subjects.some(
+    const current = subjectsRef.current;
+    const exists = current.some(
       s => s.name === subject.name && s.dayOfWeek === subject.dayOfWeek
     );
-    
+
     if (exists) {
       toast.info('Esta matéria já está agendada para este dia');
       return;
     }
-    
-    const newSubjects = [...subjects, subject];
+
+    const newSubjects = [...current, subject];
     await saveSubjects(newSubjects);
-  }, [subjects, saveSubjects]);
+  }, [saveSubjects]);
 
   // Remover matéria
   const removeSubject = useCallback(async (dayOfWeek: number, subjectName: string) => {

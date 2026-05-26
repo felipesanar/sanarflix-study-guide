@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { EstadoSimulado, RespostaSimulado } from '@/types/simulado';
+import { Logger } from '@/utils/logger';
 
 const STORAGE_PREFIX = 'simulado_';
 
@@ -16,7 +17,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
       if (!estadoStr) return null;
       return JSON.parse(estadoStr);
     } catch (error) {
-      console.error('Erro ao carregar estado do simulado:', error);
+      Logger.error('Erro ao carregar estado do simulado:', error);
       return null;
     }
   }, [simuladoId]);
@@ -29,7 +30,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
         ultima_atualizacao: new Date().toISOString()
       }));
     } catch (error) {
-      console.error('Erro ao salvar estado do simulado:', error);
+      Logger.error('Erro ao salvar estado do simulado:', error);
     }
   }, [simuladoId]);
 
@@ -49,7 +50,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
         try {
           localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
         } catch (error) {
-          console.error('Erro ao salvar estado:', error);
+          Logger.error('Erro ao salvar estado:', error);
         }
       }
     }, 100);
@@ -64,7 +65,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
       try {
         localStorage.setItem(getEstadoKey(), JSON.stringify(pendingStateRef.current));
       } catch (error) {
-        console.error('Erro ao forçar salvamento:', error);
+        Logger.error('Erro ao forçar salvamento:', error);
       }
     }
   }, [simuladoId]);
@@ -150,7 +151,7 @@ export const useSimuladoStorage = (simuladoId: string) => {
     if (!estado) return;
 
     const novoValor = (estado.saidas_de_fullscreen || 0) + 1;
-    console.log(`[Storage] Registrando saída de fullscreen #${novoValor}`);
+    Logger.info(`[Storage] Registrando saída de fullscreen #${novoValor}`);
 
     salvarEstado({
       ...estado,

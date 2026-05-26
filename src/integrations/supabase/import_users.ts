@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import csv from 'csv-parser';
 import * as dotenv from 'dotenv';
+import { Logger } from '@/utils/logger';
 
 dotenv.config();
 
@@ -43,7 +44,7 @@ fs.createReadStream('usuarios.csv')
         });
 
         if (error || !data?.user) {
-          console.error(`❌ Erro ao criar ${user.email}: ${error?.message}`);
+          Logger.error(`❌ Erro ao criar ${user.email}: ${error?.message}`);
           continue;
         }
 
@@ -53,7 +54,7 @@ fs.createReadStream('usuarios.csv')
         // User data is now properly protected in the main users table with RLS policies
 
       } catch (err) {
-        console.error(`❌ Erro inesperado com ${user.email}:`, err);
+        Logger.error(`❌ Erro inesperado com ${user.email}:`, err);
       }
     }
 
