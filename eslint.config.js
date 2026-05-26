@@ -33,8 +33,10 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
-      // Regras de segurança
-      "no-console": "warn",
+      // Regras de segurança — no-console como error agora que codemod
+      // moveu todo console.* para Logger centralizado (Fase 5 parte 2).
+      // logger.ts tem override abaixo para usar console legitimamente.
+      "no-console": "error",
       "no-debugger": "error",
       "no-eval": "error",
 
@@ -48,5 +50,16 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": "error",
       "react/jsx-key": "error",
     },
+  },
+  // Override: src/utils/logger.ts é o ÚNICO ponto que usa console
+  // diretamente (a implementação por trás do Logger.*).
+  {
+    files: ["src/utils/logger.ts"],
+    rules: { "no-console": "off" },
+  },
+  // Override: arquivos de teste/setup podem usar console para debug.
+  {
+    files: ["src/test/**", "tests/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    rules: { "no-console": "off" },
   }
 );
