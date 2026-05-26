@@ -7,6 +7,7 @@ import { StreakGoalSlider } from './StreakGoalSlider';
 import { GoalHistoryBadge } from './GoalHistoryBadge';
 import type { ProgressStreak } from '@/types/progressHub';
 import { cn } from '@/lib/utils';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 
 interface ConsistencyCardProps {
   streak: ProgressStreak;
@@ -66,7 +67,7 @@ export const ConsistencyCard: React.FC<ConsistencyCardProps> = ({
         >
           {DAYS.map((day, i) => {
             const isActive = streak.active_days_of_week?.includes(i) ?? false;
-            const isToday = i === new Date().getDay();
+            const isToday = i === getBrazilDayOfWeek();
             
             return (
               <motion.div

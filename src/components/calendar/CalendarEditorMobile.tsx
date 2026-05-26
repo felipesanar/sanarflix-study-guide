@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CalendarEvent, SyncStatus, getMateriaColor, getMateriaIcon, getMateriaCategory } from './types';
+import { getBrazilDayOfWeek } from '@/utils/timezone';
 import { DaySelectorMobile } from './DaySelectorMobile';
 import { SubjectDrawerMobile } from './SubjectDrawerMobile';
 import { MobileFooterActions } from './FloatingActionBar';
@@ -50,7 +51,7 @@ export const CalendarEditorMobile: React.FC<CalendarEditorMobileProps> = ({
   canUndo = true,
   variant = 'dark'
 }) => {
-  const [selectedDay, setSelectedDay] = useState(() => new Date().getDay());
+  const [selectedDay, setSelectedDay] = useState(() => getBrazilDayOfWeek());
   const [drawerExpanded, setDrawerExpanded] = useState(true);
 
   // Group events by day

@@ -8,6 +8,8 @@ import { useFocusControl } from '@/hooks/useFocusControl';
 import { useKeyboardShortcuts, KEY_TO_ALTERNATIVE } from '@/hooks/useKeyboardShortcuts';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Questao, EstadoSimulado } from '@/types/simulado';
+import { env } from '@/config/env';
+import { supabase } from '@/integrations/supabase/client';
 import { AlternativaProva } from '@/components/simulados/AlternativaProva';
 import { ImageLightbox } from '@/components/simulados/ImageLightbox';
 import { NavegacaoLateral } from '@/components/simulados/NavegacaoLateral';
@@ -280,7 +282,14 @@ export const ModoProva = () => {
   }, [storage]);
 
   const finalizarSimulado = async () => {
-    jaFinalizouRef.current = true; // Marcar ANTES de qualquer envio
+    // Sob FF_PROVA_RACE_FIX: só marcamos jaFinalizouRef após sucesso do envio,
+    // garantindo que beforeunload (sendBeacon) continue funcionando como
+    // fallback se a requisição falhar antes do término. Comportamento
+    // anterior (legado) marcava antes — risco de perda de dados ao fechar
+    // a aba durante uma falha de rede.
+    if (!env.FF_PROVA_RACE_FIX) {
+      jaFinalizouRef.current = true; // legado
+    }
     setFinalizando(true);
     try {
       const estadoFinal = storage.carregarEstado();
@@ -305,6 +314,10 @@ export const ModoProva = () => {
         finalizado_em: new Date().toISOString()
       };
       await simuladosApi.enviarResultado(payload);
+
+      if (env.FF_PROVA_RACE_FIX) {
+        jaFinalizouRef.current = true; // só após sucesso confirmado
+      }
 
       // Track simulado completion
       trackSimuladoComplete(simuladoId, {
@@ -375,40 +388,69 @@ export const ModoProva = () => {
     enabled: !loading && !mostrarDialogFinalizar && !finalizando 
   });
 
+  // Refs estáveis para evitar re-registrar o listener a cada tick do cronômetro
+  // ou a cada mudança de state. Antes este effect re-rodava a cada segundo,
+  // causando memory leak de listeners durante toda a prova.
+  const finalizandoRef = useRef(finalizando);
+  finalizandoRef.current = finalizando;
+  const questoesRef = useRef(questoes);
+  questoesRef.current = questoes;
+  const userRef = useRef(user);
+  userRef.current = user;
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       // NÃO enviar se já finalizou via botão (evita duplicação)
-      if (jaFinalizouRef.current || finalizando) {
+      if (jaFinalizouRef.current || finalizandoRef.current) {
         return;
       }
-      
-      // Usa sendBeacon para envio assíncrono que sobrevive ao fechamento da página
-      const estadoFinal = storage.carregarEstado();
-      if (estadoFinal && user) {
-        const todasQuestoesIds = questoes.map(q => q.id);
-        const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
-        
-        // Calcula tempo gasto desde o início
-        const iniciadoEm = new Date(estadoFinal.iniciado_em);
-        const tempoTotalSegundos = Math.floor((Date.now() - iniciadoEm.getTime()) / 1000);
 
-        const payload = {
-          simulado_id: simuladoId,
-          user_id: user.id,
-          respostas: respostasCompletas,
-          tempo_total_segundos: tempoTotalSegundos,
-          saidas_de_aba: estadoFinal.saidas_de_aba,
-          saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
-          finalizado_em: new Date().toISOString(),
-          auto_finalizado: true
-        };
-        
-        // sendBeacon garante que a requisição seja enviada mesmo fechando a aba
-        const url = `https://gvqvrmkizemwsasmupmo.supabase.co/functions/v1/corrigir-simulado`;
-        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-        navigator.sendBeacon(url, blob);
+      const currentUser = userRef.current;
+      const currentQuestoes = questoesRef.current;
+      const estadoFinal = storage.carregarEstado();
+      if (!estadoFinal || !currentUser) {
+        return;
       }
-      
+
+      const todasQuestoesIds = currentQuestoes.map(q => q.id);
+      const respostasCompletas = storage.prepararRespostasCompletas(todasQuestoesIds);
+
+      // Calcula tempo gasto desde o início
+      const iniciadoEm = new Date(estadoFinal.iniciado_em);
+      const tempoTotalSegundos = Math.floor((Date.now() - iniciadoEm.getTime()) / 1000);
+
+      // Captura o access token síncronamente (sendBeacon não aceita Promise).
+      // Buscamos de localStorage onde Supabase persiste a sessão atual.
+      let accessToken: string | undefined;
+      try {
+        const ref = new URL(env.SUPABASE_URL).hostname.split('.')[0];
+        const raw = localStorage.getItem(`sb-${ref}-auth-token`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          accessToken = parsed?.access_token;
+        }
+      } catch {
+        // sessionStorage/localStorage indisponível — segue sem token; servidor rejeitará.
+      }
+
+      const payload = {
+        simulado_id: simuladoId,
+        user_id: currentUser.id,
+        respostas: respostasCompletas,
+        tempo_total_segundos: tempoTotalSegundos,
+        saidas_de_aba: estadoFinal.saidas_de_aba,
+        saidas_de_fullscreen: estadoFinal.saidas_de_fullscreen || 0,
+        finalizado_em: new Date().toISOString(),
+        auto_finalizado: true,
+        __access_token: accessToken,
+      };
+
+      // sendBeacon garante que a requisição seja enviada mesmo fechando a aba.
+      // URL derivada de env (antes hardcoded — quebrava em staging/preview).
+      const url = `${env.EDGE_FUNCTIONS_BASE_URL}/corrigir-simulado`;
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      navigator.sendBeacon(url, blob);
+
       e.preventDefault();
       e.returnValue = '';
     };
@@ -418,7 +460,9 @@ export const ModoProva = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [user, questoes, simuladoId, cronometro.tempoRestante, storage]);
+    // Dependências estáveis: o handler usa refs para acessar valores atuais.
+    // simuladoId e storage não mudam durante uma prova.
+  }, [simuladoId, storage]);
 
   if (loading) {
     return (

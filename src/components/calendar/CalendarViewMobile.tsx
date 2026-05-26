@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { CalendarEvent, getMateriaIcon } from './types';
+import { getBrazilDayOfWeek, getBrazilDate } from '@/utils/timezone';
 
 interface CalendarViewMobileProps {
   events: CalendarEvent[];
@@ -26,16 +27,16 @@ export const CalendarViewMobile: React.FC<CalendarViewMobileProps> = ({
   onEventClick,
   variant = 'dark'
 }) => {
-  const today = new Date().getDay();
+  const today = getBrazilDayOfWeek();
   const [selectedDay, setSelectedDay] = useState<number>(today);
   const isDark = variant === 'dark';
 
   const dayEvents = events.filter(e => e.day === selectedDay);
 
-  // Get current date info for the day selector
-  const currentDate = new Date();
+  // Get current date info for the day selector — usa horário Brasília
+  const currentDate = getBrazilDate();
   const startOfWeek = new Date(currentDate);
-  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  startOfWeek.setDate(currentDate.getDate() - today);
 
   return (
     <Card className={cn(
