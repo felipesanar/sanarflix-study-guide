@@ -1,119 +1,97 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
+import { buildCorsHeaders } from '../_shared/cors.ts';
+import { createAdminClient, extractToken, getAuthenticatedUser } from '../_shared/auth.ts';
+import { safeParseBody, sanitizeDbError, z } from '../_shared/validate.ts';
+import { checkRateLimit } from '../_shared/rateLimit.ts';
+import {
+  jsonResponse,
+  badRequest,
+  unauthorized,
+  forbidden,
+  tooManyRequests,
+  internalError,
+} from '../_shared/response.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+const FN_NAME = 'save-calendar-arrangement';
 
-interface CalendarArrangement {
-  item_key: string;
-  week: string;
-  day: string;
-  position: number;
-}
+const arrangementSchema = z.object({
+  item_key: z.string().min(1).max(200),
+  week: z.string().min(1).max(20),
+  day: z.string().min(1).max(20),
+  position: z.number().int().nonnegative().optional(),
+});
+
+const bodySchema = z.object({
+  arrangements: z.array(arrangementSchema).max(500),
+});
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
+  const origin = req.headers.get('Origin');
+  const cors = buildCorsHeaders(origin);
+
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    if (!cors) return forbidden('origin not allowed', null);
+    return new Response(null, { headers: cors });
   }
 
+  if (!cors) return forbidden('origin not allowed', null);
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const authHeader = req.headers.get('Authorization');
+    // Rate limit: 30 reqs/min por IP (operação não pesada mas evitamos abuso)
+    const rl = await checkRateLimit(req, { key: FN_NAME, limitPerMin: 30 });
+    if (!rl.allowed) return tooManyRequests('rate limit exceeded', cors);
 
-    if (!authHeader) {
-      console.error('Missing Authorization header');
-      return new Response(
-        JSON.stringify({ error: 'Authorization header is required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const admin = createAdminClient();
+
+    // Autenticação autoritativa via JWT
+    const token = extractToken(req);
+    const user = await getAuthenticatedUser(admin, token);
+    if (!user) return unauthorized('invalid or missing token', cors);
+
+    // Validação de schema + tamanho do array (anti-DoS)
+    const parsed = await safeParseBody(req, bodySchema);
+    if (!parsed.success || !parsed.data) {
+      return badRequest(parsed.error?.issues?.[0]?.message ?? 'invalid body', cors);
     }
+    const { arrangements } = parsed.data;
 
-    const token = authHeader.replace('Bearer ', '');
-    const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    // Validate token and get user
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (userError || !userData?.user) {
-      console.error('Auth error:', userError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const userId = userData.user.id;
-
-    const { arrangements } = await req.json() as { arrangements: CalendarArrangement[] };
-
-    if (!arrangements || !Array.isArray(arrangements)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request body. Expected { arrangements: CalendarArrangement[] }' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    
-
-    // Delete existing arrangements for this user
-    const { error: deleteError } = await supabaseAdmin
+    // Limpa arranjos anteriores do usuário
+    const { error: deleteError } = await admin
       .from('calendar_arrangements')
       .delete()
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (deleteError) {
-      console.error('Error deleting existing arrangements:', deleteError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to clear existing arrangements' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      sanitizeDbError(FN_NAME, deleteError);
+      return internalError(cors);
     }
 
-    // Insert new arrangements
+    // Insere novos arranjos
     if (arrangements.length > 0) {
-      const arrangementsToInsert = arrangements.map((arr, index) => ({
-        user_id: userId,
+      const rows = arrangements.map((arr, index) => ({
+        user_id: user.id,
         item_key: arr.item_key,
         week: arr.week,
         day: arr.day,
         position: arr.position !== undefined ? arr.position : index,
       }));
 
-      const { error: insertError } = await supabaseAdmin
+      const { error: insertError } = await admin
         .from('calendar_arrangements')
-        .insert(arrangementsToInsert);
+        .insert(rows);
 
       if (insertError) {
-        console.error('Error inserting arrangements:', insertError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to save calendar arrangements' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        sanitizeDbError(FN_NAME, insertError);
+        return internalError(cors);
       }
     }
 
-    
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Calendar arrangements saved successfully',
-        count: arrangements.length 
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    return jsonResponse(
+      { success: true, count: arrangements.length },
+      { status: 200, cors }
     );
-
-  } catch (error) {
-    console.error('Error in save-calendar-arrangement:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (err) {
+    console.error(`[${FN_NAME}] unexpected error`, err);
+    return internalError(cors);
   }
 });

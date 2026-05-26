@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
+import { maskEmail } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,7 +37,7 @@ serve(async (req) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    console.log(`[sync-user-auth] Attempting to sync user: ${normalizedEmail}`);
+    console.log(`[sync-user-auth] Attempting to sync user: ${maskEmail(normalizedEmail)}`);
 
     // 1. Check if user exists in public.users
     const { data: publicUser, error: publicUserError } = await supabaseAdmin
@@ -61,7 +62,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[sync-user-auth] Found public user: ${publicUser.nome} (ID: ${publicUser.id})`);
+    console.log(`[sync-user-auth] Found public user (ID: ${publicUser.id})`);
 
     // 2. Check if user already exists in auth.users
     const { data: authUsersList, error: listError } = await supabaseAdmin.auth.admin.listUsers();

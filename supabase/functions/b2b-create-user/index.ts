@@ -441,53 +441,34 @@ Deno.serve(async (req) => {
         if ((createErr as any).code === 'email_exists') {
           console.log(`[CreateUser] User exists in auth but not in public.users, recovering...`);
           try {
-            // Use listUsers with proper pagination to find the user
-            const { data: listData, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
-              page: 1,
-              perPage: 50,
-            });
-            
-            if (listErr) {
-              console.error('[Auth] listUsers failed:', listErr);
-              return errorResponse('AUTH_CREATE_FAILED', 'Falha ao recuperar usuário existente', listErr.message);
+            // Busca direta na tabela auth.users (via service role) é O(1) com índice
+            // em email — substitui o loop anterior que iterava até 11 páginas
+            // (amplificação de DoS + esgotamento de cota da API admin).
+            const { data: existingRow, error: lookupErr } = await supabaseAdmin
+              .schema('auth')
+              .from('users')
+              .select('id')
+              .ilike('email', email)
+              .maybeSingle();
+
+            if (lookupErr) {
+              console.error('[Auth] auth.users lookup failed:', lookupErr);
+              return errorResponse('AUTH_CREATE_FAILED', 'Falha ao recuperar usuário existente');
             }
 
-            const authUser = listData?.users?.find(u => u.email === email);
-            
-            if (!authUser) {
-              // Fallback: try fetching all pages or broader search
-              console.warn(`[CreateUser] User ${email} not found in first page, trying broader search...`);
-              let found = null;
-              for (let page = 2; page <= 10 && !found; page++) {
-                const { data: pageData } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
-                found = pageData?.users?.find(u => u.email === email) || null;
-              }
-              if (!found) {
-                console.error(`[CreateUser] Cannot find ${email} in auth.users despite email_exists error`);
-                return errorResponse('AUTH_CREATE_FAILED', 'Usuário existe no auth mas não foi possível localizá-lo');
-              }
-              // Use found user
-              await supabaseAdmin.auth.admin.updateUserById(found.id, { user_metadata: userMetadata });
-              const { error: upsertErr } = await supabaseAdmin
-                .from('users')
-                .upsert({ id: found.id, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
-              if (upsertErr) {
-                return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
-              }
-              if (id_ies === B2B_IES_ID) {
-                await supabaseAdmin.from('user_roles')
-              }
-              await grantRoleIfNeeded(supabaseAdmin, found.id, role, callerUserId, email);
-              const emailOk = await sendWelcomeEmail(supabaseAdmin, found.id, nome, email).catch(() => false);
-              return successResponse('updated', found.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
+            if (!existingRow?.id) {
+              console.error(`[CreateUser] Cannot find user in auth.users despite email_exists error`);
+              return errorResponse('AUTH_CREATE_FAILED', 'Usuário existe no auth mas não foi possível localizá-lo');
             }
+
+            const foundId = existingRow.id;
 
             // Update auth metadata
-            await supabaseAdmin.auth.admin.updateUserById(authUser.id, { user_metadata: userMetadata });
+            await supabaseAdmin.auth.admin.updateUserById(foundId, { user_metadata: userMetadata });
             // Upsert into public.users
             const { error: upsertErr } = await supabaseAdmin
               .from('users')
-              .upsert({ id: authUser.id, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
+              .upsert({ id: foundId, email, nome, id_ies, semestre: semestre ?? null }, { onConflict: 'id' });
             if (upsertErr) {
               return errorResponse('PROFILE_SYNC_FAILED', 'Falha ao sincronizar perfil', upsertErr.message);
             }
@@ -495,11 +476,11 @@ Deno.serve(async (req) => {
             if (id_ies === B2B_IES_ID) {
               await supabaseAdmin.from('user_roles')
             }
-            await grantRoleIfNeeded(supabaseAdmin, authUser.id, role, callerUserId, email);
+            await grantRoleIfNeeded(supabaseAdmin, foundId, role, callerUserId, email);
             // Send welcome email (awaited for accurate status)
-            const emailOk = await sendWelcomeEmail(supabaseAdmin, authUser.id, nome, email).catch(() => false);
-            console.log(`[CreateUser] User ${email} recovered successfully. ID: ${authUser.id}`);
-            return successResponse('updated', authUser.id, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
+            const emailOk = await sendWelcomeEmail(supabaseAdmin, foundId, nome, email).catch(() => false);
+            console.log(`[CreateUser] User recovered successfully. ID: ${foundId}`);
+            return successResponse('updated', foundId, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           } catch (recoveryErr) {
             console.error('[CreateUser] Recovery failed:', recoveryErr);
             return errorResponse('AUTH_CREATE_FAILED', 'Falha ao recuperar usuário existente', 
