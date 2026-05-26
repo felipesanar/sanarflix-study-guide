@@ -25,7 +25,11 @@ export interface CreateUserResult {
   userId?: string;
   email?: string;
   message?: string;
-  emailSent?: boolean;
+  /** Detalhes adicionais retornados pela edge function. */
+  details?: {
+    emailSent?: boolean;
+    fieldsUpdated?: string[];
+  };
   error?: string;
   code?: string;
 }
@@ -61,10 +65,33 @@ export const usersService = {
     const { data, error } = await supabase.functions.invoke('b2b-create-user', {
       body: payload,
     });
+
     if (error) {
+      // Supabase wraps HTTP errors em FunctionsHttpError com .context. Tenta
+      // extrair o body JSON estruturado antes de cair no fallback genérico.
+      let extractedError: string | undefined;
+      let extractedCode: string | undefined;
+      let extractedDetails: string | undefined;
+      try {
+        const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+        const body = (await ctx?.json?.()) as
+          | { error?: string; code?: string; details?: string }
+          | undefined;
+        extractedError = body?.error;
+        extractedCode = body?.code;
+        extractedDetails = body?.details;
+      } catch {
+        // Body não-JSON ou indisponível — usa fallback.
+      }
       Logger.error('[usersService.createUser] edge fn error', error);
-      return { success: false, error: 'Falha ao criar usuário' };
+      return {
+        success: false,
+        error: extractedError ?? 'Falha ao criar usuário',
+        code: extractedCode,
+        message: extractedDetails,
+      };
     }
+
     return data as CreateUserResult;
   },
 
