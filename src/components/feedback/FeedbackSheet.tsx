@@ -300,7 +300,10 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                 <div className="space-y-2">
                   <Label className="text-sm">Anexar print (opcional)</Label>
                   {filePreview ? (
-                    <div className="relative rounded-xl overflow-hidden border border-border">
+                    <div className={cn(
+                      'relative rounded-xl overflow-hidden border border-border transition-shadow',
+                      pasteFlash && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    )}>
                       <img src={filePreview} alt="Preview" className="w-full max-h-48 object-cover" />
                       <button
                         onClick={() => handlePickFile(null)}
@@ -310,9 +313,17 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                       </button>
                     </div>
                   ) : (
-                    <label className="flex items-center justify-center gap-2 h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/60 hover:bg-accent/30 transition-colors cursor-pointer text-sm text-muted-foreground">
-                      <ImageIcon className="h-4 w-4" />
-                      Clique para escolher uma imagem
+                    <label className="flex flex-col items-center justify-center gap-1 h-24 rounded-xl border-2 border-dashed border-border hover:border-primary/60 hover:bg-accent/30 transition-colors cursor-pointer text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" />
+                        Clique para escolher uma imagem
+                      </div>
+                      <span className="text-xs">
+                        ou cole com{' '}
+                        <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono text-foreground">
+                          {typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}
+                        </kbd>
+                      </span>
                       <input
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
