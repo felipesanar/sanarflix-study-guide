@@ -104,6 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       setUser(updated);
+      // Trade-off documentado (auditoria 🟡 MED — PII em localStorage):
+      // O perfil completo é persistido para hidratação rápida em reloads,
+      // evitando flash de "loading" enquanto refreshUserProfile completa
+      // a fonte de verdade. Mitigação contra XSS: CSP estrita + Trusted
+      // Types (fora deste arquivo). Não encriptamos pois XSS exfiltra o
+      // mesmo JS context que faria o decrypt. refreshUserProfile sempre
+      // roda em background após hidratação, então valores em cache são
+      // sobrescritos quase imediatamente em qualquer fluxo de auth.
       localStorage.setItem('sanarflix-user', JSON.stringify(updated));
       Logger.info('[Auth] role from DB:', roles);
       Logger.info('[Auth] Accessible colleges:', accessibleIes.map((i) => i.nome));
