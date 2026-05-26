@@ -1,9 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { buildCorsHeaders } from '../_shared/cors.ts';
 
 interface RespostaSimulado {
   questao_id: string;
@@ -32,9 +28,21 @@ interface CorrecaoRequest {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    if (!corsHeaders) {
+      return new Response('forbidden', { status: 403 });
+    }
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Para o fluxo de sendBeacon a Origin pode vir; se for inválida, rejeitamos.
+  // O happy path (academy.sanar.com.br + similares) está na allowlist.
+  if (!corsHeaders) {
+    return new Response('forbidden', { status: 403 });
   }
 
   try {

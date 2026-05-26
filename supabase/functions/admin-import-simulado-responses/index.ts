@@ -2,6 +2,7 @@
 // Importa respostas de alunos para um simulado já cadastrado, a partir de planilha externa.
 // Idempotente por (batch_id, user_id, simulado_id).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { isAllowedOrigin } from "../_shared/cors.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +44,12 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 
 Deno.serve(async (req) => {
+  // fase-2-cors-gatekeep
+  const __origin = req.headers.get('Origin');
+  if (__origin !== null && !isAllowedOrigin(__origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

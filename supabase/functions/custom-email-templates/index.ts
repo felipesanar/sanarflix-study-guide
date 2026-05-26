@@ -59,6 +59,12 @@ function isWebhookAuthError(error: unknown) {
 }
 
 Deno.serve(async (req) => {
+  // fase-2-cors-gatekeep
+  const __origin = req.headers.get('Origin');
+  if (__origin !== null && !isAllowedOrigin(__origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders })

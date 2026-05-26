@@ -1,5 +1,6 @@
 import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
+import { isAllowedOrigin } from "../_shared/cors.ts";
 
 const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
@@ -20,6 +21,12 @@ interface ReminderRequest {
 }
 
 Deno.serve(async (req) => {
+  // fase-2-cors-gatekeep
+  const __origin = req.headers.get('Origin');
+  if (__origin !== null && !isAllowedOrigin(__origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

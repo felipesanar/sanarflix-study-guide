@@ -2,7 +2,14 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
+import { isAllowedOrigin } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
+// Mantemos os headers de resposta com '*' para preservar o fluxo das funções
+// admin (a refatoração completa dos helpers errorResponse/successResponse
+// para tomar cors por parâmetro fica para PR dedicado). A defesa real fica
+// no gatekeeping de Origin no início do handler — requisições de origens
+// fora da allowlist são rejeitadas antes de qualquer lógica.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
@@ -255,8 +262,25 @@ async function sendWelcomeEmail(supabaseAdmin: any, userId: string, nome: string
 }
 
 Deno.serve(async (req) => {
+  // Gatekeep por Origin (allowlist). Funções administrativas só aceitam
+  // chamadas da própria UI Sanar; preflight + main respeitam a mesma regra.
+  const origin = req.headers.get('Origin');
+  if (origin !== null && !isAllowedOrigin(origin)) {
+    return new Response('forbidden', { status: 403 });
+  }
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Rate limit 30/min por IP — criar usuário é caro e enumeração de IES
+  // é exploit conhecido em onboarding B2B.
+  const rl = await checkRateLimit(req, { key: 'b2b-create-user', limitPerMin: 30 });
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Limite de requisições excedido', code: 'RATE_LIMITED' }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {
