@@ -299,8 +299,11 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/caderno-de-erros" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
+          <Route path="/meus-feedbacks" element={<ProtectedRoute><PageWrapper loadingMessage="Carregando…" waitForData={false}><MeusFeedbacks /></PageWrapper></ProtectedRoute>} />
+
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
           <Route path="*" element={<NotFound />} />
+
         </Routes>
       </Suspense>
     </>
