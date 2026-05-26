@@ -4,22 +4,25 @@ Snapshot do estado das 8 fases planejadas. Atualize após cada PR.
 
 ## Resumo executivo
 
-- **Achados resolvidos: 32 de 39** (82%)
+- **Achados resolvidos: 33 de 39** (85%)
   - 🔴 Críticos: **5/5** (100%)
-  - 🟠 Altos: **13/15** (87%)
+  - 🟠 Altos: **14/15** (93%)
   - 🟡 Médios: **13/17** (76%)
   - 🔵 Baixos: **1/2** (50%)
 
-- **Commits na branch:** 16
+- **Commits na branch:** 20
 - **Linhas removidas:** ~3500 (deprecated)
 - **Arquivos com `console.*` substituídos:** 91 → 0 em runtime
 - **Edge functions com CORS allowlist (gatekeep):** 22/36
 - **Edge functions migradas para template completo (rate limit + Zod + CORS):** 5
 - **Edge functions com gatekeep de Origin (defesa em profundidade):** +16 via codemod
-- **Service layer:** 4 services (`calendarService`, `authService`, `usersService`, `simuladosApi`/`institutional`/`studyGuideApi` pré-existentes)
-- **`useCalendarSync` migrado para `calendarService`** (-1 dos 78 imports diretos)
-- **TS strict:** `noFallthroughCasesInSwitch` ativado (primeira de 4 flags)
-- **Testes:** 5 suítes unit (`timezone`, `validation`, `env`, `calendarService`, `usersService`) + Playwright smoke do login
+- **Service layer:** 5 services próprios (`calendarService`, `authService`, `usersService`, `iesService`, + 3 pré-existentes consolidados: `simuladosApi`, `institutional`, `studyGuideApi`)
+- **Consumers migrados:**
+  - `useCalendarSync` (100% via `calendarService`)
+  - `UsersTab.tsx` (100% via `usersService` + `iesService`)
+- **TS strict:** `noFallthroughCasesInSwitch` ativado
+- **CI:** migrado para `bun` em todos os jobs + job E2E (Playwright) adicionado, bloqueia deploy
+- **Testes:** 6 suítes unit (`timezone`, `validation`, `env`, `calendarService`, `usersService`, `authService`) + 2 specs Playwright
 
 ## Fases
 
