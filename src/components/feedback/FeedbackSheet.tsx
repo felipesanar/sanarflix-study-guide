@@ -126,6 +126,32 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
     reader.readAsDataURL(f);
   };
 
+  // Paste image support (Ctrl/Cmd + V) while sheet is open
+  useEffect(() => {
+    if (!open || step !== 'form') return;
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const f = item.getAsFile();
+          if (f) {
+            e.preventDefault();
+            const ext = f.type.split('/')[1] || 'png';
+            const named = new File([f], `print-${Date.now()}.${ext}`, { type: f.type });
+            handlePickFile(named);
+            setPasteFlash(true);
+            window.setTimeout(() => setPasteFlash(false), 900);
+            toast.success('Print colado ✨');
+          }
+          return;
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [open, step]);
+
   const handleSubmit = async () => {
     if (!user?.id || !category) return;
     const parsed = messageSchema.safeParse(message);
