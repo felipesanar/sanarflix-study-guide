@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { usersService } from '@/services/usersService';
+import { iesService } from '@/services/iesService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -64,9 +64,9 @@ export const UsersTab: React.FC = () => {
   }, []);
 
   const fetchIesList = async () => {
-    const { data, error } = await supabase.from('ies').select('id, nome').order('nome');
-    if (!error && data) {
-      setIesList(data);
+    const list = await iesService.list();
+    if (list.length > 0) {
+      setIesList(list);
     }
   };
 
