@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Sparkles, ChevronRight, Bell, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 interface Announcement {
   id: string;
@@ -49,7 +50,7 @@ export const AnnouncementsCard: React.FC = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Erro ao buscar avisos:', error);
+      Logger.error('Erro ao buscar avisos:', error);
       return;
     }
 

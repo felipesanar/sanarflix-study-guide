@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Logger } from '@/utils/logger';
 
 export interface CalendarSubject {
   id?: string;
@@ -72,7 +73,7 @@ export const useCalendarSync = () => {
       const data: StoredData = JSON.parse(stored);
       return data.subjects || [];
     } catch (error) {
-      console.error('Erro ao carregar do localStorage:', error);
+      Logger.error('Erro ao carregar do localStorage:', error);
       return [];
     }
   }, []);
@@ -87,7 +88,7 @@ export const useCalendarSync = () => {
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error('Erro ao salvar no localStorage:', error);
+      Logger.error('Erro ao salvar no localStorage:', error);
     }
   }, []);
 
@@ -111,7 +112,7 @@ export const useCalendarSync = () => {
         dayOfWeek: row.day_of_week
       })) || [];
     } catch (error) {
-      console.error('Erro ao carregar do banco:', error);
+      Logger.error('Erro ao carregar do banco:', error);
       return [];
     }
   }, [user]);
@@ -172,7 +173,7 @@ export const useCalendarSync = () => {
       }
 
     } catch (error) {
-      console.error('Erro ao salvar no banco:', error);
+      Logger.error('Erro ao salvar no banco:', error);
       throw error;
     }
   }, [user]);
@@ -276,7 +277,7 @@ export const useCalendarSync = () => {
         setSyncing(false);
       }
     } catch (error) {
-      console.error('Erro ao salvar matérias:', error);
+      Logger.error('Erro ao salvar matérias:', error);
       setSyncing(false);
       toast.error('Erro ao sincronizar com o servidor');
       

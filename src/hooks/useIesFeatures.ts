@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessRules } from '@/types';
+import { Logger } from '@/utils/logger';
 
 /**
  * Hook para carregar features da IES do banco de dados
@@ -41,7 +42,7 @@ export const useIesFeatures = () => {
 
       setFeatures(featuresMap);
     } catch (err) {
-      console.error('Erro ao carregar features da IES:', err);
+      Logger.error('Erro ao carregar features da IES:', err);
       setError('Erro ao carregar configurações');
     } finally {
       setLoading(false);

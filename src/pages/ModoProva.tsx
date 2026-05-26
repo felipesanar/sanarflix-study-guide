@@ -31,6 +31,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ChevronLeft, ChevronRight, Flag, Maximize, AlertCircle, Check, Keyboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Logger } from '@/utils/logger';
 
 export const ModoProva = () => {
   const { id } = useParams<{ id: string }>();
@@ -109,7 +110,7 @@ export const ModoProva = () => {
       // Diagnóstico: verifica se as imagens vieram do banco para o aluno
       const comImagem = questoesData.filter((q) => q.imagem).length;
       const comImagemComentario = questoesData.filter((q: any) => q.imagem_comentario).length;
-      console.log('[ModoProva] Simulado aberto', {
+      Logger.info('[ModoProva] Simulado aberto', {
         simuladoId,
         totalQuestoes: questoesData.length,
         questoesComImagem: comImagem,
@@ -125,7 +126,7 @@ export const ModoProva = () => {
           .map((q: any) => ({ id: q.id, imagem_comentario: q.imagem_comentario })),
       });
 
-      console.log('[ModoProva] Questão atual inicial', {
+      Logger.info('[ModoProva] Questão atual inicial', {
         simuladoId,
         primeiraQuestaoId: questoesData[0]?.id,
         primeiraQuestaoTemImagem: Boolean(questoesData[0]?.imagem),
@@ -152,7 +153,7 @@ export const ModoProva = () => {
       setEstado(estadoAtual);
       setQuestaoAtual(estadoAtual.questao_atual);
     } catch (error) {
-      console.error('Erro ao inicializar simulado:', error);
+      Logger.error('Erro ao inicializar simulado:', error);
       toast.error('Erro ao carregar o simulado');
       navigate('/simulados');
     } finally {
@@ -351,7 +352,7 @@ export const ModoProva = () => {
         navigate(`/simulados?aba=simulados&just_finished=${simuladoId}`);
       }, 1500);
     } catch (error) {
-      console.error('Erro ao finalizar simulado:', error);
+      Logger.error('Erro ao finalizar simulado:', error);
       toast.error('Erro ao enviar simulado. Tente novamente.');
       setFinalizando(false);
     }

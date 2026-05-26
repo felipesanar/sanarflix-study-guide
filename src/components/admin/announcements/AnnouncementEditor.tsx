@@ -13,6 +13,7 @@ import { Bell, Save, Eye, X, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { brazilISOToDatetimeLocal, datetimeLocalToBrazilISO } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 interface IES {
   id: string;
@@ -89,7 +90,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
     try {
       return brazilISOToDatetimeLocal(utcDate);
     } catch (e) {
-      console.error('Error parsing date:', e);
+      Logger.error('Error parsing date:', e);
       return '';
     }
   };
@@ -100,7 +101,7 @@ export const AnnouncementEditor: React.FC<Props> = ({
     try {
       return datetimeLocalToBrazilISO(localDatetime);
     } catch (e) {
-      console.error('Error converting to UTC:', e);
+      Logger.error('Error converting to UTC:', e);
       return '';
     }
   };

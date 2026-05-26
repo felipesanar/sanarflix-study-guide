@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { UserExam, ExamInsight, MateriaProgress } from '@/types/progressHub';
+import { Logger } from '@/utils/logger';
 
 const STORAGE_KEY = 'progress_hub_exam_date'; // Legacy key for migration
 
@@ -42,14 +43,14 @@ export function useUserExams() {
         .order('exam_date', { ascending: true });
 
       if (fetchError) {
-        console.error('useUserExams: Fetch error:', fetchError);
+        Logger.error('useUserExams: Fetch error:', fetchError);
         setError('Erro ao carregar provas');
         return;
       }
 
       setExams(data || []);
     } catch (err) {
-      console.error('useUserExams: Unexpected error:', err);
+      Logger.error('useUserExams: Unexpected error:', err);
       setError('Erro inesperado');
     } finally {
       setLoading(false);
@@ -65,7 +66,7 @@ export function useUserExams() {
       const oldDate = localStorage.getItem(STORAGE_KEY);
       if (!oldDate) return;
 
-      console.log('useUserExams: Migrating legacy exam date from localStorage');
+      Logger.info('useUserExams: Migrating legacy exam date from localStorage');
       
       // Create a generic exam for the old date
       const { error: insertError } = await supabase
@@ -79,11 +80,11 @@ export function useUserExams() {
 
       if (!insertError) {
         localStorage.removeItem(STORAGE_KEY);
-        console.log('useUserExams: Migration complete');
+        Logger.info('useUserExams: Migration complete');
         await fetchExams();
       }
     } catch (err) {
-      console.error('useUserExams: Migration error:', err);
+      Logger.error('useUserExams: Migration error:', err);
     }
   }, [user?.id, fetchExams]);
 
@@ -113,7 +114,7 @@ export function useUserExams() {
         .single();
 
       if (insertError) {
-        console.error('useUserExams: Insert error:', insertError);
+        Logger.error('useUserExams: Insert error:', insertError);
         
         if (insertError.code === '23505') {
           toast.error('Já existe uma prova desta matéria nesta data');
@@ -132,7 +133,7 @@ export function useUserExams() {
       toast.success('Prova adicionada!');
       return { data, error: null };
     } catch (err) {
-      console.error('useUserExams: Unexpected insert error:', err);
+      Logger.error('useUserExams: Unexpected insert error:', err);
       toast.error('Erro ao adicionar prova');
       return { data: null, error: 'Unexpected error' };
     }
@@ -150,7 +151,7 @@ export function useUserExams() {
         .eq('user_id', user.id);
 
       if (deleteError) {
-        console.error('useUserExams: Delete error:', deleteError);
+        Logger.error('useUserExams: Delete error:', deleteError);
         toast.error('Erro ao remover prova');
         return { error: deleteError.message };
       }
@@ -159,7 +160,7 @@ export function useUserExams() {
       toast.success('Prova removida');
       return { error: null };
     } catch (err) {
-      console.error('useUserExams: Unexpected delete error:', err);
+      Logger.error('useUserExams: Unexpected delete error:', err);
       toast.error('Erro ao remover prova');
       return { error: 'Unexpected error' };
     }
@@ -177,7 +178,7 @@ export function useUserExams() {
         .eq('user_id', user.id);
 
       if (updateError) {
-        console.error('useUserExams: Update error:', updateError);
+        Logger.error('useUserExams: Update error:', updateError);
         toast.error('Erro ao atualizar prova');
         return { error: updateError.message };
       }
@@ -191,7 +192,7 @@ export function useUserExams() {
       toast.success('Prova atualizada');
       return { error: null };
     } catch (err) {
-      console.error('useUserExams: Unexpected update error:', err);
+      Logger.error('useUserExams: Unexpected update error:', err);
       toast.error('Erro ao atualizar prova');
       return { error: 'Unexpected error' };
     }

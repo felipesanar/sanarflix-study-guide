@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { BookOpen, PlayCircle, ClipboardCheck, ExternalLink, ChevronRight } from 'lucide-react';
 import { TopAula } from '@/hooks/useHomeData';
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 interface MeuSemestreCardProps {
   topAulas: TopAula[];
@@ -24,7 +25,7 @@ export const MeuSemestreCard: React.FC<MeuSemestreCardProps> = ({ topAulas, cont
           });
 
         if (error) {
-          console.error('Erro ao registrar visualização:', error);
+          Logger.error('Erro ao registrar visualização:', error);
         }
       }
 

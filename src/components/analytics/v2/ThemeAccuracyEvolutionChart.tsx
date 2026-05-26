@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 interface ThemeEvolutionEntry {
   simulado_nome: string;
@@ -35,16 +36,16 @@ export const ThemeAccuracyEvolutionChart: React.FC<Props> = ({ themeName, iesId 
         });
 
         if (error) {
-          console.error('[ThemeAccuracyEvolution] RPC error:', error.message);
+          Logger.error('[ThemeAccuracyEvolution] RPC error:', error.message);
           if (!cancelled) setData([]);
           return;
         }
 
         const entries = (result ?? []) as unknown as ThemeEvolutionEntry[];
-        console.log('[ThemeAccuracyEvolution]', entries);
+        Logger.info('[ThemeAccuracyEvolution]', entries);
         if (!cancelled) setData(entries);
       } catch (err) {
-        console.error('[ThemeAccuracyEvolution] Error:', err);
+        Logger.error('[ThemeAccuracyEvolution] Error:', err);
         if (!cancelled) setData([]);
       } finally {
         if (!cancelled) setLoading(false);

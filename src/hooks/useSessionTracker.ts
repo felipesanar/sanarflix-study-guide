@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { Logger } from '@/utils/logger';
 
 const SESSION_STORAGE_KEY = 'user_session_tracker';
 const PAGE_VIEW_DEBOUNCE = 1000; // 1 segundo de debounce entre page views
@@ -66,7 +67,7 @@ export const useSessionTracker = () => {
         .single();
 
       if (error) {
-        console.error('[SessionTracker] Error creating session:', error);
+        Logger.error('[SessionTracker] Error creating session:', error);
       }
 
       session = {
@@ -122,7 +123,7 @@ export const useSessionTracker = () => {
           .eq('id', session.dbSessionId);
       }
     } catch (err) {
-      console.error('[SessionTracker] Error tracking page view:', err);
+      Logger.error('[SessionTracker] Error tracking page view:', err);
     }
   }, [user?.id, user?.id_ies, isImpersonating]);
 
@@ -143,7 +144,7 @@ export const useSessionTracker = () => {
         })
         .eq('id', session.dbSessionId);
     } catch (err) {
-      console.error('[SessionTracker] Error ending session:', err);
+      Logger.error('[SessionTracker] Error ending session:', err);
     }
 
     sessionStorage.removeItem(SESSION_STORAGE_KEY);

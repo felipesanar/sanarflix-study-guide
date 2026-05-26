@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Json } from '@/integrations/supabase/types';
+import { Logger } from '@/utils/logger';
 
 type EventCategory = 'navigation' | 'simulado' | 'content' | 'sanarclass' | 'interaction' | 'error' | 'performance' | 'funnel';
 
@@ -110,20 +111,20 @@ export const useAnalyticsTracker = () => {
 
         if (error) {
           if (import.meta.env.DEV) {
-            console.error('[Analytics] Insert error:', error.message);
+            Logger.error('[Analytics] Insert error:', error.message);
           }
           if (event.retries < MAX_RETRY_ATTEMPTS) {
             failedEvents.push({ ...event, retries: event.retries + 1 });
           }
         } else if (import.meta.env.DEV) {
-          console.log('[Analytics]', event.eventName, event.data);
+          Logger.info('[Analytics]', event.eventName, event.data);
         }
       } catch (err) {
         if (event.retries < MAX_RETRY_ATTEMPTS) {
           failedEvents.push({ ...event, retries: event.retries + 1 });
         }
         if (import.meta.env.DEV) {
-          console.error('[Analytics] Exception:', err);
+          Logger.error('[Analytics] Exception:', err);
         }
       }
     }
@@ -161,7 +162,7 @@ export const useAnalyticsTracker = () => {
     }
     if (eventCountRef.current.count >= MAX_EVENTS_PER_MINUTE) {
       if (import.meta.env.DEV) {
-        console.warn('[Analytics] Rate limit exceeded, dropping event:', eventName);
+        Logger.warn('[Analytics] Rate limit exceeded, dropping event:', eventName);
       }
       return;
     }
@@ -171,7 +172,7 @@ export const useAnalyticsTracker = () => {
     const lastTime = lastEventsRef.current.get(dedupeKey);
     if (lastTime && now - lastTime < DEDUPE_WINDOW_MS) {
       if (import.meta.env.DEV) {
-        console.log('[Analytics] Dedupe: skipping duplicate event:', eventName);
+        Logger.info('[Analytics] Dedupe: skipping duplicate event:', eventName);
       }
       return;
     }
@@ -588,7 +589,7 @@ export const useAnalyticsTracker = () => {
 
       if (finalizacao && !finalizacao.liberado_novamente) {
         if (import.meta.env.DEV) {
-          console.log('[Analytics] Simulado já finalizado e não liberado, ignorando tracking de início');
+          Logger.info('[Analytics] Simulado já finalizado e não liberado, ignorando tracking de início');
         }
         return;
       }
@@ -600,7 +601,7 @@ export const useAnalyticsTracker = () => {
           simulado_id: simuladoId
         }, { onConflict: 'user_id,simulado_id' });
     } catch (err) {
-      console.error('[Analytics] Error tracking simulado start:', err);
+      Logger.error('[Analytics] Error tracking simulado start:', err);
     }
 
     trackEvent({
@@ -648,7 +649,7 @@ export const useAnalyticsTracker = () => {
           action_type: actionType
         });
     } catch (err) {
-      console.error('[Analytics] Error tracking sanarclass:', err);
+      Logger.error('[Analytics] Error tracking sanarclass:', err);
     }
 
     trackEvent({

@@ -12,8 +12,9 @@ import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { motion } from 'framer-motion';
+import { Logger } from '@/utils/logger';
 
-console.log('[ErrorNotebookUI] CadernoErros page loaded');
+Logger.info('[ErrorNotebookUI] CadernoErros page loaded');
 
 export const CadernoErros: React.FC = () => {
   const { entries, loading, error, fetchEntries, clearError } = useErrorNotebook();

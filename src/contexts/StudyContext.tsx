@@ -3,6 +3,7 @@ import { StudyContextType, StudyContent, Progress } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 const StudyContext = createContext<StudyContextType | null>(null);
 
@@ -38,7 +39,7 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { data: response, error } = await supabase.functions.invoke('get-study-contents');
 
       if (error) {
-        console.error('Error loading study contents:', error);
+        Logger.error('Error loading study contents:', error);
         setStudyContents([]);
         return;
       }

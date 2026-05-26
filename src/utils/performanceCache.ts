@@ -2,6 +2,7 @@
  * Sistema de cache inteligente para otimização de performance
  */
 
+import { Logger } from '@/utils/logger';
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -30,7 +31,7 @@ class PerformanceCache {
     try {
       localStorage.setItem(`perf_${key}`, JSON.stringify(item));
     } catch (e) {
-      console.warn('Failed to set persistent cache:', e);
+      Logger.warn('Failed to set persistent cache:', e);
     }
   }
 
@@ -47,7 +48,7 @@ class PerformanceCache {
 
       return item.data;
     } catch (e) {
-      console.warn('Failed to get persistent cache:', e);
+      Logger.warn('Failed to get persistent cache:', e);
       return null;
     }
   }

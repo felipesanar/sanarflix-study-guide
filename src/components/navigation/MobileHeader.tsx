@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Logger } from '@/utils/logger';
 
 interface MobileHeaderProps {
   hasScrolled?: boolean;
@@ -34,7 +35,7 @@ export function MobileHeader({ hasScrolled = false }: MobileHeaderProps) {
     try {
       await logout();
     } catch (error) {
-      console.error("[Nav] logout error:", error);
+      Logger.error("[Nav] logout error:", error);
       toast.error("Erro ao sair. Tente novamente.");
     } finally {
       setIsLoggingOut(false);

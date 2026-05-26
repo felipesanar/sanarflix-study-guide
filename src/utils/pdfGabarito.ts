@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Logger } from '@/utils/logger';
 
 // ============================================================================
 // TYPES
@@ -85,7 +86,7 @@ const loadLogoAsBase64 = async (): Promise<string | null> => {
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('Error loading logo:', error);
+    Logger.error('Error loading logo:', error);
     return null;
   }
 };

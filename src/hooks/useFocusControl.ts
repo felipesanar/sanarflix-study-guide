@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
+import { Logger } from '@/utils/logger';
 
 interface UseFocusControlProps {
   onSaidaAba: () => void;
@@ -46,7 +47,7 @@ export const useFocusControl = ({
     
     // Detecta saída: estava em fullscreen e agora não está
     if (wasInFullscreen && !isFullscreen && onSaidaFullscreen) {
-      console.log('[FocusControl] Saída de fullscreen detectada');
+      Logger.info('[FocusControl] Saída de fullscreen detectada');
       onSaidaFullscreen();
     }
     
@@ -59,7 +60,7 @@ export const useFocusControl = ({
       await document.documentElement.requestFullscreen();
       setForaDeTelaCheia(false);
     } catch (error) {
-      console.error('Erro ao entrar em tela cheia:', error);
+      Logger.error('Erro ao entrar em tela cheia:', error);
     }
   }, []);
 
@@ -69,7 +70,7 @@ export const useFocusControl = ({
         await document.exitFullscreen();
       }
     } catch (error) {
-      console.error('Erro ao sair de tela cheia:', error);
+      Logger.error('Erro ao sair de tela cheia:', error);
     }
   }, []);
 

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Loader2, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { Logger } from '@/utils/logger';
 
 export const SimuladosDisponiveis = () => {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ export const SimuladosDisponiveis = () => {
 
       setSimulados(simuladosComStatus);
     } catch (error) {
-      console.error('Erro ao carregar simulados:', error);
+      Logger.error('Erro ao carregar simulados:', error);
       toast.error('Erro ao carregar simulados');
     } finally {
       setLoading(false);

@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
 import { toBrazilDate } from '@/utils/timezone';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Logger } from '@/utils/logger';
 
 // Função para calcular status baseado em datas
 const calcularStatusSimulado = (
@@ -168,7 +169,7 @@ export default function SimuladosTab() {
       if (error) throw error;
       setIesList(data || []);
     } catch (error: any) {
-      console.error('Erro ao carregar IES:', error);
+      Logger.error('Erro ao carregar IES:', error);
     }
   };
 
@@ -411,7 +412,7 @@ export default function SimuladosTab() {
             );
           }
 
-          console.log('[SimuladosTab] Colunas de imagem detectadas:', {
+          Logger.info('[SimuladosTab] Colunas de imagem detectadas:', {
             imagemEnunciadoHeaderCol,
             enunciadoTextCol,
             imagemComentarioHeaderCol,
@@ -436,9 +437,9 @@ export default function SimuladosTab() {
                 comentarioColCandidates,
                 numeroColIndex,
               });
-              console.log('[SimuladosTab] Imagens extraídas:', extracted.stats);
+              Logger.info('[SimuladosTab] Imagens extraídas:', extracted.stats);
             } catch (extractErr) {
-              console.warn('[SimuladosTab] Falha ao extrair imagens embutidas:', extractErr);
+              Logger.warn('[SimuladosTab] Falha ao extrair imagens embutidas:', extractErr);
             }
           }
 
@@ -757,7 +758,7 @@ export default function SimuladosTab() {
               }
               const uploadErrors = (uploadData?.errors ?? []) as Array<{ ordem: number; message: string }>;
               if (uploadErrors.length > 0) {
-                console.warn('[SimuladosTab] Falhas parciais no upload de imagens:', uploadErrors);
+                Logger.warn('[SimuladosTab] Falhas parciais no upload de imagens:', uploadErrors);
                 toast({
                   title: 'Algumas imagens falharam',
                   description: `${uploadErrors.length} imagem(ns) não foram enviadas. As questões serão criadas sem elas.`,
@@ -974,7 +975,7 @@ export default function SimuladosTab() {
         .eq('question_id', questaoToAnular.id);
 
       if (updateRespostasError) {
-        console.error('Erro ao atualizar respostas:', updateRespostasError);
+        Logger.error('Erro ao atualizar respostas:', updateRespostasError);
         // Não bloquear - pode não haver respostas ainda
       }
 

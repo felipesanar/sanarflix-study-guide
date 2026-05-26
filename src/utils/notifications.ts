@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 export type NotificationPermission = 'granted' | 'denied' | 'default';
 
@@ -18,7 +19,7 @@ export const isNotificationSupported = (): boolean => {
  */
 export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
   if (!isNotificationSupported()) {
-    console.warn('Notificações não são suportadas neste navegador');
+    Logger.warn('Notificações não são suportadas neste navegador');
     return 'denied';
   }
 
@@ -26,7 +27,7 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
     const permission = await Notification.requestPermission();
     return permission as NotificationPermission;
   } catch (error) {
-    console.error('Erro ao solicitar permissão de notificação:', error);
+    Logger.error('Erro ao solicitar permissão de notificação:', error);
     return 'denied';
   }
 };
@@ -48,12 +49,12 @@ export const getVapidPublicKey = async (): Promise<string | null> => {
   try {
     const { data, error } = await supabase.functions.invoke('get-vapid-key');
     if (error) {
-      console.error('Erro ao obter chave VAPID:', error);
+      Logger.error('Erro ao obter chave VAPID:', error);
       return null;
     }
     return data?.publicKey || null;
   } catch (error) {
-    console.error('Erro ao obter chave VAPID:', error);
+    Logger.error('Erro ao obter chave VAPID:', error);
     return null;
   }
 };
@@ -81,20 +82,20 @@ const urlBase64ToUint8Array = (base64String: string): ArrayBuffer => {
  */
 export const subscribeToPush = async (): Promise<boolean> => {
   if (!isNotificationSupported()) {
-    console.warn('Push não é suportado');
+    Logger.warn('Push não é suportado');
     return false;
   }
 
   const permission = getNotificationPermission();
   if (permission !== 'granted') {
-    console.warn('Permissão de notificação não concedida');
+    Logger.warn('Permissão de notificação não concedida');
     return false;
   }
 
   try {
     const vapidKey = await getVapidPublicKey();
     if (!vapidKey) {
-      console.error('Chave VAPID não disponível');
+      Logger.error('Chave VAPID não disponível');
       return false;
     }
 
@@ -120,13 +121,13 @@ export const subscribeToPush = async (): Promise<boolean> => {
     });
 
     if (error) {
-      console.error('Erro ao salvar subscription:', error);
+      Logger.error('Erro ao salvar subscription:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Erro ao registrar push subscription:', error);
+    Logger.error('Erro ao registrar push subscription:', error);
     return false;
   }
 };
@@ -158,7 +159,7 @@ export const unsubscribeFromPush = async (): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Erro ao cancelar subscription:', error);
+    Logger.error('Erro ao cancelar subscription:', error);
     return false;
   }
 };
@@ -171,14 +172,14 @@ export const sendTestNotification = async (
   body: string = 'As notificações estão funcionando corretamente! 🎉'
 ): Promise<boolean> => {
   if (!isNotificationSupported()) {
-    console.warn('Notificações não são suportadas');
+    Logger.warn('Notificações não são suportadas');
     return false;
   }
 
   const permission = getNotificationPermission();
   
   if (permission !== 'granted') {
-    console.warn('Permissão de notificação não concedida');
+    Logger.warn('Permissão de notificação não concedida');
     return false;
   }
 
@@ -196,7 +197,7 @@ export const sendTestNotification = async (
 
     return true;
   } catch (error) {
-    console.error('Erro ao enviar notificação de teste:', error);
+    Logger.error('Erro ao enviar notificação de teste:', error);
     return false;
   }
 };
@@ -233,7 +234,7 @@ export const sendStudyReminderNotification = async (
 
     return true;
   } catch (error) {
-    console.error('Erro ao enviar notificação de lembrete:', error);
+    Logger.error('Erro ao enviar notificação de lembrete:', error);
     return false;
   }
 };

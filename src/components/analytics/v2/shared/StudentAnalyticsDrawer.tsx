@@ -14,6 +14,7 @@ import type {
   CurricularAreaNode,
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const PROFICIENCY_THRESHOLD = 60;
 
@@ -144,9 +145,9 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
     if (open && student) {
       const status = computeProficiencyStatus(student.percentual);
       const gap = Math.max(0, PROFICIENCY_THRESHOLD - student.percentual);
-      console.log('[StudentDetailsPanel] Nota:', student.percentual);
-      console.log('[StudentDetailsPanel] Gap:', gap);
-      console.log('[StudentDetailsPanel] Status:', status);
+      Logger.info('[StudentDetailsPanel] Nota:', student.percentual);
+      Logger.info('[StudentDetailsPanel] Gap:', gap);
+      Logger.info('[StudentDetailsPanel] Status:', status);
     }
   }, [open, student]);
 

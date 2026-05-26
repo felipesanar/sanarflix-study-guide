@@ -7,8 +7,9 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, Drawer
 import { ErrorNotebookEntry, ErrorReason, REASON_LABELS, ErrorNotebookFilters as Filters } from '@/hooks/useErrorNotebook';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { Logger } from '@/utils/logger';
 
-console.log('[ErrorNotebookUI] ErrorNotebookFilters loaded');
+Logger.info('[ErrorNotebookUI] ErrorNotebookFilters loaded');
 
 interface ErrorNotebookFiltersProps {
   entries: ErrorNotebookEntry[];

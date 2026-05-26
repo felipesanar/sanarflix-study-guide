@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client'
 export interface ThemeColors {
     brand: {
         primary: string;
+import { Logger } from '@/utils/logger';
         secondary: string;
         accent?: string;
     };
@@ -42,7 +43,7 @@ export function ThemeProvider({ iesId, children }: ThemeProviderProps) {
                     .single() as any;
 
                 if (error) {
-                    console.error('Erro ao buscar tema:', error);
+                    Logger.error('Erro ao buscar tema:', error);
                     setLoading(false);
                     return;
                 }
@@ -54,7 +55,7 @@ export function ThemeProvider({ iesId, children }: ThemeProviderProps) {
                     applyThemeToCSS(colors);
                 }
             } catch (err) {
-                console.error(err);
+                Logger.error(err);
             } finally {
                 setLoading(false);
             }

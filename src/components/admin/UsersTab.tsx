@@ -13,6 +13,7 @@ import { getBrazilDate } from '@/utils/timezone';
 import { BatchProcessingReport, BatchResult, BatchReport } from './BatchProcessingReport';
 import { UsersListTable } from './UsersListTable';
 import * as XLSX from 'xlsx';
+import { Logger } from '@/utils/logger';
 
 const MAX_BATCH_ROWS = 1000;
 const CONCURRENCY = 5;
@@ -140,7 +141,7 @@ export const UsersTab: React.FC = () => {
       addLog(`${singleUser.email}: ${actionMsg}`);
       setSingleUser({ nome: '', email: '', id_ies: '', semestre: '', role: 'aluno' });
     } catch (err) {
-      console.error('Create user error:', err);
+      Logger.error('Create user error:', err);
       toast.error('Erro inesperado ao criar usuário');
     } finally {
       setIsCreating(false);
@@ -371,7 +372,7 @@ export const UsersTab: React.FC = () => {
       
       toast.success(`Importação concluída. ${report.created} criados, ${report.updated} atualizados, ${emailsSent} e-mails enviados${emailsFailed > 0 ? `, ${emailsFailed} falharam` : ''}.`);
     } catch (err) {
-      console.error('CSV processing error:', err);
+      Logger.error('CSV processing error:', err);
       toast.error('Erro ao processar arquivo');
       addLog(`Erro fatal: ${err instanceof Error ? err.message : 'Erro desconhecido'}`);
     } finally {

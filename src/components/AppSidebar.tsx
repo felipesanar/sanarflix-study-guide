@@ -35,6 +35,7 @@ import {
   SidebarSubItem,
   SidebarLogoutButton,
 } from "@/components/sidebar";
+import { Logger } from '@/utils/logger';
 
 // Menu items configuration
 const menuItems = [
@@ -118,7 +119,7 @@ export function AppSidebar() {
 
   // Log breakpoint mode for debugging
   useEffect(() => {
-    console.log("[Nav]", "breakpoint", { mode: "sidebar" });
+    Logger.info("[Nav]", "breakpoint", { mode: "sidebar" });
   }, []);
 
   const isActive = useCallback((path: string) => currentPath === path, [currentPath]);

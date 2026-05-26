@@ -18,8 +18,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
+import { Logger } from '@/utils/logger';
 
-console.log('[UIUX] SimuladoDesempenho page loaded');
+Logger.info('[UIUX] SimuladoDesempenho page loaded');
 
 // Helper component to manage error notebook state per question inside the modal
 const ErrorNotebookButtonInModal: React.FC<{
@@ -585,7 +586,7 @@ const readPerformanceCache = (userId: string, simuladoId: string | null): any | 
     }
     return parsed;
   } catch (e) {
-    console.warn('[UIUX] Cache read failure:', e);
+    Logger.warn('[UIUX] Cache read failure:', e);
   }
   return null;
 };
@@ -655,7 +656,7 @@ export const SimuladoDesempenho: React.FC = () => {
         sessionStorage.setItem(PERFORMANCE_CACHE_KEY, JSON.stringify(dataToCache));
         setStats(newStats); setPerformancePorArea(processData(byArea || [])); setBySpecialty(processData(bySpecialty || [])); setBySubspecialty(processData(bySubspecialty || [])); setRanking(dataToCache.ranking); setUserData(userDataResult.data);
       }
-    } catch (error) { console.error("[UIUX] Fetch error:", error); }
+    } catch (error) { Logger.error("[UIUX] Fetch error:", error); }
     finally { setLoading(false); }
   };
 
@@ -665,7 +666,7 @@ export const SimuladoDesempenho: React.FC = () => {
     const cachedSimuladosList = sessionStorage.getItem(SIMULADOS_LIST_KEY);
     const currentSimuladosIds = simulados.map(s => s.id).sort().join(',');
     if (cachedSimuladosList && cachedSimuladosList !== currentSimuladosIds) {
-      console.log('[UIUX] Simulados list changed, invalidating caches...');
+      Logger.info('[UIUX] Simulados list changed, invalidating caches...');
       const keysToRemove: string[] = [];
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
@@ -686,7 +687,7 @@ export const SimuladoDesempenho: React.FC = () => {
       setAllPerformanceData(JSON.parse(cachedEvolutionData));
     } else {
       supabase.rpc('get_all_user_performance_by_area').then(({ data, error }) => {
-        if (error) { console.error('[UIUX] Evolution fetch error', error); return; }
+        if (error) { Logger.error('[UIUX] Evolution fetch error', error); return; }
         setAllPerformanceData(data || []);
         sessionStorage.setItem(EVOLUTION_CACHE_KEY, JSON.stringify(data || []));
       });
@@ -712,7 +713,7 @@ export const SimuladoDesempenho: React.FC = () => {
             const dataToCache = { stats: newStats, performancePorArea: processData(byArea || []), bySpecialty: processData(bySpecialty || []), bySubspecialty: processData(bySubspecialty || []), ranking: rankingData ? { ies: rankingData.rankingIES || null, semester: rankingData.rankingSemester || null } : null, userData: userData, simulados: simulados, cachedAt: Date.now() };
             sessionStorage.setItem(CACHE_KEY, JSON.stringify(dataToCache));
           }
-        } catch (error) { console.error(`[UIUX] Preload error ${simuladoId}:`, error); }
+        } catch (error) { Logger.error(`[UIUX] Preload error ${simuladoId}:`, error); }
       }
     };
     const timer = setTimeout(preloadAllSimulados, 2000);
@@ -735,7 +736,7 @@ export const SimuladoDesempenho: React.FC = () => {
       const simuladoNome = simulados.find(s => s.id === selectedSimulado)?.nome || 'Simulado';
       await generateGabaritoPDF(simuladoNome, user.email || 'Aluno', questoes, { acertos: stats?.acertos || 0, total: stats?.total || 0, percentual: stats?.percentual || 0 });
       toast({ title: 'Gabarito gerado!', description: 'O PDF foi baixado com sucesso.' });
-    } catch (error) { console.error('[UIUX] PDF error:', error); toast({ title: 'Erro', description: 'Não foi possível gerar o gabarito.', variant: 'destructive' }); }
+    } catch (error) { Logger.error('[UIUX] PDF error:', error); toast({ title: 'Erro', description: 'Não foi possível gerar o gabarito.', variant: 'destructive' }); }
     finally { setIsDownloadingPDF(false); }
   };
 
@@ -781,7 +782,7 @@ export const SimuladoDesempenho: React.FC = () => {
         switch (stage) { case 'preparing': setDownloadProgress('Preparando...'); break; case 'loading_images': setDownloadProgress(`Imagens (${current}/${totalItems})...`); break; case 'generating': setDownloadProgress(`Gerando (${current}/${totalItems})...`); break; case 'complete': setDownloadProgress('Concluído!'); break; }
       });
       toast({ title: 'Prova revisada gerada!', description: 'O PDF completo foi baixado com sucesso.' });
-    } catch (error) { console.error('[UIUX] Prova revisada error:', error); toast({ title: 'Erro', description: error instanceof Error ? error.message : 'Não foi possível gerar a prova revisada.', variant: 'destructive' }); }
+    } catch (error) { Logger.error('[UIUX] Prova revisada error:', error); toast({ title: 'Erro', description: error instanceof Error ? error.message : 'Não foi possível gerar a prova revisada.', variant: 'destructive' }); }
     finally { setIsDownloadingProvaRevisada(false); setDownloadProgress(''); }
   };
 
@@ -793,7 +794,7 @@ export const SimuladoDesempenho: React.FC = () => {
       if (data && data.length > 0) {
         setSelectedQuestions(data.map((q: any) => ({ ...q, acertou: q.acertou === true, user_answer: q.user_answer })));
       }
-    } catch (error) { console.error("[UIUX] Question fetch error:", error); }
+    } catch (error) { Logger.error("[UIUX] Question fetch error:", error); }
     finally { setIsLoadingQuestion(false); }
   };
 

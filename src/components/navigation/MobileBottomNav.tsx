@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Logger } from '@/utils/logger';
 
 interface BottomNavItem {
   id: string;
@@ -79,7 +80,7 @@ export function MobileBottomNav() {
 
   // Log breakpoint mode
   useEffect(() => {
-    console.log("[Nav]", "breakpoint", { mode: "navbar" });
+    Logger.info("[Nav]", "breakpoint", { mode: "navbar" });
   }, []);
 
   const currentPath = location.pathname;

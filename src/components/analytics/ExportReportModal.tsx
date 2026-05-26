@@ -40,6 +40,7 @@ import {
 } from '@/utils/exportAnalyticsReport';
 import { exportToXLSX as exportSimuladosPremiumXLSX } from '@/utils/exportSimuladosAnalytics';
 import { fetchSimuladosAnalyticsData, type SimuladosFilters } from '@/hooks/useSimuladosAnalytics';
+import { Logger } from '@/utils/logger';
 
 type ExportFormat = 'xlsx-full' | 'csv' | 'xlsx-simulados';
 
@@ -224,9 +225,9 @@ export const ExportReportModal: React.FC<ExportReportModalProps> = ({
     } catch (error) {
       // Ignore abort errors
       if (error instanceof DOMException && error.name === 'AbortError') {
-        console.log('[ExportReportModal] Export aborted');
+        Logger.info('[ExportReportModal] Export aborted');
       } else {
-        console.error('[ExportReportModal] Erro ao exportar:', error);
+        Logger.error('[ExportReportModal] Erro ao exportar:', error);
       }
       setIsExporting(false);
       setExportProgress(0);

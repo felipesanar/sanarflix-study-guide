@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Logger } from '@/utils/logger';
 
 const rawEnv = {
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL as string | undefined,
@@ -67,7 +68,7 @@ function buildEnv(): AppEnv {
       throw new Error(message);
     }
     // eslint-disable-next-line no-console
-    console.error(message);
+    Logger.error(message);
 
     // Fallback mínimo para dev local quando o .env ainda não foi configurado.
     // Estes valores NÃO devem ser usados em produção e o schema acima impede.

@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Logger } from '@/utils/logger';
 
 interface IES {
   id: string;
@@ -123,7 +124,7 @@ export const AnnouncementsTab: React.FC = () => {
 
     if (error) {
       toast.error('Erro ao salvar aviso');
-      console.error(error);
+      Logger.error(error);
     } else {
       toast.success(editingConfig.id ? 'Aviso atualizado!' : 'Aviso criado!');
       setEditingConfig(null);

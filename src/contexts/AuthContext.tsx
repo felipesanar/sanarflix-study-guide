@@ -39,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try { localStorage.removeItem('sanarflix-user'); } catch { /* noop */ }
       cachedRolesEmpty = true;
       // eslint-disable-next-line no-console
-      console.warn('[AuthContext] cached profile inválido, limpando', e);
+      Logger.warn('[AuthContext] cached profile inválido, limpando', e);
     }
     if (!force && !cachedRolesEmpty && now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
     lastRefreshRef.current = now;
@@ -105,9 +105,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(updated);
       localStorage.setItem('sanarflix-user', JSON.stringify(updated));
-      console.log('[Auth] role from DB:', roles);
-      console.log('[Auth] Accessible colleges:', accessibleIes.map((i) => i.nome));
-      console.log('[Auth] Group context:', groups.map((g) => g.name));
+      Logger.info('[Auth] role from DB:', roles);
+      Logger.info('[Auth] Accessible colleges:', accessibleIes.map((i) => i.nome));
+      Logger.info('[Auth] Group context:', groups.map((g) => g.name));
       Logger.debug('refreshUserProfile: updated', { userId, ies_nome: iesNome, semestre: row.semestre, roles });
     } catch (e) {
       Logger.warn('refreshUserProfile: unexpected error', e);
@@ -181,7 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
       })
       .catch((error) => {
-        console.error('Erro ao obter sessão:', error);
+        Logger.error('Erro ao obter sessão:', error);
         
         const isRefreshTokenError = 
           error?.message?.includes('Invalid Refresh Token') || 
@@ -338,7 +338,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNeedsPasswordChange(data.needsPasswordChange || false);
       
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
-      console.log('[Auth] role from DB:', userData.roles);
+      Logger.info('[Auth] role from DB:', userData.roles);
       Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
       
       broadcast({ type: 'LOGIN', data: userData });
@@ -350,7 +350,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const loginDuration = performance.now() - startTime;
       Logger.performance('login', loginDuration, { user_id: userData.id });
       if (loginDuration > 2000) {
-        console.warn(`Slow login: ${loginDuration.toFixed(2)}ms`);
+        Logger.warn(`Slow login: ${loginDuration.toFixed(2)}ms`);
       }
       
       if (data.needsPasswordChange) {
@@ -422,7 +422,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setTimeout(() => logout(), 3000);
         
       } catch (sessionError) {
-        console.warn('Failed to invalidate sessions:', sessionError);
+        Logger.warn('Failed to invalidate sessions:', sessionError);
         
         try {
           await supabase.auth.refreshSession();
@@ -456,7 +456,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     supabase.auth.signOut().catch((err) => {
       if (import.meta.env.DEV) {
-        console.debug('Supabase signOut failed (safe to ignore):', err);
+        Logger.debug('Supabase signOut failed (safe to ignore):', err);
       }
     });
 

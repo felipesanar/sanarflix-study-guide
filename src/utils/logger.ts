@@ -14,7 +14,7 @@ interface LogEntry {
   url?: string;
 }
 
-class Logger {
+export class Logger {
   private static isDevelopment = import.meta.env.DEV;
   private static isProduction = import.meta.env.PROD;
 

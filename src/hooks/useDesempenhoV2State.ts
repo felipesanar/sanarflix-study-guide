@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { DesempenhoV2Tab, DesempenhoV2Filters, SimuladoOption } from '@/types/desempenhoV2';
 import { DEFAULT_FILTERS, TAB_CONFIG } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 const TAB_QUERY_KEY = 'modulo';
 
@@ -42,7 +43,7 @@ export function useDesempenhoV2State() {
 
   const setActiveTab = useCallback((tab: DesempenhoV2Tab) => {
     setActiveTabState(tab);
-    console.log('[DesempenhoInstitucionalV2]', 'Tab alterada', { tab });
+    Logger.info('[DesempenhoInstitucionalV2]', 'Tab alterada', { tab });
   }, []);
 
   const setFilters = useCallback((nextFilters: DesempenhoV2Filters | ((prev: DesempenhoV2Filters) => DesempenhoV2Filters)) => {
@@ -54,7 +55,7 @@ export function useDesempenhoV2State() {
 
   const updateFilter = useCallback(<K extends keyof DesempenhoV2Filters>(key: K, value: DesempenhoV2Filters[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
-    console.log('[GlobalFilterBar]', 'Filtro atualizado', { key, value });
+    Logger.info('[GlobalFilterBar]', 'Filtro atualizado', { key, value });
   }, [setFilters]);
 
   const clearFilters = useCallback(() => {
@@ -64,13 +65,13 @@ export function useDesempenhoV2State() {
       iesId: prev.iesId,
       simuladoId: prev.simuladoId,
     }));
-    console.log('[GlobalFilterBar]', 'Filtros secundários limpos');
+    Logger.info('[GlobalFilterBar]', 'Filtros secundários limpos');
   }, [setFilters]);
 
   // Auto-select first simulado when list arrives
   const autoSelectSimulado = useCallback((simulados: SimuladoOption[]) => {
     if (!filters.simuladoId && simulados.length > 0) {
-      console.log('[DesempenhoInstitucionalV2]', 'Auto-seleção de simulado', { nome: simulados[0].nome });
+      Logger.info('[DesempenhoInstitucionalV2]', 'Auto-seleção de simulado', { nome: simulados[0].nome });
       setFilters((prev) => ({ ...prev, simuladoId: simulados[0].id }));
     }
   }, [filters.simuladoId, setFilters]);

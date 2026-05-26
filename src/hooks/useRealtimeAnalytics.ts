@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 export interface RealtimeFilters {
   iesId: string | null;
@@ -149,7 +150,7 @@ export const useRealtimeAnalytics = (filters?: RealtimeFilters) => {
         respostasPorMinuto: [],
       }));
     } catch (error) {
-      console.error('Error loading initial counts:', error);
+      Logger.error('Error loading initial counts:', error);
     }
   }, [iesId, simuladoId]);
 

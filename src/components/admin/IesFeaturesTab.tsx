@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Building2, Save, RefreshCw, Check, X } from 'lucide-react';
 import { AccessRules } from '@/types';
+import { Logger } from '@/utils/logger';
 
 interface IesData {
   id: string;
@@ -83,7 +84,7 @@ const IesFeaturesTab: React.FC = () => {
       setIesList(formattedList);
       setPendingChanges({});
     } catch (error) {
-      console.error('Erro ao carregar IES:', error);
+      Logger.error('Erro ao carregar IES:', error);
       toast.error('Erro ao carregar lista de IES');
     } finally {
       setLoading(false);
@@ -163,7 +164,7 @@ const IesFeaturesTab: React.FC = () => {
         return newChanges;
       });
     } catch (error) {
-      console.error('Erro ao salvar:', error);
+      Logger.error('Erro ao salvar:', error);
       toast.error('Erro ao salvar configurações');
     } finally {
       setSaving(null);

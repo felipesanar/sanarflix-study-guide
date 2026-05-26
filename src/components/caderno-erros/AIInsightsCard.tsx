@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorNotebookEntry } from '@/hooks/useErrorNotebook';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Logger } from '@/utils/logger';
 
 interface AIInsightsCardProps {
   entries: ErrorNotebookEntry[];
@@ -74,7 +75,7 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({ entries }) => {
       setInsight(text);
       saveToCache(text);
     } catch (err: any) {
-      console.error('[AIInsights] Error:', err);
+      Logger.error('[AIInsights] Error:', err);
       if (err?.status === 429) {
         toast({ title: 'Limite de requisições atingido', description: 'Tente novamente em alguns minutos.', variant: 'destructive' });
       } else if (err?.status === 402) {

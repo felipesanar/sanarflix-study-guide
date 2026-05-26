@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Users, AlertTriangle, Clock, TrendingDown, Activity, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import { RealtimeDashboard } from './RealtimeDashboard';
+import { Logger } from '@/utils/logger';
 interface SimuladoStats {
   id: string;
   nome: string;
@@ -80,7 +81,7 @@ export const MonitoramentoTab = () => {
         await carregarQuestoesComErro(stats[0].id);
       }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      Logger.error('Erro ao carregar estatísticas:', error);
       toast.error('Erro ao carregar estatísticas');
     } finally {
       setLoading(false);
@@ -130,7 +131,7 @@ export const MonitoramentoTab = () => {
 
       setQuestoesErro(questoesComErro);
     } catch (error) {
-      console.error('Erro ao carregar questões com erro:', error);
+      Logger.error('Erro ao carregar questões com erro:', error);
     }
   };
 

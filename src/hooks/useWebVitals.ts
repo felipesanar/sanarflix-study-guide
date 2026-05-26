@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAnalyticsTracker } from './useAnalyticsTracker';
+import { Logger } from '@/utils/logger';
 
 /**
  * Hook to capture Core Web Vitals and send to analytics
@@ -64,7 +65,7 @@ export const useWebVitals = () => {
       } catch (error) {
         // web-vitals not available, use Performance API fallback
         if (import.meta.env.DEV) {
-          console.log('[WebVitals] Library not available, using fallback');
+          Logger.info('[WebVitals] Library not available, using fallback');
         }
 
         // Simple fallback measurements

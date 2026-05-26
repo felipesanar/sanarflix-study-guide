@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Logger } from '@/utils/logger';
 
 export const runStartupDiagnostics = (): boolean => {
   const diagnostics = {
@@ -15,7 +16,7 @@ export const runStartupDiagnostics = (): boolean => {
   
 
   if (!diagnostics.reactLoaded || !diagnostics.reactDomLoaded) {
-    console.error('❌ CRITICAL: React not loaded properly');
+    Logger.error('❌ CRITICAL: React not loaded properly');
     return false;
   }
 

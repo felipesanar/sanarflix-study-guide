@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Bell, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { Logger } from '@/utils/logger';
 
 interface Announcement {
   id: string;
@@ -42,7 +43,7 @@ export const ImportantAnnouncementsCard: React.FC = () => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Erro ao buscar avisos:', error);
+      Logger.error('Erro ao buscar avisos:', error);
       return;
     }
 

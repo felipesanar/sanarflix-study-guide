@@ -43,6 +43,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, Brain, CheckCircle2, Play, FileText, RefreshCw } from 'lucide-react';
+import { Logger } from '@/utils/logger';
 
 // Types
 interface Aula {
@@ -95,7 +96,7 @@ const readStudyGuideCache = (iesId: string, semestre: number | string | undefine
     }
   } catch (e) {
     if (import.meta.env.DEV) {
-      console.warn('[StudyGuide] Falha ao ler cache:', e);
+      Logger.warn('[StudyGuide] Falha ao ler cache:', e);
     }
   }
   return null;
@@ -263,7 +264,7 @@ export const StudyGuide: React.FC = () => {
       analytics.trackCacheHit('localStorage', 'study_guide', !!cachedContents);
       
       if (import.meta.env.DEV) {
-        console.log('[StudyGuide] Page view tracked', { semestre: selectedSemestre, viewMode, hasCache: !!cachedContents });
+        Logger.info('[StudyGuide] Page view tracked', { semestre: selectedSemestre, viewMode, hasCache: !!cachedContents });
       }
     }
   }, [isLoading, conteudos.length, selectedSemestre, viewMode, cachedContents, analytics]);
@@ -319,7 +320,7 @@ export const StudyGuide: React.FC = () => {
           }
         }
       } catch (e) {
-        if (import.meta.env.DEV) console.warn('[StudyGuide] Failed to fetch semestres list:', e);
+        if (import.meta.env.DEV) Logger.warn('[StudyGuide] Failed to fetch semestres list:', e);
       }
     };
     fetchSemestres();
@@ -350,11 +351,11 @@ export const StudyGuide: React.FC = () => {
       });
       setLoadedSemestres(prev => new Set([...prev, semestre]));
       setLastUpdated(new Date());
-      if (import.meta.env.DEV) console.log('[StudyGuide] Fresh data loaded for semester', semestre, `(${freshData.length} items)`);
+      if (import.meta.env.DEV) Logger.info('[StudyGuide] Fresh data loaded for semester', semestre, `(${freshData.length} items)`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       analyticsRef.current.trackStudyGuideError({ errorType: 'edge_invoke', messageSanitized: errorMessage, context: 'fetchConteudos' });
-      if (import.meta.env.DEV) console.error('[StudyGuide] Error fetching contents:', err);
+      if (import.meta.env.DEV) Logger.error('[StudyGuide] Error fetching contents:', err);
       if (isInitial) {
         toast({ title: 'Erro', description: 'Não foi possível carregar os conteúdos', variant: 'destructive' });
       }

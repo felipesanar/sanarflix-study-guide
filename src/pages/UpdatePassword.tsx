@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { Logger } from '@/utils/logger';
 
 type PageState = 'ready_to_verify' | 'verifying' | 'verified' | 'error' | 'invalid_params';
 
@@ -58,7 +59,7 @@ export default function UpdatePassword() {
             
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                console.log('[UpdatePassword] Session already exists (auto-detected). Skipping manual verify.');
+                Logger.info('[UpdatePassword] Session already exists (auto-detected). Skipping manual verify.');
                 setPageState('verified');
             }
         };
@@ -76,7 +77,7 @@ export default function UpdatePassword() {
             // First check if session was already created by detectSessionInUrl
             const { data: { session: existingSession } } = await supabase.auth.getSession();
             if (existingSession) {
-                console.log('[UpdatePassword] Session already exists. Skipping verifyOtp.');
+                Logger.info('[UpdatePassword] Session already exists. Skipping verifyOtp.');
                 setPageState('verified');
                 return;
             }

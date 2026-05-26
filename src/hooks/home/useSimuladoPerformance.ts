@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { SimuladoPerformance } from '@/hooks/useHomeData';
+import { Logger } from '@/utils/logger';
 
 interface User {
   id: string;
@@ -86,7 +87,7 @@ export const useSimuladoPerformance = () => {
       setSimuladoData(result);
       return result;
     } catch (error) {
-      console.error('Error fetching simulado data:', error);
+      Logger.error('Error fetching simulado data:', error);
       return null;
     }
   };

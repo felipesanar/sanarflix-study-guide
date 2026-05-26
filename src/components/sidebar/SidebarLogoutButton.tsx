@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { LogOut, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Logger } from '@/utils/logger';
 
 interface SidebarLogoutButtonProps {
   onLogout: () => Promise<void> | void;
@@ -19,7 +20,7 @@ export function SidebarLogoutButton({ onLogout, collapsed }: SidebarLogoutButton
     try {
       await onLogout();
     } catch (error) {
-      console.error("[Nav] logout error:", error);
+      Logger.error("[Nav] logout error:", error);
       toast.error("Erro ao sair. Tente novamente.");
     } finally {
       setIsLoading(false);

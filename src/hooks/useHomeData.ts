@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrazilDayOfWeek } from '@/utils/timezone';
+import { Logger } from '@/utils/logger';
 
 export interface MeuDiaItem {
   id: string;
@@ -57,7 +58,7 @@ const readCacheSync = (userId: string): any | null => {
       }
     }
   } catch (e) {
-    console.warn('Falha ao ler cache da Home:', e);
+    Logger.warn('Falha ao ler cache da Home:', e);
   }
   return null;
 };
@@ -124,11 +125,11 @@ export const useHomeData = () => {
           };
           sessionStorage.setItem(cacheKey, JSON.stringify(payload));
         } catch (e) {
-          console.warn('Falha ao salvar cache da Home:', e);
+          Logger.warn('Falha ao salvar cache da Home:', e);
         }
       }
     } catch (error) {
-      console.error('Erro ao carregar dados da Home:', error);
+      Logger.error('Erro ao carregar dados da Home:', error);
       setError('Não foi possível carregar os dados. Tente novamente.');
       setLoading(false);
     }
@@ -186,7 +187,7 @@ export const useHomeData = () => {
         .order('name', { ascending: true });
 
 
-      if (subjectsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
+      if (subjectsError) Logger.error('❌ [Meu Dia] Erro ao buscar calendar_subjects:', subjectsError);
 
       let subjectsToProcess: string[] = [];
 
@@ -206,7 +207,7 @@ export const useHomeData = () => {
           .order('position', { ascending: true });
 
 
-        if (arrangementsError) console.error('❌ [Meu Dia] Erro ao buscar calendar_arrangements:', arrangementsError);
+        if (arrangementsError) Logger.error('❌ [Meu Dia] Erro ao buscar calendar_arrangements:', arrangementsError);
 
         if (arrangements && arrangements.length > 0) {
           subjectsToProcess = arrangements.map((a: any) => a.item_key);
@@ -283,7 +284,7 @@ export const useHomeData = () => {
               subtemaNome,
             };
           } catch (error) {
-            console.warn(`Erro ao processar matéria ${subjectName}:`, error);
+            Logger.warn(`Erro ao processar matéria ${subjectName}:`, error);
             return null;
           }
         });
@@ -293,7 +294,7 @@ export const useHomeData = () => {
         items.push(...subjectItems.slice(0, 2));
       }
     } catch (e) {
-      console.error('❌ [Meu Dia] Erro ao montar matérias:', e);
+      Logger.error('❌ [Meu Dia] Erro ao montar matérias:', e);
     }
 
 
@@ -336,7 +337,7 @@ export const useHomeData = () => {
         }
       }
     } catch (e) {
-      console.warn('⚠️ [Meu Dia] Erro ao avaliar simulados disponíveis:', e);
+      Logger.warn('⚠️ [Meu Dia] Erro ao avaliar simulados disponíveis:', e);
     }
 
     // Intensivo ENAMED foi descontinuado - não adicionar mais
@@ -473,7 +474,7 @@ export const useHomeData = () => {
       setRankings(next);
       return next;
     } catch (error) {
-      console.error('Error fetching rankings:', error);
+      Logger.error('Error fetching rankings:', error);
     }
   };
 
@@ -646,7 +647,7 @@ export const useHomeData = () => {
       setSimuladoData(next);
       return next;
     } catch (error) {
-      console.error('Error fetching simulado data:', error);
+      Logger.error('Error fetching simulado data:', error);
     }
     return null;
   };

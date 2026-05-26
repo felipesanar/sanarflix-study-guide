@@ -23,6 +23,7 @@ import type {
   CurricularSpecialtyNode,
   CurricularTemaNode,
 } from '@/types/desempenhoV2';
+import { Logger } from '@/utils/logger';
 
 interface Props {
   data: InstitutionalViewModel | null;
@@ -104,22 +105,22 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
 
   const goToAreas = useCallback(() => {
     setDrill({ level: 'areas' });
-    console.log('[DesempenhoV2:Diagnostico]', 'Navigate to areas');
+    Logger.info('[DesempenhoV2:Diagnostico]', 'Navigate to areas');
   }, []);
 
   const goToSpecialties = useCallback((area: CurricularAreaNode) => {
     setDrill({ level: 'specialties', selectedArea: area });
-    console.log('[DesempenhoV2:Diagnostico]', 'Navigate to specialties:', area.name);
+    Logger.info('[DesempenhoV2:Diagnostico]', 'Navigate to specialties:', area.name);
   }, []);
 
   const goToTemas = useCallback((area: CurricularAreaNode, specialty: CurricularSpecialtyNode) => {
     setDrill({ level: 'temas', selectedArea: area, selectedSpecialty: specialty });
-    console.log('[DesempenhoV2:Diagnostico]', 'Navigate to temas:', specialty.name);
+    Logger.info('[DesempenhoV2:Diagnostico]', 'Navigate to temas:', specialty.name);
   }, []);
 
   const goToTemaDetail = useCallback((area: CurricularAreaNode, specialty: CurricularSpecialtyNode, tema: CurricularTemaNode) => {
     setDrill({ level: 'tema-detail', selectedArea: area, selectedSpecialty: specialty, selectedTema: tema });
-    console.log('[DesempenhoV2:Diagnostico]', 'Navigate to tema detail:', tema.name);
+    Logger.info('[DesempenhoV2:Diagnostico]', 'Navigate to tema detail:', tema.name);
   }, []);
 
   if (loading) return <DesempenhoV2Skeleton />;
@@ -162,7 +163,7 @@ export const DiagnosticoCurricularModule: React.FC<Props> = ({ data, loading, er
     );
   }
 
-  console.log('[DiagnosticoCurricular]', 'Render do módulo', {
+  Logger.info('[DiagnosticoCurricular]', 'Render do módulo', {
     level: drill.level,
     areas: areas.length,
     selectedArea: drill.selectedArea?.name,

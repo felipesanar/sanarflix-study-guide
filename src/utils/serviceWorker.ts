@@ -2,10 +2,11 @@
  * Utilitário para registro e gerenciamento do Service Worker
  */
 
+import { Logger } from '@/utils/logger';
 export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
   // Verifica suporte
   if (!('serviceWorker' in navigator)) {
-    console.warn('Service Worker não suportado neste navegador');
+    Logger.warn('Service Worker não suportado neste navegador');
     return null;
   }
 
@@ -77,7 +78,7 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
 
     return registration;
   } catch (error) {
-    console.error('[SW] Erro ao registrar Service Worker:', error);
+    Logger.error('[SW] Erro ao registrar Service Worker:', error);
     return null;
   }
 };
@@ -92,7 +93,7 @@ export const clearServiceWorkerCache = async (): Promise<void> => {
       registration.active.postMessage({ type: 'CLEAR_CACHE' });
       }
   } catch (error) {
-    console.error('[SW] Erro ao limpar cache:', error);
+    Logger.error('[SW] Erro ao limpar cache:', error);
   }
 };
 
@@ -108,7 +109,7 @@ export const unregisterServiceWorker = async (): Promise<boolean> => {
       }
     return false;
   } catch (error) {
-    console.error('[SW] Erro ao desregistrar Service Worker:', error);
+    Logger.error('[SW] Erro ao desregistrar Service Worker:', error);
     return false;
   }
 };

@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/integrations/supabase/client';
+import { Logger } from '@/utils/logger';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
@@ -71,7 +72,7 @@ export async function withRetry<T>(
       }
 
       const delay = retryDelays[Math.min(attempt, retryDelays.length - 1)];
-      console.warn(`[Retry] Attempt ${attempt + 1}/${maxRetries} failed, retrying in ${delay}ms...`, error);
+      Logger.warn(`[Retry] Attempt ${attempt + 1}/${maxRetries} failed, retrying in ${delay}ms...`, error);
       await sleep(delay);
     }
   }
