@@ -139,7 +139,12 @@ const UserManagement: React.FC = () => {
                   </TabsContent>
                 </Tabs>
               </TabsContent>
+
+              <TabsContent value="feedbacks" className="mt-6">
+                <FeedbackAdminTab />
+              </TabsContent>
             </>
+
           )}
         </Tabs>
       </div>
