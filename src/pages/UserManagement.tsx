@@ -9,7 +9,9 @@ import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import SimuladosImportRespostasTab from '@/components/admin/SimuladosImportRespostasTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
 import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
-import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload } from 'lucide-react';
+import FeedbackAdminTab from '@/components/admin/FeedbackAdminTab';
+import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload, MessageSquare } from 'lucide-react';
+
 import { isAdmin, isAtendimento } from '@/utils/accessRules';
 
 const UserManagement: React.FC = () => {
