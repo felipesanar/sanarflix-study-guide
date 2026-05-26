@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { User, Settings } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
 import { EditProfileSheet } from "@/components/EditProfileSheet";
+
 
 interface SidebarUserCardProps {
   user: {
