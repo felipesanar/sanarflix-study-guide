@@ -1486,6 +1486,69 @@ export type Database = {
         }
         Relationships: []
       }
+      user_feedback: {
+        Row: {
+          admin_response: string | null
+          category: Database["public"]["Enums"]["feedback_category"]
+          created_at: string
+          id: string
+          ies_id: string | null
+          include_metadata: boolean
+          message: string
+          page_url: string | null
+          responded_at: string | null
+          responded_by: string | null
+          screenshot_url: string | null
+          semestre: number | null
+          status: Database["public"]["Enums"]["feedback_status"]
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+          user_role: string | null
+          viewport: string | null
+        }
+        Insert: {
+          admin_response?: string | null
+          category: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          id?: string
+          ies_id?: string | null
+          include_metadata?: boolean
+          message: string
+          page_url?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          screenshot_url?: string | null
+          semestre?: number | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+          user_role?: string | null
+          viewport?: string | null
+        }
+        Update: {
+          admin_response?: string | null
+          category?: Database["public"]["Enums"]["feedback_category"]
+          created_at?: string
+          id?: string
+          ies_id?: string | null
+          include_metadata?: boolean
+          message?: string
+          page_url?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          screenshot_url?: string | null
+          semestre?: number | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+          user_role?: string | null
+          viewport?: string | null
+        }
+        Relationships: []
+      }
       user_groups: {
         Row: {
           created_at: string
@@ -2042,6 +2105,8 @@ export type Database = {
         | "atendimento"
         | "gestor_formal"
         | "gestor_grupo"
+      feedback_category: "bug" | "suggestion" | "feature_request" | "praise"
+      feedback_status: "received" | "in_review" | "resolved" | "archived"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
       progress_source: "manual" | "bulk" | "auto"
     }
@@ -2192,6 +2257,8 @@ export const Constants = {
         "gestor_formal",
         "gestor_grupo",
       ],
+      feedback_category: ["bug", "suggestion", "feature_request", "praise"],
+      feedback_status: ["received", "in_review", "resolved", "archived"],
       progress_node_type: ["aula", "subtema", "tema", "materia"],
       progress_source: ["manual", "bulk", "auto"],
     },

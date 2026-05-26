@@ -15,6 +15,10 @@ import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
 import { SemesterPromptBanner } from './SemesterPromptBanner';
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
+import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
+import { FeedbackFab } from '@/components/feedback/FeedbackFab';
+import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -41,56 +45,65 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <PasswordDialogProvider>
-      <OfflineIndicator />
-      <ImpersonationBanner />
-      <SidebarProvider>
-        {/* Desktop Sidebar */}
-        {!isModoProva && <AppSidebar />}
-        
-        <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
-          {/* Desktop Header */}
-          {!isModoProva && (
-            <header className={`sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 transition-all duration-300 ${
-              hasScrolled 
-                ? 'bg-background/60 backdrop-blur-md border-b border-border/20' 
-                : 'bg-transparent'
-            }`}>
-              <SidebarTrigger className="p-2 hover:bg-accent rounded-lg transition-colors">
-                <Menu className="h-5 w-5 text-foreground" />
-              </SidebarTrigger>
-              
-              <div className="ml-auto flex items-center gap-2">
-                <ThemeToggle />
-              </div>
-            </header>
-          )}
+      <FeedbackProvider>
+        <FeedbackShortcutBridge />
+        <OfflineIndicator />
+        <ImpersonationBanner />
+        <SidebarProvider>
+          {/* Desktop Sidebar */}
+          {!isModoProva && <AppSidebar />}
 
-          {/* Mobile Header */}
-          {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
+          <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
+            {/* Desktop Header */}
+            {!isModoProva && (
+              <header className={`sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 transition-all duration-300 ${
+                hasScrolled
+                  ? 'bg-background/60 backdrop-blur-md border-b border-border/20'
+                  : 'bg-transparent'
+              }`}>
+                <SidebarTrigger className="p-2 hover:bg-accent rounded-lg transition-colors">
+                  <Menu className="h-5 w-5 text-foreground" />
+                </SidebarTrigger>
 
-          {/* Semester prompt banner */}
-          {!isModoProva && <SemesterPromptBanner />}
+                <div className="ml-auto flex items-center gap-2">
+                  <ThemeToggle />
+                </div>
+              </header>
+            )}
 
-          {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
-          <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">
-            {children}
-          </main>
+            {/* Mobile Header */}
+            {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
 
-          {/* Mobile Bottom Navigation */}
-          {!isModoProva && <MobileBottomNav />}
+            {/* Semester prompt banner */}
+            {!isModoProva && <SemesterPromptBanner />}
 
-          {/* Floating actions */}
-          {!isModoProva && (
-            <FloatingActions showScrollTop={showScrollTop} />
-          )}
-          <ScrollTopWatcher setShowScrollTop={setShowScrollTop} setHasScrolled={setHasScrolled} />
-        </SidebarInset>
+            {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
+            <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">
+              {children}
+            </main>
 
-        <PasswordDialogConsumer />
-      </SidebarProvider>
+            {/* Mobile Bottom Navigation */}
+            {!isModoProva && <MobileBottomNav />}
+
+            {/* Floating actions */}
+            {!isModoProva && (
+              <FloatingActions showScrollTop={showScrollTop} />
+            )}
+            <ScrollTopWatcher setShowScrollTop={setShowScrollTop} setHasScrolled={setHasScrolled} />
+          </SidebarInset>
+
+          <PasswordDialogConsumer />
+        </SidebarProvider>
+      </FeedbackProvider>
     </PasswordDialogProvider>
   );
 };
+
+function FeedbackShortcutBridge() {
+  useFeedbackShortcut();
+  return null;
+}
+
 
 function PasswordDialogConsumer() {
   const { open, setOpen } = usePasswordDialog();
@@ -124,7 +137,9 @@ function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
           <ArrowUp className="h-4 w-4" />
         </Button>
       )}
+      <FeedbackFab />
       <QuickActionsDock position="inline" />
+
     </div>
   );
 }

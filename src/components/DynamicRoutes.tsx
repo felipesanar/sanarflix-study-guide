@@ -22,6 +22,8 @@ const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
 const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstitucionalV2"));
 const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
+const MeusFeedbacks = lazy(() => import("@/pages/MeusFeedbacks"));
+
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
@@ -297,8 +299,11 @@ export const DynamicRoutes: React.FC = () => {
             <Route path="/caderno-de-erros" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
+          <Route path="/meus-feedbacks" element={<ProtectedRoute><PageWrapper loadingMessage="Carregando…" waitForData={false}><MeusFeedbacks /></PageWrapper></ProtectedRoute>} />
+
           <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
           <Route path="*" element={<NotFound />} />
+
         </Routes>
       </Suspense>
     </>

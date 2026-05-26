@@ -9,7 +9,9 @@ import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import SimuladosImportRespostasTab from '@/components/admin/SimuladosImportRespostasTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
 import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
-import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload } from 'lucide-react';
+import FeedbackAdminTab from '@/components/admin/FeedbackAdminTab';
+import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload, MessageSquare } from 'lucide-react';
+
 import { isAdmin, isAtendimento } from '@/utils/accessRules';
 
 const UserManagement: React.FC = () => {
@@ -51,7 +53,7 @@ const UserManagement: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="usuarios" className="w-full">
-          <TabsList className={`grid w-full max-w-6xl ${userIsAdmin ? 'grid-cols-6' : 'grid-cols-1'}`}>
+          <TabsList className={`grid w-full max-w-6xl ${userIsAdmin ? 'grid-cols-7' : 'grid-cols-1'}`}>
             <TabsTrigger value="usuarios" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Usuários</span>
@@ -78,9 +80,14 @@ const UserManagement: React.FC = () => {
                   <ClipboardList className="h-4 w-4" />
                   <span className="hidden sm:inline">Simulados</span>
                 </TabsTrigger>
+                <TabsTrigger value="feedbacks" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">Feedbacks</span>
+                </TabsTrigger>
               </>
             )}
           </TabsList>
+
 
           <TabsContent value="usuarios" className="mt-6">
             <UsersTab />
@@ -132,7 +139,12 @@ const UserManagement: React.FC = () => {
                   </TabsContent>
                 </Tabs>
               </TabsContent>
+
+              <TabsContent value="feedbacks" className="mt-6">
+                <FeedbackAdminTab />
+              </TabsContent>
             </>
+
           )}
         </Tabs>
       </div>
