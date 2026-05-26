@@ -4,16 +4,19 @@ Snapshot do estado das 8 fases planejadas. Atualize após cada PR.
 
 ## Resumo executivo
 
-- **Achados resolvidos: 24 de 39** (62%)
+- **Achados resolvidos: 30 de 39** (77%)
   - 🔴 Críticos: **5/5** (100%)
-  - 🟠 Altos: **9/15** (60%)
-  - 🟡 Médios: **9/17** (53%)
+  - 🟠 Altos: **12/15** (80%)
+  - 🟡 Médios: **12/17** (71%)
   - 🔵 Baixos: **1/2** (50%)
 
-- **Commits na branch:** 9
+- **Commits na branch:** 13
 - **Linhas removidas:** ~3500 (deprecated)
 - **Arquivos com `console.*` substituídos:** 91 → 0 em runtime
-- **Edge functions migradas para template novo:** 4/36 (`save-calendar-arrangement`, `request-password-reset`, `delete-user`, `sync-user-auth` parcial)
+- **Edge functions com CORS allowlist (gatekeep):** 22/36
+- **Edge functions migradas para template completo (rate limit + Zod + CORS):** 5 (`save-calendar-arrangement`, `request-password-reset`, `delete-user`, `sync-user-auth`, `corrigir-simulado`)
+- **Edge functions com gatekeep de Origin (defesa em profundidade):** +16 via codemod
+- **Service layer:** `calendarService` completo; `useCalendarSync` migrado (-1 dos 78 imports diretos de supabase em components/hooks)
 
 ## Fases
 
@@ -21,8 +24,8 @@ Snapshot do estado das 8 fases planejadas. Atualize após cada PR.
 |---|---|---|---|
 | 0 — Fundação | ✅ Completa | `fd1cbfc` | Lockfiles padronizados, env.ts Zod, runbook §1-§6 criado |
 | 1 — Críticos | ✅ Completa | `3ccf863` | 5/5 críticos resolvidos. Requer rotação de anon key (runbook §1) |
-| 2 — Hardening edge fn | 🟡 Parcial | `5b2d96d`, `2407f88` | Shared utils prontas; 4 funções migradas; ~12 pendentes em PRs separados |
-| 3 — Bug fixes hooks | 🟡 Parcial | `2d1b254` | useCalendarSync, StudyGuide, AuthContext fixos. God file refactor pendente |
+| 2 — Hardening edge fn | 🟡 Parcial | `5b2d96d`, `2407f88`, `f293f52` | Shared utils prontas; 5 funções migradas completas; +16 com gatekeep de Origin via codemod |
+| 3 — Bug fixes hooks | 🟡 Parcial | `2d1b254`, `e7a8394` | useCalendarSync, StudyGuide, AuthContext fixos. Service layer iniciado (calendarService). God file refactor pendente |
 | 4 — TS strict | ❌ Pendente | — | Adiado: sem validação local, risco alto de quebrar CI |
 | 5 — Logger + cleanup | ✅ Completa | `aca5e97`, `c763f82`, `9f72c09` | `_deprecated/` removido, console→Logger codemod, ESLint hardening |
 | 6 — Testes | 🟡 Parcial | `0f73147` | 3 suítes unit cobrindo fixes da Fase 1/2. Cobertura geral ainda baixa |
