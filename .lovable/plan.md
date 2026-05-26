@@ -1,40 +1,73 @@
-## Adicionar `gestor_grupo` às RPCs institucionais faltantes
+## Visão geral
 
-### Diagnóstico
-O erro "requires admin, professor, b2b_partner, gestor or gestor_formal role" vem da RPC `get_institutional_simulados`, que é chamada pelo `useInstitutionalPerformanceData.ts` para popular o seletor de simulados. Essa RPC (e mais 2) ainda não foi atualizada para aceitar `gestor_grupo`.
+Criar um sistema de feedback "Fale com a gente" acionável de qualquer página, com UX que faça o aluno sentir que é ouvido. Quatro categorias (bug, sugestão, nova funcionalidade, elogio), captura automática rica de contexto, screenshot opcional, e uma página pessoal "Meus feedbacks" onde o aluno acompanha o status (Recebido → Em análise → Resolvido) do que enviou.
 
-Auditoria das 10 RPCs institucionais (`get_institutional_*` + `get_ies_*`):
+## Experiência do aluno
 
-| RPC | Aceita gestor_grupo? | Ação |
-|---|---|---|
-| get_institutional_performance | ✅ | ok |
-| get_institutional_evolution | ✅ | ok |
-| get_institutional_student_scores | ✅ | ok |
-| get_institutional_evolution_tri | ✅ | ok |
-| get_institutional_longitudinal_tri | ✅ | ok |
-| **get_institutional_simulados** | ❌ | corrigir |
-| **get_institutional_question_details** | ❌ | corrigir |
-| **get_institutional_tri** | ❌ | corrigir |
-| get_ies_student_count | n/a (sem check) | ok |
-| get_ies_features | n/a (sem check) | ok |
+**1. Acionamento global**
+- FAB discreto (ícone de balão/coração) fixo no canto inferior direito, ao lado do atual `QuickActionsDock`, presente em todas as páginas autenticadas (oculto no Modo Prova).
+- Atalho de teclado global `Shift + F` abre o mesmo painel.
+- Microcopy do hover: "Conte pra gente".
 
-### Migração
+**2. Painel de envio (Sheet lateral / Dialog premium)**
+- Saudação personalizada ("Oi, {primeiro nome} — o que você quer nos contar?").
+- Seleção visual de tipo via 4 cards grandes com ícones e cor própria:
+  - 🐛 Reportar problema (destructive)
+  - 💡 Sugerir melhoria (primary)
+  - ✨ Pedir funcionalidade (accent)
+  - ❤️ Elogio (success)
+- Campo `Textarea` (mínimo 10, máx 2000 chars) com placeholder dinâmico por categoria e contador.
+- Toggle "Anexar print" → input file (PNG/JPG, máx 5MB, 1 arquivo) com preview e botão remover.
+- Linha de contexto colapsável "O que enviamos junto" mostrando URL, dispositivo, IES, semestre — transparência total, com toggle para o aluno desativar metadados se quiser.
+- Botão "Enviar" com loading + animação de envio.
 
-Recriar as 3 RPCs faltantes seguindo exatamente o padrão já estabelecido em `get_institutional_performance` (migração `20260525150143`):
+**3. Confirmação que emociona**
+- Após envio: tela de sucesso com animação Framer Motion (check + partículas leves), frase "Recebemos, {nome}. Cada feedback é lido pela nossa equipe." e dois CTAs: "Ver meus feedbacks" e "Fechar".
 
-1. **Adicionar `OR has_role(v_user_id, 'gestor_grupo')`** no bloco de autorização inicial.
-2. **Resolver IES via `user_can_access_ies(v_user_id, p_ies_id)`** para `gestor_grupo` — não restringir a `id_ies` do perfil (gestor de grupo acessa N IES via `get_accessible_ies`). Quando `p_ies_id` é informado, validar permissão; quando não, usar a primeira IES acessível como fallback.
-3. Manter comportamento existente para `admin`, `b2b_partner`, `gestor`, `gestor_formal`, `professor`.
+**4. Página "Meus feedbacks" (`/meus-feedbacks`)**
+- Acessível pelo flyout do perfil na sidebar e pelo link de confirmação.
+- Lista os feedbacks do próprio usuário com badge de status colorido (Recebido / Em análise / Resolvido / Arquivado), categoria, data e trecho.
+- Click → drawer com detalhes + resposta opcional da equipe + screenshot.
+- Empty state caloroso convidando a enviar o primeiro.
 
-Mensagem de erro padronizada para `'Access denied'` (já é o padrão das RPCs corrigidas).
+**5. Visão admin**
+- Nova aba em `/admin` chamada "Feedbacks" com tabela filtrável (categoria, status, IES, busca).
+- Cada item permite mudar status e escrever resposta interna que aparece para o aluno.
+- Métricas: total no mês por categoria.
 
-Migração puramente aditiva (somente `CREATE OR REPLACE FUNCTION`).
+## Estrutura técnica
 
-### Critérios de sucesso
-- [ ] João Vitor (`gestor_grupo`) consegue ver lista de simulados da IES selecionada (PORTO SEGURO etc.) no Painel de Desempenho.
-- [ ] Drill-down por questão (`get_institutional_question_details`) funciona ao selecionar tema.
-- [ ] Cálculos TRI (`get_institutional_tri`) carregam para qualquer IES do grupo do usuário.
-- [ ] Demais roles (gestor, gestor_formal, admin, b2b) seguem funcionando idênticos.
+**Banco (migration aditiva)**
+- Tabela `user_feedback`:
+  - `id`, `user_id`, `category` (enum: bug | suggestion | feature_request | praise), `message` (text), `screenshot_url` (text null), `status` (enum: received | in_review | resolved | archived, default received), `admin_response` (text null), `responded_by`, `responded_at`, `page_url`, `viewport`, `user_agent`, `ies_id`, `semestre`, `user_role`, `include_metadata` (bool), `created_at`, `updated_at`.
+- RLS:
+  - Aluno: SELECT/INSERT/UPDATE (apenas próprios; UPDATE só em registros `received` para edição rápida — opcional, podemos travar).
+  - Admin: SELECT/UPDATE de tudo via `has_role(auth.uid(), 'admin')`.
+- Trigger `update_updated_at`.
+- Bucket de Storage `feedback-screenshots` (privado) com policies: usuário sobe em pasta `{user_id}/...`; admin lê tudo; aluno lê os próprios.
 
-### Frontend
-Nenhuma alteração. O hook já passa `p_ies_id` corretamente para gestor_grupo.
+**Frontend**
+- `src/components/feedback/FeedbackProvider.tsx` — Context global que controla `open/close` do sheet e expõe `openFeedback(initialCategory?)`.
+- `src/components/feedback/FeedbackSheet.tsx` — UI do envio (shadcn Sheet + Framer Motion + validação Zod).
+- `src/components/feedback/FeedbackFab.tsx` — FAB renderizado no `Layout` ao lado do `QuickActionsDock`.
+- `src/components/feedback/FeedbackSuccess.tsx` — Tela de sucesso animada.
+- `src/hooks/useFeedbackShortcut.ts` — Listener global `Shift+F` (ignora quando há input focado).
+- `src/pages/MeusFeedbacks.tsx` — Página de histórico do aluno.
+- `src/components/admin/FeedbackAdminTab.tsx` — Aba admin (gestão + resposta).
+- Integrar `FeedbackProvider` no `App.tsx` e o `FeedbackFab` dentro de `Layout.tsx` (escondido em Modo Prova).
+- Adicionar item "Meus feedbacks" no flyout de perfil da sidebar.
+- Toast (sonner) de confirmação curta após envio com link "Ver status".
+
+**Edge Function** (opcional, recomendado)
+- `submit-feedback`: valida com Zod, sanitiza, faz upload do screenshot via `supabaseAdmin`, insere registro. Pattern padrão `verify_jwt = false` + verificação manual de token (segue regra do projeto).
+- Alternativa simples: insert direto via supabase-js + upload no storage, sem Edge Function — começamos por aqui para reduzir superfície.
+
+## Fora do escopo (futuro)
+- Notificação por e-mail quando admin responde.
+- Voto/like em sugestões de outros alunos (roadmap público).
+- Categorização automática por IA.
+
+## O que muda na navegação
+- Sidebar: novo item "Meus feedbacks" no flyout do usuário.
+- FAB extra no canto inferior direito junto do botão Ajuda.
+- Atalho global `Shift + F`.
