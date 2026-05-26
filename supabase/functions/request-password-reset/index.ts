@@ -1,11 +1,17 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
+import { buildCorsHeaders } from "../_shared/cors.ts";
+import { maskEmail } from "../_shared/auth.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
+import { safeParseBody, z } from "../_shared/validate.ts";
+import { jsonResponse, badRequest, forbidden, tooManyRequests, internalError } from "../_shared/response.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const FN_NAME = 'request-password-reset';
+
+const bodySchema = z.object({
+  email: z.string().email().max(254),
+});
 
 function buildResetPasswordHtml(confirmationUrl: string, email: string): string {
   const resendUrl = `https://academy.sanar.com.br/auth/resend?email=${encodeURIComponent(email)}&type=reset`;
@@ -96,21 +102,28 @@ function buildResetPasswordHtml(confirmationUrl: string, email: string): string 
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const cors = buildCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    if (!cors) return forbidden('origin not allowed', null);
+    return new Response(null, { headers: cors });
   }
 
-  try {
-    const { email } = await req.json();
-    
-    if (!email || typeof email !== 'string') {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Email é obrigatório' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+  if (!cors) return forbidden('origin not allowed', null);
 
-    const normalizedEmail = email.trim().toLowerCase();
+  try {
+    // Rate limit agressivo: 5 reqs/min por IP. Mitiga:
+    //  - account enumeration (mesmo com resposta silenciosa)
+    //  - phishing campaign por inundação de emails
+    const rl = await checkRateLimit(req, { key: FN_NAME, limitPerMin: 5 });
+    if (!rl.allowed) return tooManyRequests('rate limit exceeded', cors);
+
+    const parsed = await safeParseBody(req, bodySchema);
+    if (!parsed.success || !parsed.data) {
+      return badRequest('Email é obrigatório', cors);
+    }
+    const normalizedEmail = parsed.data.email.trim().toLowerCase();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -127,11 +140,8 @@ Deno.serve(async (req) => {
 
     if (!userRecord) {
       // Don't reveal whether user exists — return success silently
-      console.log('[request-password-reset] User not found, returning silent success');
-      return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.log(`[${FN_NAME}] User not found (${maskEmail(normalizedEmail)}), returning silent success`);
+      return jsonResponse({ success: true }, { cors });
     }
 
     // Generate recovery link
@@ -144,11 +154,8 @@ Deno.serve(async (req) => {
     });
 
     if (linkError || !linkData) {
-      console.error('[request-password-reset] generateLink error:', linkError?.message);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Erro ao gerar link de recuperação' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      console.error(`[${FN_NAME}] generateLink error:`, linkError?.message);
+      return internalError(cors);
     }
 
     const confirmationUrl = buildCanonicalLink({
@@ -156,7 +163,7 @@ Deno.serve(async (req) => {
       redirectPath: '/reset-password',
     });
 
-    console.log('[request-password-reset] Recovery link generated for:', normalizedEmail);
+    console.log(`[${FN_NAME}] Recovery link generated for: ${maskEmail(normalizedEmail)}`);
 
     // Split name
     const nome = userRecord.nome || '';
@@ -182,21 +189,15 @@ Deno.serve(async (req) => {
       },
     }).then(result => {
       if (!result.ok) {
-        console.error('[request-password-reset] Novu trigger failed:', result.error);
+        console.error(`[${FN_NAME}] Novu trigger failed:`, result.error);
       }
     }).catch(err => {
-      console.error('[request-password-reset] Novu exception:', err);
+      console.error(`[${FN_NAME}] Novu exception:`, err);
     });
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ success: true }, { cors });
   } catch (error) {
-    console.error('[request-password-reset] Exception:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: 'Erro interno' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error(`[${FN_NAME}] Exception:`, error);
+    return internalError(cors);
   }
 });

@@ -3,20 +3,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { triggerNovuEvent } from "../_shared/novu.ts";
 import { buildCanonicalLink } from "../_shared/auth-links.ts";
 import { maskEmail } from "../_shared/auth.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { buildCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 
 
 serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
+    if (!corsHeaders) return new Response('forbidden', { status: 403 });
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (!corsHeaders) return new Response('forbidden', { status: 403 });
+
   try {
+    // Rate limit por IP — operação de recovery sensível.
+    const rl = await checkRateLimit(req, { key: 'sync-user-auth', limitPerMin: 10 });
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     

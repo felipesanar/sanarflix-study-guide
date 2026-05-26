@@ -1,10 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildCorsHeaders } from "../_shared/cors.ts";
+import { maskEmail } from "../_shared/auth.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-};
+const FN_NAME = 'delete-user';
 
 const DEPENDENT_TABLES = [
   { table: 'user_roles', filters: ['user_id', 'granted_by'] },
@@ -112,11 +111,30 @@ async function fetchIesUserIdsPage(
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = buildCorsHeaders(origin);
+
   if (req.method === 'OPTIONS') {
+    if (!corsHeaders) {
+      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (!corsHeaders) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
+
   try {
+    // Rate limit por admin/IP — operação destrutiva sensível.
+    const rl = await checkRateLimit(req, { key: FN_NAME, limitPerMin: 20 });
+    if (!rl.allowed) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -199,7 +217,7 @@ Deno.serve(async (req) => {
         console.log(`[delete-user] Capping batch from ${user_ids.length} to ${MAX_BATCH_SIZE}`);
       }
 
-      console.log(`[delete-user] Admin ${caller.email} batch deleting ${batch.length} users`);
+      console.log(`[delete-user] Admin ${maskEmail(caller.email)} batch deleting ${batch.length} users`);
 
       // Pre-fetch user details for failure reporting
       const { data: userDetails } = await supabaseAdmin
@@ -231,7 +249,7 @@ Deno.serve(async (req) => {
 
       console.log(`[delete-user] Batch done: ${deleted.length} deleted, ${failed.length} failed`);
       if (failed.length > 0) {
-        console.warn(`[delete-user] Failed users: ${failed.map(f => `${f.email}: ${f.error}`).join('; ')}`);
+        console.warn(`[delete-user] Failed users: ${failed.map(f => `${maskEmail(f.email)}: ${f.error}`).join('; ')}`);
       }
 
       return new Response(JSON.stringify({
@@ -258,7 +276,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[delete-user] Admin ${caller.email} removing user ${user_id}`);
+    console.log(`[delete-user] Admin ${maskEmail(caller.email)} removing user ${user_id}`);
 
     const result = await deleteSingleUser(supabaseAdmin, user_id);
 
