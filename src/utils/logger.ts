@@ -21,41 +21,42 @@ export class Logger {
   /**
    * Log de informações gerais (apenas em desenvolvimento)
    */
-  static info(message: string, data?: any) {
+  static info(message: string, ...data: any[]) {
     if (this.isDevelopment) {
       
     }
-    this.sendToMonitoring('info', message, data);
+    this.sendToMonitoring('info', message, data.length <= 1 ? data[0] : data);
   }
 
   /**
    * Log de avisos (apenas em desenvolvimento)
    */
-  static warn(message: string, data?: any) {
+  static warn(message: string, ...data: any[]) {
     if (this.isDevelopment) {
-      console.warn(`[WARN] ${message}`, data);
+      console.warn(`[WARN] ${message}`, ...data);
     }
-    this.sendToMonitoring('warn', message, data);
+    this.sendToMonitoring('warn', message, data.length <= 1 ? data[0] : data);
   }
 
   /**
    * Log de erros (sempre registrado para monitoramento)
    */
-  static error(message: string, error?: any) {
+  static error(message: string, ...errorParts: any[]) {
     if (this.isDevelopment) {
-      console.error(`[ERROR] ${message}`, error);
+      console.error(`[ERROR] ${message}`, ...errorParts);
     }
-    
+
     // Em produção, sempre enviar erros para monitoramento
-    this.sendToMonitoring('error', message, this.sanitizeError(error));
+    const payload = errorParts.length <= 1 ? errorParts[0] : errorParts;
+    this.sendToMonitoring('error', message, this.sanitizeError(payload));
   }
 
   /**
    * Log de debug (apenas em desenvolvimento)
    */
-  static debug(message: string, data?: any) {
+  static debug(message: string, ...data: any[]) {
     if (this.isDevelopment) {
-      console.debug(`[DEBUG] ${message}`, data);
+      console.debug(`[DEBUG] ${message}`, ...data);
     }
   }
 

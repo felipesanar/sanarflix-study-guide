@@ -124,7 +124,7 @@ export const AnnouncementsTab: React.FC = () => {
 
     if (error) {
       toast.error('Erro ao salvar aviso');
-      Logger.error(error);
+      Logger.error('Erro ao salvar aviso', error);
     } else {
       toast.success(editingConfig.id ? 'Aviso atualizado!' : 'Aviso criado!');
       setEditingConfig(null);

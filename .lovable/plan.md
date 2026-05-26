@@ -1,73 +1,104 @@
-## Visão geral
+## Realidade do "faça tudo"
 
-Criar um sistema de feedback "Fale com a gente" acionável de qualquer página, com UX que faça o aluno sentir que é ouvido. Quatro categorias (bug, sugestão, nova funcionalidade, elogio), captura automática rica de contexto, screenshot opcional, e uma página pessoal "Meus feedbacks" onde o aluno acompanha o status (Recebido → Em análise → Resolvido) do que enviou.
+A maior parte desse checklist é **operação manual fora do meu alcance** (rotacionar chaves no Supabase Dashboard, mexer em env vars da Vercel, GitHub Secrets, habilitar Deno KV, rodar `supabase functions deploy`, monitorar logs por 48h, etc.). Eu **não tenho acesso** a Vercel, ao Dashboard da Sanar, ao GitHub Actions secrets, nem posso executar deploys em staging/prod por você.
 
-## Experiência do aluno
+O plano abaixo separa o que eu **executo de fato** do que eu **deixo pronto pra você apertar o botão**, e lista explicitamente o que continua sendo só seu.
 
-**1. Acionamento global**
-- FAB discreto (ícone de balão/coração) fixo no canto inferior direito, ao lado do atual `QuickActionsDock`, presente em todas as páginas autenticadas (oculto no Modo Prova).
-- Atalho de teclado global `Shift + F` abre o mesmo painel.
-- Microcopy do hover: "Conte pra gente".
+---
 
-**2. Painel de envio (Sheet lateral / Dialog premium)**
-- Saudação personalizada ("Oi, {primeiro nome} — o que você quer nos contar?").
-- Seleção visual de tipo via 4 cards grandes com ícones e cor própria:
-  - 🐛 Reportar problema (destructive)
-  - 💡 Sugerir melhoria (primary)
-  - ✨ Pedir funcionalidade (accent)
-  - ❤️ Elogio (success)
-- Campo `Textarea` (mínimo 10, máx 2000 chars) com placeholder dinâmico por categoria e contador.
-- Toggle "Anexar print" → input file (PNG/JPG, máx 5MB, 1 arquivo) com preview e botão remover.
-- Linha de contexto colapsável "O que enviamos junto" mostrando URL, dispositivo, IES, semestre — transparência total, com toggle para o aluno desativar metadados se quiser.
-- Botão "Enviar" com loading + animação de envio.
+## Parte 1 — O que eu vou executar no repo (Bloco H + preparação de B/D)
 
-**3. Confirmação que emociona**
-- Após envio: tela de sucesso com animação Framer Motion (check + partículas leves), frase "Recebemos, {nome}. Cada feedback é lido pela nossa equipe." e dois CTAs: "Ver meus feedbacks" e "Fechar".
+Sprint único, vários PRs lógicos dentro do mesmo loop de build.
 
-**4. Página "Meus feedbacks" (`/meus-feedbacks`)**
-- Acessível pelo flyout do perfil na sidebar e pelo link de confirmação.
-- Lista os feedbacks do próprio usuário com badge de status colorido (Recebido / Em análise / Resolvido / Arquivado), categoria, data e trecho.
-- Click → drawer com detalhes + resposta opcional da equipe + screenshot.
-- Empty state caloroso convidando a enviar o primeiro.
+### 1.1 Migrations SQL prontas pra deploy (Bloco B)
+Verificar se `supabase/migrations/20260526000000_simulados_rls_defense_in_depth.sql` e `20260526010000_impersonation_rpcs_security_definer.sql` realmente existem; se não existirem, **criá-las** com:
+- `WITH CHECK (user_id = auth.uid())` em `simulados_iniciados`, `respostas_alunos`, `answer_progress`.
+- Helpers `is_admin()`, `is_authenticated()` e `SECURITY DEFINER` em `get_user_roles`, `get_accessible_ies`.
 
-**5. Visão admin**
-- Nova aba em `/admin` chamada "Feedbacks" com tabela filtrável (categoria, status, IES, busca).
-- Cada item permite mudar status e escrever resposta interna que aparece para o aluno.
-- Métricas: total no mês por categoria.
+### 1.2 Edge function `admin-upload-study-guide` (item H10)
+Refatorar para CORS allowlist completo via `buildCorsHeaders(origin)` + helpers `errorResponse/successResponse` recebendo cors por parâmetro, padrão do `_shared/cors.ts`.
 
-## Estrutura técnica
+### 1.3 TypeScript strict flags (H1 → H3)
+Ativação em sequência num único PR, com fixes pontuais:
+- `strictNullChecks: true`
+- `noImplicitAny: true`
+- `noUnusedLocals: true` + `noUnusedParameters: true`
 
-**Banco (migration aditiva)**
-- Tabela `user_feedback`:
-  - `id`, `user_id`, `category` (enum: bug | suggestion | feature_request | praise), `message` (text), `screenshot_url` (text null), `status` (enum: received | in_review | resolved | archived, default received), `admin_response` (text null), `responded_by`, `responded_at`, `page_url`, `viewport`, `user_agent`, `ies_id`, `semestre`, `user_role`, `include_metadata` (bool), `created_at`, `updated_at`.
-- RLS:
-  - Aluno: SELECT/INSERT/UPDATE (apenas próprios; UPDATE só em registros `received` para edição rápida — opcional, podemos travar).
-  - Admin: SELECT/UPDATE de tudo via `has_role(auth.uid(), 'admin')`.
-- Trigger `update_updated_at`.
-- Bucket de Storage `feedback-screenshots` (privado) com policies: usuário sobe em pasta `{user_id}/...`; admin lê tudo; aluno lê os próprios.
+Vou corrigir erros emergentes apenas onde necessários — se algum arquivo grande estourar centenas de erros, isolo com `// @ts-expect-error` documentado e abro nota pra acompanhamento.
 
-**Frontend**
-- `src/components/feedback/FeedbackProvider.tsx` — Context global que controla `open/close` do sheet e expõe `openFeedback(initialCategory?)`.
-- `src/components/feedback/FeedbackSheet.tsx` — UI do envio (shadcn Sheet + Framer Motion + validação Zod).
-- `src/components/feedback/FeedbackFab.tsx` — FAB renderizado no `Layout` ao lado do `QuickActionsDock`.
-- `src/components/feedback/FeedbackSuccess.tsx` — Tela de sucesso animada.
-- `src/hooks/useFeedbackShortcut.ts` — Listener global `Shift+F` (ignora quando há input focado).
-- `src/pages/MeusFeedbacks.tsx` — Página de histórico do aluno.
-- `src/components/admin/FeedbackAdminTab.tsx` — Aba admin (gestão + resposta).
-- Integrar `FeedbackProvider` no `App.tsx` e o `FeedbackFab` dentro de `Layout.tsx` (escondido em Modo Prova).
-- Adicionar item "Meus feedbacks" no flyout de perfil da sidebar.
-- Toast (sonner) de confirmação curta após envio com link "Ver status".
+### 1.4 Migração para service layer (H4, H5)
+- `AuthContext.tsx` → usar `authService` em vez de chamar `supabase.auth.*` direto (~14 pontos).
+- `UsersListTable.tsx` → usar `usersService` (~8 pontos).
 
-**Edge Function** (opcional, recomendado)
-- `submit-feedback`: valida com Zod, sanitiza, faz upload do screenshot via `supabaseAdmin`, insere registro. Pattern padrão `verify_jwt = false` + verificação manual de token (segue regra do projeto).
-- Alternativa simples: insert direto via supabase-js + upload no storage, sem Edge Function — começamos por aqui para reduzir superfície.
+### 1.5 Codemod `as any` (H6)
+Script ts-morph que substitui `as any` por aliases de `src/types/domain.ts` quando há correspondência clara. Onde não houver, mantém `as unknown as <Tipo>` com comentário.
 
-## Fora do escopo (futuro)
-- Notificação por e-mail quando admin responde.
-- Voto/like em sugestões de outros alunos (roadmap público).
-- Categorização automática por IA.
+### 1.6 Decomposição de god files (H7, H8, H9)
+- `SimuladosTab.tsx` (1977 L) → `useSimuladosUpload`, `useExcelParser`, `SimuladoFormDialog`, `SimuladosList`.
+- `UsersListTable.tsx` (1380 L) → `UserFilterBar`, `UserBatchActions`, `UserRowEditor`.
+- Migrar consumers de `useHomeData()` para os sub-hooks de `src/hooks/home/` e **deletar o monolito**.
 
-## O que muda na navegação
-- Sidebar: novo item "Meus feedbacks" no flyout do usuário.
-- FAB extra no canto inferior direito junto do botão Ajuda.
-- Atalho global `Shift + F`.
+### 1.7 Cobertura de testes (H12, H13)
+Suítes Vitest novas:
+- `useCalendarSync`: version check, init key, stale closure.
+- `iesService`, `simuladosApi`, `studyGuideApi`.
+
+### 1.8 Feature flag `VITE_FF_CALENDAR_V2` (E5)
+Conectar a flag a `useCalendarSync` (atualmente declarada mas não usada), no padrão graduated rollout.
+
+### 1.9 Suporte ao E2E fixture (F4)
+Atualizar `tests/auth-smoke.spec.ts` para usar `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` opcionalmente: se presentes, faz login real e valida home; se ausentes, mantém o teste atual de render.
+
+### 1.10 CSP básico (I3, base de H11)
+Adicionar meta CSP em `index.html` + `vercel.json` com `Content-Security-Policy` razoável (`script-src 'self' https://*.supabase.co; object-src 'none'`). Sem nonce dinâmico — fica explícito como passo de robustez extra a iterar.
+
+### 1.11 Documentação operacional
+- Atualizar `docs/remediation-progress.md` marcando o que avançou.
+- Criar `docs/deploy-checklist.md` com **apenas** os itens que dependem de você (blocos A, C, D batches, E, F1-F3, G, I1, I2, I4, I5), prontos pra você marcar conforme executa.
+
+---
+
+## Parte 2 — O que continua sendo SÓ você (não tenho como fazer)
+
+Estes ficam documentados em `docs/deploy-checklist.md`, mas não tenho ferramentas:
+
+- **Bloco A** completo (rotação de keys no Supabase Dashboard, Vercel, GitHub).
+- **Bloco B3/B4** (executar as migrations em staging/prod e fazer smoke).
+- **Bloco C** (habilitar Deno KV no Dashboard).
+- **Bloco D1–D22** (deploys via `supabase functions deploy`). Posso preparar o código; o deploy é seu.
+- **Bloco D23–D27** (smoke curl).
+- **Bloco E1–E4** (Vercel env vars + janela de 24h + cleanup pós-2 semanas).
+- **Bloco F1–F3** (criar fixture E2E + GitHub Actions Secrets).
+- **Bloco G** (monitoramento 48h).
+- **Bloco I1, I2, I4, I5** (Renovate/Dependabot, Sentry, SLO, auditoria trimestral) — posso fazer scaffold se você pedir explicitamente.
+
+---
+
+## Parte 3 — Sequência de execução
+
+```
+PR-1: Migrations B1+B2 (se ainda não existem) + doc deploy-checklist.md
+PR-2: TS strict flags + fixes (H1-H3)
+PR-3: AuthContext + UsersListTable → service layer (H4, H5)
+PR-4: Decomposição SimuladosTab (H7)
+PR-5: Decomposição UsersListTable (H8)
+PR-6: Migração consumers useHomeData + remoção monolito (H9)
+PR-7: Codemod as any (H6)
+PR-8: Testes Vitest novos (H12, H13)
+PR-9: FF_CALENDAR_V2 + E2E auth-smoke opcional (E5, F4)
+PR-10: CSP + admin-upload-study-guide CORS (I3, H10)
+```
+
+Tudo no mesmo loop — quando terminar, te devolvo: lista de mudanças por PR, status do build, e o `docs/deploy-checklist.md` com **só** os passos manuais restantes.
+
+---
+
+## Riscos e observações
+
+- **`strictNullChecks` é o maior risco**: pode gerar centenas de erros nos god files (Simulados, Users). Vou começar por ele para já validar se sobrevive ao type-check do harness; se for inviável num único PR, divido por domínio.
+- **Codemod `as any`**: só substitui onde o tipo derivado é claro; resto fica anotado.
+- **Decomposição de god files**: refactor amplo, alto risco de regressão. Vou preservar interfaces externas (props, exports) e manter testes existentes verdes.
+- **CSP estrita**: pode quebrar tracking pixels ou inline scripts do Lovable preview. Começo com `Content-Security-Policy-Report-Only` para você validar antes de fazer enforce.
+- **Não tenho como rodar `bun install` no sandbox** (mirror npm bloqueia 403, conforme `remediation-progress.md`). Toda validação real (`type-check`, `lint`, `test:run`, `playwright`) será no CI do GitHub Actions depois do PR — não consigo confirmar localmente antes.
+
+Confirma esse escopo e eu mando ver?

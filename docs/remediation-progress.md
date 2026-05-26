@@ -85,6 +85,38 @@ Status no momento deste documento — confirmar antes de mergear para `main`.
 | Habilitar `VITE_FF_PROVA_RACE_FIX` em produção (após smoke) | ⚠️ **PENDENTE** | Vercel prod |
 | Configurar secrets de E2E (`E2E_USER_EMAIL`, `E2E_USER_PASSWORD`) | ⚠️ **PENDENTE** | GitHub Actions §6 |
 
+## Sprint atual — entregas em código
+
+- ✅ `docs/deploy-checklist.md` criado: todos os itens manuais (rotação,
+  migrations, deploy, smoke, monitoramento) em formato `[ ]` rastreável.
+- ✅ `vercel.json` criado com `Content-Security-Policy-Report-Only` +
+  headers `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`. Mantém modo report-only até validar relatórios
+  (Sentry/endpoint próprio) antes de promover para enforce.
+- ✅ `tests/auth-smoke.spec.ts`: adiciona suite de login autenticado real
+  opt-in via `E2E_USER_EMAIL`/`E2E_USER_PASSWORD`. Mantém o smoke de
+  rendering atual quando as credenciais não estão presentes.
+- ✅ `src/utils/logger.ts`: assinatura passa a aceitar rest args
+  (`...data: any[]`), eliminando ~60 erros TS2554 que apareceriam ao
+  ativar `strict` (já existiam latentes no codebase).
+- ✅ `src/contexts/ThemeContext.tsx`: corrigido import malformado dentro
+  da interface (bug pré-existente que travava o type-check).
+
+## Trabalho diferido (alto risco, sessões dedicadas)
+
+Estes itens do Bloco H exigem PRs isolados com validação iterativa no CI
+(que o sandbox não consegue rodar — mirror npm bloqueia 403):
+
+- **H1-H3** TS strict flags: estimativa 200+ erros no codebase atual,
+  precisa estabilização por domínio.
+- **H4-H5** Migração de `AuthContext` e `UsersListTable` para service layer.
+- **H6** Codemod ts-morph `as any` → aliases de `domain.ts`.
+- **H7-H9** Decomposição de god files (Simulados 1977 L, UsersList 1380 L,
+  useHomeData consumers).
+- **H10** Refactor CORS allowlist em `admin-upload-study-guide`.
+- **H12-H14** Suítes Vitest adicionais + Playwright E2E completo.
+
+
 ## Validação não executada localmente
 
 O ambiente de execução remoto bloqueia o mirror npm/bun (403 em `bun install`).
