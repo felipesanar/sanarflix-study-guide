@@ -26,7 +26,7 @@ const envSchema = z.object({
   FF_CALENDAR_V2: boolFromString,
 });
 
-export type AppEnv = z.infer<typeof envSchema>;
+export type AppEnv = z.infer<typeof envSchema> & { IS_VALID: boolean };
 
 function buildEnv(): AppEnv {
   const supabaseUrl = rawEnv.VITE_SUPABASE_URL;
