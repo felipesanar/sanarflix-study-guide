@@ -79,7 +79,28 @@ interface EditingState {
   nome: string;
   id_ies: string;
   semestre: string;
+  role: string; // 'aluno' = sem papel privilegiado
 }
+
+const ROLE_NONE = 'aluno';
+const EDITABLE_ROLES: { value: string; label: string }[] = [
+  { value: ROLE_NONE,      label: 'Aluno' },
+  { value: 'admin',        label: 'Admin' },
+  { value: 'professor',    label: 'Professor' },
+  { value: 'gestor',       label: 'Gestor' },
+  { value: 'gestor_formal', label: 'Gestor Formal' },
+  { value: 'gestor_grupo', label: 'Gestor de Grupo' },
+  { value: 'atendimento',  label: 'Atendimento' },
+  { value: 'b2b_partner',  label: 'Parceiro B2B' },
+  { value: 'moderator',    label: 'Moderador' },
+];
+const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value).filter(v => v !== ROLE_NONE);
+
+const derivePrimaryRole = (roles: string[] | undefined): string => {
+  if (!roles?.length) return ROLE_NONE;
+  const found = roles.find(r => PRIVILEGED_ROLES.includes(r));
+  return found ?? ROLE_NONE;
+};
 
 interface UsersListTableProps {
   iesList: IES[];
@@ -137,6 +158,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     nome: '',
     id_ies: '',
     semestre: '',
+    role: ROLE_NONE,
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -567,11 +589,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       nome: user.nome,
       id_ies: user.id_ies || '',
       semestre: user.semestre?.toString() || '',
+      role: derivePrimaryRole(user.roles),
     });
   };
 
   const cancelEditing = () => {
-    setEditing({ userId: null, nome: '', id_ies: '', semestre: '' });
+    setEditing({ userId: null, nome: '', id_ies: '', semestre: '', role: ROLE_NONE });
   };
 
   const saveEditing = async () => {
@@ -599,6 +622,27 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         body: { nome: editing.nome.trim(), email: user.email, id_ies: editing.id_ies, semestre },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
+
+      // Sincronizar papel (mutuamente exclusivo entre os papéis editáveis)
+      const currentRole = derivePrimaryRole(user.roles);
+      if (editing.role !== currentRole) {
+        const { error: delErr } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', user.id)
+          .in('role', PRIVILEGED_ROLES as Array<'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo'>);
+        if (delErr) {
+          toast.error(`Usuário atualizado, mas falhou ao alterar papel: ${delErr.message}`);
+        } else if (editing.role !== ROLE_NONE) {
+          const { error: insErr } = await supabase
+            .from('user_roles')
+            .insert({ user_id: user.id, role: editing.role as 'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo' });
+          if (insErr) {
+            toast.error(`Falha ao definir novo papel: ${insErr.message}`);
+          }
+        }
+      }
+
       toast.success('Usuário atualizado com sucesso');
       cancelEditing();
       fetchUsers();
@@ -1095,30 +1139,51 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles && user.roles.length > 0 ? (
-                            user.roles.map((role: string) => {
-                              const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
-                                admin: { label: 'Admin', variant: 'default', icon: true },
-                                professor: { label: 'Professor', variant: 'secondary' },
-                                gestor: { label: 'Gestor', variant: 'secondary' },
-                                atendimento: { label: 'Atendimento', variant: 'secondary' },
-                                b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
-                                moderator: { label: 'Moderador', variant: 'secondary' },
-                              };
-                              const c = config[role] || { label: role, variant: 'secondary' as const };
-                              return (
-                                <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
-                                  {c.icon && <Shield className="h-3 w-3 mr-1" />}
-                                  {c.label}
-                                </Badge>
-                              );
-                            })
-                          ) : (
-                            <Badge variant="secondary">Aluno</Badge>
-                          )}
-                        </div>
+                        {isEditing ? (
+                          <Select
+                            value={editing.role}
+                            onValueChange={(v) => setEditing({ ...editing, role: v })}
+                          >
+                            <SelectTrigger className="h-8 min-w-[140px]">
+                              <SelectValue placeholder="Papel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EDITABLE_ROLES.map((r) => (
+                                <SelectItem key={r.value} value={r.value}>
+                                  {r.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles && user.roles.length > 0 ? (
+                              user.roles.map((role: string) => {
+                                const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
+                                  admin: { label: 'Admin', variant: 'default', icon: true },
+                                  professor: { label: 'Professor', variant: 'secondary' },
+                                  gestor: { label: 'Gestor', variant: 'secondary' },
+                                  gestor_formal: { label: 'Gestor Formal', variant: 'secondary' },
+                                  gestor_grupo: { label: 'Gestor de Grupo', variant: 'secondary' },
+                                  atendimento: { label: 'Atendimento', variant: 'secondary' },
+                                  b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
+                                  moderator: { label: 'Moderador', variant: 'secondary' },
+                                };
+                                const c = config[role] || { label: role, variant: 'secondary' as const };
+                                return (
+                                  <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
+                                    {c.icon && <Shield className="h-3 w-3 mr-1" />}
+                                    {c.label}
+                                  </Badge>
+                                );
+                              })
+                            ) : (
+                              <Badge variant="secondary">Aluno</Badge>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
+
 
                       <TableCell className="text-right">
                         {isEditing ? (
