@@ -15,6 +15,24 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
     if (!isProd) {
       return null;
     }
+
+    // Pular SW em hosts de preview/sandbox da Lovable. O preview rebuilda
+    // com frequência e qualquer mudança no sw.js disparava `controllerchange`
+    // → `location.reload()` → loop infinito após o login. Produção real
+    // (academy.sanar.com.br / sanarflix-study-guide.lovable.app) segue ativa.
+    const host = location.hostname;
+    const isLovablePreview =
+      host.endsWith('.lovable.app') &&
+      (host.startsWith('id-preview--') || host.startsWith('preview--'));
+    if (isLovablePreview) {
+      // Limpa SWs antigos que possam ter ficado registrados em sessões anteriores
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      } catch {}
+      return null;
+    }
+
     const isTopLevel = window.top === window.self;
     const isSecure = window.isSecureContext || location.hostname === 'localhost';
     if (!isTopLevel || !isSecure) {
@@ -45,35 +63,26 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
       updateViaCache: 'none', // Sempre busca a versão mais recente
     });
 
-    
-
     // Verifica atualizações periodicamente (a cada 1 hora)
     setInterval(() => {
       registration.update();
     }, 60 * 60 * 1000);
 
-    // Escuta atualizações
+    // Escuta atualizações - usuário decide via confirm() quando aplicar.
+    // Removido o listener global de `controllerchange` que disparava reload
+    // automático e causava loop em ambientes que reativam o SW (preview).
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       if (!newWorker) return;
 
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // Nova versão disponível
-          
-          
-          // Notifica o usuário (você pode adicionar um toast aqui)
           if (window.confirm('Nova versão disponível! Deseja atualizar?')) {
             newWorker.postMessage({ type: 'SKIP_WAITING' });
             window.location.reload();
           }
         }
       });
-    });
-
-    // Escuta mudanças de controller (quando novo SW assume)
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
     });
 
     return registration;
