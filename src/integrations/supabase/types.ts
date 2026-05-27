@@ -2084,6 +2084,8 @@ export type Database = {
         Args: { p_feature: string; p_ies_id: string }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
+      is_authenticated: { Args: never; Returns: boolean }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
