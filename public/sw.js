@@ -34,17 +34,21 @@ const CACHE_STRATEGIES = {
 };
 
 // Instalação - cacheia assets críticos
+// NÃO chamamos `self.skipWaiting()` aqui: queremos que o novo SW espere
+// até que todos os tabs sejam fechados antes de assumir controle. Isso
+// evita disparar `controllerchange` em tabs ativos, que causava loop de
+// reload no preview da Lovable (ver src/utils/serviceWorker.ts).
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE).then((cache) => {
       return cache.addAll(CRITICAL_ASSETS);
-    }).then(() => {
-      return self.skipWaiting();
     })
   );
 });
 
-// Ativação - limpa caches antigos
+// Ativação - limpa caches antigos.
+// Sem `clients.claim()` pelo mesmo motivo acima: o novo SW só controla
+// novas navegações, nunca toma o controle de tabs já abertos.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -55,11 +59,10 @@ self.addEventListener('activate', (event) => {
             return caches.delete(name);
           })
       );
-    }).then(() => {
-      return self.clients.claim();
     })
   );
 });
+
 
 // Determina a estratégia de cache para uma URL
 function getCacheStrategy(url) {
