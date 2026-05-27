@@ -811,6 +811,27 @@ export type Database = {
         }
         Relationships: []
       }
+      kv_store: {
+        Row: {
+          expires_at: string | null
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          expires_at?: string | null
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          expires_at?: string | null
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       page_views: {
         Row: {
           created_at: string
@@ -2086,6 +2107,11 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
+      kv_cleanup: { Args: never; Returns: number }
+      kv_incr: {
+        Args: { p_key: string; p_limit: number; p_ttl_seconds: number }
+        Returns: Json
+      }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
