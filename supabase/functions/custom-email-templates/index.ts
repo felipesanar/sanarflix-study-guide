@@ -5,6 +5,7 @@ import { renderAsync } from 'https://esm.sh/@react-email/components@0.0.22?deps=
 import { MagicLinkEmail } from './_templates/magic-link.tsx'
 import { ResetPasswordEmail } from './_templates/reset-password.tsx'
 import { InviteUserEmail } from './_templates/invite-user.tsx'
+import { isAllowedOrigin } from "../_shared/cors.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
