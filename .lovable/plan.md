@@ -1,47 +1,47 @@
+## Diagnóstico
 
-## Problema
+Usuário: `aline.assessoria@uniatenas.edu.br` (id `300c810f-2f72-45d4-a7fd-d34f2ceaec5b`, IES principal: PARACATU).
 
-O build publicado (`sanarflix-study-guide.lovable.app`) saiu sem as `VITE_*` injetadas (Supabase URL/anon key ausentes no bundle). Como `src/config/env.ts` faz `throw new Error(...)` quando `APP_ENV === 'production'`, o app fica em tela branca — sem fallback visual, sem indício pro usuário do que aconteceu.
+Roles atuais em `user_roles`: **`gestor`** + **`gestor_grupo`** (duplicidade — esse é o problema).
 
-Causas possíveis do build vazio:
-- O `.env` gerenciado da Lovable não estava presente/atualizado no momento do publish.
-- A integração Supabase precisa ser reconectada para regenerar as vars.
+Estado correto do vínculo de grupo (já configurado, não mexer):
+- `user_groups`: vinculada ao grupo `UNIATENAS` (id `6d76…2cd0`) com `role = gestor_grupo`.
+- `group_ies`: 6 IES vinculadas ao grupo UNIATENAS.
+- `get_accessible_ies('300c…ec5b')` já retorna as 6 IES esperadas.
 
-A correção tem duas frentes: **resiliência** (nunca mais tela branca) + **reprodução** (reconectar Supabase e republicar).
+### Por que a role duplicada quebra o comportamento
 
-## Mudanças de código (resiliência)
+Vários trechos do código e das RLS tratam `gestor` (single‑IES, legado) e `gestor_grupo` (multi‑IES) como caminhos distintos. Quando ambas existem ao mesmo tempo:
 
-### 1. `src/config/env.ts` — não derrubar o app em produção
-- Remover o `throw new Error(...)` quando `APP_ENV === 'production'`.
-- Em vez disso: logar o erro detalhado (`Logger.error`) e expor um marcador `env.IS_VALID = false` + manter os fallbacks atuais.
-- Adicionar `IS_VALID: boolean` ao schema/`AppEnv` (default `true` no caminho feliz).
+1. **RLS de `resultados_ies_tri` / `resultados_alunos_tri` / `simulados_admin` / `answer_progress`**: a política de `gestor` (`college_id = get_current_user_ies_id()`) e a de `gestor_grupo` (`college_id = ANY (get_accessible_ies(...))`) são ambas avaliadas. Isso por si só não bloqueia leitura, mas garante o caminho "single‑IES" continua ativo em qualquer consulta direta que filtre por `get_current_user_ies_id()`.
+2. **`src/utils/accessRules.ts` → `getAccessRules`**: `isGestor(user)` retorna `true` para qualquer variante (`gestor` / `gestor_formal` / `gestor_grupo`). O ramo de gestor é executado primeiro e devolve `{...DEFAULT_RULES, desempenhoInstitucional: true}`. Como `DEFAULT_RULES.simulados = true` e nenhum ramo específico de `gestor_grupo` existe, isso já era o comportamento desejado — porém qualquer feature futura que diferencie via `isGestorFormal`/`isGestor` (sem `isGestorGrupo`) trata Aline como gestor formal de PARACATU.
+3. **Hooks que ramificam por role**: `useInstitutionalPerformanceData` usa `isGestorGrupo` corretamente, mas a presença simultânea da role `gestor` faz com que partes server‑side (RPCs `get_institutional_*` e filtros derivados de `get_current_user_ies_id()`) considerem o usuário ligado a PARACATU, podendo recortar visões para uma única IES em vez das 6 do grupo.
 
-### 2. `src/main.tsx` — tela de erro amigável quando env é inválida
-- Após o `runStartupDiagnostics`, importar `env` e checar `env.IS_VALID`.
-- Se inválido, renderizar uma tela equivalente à de "Erro de Carregamento" já existente, com mensagem:
-  - "Configuração de ambiente ausente. Atualize a página em alguns instantes ou contate o suporte."
-  - Botão "Recarregar".
-- Isso garante: nunca mais página em branco, sempre algo renderizado, mesmo se republicação futura sair quebrada.
+Conclusão: a role `gestor` é resíduo do cadastro antigo e precisa ser removida para que toda a stack (frontend + RLS + RPCs) trate Aline exclusivamente como `gestor_grupo`.
 
-### 3. (Opcional) `src/test/unit/env.test.ts`
-- Manter testes atuais; adicionar nota de que `IS_VALID` é `true` no ambiente de teste (Vitest injeta envs válidas via `.env` ou mocks).
+## Mudança proposta
 
-## Ações fora do código (reprodução do build válido)
+Apenas dados — **nenhuma alteração de código**.
 
-Após o merge das mudanças acima:
+Executar via tool `supabase--migration` (DELETE em `user_roles` exige migration; não é coberto pelo insert tool):
 
-1. **Reconectar a integração Supabase na Lovable** (botão de refresh em Settings → Integrations → Supabase) para regenerar o `.env` gerenciado com `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_PROJECT_ID`.
-2. **Verificar no preview** (`id-preview--…lovable.app`) que o app carrega normal e que `import.meta.env.VITE_SUPABASE_URL` existe (pode-se logar uma vez).
-3. **Republicar** via botão Publish para gerar novo bundle (`index-XXXX.js`) com as vars inlinadas.
-4. **Validar** `sanarflix-study-guide.lovable.app` carregando a tela de login sem erro no console.
+```sql
+DELETE FROM public.user_roles
+WHERE user_id = '300c810f-2f72-45d4-a7fd-d34f2ceaec5b'
+  AND role = 'gestor';
+```
 
-## Fora de escopo
+Não mexer em:
+- `user_groups` (vínculo correto com UNIATENAS já existe).
+- `group_ies` (6 IES já corretas).
+- `users.id_ies` (manter PARACATU como IES principal — é usada como fallback em `useInstitutionalPerformanceData` quando `filters.iesId` está vazio e está dentro do grupo, então não atrapalha).
 
-- Não vamos mexer em outras features (Modo Prova, Calendar v2, etc.).
-- Não vamos alterar `.gitignore` nem comitar `.env` (vars são injetadas pelo build da Lovable).
-- Não vamos alterar `.env.example` (já está correto).
+## Verificação pós‑mudança
 
-## Critério de aceite
+1. `SELECT role FROM user_roles WHERE user_id = '300c…ec5b'` deve retornar apenas `gestor_grupo`.
+2. `SELECT get_accessible_ies('300c…ec5b')` deve continuar retornando as 6 IES do grupo UNIATENAS.
+3. Pedir à Aline para deslogar/logar (o `AuthContext` recarrega `roles` e `accessible_ies` no login) e acessar `/desempenho-institucional-v2` — o seletor de IES deve listar as 6 instituições do grupo UNIATENAS.
 
-- Mesmo com envs ausentes, o app publicado renderiza uma tela de erro amigável (não fica em branco).
-- Após reconectar Supabase + republicar, `sanarflix-study-guide.lovable.app/login` carrega normalmente.
+## Prevenção (fora do escopo desta correção, anotar para depois)
+
+O fluxo de criação de usuário em `src/components/admin/UsersTab.tsx` deveria garantir mutuamente exclusivas as variantes `gestor` / `gestor_formal` / `gestor_grupo` (escolher uma, remover as outras) para evitar recorrência. Pode virar uma tarefa futura.
