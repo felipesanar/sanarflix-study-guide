@@ -79,7 +79,28 @@ interface EditingState {
   nome: string;
   id_ies: string;
   semestre: string;
+  role: string; // 'aluno' = sem papel privilegiado
 }
+
+const ROLE_NONE = 'aluno';
+const EDITABLE_ROLES: { value: string; label: string }[] = [
+  { value: ROLE_NONE,      label: 'Aluno' },
+  { value: 'admin',        label: 'Admin' },
+  { value: 'professor',    label: 'Professor' },
+  { value: 'gestor',       label: 'Gestor' },
+  { value: 'gestor_formal', label: 'Gestor Formal' },
+  { value: 'gestor_grupo', label: 'Gestor de Grupo' },
+  { value: 'atendimento',  label: 'Atendimento' },
+  { value: 'b2b_partner',  label: 'Parceiro B2B' },
+  { value: 'moderator',    label: 'Moderador' },
+];
+const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value).filter(v => v !== ROLE_NONE);
+
+const derivePrimaryRole = (roles: string[] | undefined): string => {
+  if (!roles?.length) return ROLE_NONE;
+  const found = roles.find(r => PRIVILEGED_ROLES.includes(r));
+  return found ?? ROLE_NONE;
+};
 
 interface UsersListTableProps {
   iesList: IES[];
