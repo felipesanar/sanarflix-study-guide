@@ -158,6 +158,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     nome: '',
     id_ies: '',
     semestre: '',
+    role: ROLE_NONE,
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
