@@ -13,6 +13,14 @@ const rawEnv = {
   PROD: import.meta.env.PROD as boolean,
 };
 
+// Fallback canônico de produção, espelhando os valores hardcoded em
+// src/integrations/supabase/client.ts (gerado pela Lovable). A anon key é
+// pública por design. Mantém o app auto-suficiente quando o ambiente de
+// deploy não injeta as VITE_* — as VITE_* ainda têm prioridade quando presentes.
+const DEFAULT_SUPABASE_URL = 'https://gvqvrmkizemwsasmupmo.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2cXZybWtpemVtd3Nhc211cG1vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5NzU1OTksImV4cCI6MjA2OTU1MTU5OX0.8viZ7xflE9Yb4vrKzaaKuMsQFLhr_NgyhrJtnDIFCOU';
+
 const boolFromString = z
   .union([z.string(), z.boolean(), z.undefined()])
   .transform((v) => v === true || v === 'true' || v === '1');
@@ -30,8 +38,9 @@ const envSchema = z.object({
 export type AppEnv = z.infer<typeof envSchema> & { IS_VALID: boolean };
 
 function buildEnv(): AppEnv {
-  const supabaseUrl = rawEnv.VITE_SUPABASE_URL;
-  const supabaseAnonKey = rawEnv.VITE_SUPABASE_ANON_KEY ?? rawEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const supabaseUrl = rawEnv.VITE_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
+  const supabaseAnonKey =
+    rawEnv.VITE_SUPABASE_ANON_KEY ?? rawEnv.VITE_SUPABASE_PUBLISHABLE_KEY ?? DEFAULT_SUPABASE_ANON_KEY;
   const appEnv = rawEnv.VITE_APP_ENV ?? (rawEnv.PROD ? 'production' : 'development');
 
   // Derived defaults so envs that only set SUPABASE_URL still work.
