@@ -214,7 +214,7 @@ export const useErrorNotebook = () => {
       trackEvent({ eventName: 'ce_entry_edited', category: 'interaction', data: { entry_id: entryId } });
 
       setEntries(prev => prev.map(e =>
-        e.id === entryId ? { ...e, ...updateData, updated_at: new Date().toISOString() } : e
+        e.id === entryId ? { ...e, ...updates, learning_text: learningText !== undefined ? learningText : e.learning_text, updated_at: new Date().toISOString() } : e
       ));
 
       return true;
