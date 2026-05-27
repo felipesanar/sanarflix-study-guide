@@ -1139,30 +1139,51 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                       </TableCell>
 
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles && user.roles.length > 0 ? (
-                            user.roles.map((role: string) => {
-                              const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
-                                admin: { label: 'Admin', variant: 'default', icon: true },
-                                professor: { label: 'Professor', variant: 'secondary' },
-                                gestor: { label: 'Gestor', variant: 'secondary' },
-                                atendimento: { label: 'Atendimento', variant: 'secondary' },
-                                b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
-                                moderator: { label: 'Moderador', variant: 'secondary' },
-                              };
-                              const c = config[role] || { label: role, variant: 'secondary' as const };
-                              return (
-                                <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
-                                  {c.icon && <Shield className="h-3 w-3 mr-1" />}
-                                  {c.label}
-                                </Badge>
-                              );
-                            })
-                          ) : (
-                            <Badge variant="secondary">Aluno</Badge>
-                          )}
-                        </div>
+                        {isEditing ? (
+                          <Select
+                            value={editing.role}
+                            onValueChange={(v) => setEditing({ ...editing, role: v })}
+                          >
+                            <SelectTrigger className="h-8 min-w-[140px]">
+                              <SelectValue placeholder="Papel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EDITABLE_ROLES.map((r) => (
+                                <SelectItem key={r.value} value={r.value}>
+                                  {r.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles && user.roles.length > 0 ? (
+                              user.roles.map((role: string) => {
+                                const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
+                                  admin: { label: 'Admin', variant: 'default', icon: true },
+                                  professor: { label: 'Professor', variant: 'secondary' },
+                                  gestor: { label: 'Gestor', variant: 'secondary' },
+                                  gestor_formal: { label: 'Gestor Formal', variant: 'secondary' },
+                                  gestor_grupo: { label: 'Gestor de Grupo', variant: 'secondary' },
+                                  atendimento: { label: 'Atendimento', variant: 'secondary' },
+                                  b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
+                                  moderator: { label: 'Moderador', variant: 'secondary' },
+                                };
+                                const c = config[role] || { label: role, variant: 'secondary' as const };
+                                return (
+                                  <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
+                                    {c.icon && <Shield className="h-3 w-3 mr-1" />}
+                                    {c.label}
+                                  </Badge>
+                                );
+                              })
+                            ) : (
+                              <Badge variant="secondary">Aluno</Badge>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
+
 
                       <TableCell className="text-right">
                         {isEditing ? (
