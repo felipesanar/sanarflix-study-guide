@@ -308,8 +308,16 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Verify caller using admin client (service role can validate any JWT without session)
-    const { data: { user: callerUser }, error: authErr } = await supabaseAdmin.auth.getUser(token);
+    // Verify caller using a user-scoped client. Passing the JWT via the global
+    // Authorization header is the canonical pattern that works across all
+    // supabase-js versions — `supabaseAdmin.auth.getUser(token)` is unreliable
+    // because `_useSession` throws AuthSessionMissingError when persistSession
+    // is false, even when a JWT is provided.
+    const supabaseCaller = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+    });
+    const { data: { user: callerUser }, error: authErr } = await supabaseCaller.auth.getUser();
     if (authErr || !callerUser) {
       console.error('[Auth] Failed to verify token:', authErr);
       return new Response(
