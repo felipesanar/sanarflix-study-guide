@@ -26,7 +26,7 @@ const envSchema = z.object({
   FF_CALENDAR_V2: boolFromString,
 });
 
-export type AppEnv = z.infer<typeof envSchema>;
+export type AppEnv = z.infer<typeof envSchema> & { IS_VALID: boolean };
 
 function buildEnv(): AppEnv {
   const supabaseUrl = rawEnv.VITE_SUPABASE_URL;
@@ -62,16 +62,11 @@ function buildEnv(): AppEnv {
       `[env] Variáveis de ambiente inválidas ou ausentes:\n${issues}\n` +
       `Consulte .env.example para o conjunto esperado.`;
 
-    // Em produção falhamos rápido para não subir com config quebrada.
-    // Em desenvolvimento mantemos o app de pé com erro visível para acelerar onboarding.
-    if (appEnv === 'production') {
-      throw new Error(message);
-    }
+    // Nunca derrubamos o app: logamos e seguimos com fallback marcado como inválido.
+    // main.tsx detecta IS_VALID === false e renderiza tela de erro amigável.
     // eslint-disable-next-line no-console
     Logger.error(message);
 
-    // Fallback mínimo para dev local quando o .env ainda não foi configurado.
-    // Estes valores NÃO devem ser usados em produção e o schema acima impede.
     return {
       SUPABASE_URL: supabaseUrl ?? 'http://localhost:54321',
       SUPABASE_ANON_KEY: supabaseAnonKey ?? 'missing-anon-key',
@@ -80,10 +75,11 @@ function buildEnv(): AppEnv {
       APP_ENV: appEnv as AppEnv['APP_ENV'],
       FF_PROVA_RACE_FIX: false,
       FF_CALENDAR_V2: false,
+      IS_VALID: false,
     };
   }
 
-  return parsed.data;
+  return { ...parsed.data, IS_VALID: true };
 }
 
 export const env: AppEnv = buildEnv();
