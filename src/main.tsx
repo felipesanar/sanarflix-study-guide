@@ -8,14 +8,17 @@ import { preloadCommonResources, setupLinkPrefetch } from './utils/preload';
 import { registerServiceWorker } from './utils/serviceWorker';
 import { env } from './config/env';
 
-function renderFatalScreen(title: string, body: string) {
+function renderFatalScreen() {
   document.body.innerHTML = `
-    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; text-align: center; font-family: system-ui, sans-serif;">
-      <div style="max-width: 480px;">
-        <h1 style="font-size: 24px; margin-bottom: 16px;">${title}</h1>
-        <p style="margin-bottom: 24px; color: #666;">${body}</p>
-        <button onclick="window.location.reload()" style="padding: 12px 24px; background: #000; color: #fff; border: none; border-radius: 6px; cursor: pointer;">
-          Recarregar
+    <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; text-align: center; font-family: system-ui, -apple-system, sans-serif; background: #fafafa;">
+      <div style="max-width: 520px;">
+        <div style="font-size: 64px; margin-bottom: 24px;">📡</div>
+        <h1 style="font-size: 28px; margin-bottom: 12px; color: #111;">Estamos fora do ar</h1>
+        <p style="margin-bottom: 28px; color: #666; line-height: 1.5;">
+          Nosso sistema está temporariamente indisponível. Já estamos trabalhando para normalizar o acesso. Por favor, tente novamente em alguns instantes.
+        </p>
+        <button onclick="window.location.reload()" style="padding: 12px 28px; background: #111; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 500;">
+          Tentar novamente
         </button>
       </div>
     </div>
@@ -24,12 +27,9 @@ function renderFatalScreen(title: string, body: string) {
 
 // Run diagnostics before rendering
 if (!runStartupDiagnostics()) {
-  renderFatalScreen('Erro de Carregamento', 'Por favor, recarregue a página.');
+  renderFatalScreen();
 } else if (!env.IS_VALID) {
-  renderFatalScreen(
-    'Configuração de ambiente ausente',
-    'O aplicativo não pôde inicializar porque variáveis de ambiente estão faltando. Tente novamente em alguns instantes ou contate o suporte.',
-  );
+  renderFatalScreen();
 } else {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
