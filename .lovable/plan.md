@@ -1,42 +1,44 @@
 ## Causa raiz
 
-O preview da Lovable está entrando em loop de reload por causa do Service Worker (`public/sw.js` + `src/utils/serviceWorker.ts`).
+A edge function `b2b-create-user` está retornando 401, e os logs mostram:
 
-Sequência do loop:
+```
+[Auth] Failed to verify token: AuthSessionMissingError: Auth session missing!
+  at SupabaseAuthClient._getUser
+  at index.ts:309 → supabaseAdmin.auth.getUser(token)
+```
 
-1. `main.tsx` chama `registerServiceWorker()` em produção (preview da Lovable é build de produção, então registra).
-2. Em `serviceWorker.ts` existe um listener:
-   ```ts
-   navigator.serviceWorker.addEventListener('controllerchange', () => {
-     window.location.reload();
-   });
-   ```
-3. Toda vez que o preview rebuilda (ou serve um `sw.js` diferente), um novo SW assume, dispara `controllerchange` → `reload()` → carrega de novo → novo SW assume → reload de novo. Loop infinito.
+Em `supabase-js@2.106`, `client.auth.getUser(jwt)` é encaminhado internamente por `_useSession`. Quando o client foi criado com `persistSession: false` (o caso do `supabaseAdmin` na function), não existe sessão local — e `_useSession` lança `AuthSessionMissingError` antes mesmo de validar o JWT que foi passado como argumento. Resultado: 401 em toda invocação, mesmo com Authorization válido.
 
-Isso explica por que aparece logo após o login (quando o app está completamente carregado e o SW termina de instalar), e por que só acontece no preview da Lovable (em produção real o `sw.js` é estável entre visitas).
+Isso explica por que:
+- o front-end já está mandando os campos corretos;
+- a UI da edição existe e o botão verde dispara `supabase.functions.invoke('b2b-create-user', ...)`;
+- o request chega na function (passa Origin, rate limit, header check) mas falha no `getUser`.
 
 ## Correção
 
-Mudanças mínimas e cirúrgicas, apenas em código de bootstrap do SW:
+Mudança cirúrgica apenas em `supabase/functions/b2b-create-user/index.ts`, na seção de verificação do chamador (linhas ~296–319):
 
-### 1. `src/utils/serviceWorker.ts`
-- Remover o reload automático no `controllerchange`. Manter apenas o registro do SW. Atualizações passam a valer no próximo refresh natural do usuário, sem auto-reload (que é o que dispara o loop).
-- Pular o registro quando o host for um domínio de preview da Lovable (`*.lovable.app` que contém `id-preview--` ou `preview--`). Isso garante que mesmo se outro caminho disparar reload, o SW não fique competindo com o bundle servido pelo preview.
+Trocar `supabaseAdmin.auth.getUser(token)` pelo padrão canônico que funciona em todas as versões de `supabase-js`: criar um client efêmero com o anon key e o header `Authorization` do chamador, e chamar `auth.getUser()` sem argumentos.
 
-### 2. `public/sw.js`
-- Remover/condicionar o `self.skipWaiting()` no evento `install` para que o novo SW não tome controle automaticamente assumindo o controlador atual (o que gera o `controllerchange`). Em vez disso, o novo SW só ativa após todos os tabs serem fechados — comportamento padrão e seguro.
+```ts
+const supabaseCaller = createClient(supabaseUrl, anonKey, {
+  global: { headers: { Authorization: authHeader } },
+  auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+});
+const { data: { user: callerUser }, error: authErr } = await supabaseCaller.auth.getUser();
+```
 
-### Não mexer em
-- AuthContext, LoginForm, rotas, edge functions, RLS — esses fluxos estão funcionando (os logs de network mostram login OK e dados sendo retornados antes do reload).
+O resto da function (verificação de admin via RPC `has_role`, validação Zod, fluxo de UPDATE/CREATE, geração de link, e-mail Novu) permanece intacto. `supabaseAdmin` continua sendo usado para todas as operações privilegiadas subsequentes.
 
-## Como o usuário desbloqueia o preview agora
+## Verificação após o fix
 
-Depois do deploy do fix, o usuário precisa desregistrar o SW antigo que já está em loop. Vou orientar para acessar o preview com `?reset-cache=1` (já existe um handler em `App.tsx` que limpa caches, IndexedDB e desregistra Service Workers) e isso encerra o loop em uma única recarga.
+1. Refazer a edição de papel no Portal do Admin → toast de sucesso, sem 401.
+2. Conferir nos logs da edge function que não há mais `AuthSessionMissingError`.
+3. Confirmar via Supabase que a linha em `user_roles` foi inserida/removida conforme a seleção.
 
-## Detalhes técnicos
+## Fora do escopo
 
-Arquivos editados:
-- `src/utils/serviceWorker.ts` — remover handler de `controllerchange` e adicionar guarda para hosts de preview.
-- `public/sw.js` — remover `self.skipWaiting()` do `install`.
-
-Nenhuma migração, nenhuma alteração de UI, nenhuma alteração de auth.
+- Não mexer no front-end (já está correto).
+- Não alterar RLS de `user_roles` (admin já tem permissão e o `toggleAdminRole` existente, que faz exatamente o mesmo `delete`/`insert` no client, funciona — o problema é só na edge function).
+- Não tocar nas outras edge functions agora, mesmo que algumas possam ter o mesmo padrão; cuidamos disso só se o usuário reportar.
