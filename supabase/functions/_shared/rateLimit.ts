@@ -1,25 +1,15 @@
-// Rate limiting baseado em Deno KV (nativo no Supabase Edge Runtime).
-// Janela deslizante simples: contador por chave com TTL.
+// Rate limiting cross-instance via tabela `public.kv_store` no Postgres.
+// Substitui o uso de Deno.openKv() (não habilitado no projeto hospedado) e o
+// fallback em memória (que vazava entre instâncias do edge runtime).
 //
 // Uso típico:
 //   const rl = await checkRateLimit(req, { key: 'b2b-create-user', limitPerMin: 5 });
 //   if (!rl.allowed) return tooManyRequests();
 //
-// Para fallback em ambientes sem KV (testes locais), usamos um Map em memória.
+// Fail-open: se a chamada ao DB falhar, permitimos o request (e logamos).
+// Rate limit não deve derrubar o happy path; segurança real vem de JWT + Zod + RLS.
 
-const memoryStore = new Map<string, { count: number; resetAt: number }>();
-
-let kvInstance: Deno.Kv | null | undefined;
-async function getKv(): Promise<Deno.Kv | null> {
-  if (kvInstance !== undefined) return kvInstance;
-  try {
-    // openKv pode lançar se não habilitado no projeto.
-    kvInstance = await Deno.openKv();
-  } catch {
-    kvInstance = null;
-  }
-  return kvInstance;
-}
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export interface RateLimitOptions {
   /** Identificador da rota/operação (ex: 'b2b-create-user'). */
@@ -32,6 +22,18 @@ export interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetIn: number; // segundos até reset
+}
+
+let adminClient: SupabaseClient | null = null;
+function getAdmin(): SupabaseClient | null {
+  if (adminClient) return adminClient;
+  const url = Deno.env.get('SUPABASE_URL');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !serviceKey) return null;
+  adminClient = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return adminClient;
 }
 
 function getClientIp(req: Request): string {
@@ -49,33 +51,32 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const limit = opts.limitPerMin ?? 10;
   const ip = getClientIp(req);
-  const window = Math.floor(Date.now() / 60_000);
-  const fullKey = `rl:${opts.key}:${ip}:${window}`;
+  const fullKey = `rl:${opts.key}:${ip}`;
 
-  const kv = await getKv();
-  if (kv) {
-    const current = await kv.get<number>([fullKey]);
-    const count = (current.value ?? 0) + 1;
-    // TTL 65s: cobre a janela inteira + buffer.
-    await kv.set([fullKey], count, { expireIn: 65_000 });
+  const admin = getAdmin();
+  if (!admin) {
+    console.warn('[rateLimit] missing SUPABASE_URL/SERVICE_ROLE_KEY → fail-open');
+    return { allowed: true, remaining: limit, resetIn: 60 };
+  }
+
+  try {
+    const { data, error } = await admin.rpc('kv_incr', {
+      p_key: fullKey,
+      p_ttl_seconds: 60,
+      p_limit: limit,
+    });
+    if (error || !data) {
+      console.warn('[rateLimit] kv_incr error → fail-open:', error?.message);
+      return { allowed: true, remaining: limit, resetIn: 60 };
+    }
+    const row = data as { allowed: boolean; remaining: number; reset_in: number };
     return {
-      allowed: count <= limit,
-      remaining: Math.max(0, limit - count),
-      resetIn: 60 - (Math.floor(Date.now() / 1000) % 60),
+      allowed: row.allowed,
+      remaining: row.remaining,
+      resetIn: row.reset_in,
     };
+  } catch (err) {
+    console.warn('[rateLimit] unexpected error → fail-open:', err);
+    return { allowed: true, remaining: limit, resetIn: 60 };
   }
-
-  // Fallback em memória (não compartilha entre instâncias)
-  const now = Date.now();
-  const existing = memoryStore.get(fullKey);
-  if (!existing || existing.resetAt < now) {
-    memoryStore.set(fullKey, { count: 1, resetAt: now + 65_000 });
-    return { allowed: true, remaining: limit - 1, resetIn: 60 };
-  }
-  existing.count += 1;
-  return {
-    allowed: existing.count <= limit,
-    remaining: Math.max(0, limit - existing.count),
-    resetIn: Math.ceil((existing.resetAt - now) / 1000),
-  };
 }
