@@ -589,11 +589,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       nome: user.nome,
       id_ies: user.id_ies || '',
       semestre: user.semestre?.toString() || '',
+      role: derivePrimaryRole(user.roles),
     });
   };
 
   const cancelEditing = () => {
-    setEditing({ userId: null, nome: '', id_ies: '', semestre: '' });
+    setEditing({ userId: null, nome: '', id_ies: '', semestre: '', role: ROLE_NONE });
   };
 
   const saveEditing = async () => {
@@ -621,6 +622,27 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
         body: { nome: editing.nome.trim(), email: user.email, id_ies: editing.id_ies, semestre },
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
+
+      // Sincronizar papel (mutuamente exclusivo entre os papéis editáveis)
+      const currentRole = derivePrimaryRole(user.roles);
+      if (editing.role !== currentRole) {
+        const { error: delErr } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', user.id)
+          .in('role', PRIVILEGED_ROLES as Array<'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo'>);
+        if (delErr) {
+          toast.error(`Usuário atualizado, mas falhou ao alterar papel: ${delErr.message}`);
+        } else if (editing.role !== ROLE_NONE) {
+          const { error: insErr } = await supabase
+            .from('user_roles')
+            .insert({ user_id: user.id, role: editing.role as 'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo' });
+          if (insErr) {
+            toast.error(`Falha ao definir novo papel: ${insErr.message}`);
+          }
+        }
+      }
+
       toast.success('Usuário atualizado com sucesso');
       cancelEditing();
       fetchUsers();
