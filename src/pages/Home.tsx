@@ -251,8 +251,7 @@ export const Home: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Quick actions dock */}
-      <QuickActionsDock hasStudyGuide={hasStudyGuide} hasCronograma={hasCronograma} />
+
 
       {/* Add Exam Wizard Modal */}
       {isMobile ? (

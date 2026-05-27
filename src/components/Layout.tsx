@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { ChangePasswordDialog } from './ChangePasswordDialog';
 import { PasswordDialogProvider, usePasswordDialog } from '@/contexts/PasswordDialogContext';
 import { useLocation } from 'react-router-dom';
-import { QuickActionsDock } from '@/components/home/QuickActionsDock';
 import { useSessionTracker } from '@/hooks/useSessionTracker';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
