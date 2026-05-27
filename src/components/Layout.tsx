@@ -138,7 +138,8 @@ function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
         </Button>
       )}
       <FeedbackFab />
-      <QuickActionsDock position="inline" />
+
+
 
     </div>
   );
