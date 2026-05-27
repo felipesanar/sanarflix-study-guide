@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Logger } from '@/utils/logger';
@@ -198,7 +199,7 @@ export const useErrorNotebook = () => {
     }
 
     try {
-      const updateData: Record<string, any> = {};
+      const updateData: Database['public']['Tables']['error_notebook_entries']['Update'] = {};
       if (updates.reason) updateData.reason = updates.reason;
       if (learningText !== undefined) updateData.learning_text = learningText;
 

@@ -4,6 +4,7 @@ import { Logger } from '@/utils/logger';
 const rawEnv = {
   VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL as string | undefined,
   VITE_SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined,
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined,
   VITE_STUDY_GUIDE_API_BASE_URL: import.meta.env.VITE_STUDY_GUIDE_API_BASE_URL as string | undefined,
   VITE_EDGE_FUNCTIONS_BASE_URL: import.meta.env.VITE_EDGE_FUNCTIONS_BASE_URL as string | undefined,
   VITE_APP_ENV: import.meta.env.VITE_APP_ENV as string | undefined,
@@ -30,7 +31,7 @@ export type AppEnv = z.infer<typeof envSchema> & { IS_VALID: boolean };
 
 function buildEnv(): AppEnv {
   const supabaseUrl = rawEnv.VITE_SUPABASE_URL;
-  const supabaseAnonKey = rawEnv.VITE_SUPABASE_ANON_KEY;
+  const supabaseAnonKey = rawEnv.VITE_SUPABASE_ANON_KEY ?? rawEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
   const appEnv = rawEnv.VITE_APP_ENV ?? (rawEnv.PROD ? 'production' : 'development');
 
   // Derived defaults so envs that only set SUPABASE_URL still work.
