@@ -1,77 +1,42 @@
-## Objetivo
+## Causa raiz
 
-Permitir que o admin edite o **papel** de um usuário diretamente no modo de edição inline da "Lista de Usuários" (Portal do Admin), com um menu suspenso ao lado dos campos Nome / IES / Semestre.
+O preview da Lovable está entrando em loop de reload por causa do Service Worker (`public/sw.js` + `src/utils/serviceWorker.ts`).
 
-## Onde mexer
+Sequência do loop:
 
-Tudo no componente já existente: `src/components/admin/UsersListTable.tsx`. Sem mudanças de schema (o enum `app_role` já contém todos os papéis necessários, e a policy "Admins can manage all user roles" já permite ao admin inserir/deletar em `user_roles`).
+1. `main.tsx` chama `registerServiceWorker()` em produção (preview da Lovable é build de produção, então registra).
+2. Em `serviceWorker.ts` existe um listener:
+   ```ts
+   navigator.serviceWorker.addEventListener('controllerchange', () => {
+     window.location.reload();
+   });
+   ```
+3. Toda vez que o preview rebuilda (ou serve um `sw.js` diferente), um novo SW assume, dispara `controllerchange` → `reload()` → carrega de novo → novo SW assume → reload de novo. Loop infinito.
 
-## Mudanças
+Isso explica por que aparece logo após o login (quando o app está completamente carregado e o SW termina de instalar), e por que só acontece no preview da Lovable (em produção real o `sw.js` é estável entre visitas).
 
-### 1. Estado de edição
-Adicionar `role` ao `EditingState`:
+## Correção
 
-```ts
-interface EditingState {
-  userId: string | null;
-  nome: string;
-  id_ies: string;
-  semestre: string;
-  role: string; // '' = aluno (sem papel privilegiado)
-}
-```
+Mudanças mínimas e cirúrgicas, apenas em código de bootstrap do SW:
 
-`startEditing` passa a derivar o papel atual a partir de `user.roles` (pega o primeiro papel "editável" encontrado; se nenhum, vira `''` = Aluno).
+### 1. `src/utils/serviceWorker.ts`
+- Remover o reload automático no `controllerchange`. Manter apenas o registro do SW. Atualizações passam a valer no próximo refresh natural do usuário, sem auto-reload (que é o que dispara o loop).
+- Pular o registro quando o host for um domínio de preview da Lovable (`*.lovable.app` que contém `id-preview--` ou `preview--`). Isso garante que mesmo se outro caminho disparar reload, o SW não fique competindo com o bundle servido pelo preview.
 
-### 2. Lista de papéis editáveis
+### 2. `public/sw.js`
+- Remover/condicionar o `self.skipWaiting()` no evento `install` para que o novo SW não tome controle automaticamente assumindo o controlador atual (o que gera o `controllerchange`). Em vez disso, o novo SW só ativa após todos os tabs serem fechados — comportamento padrão e seguro.
 
-Constante no topo do componente:
+### Não mexer em
+- AuthContext, LoginForm, rotas, edge functions, RLS — esses fluxos estão funcionando (os logs de network mostram login OK e dados sendo retornados antes do reload).
 
-```ts
-const EDITABLE_ROLES = [
-  { value: '',              label: 'Aluno' },
-  { value: 'admin',         label: 'Admin' },
-  { value: 'professor',     label: 'Professor' },
-  { value: 'gestor',        label: 'Gestor' },
-  { value: 'gestor_formal', label: 'Gestor Formal' },
-  { value: 'gestor_grupo',  label: 'Gestor de Grupo' },
-  { value: 'atendimento',   label: 'Atendimento' },
-  { value: 'b2b_partner',   label: 'Parceiro B2B' },
-  { value: 'moderator',     label: 'Moderador' },
-];
-```
+## Como o usuário desbloqueia o preview agora
 
-(Cobre todo o enum `app_role` exceto `user`, que não é usado pelo app.)
+Depois do deploy do fix, o usuário precisa desregistrar o SW antigo que já está em loop. Vou orientar para acessar o preview com `?reset-cache=1` (já existe um handler em `App.tsx` que limpa caches, IndexedDB e desregistra Service Workers) e isso encerra o loop em uma única recarga.
 
-### 3. UI — célula "Papel" no modo edição
+## Detalhes técnicos
 
-Hoje (linhas 1097-1121) a célula só renderiza badges. Quando `isEditing` for true, mostrar um `<Select>` (shadcn) com as opções acima, em vez dos badges:
+Arquivos editados:
+- `src/utils/serviceWorker.ts` — remover handler de `controllerchange` e adicionar guarda para hosts de preview.
+- `public/sw.js` — remover `self.skipWaiting()` do `install`.
 
-```text
-[ Select: Gestor de Grupo ▾ ]
-```
-
-Quando não estiver editando, mantém os badges como hoje.
-
-### 4. Persistência — `saveEditing`
-
-Hoje a função só chama `b2b-create-user` (nome/IES/semestre). Adicionar, **depois** desse sucesso e **somente se o papel mudou** em relação ao atual:
-
-1. `DELETE FROM user_roles WHERE user_id = X AND role IN (<EDITABLE_ROLES menos ''>)`
-   — garante mutua exclusão e elimina o problema dos papéis duplicados (gestor + gestor_grupo) descrito na memória do projeto.
-2. Se `editing.role !== ''`: `INSERT INTO user_roles (user_id, role) VALUES (X, editing.role)`.
-
-Tudo via `supabase.from('user_roles')` no client (admin já tem permissão pela policy existente).
-
-Toast de sucesso continua único ("Usuário atualizado com sucesso"); em caso de erro só nas roles, mostrar mensagem específica e ainda assim chamar `fetchUsers()` para refletir o estado real.
-
-### 5. Pequenos ajustes
-
-- `cancelEditing` zera também `role`.
-- Não mexer no menu de 3 pontos nem em `toggleAdminRole` (mantém atalho rápido "Promover/Remover Admin").
-
-## Fora de escopo
-
-- Mudar políticas RLS, enum `app_role` ou edge functions.
-- Edição em massa de papéis.
-- Edição de papel na criação de usuário (formulário "Criar Usuário Individual") — só na linha existente, conforme pedido.
+Nenhuma migração, nenhuma alteração de UI, nenhuma alteração de auth.
