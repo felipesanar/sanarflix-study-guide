@@ -12,7 +12,12 @@ const ALLOWED_ORIGINS = new Set([
 
 export const isAllowedOrigin = (origin?: string | null): boolean => {
   if (!origin) return false;
-  return ALLOWED_ORIGINS.has(origin) || origin.endsWith('.app.github.dev');
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  if (origin.endsWith('.app.github.dev')) return true;
+  // Lovable preview/sandbox subdomains (id-preview--<uuid>.lovable.app,
+  // <branch>--<slug>.lovable.app, etc.) — todos servem a mesma UI Sanar.
+  if (origin.endsWith('.lovable.app')) return true;
+  return false;
 };
 
 export const buildCorsHeaders = (origin?: string | null): Record<string, string> | null => {
