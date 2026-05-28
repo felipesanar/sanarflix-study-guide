@@ -415,6 +415,11 @@ export async function extractImagesFromXlsx(
               enunciadoImages[numeroQuestao] = image;
               stats.matchedEnunciado += 1;
             }
+          } else if (enunciado2ColCandidates.includes(colIdx)) {
+            if (!enunciado2Images[numeroQuestao]) {
+              enunciado2Images[numeroQuestao] = image;
+              stats.matchedEnunciado2 += 1;
+            }
           } else if (options.comentarioColCandidates.includes(colIdx)) {
             if (!comentarioImages[numeroQuestao]) {
               comentarioImages[numeroQuestao] = image;
@@ -427,8 +432,8 @@ export async function extractImagesFromXlsx(
         Logger.info('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
       }
 
-      if (stats.matchedEnunciado + stats.matchedComentario > 0) {
-        return { enunciadoImages, comentarioImages, stats };
+      if (stats.matchedEnunciado + stats.matchedEnunciado2 + stats.matchedComentario > 0) {
+        return { enunciadoImages, enunciado2Images, comentarioImages, stats };
       }
     } catch (e) {
       Logger.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
