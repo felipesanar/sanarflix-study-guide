@@ -725,7 +725,8 @@ const drawQuestionBlock = (
   doc: jsPDF,
   questao: QuestaoRevisada,
   yStart: number,
-  imageBase64: string | null
+  imageBase64: string | null,
+  image2Base64: string | null = null
 ): number => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
