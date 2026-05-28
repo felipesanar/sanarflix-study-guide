@@ -724,7 +724,7 @@ export default function SimuladosTab() {
         // Upload de imagens embutidas (se houver) e inserção das questões
         if (previewData) {
           // 1. Coleta todas as imagens base64 para envio à edge function
-          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'comentario'; data: string; mime: string }> = [];
+          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; data: string; mime: string }> = [];
           for (const q of previewData.questoes) {
             if (q._embeddedEnunciado) {
               imagesPayload.push({
@@ -732,6 +732,14 @@ export default function SimuladosTab() {
                 slot: 'enunciado',
                 data: q._embeddedEnunciado.base64,
                 mime: q._embeddedEnunciado.mimeType,
+              });
+            }
+            if (q._embeddedEnunciado2) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'enunciado2',
+                data: q._embeddedEnunciado2.base64,
+                mime: q._embeddedEnunciado2.mimeType,
               });
             }
             if (q._embeddedComentario) {
@@ -744,8 +752,8 @@ export default function SimuladosTab() {
             }
           }
 
-          // Mapa ordem → { enunciado, comentario } com URLs vindas do Storage
-          const urlsByOrdem: Record<number, { enunciado?: string; comentario?: string }> = {};
+          // Mapa ordem → { enunciado, enunciado2, comentario } com URLs vindas do Storage
+          const urlsByOrdem: Record<number, { enunciado?: string; enunciado2?: string; comentario?: string }> = {};
 
           if (imagesPayload.length > 0) {
             try {
@@ -754,7 +762,7 @@ export default function SimuladosTab() {
                 { body: { simulado_id: simulado.id, images: imagesPayload } }
               );
               if (uploadError) throw uploadError;
-              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'comentario'; url: string }>;
+              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; url: string }>;
               for (const u of returnedUrls) {
                 if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
                 urlsByOrdem[u.ordem][u.slot] = u.url;
