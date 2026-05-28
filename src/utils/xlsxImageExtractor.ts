@@ -289,11 +289,14 @@ export async function extractImagesFromXlsx(
   const stats = {
     totalMedia: 0,
     matchedEnunciado: 0,
+    matchedEnunciado2: 0,
     matchedComentario: 0,
     skippedNoAnchor: 0,
     skippedWrongColumn: 0,
     skippedNoQuestionNumber: 0,
   };
+
+  const enunciado2ColCandidates = options.enunciado2ColCandidates ?? [];
 
   // 1. Lê todos os binários em xl/media/*
   const mediaFiles: Record<string, Uint8Array> = {};
@@ -318,10 +321,11 @@ export async function extractImagesFromXlsx(
 
   if (stats.totalMedia === 0) {
     Logger.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
 
   const enunciadoImages: Record<number, ExtractedImage> = {};
+  const enunciado2Images: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
   Logger.info('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
