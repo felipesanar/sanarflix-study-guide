@@ -22,12 +22,15 @@ export type ExtractedImage = {
 export type ExtractedImagesResult = {
   /** Mapa NÚMERO DA QUESTÃO (lido da coluna `numero` da planilha) → imagem do enunciado */
   enunciadoImages: Record<number, ExtractedImage>;
+  /** Mapa NÚMERO DA QUESTÃO → SEGUNDA imagem do enunciado (coluna "Imagem 2 do enunciado") */
+  enunciado2Images: Record<number, ExtractedImage>;
   /** Mapa NÚMERO DA QUESTÃO → imagem do comentário */
   comentarioImages: Record<number, ExtractedImage>;
   /** Estatísticas para log/debug */
   stats: {
     totalMedia: number;
     matchedEnunciado: number;
+    matchedEnunciado2: number;
     matchedComentario: number;
     skippedNoAnchor: number;
     skippedWrongColumn: number;
@@ -48,6 +51,11 @@ export type ExtractImagesOptions = {
    * Qualquer imagem ancorada em uma dessas colunas vira imagem de enunciado.
    */
   enunciadoColCandidates: number[];
+  /**
+   * Índices 0-based candidatos para a SEGUNDA imagem do enunciado,
+   * vinda da coluna "Imagem 2 do enunciado". Opcional — quando vazio, o slot é ignorado.
+   */
+  enunciado2ColCandidates?: number[];
   /** Mesmo esquema para imagens do comentário. */
   comentarioColCandidates: number[];
   /** Índice 0-based da coluna `numero` na planilha (chave de vinculação) */
