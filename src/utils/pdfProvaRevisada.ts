@@ -820,6 +820,36 @@ const drawQuestionBlock = (
       // Skip if image fails
     }
   }
+
+  // Segunda imagem do enunciado (opcional)
+  if (image2Base64) {
+    try {
+      const imgProps = doc.getImageProperties(image2Base64);
+      const naturalWidth = imgProps.width;
+      const naturalHeight = imgProps.height;
+      const maxImgWidth = Math.min(contentWidth - 20, 140);
+      const maxImgHeight = 100;
+
+      let imgWidth = maxImgWidth;
+      let imgHeight = imgWidth * (naturalHeight / naturalWidth);
+
+      if (imgHeight > maxImgHeight) {
+        imgHeight = maxImgHeight;
+        imgWidth = imgHeight * (naturalWidth / naturalHeight);
+      }
+
+      if (yPos + imgHeight > pageHeight - 40) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      const imgX = marginX + (contentWidth - imgWidth) / 2;
+      doc.addImage(image2Base64, 'PNG', imgX, yPos, imgWidth, imgHeight);
+      yPos += imgHeight + 10;
+    } catch {
+      // Skip if image fails
+    }
+  }
   
   // Alternativas
   yPos += 3;
