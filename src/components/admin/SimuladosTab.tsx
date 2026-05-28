@@ -438,10 +438,12 @@ export default function SimuladosTab() {
 
           Logger.info('[SimuladosTab] Colunas de imagem detectadas:', {
             imagemEnunciadoHeaderCol,
+            imagemEnunciado2HeaderCol,
             enunciadoTextCol,
             imagemComentarioHeaderCol,
             comentarioTextCol,
             enunciadoColCandidates,
+            enunciado2ColCandidates,
             comentarioColCandidates,
             numeroColIndex,
             originalKeys,
@@ -451,13 +453,15 @@ export default function SimuladosTab() {
 
           let extracted = {
             enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
+            enunciado2Images: {} as Record<number, { base64: string; mimeType: string }>,
             comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
-            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedEnunciado2: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
           };
-          if (enunciadoColCandidates.length > 0 || comentarioColCandidates.length > 0) {
+          if (enunciadoColCandidates.length > 0 || enunciado2ColCandidates.length > 0 || comentarioColCandidates.length > 0) {
             try {
               extracted = await extractImagesFromXlsx(arrayBuffer, {
                 enunciadoColCandidates,
+                enunciado2ColCandidates,
                 comentarioColCandidates,
                 numeroColIndex,
               });
