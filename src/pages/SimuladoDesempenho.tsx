@@ -74,6 +74,7 @@ interface ReviewedQuestion {
   a: string; b: string; c: string; d: string;
   comentario: string;
   imagem: string | null;
+  imagem_2?: string | null;
   acertou: boolean;
   user_answer?: string | null;
   anulada?: boolean;
@@ -181,6 +182,11 @@ const QuestionModal: React.FC<{
               {question.imagem && (
                 <div className="flex justify-center">
                   <img src={question.imagem} alt="Imagem da questão" className="max-w-full h-auto rounded-xl border border-border/30" />
+                </div>
+              )}
+              {question.imagem_2 && (
+                <div className="flex justify-center">
+                  <img src={question.imagem_2} alt="Imagem 2 da questão" className="max-w-full h-auto rounded-xl border border-border/30" />
                 </div>
               )}
               <div className="space-y-2.5">

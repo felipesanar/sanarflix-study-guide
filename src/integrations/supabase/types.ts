@@ -2044,6 +2044,7 @@ export type Database = {
           gabarito: string
           id: string
           imagem: string
+          imagem_2: string
           user_answer: string
         }[]
       }
