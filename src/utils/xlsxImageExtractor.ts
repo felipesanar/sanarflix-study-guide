@@ -481,7 +481,7 @@ export async function extractImagesFromXlsx(
 
   if (!drawingPath || !zip.files[drawingPath]) {
     Logger.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
 
   // 3. Lê os rels do drawing
@@ -492,7 +492,7 @@ export async function extractImagesFromXlsx(
   const drawingRelsFile = zip.files[drawingRelsPath];
   if (!drawingRelsFile) {
     Logger.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
   const drawingRelsXml = await drawingRelsFile.async('string');
   const drawingRels = parseRels(drawingRelsXml);
