@@ -37,6 +37,7 @@ interface CorrectedQuestion {
   correta: string;
   comentario: string | null;
   imagem: string | null;
+  imagem_2: string | null;
   imagem_comentario: string | null;
   grande_area: string | null;
   especialidade: string | null;
