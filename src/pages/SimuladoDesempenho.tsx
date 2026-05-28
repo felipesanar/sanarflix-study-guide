@@ -184,6 +184,11 @@ const QuestionModal: React.FC<{
                   <img src={question.imagem} alt="Imagem da questão" className="max-w-full h-auto rounded-xl border border-border/30" />
                 </div>
               )}
+              {question.imagem_2 && (
+                <div className="flex justify-center">
+                  <img src={question.imagem_2} alt="Imagem 2 da questão" className="max-w-full h-auto rounded-xl border border-border/30" />
+                </div>
+              )}
               <div className="space-y-2.5">
                 {alternatives.map(alt => {
                   const isCorrectAnswer = question.gabarito === alt.key;
