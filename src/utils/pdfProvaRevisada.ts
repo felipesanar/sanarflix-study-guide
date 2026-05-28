@@ -22,6 +22,7 @@ export interface QuestaoRevisada {
   acertou: boolean | null; // null = não respondeu
   comentario: string | null;
   imagem: string | null;
+  imagem2?: string | null;
   imagemComentario: string | null;
   grandeArea: string;
   especialidade: string;
