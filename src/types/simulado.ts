@@ -23,6 +23,7 @@ export interface Questao {
   alternativa_d: string;
   gabarito: 'A' | 'B' | 'C' | 'D';
   imagem?: string;
+  imagem_2?: string;
   imagem_comentario?: string;
   tema: string;
   especialidade: string;

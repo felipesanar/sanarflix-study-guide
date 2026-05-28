@@ -82,11 +82,14 @@ interface Questao {
   comentario: string | null;
   feedback_corretas: string | null;
   imagem: string | null;
+  imagem_2?: string | null;
   imagem_comentario?: string | null;
   observacao: string | null;
   anulada?: boolean;
   /** Apenas no preview (cliente) — não vai pro banco */
   _embeddedEnunciado?: EmbeddedImage;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedEnunciado2?: EmbeddedImage;
   /** Apenas no preview (cliente) — não vai pro banco */
   _embeddedComentario?: EmbeddedImage;
 }
@@ -319,7 +322,13 @@ export default function SimuladosTab() {
 
           const firstRow = jsonData[0] as any;
           const originalKeys = Object.keys(firstRow);
-          const columns = originalKeys.map(k => k.toLowerCase().trim());
+          // Normaliza: lowercase + trim + remove acentos do "número" → "numero"
+          // (mantém demais acentos para preservar "grande área" e "comentário").
+          const norm = (k: string) => {
+            const lower = k.toLowerCase().trim();
+            return lower === 'número' ? 'numero' : lower;
+          };
+          const columns = originalKeys.map(norm);
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
@@ -721,7 +730,7 @@ export default function SimuladosTab() {
         // Upload de imagens embutidas (se houver) e inserção das questões
         if (previewData) {
           // 1. Coleta todas as imagens base64 para envio à edge function
-          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'comentario'; data: string; mime: string }> = [];
+          const imagesPayload: Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; data: string; mime: string }> = [];
           for (const q of previewData.questoes) {
             if (q._embeddedEnunciado) {
               imagesPayload.push({
@@ -729,6 +738,14 @@ export default function SimuladosTab() {
                 slot: 'enunciado',
                 data: q._embeddedEnunciado.base64,
                 mime: q._embeddedEnunciado.mimeType,
+              });
+            }
+            if (q._embeddedEnunciado2) {
+              imagesPayload.push({
+                ordem: q.ordem,
+                slot: 'enunciado2',
+                data: q._embeddedEnunciado2.base64,
+                mime: q._embeddedEnunciado2.mimeType,
               });
             }
             if (q._embeddedComentario) {
@@ -741,8 +758,8 @@ export default function SimuladosTab() {
             }
           }
 
-          // Mapa ordem → { enunciado, comentario } com URLs vindas do Storage
-          const urlsByOrdem: Record<number, { enunciado?: string; comentario?: string }> = {};
+          // Mapa ordem → { enunciado, enunciado2, comentario } com URLs vindas do Storage
+          const urlsByOrdem: Record<number, { enunciado?: string; enunciado2?: string; comentario?: string }> = {};
 
           if (imagesPayload.length > 0) {
             try {
@@ -751,7 +768,7 @@ export default function SimuladosTab() {
                 { body: { simulado_id: simulado.id, images: imagesPayload } }
               );
               if (uploadError) throw uploadError;
-              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'comentario'; url: string }>;
+              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; url: string }>;
               for (const u of returnedUrls) {
                 if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
                 urlsByOrdem[u.ordem][u.slot] = u.url;
@@ -774,12 +791,13 @@ export default function SimuladosTab() {
 
           // 2. Monta payload final, removendo campos internos e injetando URLs
           const questoesComSimuladoId = previewData.questoes.map(q => {
-            const { _embeddedEnunciado, _embeddedComentario, ...clean } = q;
+            const { _embeddedEnunciado, _embeddedEnunciado2, _embeddedComentario, ...clean } = q;
             const slotUrls = urlsByOrdem[q.ordem] ?? {};
             return {
               ...clean,
               simulado_id: simulado.id,
               imagem: slotUrls.enunciado ?? clean.imagem ?? null,
+              imagem_2: slotUrls.enunciado2 ?? (clean as any).imagem_2 ?? null,
               imagem_comentario: slotUrls.comentario ?? clean.imagem_comentario ?? null,
             };
           });

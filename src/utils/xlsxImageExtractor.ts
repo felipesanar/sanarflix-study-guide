@@ -22,12 +22,15 @@ export type ExtractedImage = {
 export type ExtractedImagesResult = {
   /** Mapa NÚMERO DA QUESTÃO (lido da coluna `numero` da planilha) → imagem do enunciado */
   enunciadoImages: Record<number, ExtractedImage>;
+  /** Mapa NÚMERO DA QUESTÃO → SEGUNDA imagem do enunciado (coluna "Imagem 2 do enunciado") */
+  enunciado2Images: Record<number, ExtractedImage>;
   /** Mapa NÚMERO DA QUESTÃO → imagem do comentário */
   comentarioImages: Record<number, ExtractedImage>;
   /** Estatísticas para log/debug */
   stats: {
     totalMedia: number;
     matchedEnunciado: number;
+    matchedEnunciado2: number;
     matchedComentario: number;
     skippedNoAnchor: number;
     skippedWrongColumn: number;
@@ -48,6 +51,11 @@ export type ExtractImagesOptions = {
    * Qualquer imagem ancorada em uma dessas colunas vira imagem de enunciado.
    */
   enunciadoColCandidates: number[];
+  /**
+   * Índices 0-based candidatos para a SEGUNDA imagem do enunciado,
+   * vinda da coluna "Imagem 2 do enunciado". Opcional — quando vazio, o slot é ignorado.
+   */
+  enunciado2ColCandidates?: number[];
   /** Mesmo esquema para imagens do comentário. */
   comentarioColCandidates: number[];
   /** Índice 0-based da coluna `numero` na planilha (chave de vinculação) */
@@ -281,11 +289,14 @@ export async function extractImagesFromXlsx(
   const stats = {
     totalMedia: 0,
     matchedEnunciado: 0,
+    matchedEnunciado2: 0,
     matchedComentario: 0,
     skippedNoAnchor: 0,
     skippedWrongColumn: 0,
     skippedNoQuestionNumber: 0,
   };
+
+  const enunciado2ColCandidates = options.enunciado2ColCandidates ?? [];
 
   // 1. Lê todos os binários em xl/media/*
   const mediaFiles: Record<string, Uint8Array> = {};
@@ -310,10 +321,11 @@ export async function extractImagesFromXlsx(
 
   if (stats.totalMedia === 0) {
     Logger.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
 
   const enunciadoImages: Record<number, ExtractedImage> = {};
+  const enunciado2Images: Record<number, ExtractedImage> = {};
   const comentarioImages: Record<number, ExtractedImage> = {};
 
   Logger.info('[xlsxImageExtractor] >>> Iniciando extração. Opções:', options);
@@ -403,6 +415,11 @@ export async function extractImagesFromXlsx(
               enunciadoImages[numeroQuestao] = image;
               stats.matchedEnunciado += 1;
             }
+          } else if (enunciado2ColCandidates.includes(colIdx)) {
+            if (!enunciado2Images[numeroQuestao]) {
+              enunciado2Images[numeroQuestao] = image;
+              stats.matchedEnunciado2 += 1;
+            }
           } else if (options.comentarioColCandidates.includes(colIdx)) {
             if (!comentarioImages[numeroQuestao]) {
               comentarioImages[numeroQuestao] = image;
@@ -415,8 +432,8 @@ export async function extractImagesFromXlsx(
         Logger.info('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
       }
 
-      if (stats.matchedEnunciado + stats.matchedComentario > 0) {
-        return { enunciadoImages, comentarioImages, stats };
+      if (stats.matchedEnunciado + stats.matchedEnunciado2 + stats.matchedComentario > 0) {
+        return { enunciadoImages, enunciado2Images, comentarioImages, stats };
       }
     } catch (e) {
       Logger.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
@@ -464,7 +481,7 @@ export async function extractImagesFromXlsx(
 
   if (!drawingPath || !zip.files[drawingPath]) {
     Logger.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
 
   // 3. Lê os rels do drawing
@@ -475,7 +492,7 @@ export async function extractImagesFromXlsx(
   const drawingRelsFile = zip.files[drawingRelsPath];
   if (!drawingRelsFile) {
     Logger.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
-    return { enunciadoImages: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
   }
   const drawingRelsXml = await drawingRelsFile.async('string');
   const drawingRels = parseRels(drawingRelsXml);
@@ -544,6 +561,11 @@ export async function extractImagesFromXlsx(
         enunciadoImages[numeroQuestao] = image;
         stats.matchedEnunciado += 1;
       }
+    } else if (enunciado2ColCandidates.includes(col)) {
+      if (!enunciado2Images[numeroQuestao]) {
+        enunciado2Images[numeroQuestao] = image;
+        stats.matchedEnunciado2 += 1;
+      }
     } else if (options.comentarioColCandidates.includes(col)) {
       if (!comentarioImages[numeroQuestao]) {
         comentarioImages[numeroQuestao] = image;
@@ -557,7 +579,7 @@ export async function extractImagesFromXlsx(
   Logger.info('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
   Logger.info('[xlsxImageExtractor] Stats finais:', stats);
 
-  return { enunciadoImages, comentarioImages, stats };
+  return { enunciadoImages, enunciado2Images, comentarioImages, stats };
 }
 
 /**

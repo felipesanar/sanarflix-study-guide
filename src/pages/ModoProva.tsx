@@ -597,6 +597,16 @@ export const ModoProva = () => {
                   />
                 </div>
               )}
+
+              {questaoAtualData?.imagem_2 && (
+                <div className="mt-4">
+                  <ImageLightbox
+                    src={questaoAtualData.imagem_2}
+                    alt={`Imagem complementar da questão ${questaoAtual + 1}`}
+                    className="max-w-full rounded-lg border"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Alternativas */}
