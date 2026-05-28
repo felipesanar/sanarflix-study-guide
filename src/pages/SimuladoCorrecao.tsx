@@ -663,6 +663,17 @@ export const SimuladoCorrecao: React.FC = () => {
                       </div>
                     )}
 
+                    {/* Segunda imagem do enunciado (opcional) */}
+                    {currentQuestion.imagem_2 && (
+                      <div className="flex justify-center">
+                        <ImageLightbox
+                          src={currentQuestion.imagem_2}
+                          alt={`Imagem 2 da questão ${currentIndex + 1}`}
+                          className="max-w-full max-h-80 rounded-xl object-contain"
+                        />
+                      </div>
+                    )}
+
                     {/* Alternatives */}
                     <div className="space-y-3">
                       {(['A', 'B', 'C', 'D', 'E'] as const).map((letra, idx) => {
