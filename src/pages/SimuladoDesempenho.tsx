@@ -74,6 +74,7 @@ interface ReviewedQuestion {
   a: string; b: string; c: string; d: string;
   comentario: string;
   imagem: string | null;
+  imagem_2?: string | null;
   acertou: boolean;
   user_answer?: string | null;
   anulada?: boolean;
