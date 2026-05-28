@@ -745,7 +745,7 @@ export const SimuladoDesempenho: React.FC = () => {
     setIsDownloadingProvaRevisada(true);
     setDownloadProgress('Preparando...');
     try {
-      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_comentario, grande_area, especialidade, tema, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
+      const { data: questoesCompletas, error: questoesError } = await supabase.from('questoes_simulado').select(`id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_2, imagem_comentario, grande_area, especialidade, tema, anulada`).eq('simulado_id', selectedSimulado).order('ordem', { ascending: true });
       if (questoesError) throw questoesError;
       if (!questoesCompletas || questoesCompletas.length === 0) throw new Error('Nenhuma questão encontrada');
       setDownloadProgress('Carregando respostas...');
