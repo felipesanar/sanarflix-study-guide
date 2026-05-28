@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
   );
 
   // 4. Upload em série (poucos itens normalmente; evita explosão de concorrência)
-  const urls: Array<{ ordem: number; slot: 'enunciado' | 'comentario'; url: string }> = [];
+  const urls: Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; url: string }> = [];
   const errors: Array<{ ordem: number; slot: string; message: string }> = [];
 
   for (const img of images) {
