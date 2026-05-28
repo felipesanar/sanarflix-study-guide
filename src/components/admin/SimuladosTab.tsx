@@ -549,16 +549,21 @@ export default function SimuladosTab() {
           setUploadProgress(100);
           setShowPreviewModal(true);
 
-          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedComentario;
+          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedEnunciado2 + extracted.stats.matchedComentario;
           if (totalEmbedded > 0) {
+            const parts = [
+              `${extracted.stats.matchedEnunciado} no enunciado`,
+              extracted.stats.matchedEnunciado2 > 0 ? `${extracted.stats.matchedEnunciado2} no enunciado (2ª)` : null,
+              `${extracted.stats.matchedComentario} no comentário`,
+            ].filter(Boolean);
             toast({
               title: 'Imagens detectadas',
-              description: `${extracted.stats.matchedEnunciado} no enunciado e ${extracted.stats.matchedComentario} no comentário.`,
+              description: parts.join(', ') + '.',
             });
           } else if (extracted.stats.totalMedia > 0) {
             toast({
               title: 'Imagens não vinculadas',
-              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada em colunas esperadas. Colunas testadas para enunciado: [${enunciadoColCandidates.join(', ')}], comentário: [${comentarioColCandidates.join(', ')}]. Verifique o console (F12) para ver onde as imagens estão ancoradas.`,
+              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada em colunas esperadas. Colunas testadas para enunciado: [${enunciadoColCandidates.join(', ')}], enunciado 2: [${enunciado2ColCandidates.join(', ')}], comentário: [${comentarioColCandidates.join(', ')}]. Verifique o console (F12) para ver onde as imagens estão ancoradas.`,
               variant: 'destructive',
             });
           }
