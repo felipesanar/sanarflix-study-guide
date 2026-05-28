@@ -225,6 +225,7 @@ export default function SimuladosTab() {
           'Tema': 'Insuficiência Cardíaca',
           'Enunciado': 'Paciente de 65 anos apresenta dispneia progressiva há 3 meses. Qual o exame inicial mais indicado?',
           'Imagem do Enunciado': '',
+          'Imagem 2 do Enunciado': '',
           'Alternativa A': 'Radiografia de tórax',
           'Alternativa B': 'Ecocardiograma',
           'Alternativa C': 'Cateterismo cardíaco',
@@ -240,6 +241,7 @@ export default function SimuladosTab() {
           'Tema': 'Apendicite Aguda',
           'Enunciado': 'Qual o tratamento padrão-ouro para apendicite aguda não complicada?',
           'Imagem do Enunciado': '',
+          'Imagem 2 do Enunciado': '',
           'Alternativa A': 'Antibioticoterapia isolada',
           'Alternativa B': 'Apendicectomia',
           'Alternativa C': 'Drenagem percutânea',
@@ -254,21 +256,22 @@ export default function SimuladosTab() {
       const workbook = XLSXLib.utils.book_new();
       XLSXLib.utils.book_append_sheet(workbook, worksheet, 'Simulado');
 
-      // Ajustar largura das colunas (13 colunas, na ordem do template oficial)
+      // Ajustar largura das colunas (14 colunas, na ordem do template oficial)
       worksheet['!cols'] = [
         { wch: 10 }, // numero
         { wch: 18 }, // Grande Área
         { wch: 18 }, // Especialidade
         { wch: 22 }, // Tema
         { wch: 50 }, // Enunciado
-        { wch: 22 }, // Imagem do Enunciado (cole a imagem dentro da célula)
+        { wch: 22 }, // Imagem do Enunciado
+        { wch: 22 }, // Imagem 2 do Enunciado (opcional — 2ª imagem no mesmo enunciado)
         { wch: 30 }, // Alt A
         { wch: 30 }, // Alt B
         { wch: 30 }, // Alt C
         { wch: 30 }, // Alt D
         { wch: 12 }, // Gabarito
         { wch: 50 }, // Comentário
-        { wch: 22 }  // Imagem do Comentário (cole a imagem dentro da célula)
+        { wch: 22 }  // Imagem do Comentário
       ];
 
       XLSXLib.writeFile(workbook, 'modelo_simulado.xlsx');
