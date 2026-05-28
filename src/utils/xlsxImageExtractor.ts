@@ -561,6 +561,11 @@ export async function extractImagesFromXlsx(
         enunciadoImages[numeroQuestao] = image;
         stats.matchedEnunciado += 1;
       }
+    } else if (enunciado2ColCandidates.includes(col)) {
+      if (!enunciado2Images[numeroQuestao]) {
+        enunciado2Images[numeroQuestao] = image;
+        stats.matchedEnunciado2 += 1;
+      }
     } else if (options.comentarioColCandidates.includes(col)) {
       if (!comentarioImages[numeroQuestao]) {
         comentarioImages[numeroQuestao] = image;
@@ -574,7 +579,7 @@ export async function extractImagesFromXlsx(
   Logger.info('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
   Logger.info('[xlsxImageExtractor] Stats finais:', stats);
 
-  return { enunciadoImages, comentarioImages, stats };
+  return { enunciadoImages, enunciado2Images, comentarioImages, stats };
 }
 
 /**
