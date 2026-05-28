@@ -322,7 +322,13 @@ export default function SimuladosTab() {
 
           const firstRow = jsonData[0] as any;
           const originalKeys = Object.keys(firstRow);
-          const columns = originalKeys.map(k => k.toLowerCase().trim());
+          // Normaliza: lowercase + trim + remove acentos do "número" → "numero"
+          // (mantém demais acentos para preservar "grande área" e "comentário").
+          const norm = (k: string) => {
+            const lower = k.toLowerCase().trim();
+            return lower === 'número' ? 'numero' : lower;
+          };
+          const columns = originalKeys.map(norm);
 
           const missingColumns = requiredColumns.filter(col => !columns.includes(col));
           if (missingColumns.length > 0) {
