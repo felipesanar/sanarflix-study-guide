@@ -1060,10 +1060,12 @@ export const generateProvaRevisadaPDF = async (
   
   const logoBase64 = await loadLogoAsBase64();
   
-  onProgress?.('loading_images', 0, questoes.filter(q => q.imagem).length);
+  const totalImagens = questoes.filter(q => q.imagem).length + questoes.filter(q => q.imagem2).length;
+  onProgress?.('loading_images', 0, totalImagens);
   const imageMap = new Map<number, string | null>();
+  const image2Map = new Map<number, string | null>();
+
   const questoesComImagem = questoes.filter(q => q.imagem);
-  
   for (let i = 0; i < questoesComImagem.length; i += 5) {
     const batch = questoesComImagem.slice(i, i + 5);
     const results = await Promise.all(
@@ -1072,19 +1074,32 @@ export const generateProvaRevisadaPDF = async (
     batch.forEach((q, idx) => {
       imageMap.set(q.numero, results[idx]);
     });
-    onProgress?.('loading_images', Math.min(i + 5, questoesComImagem.length), questoesComImagem.length);
+    onProgress?.('loading_images', Math.min(i + 5, questoesComImagem.length), totalImagens);
   }
-  
+
+  const questoesComImagem2 = questoes.filter(q => q.imagem2);
+  for (let i = 0; i < questoesComImagem2.length; i += 5) {
+    const batch = questoesComImagem2.slice(i, i + 5);
+    const results = await Promise.all(
+      batch.map(q => q.imagem2 ? loadImageAsBase64(q.imagem2) : Promise.resolve(null))
+    );
+    batch.forEach((q, idx) => {
+      image2Map.set(q.numero, results[idx]);
+    });
+    onProgress?.('loading_images', questoesComImagem.length + Math.min(i + 5, questoesComImagem2.length), totalImagens);
+  }
+
   onProgress?.('generating', 0, questoes.length);
   drawCoverPage(doc, simuladoNome, alunoNome, stats, logoBase64);
-  
+
   doc.addPage();
   let yPos = 20;
-  
+
   for (let i = 0; i < questoes.length; i++) {
     const questao = questoes[i];
     const imageBase64 = imageMap.get(questao.numero) || null;
-    yPos = drawQuestionBlock(doc, questao, yPos, imageBase64);
+    const image2Base64 = image2Map.get(questao.numero) || null;
+    yPos = drawQuestionBlock(doc, questao, yPos, imageBase64, image2Base64);
     onProgress?.('generating', i + 1, questoes.length);
   }
   
