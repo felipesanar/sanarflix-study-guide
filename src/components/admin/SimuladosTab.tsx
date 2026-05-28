@@ -225,6 +225,7 @@ export default function SimuladosTab() {
           'Tema': 'Insuficiência Cardíaca',
           'Enunciado': 'Paciente de 65 anos apresenta dispneia progressiva há 3 meses. Qual o exame inicial mais indicado?',
           'Imagem do Enunciado': '',
+          'Imagem 2 do Enunciado': '',
           'Alternativa A': 'Radiografia de tórax',
           'Alternativa B': 'Ecocardiograma',
           'Alternativa C': 'Cateterismo cardíaco',
@@ -240,6 +241,7 @@ export default function SimuladosTab() {
           'Tema': 'Apendicite Aguda',
           'Enunciado': 'Qual o tratamento padrão-ouro para apendicite aguda não complicada?',
           'Imagem do Enunciado': '',
+          'Imagem 2 do Enunciado': '',
           'Alternativa A': 'Antibioticoterapia isolada',
           'Alternativa B': 'Apendicectomia',
           'Alternativa C': 'Drenagem percutânea',
@@ -254,21 +256,22 @@ export default function SimuladosTab() {
       const workbook = XLSXLib.utils.book_new();
       XLSXLib.utils.book_append_sheet(workbook, worksheet, 'Simulado');
 
-      // Ajustar largura das colunas (13 colunas, na ordem do template oficial)
+      // Ajustar largura das colunas (14 colunas, na ordem do template oficial)
       worksheet['!cols'] = [
         { wch: 10 }, // numero
         { wch: 18 }, // Grande Área
         { wch: 18 }, // Especialidade
         { wch: 22 }, // Tema
         { wch: 50 }, // Enunciado
-        { wch: 22 }, // Imagem do Enunciado (cole a imagem dentro da célula)
+        { wch: 22 }, // Imagem do Enunciado
+        { wch: 22 }, // Imagem 2 do Enunciado (opcional — 2ª imagem no mesmo enunciado)
         { wch: 30 }, // Alt A
         { wch: 30 }, // Alt B
         { wch: 30 }, // Alt C
         { wch: 30 }, // Alt D
         { wch: 12 }, // Gabarito
         { wch: 50 }, // Comentário
-        { wch: 22 }  // Imagem do Comentário (cole a imagem dentro da célula)
+        { wch: 22 }  // Imagem do Comentário
       ];
 
       XLSXLib.writeFile(workbook, 'modelo_simulado.xlsx');
@@ -356,6 +359,15 @@ export default function SimuladosTab() {
             originalKeys.findIndex(k => k.toLowerCase().trim() === name);
 
           const imagemEnunciadoHeaderCol = findColByHeader('imagem do enunciado');
+          // Aceita variações comuns: "imagem 2 do enunciado", "imagem do enunciado 2"
+          const imagemEnunciado2HeaderCol = (() => {
+            const candidates = ['imagem 2 do enunciado', 'imagem do enunciado 2', 'imagem 2 enunciado'];
+            for (const c of candidates) {
+              const idx = findColByHeader(c);
+              if (idx >= 0) return idx;
+            }
+            return -1;
+          })();
           const enunciadoTextCol = findColByHeader('enunciado');
           const imagemComentarioHeaderCol = findColByHeader('imagem do comentário');
           const comentarioTextCol = findColByHeader('comentário');
@@ -372,6 +384,9 @@ export default function SimuladosTab() {
             enunciadoTextCol,
             5, // F - convenção histórica
           ]);
+          // 2ª imagem do enunciado: só usamos a coluna dedicada quando o template a tem.
+          // Não inferimos fallback automático para evitar canibalizar a 1ª imagem.
+          const enunciado2ColCandidates = uniq([imagemEnunciado2HeaderCol]);
           const comentarioColCandidates = uniq([
             imagemComentarioHeaderCol,
             comentarioTextCol + 1,
@@ -423,10 +438,12 @@ export default function SimuladosTab() {
 
           Logger.info('[SimuladosTab] Colunas de imagem detectadas:', {
             imagemEnunciadoHeaderCol,
+            imagemEnunciado2HeaderCol,
             enunciadoTextCol,
             imagemComentarioHeaderCol,
             comentarioTextCol,
             enunciadoColCandidates,
+            enunciado2ColCandidates,
             comentarioColCandidates,
             numeroColIndex,
             originalKeys,
@@ -436,13 +453,15 @@ export default function SimuladosTab() {
 
           let extracted = {
             enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
+            enunciado2Images: {} as Record<number, { base64: string; mimeType: string }>,
             comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
-            stats: { totalMedia: 0, matchedEnunciado: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedEnunciado2: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
           };
-          if (enunciadoColCandidates.length > 0 || comentarioColCandidates.length > 0) {
+          if (enunciadoColCandidates.length > 0 || enunciado2ColCandidates.length > 0 || comentarioColCandidates.length > 0) {
             try {
               extracted = await extractImagesFromXlsx(arrayBuffer, {
                 enunciadoColCandidates,
+                enunciado2ColCandidates,
                 comentarioColCandidates,
                 numeroColIndex,
               });
@@ -472,11 +491,15 @@ export default function SimuladosTab() {
               // exatamente como o resto do pipeline (Storage path, render no app, PDF).
               const numeroQuestao = Number(normalizedRow['numero']) || (index + 1);
               const rawEnunciado = extracted.enunciadoImages[numeroQuestao];
+              const rawEnunciado2 = extracted.enunciado2Images[numeroQuestao];
               const rawComentario = extracted.comentarioImages[numeroQuestao];
 
-              const [embeddedEnunciado, embeddedComentario] = await Promise.all([
+              const [embeddedEnunciado, embeddedEnunciado2, embeddedComentario] = await Promise.all([
                 rawEnunciado
                   ? compressBase64Image(rawEnunciado.base64, rawEnunciado.mimeType)
+                  : Promise.resolve(undefined),
+                rawEnunciado2
+                  ? compressBase64Image(rawEnunciado2.base64, rawEnunciado2.mimeType)
                   : Promise.resolve(undefined),
                 rawComentario
                   ? compressBase64Image(rawComentario.base64, rawComentario.mimeType)
@@ -500,9 +523,11 @@ export default function SimuladosTab() {
                 comentario: normalizedRow['comentário'] || null,
                 feedback_corretas: null,
                 imagem: null,
+                imagem_2: null,
                 imagem_comentario: null,
                 observacao: null,
                 _embeddedEnunciado: embeddedEnunciado as any,
+                _embeddedEnunciado2: embeddedEnunciado2 as any,
                 _embeddedComentario: embeddedComentario as any,
               };
             })
@@ -524,16 +549,21 @@ export default function SimuladosTab() {
           setUploadProgress(100);
           setShowPreviewModal(true);
 
-          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedComentario;
+          const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedEnunciado2 + extracted.stats.matchedComentario;
           if (totalEmbedded > 0) {
+            const parts = [
+              `${extracted.stats.matchedEnunciado} no enunciado`,
+              extracted.stats.matchedEnunciado2 > 0 ? `${extracted.stats.matchedEnunciado2} no enunciado (2ª)` : null,
+              `${extracted.stats.matchedComentario} no comentário`,
+            ].filter(Boolean);
             toast({
               title: 'Imagens detectadas',
-              description: `${extracted.stats.matchedEnunciado} no enunciado e ${extracted.stats.matchedComentario} no comentário.`,
+              description: parts.join(', ') + '.',
             });
           } else if (extracted.stats.totalMedia > 0) {
             toast({
               title: 'Imagens não vinculadas',
-              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada em colunas esperadas. Colunas testadas para enunciado: [${enunciadoColCandidates.join(', ')}], comentário: [${comentarioColCandidates.join(', ')}]. Verifique o console (F12) para ver onde as imagens estão ancoradas.`,
+              description: `Detectamos ${extracted.stats.totalMedia} imagem(ns) no arquivo, mas nenhuma está ancorada em colunas esperadas. Colunas testadas para enunciado: [${enunciadoColCandidates.join(', ')}], enunciado 2: [${enunciado2ColCandidates.join(', ')}], comentário: [${comentarioColCandidates.join(', ')}]. Verifique o console (F12) para ver onde as imagens estão ancoradas.`,
               variant: 'destructive',
             });
           }
@@ -1365,6 +1395,18 @@ export default function SimuladosTab() {
                     </div>
                   )}
 
+                  {/* Imagem 2 do Enunciado (embutida no XLSX) */}
+                  {questao._embeddedEnunciado2 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem 2 do enunciado (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedEnunciado2.mimeType};base64,${questao._embeddedEnunciado2.base64}`}
+                        alt="Imagem 2 do enunciado"
+                        className="max-w-xs h-auto rounded-lg border"
+                      />
+                    </div>
+                  )}
+                  
                   {/* Alternativas */}
                   <div className="space-y-1 pl-4">
                     <p className={questao.correta === 'A' ? 'text-green-600 font-semibold' : ''}>

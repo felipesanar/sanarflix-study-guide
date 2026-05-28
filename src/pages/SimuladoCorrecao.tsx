@@ -37,6 +37,7 @@ interface CorrectedQuestion {
   correta: string;
   comentario: string | null;
   imagem: string | null;
+  imagem_2: string | null;
   imagem_comentario: string | null;
   grande_area: string | null;
   especialidade: string | null;
@@ -240,7 +241,7 @@ export const SimuladoCorrecao: React.FC = () => {
         const [questoesRes, respostasRes] = await Promise.all([
           supabase
             .from('questoes_simulado')
-            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_comentario, grande_area, especialidade, tema, anulada')
+            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_2, imagem_comentario, grande_area, especialidade, tema, anulada')
             .eq('simulado_id', selectedSimulado)
             .order('ordem', { ascending: true }),
           supabase
@@ -345,6 +346,7 @@ export const SimuladoCorrecao: React.FC = () => {
           acertou: q.acertou,
           comentario: q.comentario,
           imagem: q.imagem,
+          imagem2: (q as any).imagem_2 ?? null,
           imagemComentario: (q as any).imagem_comentario ?? null,
           grandeArea: q.grande_area || 'Geral',
           especialidade: q.especialidade || '',
@@ -657,6 +659,17 @@ export const SimuladoCorrecao: React.FC = () => {
                         <ImageLightbox
                           src={currentQuestion.imagem}
                           alt={`Imagem da questão ${currentIndex + 1}`}
+                          className="max-w-full max-h-80 rounded-xl object-contain"
+                        />
+                      </div>
+                    )}
+
+                    {/* Segunda imagem do enunciado (opcional) */}
+                    {currentQuestion.imagem_2 && (
+                      <div className="flex justify-center">
+                        <ImageLightbox
+                          src={currentQuestion.imagem_2}
+                          alt={`Imagem 2 da questão ${currentIndex + 1}`}
                           className="max-w-full max-h-80 rounded-xl object-contain"
                         />
                       </div>
