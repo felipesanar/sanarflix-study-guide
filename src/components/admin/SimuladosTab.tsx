@@ -359,6 +359,15 @@ export default function SimuladosTab() {
             originalKeys.findIndex(k => k.toLowerCase().trim() === name);
 
           const imagemEnunciadoHeaderCol = findColByHeader('imagem do enunciado');
+          // Aceita variações comuns: "imagem 2 do enunciado", "imagem do enunciado 2"
+          const imagemEnunciado2HeaderCol = (() => {
+            const candidates = ['imagem 2 do enunciado', 'imagem do enunciado 2', 'imagem 2 enunciado'];
+            for (const c of candidates) {
+              const idx = findColByHeader(c);
+              if (idx >= 0) return idx;
+            }
+            return -1;
+          })();
           const enunciadoTextCol = findColByHeader('enunciado');
           const imagemComentarioHeaderCol = findColByHeader('imagem do comentário');
           const comentarioTextCol = findColByHeader('comentário');
@@ -375,6 +384,9 @@ export default function SimuladosTab() {
             enunciadoTextCol,
             5, // F - convenção histórica
           ]);
+          // 2ª imagem do enunciado: só usamos a coluna dedicada quando o template a tem.
+          // Não inferimos fallback automático para evitar canibalizar a 1ª imagem.
+          const enunciado2ColCandidates = uniq([imagemEnunciado2HeaderCol]);
           const comentarioColCandidates = uniq([
             imagemComentarioHeaderCol,
             comentarioTextCol + 1,
