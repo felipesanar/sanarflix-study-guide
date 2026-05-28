@@ -241,7 +241,7 @@ export const SimuladoCorrecao: React.FC = () => {
         const [questoesRes, respostasRes] = await Promise.all([
           supabase
             .from('questoes_simulado')
-            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_comentario, grande_area, especialidade, tema, anulada')
+            .select('id, ordem, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario, imagem, imagem_2, imagem_comentario, grande_area, especialidade, tema, anulada')
             .eq('simulado_id', selectedSimulado)
             .order('ordem', { ascending: true }),
           supabase
