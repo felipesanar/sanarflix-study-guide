@@ -346,6 +346,7 @@ export const SimuladoCorrecao: React.FC = () => {
           acertou: q.acertou,
           comentario: q.comentario,
           imagem: q.imagem,
+          imagem2: (q as any).imagem_2 ?? null,
           imagemComentario: (q as any).imagem_comentario ?? null,
           grandeArea: q.grande_area || 'Geral',
           especialidade: q.especialidade || '',
