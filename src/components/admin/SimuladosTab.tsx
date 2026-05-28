@@ -1395,6 +1395,18 @@ export default function SimuladosTab() {
                     </div>
                   )}
 
+                  {/* Imagem 2 do Enunciado (embutida no XLSX) */}
+                  {questao._embeddedEnunciado2 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Imagem 2 do enunciado (embutida):</p>
+                      <img
+                        src={`data:${questao._embeddedEnunciado2.mimeType};base64,${questao._embeddedEnunciado2.base64}`}
+                        alt="Imagem 2 do enunciado"
+                        className="max-w-xs h-auto rounded-lg border"
+                      />
+                    </div>
+                  )}
+                  
                   {/* Alternativas */}
                   <div className="space-y-1 pl-4">
                     <p className={questao.correta === 'A' ? 'text-green-600 font-semibold' : ''}>
