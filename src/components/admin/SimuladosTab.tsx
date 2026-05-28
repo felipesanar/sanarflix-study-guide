@@ -491,11 +491,15 @@ export default function SimuladosTab() {
               // exatamente como o resto do pipeline (Storage path, render no app, PDF).
               const numeroQuestao = Number(normalizedRow['numero']) || (index + 1);
               const rawEnunciado = extracted.enunciadoImages[numeroQuestao];
+              const rawEnunciado2 = extracted.enunciado2Images[numeroQuestao];
               const rawComentario = extracted.comentarioImages[numeroQuestao];
 
-              const [embeddedEnunciado, embeddedComentario] = await Promise.all([
+              const [embeddedEnunciado, embeddedEnunciado2, embeddedComentario] = await Promise.all([
                 rawEnunciado
                   ? compressBase64Image(rawEnunciado.base64, rawEnunciado.mimeType)
+                  : Promise.resolve(undefined),
+                rawEnunciado2
+                  ? compressBase64Image(rawEnunciado2.base64, rawEnunciado2.mimeType)
                   : Promise.resolve(undefined),
                 rawComentario
                   ? compressBase64Image(rawComentario.base64, rawComentario.mimeType)
@@ -519,9 +523,11 @@ export default function SimuladosTab() {
                 comentario: normalizedRow['comentário'] || null,
                 feedback_corretas: null,
                 imagem: null,
+                imagem_2: null,
                 imagem_comentario: null,
                 observacao: null,
                 _embeddedEnunciado: embeddedEnunciado as any,
+                _embeddedEnunciado2: embeddedEnunciado2 as any,
                 _embeddedComentario: embeddedComentario as any,
               };
             })
