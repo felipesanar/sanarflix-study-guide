@@ -82,11 +82,14 @@ interface Questao {
   comentario: string | null;
   feedback_corretas: string | null;
   imagem: string | null;
+  imagem_2?: string | null;
   imagem_comentario?: string | null;
   observacao: string | null;
   anulada?: boolean;
   /** Apenas no preview (cliente) — não vai pro banco */
   _embeddedEnunciado?: EmbeddedImage;
+  /** Apenas no preview (cliente) — não vai pro banco */
+  _embeddedEnunciado2?: EmbeddedImage;
   /** Apenas no preview (cliente) — não vai pro banco */
   _embeddedComentario?: EmbeddedImage;
 }
