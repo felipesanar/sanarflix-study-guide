@@ -21,14 +21,14 @@ const corsHeaders = {
 
 const ImageSchema = z.object({
   ordem: z.number().int().min(1),
-  slot: z.enum(['enunciado', 'comentario']),
+  slot: z.enum(['enunciado', 'enunciado2', 'comentario']),
   data: z.string().min(1),
   mime: z.string().regex(/^image\//),
 });
 
 const BodySchema = z.object({
   simulado_id: z.string().uuid(),
-  images: z.array(ImageSchema).min(1).max(500),
+  images: z.array(ImageSchema).min(1).max(1000),
 });
 
 const EXT_BY_MIME: Record<string, string> = {
