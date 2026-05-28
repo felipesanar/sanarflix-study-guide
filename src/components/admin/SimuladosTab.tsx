@@ -777,12 +777,13 @@ export default function SimuladosTab() {
 
           // 2. Monta payload final, removendo campos internos e injetando URLs
           const questoesComSimuladoId = previewData.questoes.map(q => {
-            const { _embeddedEnunciado, _embeddedComentario, ...clean } = q;
+            const { _embeddedEnunciado, _embeddedEnunciado2, _embeddedComentario, ...clean } = q;
             const slotUrls = urlsByOrdem[q.ordem] ?? {};
             return {
               ...clean,
               simulado_id: simulado.id,
               imagem: slotUrls.enunciado ?? clean.imagem ?? null,
+              imagem_2: slotUrls.enunciado2 ?? (clean as any).imagem_2 ?? null,
               imagem_comentario: slotUrls.comentario ?? clean.imagem_comentario ?? null,
             };
           });
