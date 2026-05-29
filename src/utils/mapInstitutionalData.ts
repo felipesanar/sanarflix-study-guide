@@ -147,9 +147,11 @@ export function mapInstitutionalRpcToViewModel(
   // ── TRI authoritative values (resultados_ies_tri) — única fonte para
   // proficiência média, % proficientes, num_proficient e conceito. ──
   const triPcpRaw = triSnapshot?.pcp ?? null;
-  // pcp pode vir como fração (0..1) ou percentual (0..100). Normaliza e arredonda a 0 casas.
+  // pcp pode vir como fração (0..1) ou percentual (0..100). Normaliza e SEMPRE
+  // arredonda para baixo (floor) para não inflar o conceito da IES — ex.: 74,7%
+  // deve exibir 74% e manter Conceito 3, não saltar para Conceito 4.
   const triPercentProficientes = triPcpRaw !== null
-    ? Math.round(triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw)
+    ? Math.floor(triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw)
     : null;
   const triMeanScore = triSnapshot?.mean_score ?? null;
   const triMeanScoreRounded = triMeanScore !== null ? Math.round(triMeanScore) : null;
