@@ -2056,6 +2056,13 @@ export type Database = {
           total: number
         }[]
       }
+      get_simulados_questoes_count: {
+        Args: { p_simulado_ids: string[] }
+        Returns: {
+          simulado_id: string
+          total: number
+        }[]
+      }
       get_student_growth_tri: {
         Args: { p_ies_id?: string }
         Returns: {

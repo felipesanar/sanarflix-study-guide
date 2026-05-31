@@ -190,20 +190,18 @@ export default function SimuladosTab() {
 
       if (error) throw error;
 
-      // 2) Contar questões por simulado em query separada e agregar no cliente.
+      // 2) Contar questões por simulado via RPC SECURITY DEFINER, contornando
+      //    as 5 policies de questoes_simulado (que estouravam o statement_timeout).
       const ids = (data || []).map(s => s.id);
       const countsBySimulado: Record<string, number> = {};
       if (ids.length > 0) {
         const { data: qsRows, error: qsError } = await supabase
-          .from('questoes_simulado')
-          .select('simulado_id')
-          .in('simulado_id', ids);
+          .rpc('get_simulados_questoes_count', { p_simulado_ids: ids });
 
         if (qsError) throw qsError;
 
-        for (const row of qsRows || []) {
-          const key = String((row as any).simulado_id);
-          countsBySimulado[key] = (countsBySimulado[key] || 0) + 1;
+        for (const row of (qsRows || []) as Array<{ simulado_id: string; total: number }>) {
+          countsBySimulado[String(row.simulado_id)] = Number(row.total) || 0;
         }
       }
 

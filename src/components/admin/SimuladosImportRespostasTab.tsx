@@ -133,17 +133,30 @@ export default function SimuladosImportRespostasTab() {
     setLoadingSimulados(true);
     setSimuladosError(null);
     try {
+      // Evitamos o embedding `questoes_simulado(count)` (LATERAL + json_agg)
+      // que dispara as 5 policies de questoes_simulado e estoura o statement_timeout.
       const { data, error } = await supabase
         .from('simulados_admin')
-        .select('id, nome, ies_ids, questoes_simulado(count)')
+        .select('id, nome, ies_ids')
         .order('created_at', { ascending: false });
       if (error) throw error;
+
+      const ids = (data ?? []).map((s) => s.id);
+      const countsBySimulado: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: qsRows, error: qsError } = await supabase
+          .rpc('get_simulados_questoes_count', { p_simulado_ids: ids });
+        if (qsError) throw qsError;
+        for (const row of (qsRows || []) as Array<{ simulado_id: string; total: number }>) {
+          countsBySimulado[String(row.simulado_id)] = Number(row.total) || 0;
+        }
+      }
 
       setSimulados(
         (data ?? []).map((s) => ({
           id: s.id,
           nome: s.nome,
-          total_questoes: s.questoes_simulado?.[0]?.count ?? 0,
+          total_questoes: countsBySimulado[String(s.id)] ?? 0,
           ies_count: Array.isArray(s.ies_ids) ? s.ies_ids.length : 0,
         })),
       );
