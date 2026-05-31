@@ -179,14 +179,35 @@ export default function SimuladosTab() {
   const fetchSimulados = async () => {
     try {
       setLoading(true);
+
+      // 1) Buscar simulados sem embedding. O embedding `questoes_simulado(count)`
+      //    gera LATERAL + json_agg no PostgREST e, combinado com as 5 RLS policies
+      //    de questoes_simulado, estoura statement_timeout (57014).
       const { data, error } = await supabase
         .from('simulados_admin')
-        .select('*, questoes_simulado(count)')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const simuladosComContagem = data.map(s => ({
+      // 2) Contar questões por simulado em query separada e agregar no cliente.
+      const ids = (data || []).map(s => s.id);
+      const countsBySimulado: Record<string, number> = {};
+      if (ids.length > 0) {
+        const { data: qsRows, error: qsError } = await supabase
+          .from('questoes_simulado')
+          .select('simulado_id')
+          .in('simulado_id', ids);
+
+        if (qsError) throw qsError;
+
+        for (const row of qsRows || []) {
+          const key = String((row as any).simulado_id);
+          countsBySimulado[key] = (countsBySimulado[key] || 0) + 1;
+        }
+      }
+
+      const simuladosComContagem = (data || []).map(s => ({
         id: s.id,
         nome: s.nome,
         descricao: s.descricao,
@@ -195,7 +216,7 @@ export default function SimuladosTab() {
         duracao_minutos: s.duracao_minutos,
         status: calcularStatusSimulado(s.data_liberacao, s.data_encerramento, s.status) as 'aguardando' | 'ativo' | 'encerrado',
         created_at: s.created_at,
-        questoes_count: s.questoes_simulado?.[0]?.count || 0,
+        questoes_count: countsBySimulado[String(s.id)] || 0,
         liberacao_desempenho: (s.liberacao_desempenho || 'imediato') as 'imediato' | 'agendado' | 'ao_encerrar',
         data_liberacao_desempenho: s.data_liberacao_desempenho
       }));
