@@ -87,7 +87,7 @@ export const useErrorNotebook = () => {
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
-      if (filters?.grande_area) query = query.eq('grande_area', filters.grande_area);
+      if (filters?.grande_area) query = query.eq('grande_area', normalizeGrandeArea(filters.grande_area));
       if (filters?.tema) query = query.eq('tema', filters.tema);
       if (filters?.reason) query = query.eq('reason', filters.reason);
       if (filters?.simulado_id) query = query.eq('simulado_id', filters.simulado_id);
