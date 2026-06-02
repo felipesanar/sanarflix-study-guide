@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 Logger.info('[UIUX] SimuladoDesempenho page loaded');
 
