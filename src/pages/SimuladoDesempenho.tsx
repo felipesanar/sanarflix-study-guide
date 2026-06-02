@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 Logger.info('[UIUX] SimuladoDesempenho page loaded');
 
@@ -772,7 +773,7 @@ export const SimuladoDesempenho: React.FC = () => {
           { letra: 'D', texto: q.alternativa_d || '', isCorreta: gabarito === 'D', isMarcadaPeloAluno: respostaUsuario === 'D' },
         ];
         if (q.alternativa_e) alternativas.push({ letra: 'E', texto: q.alternativa_e, isCorreta: gabarito === 'E', isMarcadaPeloAluno: respostaUsuario === 'E' });
-        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, imagem2: (q as any).imagem_2 || null, imagemComentario: (q as any).imagem_comentario || null, grandeArea: q.grande_area || 'Geral', especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
+        return { numero: index + 1, enunciado: q.enunciado || '', alternativas, respostaAluno: respostaUsuario, gabarito, acertou, comentario: q.comentario || null, imagem: q.imagem || null, imagem2: (q as any).imagem_2 || null, imagemComentario: (q as any).imagem_comentario || null, grandeArea: normalizeGrandeArea(q.grande_area), especialidade: q.especialidade || '', tema: q.tema || '', anulada: q.anulada || false };
       });
       const questoesValidas = questoesRevisadas.filter(q => !q.anulada);
       const acertos = questoesValidas.filter(q => q.acertou === true).length;

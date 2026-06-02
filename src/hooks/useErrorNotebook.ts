@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 export type ErrorReason = 'did_not_know' | 'did_not_remember' | 'did_not_understand_statement' | 'answered_without_confidence';
 
@@ -86,7 +87,7 @@ export const useErrorNotebook = () => {
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
-      if (filters?.grande_area) query = query.eq('grande_area', filters.grande_area);
+      if (filters?.grande_area) query = query.eq('grande_area', normalizeGrandeArea(filters.grande_area));
       if (filters?.tema) query = query.eq('tema', filters.tema);
       if (filters?.reason) query = query.eq('reason', filters.reason);
       if (filters?.simulado_id) query = query.eq('simulado_id', filters.simulado_id);
@@ -152,7 +153,7 @@ export const useErrorNotebook = () => {
           question_id: params.question_id || null,
           simulado_id: params.simulado_id || null,
           simulado_nome: params.simulado_nome || null,
-          grande_area: params.grande_area || null,
+          grande_area: params.grande_area ? normalizeGrandeArea(params.grande_area) : null,
           especialidade: params.especialidade || null,
           tema: params.tema || null,
           reason: params.reason,

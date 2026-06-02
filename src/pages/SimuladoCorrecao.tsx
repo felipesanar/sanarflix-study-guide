@@ -23,6 +23,7 @@ import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { generateProvaRevisadaPDF, QuestaoRevisada, ProvaRevisadaStats } from '@/utils/pdfProvaRevisada';
 import { toast } from '@/hooks/use-toast';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // --- Types ---
 interface CorrectedQuestion {
@@ -348,7 +349,7 @@ export const SimuladoCorrecao: React.FC = () => {
           imagem: q.imagem,
           imagem2: (q as any).imagem_2 ?? null,
           imagemComentario: (q as any).imagem_comentario ?? null,
-          grandeArea: q.grande_area || 'Geral',
+          grandeArea: normalizeGrandeArea(q.grande_area),
           especialidade: q.especialidade || '',
           tema: q.tema || '',
           anulada: q.anulada,

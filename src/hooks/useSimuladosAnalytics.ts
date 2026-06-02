@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toBrazilDate } from '@/utils/timezone';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // ============== TYPES ==============
 export interface SimuladoOverview {
@@ -313,7 +314,10 @@ export async function fetchSimuladosAnalyticsData(
   const simuladosAdmin = simuladosAdminRes.data || [];
   let iniciados = iniciadosRes.data || [];
   let finalizados = finalizadosRes.data || [];
-  const questoes = questoesRes.data || [];
+  const questoes = (questoesRes.data || []).map((q: any) => ({
+    ...q,
+    grande_area: q.grande_area ? normalizeGrandeArea(q.grande_area) : q.grande_area,
+  }));
   const iesList = iesRes.data || [];
 
   // Apply simulado filter early

@@ -13,6 +13,7 @@ import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, 
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // --- Types ---
 interface Simulado { id: string; nome: string; }
@@ -442,9 +443,19 @@ const DesempenhoInstitucional: React.FC = () => {
         const d = perfRes.data as any;
         setOverallStats(d.overallStats || { total: 0, acertos: 0, totalStudents: 0 });
         setBySemester(d.bySemester || []);
-        setByArea((d.byArea || []).map((a: any) => ({ ...a, percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
-        setBySpecialty((d.bySpecialty || []).map((a: any) => ({ ...a, percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
-        setBySubspecialty((d.bySubspecialty || []).map((a: any) => ({ ...a, percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
+        // Mescla variantes de `grande_area` (ex.: "Ginecologia" + "Ginecologia e Obstetrícia")
+        // mesmo se o backend devolver linhas separadas (cache antigo / dados não migrados).
+        const mergedAreas = new Map<string, { name: string; total: number; acertos: number }>();
+        (d.byArea || []).forEach((a: any) => {
+          const canonical = normalizeGrandeArea(a.name);
+          const existing = mergedAreas.get(canonical) || { name: canonical, total: 0, acertos: 0 };
+          existing.total += Number(a.total) || 0;
+          existing.acertos += Number(a.acertos) || 0;
+          mergedAreas.set(canonical, existing);
+        });
+        setByArea(Array.from(mergedAreas.values()).map(a => ({ ...a, percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
+        setBySpecialty((d.bySpecialty || []).map((a: any) => ({ ...a, area_name: normalizeGrandeArea(a.area_name), percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
+        setBySubspecialty((d.bySubspecialty || []).map((a: any) => ({ ...a, area_name: normalizeGrandeArea(a.area_name), percentual: a.total > 0 ? Math.round((a.acertos / a.total) * 100) : 0 })));
       }
 
       if (!scoresRes.error && scoresRes.data) {

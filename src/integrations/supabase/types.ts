@@ -2123,6 +2123,7 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_ttl_seconds: number }
         Returns: Json
       }
+      normalize_grande_area: { Args: { raw: string }; Returns: string }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
