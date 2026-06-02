@@ -153,7 +153,7 @@ export const useErrorNotebook = () => {
           question_id: params.question_id || null,
           simulado_id: params.simulado_id || null,
           simulado_nome: params.simulado_nome || null,
-          grande_area: params.grande_area || null,
+          grande_area: params.grande_area ? normalizeGrandeArea(params.grande_area) : null,
           especialidade: params.especialidade || null,
           tema: params.tema || null,
           reason: params.reason,
