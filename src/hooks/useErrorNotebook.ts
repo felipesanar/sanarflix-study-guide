@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 export type ErrorReason = 'did_not_know' | 'did_not_remember' | 'did_not_understand_statement' | 'answered_without_confidence';
 
