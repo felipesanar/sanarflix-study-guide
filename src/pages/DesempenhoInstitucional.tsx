@@ -13,6 +13,7 @@ import { ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, 
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // --- Types ---
 interface Simulado { id: string; nome: string; }
