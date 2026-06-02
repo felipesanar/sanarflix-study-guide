@@ -23,6 +23,7 @@ import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { generateProvaRevisadaPDF, QuestaoRevisada, ProvaRevisadaStats } from '@/utils/pdfProvaRevisada';
 import { toast } from '@/hooks/use-toast';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // --- Types ---
 interface CorrectedQuestion {
