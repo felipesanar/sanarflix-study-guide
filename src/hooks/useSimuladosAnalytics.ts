@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toBrazilDate } from '@/utils/timezone';
 import { Logger } from '@/utils/logger';
+import { normalizeGrandeArea } from '@/utils/grandeArea';
 
 // ============== TYPES ==============
 export interface SimuladoOverview {
