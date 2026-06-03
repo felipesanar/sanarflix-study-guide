@@ -2137,14 +2137,10 @@ export type Database = {
     Enums: {
       app_role:
         | "admin"
-        | "moderator"
-        | "user"
-        | "b2b_partner"
         | "professor"
         | "gestor"
-        | "atendimento"
-        | "gestor_formal"
         | "gestor_grupo"
+        | "atendimento"
       feedback_category: "bug" | "suggestion" | "feature_request" | "praise"
       feedback_status: "received" | "in_review" | "resolved" | "archived"
       progress_node_type: "aula" | "subtema" | "tema" | "materia"
@@ -2286,17 +2282,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: [
-        "admin",
-        "moderator",
-        "user",
-        "b2b_partner",
-        "professor",
-        "gestor",
-        "atendimento",
-        "gestor_formal",
-        "gestor_grupo",
-      ],
+      app_role: ["admin", "professor", "gestor", "gestor_grupo", "atendimento"],
       feedback_category: ["bug", "suggestion", "feature_request", "praise"],
       feedback_status: ["received", "in_review", "resolved", "archived"],
       progress_node_type: ["aula", "subtema", "tema", "materia"],
