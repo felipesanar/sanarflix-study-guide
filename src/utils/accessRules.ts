@@ -62,32 +62,15 @@ export const isProfessor = (user: User | null): boolean => {
 };
 
 /**
- * Verifica se usuário é b2b_partner
- */
-export const isB2BPartner = (user: User | null): boolean => {
-  if (!user) return false;
-  return user.roles?.includes('b2b_partner') || false;
-};
-
-/**
- * Verifica se usuário é gestor (inclui variantes 'gestor', 'gestor_formal' e 'gestor_grupo')
+ * Verifica se usuário é gestor (inclui variantes 'gestor' e 'gestor_grupo')
  */
 export const isGestor = (user: User | null): boolean => {
   if (!user) return false;
   return (
     user.roles?.includes('gestor') ||
-    user.roles?.includes('gestor_formal') ||
     user.roles?.includes('gestor_grupo') ||
     false
   );
-};
-
-/**
- * Verifica se usuário é gestor_formal especificamente
- */
-export const isGestorFormal = (user: User | null): boolean => {
-  if (!user) return false;
-  return user.roles?.includes('gestor_formal') || false;
 };
 
 /**
