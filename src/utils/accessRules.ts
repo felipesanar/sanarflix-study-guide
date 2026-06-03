@@ -137,13 +137,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
     };
   }
 
-  // B2B Partner: acesso ao painel institucional + simulados
-  if (isB2BPartner(user)) {
-    return {
-      ...DEFAULT_RULES,
-      desempenhoInstitucional: true,
-    };
-  }
+
 
   // Gestor: acesso ao desempenho institucional
   if (isGestor(user)) {
