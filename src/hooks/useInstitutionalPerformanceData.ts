@@ -11,7 +11,7 @@ import {
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin, isB2BPartner, isGestor, isGestorGrupo } from '@/utils/accessRules';
+import { isAdmin, isGestor, isGestorGrupo } from '@/utils/accessRules';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
@@ -151,7 +151,7 @@ export function useInstitutionalPerformanceData(
   // Determina se o usuário pode ver todas as IES (apenas admin e b2b_partner).
   // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES,
   // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele.
-  const canSeeAllIes = isAdmin(user) || isB2BPartner(user);
+  const canSeeAllIes = isAdmin(user);
   const isGroupManager = isGestorGrupo(user);
   const accessibleIes = user?.accessible_ies ?? [];
 

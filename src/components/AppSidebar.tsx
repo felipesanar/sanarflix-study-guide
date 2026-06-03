@@ -15,7 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
-import { isAdmin, isProfessor, isB2BPartner, isGestor, isAtendimento } from "@/utils/accessRules";
+import { isAdmin, isProfessor, isGestor, isAtendimento } from "@/utils/accessRules";
 import {
   BookOpen,
   BarChart3,

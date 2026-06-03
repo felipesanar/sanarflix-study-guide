@@ -11,7 +11,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
 
-export type UserRole = 'admin' | 'b2b_partner' | 'professor' | 'aluno' | 'guest' | string;
+export type UserRole = 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento' | 'aluno' | 'guest' | string;
 
 export interface AuthLoginPayload {
   email: string;
