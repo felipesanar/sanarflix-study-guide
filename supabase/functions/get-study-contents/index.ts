@@ -135,12 +135,17 @@ Deno.serve(async (req) => {
       let from = 0;
       let hasMore = true;
 
+      // Case-insensitive matching to tolerate stored variants like "2º SEMESTRE", "2º semestre", "2º Semestre"
+      const orFilter = uniqueValues
+        .map(v => `semestre.ilike.${v.replace(/,/g, '\\,')}`)
+        .join(',');
+
       while (hasMore) {
         const { data, error: queryError } = await supabaseAdmin
           .from('conteudos')
           .select('id, id_ies, semestre, materia, tema, subtema, aula, link_aula, link_pdf, link_quiz')
           .eq('id_ies', userData.id_ies)
-          .in('semestre', uniqueValues)
+          .or(orFilter)
           .range(from, from + PAGE_SIZE - 1);
 
         if (queryError) {

@@ -1,77 +1,72 @@
-## Diagnóstico (consolidado)
+# Diagnóstico — Guia de Estudos INTEGRADO não aparece
 
-O problema é **100% de dados** em `questoes_simulado.grande_area` (texto livre, sem trim nem canonicalização na importação). Confirmado na base:
+## Causa raiz (confirmada no banco)
 
-| `grande_area` exato | Qtd |
+A tela "Seu guia" chama a edge function `get-study-contents`, que filtra `conteudos.semestre` por uma lista fixa de variantes:
+
+```
+[ "2", "2º Semestre", "2º semestre" ]
+```
+
+Mas a importação recente do INTEGRADO gravou os valores em **CAIXA ALTA**:
+
+| semestre (gravado) | nº de linhas |
 |---|---|
-| `Ginecologia` | 2 |
-| `Ginecologia e Obstetrícia` | 474 |
-| `Preventiva` | 226 |
-| `Preventiva ` *(trailing space)* | 2 |
-| `Medicina Preventiva` | 37 |
-| `Medicina Preventiva/Saúde Coletiva` | 126 |
+| `2º SEMESTRE` | 103 |
+| `3º SEMESTRE` | 90 |
+| `4º SEMESTRE` | 113 |
 
-**No 2º Simulado FAI**: 19× `Preventiva` + 1× `Preventiva ` (espaço) → 2 cards "Preventiva"; 17× `Ginecologia e Obstetrícia` + 1× `Ginecologia` → 2 cards distintos.
+Como `2º SEMESTRE ≠ 2º Semestre` no `.in(...)`, o backend retorna 0 linhas → UI mostra "Nenhum conteúdo disponível".
 
-**Onde é amplificado:** `SimuladoDesempenho.tsx:783` e `SimuladoCorrecao.tsx:366` fazem `areaMap.get(area)` por string crua — qualquer variação vira card separado. O mesmo padrão existe em `useSimuladosAnalytics`, `useErrorNotebook`, Caderno de Erros e exports.
+A coluna `semestre` em `conteudos` é texto livre; o pipeline de import preservou a capitalização do arquivo, e a edge function não normaliza na leitura.
 
----
+## Plano de correção (2 camadas)
 
-## Correção (decisões confirmadas)
+### 1. Dados — migração aditiva (UPDATE, sem DELETE/TRUNCATE)
 
-**Mapa canônico:**
-- `Ginecologia` → `Ginecologia e Obstetrícia`
-- `Medicina Preventiva` → `Preventiva`
-- `Medicina Preventiva/Saúde Coletiva` → `Preventiva`
-- Sempre aplicar `trim()` (elimina `Preventiva ` com espaço)
+Canonizar o formato armazenado em `conteudos.semestre` para o padrão usado em todo o resto do sistema (`Nº Semestre` ou número puro). Manter a regra mínima:
 
-### Camada 1 — Dados (migração aditiva, sem DELETE/TRUNCATE)
+- `UPDATE conteudos SET semestre = initcap(semestre)` apenas onde `semestre ~* '^\d+º\s+SEMESTRE$'`, resultando em `"2º Semestre"`, `"3º Semestre"`, `"4º Semestre"`.
+- Aplicar `trim()` no mesmo UPDATE para remover espaços extras.
 
-Migração SQL única que só executa `UPDATE`:
+Verificar pós-migração:
+```sql
+SELECT DISTINCT semestre FROM conteudos
+WHERE id_ies = '72b19e77-c569-4bf7-a433-44563df1015f';
+```
+Esperado: `"2º Semestre"`, `"3º Semestre"`, `"4º Semestre"`.
 
-1. `UPDATE public.questoes_simulado SET grande_area = trim(grande_area) WHERE grande_area <> trim(grande_area);`
-2. `UPDATE … SET grande_area = 'Ginecologia e Obstetrícia' WHERE trim(grande_area) = 'Ginecologia';`
-3. `UPDATE … SET grande_area = 'Preventiva' WHERE trim(grande_area) IN ('Medicina Preventiva','Medicina Preventiva/Saúde Coletiva');`
-4. Criar função `public.normalize_grande_area(text) RETURNS text` (`IMMUTABLE`) com a mesma lógica.
-5. Criar trigger `BEFORE INSERT OR UPDATE OF grande_area ON questoes_simulado` que aplica `normalize_grande_area(NEW.grande_area)` → impede a regressão em futuras importações de CSV.
+### 2. Backend — defesa em profundidade na edge function
 
-Nada removido. Reversível por `UPDATE` inverso a partir do snapshot.
+Em `supabase/functions/get-study-contents/index.ts` (bloco `possibleValues`), trocar o `.in('semestre', uniqueValues)` por matching **case-insensitive**:
 
-### Camada 2 — Frontend defensivo
+```ts
+// Antes:
+.in('semestre', uniqueValues)
 
-1. Criar `src/utils/grandeArea.ts`:
-   ```ts
-   export function normalizeGrandeArea(raw?: string | null): string {
-     if (!raw) return 'Outros';
-     const t = raw.trim();
-     const map: Record<string, string> = {
-       'Ginecologia': 'Ginecologia e Obstetrícia',
-       'Medicina Preventiva': 'Preventiva',
-       'Medicina Preventiva/Saúde Coletiva': 'Preventiva',
-     };
-     return map[t] ?? t;
-   }
-   ```
-2. Aplicar onde se agrupa/exibe `grande_area`:
-   - `src/pages/SimuladoDesempenho.tsx` (linhas ~775 e ~783)
-   - `src/pages/SimuladoCorrecao.tsx` (linhas ~351 e ~366)
-   - `src/hooks/useSimuladosAnalytics.ts`
-   - `src/hooks/useErrorNotebook.ts`
-   - Componentes `caderno-erros/*` que filtram/listam por área
-   - `src/utils/exportSimuladosAnalytics.ts`
+// Depois (encadeando ilike via .or):
+.or(uniqueValues.map(v => `semestre.ilike.${v}`).join(','))
+```
 
-Mantém o app correto mesmo antes da migração rodar e blinda contra futuras variantes que escapem do trigger.
+Isso garante que qualquer variante futura (`"4º SEMESTRE"`, `"4º semestre"`, `"4º Semestre"`) seja capturada sem quebrar o `listSemestresOnly` (esse usa RPC `get_distinct_semestres` e segue idêntico).
 
-### Memória do projeto
+Re-deploy automático da função pela Lovable.
 
-Adicionar `mem://constraints/grande-area-canonical-mapping` registrando o mapa canônico + trigger, para que próximas importações respeitem a regra.
+### 3. (Opcional, não bloqueante) Normalização na importação
 
-### Fora de escopo
-- Não tocar em `especialidade`, `tema`, `subtema`.
-- Não normalizar case (preservar casing canônico).
-- Não alterar schema da coluna (continua `text`).
+Em `supabase/functions/admin-upload-study-guide/index.ts`, normalizar `semestre` ao inserir/atualizar:
+- `trim()` + se casar com `^(\d+)º\s+SEMESTRE$` (qualquer case), gravar como `"<N>º Semestre"`.
 
-### Verificação pós-deploy
-1. SQL: `SELECT DISTINCT grande_area FROM questoes_simulado WHERE grande_area ILIKE '%preventiva%' OR grande_area ILIKE '%ginecolog%';` deve retornar apenas `Preventiva` e `Ginecologia e Obstetrícia`.
-2. Abrir resultado do **2º Simulado FAI** e confirmar **5 grandes áreas** (em vez de 7).
-3. Tentar `INSERT` com `'Medicina Preventiva '` e ver o trigger gravar como `'Preventiva'`.
+Isso impede a reincidência. Pode ser feito agora junto, ou postergado.
+
+## Verificação final
+
+1. SQL acima mostra apenas variantes canônicas.
+2. Recarregar `/guia-estudos` como usuário INTEGRADO no 2º / 3º / 4º semestre → conteúdos visíveis.
+3. Limpar `localStorage` `perf_study_contents_*` caso o cache antigo (vazio) ainda esteja ativo (TTL = 15min) — ou aguardar expirar.
+
+## Notas
+
+- Migração 100% aditiva (somente `UPDATE`), respeitando a regra de preservação de dados.
+- Nada altera UI/frontend além da edge function (backend de leitura).
+- Outros IES não são afetados (filtro pela regex limita a linhas em CAIXA ALTA).
