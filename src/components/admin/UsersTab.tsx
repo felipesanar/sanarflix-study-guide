@@ -35,11 +35,7 @@ const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'professor', label: 'Professor' },
   { value: 'gestor', label: 'Gestor' },
   { value: 'gestor_grupo', label: 'Gestor de Grupo' },
-  { value: 'gestor_formal', label: 'Gestor Formal' },
-  { value: 'b2b_partner', label: 'B2B Partner' },
   { value: 'atendimento', label: 'Atendimento' },
-  { value: 'moderator', label: 'Moderator' },
-  { value: 'user', label: 'User' },
 ];
 
 export const UsersTab: React.FC = () => {
@@ -106,7 +102,7 @@ export const UsersTab: React.FC = () => {
         email: singleUser.email.toLowerCase().trim(),
         id_ies: singleUser.id_ies,
         semestre: singleUser.semestre ? parseInt(singleUser.semestre) : null,
-        ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role as 'aluno' | 'professor' | 'b2b_partner' | 'admin' } : {}),
+        ...(singleUser.role && singleUser.role !== 'aluno' ? { role: singleUser.role as 'aluno' | 'professor' | 'admin' } : {}),
       });
 
       if (!data.success) {

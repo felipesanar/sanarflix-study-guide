@@ -88,11 +88,8 @@ const EDITABLE_ROLES: { value: string; label: string }[] = [
   { value: 'admin',        label: 'Admin' },
   { value: 'professor',    label: 'Professor' },
   { value: 'gestor',       label: 'Gestor' },
-  { value: 'gestor_formal', label: 'Gestor Formal' },
   { value: 'gestor_grupo', label: 'Gestor de Grupo' },
   { value: 'atendimento',  label: 'Atendimento' },
-  { value: 'b2b_partner',  label: 'Parceiro B2B' },
-  { value: 'moderator',    label: 'Moderador' },
 ];
 const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value).filter(v => v !== ROLE_NONE);
 
@@ -630,13 +627,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
           .from('user_roles')
           .delete()
           .eq('user_id', user.id)
-          .in('role', PRIVILEGED_ROLES as Array<'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo'>);
+          .in('role', PRIVILEGED_ROLES as Array<'admin' | 'professor' | 'gestor' | 'atendimento' | 'gestor_grupo'>);
         if (delErr) {
           toast.error(`Usuário atualizado, mas falhou ao alterar papel: ${delErr.message}`);
         } else if (editing.role !== ROLE_NONE) {
           const { error: insErr } = await supabase
             .from('user_roles')
-            .insert({ user_id: user.id, role: editing.role as 'admin' | 'moderator' | 'user' | 'b2b_partner' | 'professor' | 'gestor' | 'atendimento' | 'gestor_formal' | 'gestor_grupo' });
+            .insert({ user_id: user.id, role: editing.role as 'admin' | 'professor' | 'gestor' | 'atendimento' | 'gestor_grupo' });
           if (insErr) {
             toast.error(`Falha ao definir novo papel: ${insErr.message}`);
           }
@@ -1163,11 +1160,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
                                   admin: { label: 'Admin', variant: 'default', icon: true },
                                   professor: { label: 'Professor', variant: 'secondary' },
                                   gestor: { label: 'Gestor', variant: 'secondary' },
-                                  gestor_formal: { label: 'Gestor Formal', variant: 'secondary' },
                                   gestor_grupo: { label: 'Gestor de Grupo', variant: 'secondary' },
                                   atendimento: { label: 'Atendimento', variant: 'secondary' },
-                                  b2b_partner: { label: 'Parceiro B2B', variant: 'outline' },
-                                  moderator: { label: 'Moderador', variant: 'secondary' },
                                 };
                                 const c = config[role] || { label: role, variant: 'secondary' as const };
                                 return (

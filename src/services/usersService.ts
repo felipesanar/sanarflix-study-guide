@@ -16,7 +16,7 @@ export interface CreateUserPayload {
   nome: string;
   id_ies: string;
   semestre?: number | null;
-  role?: 'aluno' | 'professor' | 'b2b_partner' | 'admin';
+  role?: 'aluno' | 'professor' | 'admin' | 'gestor' | 'gestor_grupo' | 'atendimento';
 }
 
 export interface CreateUserResult {
