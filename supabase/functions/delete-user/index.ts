@@ -30,6 +30,7 @@ const DEPENDENT_TABLES = [
   // consumo_metabase references supabase_to_metabase via FK — must be deleted first
   { table: 'consumo_metabase', filters: ['id'] },
   { table: 'supabase_to_metabase', filters: ['id'] },
+  { table: 'resultados_alunos_tri', filters: ['student_id'] },
 ];
 
 // Max users per single invocation to avoid CPU timeout

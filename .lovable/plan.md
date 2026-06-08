@@ -1,35 +1,37 @@
-# Remoção definitiva dos roles depreciados do enum `app_role`
+# Correção: exclusão de usuários no Portal do Admin
 
-## Contexto
+## Causa raiz
 
-A migration anterior adicionou um `CHECK constraint` que impede inserir os 4 roles depreciados, mas os valores continuam **existindo no tipo enum** `app_role`. Por isso o Supabase Studio ainda lista `user`, `moderator`, `b2b_partner` e `gestor_formal` no dropdown — o Studio lê os valores diretamente do `pg_enum`.
+O toast "Edge Function returned a non-2xx status code" vem da edge function `delete-user`, que está retornando 500 ao tentar excluir a usuária Amanda (e qualquer outro aluno com histórico de simulado).
 
-Postgres **não permite remover valores individuais** de um enum. A única forma é recriar o tipo.
+Investigação:
 
-## Verificações já feitas
+1. Os logs mostram a função iniciando (`removing user 4c1bd745-...`) mas nunca logando sucesso.
+2. A função apaga manualmente todas as tabelas dependentes antes de deletar `public.users` e em seguida `auth.users`.
+3. A tabela `resultados_alunos_tri` tem FK `student_id → public.users(id)` **sem `ON DELETE CASCADE`** e **não está na lista `DEPENDENT_TABLES`** do arquivo `supabase/functions/delete-user/index.ts`.
+4. A Amanda possui 1 linha em `resultados_alunos_tri`, então o `DELETE FROM public.users` falha com violação de FK e a função retorna erro 500.
 
-- Única coluna que usa `app_role` no banco: `public.user_roles.role`.
-- Nenhuma linha em `user_roles` usa um dos roles depreciados (apenas `admin`, `professor`, `gestor`, `gestor_grupo`, `atendimento`).
-- Nenhuma function ou RLS policy referencia literais como `'b2b_partner'::app_role`, `'gestor_formal'::app_role`, `'moderator'::app_role` ou `'user'::app_role` (já limpos na migration anterior).
-- Coluna `role` não tem `DEFAULT`.
+Nenhuma outra FK órfã foi encontrada para alunos comuns — apenas `announcements.created_by` e `simulados_admin.created_by` apontam para `auth.users` sem cascade, mas afetam só admins (que já são bloqueados de auto-delete).
 
-Portanto a recriação é segura e não quebra nada.
+## Correção
 
-## Plano (uma migration)
+**Único arquivo a editar:** `supabase/functions/delete-user/index.ts`
 
-1. Remover o `CHECK constraint` `user_roles_role_not_deprecated` (vira redundante).
-2. Criar enum novo `app_role_new` com apenas: `admin`, `professor`, `gestor`, `gestor_grupo`, `atendimento`, `aluno`.
-   - Inclui `aluno` se ele já existir no enum atual (vou confirmar antes de gerar o SQL final — `aluno` está em uso pelo front em `UserRole`).
-3. `ALTER TABLE public.user_roles ALTER COLUMN role TYPE public.app_role_new USING role::text::public.app_role_new`.
-4. `DROP TYPE public.app_role`.
-5. `ALTER TYPE public.app_role_new RENAME TO app_role`.
+Adicionar `resultados_alunos_tri` (chave `student_id`) à constante `DEPENDENT_TABLES`, antes da deleção de `users`:
 
-Tudo aditivo em relação aos dados: nenhuma linha existente é deletada nem modificada (respeita a regra de migrations puramente aditivas).
+```ts
+{ table: 'resultados_alunos_tri', filters: ['student_id'] },
+```
 
-## Resultado esperado
+Isso replica o padrão já usado para as demais tabelas e elimina a violação de FK.
 
-Após executar, o dropdown do Supabase Studio em `user_roles.role` mostrará apenas os 5 (ou 6, incluindo `aluno`) roles válidos. Front-end e back-end já estão alinhados.
+## Validação
 
-## Pergunta antes de gerar o SQL
+1. Após o deploy automático, tentar excluir novamente a Amanda (`4c1bd745-f6e0-4b7f-832e-70e1c8a1c97f`) no Portal do Admin.
+2. Conferir o log da função: deve aparecer `User ... removed successfully` e o toast de sucesso na UI.
+3. Conferir via SQL que não restam linhas em `users`, `user_roles`, `resultados_alunos_tri` e `auth.users` para esse id.
 
-Preciso confirmar 1 ponto: o enum `app_role` atual também tem o valor `aluno`? Se sim, preservo ele no novo enum. Vou verificar isso antes de submeter a migration — só queria seu OK no plano geral primeiro.
+## Fora de escopo
+
+- Não vou alterar as FKs do banco para `ON DELETE CASCADE` neste passo (mantém migrações puramente aditivas e evita efeito colateral em outras integrações). Caso queira, posso abrir um plano separado para adicionar cascades onde fizer sentido.
+- Nenhuma alteração de UI, de policies RLS ou do enum `app_role`.
