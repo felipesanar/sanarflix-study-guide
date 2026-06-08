@@ -37,6 +37,25 @@ export type ExtractedImagesResult = {
     /** Âncoras cujas linhas não tinham número de questão preenchido */
     skippedNoQuestionNumber: number;
   };
+  /**
+   * Diagnóstico por imagem: onde cada uma ancorou e qual foi o desfecho.
+   * Renderizado no preview quando há mídia que não casou, para o admin
+   * entender (e corrigir) sem precisar abrir o console.
+   */
+  debug: {
+    anchors: Array<{
+      /** Coluna 0-based da âncora */
+      col: number;
+      /** Linha 1-based da planilha (já convertida de xdr:row) */
+      xlsxRow: number;
+      /** Número da questão lido da coluna `numero` naquela linha, se houver */
+      numeroQuestao: number | null;
+      /** Desfecho do casamento */
+      outcome: 'enunciado' | 'enunciado2' | 'comentario' | 'sem-numero' | 'coluna-errada' | 'duplicada';
+      /** Caminho de extração que detectou a âncora */
+      via: 'dispimg' | 'drawing';
+    }>;
+  };
 };
 
 export type ExtractImagesOptions = {
@@ -295,6 +314,7 @@ export async function extractImagesFromXlsx(
     skippedWrongColumn: 0,
     skippedNoQuestionNumber: 0,
   };
+  const debug: ExtractedImagesResult['debug'] = { anchors: [] };
 
   const enunciado2ColCandidates = options.enunciado2ColCandidates ?? [];
 
@@ -321,7 +341,7 @@ export async function extractImagesFromXlsx(
 
   if (stats.totalMedia === 0) {
     Logger.warn('[xlsxImageExtractor] Nenhuma imagem em xl/media/ — planilha sem imagens embutidas.');
-    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats, debug };
   }
 
   const enunciadoImages: Record<number, ExtractedImage> = {};
@@ -405,6 +425,7 @@ export async function extractImagesFromXlsx(
           const numeroQuestao = rowToQuestionNumber[rowNum];
           if (!numeroQuestao) {
             stats.skippedNoQuestionNumber += 1;
+            debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao: null, outcome: 'sem-numero', via: 'dispimg' });
             Logger.warn('[xlsxImageExtractor] DISPIMG sem número de questão na linha', rowNum, '(coluna', colLetters, ')');
             continue;
           }
@@ -414,26 +435,36 @@ export async function extractImagesFromXlsx(
             if (!enunciadoImages[numeroQuestao]) {
               enunciadoImages[numeroQuestao] = image;
               stats.matchedEnunciado += 1;
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'enunciado', via: 'dispimg' });
+            } else {
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'duplicada', via: 'dispimg' });
             }
           } else if (enunciado2ColCandidates.includes(colIdx)) {
             if (!enunciado2Images[numeroQuestao]) {
               enunciado2Images[numeroQuestao] = image;
               stats.matchedEnunciado2 += 1;
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'enunciado2', via: 'dispimg' });
+            } else {
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'duplicada', via: 'dispimg' });
             }
           } else if (options.comentarioColCandidates.includes(colIdx)) {
             if (!comentarioImages[numeroQuestao]) {
               comentarioImages[numeroQuestao] = image;
               stats.matchedComentario += 1;
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'comentario', via: 'dispimg' });
+            } else {
+              debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'duplicada', via: 'dispimg' });
             }
           } else {
             stats.skippedWrongColumn += 1;
+            debug.anchors.push({ col: colIdx, xlsxRow: rowNum, numeroQuestao, outcome: 'coluna-errada', via: 'dispimg' });
           }
         }
         Logger.info('[xlsxImageExtractor] DISPIMG matches encontrados:', dispMatches, '| stats parciais:', { ...stats });
       }
 
       if (stats.matchedEnunciado + stats.matchedEnunciado2 + stats.matchedComentario > 0) {
-        return { enunciadoImages, enunciado2Images, comentarioImages, stats };
+        return { enunciadoImages, enunciado2Images, comentarioImages, stats, debug };
       }
     } catch (e) {
       Logger.warn('[xlsxImageExtractor] Falha ao processar cellimages.xml, caindo no caminho clássico:', e);
@@ -481,7 +512,7 @@ export async function extractImagesFromXlsx(
 
   if (!drawingPath || !zip.files[drawingPath]) {
     Logger.warn('[xlsxImageExtractor] ❌ Drawing não encontrado — abortando caminho clássico');
-    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats, debug };
   }
 
   // 3. Lê os rels do drawing
@@ -492,7 +523,7 @@ export async function extractImagesFromXlsx(
   const drawingRelsFile = zip.files[drawingRelsPath];
   if (!drawingRelsFile) {
     Logger.warn('[xlsxImageExtractor] ❌ drawing.rels não encontrado:', drawingRelsPath);
-    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats };
+    return { enunciadoImages: {}, enunciado2Images: {}, comentarioImages: {}, stats, debug };
   }
   const drawingRelsXml = await drawingRelsFile.async('string');
   const drawingRels = parseRels(drawingRelsXml);
@@ -548,6 +579,7 @@ export async function extractImagesFromXlsx(
     const numeroQuestao = rowToQuestionNumber[xlsxRowNumber];
     if (!numeroQuestao) {
       stats.skippedNoQuestionNumber += 1;
+      debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao: null, outcome: 'sem-numero', via: 'drawing' });
       continue;
     }
 
@@ -560,26 +592,36 @@ export async function extractImagesFromXlsx(
       if (!enunciadoImages[numeroQuestao]) {
         enunciadoImages[numeroQuestao] = image;
         stats.matchedEnunciado += 1;
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'enunciado', via: 'drawing' });
+      } else {
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'duplicada', via: 'drawing' });
       }
     } else if (enunciado2ColCandidates.includes(col)) {
       if (!enunciado2Images[numeroQuestao]) {
         enunciado2Images[numeroQuestao] = image;
         stats.matchedEnunciado2 += 1;
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'enunciado2', via: 'drawing' });
+      } else {
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'duplicada', via: 'drawing' });
       }
     } else if (options.comentarioColCandidates.includes(col)) {
       if (!comentarioImages[numeroQuestao]) {
         comentarioImages[numeroQuestao] = image;
         stats.matchedComentario += 1;
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'comentario', via: 'drawing' });
+      } else {
+        debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'duplicada', via: 'drawing' });
       }
     } else {
       stats.skippedWrongColumn += 1;
+      debug.anchors.push({ col, xlsxRow: xlsxRowNumber, numeroQuestao, outcome: 'coluna-errada', via: 'drawing' });
     }
   }
 
   Logger.info('[xlsxImageExtractor] Âncoras detalhadas:', anchorDebug.slice(0, 30));
   Logger.info('[xlsxImageExtractor] Stats finais:', stats);
 
-  return { enunciadoImages, enunciado2Images, comentarioImages, stats };
+  return { enunciadoImages, enunciado2Images, comentarioImages, stats, debug };
 }
 
 /**

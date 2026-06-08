@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as XLSXLibStatic from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
-import { extractImagesFromXlsx, compressBase64Image } from '@/utils/xlsxImageExtractor';
+import { extractImagesFromXlsx, compressBase64Image, type ExtractedImagesResult } from '@/utils/xlsxImageExtractor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,78 @@ const calcularStatusSimulado = (
   // Caso contrário, está ativo
   return 'ativo';
 };
+
+/** Converte índice de coluna 0-based (0=A) em letra do Excel, para exibição. */
+const colIdxToLetter = (idx: number): string => {
+  if (idx < 0) return '?';
+  let n = idx;
+  let s = '';
+  do {
+    s = String.fromCharCode(65 + (n % 26)) + s;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return s;
+};
+
+const ANCHOR_OUTCOME_LABEL: Record<string, string> = {
+  enunciado: 'vinculada ao ENUNCIADO',
+  comentario: 'vinculada ao COMENTÁRIO',
+  'sem-numero': 'IGNORADA — linha sem "numero" preenchido',
+  'coluna-errada': 'IGNORADA — coluna fora das esperadas',
+  duplicada: 'IGNORADA — já havia imagem nesse slot',
+};
+
+type ImageSlot = 'enunciado' | 'enunciado2' | 'comentario';
+type ImageUploadInput = { ordem: number; slot: ImageSlot; data: string; mime: string };
+type ImageUploadResult = {
+  /** ordem → URLs públicas por slot, só das imagens que subiram com sucesso. */
+  urlsByOrdem: Record<number, { enunciado?: string; enunciado2?: string; comentario?: string }>;
+  /** Falhas por imagem (a function respondeu 200, mas alguns uploads falharam). */
+  partialErrors: Array<{ ordem: number; slot?: string; message: string }>;
+  /** Falha na chamada em si (auth/origin/404/rede): NENHUMA imagem subiu. */
+  fatalError: string | null;
+};
+
+/**
+ * Sobe imagens de simulado via edge function `admin-upload-simulado-images`.
+ * NÃO lança: devolve o que conseguiu + os erros, para o chamador decidir o que
+ * fazer (preservar o simulado, permitir reenvio manual etc.). Centraliza o
+ * desembrulho do FunctionsHttpError para erros acionáveis.
+ */
+async function uploadSimuladoImages(
+  simuladoId: string,
+  images: ImageUploadInput[],
+): Promise<ImageUploadResult> {
+  const urlsByOrdem: ImageUploadResult['urlsByOrdem'] = {};
+  if (images.length === 0) return { urlsByOrdem, partialErrors: [], fatalError: null };
+
+  const { data, error } = await supabase.functions.invoke(
+    'admin-upload-simulado-images',
+    { body: { simulado_id: simuladoId, images } },
+  );
+
+  if (error) {
+    // supabase.functions.invoke embrulha a resposta HTTP em FunctionsHttpError;
+    // o corpo/status reais ficam em `.context` (um Response).
+    let detalhe = error.message ?? String(error);
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.text === 'function') {
+      const status = ctx.status;
+      const body = await ctx.text().catch(() => '');
+      detalhe = `HTTP ${status} — ${body || error.message}`;
+    }
+    Logger.error('[SimuladosTab] admin-upload-simulado-images falhou:', detalhe);
+    return { urlsByOrdem, partialErrors: [], fatalError: detalhe };
+  }
+
+  const returnedUrls = (data?.urls ?? []) as Array<{ ordem: number; slot: ImageSlot; url: string }>;
+  for (const u of returnedUrls) {
+    if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
+    urlsByOrdem[u.ordem][u.slot] = u.url;
+  }
+  const partialErrors = (data?.errors ?? []) as ImageUploadResult['partialErrors'];
+  return { urlsByOrdem, partialErrors, fatalError: null };
+}
 
 interface Simulado {
   id: string;
@@ -108,6 +180,11 @@ interface PreviewData {
     data_encerramento: string;
     duracao_minutos: number;
   };
+  /** Diagnóstico da extração de imagens embutidas (renderizado no preview). */
+  imageStats?: ExtractedImagesResult['stats'];
+  imageAnchors?: ExtractedImagesResult['debug']['anchors'];
+  /** Colunas testadas, para exibir ao admin quando nada casou. */
+  imageColCandidates?: { enunciado: number[]; comentario: number[] };
 }
 
 export default function SimuladosTab() {
@@ -126,6 +203,7 @@ export default function SimuladosTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [editingQuestao, setEditingQuestao] = useState<Questao | null>(null);
+  const [uploadingQuestaoImg, setUploadingQuestaoImg] = useState<null | 'enunciado' | 'comentario'>(null);
   const [iesList, setIesList] = useState<IES[]>([]);
   const [selectedIESList, setSelectedIESList] = useState<string[]>([]);
   const [showLiberarModal, setShowLiberarModal] = useState(false);
@@ -470,11 +548,12 @@ export default function SimuladosTab() {
 
           setUploadProgress(55);
 
-          let extracted = {
-            enunciadoImages: {} as Record<number, { base64: string; mimeType: string }>,
-            enunciado2Images: {} as Record<number, { base64: string; mimeType: string }>,
-            comentarioImages: {} as Record<number, { base64: string; mimeType: string }>,
-            stats: { totalMedia: 0, matchedEnunciado: 0, matchedEnunciado2: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 }
+          let extracted: ExtractedImagesResult = {
+            enunciadoImages: {},
+            enunciado2Images: {},
+            comentarioImages: {},
+            stats: { totalMedia: 0, matchedEnunciado: 0, matchedEnunciado2: 0, matchedComentario: 0, skippedNoAnchor: 0, skippedWrongColumn: 0, skippedNoQuestionNumber: 0 },
+            debug: { anchors: [] },
           };
           if (enunciadoColCandidates.length > 0 || enunciado2ColCandidates.length > 0 || comentarioColCandidates.length > 0) {
             try {
@@ -562,7 +641,10 @@ export default function SimuladosTab() {
               data_liberacao: '',
               data_encerramento: '',
               duracao_minutos: duracaoOpcoes[0].value
-            }
+            },
+            imageStats: extracted.stats,
+            imageAnchors: extracted.debug.anchors,
+            imageColCandidates: { enunciado: enunciadoColCandidates, comentario: comentarioColCandidates },
           });
 
           setUploadProgress(100);
@@ -611,16 +693,31 @@ export default function SimuladosTab() {
   };
 
   const handleConfirmPreview = () => {
-    if (previewData) {
-      setConfigForm({
-        ...configFormInitial,
-        ...previewData.config
-      });
-      setIsEditMode(false);
-      setEditingSimulado(null);
-      setShowPreviewModal(false);
-      setShowConfigModal(true);
+    if (!previewData) return;
+
+    // Fail-loud: se a planilha tinha imagens embutidas mas nenhuma casou com
+    // uma questão, não deixa seguir em silêncio — o admin teria um simulado
+    // sem as imagens sem perceber. Exige confirmação explícita.
+    const stats = previewData.imageStats;
+    if (stats && stats.totalMedia > 0 && stats.matchedEnunciado + stats.matchedEnunciado2 + stats.matchedComentario === 0) {
+      const ok = window.confirm(
+        `⚠️ Detectamos ${stats.totalMedia} imagem(ns) na planilha, mas NENHUMA foi vinculada a uma questão.\n\n` +
+        `Se continuar, o simulado será criado SEM essas imagens.\n\n` +
+        `Causa mais comum: a imagem foi colada numa coluna diferente da do texto, ou a coluna "numero" não casa com a linha da imagem. ` +
+        `Veja o painel de diagnóstico no preview para os detalhes.\n\n` +
+        `Deseja continuar mesmo assim?`
+      );
+      if (!ok) return;
     }
+
+    setConfigForm({
+      ...configFormInitial,
+      ...previewData.config
+    });
+    setIsEditMode(false);
+    setEditingSimulado(null);
+    setShowPreviewModal(false);
+    setShowConfigModal(true);
   };
 
   const handleEditSimulado = async (simulado: Simulado) => {
@@ -807,38 +904,15 @@ export default function SimuladosTab() {
             }
           }
 
-          // Mapa ordem → { enunciado, enunciado2, comentario } com URLs vindas do Storage
-          const urlsByOrdem: Record<number, { enunciado?: string; enunciado2?: string; comentario?: string }> = {};
+          // 1. Upload best-effort das imagens. NÃO faz rollback se falhar: o
+          //    simulado e as questões são preservados, e o admin completa as
+          //    imagens faltantes depois pelo editor de cada questão.
+          const { urlsByOrdem, partialErrors, fatalError } = await uploadSimuladoImages(
+            simulado.id,
+            imagesPayload,
+          );
 
-          if (imagesPayload.length > 0) {
-            try {
-              const { data: uploadData, error: uploadError } = await supabase.functions.invoke(
-                'admin-upload-simulado-images',
-                { body: { simulado_id: simulado.id, images: imagesPayload } }
-              );
-              if (uploadError) throw uploadError;
-              const returnedUrls = (uploadData?.urls ?? []) as Array<{ ordem: number; slot: 'enunciado' | 'enunciado2' | 'comentario'; url: string }>;
-              for (const u of returnedUrls) {
-                if (!urlsByOrdem[u.ordem]) urlsByOrdem[u.ordem] = {};
-                urlsByOrdem[u.ordem][u.slot] = u.url;
-              }
-              const uploadErrors = (uploadData?.errors ?? []) as Array<{ ordem: number; message: string }>;
-              if (uploadErrors.length > 0) {
-                Logger.warn('[SimuladosTab] Falhas parciais no upload de imagens:', uploadErrors);
-                toast({
-                  title: 'Algumas imagens falharam',
-                  description: `${uploadErrors.length} imagem(ns) não foram enviadas. As questões serão criadas sem elas.`,
-                  variant: 'destructive',
-                });
-              }
-            } catch (imgErr: any) {
-              // Rollback do simulado para não deixar órfão
-              await supabase.from('simulados_admin').delete().eq('id', simulado.id);
-              throw new Error(`Falha no upload das imagens: ${imgErr?.message ?? imgErr}. O simulado foi revertido — tente novamente.`);
-            }
-          }
-
-          // 2. Monta payload final, removendo campos internos e injetando URLs
+          // 2. Monta payload final, removendo campos internos e injetando URLs.
           const questoesComSimuladoId = previewData.questoes.map(q => {
             const { _embeddedEnunciado, _embeddedEnunciado2, _embeddedComentario, ...clean } = q;
             const slotUrls = urlsByOrdem[q.ordem] ?? {};
@@ -856,9 +930,25 @@ export default function SimuladosTab() {
             .insert(questoesComSimuladoId);
 
           if (questoesError) {
-            // Rollback se a inserção falhar
+            // As questões são a integridade real do simulado — só aqui faz rollback.
             await supabase.from('simulados_admin').delete().eq('id', simulado.id);
             throw questoesError;
+          }
+
+          // 3. Feedback sobre imagens — não bloqueia a criação do simulado.
+          if (fatalError) {
+            toast({
+              title: 'Simulado criado, mas as imagens não subiram',
+              description: `${fatalError}. As questões foram criadas sem imagem — anexe manualmente pelo editor de cada questão (ícone de lápis).`,
+              variant: 'destructive',
+            });
+          } else if (partialErrors.length > 0) {
+            const amostra = partialErrors.slice(0, 3).map(e => `Q${e.ordem}${e.slot ? `/${e.slot}` : ''}: ${e.message}`).join(' · ');
+            toast({
+              title: `${partialErrors.length} imagem(ns) falharam`,
+              description: `${amostra}${partialErrors.length > 3 ? ' …' : ''}. Anexe-as manualmente pelo editor de cada questão.`,
+              variant: 'destructive',
+            });
           }
         }
 
@@ -972,7 +1062,8 @@ export default function SimuladosTab() {
           grande_area: editingQuestao.grande_area,
           especialidade: editingQuestao.especialidade,
           tema: editingQuestao.tema,
-          imagem: editingQuestao.imagem
+          imagem: editingQuestao.imagem,
+          imagem_comentario: editingQuestao.imagem_comentario ?? null,
         })
         .eq('id', editingQuestao.id);
 
@@ -994,6 +1085,46 @@ export default function SimuladosTab() {
         description: error.message,
         variant: 'destructive'
       });
+    }
+  };
+
+  // Upload manual de imagem por questão, direto no editor — fallback robusto
+  // quando a extração automática da planilha não casou a imagem.
+  const handleUploadQuestaoImage = async (
+    file: File,
+    slot: 'enunciado' | 'comentario',
+  ) => {
+    if (!editingQuestao || !selectedSimulado) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Arquivo inválido', description: 'Selecione um arquivo de imagem (PNG, JPG, etc.).', variant: 'destructive' });
+      return;
+    }
+    try {
+      setUploadingQuestaoImg(slot);
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = () => reject(new Error('Falha ao ler o arquivo'));
+        r.readAsDataURL(file);
+      });
+      const rawBase64 = dataUrl.split(',')[1] ?? '';
+      const { base64, mimeType } = await compressBase64Image(rawBase64, file.type);
+      const { urlsByOrdem, partialErrors, fatalError } = await uploadSimuladoImages(
+        selectedSimulado.id,
+        [{ ordem: editingQuestao.ordem, slot, data: base64, mime: mimeType }],
+      );
+      if (fatalError) throw new Error(fatalError);
+      const url = urlsByOrdem[editingQuestao.ordem]?.[slot];
+      if (!url) throw new Error(partialErrors[0]?.message ?? 'A imagem não foi aceita pelo servidor.');
+
+      setEditingQuestao(prev => prev
+        ? { ...prev, ...(slot === 'enunciado' ? { imagem: url } : { imagem_comentario: url }) }
+        : prev);
+      toast({ title: 'Imagem enviada', description: 'Clique em "Salvar Alterações" para confirmar.' });
+    } catch (e: any) {
+      toast({ title: 'Falha ao enviar imagem', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setUploadingQuestaoImg(null);
     }
   };
 
@@ -1109,6 +1240,119 @@ export default function SimuladosTab() {
         variant: 'destructive'
       });
     }
+  };
+
+  // Painel de diagnóstico das imagens embutidas, renderizado no preview.
+  // Fail-loud: quando há mídia na planilha mas pouca/nenhuma casou com questões,
+  // mostra exatamente onde cada imagem ancorou e por quê foi ignorada.
+  const renderImageDiagnostic = () => {
+    const s = previewData?.imageStats;
+    if (!s || s.totalMedia === 0) return null;
+
+    const matched = s.matchedEnunciado + s.matchedEnunciado2 + s.matchedComentario;
+    const allMatched = matched === s.totalMedia;
+    const noneMatched = matched === 0;
+    const anchors = previewData?.imageAnchors ?? [];
+    const cand = previewData?.imageColCandidates;
+
+    const tone = allMatched
+      ? 'border-green-300 bg-green-50 dark:bg-green-950/30'
+      : noneMatched
+        ? 'border-red-300 bg-red-50 dark:bg-red-950/30'
+        : 'border-amber-300 bg-amber-50 dark:bg-amber-950/30';
+
+    return (
+      <div className={`rounded-lg border p-3 text-sm ${tone}`}>
+        <p className="font-semibold flex items-center gap-2">
+          {allMatched ? (
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          ) : (
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+          )}
+          {matched} de {s.totalMedia} imagem(ns) vinculada(s)
+          {!allMatched && ` — ${s.totalMedia - matched} ficará(ão) de fora`}
+        </p>
+        {!allMatched && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Colunas testadas — enunciado: [{(cand?.enunciado ?? []).map(colIdxToLetter).join(', ')}],
+            comentário: [{(cand?.comentario ?? []).map(colIdxToLetter).join(', ')}].
+            Cole a imagem na mesma linha da questão, na coluna do enunciado/comentário,
+            e garanta a coluna {'"numero"'} preenchida naquela linha.
+          </p>
+        )}
+        {anchors.length > 0 && (
+          <div className="mt-2 max-h-40 overflow-y-auto rounded border bg-background/60">
+            <table className="w-full text-xs">
+              <thead className="text-muted-foreground">
+                <tr className="border-b">
+                  <th className="text-left px-2 py-1">Célula</th>
+                  <th className="text-left px-2 py-1">Questão</th>
+                  <th className="text-left px-2 py-1">Resultado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anchors.map((a, i) => {
+                  const ok = a.outcome === 'enunciado' || a.outcome === 'comentario';
+                  return (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-2 py-1 font-mono">{colIdxToLetter(a.col)}{a.xlsxRow}</td>
+                      <td className="px-2 py-1">{a.numeroQuestao ?? '—'}</td>
+                      <td className={`px-2 py-1 ${ok ? 'text-green-600' : 'text-red-600'}`}>
+                        {ANCHOR_OUTCOME_LABEL[a.outcome] ?? a.outcome}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Campo de imagem do editor de questão: URL editável + botão de upload
+  // (envia o arquivo pela edge function e injeta a URL pública resultante).
+  const renderQuestaoImageField = (slot: 'enunciado' | 'comentario') => {
+    if (!editingQuestao) return null;
+    const isEnun = slot === 'enunciado';
+    const value = (isEnun ? editingQuestao.imagem : editingQuestao.imagem_comentario) ?? '';
+    const label = isEnun ? 'Imagem do Enunciado' : 'Imagem do Comentário';
+    const busy = uploadingQuestaoImg === slot;
+    return (
+      <div>
+        <Label>{label} (opcional)</Label>
+        <div className="flex gap-2 items-center">
+          <Input
+            value={value}
+            onChange={(e) => setEditingQuestao({
+              ...editingQuestao,
+              ...(isEnun ? { imagem: e.target.value } : { imagem_comentario: e.target.value }),
+            })}
+            placeholder="https://… ou envie um arquivo →"
+          />
+          <Button type="button" variant="outline" size="sm" asChild>
+            <label className="cursor-pointer whitespace-nowrap">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={busy || !selectedSimulado}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUploadQuestaoImage(f, slot);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </Button>
+        </div>
+        {value && (
+          <img src={value} alt={label} className="mt-2 max-h-40 w-auto rounded border" />
+        )}
+      </div>
+    );
   };
 
   const getStatusBadge = (simulado: Simulado) => {
@@ -1360,6 +1604,8 @@ export default function SimuladosTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Painel de diagnóstico das imagens embutidas — fail-loud */}
+            {renderImageDiagnostic()}
             {previewData?.questoes.slice(0, 3).map((questao, index) => (
               <Card key={index}>
                 <CardHeader>
@@ -1950,15 +2196,7 @@ export default function SimuladosTab() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="edit-imagem">URL da Imagem (opcional)</Label>
-                <Input
-                  id="edit-imagem"
-                  value={editingQuestao.imagem || ''}
-                  onChange={(e) => setEditingQuestao({ ...editingQuestao, imagem: e.target.value })}
-                  placeholder="https://..."
-                />
-              </div>
+              {renderQuestaoImageField('enunciado')}
 
               <div className="grid grid-cols-1 gap-3">
                 <div>
@@ -2033,6 +2271,8 @@ export default function SimuladosTab() {
                   rows={3}
                 />
               </div>
+
+              {renderQuestaoImageField('comentario')}
             </div>
           )}
 
