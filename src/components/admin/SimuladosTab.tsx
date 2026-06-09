@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as XLSXLibStatic from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
-import { extractImagesFromXlsx, compressBase64Image, type ExtractedImagesResult } from '@/utils/xlsxImageExtractor';
+import { extractImagesFromXlsx, compressBase64Image, buildImageColCandidates, type ExtractedImagesResult } from '@/utils/xlsxImageExtractor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -437,59 +437,21 @@ export default function SimuladosTab() {
             );
           }
 
-          // Descobre os índices das colunas de imagem embutida (0-based, igual ao xdr:col).
-          //
-          // O usuário tipicamente cola a imagem em uma de três posições:
-          //   (a) Numa coluna dedicada "Imagem do Enunciado"/"Imagem do Comentário" (quando
-          //       o template tem essa coluna extra — é o caso do modelo baixado aqui).
-          //   (b) Dentro da própria célula do texto (raro, só quando usa "Inserir imagem
-          //       NA célula" do Excel/Google Sheets em cima da célula já com texto).
-          //   (c) Na célula à direita do texto — comportamento padrão de "colar" no Excel
-          //       quando o cursor está no canto da célula. É o mais frequente em planilhas
-          //       feitas à mão a partir de um template só-texto (o caso real dos simulados
-          //       importados: a planilha não tinha colunas dedicadas e as âncoras ficaram
-          //       todas em col=5, logo ao lado de "Enunciado" na coluna 4).
-          //
-          // Para cobrir as três, montamos arrays de CANDIDATOS e deixamos o extractor
-          // casar a primeira âncora encontrada.
-          const findColByHeader = (name: string) =>
-            originalKeys.findIndex(k => k.toLowerCase().trim() === name);
-
-          const imagemEnunciadoHeaderCol = findColByHeader('imagem do enunciado');
-          // Aceita variações comuns: "imagem 2 do enunciado", "imagem do enunciado 2"
-          const imagemEnunciado2HeaderCol = (() => {
-            const candidates = ['imagem 2 do enunciado', 'imagem do enunciado 2', 'imagem 2 enunciado'];
-            for (const c of candidates) {
-              const idx = findColByHeader(c);
-              if (idx >= 0) return idx;
-            }
-            return -1;
-          })();
-          const enunciadoTextCol = findColByHeader('enunciado');
-          const imagemComentarioHeaderCol = findColByHeader('imagem do comentário');
-          const comentarioTextCol = findColByHeader('comentário');
-          const numeroColIndex = findColByHeader('numero');
-
-          // Candidatos em ordem de preferência (o extractor usa o primeiro que bater).
-          // Deduplicado e filtrado de -1. A posição "texto+1" cobre a convenção de
-          // colar na célula adjacente. F(5)/M(12) são a convenção histórica de outros
-          // projetos, mantidos como fallback final caso nenhuma coluna seja encontrada.
-          const uniq = (arr: number[]) => Array.from(new Set(arr.filter(i => i >= 0)));
-          const enunciadoColCandidates = uniq([
+          // Descobre os índices 0-based das colunas de imagem embutida.
+          // Toda a regra de "qual coluna é qual slot" vive em buildImageColCandidates
+          // (pura e coberta por testes). Cobre coluna dedicada, imagem na célula à
+          // direita do texto (texto+1) e a 2ª imagem do enunciado ao lado da 1ª (texto+2).
+          const {
+            enunciadoColCandidates,
+            enunciado2ColCandidates,
+            comentarioColCandidates,
+            numeroColIndex,
             imagemEnunciadoHeaderCol,
-            enunciadoTextCol + 1,
+            imagemEnunciado2HeaderCol,
             enunciadoTextCol,
-            5, // F - convenção histórica
-          ]);
-          // 2ª imagem do enunciado: só usamos a coluna dedicada quando o template a tem.
-          // Não inferimos fallback automático para evitar canibalizar a 1ª imagem.
-          const enunciado2ColCandidates = uniq([imagemEnunciado2HeaderCol]);
-          const comentarioColCandidates = uniq([
             imagemComentarioHeaderCol,
-            comentarioTextCol + 1,
             comentarioTextCol,
-            12, // M - convenção histórica
-          ]);
+          } = buildImageColCandidates(originalKeys);
 
           // Validação rigorosa da coluna `numero` — chave canônica de vinculação
           // imagem ↔ questão (path no Storage, linha em `questoes_simulado`, render).

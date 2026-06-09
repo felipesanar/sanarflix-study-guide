@@ -81,6 +81,82 @@ export type ExtractImagesOptions = {
   numeroColIndex: number;
 };
 
+/**
+ * A partir dos cabeçalhos da planilha, descobre os índices 0-based candidatos
+ * de coluna para cada slot de imagem do simulado. Função PURA e testável —
+ * concentra toda a regra de "qual coluna é qual" num só lugar.
+ *
+ * Convenções cobertas (o extractor casa a primeira âncora que bater):
+ *  - coluna dedicada: "Imagem do Enunciado", "Imagem 2 do Enunciado", "Imagem do Comentário";
+ *  - imagem colada na célula imediatamente à direita do texto (texto+1);
+ *  - 2ª imagem do enunciado colada ao lado da 1ª (texto+2) — caso real das
+ *    planilhas sem coluna dedicada, em que a 2ª imagem ancora na coluna G
+ *    quando o enunciado está em E e a 1ª imagem em F.
+ */
+export function buildImageColCandidates(originalKeys: string[]): {
+  enunciadoColCandidates: number[];
+  enunciado2ColCandidates: number[];
+  comentarioColCandidates: number[];
+  numeroColIndex: number;
+  imagemEnunciadoHeaderCol: number;
+  imagemEnunciado2HeaderCol: number;
+  enunciadoTextCol: number;
+  imagemComentarioHeaderCol: number;
+  comentarioTextCol: number;
+} {
+  const findColByHeader = (name: string) =>
+    originalKeys.findIndex((k) => k.toLowerCase().trim() === name);
+
+  const imagemEnunciadoHeaderCol = findColByHeader('imagem do enunciado');
+  let imagemEnunciado2HeaderCol = -1;
+  for (const c of ['imagem 2 do enunciado', 'imagem do enunciado 2', 'imagem 2 enunciado']) {
+    const idx = findColByHeader(c);
+    if (idx >= 0) { imagemEnunciado2HeaderCol = idx; break; }
+  }
+  const enunciadoTextCol = findColByHeader('enunciado');
+  const imagemComentarioHeaderCol = findColByHeader('imagem do comentário');
+  const comentarioTextCol = findColByHeader('comentário');
+  const numeroColIndex = findColByHeader('numero');
+
+  const uniq = (arr: number[]) => Array.from(new Set(arr.filter((i) => i >= 0)));
+
+  const enunciadoColCandidates = uniq([
+    imagemEnunciadoHeaderCol,
+    enunciadoTextCol >= 0 ? enunciadoTextCol + 1 : -1,
+    enunciadoTextCol,
+    5, // F — convenção histórica
+  ]).filter((c) => c !== imagemEnunciado2HeaderCol); // header dedicado da 2ª img é sempre da 2ª
+  const comentarioColCandidates = uniq([
+    imagemComentarioHeaderCol,
+    comentarioTextCol >= 0 ? comentarioTextCol + 1 : -1,
+    comentarioTextCol,
+    12, // M — convenção histórica
+  ]);
+  // 2ª imagem do enunciado: coluna dedicada (SEMPRE, se houver) OU a célula 2
+  // posições à direita do texto do enunciado — convenção de colar a 2ª imagem
+  // ao lado da 1ª. O heurístico (texto+2) só entra se não colidir com a 1ª
+  // imagem nem com o comentário; a coluna dedicada nunca é filtrada.
+  const enunciado2ColCandidates = uniq([
+    imagemEnunciado2HeaderCol,
+    enunciadoTextCol >= 0 ? enunciadoTextCol + 2 : -1,
+  ]).filter((c) =>
+    c === imagemEnunciado2HeaderCol ||
+    (!enunciadoColCandidates.includes(c) && !comentarioColCandidates.includes(c)),
+  );
+
+  return {
+    enunciadoColCandidates,
+    enunciado2ColCandidates,
+    comentarioColCandidates,
+    numeroColIndex,
+    imagemEnunciadoHeaderCol,
+    imagemEnunciado2HeaderCol,
+    enunciadoTextCol,
+    imagemComentarioHeaderCol,
+    comentarioTextCol,
+  };
+}
+
 const MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import JSZip from 'jszip';
-import { extractImagesFromXlsx } from '@/utils/xlsxImageExtractor';
+import { extractImagesFromXlsx, buildImageColCandidates } from '@/utils/xlsxImageExtractor';
 
 /**
  * Reproduz, de forma determinística, o pipeline de extração de imagens
@@ -209,5 +209,72 @@ describe('extractImagesFromXlsx', () => {
     const res = await extractImagesFromXlsx(buf, OPTS);
     expect(res.stats.totalMedia).toBe(0);
     expect(Object.keys(res.enunciadoImages)).toHaveLength(0);
+  });
+
+  it('vincula DUAS imagens do enunciado (F=1ª, G=2ª) na mesma questão', async () => {
+    // Caso real: 1ª imagem na coluna F (5), 2ª imagem na coluna G (6), mesma linha.
+    const buf = await buildXlsx(
+      { 2: 1 },
+      [
+        { col: 5, row: 1, embed: 'rId1' }, // F → enunciado
+        { col: 6, row: 1, embed: 'rId2' }, // G → enunciado2
+      ],
+      2,
+    );
+
+    const res = await extractImagesFromXlsx(buf, {
+      enunciadoColCandidates: [5, 4],
+      enunciado2ColCandidates: [6],
+      comentarioColCandidates: [11, 10, 12],
+      numeroColIndex: 0,
+    });
+
+    expect(res.stats.matchedEnunciado).toBe(1);
+    expect(res.stats.matchedEnunciado2).toBe(1);
+    expect(res.enunciadoImages[1]).toBeDefined();
+    expect(res.enunciado2Images[1]).toBeDefined();
+    expect(res.enunciadoImages[1].base64).not.toBe(res.enunciado2Images[1].base64);
+  });
+});
+
+describe('buildImageColCandidates', () => {
+  // Layout real que causava o bug: enunciado em E(4), comentário em K(10),
+  // SEM coluna dedicada "Imagem 2 do Enunciado". A 2ª imagem é colada em G(6).
+  const HEADERS_SEM_COLUNA_DEDICADA = [
+    'numero', 'grande área', 'especialidade', 'tema', 'enunciado',
+    'alternativa a', 'alternativa b', 'alternativa c', 'alternativa d',
+    'gabarito', 'comentário',
+  ];
+
+  it('inclui a coluna 2-à-direita do enunciado (G) nos candidatos da 2ª imagem', () => {
+    const r = buildImageColCandidates(HEADERS_SEM_COLUNA_DEDICADA);
+    expect(r.enunciadoTextCol).toBe(4); // E
+    expect(r.enunciadoColCandidates).toEqual(expect.arrayContaining([5, 4])); // F, E
+    // O fix: G (6) entra como candidato da 2ª imagem mesmo sem coluna dedicada.
+    expect(r.enunciado2ColCandidates).toContain(6);
+  });
+
+  it('não canibaliza: a 2ª imagem não compartilha colunas com a 1ª nem com o comentário', () => {
+    const r = buildImageColCandidates(HEADERS_SEM_COLUNA_DEDICADA);
+    for (const c of r.enunciado2ColCandidates) {
+      expect(r.enunciadoColCandidates).not.toContain(c);
+      expect(r.comentarioColCandidates).not.toContain(c);
+    }
+  });
+
+  it('usa a coluna dedicada "Imagem 2 do Enunciado" quando o template a tem', () => {
+    const headers = [
+      'numero', 'tema', 'enunciado', 'imagem do enunciado', 'imagem 2 do enunciado',
+      'alternativa a', 'gabarito', 'comentário', 'imagem do comentário',
+    ];
+    const r = buildImageColCandidates(headers);
+    expect(r.imagemEnunciado2HeaderCol).toBe(4);
+    expect(r.enunciado2ColCandidates).toContain(4);
+  });
+
+  it('aceita variações de cabeçalho da 2ª imagem ("imagem do enunciado 2")', () => {
+    const headers = ['numero', 'enunciado', 'imagem do enunciado 2', 'gabarito', 'comentário'];
+    const r = buildImageColCandidates(headers);
+    expect(r.enunciado2ColCandidates).toContain(2);
   });
 });
