@@ -63,7 +63,7 @@ const MultiSelectFilter: React.FC<{
         <div className="px-3 py-2 border-b">
           <p className="text-xs font-medium text-foreground">{label}</p>
         </div>
-        <ScrollArea className="max-h-56">
+        <div className="h-64 overflow-y-auto overscroll-contain">
           <div className="p-1.5 space-y-0.5">
             {options.map((opt) => (
               <label
@@ -78,7 +78,7 @@ const MultiSelectFilter: React.FC<{
               </label>
             ))}
           </div>
-        </ScrollArea>
+        </div>
         {selected.length > 0 && (
           <div className="border-t p-1.5">
             <Button variant="ghost" size="sm" className="w-full text-xs h-7" onClick={() => onChange([])}>
