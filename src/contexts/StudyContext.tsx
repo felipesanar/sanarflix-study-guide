@@ -47,9 +47,10 @@ export const StudyProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user || !user.id_ies || typeof user.semestre !== 'number') return;
 
     try {
-      // Verificar se há sessão ativa antes de chamar a edge function
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData?.session) {
+      // getUser() re-valida o token com o Auth server e dispara refresh se necessário —
+      // getSession() devolve o cache mesmo expirado, o que causa 401 na edge function.
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData?.user) {
         return;
       }
 
