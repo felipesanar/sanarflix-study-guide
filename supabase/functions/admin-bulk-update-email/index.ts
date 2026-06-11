@@ -171,6 +171,7 @@ Deno.serve(async (req) => {
     const { data: { user: caller }, error: authErr } =
       await supabaseCaller.auth.getUser();
     if (authErr || !caller) {
+      console.log("[admin-bulk-update-email] unauthorized: getUser failed", authErr?.message);
       return jsonResponse(401, { success: false, error: "unauthorized" });
     }
 
