@@ -192,19 +192,48 @@ export const usersService = {
     });
     if (error) {
       Logger.error('[usersService.bulkUpdateEmail]', error);
-      // Detecta 401/unauthorized para que o componente possa mostrar
-      // mensagem específica de sessão expirada em vez do erro genérico.
       const ctxStatus = (error as { context?: { status?: number } })?.context?.status;
+      // Tenta extrair o body JSON estruturado do erro (validation_error, etc.)
+      // para que o componente exiba o motivo real em vez do texto genérico.
+      let extractedError: string | undefined;
+      let extractedDetails: string | undefined;
+      try {
+        const ctx = (error as { context?: { json?: () => Promise<unknown> } }).context;
+        const body = (await ctx?.json?.()) as
+          | { error?: string; details?: unknown }
+          | undefined;
+        extractedError = body?.error;
+        if (body?.details) {
+          extractedDetails =
+            typeof body.details === 'string'
+              ? body.details
+              : JSON.stringify(body.details);
+        }
+      } catch {
+        // Body não-JSON — usa fallback.
+      }
       const msg = (error?.message || '').toLowerCase();
       const isAuth =
         ctxStatus === 401 ||
+        extractedError === 'unauthorized' ||
         msg.includes('unauthorized') ||
         msg.includes('invalid token') ||
         msg.includes('jwt') ||
         msg.includes('auth session missing');
+      let finalError: string;
+      if (isAuth) finalError = 'session_expired';
+      else if (extractedError === 'validation_error')
+        finalError = extractedDetails
+          ? `Validação no servidor: ${extractedDetails}`
+          : 'Validação no servidor falhou';
+      else if (extractedError === 'rate_limited')
+        finalError = 'Muitas chamadas — aguarde 1 minuto e tente novamente';
+      else if (extractedError === 'forbidden')
+        finalError = 'Sem permissão (apenas admins podem usar este recurso)';
+      else finalError = extractedError || 'Falha ao atualizar emails em lote';
       return {
         success: false,
-        error: isAuth ? 'session_expired' : 'Falha ao atualizar emails em lote',
+        error: finalError,
         results: [],
         summary: { total: 0, updated: 0, failed: 0 },
       };

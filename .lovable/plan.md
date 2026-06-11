@@ -1,59 +1,52 @@
-## Diagnóstico
+# Plano para resolver o erro persistente em produção
 
-A edge function `admin-bulk-update-email` **não tem nada de errado**, e o CSV também está OK (44 linhas, dentro do cap de 50, formato válido). O problema é de **autenticação no cliente**.
+## Objetivo
+Descobrir por que o fluxo de atualização em lote continua falhando em `academy.sanar.com.br`, mesmo com a correção já presente no código atual do projeto.
 
-### Evidências
+## O que vou fazer
+1. **Verificar paridade entre produção e o código atual**
+   - Confirmar se o site publicado/custom domain está rodando a versão mais recente do frontend.
+   - Validar se o bundle em produção já contém a proteção de sessão expirada no `BulkEmailUpdateTab`.
 
-1. **Console do navegador** (18:55:36, antes do upload):
-   ```
-   AuthApiError: Invalid Refresh Token: Refresh Token Not Found
-   status: 400, code: refresh_token_not_found
-   ```
-2. **Rota atual: `/login`** — o admin foi deslogado automaticamente porque o refresh token expirou/sumiu.
-3. **Logs da edge function**: apenas `booted` / `shutdown`, nenhum log de processamento (`processing N rows`). Isso significa que a função foi chamada mas retornou cedo no caminho `401 unauthorized` (esse caminho não escreve `console.log`).
-4. **Teste direto via curl com Origin do preview**: a função respondeu corretamente (`401 unauthorized` quando sem token, CORS OK). Confirma que infra/CORS estão funcionando.
+2. **Confirmar qual backend a produção está chamando**
+   - Validar se o domínio publicado está apontando para este mesmo projeto Supabase e para a edge function `admin-bulk-update-email` correta.
+   - Conferir se as chamadas do site em produção realmente chegam à função publicada.
 
-### Fluxo do que aconteceu
+3. **Isolar a causa real do erro genérico**
+   - Se a produção estiver com frontend desatualizado, ajustar e publicar.
+   - Se a produção estiver chamando outro projeto/endpoint, corrigir a configuração.
+   - Se a função estiver recebendo token inválido em produção, reforçar a resposta do backend para retornar motivo explícito e facilitar o diagnóstico.
 
-```text
-admin abre a aba  →  refresh token já estava inválido
-admin seleciona CSV e confirma
-client chama supabase.functions.invoke('admin-bulk-update-email')
-  → cliente Supabase tenta refresh → falha
-  → request sai sem Authorization válido
-edge function → 401 "unauthorized" (sem log)
-usersService.bulkUpdateEmail → retorna { success: false, error: 'Falha ao atualizar emails em lote', results: [] }
-BulkEmailUpdateTab marca os 44 como failed com reason genérica
-AuthContext detecta token inválido → redireciona para /login
-```
+4. **Melhorar observabilidade do fluxo**
+   - Adicionar sinais claros para distinguir:
+     - sessão expirada
+     - falta de permissão
+     - função errada/endpoint errado
+     - falha real por linha do CSV
+   - Evitar novamente o estado de “44 falhas” com mensagem genérica quando o problema é global.
 
-Por isso todas as 44 linhas mostram a **mesma** mensagem genérica "Falha ao atualizar emails em lote" — não houve processamento por linha, foi falha de transporte/auth.
+5. **Validar no ambiente publicado**
+   - Testar o fluxo no domínio em produção após a correção.
+   - Confirmar se o resultado muda de erro genérico para processamento correto ou para mensagem precisa de reautenticação.
 
-## Solução
-
-### Ação imediata (sem código)
-O admin precisa **fazer login novamente** no preview e tentar de novo. O CSV está válido e deve processar normalmente.
-
-### Melhorias de código (para evitar repetição e dar feedback claro)
-
-1. **`src/components/admin/BulkEmailUpdateTab.tsx` — guard de sessão antes de iniciar**
-   - Em `runUpdate`, chamar `supabase.auth.getUser()` antes do loop.
-   - Se retornar erro/null, abortar com toast: *"Sua sessão expirou. Faça login novamente para continuar."* e não disparar nenhum invoke.
-
-2. **`src/services/usersService.ts` — propagar 401 distintamente**
-   - No `bulkUpdateEmail`, inspecionar `error?.context?.status` (ou `error.message`) e, quando for 401/unauthorized, retornar `error: 'session_expired'` em vez do genérico.
-
-3. **`BulkEmailUpdateTab.tsx` — renderização de erro contextual**
-   - Quando `res.error === 'session_expired'`, mostrar banner topo da tabela com CTA "Fazer login novamente" e não preencher 44 linhas com falha individual (evita relatório falso-negativo confuso).
-
-4. **(Opcional) `admin-bulk-update-email/index.ts` — log no caminho 401**
-   - Adicionar `console.log('[admin-bulk-update-email] unauthorized: no/invalid bearer')` antes do `return jsonResponse(401, ...)` para facilitar diagnóstico futuro nos logs do Supabase.
+## Diagnóstico atual
+- O código atual da edge function `admin-bulk-update-email` **já usa o padrão correto de dois clientes** (anon + service role) para validar o usuário e executar a operação administrativa.
+- O frontend atual também **já tem guarda de sessão expirada** antes de iniciar o lote.
+- Porém, os logs recentes **não mostram tráfego chegando em `admin-bulk-update-email`** neste projeto, o que sugere fortemente uma destas hipóteses:
+  - o site em produção está com **build antigo**;
+  - o domínio publicado está usando **outra implantação/projeto**;
+  - a produção está chamando **outro endpoint/configuração** diferente do código atual.
 
 ## Detalhes técnicos
+- Arquivos principais envolvidos:
+  - `src/components/admin/BulkEmailUpdateTab.tsx`
+  - `src/services/usersService.ts`
+  - `supabase/functions/admin-bulk-update-email/index.ts`
+  - `src/integrations/supabase/client.ts`
+- Sinal mais importante a validar agora:
+  - se `academy.sanar.com.br` está servindo o frontend atualizado e apontando para `gvqvrmkizemwsasmupmo.supabase.co`.
 
-- Não há alteração de schema, RLS ou edge function lógica de negócio.
-- CORS já está correto (`.lovable.app` e `.lovableproject.com` no allowlist) — nenhuma mudança necessária.
-- O cap de 50/lote e o `CHUNK_DELAY_MS` continuam adequados; 44 linhas cabem em 1 chamada.
-- Mudança 4 (log do 401) é só observabilidade — opcional, não afeta comportamento.
-
-Quero que eu siga em frente com as melhorias 1–3 (e opcionalmente 4)?
+## Resultado esperado
+Ao final, a produção ficará alinhada com o código atual e o fluxo passará a:
+- processar normalmente os emails, ou
+- bloquear com mensagem explícita de sessão/permissão, sem mascarar tudo como falha em lote.
