@@ -192,9 +192,19 @@ export const usersService = {
     });
     if (error) {
       Logger.error('[usersService.bulkUpdateEmail]', error);
+      // Detecta 401/unauthorized para que o componente possa mostrar
+      // mensagem específica de sessão expirada em vez do erro genérico.
+      const ctxStatus = (error as { context?: { status?: number } })?.context?.status;
+      const msg = (error?.message || '').toLowerCase();
+      const isAuth =
+        ctxStatus === 401 ||
+        msg.includes('unauthorized') ||
+        msg.includes('invalid token') ||
+        msg.includes('jwt') ||
+        msg.includes('auth session missing');
       return {
         success: false,
-        error: 'Falha ao atualizar emails em lote',
+        error: isAuth ? 'session_expired' : 'Falha ao atualizar emails em lote',
         results: [],
         summary: { total: 0, updated: 0, failed: 0 },
       };

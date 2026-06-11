@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Download, Upload, Mail, ShieldAlert, Loader2, FileSpreadsheet, CheckCircle2, XCircle } from 'lucide-react';
 import { usersService, type BulkEmailUpdateRowResult } from '@/services/usersService';
+import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
 
 const MAX_CSV_ROWS = 500;
@@ -171,6 +172,16 @@ export const BulkEmailUpdateTab: React.FC = () => {
 
   const runUpdate = async () => {
     setConfirmOpen(false);
+
+    // Guard: garante sessão válida antes de disparar invokes em lote.
+    // Sem isso, um refresh_token expirado faz todas as N linhas falharem
+    // com o erro genérico "Falha ao atualizar emails em lote".
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData?.user) {
+      toast.error('Sua sessão expirou. Faça login novamente para continuar.');
+      return;
+    }
+
     setIsProcessing(true);
     setResults(null);
 
@@ -185,6 +196,11 @@ export const BulkEmailUpdateTab: React.FC = () => {
         const chunk = payloadRows.slice(i, i + CHUNK_SIZE);
         setProgress({ current: i, total: payloadRows.length });
         const res = await usersService.bulkUpdateEmail(chunk);
+        if (res.error === 'session_expired') {
+          toast.error('Sua sessão expirou durante o processamento. Faça login novamente.');
+          setIsProcessing(false);
+          return;
+        }
         if (!res.success && (!res.results || res.results.length === 0)) {
           // Marca o chunk inteiro como falha
           chunk.forEach((r) =>
