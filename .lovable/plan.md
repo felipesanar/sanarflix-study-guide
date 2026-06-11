@@ -1,34 +1,59 @@
 ## Diagnóstico
 
-A request `POST /functions/v1/admin-bulk-update-email` está saindo do preview com `Origin: https://0567bb51-…lovableproject.com` (domínio `.lovableproject.com`, não `.lovable.app`).
+A edge function `admin-bulk-update-email` **não tem nada de errado**, e o CSV também está OK (44 linhas, dentro do cap de 50, formato válido). O problema é de **autenticação no cliente**.
 
-O guard de CORS em `supabase/functions/_shared/cors.ts` só aceita:
-- domínios exatos da lista
-- `.app.github.dev`
-- `.lovable.app`
+### Evidências
 
-Como `.lovableproject.com` **não está na allowlist**, a edge function responde `403 forbidden` ao preflight (por isso o log mostra apenas "booted" e nada de invocação real), o browser dispara `Failed to fetch`, e o `usersService.bulkUpdateEmail` cai no fallback genérico `"Falha ao atualizar emails em lote"` — exatamente o badge vermelho da screenshot.
+1. **Console do navegador** (18:55:36, antes do upload):
+   ```
+   AuthApiError: Invalid Refresh Token: Refresh Token Not Found
+   status: 400, code: refresh_token_not_found
+   ```
+2. **Rota atual: `/login`** — o admin foi deslogado automaticamente porque o refresh token expirou/sumiu.
+3. **Logs da edge function**: apenas `booted` / `shutdown`, nenhum log de processamento (`processing N rows`). Isso significa que a função foi chamada mas retornou cedo no caminho `401 unauthorized` (esse caminho não escreve `console.log`).
+4. **Teste direto via curl com Origin do preview**: a função respondeu corretamente (`401 unauthorized` quando sem token, CORS OK). Confirma que infra/CORS estão funcionando.
 
-Isso afeta TODAS as edge functions que usam `isAllowedOrigin` quando chamadas do preview `.lovableproject.com` (não só esta). No domínio publicado (`academy.sanar.com.br`) funciona normalmente.
+### Fluxo do que aconteceu
 
-## Correção
-
-Adicionar `.lovableproject.com` ao `isAllowedOrigin` em `supabase/functions/_shared/cors.ts`:
-
-```ts
-if (origin.endsWith('.lovable.app')) return true;
-if (origin.endsWith('.lovableproject.com')) return true; // preview sandbox
+```text
+admin abre a aba  →  refresh token já estava inválido
+admin seleciona CSV e confirma
+client chama supabase.functions.invoke('admin-bulk-update-email')
+  → cliente Supabase tenta refresh → falha
+  → request sai sem Authorization válido
+edge function → 401 "unauthorized" (sem log)
+usersService.bulkUpdateEmail → retorna { success: false, error: 'Falha ao atualizar emails em lote', results: [] }
+BulkEmailUpdateTab marca os 44 como failed com reason genérica
+AuthContext detecta token inválido → redireciona para /login
 ```
 
-Mudança isolada de 1 linha, sem efeito em produção (academy.sanar.com.br continua passando pelo match exato da lista).
+Por isso todas as 44 linhas mostram a **mesma** mensagem genérica "Falha ao atualizar emails em lote" — não houve processamento por linha, foi falha de transporte/auth.
 
-## Validação
+## Solução
 
-1. Após o deploy do shared module, refazer o upload do CSV no preview.
-2. Confirmar que a request agora retorna 200 e que o resultado mostra `Atualizado` ou um `reason` específico (ex.: `user_not_found`) em vez do fallback genérico.
-3. Conferir `supabase--edge_function_logs admin-bulk-update-email` — deve aparecer a linha `processing N rows`.
+### Ação imediata (sem código)
+O admin precisa **fazer login novamente** no preview e tentar de novo. O CSV está válido e deve processar normalmente.
 
-## Fora de escopo
+### Melhorias de código (para evitar repetição e dar feedback claro)
 
-- Sem mudanças no `admin-bulk-update-email/index.ts` em si — a lógica de update/auth/notify está correta.
-- Sem mudanças no frontend (`BulkEmailUpdateTab.tsx`, `usersService.ts`).
+1. **`src/components/admin/BulkEmailUpdateTab.tsx` — guard de sessão antes de iniciar**
+   - Em `runUpdate`, chamar `supabase.auth.getUser()` antes do loop.
+   - Se retornar erro/null, abortar com toast: *"Sua sessão expirou. Faça login novamente para continuar."* e não disparar nenhum invoke.
+
+2. **`src/services/usersService.ts` — propagar 401 distintamente**
+   - No `bulkUpdateEmail`, inspecionar `error?.context?.status` (ou `error.message`) e, quando for 401/unauthorized, retornar `error: 'session_expired'` em vez do genérico.
+
+3. **`BulkEmailUpdateTab.tsx` — renderização de erro contextual**
+   - Quando `res.error === 'session_expired'`, mostrar banner topo da tabela com CTA "Fazer login novamente" e não preencher 44 linhas com falha individual (evita relatório falso-negativo confuso).
+
+4. **(Opcional) `admin-bulk-update-email/index.ts` — log no caminho 401**
+   - Adicionar `console.log('[admin-bulk-update-email] unauthorized: no/invalid bearer')` antes do `return jsonResponse(401, ...)` para facilitar diagnóstico futuro nos logs do Supabase.
+
+## Detalhes técnicos
+
+- Não há alteração de schema, RLS ou edge function lógica de negócio.
+- CORS já está correto (`.lovable.app` e `.lovableproject.com` no allowlist) — nenhuma mudança necessária.
+- O cap de 50/lote e o `CHUNK_DELAY_MS` continuam adequados; 44 linhas cabem em 1 chamada.
+- Mudança 4 (log do 401) é só observabilidade — opcional, não afeta comportamento.
+
+Quero que eu siga em frente com as melhorias 1–3 (e opcionalmente 4)?
