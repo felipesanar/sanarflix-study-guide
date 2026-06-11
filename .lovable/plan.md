@@ -1,37 +1,34 @@
-# Correção: download do template CSV cai na tela "Sign in to continue" do preview
+## Diagnóstico
 
-## Causa
-O botão de download usa um `<a href="/templates/template_atualizacao_emails.csv">`. No preview do Lovable, qualquer navegação para um caminho que não é uma rota do app (como o arquivo estático em `/public/templates/...`) é interceptada pelo gateway de preview e redirecionada para a tela "Sign in to continue" — daí o loop, mesmo após clicar em "Open sign-in". Em produção o arquivo serviria normalmente, mas o fluxo via preview fica quebrado.
+A request `POST /functions/v1/admin-bulk-update-email` está saindo do preview com `Origin: https://0567bb51-…lovableproject.com` (domínio `.lovableproject.com`, não `.lovable.app`).
+
+O guard de CORS em `supabase/functions/_shared/cors.ts` só aceita:
+- domínios exatos da lista
+- `.app.github.dev`
+- `.lovable.app`
+
+Como `.lovableproject.com` **não está na allowlist**, a edge function responde `403 forbidden` ao preflight (por isso o log mostra apenas "booted" e nada de invocação real), o browser dispara `Failed to fetch`, e o `usersService.bulkUpdateEmail` cai no fallback genérico `"Falha ao atualizar emails em lote"` — exatamente o badge vermelho da screenshot.
+
+Isso afeta TODAS as edge functions que usam `isAllowedOrigin` quando chamadas do preview `.lovableproject.com` (não só esta). No domínio publicado (`academy.sanar.com.br`) funciona normalmente.
 
 ## Correção
-Gerar o CSV diretamente no cliente, com um `Blob`, e disparar o download via `URL.createObjectURL`. Mesmo padrão já usado por `downloadReport` no próprio arquivo. Não depende de arquivo estático, funciona idêntico em preview e em produção.
 
-Mudança única em `src/components/admin/BulkEmailUpdateTab.tsx`, função `downloadTemplate`:
+Adicionar `.lovableproject.com` ao `isAllowedOrigin` em `supabase/functions/_shared/cors.ts`:
 
 ```ts
-function downloadTemplate() {
-  const content =
-    'email_antigo,email_novo\n' +
-    'aluno.antigo@faculdade.edu.br,aluno.novo@faculdade.edu.br\n';
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'template_atualizacao_emails.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
+if (origin.endsWith('.lovable.app')) return true;
+if (origin.endsWith('.lovableproject.com')) return true; // preview sandbox
 ```
 
-O arquivo `public/templates/template_atualizacao_emails.csv` pode ficar como está (ou ser removido depois) — não é mais referenciado.
+Mudança isolada de 1 linha, sem efeito em produção (academy.sanar.com.br continua passando pelo match exato da lista).
 
 ## Validação
-1. No preview, abrir Portal do Admin → aba de atualização em lote de emails.
-2. Clicar em "Baixar template" → o arquivo `template_atualizacao_emails.csv` deve ser baixado diretamente, sem redirecionamento para "Sign in to continue".
-3. Abrir o CSV e conferir cabeçalho `email_antigo,email_novo` + linha de exemplo.
+
+1. Após o deploy do shared module, refazer o upload do CSV no preview.
+2. Confirmar que a request agora retorna 200 e que o resultado mostra `Atualizado` ou um `reason` específico (ex.: `user_not_found`) em vez do fallback genérico.
+3. Conferir `supabase--edge_function_logs admin-bulk-update-email` — deve aparecer a linha `processing N rows`.
 
 ## Fora de escopo
-- Nenhuma mudança na edge function, no fluxo de upload, validação, ou permissões.
-- A correção do CORS (`lovableproject.com` na allowlist) discutida antes continua pendente e independente desta — sem ela o upload em si segue falhando no preview.
+
+- Sem mudanças no `admin-bulk-update-email/index.ts` em si — a lógica de update/auth/notify está correta.
+- Sem mudanças no frontend (`BulkEmailUpdateTab.tsx`, `usersService.ts`).

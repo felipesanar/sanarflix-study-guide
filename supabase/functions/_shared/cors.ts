@@ -17,6 +17,8 @@ export const isAllowedOrigin = (origin?: string | null): boolean => {
   // Lovable preview/sandbox subdomains (id-preview--<uuid>.lovable.app,
   // <branch>--<slug>.lovable.app, etc.) — todos servem a mesma UI Sanar.
   if (origin.endsWith('.lovable.app')) return true;
+  // Lovable preview sandbox (id-preview--<uuid>.lovableproject.com) — mesma UI.
+  if (origin.endsWith('.lovableproject.com')) return true;
   return false;
 };
 
