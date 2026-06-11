@@ -9,6 +9,7 @@ import LiberacoesTab from '@/components/admin/LiberacoesTab';
 import SimuladosImportRespostasTab from '@/components/admin/SimuladosImportRespostasTab';
 import IesFeaturesTab from '@/components/admin/IesFeaturesTab';
 import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
+import { BulkEmailUpdateTab } from '@/components/admin/BulkEmailUpdateTab';
 import FeedbackAdminTab from '@/components/admin/FeedbackAdminTab';
 import { Shield, Users, Bell, FileText, ClipboardList, Unlock, Building2, Upload, MessageSquare } from 'lucide-react';
 
@@ -90,8 +91,9 @@ const UserManagement: React.FC = () => {
           </TabsList>
 
 
-          <TabsContent value="usuarios" className="mt-6">
+          <TabsContent value="usuarios" className="mt-6 space-y-8">
             <UsersTab />
+            {userIsAdmin && <BulkEmailUpdateTab />}
           </TabsContent>
 
           {userIsAdmin && (
