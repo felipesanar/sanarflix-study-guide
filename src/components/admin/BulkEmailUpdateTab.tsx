@@ -81,12 +81,20 @@ function parseCsv(text: string): { rows: ParsedRow[]; globalErrors: string[] } {
 }
 
 function downloadTemplate() {
+  // Gera o CSV inline via Blob para evitar navegação para /templates/* — no preview
+  // do Lovable rotas não-app caem na tela "Sign in to continue", quebrando o link.
+  const content =
+    'email_antigo,email_novo\n' +
+    'aluno.antigo@faculdade.edu.br,aluno.novo@faculdade.edu.br\n';
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = '/templates/template_atualizacao_emails.csv';
+  a.href = url;
   a.download = 'template_atualizacao_emails.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function downloadReport(results: BulkEmailUpdateRowResult[]) {
