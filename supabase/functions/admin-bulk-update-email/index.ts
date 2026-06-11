@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
+      console.log("[admin-bulk-update-email] unauthorized: missing bearer token");
       return jsonResponse(401, { success: false, error: "unauthorized" });
     }
 
