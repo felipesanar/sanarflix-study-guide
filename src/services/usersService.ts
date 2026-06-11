@@ -178,4 +178,43 @@ export const usersService = {
     }
     return { ok: !!data?.success };
   },
+
+  /**
+   * Atualiza em lote o email de alunos. Backend bloqueia roles protegidas,
+   * self-update e colisões. Notifica o novo email e invalida sessões.
+   * Cap de 50 linhas por invocação — o cliente deve paginar lotes maiores.
+   */
+  async bulkUpdateEmail(
+    rows: Array<{ email_antigo: string; email_novo: string }>,
+  ): Promise<BulkEmailUpdateResult> {
+    const { data, error } = await supabase.functions.invoke('admin-bulk-update-email', {
+      body: { rows },
+    });
+    if (error) {
+      Logger.error('[usersService.bulkUpdateEmail]', error);
+      return {
+        success: false,
+        error: 'Falha ao atualizar emails em lote',
+        results: [],
+        summary: { total: 0, updated: 0, failed: 0 },
+      };
+    }
+    return data as BulkEmailUpdateResult;
+  },
 };
+
+export interface BulkEmailUpdateRowResult {
+  email_antigo: string;
+  email_novo: string;
+  status: 'updated' | 'failed';
+  reason?: string;
+  user_id?: string;
+}
+
+export interface BulkEmailUpdateResult {
+  success: boolean;
+  error?: string;
+  results: BulkEmailUpdateRowResult[];
+  summary: { total: number; updated: number; failed: number };
+}
+
