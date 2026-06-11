@@ -24,6 +24,16 @@ const MAX_CSV_ROWS = 500;
 const CHUNK_SIZE = 50;
 const CHUNK_DELAY_MS = 250;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Remove caracteres invisíveis/zero-width/bidi-control que passam despercebidos
+// em copy-paste de planilhas (ex.: U+200E LRM no fim do email). Sem isso o
+// regex permissivo aceita no cliente mas o Zod do servidor rejeita, derrubando
+// o lote inteiro com "validation_error".
+function sanitizeEmail(raw: string): string {
+  return raw
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    .trim()
+    .toLowerCase();
+}
 
 interface ParsedRow {
   email_antigo: string;
@@ -54,8 +64,8 @@ function parseCsv(text: string): { rows: ParsedRow[]; globalErrors: string[] } {
   const seenNew = new Set<string>();
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
-    const ea = (cols[idxOld] || '').toLowerCase();
-    const en = (cols[idxNew] || '').toLowerCase();
+    const ea = sanitizeEmail(cols[idxOld] || '');
+    const en = sanitizeEmail(cols[idxNew] || '');
     const row: ParsedRow = { email_antigo: ea, email_novo: en, line: i + 1 };
     if (!ea || !en) row.error = 'Linha incompleta';
     else if (!EMAIL_RE.test(ea)) row.error = 'email_antigo inválido';
