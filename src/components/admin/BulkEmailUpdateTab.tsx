@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { Download, Upload, Mail, ShieldAlert, Loader2, FileSpreadsheet, CheckCircle2, XCircle } from 'lucide-react';
 import { usersService, type BulkEmailUpdateRowResult } from '@/services/usersService';
+import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
 
 const MAX_CSV_ROWS = 500;
