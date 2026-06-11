@@ -532,21 +532,6 @@ export type Database = {
           },
         ]
       }
-      correcao_semestre_temp: {
-        Row: {
-          email: string | null
-          semestre_correto: number | null
-        }
-        Insert: {
-          email?: string | null
-          semestre_correto?: number | null
-        }
-        Update: {
-          email?: string | null
-          semestre_correto?: number | null
-        }
-        Relationships: []
-      }
       dados_meu_semestre: {
         Row: {
           conteudo: string | null
@@ -1233,21 +1218,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      Simulados: {
-        Row: {
-          id: number
-          Simulado: string
-        }
-        Insert: {
-          id?: number
-          Simulado: string
-        }
-        Update: {
-          id?: number
-          Simulado?: string
-        }
-        Relationships: []
       }
       simulados_admin: {
         Row: {
