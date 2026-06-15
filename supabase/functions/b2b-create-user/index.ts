@@ -273,15 +273,9 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limit 30/min por IP — criar usuário é caro e enumeração de IES
-  // é exploit conhecido em onboarding B2B.
-  const rl = await checkRateLimit(req, { key: 'b2b-create-user', limitPerMin: 30 });
-  if (!rl.allowed) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Limite de requisições excedido', code: 'RATE_LIMITED' }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
+  // Nota: rate limit por IP é aplicado mais abaixo APENAS para chamadas
+  // não-admin (defesa em profundidade contra enumeração). Admins autenticados
+  // ficam isentos para permitir importações em lote via CSV/XLSX.
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
