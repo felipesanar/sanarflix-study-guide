@@ -1,52 +1,41 @@
-# Plano para resolver o erro persistente em produção
+## Causa raiz
+
+- Edge Function `b2b-create-user` aplica `checkRateLimit(..., { limitPerMin: 30 })` por IP.
+- `UsersTab.tsx` envia em paralelo (`CONCURRENCY=5`, delay de 300 ms entre chunks), saturando o limite após ~30 linhas.
+- Resultado observado: 30 sucessos, 230 erros `RATE_LIMITED`, ~59 s.
+
+O limite faz sentido para impedir enumeração/abuso por usuários comuns, mas é restritivo demais para o fluxo legítimo de admin importando CSV.
 
 ## Objetivo
-Descobrir por que o fluxo de atualização em lote continua falhando em `academy.sanar.com.br`, mesmo com a correção já presente no código atual do projeto.
 
-## O que vou fazer
-1. **Verificar paridade entre produção e o código atual**
-   - Confirmar se o site publicado/custom domain está rodando a versão mais recente do frontend.
-   - Validar se o bundle em produção já contém a proteção de sessão expirada no `BulkEmailUpdateTab`.
+Permitir que admins importem lotes grandes (até o limite atual de 1000 linhas) sem disparar `RATE_LIMITED`, mantendo a proteção contra abuso para chamadas não-admin.
 
-2. **Confirmar qual backend a produção está chamando**
-   - Validar se o domínio publicado está apontando para este mesmo projeto Supabase e para a edge function `admin-bulk-update-email` correta.
-   - Conferir se as chamadas do site em produção realmente chegam à função publicada.
+## Mudanças propostas
 
-3. **Isolar a causa real do erro genérico**
-   - Se a produção estiver com frontend desatualizado, ajustar e publicar.
-   - Se a produção estiver chamando outro projeto/endpoint, corrigir a configuração.
-   - Se a função estiver recebendo token inválido em produção, reforçar a resposta do backend para retornar motivo explícito e facilitar o diagnóstico.
+### 1. Backend — `supabase/functions/b2b-create-user/index.ts`
+- Após autenticar o JWT e confirmar `role = 'admin'` (já existente), **pular `checkRateLimit`** para admins (eles já são autenticados e autorizados).
+- Manter `limitPerMin: 30` para qualquer chamada não-admin (defesa em profundidade caso alguém invoque a função sem o role correto).
+- Estrutura:
+  ```
+  verificar JWT → carregar perfil → se NÃO admin: checkRateLimit (30/min) → seguir
+  ```
 
-4. **Melhorar observabilidade do fluxo**
-   - Adicionar sinais claros para distinguir:
-     - sessão expirada
-     - falta de permissão
-     - função errada/endpoint errado
-     - falha real por linha do CSV
-   - Evitar novamente o estado de “44 falhas” com mensagem genérica quando o problema é global.
+### 2. Frontend — `src/components/admin/UsersTab.tsx`
+- Ajustar `CONCURRENCY` de 5 → 3 e `INTER_CHUNK_DELAY_MS` de 300 → 500 ms (margem extra mesmo sem rate limit, para não sobrecarregar o Supabase Auth, que internamente também tem limites).
+- Tratar resposta `RATE_LIMITED` com **retry automático com backoff**: ao receber esse código, aguardar `reset_in` segundos (ou 60 s por padrão) e tentar a linha novamente, até 2 retries. Só marcar como erro definitivo se persistir.
+- Atualizar a mensagem de erro `RATE_LIMITED` no `BatchProcessingReport` para algo mais didático ("Limite temporário atingido — reenviar este lote em alguns segundos") já que com a mudança backend isso só ocorrerá em casos extremos.
 
-5. **Validar no ambiente publicado**
-   - Testar o fluxo no domínio em produção após a correção.
-   - Confirmar se o resultado muda de erro genérico para processamento correto ou para mensagem precisa de reautenticação.
+### 3. Service — `src/services/usersService.ts`
+- Em `createUser`, propagar o campo `reset_in` quando o backend devolver `code: 'rate_limited'`, para o componente saber quanto esperar no retry.
 
-## Diagnóstico atual
-- O código atual da edge function `admin-bulk-update-email` **já usa o padrão correto de dois clientes** (anon + service role) para validar o usuário e executar a operação administrativa.
-- O frontend atual também **já tem guarda de sessão expirada** antes de iniciar o lote.
-- Porém, os logs recentes **não mostram tráfego chegando em `admin-bulk-update-email`** neste projeto, o que sugere fortemente uma destas hipóteses:
-  - o site em produção está com **build antigo**;
-  - o domínio publicado está usando **outra implantação/projeto**;
-  - a produção está chamando **outro endpoint/configuração** diferente do código atual.
+### 4. Documentação curta
+- Atualizar `docs/user-import-flow.md` (ou criar uma seção) explicando: limite efetivo agora é 1000 linhas/lote, admins não têm rate limit por IP, retries automáticos cobrem picos.
 
-## Detalhes técnicos
-- Arquivos principais envolvidos:
-  - `src/components/admin/BulkEmailUpdateTab.tsx`
-  - `src/services/usersService.ts`
-  - `supabase/functions/admin-bulk-update-email/index.ts`
-  - `src/integrations/supabase/client.ts`
-- Sinal mais importante a validar agora:
-  - se `academy.sanar.com.br` está servindo o frontend atualizado e apontando para `gvqvrmkizemwsasmupmo.supabase.co`.
+## Riscos / mitigações
+- Pular rate limit para admin é seguro porque a função já valida `role = admin` via JWT antes de qualquer escrita; um token comprometido de admin já implicaria risco maior do que rate limit.
+- Mantemos o limite para chamadas não-admin como guarda contra enumeração.
 
-## Resultado esperado
-Ao final, a produção ficará alinhada com o código atual e o fluxo passará a:
-- processar normalmente os emails, ou
-- bloquear com mensagem explícita de sessão/permissão, sem mascarar tudo como falha em lote.
+## Verificação após implementação
+1. Importar CSV de teste com ~100 linhas e confirmar 0 erros `RATE_LIMITED`.
+2. Importar CSV de 260 linhas (mesmo do incidente) e confirmar processamento completo.
+3. Chamar a Edge Function sem token de admin e confirmar que ainda recebe 429 após 30 req/min.
