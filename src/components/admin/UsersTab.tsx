@@ -280,12 +280,32 @@ export const UsersTab: React.FC = () => {
 
         const chunkResults = await Promise.allSettled(
           chunk.map(async (user) => {
-            const data = await usersService.createUser({
+            let attempt = 0;
+            let data = await usersService.createUser({
               nome: user.nome,
               email: user.email,
               id_ies: batchIesId,
               semestre: user.semestre,
             });
+
+            // Retry com backoff em caso de RATE_LIMITED (rara após bypass para admin,
+            // mas mantida para resiliência caso o backend volte a aplicar limite).
+            while (
+              !data.success &&
+              (data.code === 'RATE_LIMITED' || data.code === 'rate_limited') &&
+              attempt < RATE_LIMIT_RETRY_MAX &&
+              !abortController.signal.aborted
+            ) {
+              attempt++;
+              addLog(`${user.email} - ⏳ aguardando reset do limite (tentativa ${attempt}/${RATE_LIMIT_RETRY_MAX})`);
+              await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+              data = await usersService.createUser({
+                nome: user.nome,
+                email: user.email,
+                id_ies: batchIesId,
+                semestre: user.semestre,
+              });
+            }
 
             if (!data.success) {
               const errorMsg = data.message ? `${data.error}: ${data.message}` : (data.error ?? 'Erro desconhecido');
