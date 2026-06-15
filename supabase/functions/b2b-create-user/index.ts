@@ -329,6 +329,14 @@ Deno.serve(async (req) => {
     });
 
     if (roleErr || !hasAdminRole) {
+      // Aplica rate limit apenas para chamadas não-admin para mitigar abuso/enumeração.
+      const rl = await checkRateLimit(req, { key: 'b2b-create-user', limitPerMin: 30 });
+      if (!rl.allowed) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Limite de requisições excedido', code: 'RATE_LIMITED' }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       console.error('[Security] Admin check failed:', roleErr);
       return new Response(
         JSON.stringify({ success: false, error: "Acesso negado: privilégios de admin necessários", code: "FORBIDDEN" }),
