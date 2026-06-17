@@ -8,10 +8,12 @@ import {
   fetchInstitutionalTri,
   fetchInstitutionalTriEvolution,
   fetchStudentTriScores,
+  fetchIesStudentCount,
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin, isGestor, isGestorGrupo } from '@/utils/accessRules';
+import { resolveActiveBase } from '@/utils/activeBase';
 import type {
   DesempenhoV2Filters,
   InstitutionalViewModel,
