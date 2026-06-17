@@ -61,6 +61,13 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
     );
   }
 
+  const isScoped = !!data.headerSummary.isSemestreScoped;
+  const semestreAtivo = data.headerSummary.semestreAtivo;
+  const nAlunos = data.headerSummary.totalAlunos;
+  const scopeLabel = isScoped && semestreAtivo
+    ? `do ${semestreAtivo}º semestre`
+    : 'da IES';
+
   return (
     <motion.div
       className="space-y-4"
@@ -68,8 +75,22 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
+      {/* Recorte ativo */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+        <span>
+          Analisando <span className="font-semibold text-foreground">{nAlunos}</span>{' '}
+          {nAlunos === 1 ? 'aluno' : 'alunos'} <span>{scopeLabel}</span>
+        </span>
+        {isScoped && (
+          <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
+            Recorte por semestre ativo
+          </span>
+        )}
+      </div>
+
       {/* KPIs */}
       <KpiCardsGrid
+        showInstitutionalBadge={isScoped}
         kpis={data.kpis}
         alunosAbaixo={data.alunosAbaixo.map((s) => {
           const hasTri = s.triScore !== null && s.triScore !== undefined;
