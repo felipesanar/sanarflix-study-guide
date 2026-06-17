@@ -30,6 +30,7 @@ function parseFiltersFromParams(searchParams: URLSearchParams): DesempenhoV2Filt
     areas: parseListParam(searchParams.get('areas')),
     especialidades: parseListParam(searchParams.get('especialidades')),
     temas: parseListParam(searchParams.get('temas')),
+    conceitoGeral: searchParams.get('conceitoGeral') === '1',
   };
 }
 
