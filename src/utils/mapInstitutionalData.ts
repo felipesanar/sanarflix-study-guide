@@ -271,7 +271,7 @@ export function mapInstitutionalRpcToViewModel(
     taxaAdesao,
     percentProficientes,
     totalIesUsers: realTotalIesUsers,
-    totalStudentsSimulado: baseTotalForMeta ?? totalStudents,
+    totalStudentsSimulado: baseTotalForMeta ?? scopedTotalAlunos,
     sancaoRegulatoriaLabel: sancao ?? 'Nenhuma',
   };
 
