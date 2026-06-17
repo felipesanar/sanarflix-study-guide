@@ -89,6 +89,7 @@ export function useDesempenhoV2State() {
     if (filters.areas.length) next.set('areas', filters.areas.join(','));
     if (filters.especialidades.length) next.set('especialidades', filters.especialidades.join(','));
     if (filters.temas.length) next.set('temas', filters.temas.join(','));
+    if (filters.conceitoGeral) next.set('conceitoGeral', '1');
 
     const currentString = searchParams.toString();
     const nextString = next.toString();
