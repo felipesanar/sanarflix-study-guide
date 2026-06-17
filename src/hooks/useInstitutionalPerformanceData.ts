@@ -148,8 +148,8 @@ export function useInstitutionalPerformanceData(
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
 
-  // Determina se o usuário pode ver todas as IES (apenas admin e b2b_partner).
-  // Gestores (gestor/gestor_formal) e demais perfis ficam restritos à própria IES,
+  // Determina se o usuário pode ver todas as IES (apenas admin).
+  // Gestores (gestor) e demais perfis ficam restritos à própria IES,
   // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele.
   const canSeeAllIes = isAdmin(user);
   const isGroupManager = isGestorGrupo(user);
@@ -158,7 +158,7 @@ export function useInstitutionalPerformanceData(
   // IES "padrão" usada quando o gestor de grupo não tem `id_ies` próprio.
   const defaultGroupIesId = accessibleIes[0]?.id;
 
-  // Fetch IES list — admin/b2b veem todas; gestor_grupo vê IES do grupo; demais veem só a sua.
+  // Fetch IES list — admin vê todas; gestor_grupo vê IES do grupo; demais veem só a sua.
   useEffect(() => {
     const fetchIes = async () => {
       if (canSeeAllIes) {

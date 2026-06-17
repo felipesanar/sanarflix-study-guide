@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
+import { getDefaultRouteForUser } from '@/utils/experiences';
 import { PasswordChangeModal } from '@/components/PasswordChangeModal';
 import { PageWrapper } from '@/components/PageWrapper';
 import { HomePageSkeleton, StudyGuideSkeleton, DashboardSkeleton } from '@/components/skeletons';
@@ -78,15 +79,15 @@ export const DynamicRoutes: React.FC = () => {
     );
   }
 
-  // Rota padrão baseada nas permissões dinâmicas
-  const getDefaultRoute = () => {
-    if (accessRules.home) return "/home";
-    if (accessRules.simulados) return "/simulados";
-    if (accessRules.studyGuide) return "/guia-estudos";
-    if (accessRules.dashboard) return "/dashboard";
-    if (accessRules.sanarclass) return "/sanarclass";
-    return "/home";
-  };
+  // Rota padrão = entrypoint da experiência apartada do usuário.
+  //
+  // Segmentação de login: cada role é roteada para a sua experiência
+  // (admin/CX → Portal do Admin, gestão → Desempenho Institucional,
+  // aluno+professor → primeira tela liberada por ies_features). Este é o
+  // destino de TODO redirecionamento do roteador abaixo — incluindo o
+  // bloqueio de acesso cruzado, em que uma tela negada pelas regras de
+  // acesso devolve o usuário ao entrypoint da sua própria experiência.
+  const getDefaultRoute = () => getDefaultRouteForUser(user, accessRules);
 
   return (
     <>

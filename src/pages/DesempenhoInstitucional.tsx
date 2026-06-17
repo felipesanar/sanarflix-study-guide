@@ -341,7 +341,7 @@ const DesempenhoInstitucional: React.FC = () => {
   const { user } = useAuth();
   const canFilterIES = isAdmin(user);
   
-  // IES filter (for admin/b2b_partner)
+  // IES filter (for admin)
   const [iesList, setIesList] = useState<{ id: string; nome: string }[]>([]);
   const [selectedIes, setSelectedIes] = useState<string | null>(null);
 
@@ -377,7 +377,7 @@ const DesempenhoInstitucional: React.FC = () => {
   // Helper to get IES param for RPCs
   const iesParam = canFilterIES && selectedIes ? selectedIes : undefined;
 
-  // Load IES list for admin/b2b_partner
+  // Load IES list for admin
   useEffect(() => {
     if (!canFilterIES) return;
     const load = async () => {
@@ -525,7 +525,7 @@ const DesempenhoInstitucional: React.FC = () => {
 
         {/* Filters row */}
         <div className="flex flex-col sm:flex-row gap-3">
-          {/* IES filter for admin/b2b_partner */}
+          {/* IES filter for admin */}
           {canFilterIES && (
             <Select value={selectedIes || ''} onValueChange={(val) => { setSelectedIes(val); setSelectedSimulado(null); }}>
               <SelectTrigger className="w-full sm:w-[280px]">
