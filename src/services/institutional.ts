@@ -82,6 +82,7 @@ export interface InstitutionalTriSnapshot {
   concept: number | null;
   sanctions: string | null;
   is_restricted: boolean | null;
+  num_below_expected: number | null;
 }
 
 export interface InstitutionalTriEvolutionEntry {
