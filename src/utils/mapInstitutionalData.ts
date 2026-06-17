@@ -146,12 +146,12 @@ export function mapInstitutionalRpcToViewModel(
   });
 
 
-  // ── TRI authoritative values (resultados_ies_tri) — única fonte para
-  // proficiência média, % proficientes, num_proficient e conceito. ──
+  // ── TRI authoritative values ──
+  // `triSnapshot` é o recorte (pode ser por semestre quando activeSemestre != null,
+  // ou IES inteira quando null). Usado para Total/Proficiência/Proficientes/Abaixo.
+  // `triInstitutional` é SEMPRE a IES inteira — usado para Conceito, Distância, Sanção.
+  const triInst = triInstitutional ?? triSnapshot;
   const triPcpRaw = triSnapshot?.pcp ?? null;
-  // pcp pode vir como fração (0..1) ou percentual (0..100). Normaliza e SEMPRE
-  // arredonda para baixo (floor) para não inflar o conceito da IES — ex.: 74,7%
-  // deve exibir 74% e manter Conceito 3, não saltar para Conceito 4.
   const triPercentProficientes = triPcpRaw !== null
     ? Math.floor(triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw)
     : null;
@@ -159,46 +159,56 @@ export function mapInstitutionalRpcToViewModel(
   const triMeanScoreRounded = triMeanScore !== null ? Math.round(triMeanScore) : null;
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
-  const triConceptNota = triSnapshot?.concept ?? null;
-  // NOTA: triSnapshot.sanctions e triSnapshot.is_restricted são INTENCIONALMENTE ignorados.
-  // A sanção é derivada do `pcp` (% de alunos proficientes), não do `concept` nem do banco.
+  const triNumBelow = triSnapshot?.num_below_expected ?? null;
 
-  // % proficientes — usa exclusivamente pcp da tabela TRI; sem fallback de acurácia.
+  // Valores institucionais (IES inteira) — Conceito, Distância, Sanção
+  const instPcpRaw = triInst?.pcp ?? null;
+  const instPercentProficientes = instPcpRaw !== null
+    ? Math.floor(instPcpRaw <= 1 ? instPcpRaw * 100 : instPcpRaw)
+    : null;
+  const instConceptNota = triInst?.concept ?? null;
+
+  const isSemestreScoped = activeSemestre !== null && activeSemestre !== undefined;
+
+  // % proficientes do recorte (cards reagentes)
   const percentProficientes = triPercentProficientes !== null ? triPercentProficientes : 0;
 
-  // Proficiência média — usa exclusivamente mean_score da tabela TRI.
+  // Proficiência média (recorte)
   const proficiencyForKpi = triMeanScoreRounded;
 
-  const notaAtual = triConceptNota;
-  const conceito = triConceptNota !== null ? conceitoFromNota(triConceptNota) : null;
+  // Conceito / Nota — SEMPRE institucional (não muda com semestre)
+  const notaAtual = instConceptNota;
+  const conceito = instConceptNota !== null ? conceitoFromNota(instConceptNota) : null;
 
-  const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
+  // Sanção — SEMPRE derivada do pcp institucional
+  const sancao = instPercentProficientes !== null ? getSancaoFromPcp(instPercentProficientes) : null;
 
-  Logger.info('[TRI] PCP loaded:', triPercentProficientes);
-  Logger.info('[TRI] Regulatory sanction derived from pcp:', sancao);
+  Logger.info('[TRI] PCP scoped:', triPercentProficientes, 'institutional:', instPercentProficientes);
+  Logger.info('[TRI] Regulatory sanction derived from institutional pcp:', sancao);
 
 
-  // Next conceito target (thresholds for conceito: 40, 60, 75, 90)
+  // Distância: SEMPRE institucional (não muda com semestre)
   const conceitoThresholds = [40, 60, 75, 90];
+  const instPctForDist = instPercentProficientes ?? 0;
+  const nextConceitoTargetInst = conceitoThresholds.find((t) => instPctForDist < t) ?? 100;
+  const distanciaPP = instPctForDist >= 90 ? 0 : Math.round(nextConceitoTargetInst - instPctForDist);
+
+  // Meta institucional — usa pcp do recorte para "Alunos que faltam"
   const nextConceitoTarget = conceitoThresholds.find((t) => percentProficientes < t) ?? 100;
   const prevConceitoTarget = conceitoThresholds.filter((t) => percentProficientes >= t).pop() ?? 0;
-  // Quantitativos: somente da tabela TRI (resultados_ies_tri).
   const baseProficientCount = triNumProficient;
   const baseTotalForMeta = triNumStudents;
   const alunosFaltamMeta = (baseProficientCount !== null && baseTotalForMeta !== null && baseTotalForMeta > 0)
     ? Math.max(0, Math.ceil((nextConceitoTarget / 100) * baseTotalForMeta) - baseProficientCount)
     : 0;
 
-  // Distância em p.p. até próxima faixa de conceito (0 casas decimais)
-  const distanciaPP = percentProficientes >= 90 ? 0 : Math.round(nextConceitoTarget - percentProficientes);
-
-  // Alunos abaixo do esperado: contabiliza EXCLUSIVAMENTE alunos com
-  // resultados_alunos_tri.score_proprio < 60. Alunos sem TRI são ignorados
-  // para garantir consistência entre o card e a tabela expandida.
+  // Alunos abaixo do esperado: prioriza num_below_expected da RPC (autoritativo).
+  // Fallback: contagem local por triScore < 60.
   const alunosAbaixoStrict = students.filter(
     (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
   );
-  const alunosAbaixoCount = alunosAbaixoStrict.length;
+  const alunosAbaixoCount = triNumBelow !== null ? triNumBelow : alunosAbaixoStrict.length;
+
 
   // Taxa de adesão
   const realTotalIesUsers = totalIesUsers ?? 0;
