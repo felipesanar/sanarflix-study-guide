@@ -405,7 +405,7 @@ export function mapInstitutionalRpcToViewModel(
 
   Logger.info('[DesempenhoV2:Mapper]', 'Mapped:', {
     totalStudents,
-    overallAccuracy,
+    percentualAcertos,
     percentProficientes,
     conceito,
     faixas: faixaCounts,
