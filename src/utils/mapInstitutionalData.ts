@@ -359,6 +359,8 @@ export function mapInstitutionalRpcToViewModel(
     percentProficientes,
     alunosFaltamMeta,
     sancao,
+    conceitoScoped,
+    notaScoped,
     isSemestreScoped,
     semestreAtivo: activeSemestre ?? null,
   };
