@@ -125,6 +125,10 @@ export interface HeaderSummary {
   percentProficientes: number;
   alunosFaltamMeta: number;
   sancao: string | null;
+  /** Conceito previsto calculado a partir do % de proficientes do recorte */
+  conceitoScoped: string | null;
+  /** Nota numérica (1..5) correspondente ao conceitoScoped */
+  notaScoped: number | null;
   /** True quando os KPIs reagentes estão recortados por exatamente 1 semestre */
   isSemestreScoped?: boolean;
   /** Semestre ativo (quando isSemestreScoped) */

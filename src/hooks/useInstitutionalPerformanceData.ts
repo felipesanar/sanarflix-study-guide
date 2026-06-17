@@ -64,6 +64,8 @@ function getMockViewModel(): InstitutionalViewModel {
       percentProficientes: 35,
       alunosFaltamMeta: 55,
       sancao: 'Redução de 50% das vagas',
+      conceitoScoped: 'Conceito 1',
+      notaScoped: 1,
     },
     curricular: {
       areas: [

@@ -4,11 +4,11 @@ import { AlertTriangle } from 'lucide-react';
 interface Props {
   sancao?: string | null;
   percentProficientes?: number;
-  /** Mostra selo "Institucional" quando há recorte de semestre ativo */
-  showInstitutionalBadge?: boolean;
+  /** Conceito previsto da IES com base no % de proficientes do recorte */
+  conceitoScoped?: string | null;
 }
 
-export const InstitutionalAlertBanner: React.FC<Props> = ({ sancao, percentProficientes, showInstitutionalBadge }) => {
+export const InstitutionalAlertBanner: React.FC<Props> = ({ sancao, percentProficientes, conceitoScoped }) => {
   if (!sancao) return null;
 
   return (
@@ -17,17 +17,10 @@ export const InstitutionalAlertBanner: React.FC<Props> = ({ sancao, percentProfi
       <p className="text-xs text-foreground">
         <span className="font-semibold">Sanção regulatória:</span>{' '}
         <span className="text-muted-foreground">
-          Com {percentProficientes ?? '—'}% de proficientes — {sancao}.
+          Com {percentProficientes ?? '—'}% de proficientes
+          {conceitoScoped ? ` — ${conceitoScoped} previsto` : ''} — {sancao}.
         </span>
       </p>
-      {showInstitutionalBadge && (
-        <span
-          className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-background/60 text-muted-foreground border border-border"
-          title="Refere-se a todos os alunos da IES, não ao recorte de semestre"
-        >
-          Institucional
-        </span>
-      )}
     </div>
   );
 };

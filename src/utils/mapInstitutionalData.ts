@@ -180,11 +180,17 @@ export function mapInstitutionalRpcToViewModel(
   const notaAtual = instConceptNota;
   const conceito = instConceptNota !== null ? conceitoFromNota(instConceptNota) : null;
 
-  // Sanção — SEMPRE derivada do pcp institucional
-  const sancao = instPercentProficientes !== null ? getSancaoFromPcp(instPercentProficientes) : null;
+  // Sanção — derivada do pcp do recorte (semestre ou IES inteira), para
+  // manter consistência com o % de proficientes exibido no banner.
+  const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
+
+  // Conceito previsto a partir do % de proficientes do recorte
+  const conceitoScopedInfo = triPercentProficientes !== null ? getConceito(triPercentProficientes) : null;
+  const conceitoScoped = conceitoScopedInfo?.conceito ?? null;
+  const notaScoped = conceitoScopedInfo?.nota ?? null;
 
   Logger.info('[TRI] PCP scoped:', triPercentProficientes, 'institutional:', instPercentProficientes);
-  Logger.info('[TRI] Regulatory sanction derived from institutional pcp:', sancao);
+  Logger.info('[TRI] Regulatory sanction derived from scoped pcp:', sancao);
 
 
   // Distância: SEMPRE institucional (não muda com semestre)
@@ -353,6 +359,8 @@ export function mapInstitutionalRpcToViewModel(
     percentProficientes,
     alunosFaltamMeta,
     sancao,
+    conceitoScoped,
+    notaScoped,
     isSemestreScoped,
     semestreAtivo: activeSemestre ?? null,
   };
