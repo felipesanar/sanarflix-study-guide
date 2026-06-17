@@ -1952,7 +1952,12 @@ export type Database = {
         Returns: Json
       }
       get_institutional_tri: {
-        Args: { p_ies_id?: string; p_semestre?: number; p_simulado_id: string }
+        Args: {
+          p_ies_id?: string
+          p_semestre?: number
+          p_semestres?: number[]
+          p_simulado_id: string
+        }
         Returns: {
           college_id: string
           concept: number
@@ -1963,8 +1968,11 @@ export type Database = {
           min_score: number
           num_below_expected: number
           num_proficient: number
+          num_proficient_sixth_year: number
           num_students: number
+          num_students_sixth_year: number
           pcp: number
+          pcp_sixth_year: number
           sanctions: string
           simulado_id: string
           std_score: number
