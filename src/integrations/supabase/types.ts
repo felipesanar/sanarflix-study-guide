@@ -1892,7 +1892,10 @@ export type Database = {
           feature_key: string
         }[]
       }
-      get_ies_student_count: { Args: { p_ies_id: string }; Returns: number }
+      get_ies_student_count: {
+        Args: { p_ies_id: string; p_semestres?: number[] }
+        Returns: number
+      }
       get_institutional_evolution: {
         Args: { p_ies_id?: string }
         Returns: Json
