@@ -21,6 +21,7 @@ import type {
   InstitutionalTriSnapshot,
   InstitutionalTriEvolutionEntry,
 } from '@/services/institutional';
+import type { ActiveBase } from '@/utils/activeBase';
 import { Logger } from '@/utils/logger';
 
 // ── Proficiency rules (single source of truth) ──
