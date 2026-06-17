@@ -137,12 +137,14 @@ export interface HeaderSummary {
   isSemestreScoped?: boolean;
   /** Semestres ativos no recorte (array, vazio = todos) */
   semestresAtivos?: number[];
-  /** Modo do card de Conceito: 'sixth-year' (default) ou 'general' (toggle) */
-  conceitoMode?: 'sixth-year' | 'general';
+  /** Modo da base ativa: 6º ano (padrão), geral (toggle) ou semestres (multisseleção) */
+  conceitoMode?: 'sixth-year' | 'general' | 'semestres';
   /** True quando o modo 6º ano caiu em fallback por não haver alunos do 6º ano */
   sixthYearFallback?: boolean;
-  /** % de proficientes da BASE do card de Conceito (6º ano ou geral) — usado pelo banner de sanção */
+  /** % de proficientes da base ativa — usado pelo banner de sanção */
   basePctProficientes?: number | null;
+  /** Rótulo curto da base ativa, ex.: "6º ano", "IES inteira", "Semestres 9, 10" */
+  baseLabel?: string;
 }
 
 // ── Raw RPC response types ──
