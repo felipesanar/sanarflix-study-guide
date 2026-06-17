@@ -27,11 +27,11 @@ const statusIconColor: Record<string, string> = {
 interface Props {
   kpis: KpiData[];
   alunosAbaixo?: StudentBelowExpected[];
-  /** Mostra selo "Institucional" em cards com scope='institutional' (quando há recorte ativo) */
-  showInstitutionalBadge?: boolean;
+  /** Mostra selo "Base: ..." nos cards quando `kpi.baseLabel` está presente */
+  showBaseBadge?: boolean;
 }
 
-export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo, showInstitutionalBadge }) => {
+export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo, showBaseBadge = true }) => {
   const [openModal, setOpenModal] = useState(false);
 
   return (
@@ -39,7 +39,7 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo, showInstitut
       {kpis.map((kpi, i) => {
         const Icon = iconMap[kpi.icon] || BarChart3;
         const isDetails = kpi.label === 'Alunos Abaixo do Esperado' && !!alunosAbaixo && alunosAbaixo.length > 0;
-        const showBadge = showInstitutionalBadge && kpi.scope === 'institutional';
+        const showBadge = showBaseBadge && !!kpi.baseLabel;
         return (
           <motion.div
             key={kpi.label}
@@ -60,8 +60,8 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo, showInstitut
                   <Icon className={cn('h-4 w-4', statusIconColor[kpi.status])} />
                   <p className="text-[11px] text-muted-foreground truncate">{kpi.label}</p>
                   {showBadge && (
-                    <span className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title="Refere-se a todos os alunos da IES, não ao recorte de semestre">
-                      Institucional
+                    <span className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title={`Base ativa: ${kpi.baseLabel}`}>
+                      {kpi.baseLabel}
                     </span>
                   )}
                 </div>
