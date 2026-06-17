@@ -61,14 +61,10 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
     );
   }
 
-  const isScoped = !!data.headerSummary.isSemestreScoped;
-  const semestresAtivos = data.headerSummary.semestresAtivos ?? [];
   const nAlunos = data.headerSummary.totalAlunos;
-  const scopeLabel = !isScoped
-    ? 'da IES'
-    : semestresAtivos.length === 1
-      ? `do ${semestresAtivos[0]}º semestre`
-      : `dos semestres ${semestresAtivos.join(', ')}`;
+  const baseLabel = data.headerSummary.baseLabel ?? 'IES inteira';
+  const mode = data.headerSummary.conceitoMode;
+  const fallback = !!data.headerSummary.sixthYearFallback;
 
   return (
     <motion.div
@@ -81,32 +77,32 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
       <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
         <span>
           Analisando <span className="font-semibold text-foreground">{nAlunos}</span>{' '}
-          {nAlunos === 1 ? 'aluno' : 'alunos'} <span>{scopeLabel}</span>
+          {nAlunos === 1 ? 'aluno' : 'alunos'}{' '}
+          · <span className="font-medium text-foreground">Base: {baseLabel}</span>
           {data.headerSummary.conceitoScoped && (
             <>
               {' · '}
               Conceito previsto:{' '}
               <span className="font-semibold text-foreground">{data.headerSummary.conceitoScoped}</span>
-              {data.headerSummary.conceitoMode === 'sixth-year' && !data.headerSummary.sixthYearFallback && (
-                <span className="text-muted-foreground/80"> (base 6º ano)</span>
-              )}
-              {data.headerSummary.conceitoMode === 'general' && (
-                <span className="text-muted-foreground/80"> (base geral)</span>
-              )}
             </>
           )}
+          {fallback && (
+            <span className="ml-2 text-amber-600 dark:text-amber-400">
+              Sem alunos do 6º ano — exibindo base geral
+            </span>
+          )}
         </span>
-        {isScoped && (
-          <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
-            Recorte por semestre ativo
-          </span>
-        )}
+        <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
+          {mode === 'sixth-year' && 'Padrão · 6º ano'}
+          {mode === 'general' && 'Base geral'}
+          {mode === 'semestres' && 'Recorte por semestre'}
+        </span>
       </div>
 
 
       {/* KPIs */}
       <KpiCardsGrid
-        showInstitutionalBadge={isScoped}
+        showBaseBadge
         kpis={data.kpis}
         alunosAbaixo={data.alunosAbaixo.map((s) => {
           const hasTri = s.triScore !== null && s.triScore !== undefined;
