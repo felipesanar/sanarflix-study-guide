@@ -16,38 +16,12 @@ import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
-function extractAreasFromData(data: InstitutionalViewModel) {
-  const areas = new Set<string>();
-  data.allStudents.forEach((s) => {
-    Object.keys(s.scoresByArea).forEach((a) => areas.add(a));
-  });
-  return Array.from(areas).sort().map((a) => ({ id: a, label: a }));
-}
-
 function extractSemestresFromData(data: InstitutionalViewModel) {
   const sems = new Set<string>();
   data.allStudents.forEach((s) => {
     if (s.semestre) sems.add(String(s.semestre));
   });
   return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
-}
-
-function extractEspecialidadesFromData(data: InstitutionalViewModel) {
-  const especialidades = new Set<string>();
-  data.curricular.areas.forEach((area) => {
-    area.specialties.forEach((specialty) => especialidades.add(specialty.name));
-  });
-  return Array.from(especialidades).sort().map((value) => ({ id: value, label: value }));
-}
-
-function extractTemasFromData(data: InstitutionalViewModel) {
-  const temas = new Set<string>();
-  data.curricular.areas.forEach((area) => {
-    area.specialties.forEach((specialty) => {
-      specialty.temas.forEach((tema) => temas.add(tema.name));
-    });
-  });
-  return Array.from(temas).sort().map((value) => ({ id: value, label: value }));
 }
 
 const DebugPanel: React.FC<{ data: InstitutionalViewModel | null; filteredData: InstitutionalViewModel | null }> = ({ data, filteredData }) => {
@@ -140,10 +114,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           onClearFilters={clearFilters}
           simulados={simulados}
           iesList={iesList}
-          availableAreas={data ? extractAreasFromData(data) : []}
-          availableEspecialidades={data ? extractEspecialidadesFromData(data) : []}
           availableSemestres={data ? extractSemestresFromData(data) : []}
-          availableTemas={data ? extractTemasFromData(data) : []}
           usingMock={usingMock}
         />
 

@@ -145,15 +145,12 @@ export const GlobalFilterBar: React.FC<Props> = ({
       </Select>
 
       {/* Separator */}
-      {(availableAreas.length > 0 || availableEspecialidades.length > 0 || availableSemestres.length > 0 || availableTemas.length > 0) && (
+      {availableSemestres.length > 0 && (
         <div className="h-5 w-px bg-border/60 hidden sm:block" />
       )}
 
       {/* Multi-selects as text buttons */}
-      <MultiSelectFilter label="Áreas" options={availableAreas} selected={filters.areas} onChange={(v) => onFilterChange('areas', v)} />
-      <MultiSelectFilter label="Especialidades" options={availableEspecialidades} selected={filters.especialidades} onChange={(v) => onFilterChange('especialidades', v)} />
       <MultiSelectFilter label="Semestres" options={availableSemestres} selected={filters.semestres} onChange={(v) => onFilterChange('semestres', v)} />
-      <MultiSelectFilter label="Temas" options={availableTemas} selected={filters.temas} onChange={(v) => onFilterChange('temas', v)} />
 
       {extraActiveCount > 0 && (
         <Button

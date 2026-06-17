@@ -1,31 +1,26 @@
-## Alterações no banner "Sanção regulatória"
+## Mudanças
 
-Objetivo: deixar o banner totalmente dinâmico em relação ao recorte de semestre, sem o selo "Institucional" e exibindo também o conceito previsto da IES com base no % de proficientes do recorte.
+### 1) Exibir Conceito Previsto ao lado de "Analisando N alunos"
 
-### 1. Remover o selo "Institucional" do banner
-Arquivo: `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx`
-- Remover a prop `showInstitutionalBadge` e o `<span>` que renderiza o selo.
-- Limpar passagem da prop em `src/pages/DesempenhoInstitucionalV2.tsx` (apenas a do banner; o selo dos cards Conceito/Distância permanece, pois esses ainda são fixos por IES).
+Em `src/components/analytics/v2/modules/VisaoInstitucionalModule.tsx`, no bloco "Recorte ativo" (linhas 79-89), acrescentar — após o texto "Analisando N alunos do Xº semestre" — um separador (·) e o conceito previsto vindo de `data.headerSummary.conceitoScoped` (já calculado no hook). Exemplo final:
 
-### 2. Tornar a sanção do banner reativa ao recorte de semestre
-Arquivo: `src/utils/mapInstitutionalData.ts`
-- Hoje a sanção do `headerSummary` é derivada de `instPercentProficientes` (IES inteira), enquanto o `%` mostrado no banner já é o do recorte. Isso produz uma combinação inconsistente quando o pcp do semestre difere do institucional.
-- Passar a derivar `sancao` a partir de `percentProficientes` (scoped). Em "Todos os semestres" o valor coincide com o institucional, então nada muda visualmente nesse caso.
+> Analisando **20** alunos do 10º semestre · Conceito previsto: **Conceito 5**
 
-### 3. Exibir o conceito previsto (com base no % de proficientes do recorte) no banner
-Arquivo: `src/utils/mapInstitutionalData.ts` + `src/types/desempenhoV2.ts`
-- Adicionar `conceitoScoped: string | null` e `notaScoped: number | null` ao `HeaderSummary`, calculados via a função `getConceito(percentProficientes)` já existente no arquivo (mapeia 90/75/60/40 → Conceito 5..1).
+O texto só aparece quando `conceitoScoped` existir. Substituir também o selo da direita "RECORTE POR SEMESTRE ATIVO" — manter apenas quando `isScoped` for true (já é o caso). Nenhuma mudança em hooks/serviços; o dado já está disponível.
 
-Arquivo: `src/components/analytics/v2/shell/InstitutionalAlertBanner.tsx`
-- Aceitar `conceitoScoped` como prop e renderizar inline no texto, por exemplo:
-  
-  "Sanção regulatória: Com 0% de proficientes — Conceito 1 previsto — Redução de 50% das vagas autorizadas do curso."
+### 2) Remover filtros "Áreas", "Especialidades" e "Temas" do topo
 
-- Quando `sancao` for `null` (pcp ≥ 60), o banner continua oculto como hoje.
+Em `src/components/analytics/v2/shell/GlobalFilterBar.tsx`:
+- Remover os três `<MultiSelectFilter>` correspondentes (linhas 153, 154 e 156).
+- Manter apenas "Semestres".
+- Ajustar a condição do separador (linha 148) para considerar apenas `availableSemestres`.
 
-Arquivo: `src/pages/DesempenhoInstitucionalV2.tsx`
-- Passar `conceitoScoped={data.headerSummary.conceitoScoped}` ao `InstitutionalAlertBanner`.
+Em `src/pages/DesempenhoInstitucionalV2.tsx`:
+- Parar de passar `availableAreas`, `availableEspecialidades` e `availableTemas` ao `GlobalFilterBar` e remover as funções auxiliares `extractAreasFromData`, `extractEspecialidadesFromData`, `extractTemasFromData` (não mais usadas).
 
-### Fora de escopo
-- Cards "Nota Prevista da IES" e "Distância Próxima Faixa" continuam refletindo a IES inteira e mantêm o selo "Institucional" (eles não foram alvo do pedido).
-- Nenhuma alteração no backend/RPC — toda a lógica adicional usa dados que o `triScoped` já retorna.
+Os campos `areas`, `especialidades` e `temas` continuam existindo no estado/tipos para não quebrar `useDesempenhoV2State`, `applyDesempenhoV2Filters` e a serialização da URL — apenas deixam de ter UI. Não mexer em backend/RPCs.
+
+### Arquivos editados
+- `src/components/analytics/v2/modules/VisaoInstitucionalModule.tsx`
+- `src/components/analytics/v2/shell/GlobalFilterBar.tsx`
+- `src/pages/DesempenhoInstitucionalV2.tsx`
