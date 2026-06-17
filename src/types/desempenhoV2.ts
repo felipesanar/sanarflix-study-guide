@@ -125,6 +125,10 @@ export interface HeaderSummary {
   percentProficientes: number;
   alunosFaltamMeta: number;
   sancao: string | null;
+  /** True quando os KPIs reagentes estão recortados por exatamente 1 semestre */
+  isSemestreScoped?: boolean;
+  /** Semestre ativo (quando isSemestreScoped) */
+  semestreAtivo?: number | null;
 }
 
 // ── Raw RPC response types ──

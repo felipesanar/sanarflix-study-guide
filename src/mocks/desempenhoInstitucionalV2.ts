@@ -6,6 +6,8 @@ export interface KpiData {
   icon: string;
   status: 'good' | 'warning' | 'critical' | 'neutral';
   description?: string;
+  /** 'institutional' = sempre IES inteira (não muda com recorte de semestre); 'scoped' = reage ao recorte */
+  scope?: 'institutional' | 'scoped';
 }
 
 export interface FaixaDistribuicao {

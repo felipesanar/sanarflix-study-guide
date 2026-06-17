@@ -155,21 +155,22 @@ function computeDistanciaFaixa(students: StudentScore[]) {
 }
 
 
-function updateKpis(base: InstitutionalViewModel, students: StudentScore[]) {
+function updateKpis(base: InstitutionalViewModel, students: StudentScore[], preserveScopedTotals: boolean) {
   // Percentual de acertos from filtered students
   const totalQuestoes = students.reduce((sum, s) => sum + s.total, 0);
   const totalAcertos = students.reduce((sum, s) => sum + s.acertos, 0);
   const percentualAcertos = totalQuestoes > 0 ? Math.round((totalAcertos / totalQuestoes) * 1000) / 10 : 0;
 
-  // KPIs derivados de TRI (Proficiência Média, Alunos Proficientes, Nota Prevista,
-  // Distância Próxima Faixa, Alunos Abaixo do Esperado) são institucionais e
-  // vêm exclusivamente da tabela `resultados_ies_tri`. Não são recalculados
-  // a partir do recorte de alunos filtrados — preservamos os valores originais.
   return base.kpis.map((kpi) => {
+    // Quando o recorte de semestre já foi aplicado na RPC TRI, NÃO sobrescreve
+    // Total de Alunos / Percentual de Acertos a partir da lista local (que pode
+    // não conter todos os alunos do recorte, e.g. quando há alunos sem respostas).
     if (kpi.label === 'Total de Alunos') {
+      if (preserveScopedTotals) return kpi;
       return { ...kpi, value: students.length, description: 'Alunos no recorte aplicado' };
     }
     if (kpi.label === 'Percentual de Acertos') {
+      if (preserveScopedTotals) return kpi;
       return { ...kpi, value: `${percentualAcertos}%`, description: `${totalAcertos} acertos de ${totalQuestoes} questões aplicadas` };
     }
     return kpi;
@@ -189,18 +190,16 @@ export function applyDesempenhoV2Filters(
   const filteredCurricular = applyCurricularFilters(data.curricular.areas, filters);
   const filteredFaixas = computeFaixas(filteredAllStudents);
   const filteredDistanciaFaixa = computeDistanciaFaixa(filteredAllStudents);
-  const filteredKpis = updateKpis(data, filteredAllStudents);
 
-  // Header preserva percentProficientes / sanção da tabela `resultados_ies_tri`.
-  // Atualizamos apenas o totalAlunos para refletir o recorte de filtros.
-  const filteredHeader = {
-    ...data.headerSummary,
-    totalAlunos: filteredAllStudents.length,
-  };
+  // Quando exatamente 1 semestre está selecionado, o recorte já vem da RPC TRI
+  // (autoritativo) — preservamos Total de Alunos / Percentual de Acertos.
+  const preserveScopedTotals = filters.semestres.length === 1;
+  const filteredKpis = updateKpis(data, filteredAllStudents, preserveScopedTotals);
 
-  // Meta institucional preserva valores derivados de TRI (proficienciaAtual,
-  // percentProficientes, notaAtual, etc.). Apenas o rótulo de sanção segue
-  // o snapshot original.
+  const filteredHeader = preserveScopedTotals
+    ? data.headerSummary
+    : { ...data.headerSummary, totalAlunos: filteredAllStudents.length };
+
   const meta = { ...data.meta };
 
   return {

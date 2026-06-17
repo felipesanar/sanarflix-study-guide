@@ -256,6 +256,9 @@ export function useInstitutionalPerformanceData(
     fetchSimulados();
   }, [filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
+  // Semestre ativo para recorte TRI: exatamente 1 selecionado → número; caso contrário null
+  const activeSemestre = filters.semestres.length === 1 ? Number(filters.semestres[0]) : null;
+
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
       Logger.info('[DesempenhoInstitucional]', 'No simulado selected, skipping fetch');
@@ -265,7 +268,7 @@ export function useInstitutionalPerformanceData(
     setLoading(true);
     setError(null);
     setUsingMock(false);
-    Logger.info('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId);
+    Logger.info('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId, 'semestre:', activeSemestre);
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -284,13 +287,27 @@ export function useInstitutionalPerformanceData(
           : (user?.id_ies || undefined);
       const targetIesId = await resolveIesId(requestedIesId);
 
-      // Parallel RPC calls with retry + timeout + total IES users count + TRI snapshot/evolution
-      const [perfData, scoresData, evoData, iesUsersResult, triData, triEvoData, studentTriData] = await Promise.all([
+      // Contagem de usuários da IES para Taxa de Adesão.
+      // Quando há semestre ativo, conta apenas os usuários daquele semestre.
+      const iesUsersCountPromise = activeSemestre !== null
+        ? supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .eq('id_ies', targetIesId)
+            .eq('semestre', activeSemestre)
+            .then((r) => ({ data: r.count ?? 0, error: r.error }))
+        : Promise.resolve(supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId }));
+
+      // Parallel RPC calls: TRI institucional (sempre IES inteira) + TRI recorte (com semestre)
+      const [perfData, scoresData, evoData, iesUsersResult, triScopedData, triInstitutionalData, triEvoData, studentTriData] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
-        supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId }),
-        fetchInstitutionalTri(filters.simuladoId, targetIesId),
+        iesUsersCountPromise,
+        fetchInstitutionalTri(filters.simuladoId, targetIesId, activeSemestre),
+        activeSemestre !== null
+          ? fetchInstitutionalTri(filters.simuladoId, targetIesId, null)
+          : Promise.resolve(null),
         fetchInstitutionalTriEvolution(targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
       ]);
@@ -299,34 +316,39 @@ export function useInstitutionalPerformanceData(
         throw new Error('Dados incompletos retornados pelas RPCs');
       }
 
+      // Quando não há recorte, institucional = recorte
+      const triInstitutional = triInstitutionalData ?? triScopedData;
+
       const totalIesUsers = (iesUsersResult.data as number | null) ?? 0;
       const viewModel = mapInstitutionalRpcToViewModel(
         perfData,
         evoData,
         scoresData,
         totalIesUsers,
-        triData,
+        triScopedData,
         triEvoData,
         studentTriData,
+        triInstitutional,
+        activeSemestre,
       );
       setData(viewModel);
       Logger.info('[DesempenhoInstitucional]', 'Dados reais carregados', {
         totalStudents: viewModel.allStudents.length,
         areas: viewModel.curricular.areas.length,
-        triAvailable: !!triData,
+        triScoped: !!triScopedData,
+        triInstitutional: !!triInstitutional,
+        activeSemestre,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
       Logger.error('[DesempenhoInstitucional]', 'Falha no carregamento, usando dados de demonstração:', message);
-      // Quando RPCs falham ou retornam dados incompletos, exibe mock para
-      // que a tela permaneça utilizável (ex.: IES sem simulados ou sem respostas).
       setUsingMock(true);
       setData(getMockViewModel());
       setError(null);
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
+  }, [filters.simuladoId, filters.iesId, activeSemestre, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
   useEffect(() => {
     fetchPerformance();
