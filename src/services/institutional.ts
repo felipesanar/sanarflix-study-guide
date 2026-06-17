@@ -102,13 +102,13 @@ export interface InstitutionalTriEvolutionEntry {
 export async function fetchInstitutionalTri(
   simuladoId: string,
   iesId: string,
-  semestres: number[] = [],
+  semestres: number[] | null = null,
 ): Promise<InstitutionalTriSnapshot | null> {
   try {
     const params: Record<string, unknown> = {
       p_simulado_id: simuladoId,
       p_ies_id: iesId,
-      p_semestres: semestres ?? [],
+      p_semestres: semestres ?? null,
     };
     const result = await withTimeout(
       Promise.resolve(
