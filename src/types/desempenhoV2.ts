@@ -14,6 +14,8 @@ export interface DesempenhoV2Filters {
   areas: string[];
   especialidades: string[];
   temas: string[];
+  /** Quando true, o card de Conceito (e Distância/Sanção) usa a base geral (`concept`/`pcp`) em vez do 6º ano. */
+  conceitoGeral?: boolean;
 }
 
 export const DEFAULT_FILTERS: DesempenhoV2Filters = {
@@ -25,6 +27,7 @@ export const DEFAULT_FILTERS: DesempenhoV2Filters = {
   areas: [],
   especialidades: [],
   temas: [],
+  conceitoGeral: false,
 };
 
 /** Count how many filters are actively set (non-default) */
@@ -38,6 +41,7 @@ export function countActiveFilters(filters: DesempenhoV2Filters): number {
   if (filters.areas.length) count++;
   if (filters.especialidades.length) count++;
   if (filters.temas.length) count++;
+  if (filters.conceitoGeral) count++;
   return count;
 }
 
