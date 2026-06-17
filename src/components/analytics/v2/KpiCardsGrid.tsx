@@ -27,9 +27,11 @@ const statusIconColor: Record<string, string> = {
 interface Props {
   kpis: KpiData[];
   alunosAbaixo?: StudentBelowExpected[];
+  /** Mostra selo "Institucional" em cards com scope='institutional' (quando há recorte ativo) */
+  showInstitutionalBadge?: boolean;
 }
 
-export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
+export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo, showInstitutionalBadge }) => {
   const [openModal, setOpenModal] = useState(false);
 
   return (
@@ -37,6 +39,7 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
       {kpis.map((kpi, i) => {
         const Icon = iconMap[kpi.icon] || BarChart3;
         const isDetails = kpi.label === 'Alunos Abaixo do Esperado' && !!alunosAbaixo && alunosAbaixo.length > 0;
+        const showBadge = showInstitutionalBadge && kpi.scope === 'institutional';
         return (
           <motion.div
             key={kpi.label}
@@ -56,6 +59,11 @@ export const KpiCardsGrid: React.FC<Props> = ({ kpis, alunosAbaixo }) => {
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className={cn('h-4 w-4', statusIconColor[kpi.status])} />
                   <p className="text-[11px] text-muted-foreground truncate">{kpi.label}</p>
+                  {showBadge && (
+                    <span className="ml-auto shrink-0 text-[9px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border" title="Refere-se a todos os alunos da IES, não ao recorte de semestre">
+                      Institucional
+                    </span>
+                  )}
                 </div>
                 <p className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-none">
                   {kpi.value}
