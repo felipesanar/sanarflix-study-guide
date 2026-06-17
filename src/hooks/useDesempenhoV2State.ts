@@ -30,6 +30,7 @@ function parseFiltersFromParams(searchParams: URLSearchParams): DesempenhoV2Filt
     areas: parseListParam(searchParams.get('areas')),
     especialidades: parseListParam(searchParams.get('especialidades')),
     temas: parseListParam(searchParams.get('temas')),
+    conceitoGeral: searchParams.get('conceitoGeral') === '1',
   };
 }
 
@@ -88,6 +89,7 @@ export function useDesempenhoV2State() {
     if (filters.areas.length) next.set('areas', filters.areas.join(','));
     if (filters.especialidades.length) next.set('especialidades', filters.especialidades.join(','));
     if (filters.temas.length) next.set('temas', filters.temas.join(','));
+    if (filters.conceitoGeral) next.set('conceitoGeral', '1');
 
     const currentString = searchParams.toString();
     const nextString = next.toString();

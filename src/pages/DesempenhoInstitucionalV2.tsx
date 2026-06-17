@@ -120,7 +120,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
 
         <InstitutionalAlertBanner
           sancao={data?.headerSummary?.sancao}
-          percentProficientes={data?.headerSummary?.percentProficientes}
+          percentProficientes={data?.headerSummary?.basePctProficientes ?? data?.headerSummary?.percentProficientes}
           conceitoScoped={data?.headerSummary?.conceitoScoped}
         />
       </div>

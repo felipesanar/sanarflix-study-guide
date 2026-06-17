@@ -62,11 +62,13 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
   }
 
   const isScoped = !!data.headerSummary.isSemestreScoped;
-  const semestreAtivo = data.headerSummary.semestreAtivo;
+  const semestresAtivos = data.headerSummary.semestresAtivos ?? [];
   const nAlunos = data.headerSummary.totalAlunos;
-  const scopeLabel = isScoped && semestreAtivo
-    ? `do ${semestreAtivo}º semestre`
-    : 'da IES';
+  const scopeLabel = !isScoped
+    ? 'da IES'
+    : semestresAtivos.length === 1
+      ? `do ${semestresAtivos[0]}º semestre`
+      : `dos semestres ${semestresAtivos.join(', ')}`;
 
   return (
     <motion.div
@@ -85,6 +87,12 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
               {' · '}
               Conceito previsto:{' '}
               <span className="font-semibold text-foreground">{data.headerSummary.conceitoScoped}</span>
+              {data.headerSummary.conceitoMode === 'sixth-year' && !data.headerSummary.sixthYearFallback && (
+                <span className="text-muted-foreground/80"> (base 6º ano)</span>
+              )}
+              {data.headerSummary.conceitoMode === 'general' && (
+                <span className="text-muted-foreground/80"> (base geral)</span>
+              )}
             </>
           )}
         </span>
@@ -94,6 +102,7 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
           </span>
         )}
       </div>
+
 
       {/* KPIs */}
       <KpiCardsGrid

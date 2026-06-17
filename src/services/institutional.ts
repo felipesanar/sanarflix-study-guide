@@ -83,6 +83,10 @@ export interface InstitutionalTriSnapshot {
   sanctions: string | null;
   is_restricted: boolean | null;
   num_below_expected: number | null;
+  /** % de proficientes considerando apenas alunos do 6º ano (semestres 11 e 12). */
+  pcp_sixth_year: number | null;
+  /** Quantidade de alunos do 6º ano que entraram no cálculo de `pcp_sixth_year`. */
+  num_students_sixth_year: number | null;
 }
 
 export interface InstitutionalTriEvolutionEntry {
@@ -98,13 +102,13 @@ export interface InstitutionalTriEvolutionEntry {
 export async function fetchInstitutionalTri(
   simuladoId: string,
   iesId: string,
-  semestre?: number | null,
+  semestres: number[] = [],
 ): Promise<InstitutionalTriSnapshot | null> {
   try {
     const params: Record<string, unknown> = {
       p_simulado_id: simuladoId,
       p_ies_id: iesId,
-      p_semestre: semestre ?? null,
+      p_semestres: semestres ?? [],
     };
     const result = await withTimeout(
       Promise.resolve(

@@ -66,6 +66,11 @@ function getMockViewModel(): InstitutionalViewModel {
       sancao: 'Redução de 50% das vagas',
       conceitoScoped: 'Conceito 1',
       notaScoped: 1,
+      isSemestreScoped: false,
+      semestresAtivos: [],
+      conceitoMode: 'sixth-year',
+      sixthYearFallback: false,
+      basePctProficientes: 35,
     },
     curricular: {
       areas: [
@@ -258,8 +263,11 @@ export function useInstitutionalPerformanceData(
     fetchSimulados();
   }, [filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
 
-  // Semestre ativo para recorte TRI: exatamente 1 selecionado → número; caso contrário null
-  const activeSemestre = filters.semestres.length === 1 ? Number(filters.semestres[0]) : null;
+  // Semestres ativos para recorte TRI: array (vazio = todos)
+  const activeSemestres = filters.semestres
+    .map((s) => Number(s))
+    .filter((n) => Number.isFinite(n));
+  const conceitoGeralMode = !!filters.conceitoGeral;
 
   const fetchPerformance = useCallback(async () => {
     if (!filters.simuladoId) {
@@ -270,7 +278,7 @@ export function useInstitutionalPerformanceData(
     setLoading(true);
     setError(null);
     setUsingMock(false);
-    Logger.info('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId, 'semestre:', activeSemestre);
+    Logger.info('[DesempenhoInstitucional]', 'Fetching performance for simulado:', filters.simuladoId, 'semestres:', activeSemestres);
 
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -290,26 +298,23 @@ export function useInstitutionalPerformanceData(
       const targetIesId = await resolveIesId(requestedIesId);
 
       // Contagem de usuários da IES para Taxa de Adesão.
-      // Quando há semestre ativo, conta apenas os usuários daquele semestre.
-      const iesUsersCountPromise = activeSemestre !== null
+      // Quando há semestres selecionados, conta apenas os usuários desses semestres.
+      const iesUsersCountPromise = activeSemestres.length > 0
         ? supabase
             .from('users')
             .select('*', { count: 'exact', head: true })
             .eq('id_ies', targetIesId)
-            .eq('semestre', activeSemestre)
+            .in('semestre', activeSemestres)
             .then((r) => ({ data: r.count ?? 0, error: r.error }))
         : Promise.resolve(supabase.rpc('get_ies_student_count', { p_ies_id: targetIesId }));
 
-      // Parallel RPC calls: TRI institucional (sempre IES inteira) + TRI recorte (com semestre)
-      const [perfData, scoresData, evoData, iesUsersResult, triScopedData, triInstitutionalData, triEvoData, studentTriData] = await Promise.all([
+      // RPC TRI única — devolve agregados do recorte + pcp_sixth_year + concept geral
+      const [perfData, scoresData, evoData, iesUsersResult, triScopedData, triEvoData, studentTriData] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchInstitutionalEvolution(targetIesId),
         iesUsersCountPromise,
-        fetchInstitutionalTri(filters.simuladoId, targetIesId, activeSemestre),
-        activeSemestre !== null
-          ? fetchInstitutionalTri(filters.simuladoId, targetIesId, null)
-          : Promise.resolve(null),
+        fetchInstitutionalTri(filters.simuladoId, targetIesId, activeSemestres),
         fetchInstitutionalTriEvolution(targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
       ]);
@@ -317,9 +322,6 @@ export function useInstitutionalPerformanceData(
       if (!perfData?.overallStats || !scoresData?.students) {
         throw new Error('Dados incompletos retornados pelas RPCs');
       }
-
-      // Quando não há recorte, institucional = recorte
-      const triInstitutional = triInstitutionalData ?? triScopedData;
 
       const totalIesUsers = (iesUsersResult.data as number | null) ?? 0;
       const viewModel = mapInstitutionalRpcToViewModel(
@@ -330,16 +332,16 @@ export function useInstitutionalPerformanceData(
         triScopedData,
         triEvoData,
         studentTriData,
-        triInstitutional,
-        activeSemestre,
+        activeSemestres,
+        conceitoGeralMode,
       );
       setData(viewModel);
       Logger.info('[DesempenhoInstitucional]', 'Dados reais carregados', {
         totalStudents: viewModel.allStudents.length,
         areas: viewModel.curricular.areas.length,
         triScoped: !!triScopedData,
-        triInstitutional: !!triInstitutional,
-        activeSemestre,
+        activeSemestres,
+        conceitoGeralMode,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
@@ -350,7 +352,8 @@ export function useInstitutionalPerformanceData(
     } finally {
       setLoading(false);
     }
-  }, [filters.simuladoId, filters.iesId, activeSemestre, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
+  }, [filters.simuladoId, filters.iesId, activeSemestres.join(','), conceitoGeralMode, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
+
 
   useEffect(() => {
     fetchPerformance();

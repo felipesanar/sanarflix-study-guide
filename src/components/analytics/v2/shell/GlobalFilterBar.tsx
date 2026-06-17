@@ -152,6 +152,20 @@ export const GlobalFilterBar: React.FC<Props> = ({
       {/* Multi-selects as text buttons */}
       <MultiSelectFilter label="Semestres" options={availableSemestres} selected={filters.semestres} onChange={(v) => onFilterChange('semestres', v)} />
 
+      {/* Conceito Geral toggle — força base geral no card de Conceito/Distância/Sanção */}
+      <Button
+        variant={filters.conceitoGeral ? 'secondary' : 'ghost'}
+        size="sm"
+        className="h-8 text-xs gap-1.5 px-2.5"
+        onClick={() => onFilterChange('conceitoGeral', !filters.conceitoGeral)}
+        title="Quando ativo, o card de Conceito (e Distância/Sanção) usa o valor geral da IES em vez do 6º ano"
+      >
+        Conceito Geral
+        {filters.conceitoGeral && (
+          <Badge variant="default" className="h-4 px-1 text-[10px] rounded-sm">ON</Badge>
+        )}
+      </Button>
+
       {extraActiveCount > 0 && (
         <Button
           variant="ghost"

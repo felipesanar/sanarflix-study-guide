@@ -94,8 +94,8 @@ export function mapInstitutionalRpcToViewModel(
   triSnapshot?: InstitutionalTriSnapshot | null,
   triEvolution?: InstitutionalTriEvolutionEntry[],
   studentTriScores?: { student_id: string; score_proprio: number | null }[],
-  triInstitutional?: InstitutionalTriSnapshot | null,
-  activeSemestre?: number | null,
+  activeSemestres: number[] = [],
+  conceitoGeralMode: boolean = false,
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
@@ -145,59 +145,73 @@ export function mapInstitutionalRpcToViewModel(
     }
   });
 
+  const normalizePct = (raw: number | null | undefined): number | null => {
+    if (raw === null || raw === undefined) return null;
+    return Math.floor(raw <= 1 ? raw * 100 : raw);
+  };
 
   // ── TRI authoritative values ──
-  // `triSnapshot` é o recorte (pode ser por semestre quando activeSemestre != null,
-  // ou IES inteira quando null). Usado para Total/Proficiência/Proficientes/Abaixo.
-  // `triInstitutional` é SEMPRE a IES inteira — usado para Conceito, Distância, Sanção.
-  const triInst = triInstitutional ?? triSnapshot;
-  const triPcpRaw = triSnapshot?.pcp ?? null;
-  const triPercentProficientes = triPcpRaw !== null
-    ? Math.floor(triPcpRaw <= 1 ? triPcpRaw * 100 : triPcpRaw)
-    : null;
+  // `triSnapshot` reflete o recorte (união dos semestres selecionados, ou IES inteira quando vazio).
+  // Usado para Total/Proficiência/Proficientes/Abaixo (cards reagentes).
+  const triPercentProficientes = normalizePct(triSnapshot?.pcp);
   const triMeanScore = triSnapshot?.mean_score ?? null;
   const triMeanScoreRounded = triMeanScore !== null ? Math.round(triMeanScore) : null;
   const triNumStudents = triSnapshot?.num_students ?? null;
   const triNumProficient = triSnapshot?.num_proficient ?? null;
   const triNumBelow = triSnapshot?.num_below_expected ?? null;
 
-  // Valores institucionais (IES inteira) — Conceito, Distância, Sanção
-  const instPcpRaw = triInst?.pcp ?? null;
-  const instPercentProficientes = instPcpRaw !== null
-    ? Math.floor(instPcpRaw <= 1 ? instPcpRaw * 100 : instPcpRaw)
-    : null;
-  const instConceptNota = triInst?.concept ?? null;
+  // Base do card de Conceito — 6º ano por padrão, geral quando toggle ativo.
+  const pcpSixthYear = normalizePct(triSnapshot?.pcp_sixth_year);
+  const numSixthYear = triSnapshot?.num_students_sixth_year ?? 0;
+  const pcpGeneral = normalizePct(triSnapshot?.pcp);
+  const conceptGeneralNota = triSnapshot?.concept ?? null;
 
-  const isSemestreScoped = activeSemestre !== null && activeSemestre !== undefined;
+  const hasSixthYearData = numSixthYear > 0 && pcpSixthYear !== null;
+  const sixthYearFallback = !conceitoGeralMode && !hasSixthYearData;
+
+  // Modo do card: geral (toggle) OU fallback OU 6º ano
+  const useGeneralForConcept = conceitoGeralMode || sixthYearFallback;
+
+  let basePctForConcept: number | null;
+  let conceito: string | null;
+  let notaAtual: number | null;
+  if (useGeneralForConcept) {
+    basePctForConcept = pcpGeneral;
+    notaAtual = conceptGeneralNota;
+    conceito = conceptGeneralNota !== null ? conceitoFromNota(conceptGeneralNota) : null;
+  } else {
+    basePctForConcept = pcpSixthYear;
+    if (pcpSixthYear !== null) {
+      const info = getConceito(pcpSixthYear);
+      notaAtual = info.nota;
+      conceito = info.conceito;
+    } else {
+      notaAtual = null;
+      conceito = null;
+    }
+  }
+
+  const isSemestreScoped = activeSemestres.length > 0;
 
   // % proficientes do recorte (cards reagentes)
   const percentProficientes = triPercentProficientes !== null ? triPercentProficientes : 0;
-
-  // Proficiência média (recorte)
   const proficiencyForKpi = triMeanScoreRounded;
 
-  // Conceito / Nota — SEMPRE institucional (não muda com semestre)
-  const notaAtual = instConceptNota;
-  const conceito = instConceptNota !== null ? conceitoFromNota(instConceptNota) : null;
+  // Sanção — deriva da base do card de Conceito (6º ano por padrão; geral em modo toggle/fallback).
+  const sancao = basePctForConcept !== null ? getSancaoFromPcp(basePctForConcept) : null;
 
-  // Sanção — derivada do pcp do recorte (semestre ou IES inteira), para
-  // manter consistência com o % de proficientes exibido no banner.
-  const sancao = triPercentProficientes !== null ? getSancaoFromPcp(triPercentProficientes) : null;
+  // Conceito previsto exibido inline em "Analisando N alunos" — segue a base ativa.
+  const conceitoScoped = conceito;
+  const notaScoped = notaAtual;
 
-  // Conceito previsto a partir do % de proficientes do recorte
-  const conceitoScopedInfo = triPercentProficientes !== null ? getConceito(triPercentProficientes) : null;
-  const conceitoScoped = conceitoScopedInfo?.conceito ?? null;
-  const notaScoped = conceitoScopedInfo?.nota ?? null;
+  Logger.info('[TRI] PCP scoped:', triPercentProficientes, '6º ano:', pcpSixthYear, 'geral:', pcpGeneral, 'modo:', useGeneralForConcept ? 'geral' : '6º ano');
+  Logger.info('[TRI] Regulatory sanction derived from base pcp:', sancao);
 
-  Logger.info('[TRI] PCP scoped:', triPercentProficientes, 'institutional:', instPercentProficientes);
-  Logger.info('[TRI] Regulatory sanction derived from scoped pcp:', sancao);
-
-
-  // Distância: SEMPRE institucional (não muda com semestre)
+  // Distância: segue a base do card de Conceito.
   const conceitoThresholds = [40, 60, 75, 90];
-  const instPctForDist = instPercentProficientes ?? 0;
-  const nextConceitoTargetInst = conceitoThresholds.find((t) => instPctForDist < t) ?? 100;
-  const distanciaPP = instPctForDist >= 90 ? 0 : Math.round(nextConceitoTargetInst - instPctForDist);
+  const basePctForDist = basePctForConcept ?? 0;
+  const nextConceitoTargetBase = conceitoThresholds.find((t) => basePctForDist < t) ?? 100;
+  const distanciaPP = basePctForDist >= 90 ? 0 : Math.round(nextConceitoTargetBase - basePctForDist);
 
   // Meta institucional — usa pcp do recorte para "Alunos que faltam"
   const nextConceitoTarget = conceitoThresholds.find((t) => percentProficientes < t) ?? 100;
@@ -209,27 +223,29 @@ export function mapInstitutionalRpcToViewModel(
     : 0;
 
   // Alunos abaixo do esperado: prioriza num_below_expected da RPC (autoritativo).
-  // Fallback: contagem local por triScore < 60.
   const alunosAbaixoStrict = students.filter(
     (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
   );
   const alunosAbaixoCount = triNumBelow !== null ? triNumBelow : alunosAbaixoStrict.length;
 
 
-  // Total de alunos do recorte (semestre ou IES) — usa TRI quando disponível.
+  // Total de alunos do recorte
   const scopedTotalAlunos = triNumStudents !== null ? triNumStudents : totalStudents;
 
-  // Taxa de adesão — numerador = num_students do recorte; denominador = users
-  // com mesmo id_ies (e semestre, quando recorte ativo).
+  // Taxa de adesão
   const realTotalIesUsers = totalIesUsers ?? 0;
   const taxaAdesao = realTotalIesUsers > 0
     ? Math.round((scopedTotalAlunos / realTotalIesUsers) * 1000) / 10
     : 0;
+  const scopeLabelSuffix = isSemestreScoped
+    ? activeSemestres.length === 1
+      ? ` do ${activeSemestres[0]}º semestre`
+      : ` dos semestres ${activeSemestres.join(', ')}`
+    : ' da IES';
   const taxaAdesaoLabel = realTotalIesUsers > 0
-    ? `${scopedTotalAlunos} de ${realTotalIesUsers} alunos${isSemestreScoped ? ` do ${activeSemestre}º semestre` : ' da IES'}`
+    ? `${scopedTotalAlunos} de ${realTotalIesUsers} alunos${scopeLabelSuffix}`
     : 'Total de alunos da IES indisponível';
 
-  // Percentual de acertos
   const percentualAcertos = overallStats.total > 0
     ? Math.round((overallStats.acertos / overallStats.total) * 1000) / 10
     : 0;
@@ -241,13 +257,19 @@ export function mapInstitutionalRpcToViewModel(
     ? `${baseProficientCount} de ${baseTotalForMeta} alunos`
     : 'Dados TRI indisponíveis';
 
+  const conceitoDescription = useGeneralForConcept
+    ? (sixthYearFallback
+        ? 'Sem alunos do 6º ano — usando conceito geral'
+        : (notaAtual !== null ? `Conceito geral · Nota ${notaAtual}` : 'Conceito TRI indisponível'))
+    : 'Base: 6º ano (11º e 12º semestres) — público do ENAMED';
+
   const kpis: KpiData[] = [
-    { label: 'Total de Alunos', value: scopedTotalAlunos, icon: 'Users', status: 'neutral', description: isSemestreScoped ? `Alunos do ${activeSemestre}º semestre` : 'Alunos que realizaram o simulado', scope: 'scoped' },
+    { label: 'Total de Alunos', value: scopedTotalAlunos, icon: 'Users', status: 'neutral', description: isSemestreScoped ? `Alunos${scopeLabelSuffix}` : 'Alunos que realizaram o simulado', scope: 'scoped' },
     { label: 'Percentual de Acertos', value: `${percentualAcertos}%`, icon: 'Target', status: getKpiStatus(percentualAcertos, { good: 60, warning: 40 }), description: `${overallStats.acertos} acertos de ${overallStats.total} questões aplicadas`, scope: 'scoped' },
     { label: 'Proficiência Média (TRI)', value: proficiencyForKpi !== null ? proficiencyForKpi : '—', icon: 'Target', status: proficiencyForKpi !== null ? getKpiStatus(proficiencyForKpi, { good: 60, warning: 40 }) : 'neutral', description: proficienciaDesc, scope: 'scoped' },
     { label: 'Alunos Proficientes', value: triPercentProficientes !== null ? `${triPercentProficientes}%` : '—', icon: 'CheckCircle', status: triPercentProficientes !== null ? getKpiStatus(triPercentProficientes, { good: 60, warning: 40 }) : 'neutral', description: proficientesDescricao, scope: 'scoped' },
-    { label: 'Nota Prevista da IES', value: conceito ?? '—', icon: 'School', status: notaAtual !== null ? getKpiStatus(notaAtual, { good: 4, warning: 3 }) : 'neutral', description: notaAtual !== null ? `Nota ${notaAtual}` : 'Conceito TRI indisponível', scope: 'institutional' },
-    { label: 'Distância Próxima Faixa', value: instPercentProficientes === null ? '—' : (instPctForDist >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`), icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Distância para alcançar a próxima faixa de conceito', scope: 'institutional' },
+    { label: 'Nota Prevista da IES', value: conceito ?? '—', icon: 'School', status: notaAtual !== null ? getKpiStatus(notaAtual, { good: 4, warning: 3 }) : 'neutral', description: conceitoDescription, scope: 'institutional' },
+    { label: 'Distância Próxima Faixa', value: basePctForConcept === null ? '—' : (basePctForDist >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`), icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: useGeneralForConcept ? 'Base: IES inteira' : 'Base: 6º ano', scope: 'institutional' },
     { label: 'Alunos Abaixo do Esperado', value: alunosAbaixoCount, icon: 'AlertTriangle', status: getKpiStatus(100 - (alunosAbaixoCount / Math.max(baseTotalForMeta ?? scopedTotalAlunos, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts`, scope: 'scoped' },
     { label: 'Taxa de Adesão', value: realTotalIesUsers > 0 ? `${taxaAdesao}%` : '—', icon: 'CheckCircle', status: taxaAdesao >= 80 ? 'good' : taxaAdesao >= 50 ? 'warning' : 'neutral', description: taxaAdesaoLabel, scope: 'scoped' },
   ];
@@ -282,8 +304,6 @@ export function mapInstitutionalRpcToViewModel(
   };
 
   // ── Evolução ──
-  // When TRI evolution data is provided, use authoritative mean_score / pcp / concept.
-  // Otherwise fall back to the legacy accuracy-based heuristic from RpcEvolutionEntry.
   let evolucao: EvolucaoSimulado[];
   if (triEvolution && triEvolution.length > 0) {
     evolucao = triEvolution.map((e) => {
@@ -321,10 +341,7 @@ export function mapInstitutionalRpcToViewModel(
     }
   }
 
-  // ── Distância para próxima faixa ──
-  // Classificação EXCLUSIVA por score TRI (resultados_alunos_tri.score_proprio).
-  // Distância = 60 - score_proprio (arredondado). Alunos sem TRI são ignorados.
-  // Faixas: <=10 (próximos), 11-20 (moderada), >20 (muito abaixo).
+  // ── Distância para próxima faixa (cards por aluno) ──
   const distanciaBuckets = { proximos: 0, moderada: 0, critico: 0 };
   alunosAbaixoStrict.forEach((s) => {
     const dist = Math.round(PROFICIENCY_THRESHOLD - (s.triScore as number));
@@ -362,8 +379,12 @@ export function mapInstitutionalRpcToViewModel(
     conceitoScoped,
     notaScoped,
     isSemestreScoped,
-    semestreAtivo: activeSemestre ?? null,
+    semestresAtivos: activeSemestres,
+    conceitoMode: useGeneralForConcept ? 'general' : 'sixth-year',
+    sixthYearFallback,
+    basePctProficientes: basePctForConcept,
   };
+
 
   // Alunos abaixo do esperado: classificação EXCLUSIVA por score TRI
   // (resultados_alunos_tri.score_proprio < 60). Alunos sem TRI não entram.
