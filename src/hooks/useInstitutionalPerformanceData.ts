@@ -66,6 +66,11 @@ function getMockViewModel(): InstitutionalViewModel {
       sancao: 'Redução de 50% das vagas',
       conceitoScoped: 'Conceito 1',
       notaScoped: 1,
+      isSemestreScoped: false,
+      semestresAtivos: [],
+      conceitoMode: 'sixth-year',
+      sixthYearFallback: false,
+      basePctProficientes: 35,
     },
     curricular: {
       areas: [
