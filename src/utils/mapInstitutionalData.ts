@@ -94,6 +94,8 @@ export function mapInstitutionalRpcToViewModel(
   triSnapshot?: InstitutionalTriSnapshot | null,
   triEvolution?: InstitutionalTriEvolutionEntry[],
   studentTriScores?: { student_id: string; score_proprio: number | null }[],
+  triInstitutional?: InstitutionalTriSnapshot | null,
+  activeSemestre?: number | null,
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
