@@ -114,10 +114,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           onClearFilters={clearFilters}
           simulados={simulados}
           iesList={iesList}
-          availableAreas={data ? extractAreasFromData(data) : []}
-          availableEspecialidades={data ? extractEspecialidadesFromData(data) : []}
           availableSemestres={data ? extractSemestresFromData(data) : []}
-          availableTemas={data ? extractTemasFromData(data) : []}
           usingMock={usingMock}
         />
 
