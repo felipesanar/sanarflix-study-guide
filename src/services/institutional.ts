@@ -98,15 +98,18 @@ export interface InstitutionalTriEvolutionEntry {
 export async function fetchInstitutionalTri(
   simuladoId: string,
   iesId: string,
+  semestre?: number | null,
 ): Promise<InstitutionalTriSnapshot | null> {
   try {
+    const params: Record<string, unknown> = {
+      p_simulado_id: simuladoId,
+      p_ies_id: iesId,
+      p_semestre: semestre ?? null,
+    };
     const result = await withTimeout(
       Promise.resolve(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase.rpc as any)('get_institutional_tri', {
-          p_simulado_id: simuladoId,
-          p_ies_id: iesId,
-        }),
+        (supabase.rpc as any)('get_institutional_tri', params),
       ),
       RPC_TIMEOUT,
       'get_institutional_tri',
