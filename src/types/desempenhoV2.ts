@@ -129,14 +129,20 @@ export interface HeaderSummary {
   percentProficientes: number;
   alunosFaltamMeta: number;
   sancao: string | null;
-  /** Conceito previsto calculado a partir do % de proficientes do recorte */
+  /** Conceito previsto calculado a partir do % de proficientes do recorte (base ativa). */
   conceitoScoped: string | null;
   /** Nota numérica (1..5) correspondente ao conceitoScoped */
   notaScoped: number | null;
-  /** True quando os KPIs reagentes estão recortados por exatamente 1 semestre */
+  /** True quando os KPIs reagentes estão recortados por pelo menos 1 semestre */
   isSemestreScoped?: boolean;
-  /** Semestre ativo (quando isSemestreScoped) */
-  semestreAtivo?: number | null;
+  /** Semestres ativos no recorte (array, vazio = todos) */
+  semestresAtivos?: number[];
+  /** Modo do card de Conceito: 'sixth-year' (default) ou 'general' (toggle) */
+  conceitoMode?: 'sixth-year' | 'general';
+  /** True quando o modo 6º ano caiu em fallback por não haver alunos do 6º ano */
+  sixthYearFallback?: boolean;
+  /** % de proficientes da BASE do card de Conceito (6º ano ou geral) — usado pelo banner de sanção */
+  basePctProficientes?: number | null;
 }
 
 // ── Raw RPC response types ──
