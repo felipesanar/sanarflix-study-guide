@@ -80,6 +80,13 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
         <span>
           Analisando <span className="font-semibold text-foreground">{nAlunos}</span>{' '}
           {nAlunos === 1 ? 'aluno' : 'alunos'} <span>{scopeLabel}</span>
+          {data.headerSummary.conceitoScoped && (
+            <>
+              {' · '}
+              Conceito previsto:{' '}
+              <span className="font-semibold text-foreground">{data.headerSummary.conceitoScoped}</span>
+            </>
+          )}
         </span>
         {isScoped && (
           <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
