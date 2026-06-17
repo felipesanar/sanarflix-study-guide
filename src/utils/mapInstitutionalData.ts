@@ -358,10 +358,11 @@ export function mapInstitutionalRpcToViewModel(
     conceitoScoped,
     notaScoped,
     isSemestreScoped,
-    semestresAtivos: activeSemestres,
-    conceitoMode: useGeneralForConcept ? 'general' : 'sixth-year',
+    semestresAtivos: activeBase.semestres ?? [],
+    conceitoMode: activeBase.mode,
     sixthYearFallback,
     basePctProficientes: basePctForConcept,
+    baseLabel: activeBase.label,
   };
 
 
