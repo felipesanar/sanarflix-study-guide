@@ -349,10 +349,12 @@ export function mapInstitutionalRpcToViewModel(
 
   // ── Header summary ──
   const headerSummary: HeaderSummary = {
-    totalAlunos: totalStudents,
+    totalAlunos: scopedTotalAlunos,
     percentProficientes,
     alunosFaltamMeta,
     sancao,
+    isSemestreScoped,
+    semestreAtivo: activeSemestre ?? null,
   };
 
   // Alunos abaixo do esperado: classificação EXCLUSIVA por score TRI
