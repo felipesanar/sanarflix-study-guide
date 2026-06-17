@@ -8,6 +8,8 @@ export interface KpiData {
   description?: string;
   /** 'institutional' = sempre IES inteira (não muda com recorte de semestre); 'scoped' = reage ao recorte */
   scope?: 'institutional' | 'scoped';
+  /** Rótulo da base ativa exibido como selo (ex.: "6º ano", "IES inteira") */
+  baseLabel?: string;
 }
 
 export interface FaixaDistribuicao {

@@ -102,13 +102,13 @@ export interface InstitutionalTriEvolutionEntry {
 export async function fetchInstitutionalTri(
   simuladoId: string,
   iesId: string,
-  semestres: number[] = [],
+  semestres: number[] | null = null,
 ): Promise<InstitutionalTriSnapshot | null> {
   try {
     const params: Record<string, unknown> = {
       p_simulado_id: simuladoId,
       p_ies_id: iesId,
-      p_semestres: semestres ?? [],
+      p_semestres: semestres ?? null,
     };
     const result = await withTimeout(
       Promise.resolve(
@@ -261,3 +261,27 @@ export async function resolveIesId(explicitIesId?: string): Promise<string> {
   if (!data) throw new Error('IES do usuário não encontrada');
   return data as string;
 }
+
+/**
+ * Total de alunos matriculados na IES, opcionalmente filtrado por semestres.
+ * `null` = todos os semestres (geral). Array = lista explícita (ex.: [11,12]).
+ */
+export async function fetchIesStudentCount(
+  iesId: string,
+  semestres: number[] | null = null,
+): Promise<number> {
+  try {
+    const params: Record<string, unknown> = { p_ies_id: iesId };
+    if (semestres && semestres.length > 0) params.p_semestres = semestres;
+    const { data, error } = await supabase.rpc('get_ies_student_count', params as { p_ies_id: string; p_semestres?: number[] });
+    if (error) {
+      Logger.warn('[IES] get_ies_student_count failed:', error.message);
+      return 0;
+    }
+    return (data as number | null) ?? 0;
+  } catch (err) {
+    Logger.warn('[IES] get_ies_student_count error:', err);
+    return 0;
+  }
+}
+
