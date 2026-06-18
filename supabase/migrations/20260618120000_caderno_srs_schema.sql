@@ -8,7 +8,7 @@ ALTER TABLE public.error_notebook_entries
   ADD COLUMN IF NOT EXISTS srs_interval         int4        NOT NULL DEFAULT 1,
   ADD COLUMN IF NOT EXISTS srs_reps             int4        NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS srs_lapses           int4        NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS srs_due_at           timestamptz,
+  ADD COLUMN IF NOT EXISTS srs_due_at           timestamptz DEFAULT now(),
   ADD COLUMN IF NOT EXISTS confidence_at_answer text CHECK (confidence_at_answer IN ('baixa','media','alta')),
   ADD COLUMN IF NOT EXISTS last_review_outcome  text CHECK (last_review_outcome IN ('errei','dificil','bom','facil','snoozed','awaiting_lesson','leech_blocked')),
   ADD COLUMN IF NOT EXISTS mastered_at          timestamptz;

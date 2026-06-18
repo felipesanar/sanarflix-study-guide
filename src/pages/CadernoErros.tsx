@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { useErrorNotebook, ErrorNotebookFilters as Filters, ErrorNotebookEntry }
 import { ErrorNotebookList } from '@/components/caderno-erros/ErrorNotebookList';
 import { ErrorNotebookFilters } from '@/components/caderno-erros/ErrorNotebookFilters';
 import { ErrorNotebookDashboard } from '@/components/caderno-erros/ErrorNotebookDashboard';
-import { FlashcardMode } from '@/components/caderno-erros/FlashcardMode';
 import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -19,10 +19,10 @@ Logger.info('[ErrorNotebookUI] CadernoErros page loaded');
 export const CadernoErros: React.FC = () => {
   const { entries, loading, error, fetchEntries, clearError } = useErrorNotebook();
   const { trackEvent } = useAnalyticsTracker();
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<Filters>({});
   const [searchInput, setSearchInput] = useState('');
   const [allEntries, setAllEntries] = useState<ErrorNotebookEntry[]>([]);
-  const [flashcardOpen, setFlashcardOpen] = useState(false);
   const [manualFormOpen, setManualFormOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('erros');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -96,7 +96,7 @@ export const CadernoErros: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setFlashcardOpen(true)}
+                onClick={() => navigate('/caderno-de-erros/revisao')}
                 className="gap-2 rounded-xl border-border/50 hover:bg-accent/50 hover:shadow-sm transition-all duration-200 flex-1 sm:flex-none h-10 text-sm shadow-sm"
               >
                 <Brain className="h-4 w-4" />
@@ -236,13 +236,6 @@ export const CadernoErros: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Flashcard Mode */}
-      <FlashcardMode
-        isOpen={flashcardOpen}
-        onOpenChange={setFlashcardOpen}
-        entries={entries.length > 0 ? entries : allEntries}
-      />
 
       {/* Manual Entry Form */}
       <ManualEntryForm
