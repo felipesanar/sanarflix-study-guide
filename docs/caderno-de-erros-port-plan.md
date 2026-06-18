@@ -19,6 +19,30 @@
 
 ---
 
+## STATUS DE IMPLEMENTAÇÃO (2026-06-18, branch `feat/caderno-srs`)
+
+**Fase 1 (MVP do coração) — IMPLEMENTADA.** Verificação: `tsc` exit 0, 20 testes unitários verdes (srs + triagem), `vite build` OK. Browser pendente das migrações.
+
+Entregue:
+- Motor SRS (`src/lib/srs.ts` + testes) e heurística de triagem (`src/lib/triageHeuristic.ts` + testes).
+- Migrações (NÃO aplicadas): `supabase/migrations/20260618120000_caderno_srs_schema.sql`, `..120100_caderno_srs_rpcs.sql`, `..120200_caderno_bulk_add.sql`.
+- Recall ativo persistido: `useActiveRecallSession` + `/caderno-de-erros/revisao` (substitui o `FlashcardMode` descartável).
+- Triagem pós-prova: `useTriageCandidates` + `/caderno-de-erros/triagem` + entrada na barra de `SimuladoCorrecao`.
+- Surfacing de devidas: `useNotebookDueCount` + CTA no header do Caderno.
+- Costura de RPCs em `src/lib/cadernoSrsApi.ts` (cast único até regenerar tipos).
+
+### Runbook — aplicar as migrações (destrava verificação em browser + Fases 2+)
+1. Aplicar, em ordem, no Supabase do academy (via CLI `supabase db push` ou branch do Supabase): `20260618120000` → `..120100` → `..120200`.
+2. Antes da FK opcional, rodar a checagem de órfãos (comentada na migração de schema).
+3. Regenerar tipos: `supabase gen types typescript ...` → `src/integrations/supabase/types.ts`.
+4. Remover os casts `as any` em `src/lib/cadernoSrsApi.ts`, `useActiveRecallSession.ts`, `useTriageCandidates.ts`, `useNotebookDueCount.ts` (procurar `// ... fora dos tipos gerados`).
+5. Smoke test: revisar um item (record→schedule grava em `review_attempts`), triar um simulado, conferir o badge de devidas.
+
+### Próximas fases (não iniciadas)
+Fases 2–4 abaixo. Recomenda-se aplicar as migrações e verificar a Fase 1 em browser ANTES, para que as fases seguintes (insights, flashcards-com-SRS, reta-final, export, feeders) sejam construídas com verificação ponta a ponta — evitando código não verificável.
+
+---
+
 ## FASE 1 — O CORAÇÃO (MVP)
 
 Objetivo: transformar o caderno atual (captura + dashboard + flashcard descartável) em um **motor de revisão real**: SRS persistido, recall ativo com histórico, triagem pós-prova com confiança e a questão de verdade na tela.
