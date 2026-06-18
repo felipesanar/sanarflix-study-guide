@@ -11,6 +11,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { SrsConfidence, SrsOutcome } from '@/lib/srs';
+import type { ErrorReason } from '@/hooks/useErrorNotebook';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LooseRpc = (name: string, params?: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
@@ -62,4 +63,31 @@ export async function scheduleNextReview(p: {
 export async function resetLeech(entryId: string): Promise<void> {
   const { error } = await looseRpc('reset_leech_guarded', { p_entry_id: entryId });
   if (error) throw new Error(error.message);
+}
+
+export interface BulkEntry {
+  question_id: string | null;
+  simulado_id: string | null;
+  simulado_nome?: string | null;
+  grande_area?: string | null;
+  especialidade?: string | null;
+  tema?: string | null;
+  reason: ErrorReason;
+  learning_text?: string | null;
+  was_correct: boolean;
+  confidence_at_answer?: SrsConfidence | null;
+}
+
+export interface BulkResult {
+  added: number;
+  skipped: number;
+  entry_ids: string[];
+}
+
+/** Adiciona em lote a partir da triagem pós-prova (limite 100, dedup por questão). */
+export async function addToNotebookBulk(entries: BulkEntry[]): Promise<BulkResult> {
+  const { data, error } = await looseRpc('add_to_notebook_bulk_guarded', { p_entries: entries });
+  if (error) throw new Error(error.message);
+  const r = (data ?? {}) as Partial<BulkResult>;
+  return { added: r.added ?? 0, skipped: r.skipped ?? 0, entry_ids: r.entry_ids ?? [] };
 }

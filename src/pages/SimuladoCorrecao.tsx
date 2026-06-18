@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -180,6 +181,7 @@ const AlternativeCard: React.FC<{
 export const SimuladoCorrecao: React.FC = () => {
   const { user } = useAuth();
   const { trackEvent } = useAnalyticsTracker();
+  const navigate = useNavigate();
 
   const [simulados, setSimulados] = useState<SimuladoOption[]>([]);
   const [selectedSimulado, setSelectedSimulado] = useState<string | null>(null);
@@ -439,6 +441,16 @@ export const SimuladoCorrecao: React.FC = () => {
               </Select>
             )}
           </div>
+          {selectedSimulado && questions.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/caderno-de-erros/triagem?simulado=${selectedSimulado}`)}
+              className="gap-2 shrink-0 h-11 rounded-xl border-border/60 shadow-sm hover:shadow-md transition-all"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              <span className="text-sm">Triar erros</span>
+            </Button>
+          )}
           {selectedSimulado && questions.length > 0 && (
             <Button
               variant="outline"

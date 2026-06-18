@@ -11,6 +11,7 @@ import { ErrorNotebookDashboard } from '@/components/caderno-erros/ErrorNotebook
 import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
+import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
 import { Logger } from '@/utils/logger';
 
@@ -20,6 +21,7 @@ export const CadernoErros: React.FC = () => {
   const { entries, loading, error, fetchEntries, clearError } = useErrorNotebook();
   const { trackEvent } = useAnalyticsTracker();
   const navigate = useNavigate();
+  const { count: dueCount } = useNotebookDueCount();
   const [filters, setFilters] = useState<Filters>({});
   const [searchInput, setSearchInput] = useState('');
   const [allEntries, setAllEntries] = useState<ErrorNotebookEntry[]>([]);
@@ -96,11 +98,11 @@ export const CadernoErros: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/caderno-de-erros/revisao')}
+                onClick={() => navigate(dueCount > 0 ? '/caderno-de-erros/revisao' : '/caderno-de-erros/revisao?mode=all')}
                 className="gap-2 rounded-xl border-border/50 hover:bg-accent/50 hover:shadow-sm transition-all duration-200 flex-1 sm:flex-none h-10 text-sm shadow-sm"
               >
                 <Brain className="h-4 w-4" />
-                Modo Revisão
+                {dueCount > 0 ? `Revisar ${dueCount} devido${dueCount === 1 ? '' : 's'}` : 'Modo Revisão'}
               </Button>
             )}
             <Button
