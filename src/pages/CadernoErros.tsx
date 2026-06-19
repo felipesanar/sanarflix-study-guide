@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag, Layers } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +13,7 @@ import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
 import { InsightCards } from '@/components/caderno-erros/InsightCards';
 import { ExportCadernoButton } from '@/components/caderno-erros/ExportCadernoButton';
+import { FlashcardsPanel } from '@/components/caderno-erros/FlashcardsPanel';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -181,6 +182,13 @@ export const CadernoErros: React.FC = () => {
               Anotações
             </TabsTrigger>
             <TabsTrigger
+              value="flashcards"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              Flashcards
+            </TabsTrigger>
+            <TabsTrigger
               value="evolucao"
               className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
@@ -251,6 +259,11 @@ export const CadernoErros: React.FC = () => {
         {/* Tab: Anotações */}
         <TabsContent value="anotacoes" className="space-y-5 mt-0">
           <NotesPanel />
+        </TabsContent>
+
+        {/* Tab: Flashcards */}
+        <TabsContent value="flashcards" className="space-y-5 mt-0">
+          <FlashcardsPanel />
         </TabsContent>
 
         {/* Tab: Evolução */}
