@@ -25,6 +25,7 @@ const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstituci
 const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
 const CadernoRevisao = lazy(() => import("@/pages/CadernoRevisao").then(m => ({ default: m.CadernoRevisao })));
 const CadernoTriagem = lazy(() => import("@/pages/CadernoTriagem").then(m => ({ default: m.CadernoTriagem })));
+const CadernoRetaFinal = lazy(() => import("@/pages/CadernoRetaFinal").then(m => ({ default: m.CadernoRetaFinal })));
 const MeusFeedbacks = lazy(() => import("@/pages/MeusFeedbacks"));
 
 
@@ -332,6 +333,22 @@ export const DynamicRoutes: React.FC = () => {
             />
           ) : (
             <Route path="/caderno-de-erros/triagem" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Caderno de Erros — Reta Final */}
+          {accessRules.errorNotebook ? (
+            <Route
+              path="/caderno-de-erros/reta-final"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper loadingMessage="Carregando reta final..." waitForData={false}>
+                    <CadernoRetaFinal />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/caderno-de-erros/reta-final" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           <Route path="/meus-feedbacks" element={<ProtectedRoute><PageWrapper loadingMessage="Carregando…" waitForData={false}><MeusFeedbacks /></PageWrapper></ProtectedRoute>} />

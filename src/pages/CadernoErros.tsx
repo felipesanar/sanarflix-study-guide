@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -107,6 +107,17 @@ export const CadernoErros: React.FC = () => {
               >
                 <Brain className="h-4 w-4" />
                 {dueCount > 0 ? `Revisar ${dueCount} devido${dueCount === 1 ? '' : 's'}` : 'Modo Revisão'}
+              </Button>
+            )}
+            {entries.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/caderno-de-erros/reta-final')}
+                className="gap-2 rounded-xl border-border/50 hover:bg-accent/50 hover:shadow-sm transition-all duration-200 flex-1 sm:flex-none h-10 text-sm shadow-sm"
+              >
+                <Flag className="h-4 w-4" />
+                Reta Final
               </Button>
             )}
             <Button
