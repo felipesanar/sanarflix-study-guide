@@ -262,6 +262,11 @@ export const CadernoErros: React.FC = () => {
           <NotesPanel />
         </TabsContent>
 
+        {/* Tab: Flashcards */}
+        <TabsContent value="flashcards" className="space-y-5 mt-0">
+          <FlashcardsPanel />
+        </TabsContent>
+
         {/* Tab: Evolução */}
         <TabsContent value="evolucao" className="space-y-6 mt-0">
           <NotificationPreferenceToggle />
