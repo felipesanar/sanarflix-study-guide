@@ -122,7 +122,9 @@ export const CadernoErros: React.FC = () => {
                 <Flag className="h-4 w-4" />
                 Reta Final
               </Button>
+            )}
             {entries.length > 0 && <ExportCadernoButton />}
+
             <Button
               size="sm"
               onClick={() => setManualFormOpen(true)}
