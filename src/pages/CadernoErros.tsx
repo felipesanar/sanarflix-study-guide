@@ -122,7 +122,7 @@ export const CadernoErros: React.FC = () => {
                 <Flag className="h-4 w-4" />
                 Reta Final
               </Button>
-            )}
+            {entries.length > 0 && <ExportCadernoButton />}
             <Button
               size="sm"
               onClick={() => setManualFormOpen(true)}
@@ -131,6 +131,7 @@ export const CadernoErros: React.FC = () => {
               <PlusCircle className="h-4 w-4" />
               Adicionar
             </Button>
+
           </div>
         </div>
       </motion.div>
