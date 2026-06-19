@@ -62,8 +62,13 @@ Entregue:
 3. Remover os casts `as any` em `src/lib/flashcardsApi.ts` (tipar `flashcards` e a RPC).
 4. Smoke test: criar flashcard → revisar (flip + nota) grava SRS e reagenda `srs_due_at`.
 
-### Falta (Fase 4 — não iniciada)
-Feeders na plataforma (badge de devidas no nav global, surfacing na home, salvar/anotar espalhado) + lembretes via Novu (precisa config de workflow/cadência do time). Depende de decisões de produto/infra.
+**Fase 4 (feeders) — IMPLEMENTADA (parcial).** `tsc` 0, 97 testes, build OK.
+- Badge de devidas no nav global (`SidebarMenuItem` ganhou `badge`; `AppSidebar` injeta `useNotebookDueCount` no item Caderno).
+- Surfacing na home: `CadernoHomeBanner` (auto-contido; some quando sem acesso/sem devidas) com CTA "Revisar".
+- Salvar/favoritar/anotar: já cobertos na correção (Fase 1–2).
+
+### Falta (não iniciado)
+**Lembretes via Novu** (edge function + preferências + cron) — depende de config de workflow/cadência/secrets do time. Único item da Fase 4 fora de escopo do que é construível/verificável sem infra.
 
 ---
 
