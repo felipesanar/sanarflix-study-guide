@@ -46,10 +46,24 @@ Entregue:
 - **Anotações:** `useNotes` + `NotesPanel` (save-on-blur, flush em troca/unmount) + aba Anotações.
 - **Busca server-side:** `useErrorNotebook` agora busca em learning_text + tema + grande_area.
 
-Falta na Fase 2 (não iniciado): **insights acionáveis estruturados** (5 tipos: área fraca, causa dominante, confusão recorrente, overconfidence, ROI) evoluindo `analyze-error-patterns` + cache server-side + gate de dados. É a peça mais acoplada à IA (Lovable gateway) e a menos verificável sem ambiente — recomendado fazer após aplicar migrações. O `AIInsightsCard` atual (prosa) cobre o insight básico nesse meio-tempo.
+**ATUALIZAÇÃO (2026-06-19): migrações da Fase 1+2 APLICADAS via Lovable** (numa transação), FK criada (0 órfãos), tipos regenerados e casts removidos. Integração reverificada local: `tsc` 0, testes verdes. Merge na `main` feito (substituiu a tela "em manutenção"). Smoke test em runtime ainda pendente (auth).
 
-### Próximas fases
-Fases 3–4 abaixo (flashcards-com-SRS, reta-final, export, feeders, Novu) + insights estruturados da Fase 2. Recomenda-se aplicar as migrações e verificar Fases 1–2 em browser ANTES, para construir com verificação ponta a ponta.
+**Fase 2 — COMPLETA.** Insights estruturados entregues de forma **determinística no cliente** (sem IA / sem edge function): `src/lib/cadernoInsights.ts` (+ testes) + `useCadernoInsights` + `InsightCards` na aba Evolução (5 tipos + gate de dados + ordenação por severidade). `AIInsightsCard` (prosa) mantido como complemento.
+
+**Fase 3 — IMPLEMENTADA.** `tsc` 0, 97 testes unitários verdes, `vite build` OK.
+- **Reta Final:** `src/lib/retaFinalPlan.ts` (+ testes) + `useRetaFinalPlan` + `/caderno-de-erros/reta-final` + botão no header. Pesos de área PROVISÓRIOS (validar com Conteúdo).
+- **Export PDF:** `src/utils/cadernoPdfExport.ts` (+ testes de agrupamento) + `ExportCadernoButton` (aba Meus Erros).
+- **TTS:** `useTextToSpeech` (Web Speech API pt-BR) na revisão (botão "Ouvir").
+- **Flashcards com SRS:** migração `20260619130000_caderno_flashcards.sql` (**NÃO aplicada** — 2º ciclo Lovable) + `flashcardsApi.ts` (casts) + `useFlashcards` + `FlashcardsPanel` (criar/listar/excluir + revisão flip com SM-2-lite) + aba Flashcards.
+
+### Runbook — 2ª leva (Fase 3: flashcards)
+1. Aplicar `supabase/migrations/20260619130000_caderno_flashcards.sql` (tabela `flashcards` + RPC `schedule_flashcard_review_guarded`).
+2. Regenerar `src/integrations/supabase/types.ts`.
+3. Remover os casts `as any` em `src/lib/flashcardsApi.ts` (tipar `flashcards` e a RPC).
+4. Smoke test: criar flashcard → revisar (flip + nota) grava SRS e reagenda `srs_due_at`.
+
+### Falta (Fase 4 — não iniciada)
+Feeders na plataforma (badge de devidas no nav global, surfacing na home, salvar/anotar espalhado) + lembretes via Novu (precisa config de workflow/cadência do time). Depende de decisões de produto/infra.
 
 ---
 
