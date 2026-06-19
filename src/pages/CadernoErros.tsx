@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag, Layers } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +16,7 @@ import { ExportCadernoButton } from '@/components/caderno-erros/ExportCadernoBut
 import { NotificationPreferenceToggle } from '@/components/caderno-erros/NotificationPreferenceToggle';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
-import { FlashcardsPanel } from '@/components/caderno-erros/FlashcardsPanel';
+
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
@@ -183,13 +183,6 @@ export const CadernoErros: React.FC = () => {
               Anotações
             </TabsTrigger>
             <TabsTrigger
-              value="flashcards"
-              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
-            >
-              <Layers className="h-4 w-4 mr-2" />
-              Flashcards
-            </TabsTrigger>
-            <TabsTrigger
               value="evolucao"
               className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
@@ -262,10 +255,6 @@ export const CadernoErros: React.FC = () => {
           <NotesPanel />
         </TabsContent>
 
-        {/* Tab: Flashcards */}
-        <TabsContent value="flashcards" className="space-y-5 mt-0">
-          <FlashcardsPanel />
-        </TabsContent>
 
         {/* Tab: Evolução */}
         <TabsContent value="evolucao" className="space-y-6 mt-0">
