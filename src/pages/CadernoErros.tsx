@@ -10,6 +10,7 @@ import { ErrorNotebookFilters } from '@/components/caderno-erros/ErrorNotebookFi
 import { ErrorNotebookDashboard } from '@/components/caderno-erros/ErrorNotebookDashboard';
 import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
+import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
@@ -218,6 +219,7 @@ export const CadernoErros: React.FC = () => {
               className="space-y-6"
             >
               <ErrorNotebookDashboard entries={allEntries} />
+              <CalibrationPanel />
               <AIInsightsCard entries={allEntries} />
             </motion.div>
           ) : (
