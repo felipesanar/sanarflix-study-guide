@@ -183,6 +183,13 @@ export const CadernoErros: React.FC = () => {
               Anotações
             </TabsTrigger>
             <TabsTrigger
+              value="flashcards"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              Flashcards
+            </TabsTrigger>
+            <TabsTrigger
               value="evolucao"
               className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
