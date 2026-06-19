@@ -8,10 +8,10 @@ import type { ErrorReason } from '@/hooks/useErrorNotebook';
 export type EntryStatus = 'mastered' | 'leech' | 'awaiting_lesson' | 'due' | 'scheduled';
 
 export interface EntryStatusInput {
-  srs_due_at: string | null;
-  mastered_at: string | null;
-  srs_lapses: number | null;
-  last_review_outcome: string | null;
+  srs_due_at?: string | null;
+  mastered_at?: string | null;
+  srs_lapses?: number | null;
+  last_review_outcome?: string | null;
 }
 
 const LEECH_THRESHOLD = 4;
