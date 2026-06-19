@@ -11,6 +11,7 @@ import { ErrorNotebookEntry, ErrorReason, REASON_LABELS, QuestionDetails, useErr
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { cadernoEntryStatus, type EntryStatus } from '@/lib/cadernoEntryStatus';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -38,6 +39,14 @@ const REASON_ACCENT: Record<ErrorReason, string> = {
   did_not_remember: 'border-l-amber-500/50',
   did_not_understand_statement: 'border-l-blue-500/50',
   answered_without_confidence: 'border-l-purple-500/50',
+};
+
+// Badge de status SRS — só mostra para estados acionáveis (esconde 'scheduled').
+const STATUS_BADGE: Partial<Record<EntryStatus, { label: string; className: string }>> = {
+  mastered: { label: 'Dominado', className: 'bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 border-emerald-500/15' },
+  leech: { label: 'Travado', className: 'bg-orange-500/8 text-orange-600 dark:text-orange-400 border-orange-500/15' },
+  awaiting_lesson: { label: 'Aguardando lição', className: 'bg-slate-500/8 text-slate-600 dark:text-slate-400 border-slate-500/15' },
+  due: { label: 'A revisar', className: 'bg-primary/8 text-primary border-primary/15' },
 };
 
 export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
@@ -166,6 +175,14 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
               <Badge variant="outline" className={cn("text-[11px] font-medium rounded-full px-2.5 py-0.5 border", REASON_COLORS[entry.reason as ErrorReason])}>
                 {REASON_LABELS[entry.reason as ErrorReason]}
               </Badge>
+              {(() => {
+                const st = STATUS_BADGE[cadernoEntryStatus(entry)];
+                return st ? (
+                  <Badge variant="outline" className={cn("text-[11px] font-medium rounded-full px-2.5 py-0.5 border", st.className)}>
+                    {st.label}
+                  </Badge>
+                ) : null;
+              })()}
               {entry.was_correct && (
                 <Badge variant="outline" className="text-[11px] rounded-full px-2.5 py-0.5 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400 border-emerald-500/15">
                   Acertou
@@ -275,7 +292,7 @@ export const ErrorNotebookItem: React.FC<ErrorNotebookItemProps> = ({
                 )}
 
                 <div className="space-y-2">
-                  {['a', 'b', 'c', 'd'].map(letter => {
+                  {['a', 'b', 'c', 'd', 'e'].map(letter => {
                     const text = questionDetails[`alternativa_${letter}` as keyof QuestionDetails] as string;
                     if (!text) return null;
                     const isCorrect = questionDetails.correta?.toLowerCase() === letter;

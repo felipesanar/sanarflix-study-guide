@@ -40,7 +40,8 @@ export const ErrorNotebookList: React.FC<ErrorNotebookListProps> = ({
   const recurrenceByTema = useMemo(() => {
     const counts = new Map<string, number>();
     entries.forEach(e => {
-      const key = e.tema || 'Sem tema';
+      // chave por área+tema para não somar temas homônimos de áreas diferentes
+      const key = `${e.grande_area || 'Sem área'}||${e.tema || 'Sem tema'}`;
       counts.set(key, (counts.get(key) || 0) + 1);
     });
     return counts;
@@ -93,7 +94,7 @@ export const ErrorNotebookList: React.FC<ErrorNotebookListProps> = ({
             </div>
 
             {Array.from(temaMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([tema, items], temaIndex) => {
-              const recurrence = recurrenceByTema.get(tema) || 0;
+              const recurrence = recurrenceByTema.get(`${area}||${tema}`) || 0;
               return (
                 <motion.div
                   key={tema}

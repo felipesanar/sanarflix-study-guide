@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { Logger } from '@/utils/logger';
 import { normalizeGrandeArea } from '@/utils/grandeArea';
+import { easeForReason } from '@/lib/cadernoEntryStatus';
 
 export type ErrorReason = 'did_not_know' | 'did_not_remember' | 'did_not_understand_statement' | 'answered_without_confidence';
 
@@ -24,6 +25,13 @@ export interface ErrorNotebookEntry {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  // Campos SRS (presentes via select('*') após a migração da Fase 1). Opcionais
+  // para tolerar linhas antigas / projetos sem a migração aplicada.
+  srs_due_at?: string | null;
+  mastered_at?: string | null;
+  srs_lapses?: number | null;
+  srs_reps?: number | null;
+  last_review_outcome?: string | null;
 }
 
 export interface QuestionDetails {
@@ -158,6 +166,9 @@ export const useErrorNotebook = () => {
           learning_text: learningText,
           was_correct: params.was_correct,
           source: params.source || 'simulation_correction',
+          // Consistência com a triagem: ease inicial por causa + entra na fila já devido.
+          srs_ease: easeForReason(params.reason),
+          srs_due_at: new Date().toISOString(),
         });
 
       if (insertError) throw insertError;

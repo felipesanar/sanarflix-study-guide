@@ -12,6 +12,7 @@ import {
   GraduationCap,
   UserCog,
   TrendingUp,
+  BookMarked,
   Lock,
   Sun,
   Moon,
@@ -116,6 +117,7 @@ export function MobileBottomNav() {
       { title: "Guia de Estudos", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
       { title: "Seu Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
       { title: "SanarClass", url: "/sanarclass", icon: GraduationCap, show: accessRules.sanarclass },
+      { title: "Caderno de Erros", url: "/caderno-de-erros", icon: BookMarked, show: accessRules.errorNotebook },
     ].filter(item => item.show);
 
     if (estudosItems.length > 0) {
