@@ -11,6 +11,7 @@ import { ErrorNotebookDashboard } from '@/components/caderno-erros/ErrorNotebook
 import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
+import { InsightCards } from '@/components/caderno-erros/InsightCards';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -244,6 +245,7 @@ export const CadernoErros: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
+              <InsightCards />
               <ErrorNotebookDashboard entries={allEntries} />
               <CalibrationPanel />
               <AIInsightsCard entries={allEntries} />
