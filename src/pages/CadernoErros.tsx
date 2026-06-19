@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,6 +12,7 @@ import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
+import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
@@ -160,6 +161,13 @@ export const CadernoErros: React.FC = () => {
               Favoritos
             </TabsTrigger>
             <TabsTrigger
+              value="anotacoes"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Anotações
+            </TabsTrigger>
+            <TabsTrigger
               value="evolucao"
               className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
@@ -220,6 +228,11 @@ export const CadernoErros: React.FC = () => {
         {/* Tab: Favoritos */}
         <TabsContent value="favoritos" className="space-y-5 mt-0">
           <FavoritesList />
+        </TabsContent>
+
+        {/* Tab: Anotações */}
+        <TabsContent value="anotacoes" className="space-y-5 mt-0">
+          <NotesPanel />
         </TabsContent>
 
         {/* Tab: Evolução */}

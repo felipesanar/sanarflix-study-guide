@@ -92,19 +92,17 @@ export const useErrorNotebook = () => {
       if (filters?.reason) query = query.eq('reason', filters.reason);
       if (filters?.simulado_id) query = query.eq('simulado_id', filters.simulado_id);
 
+      // Busca server-side em learning_text + tema + grande_area (antes era só
+      // client-side em learning_text). Sanitiza separadores do PostgREST.
+      if (filters?.search && filters.search.trim()) {
+        const term = filters.search.trim().replace(/[%,()]/g, ' ');
+        query = query.or(`learning_text.ilike.%${term}%,tema.ilike.%${term}%,grande_area.ilike.%${term}%`);
+      }
+
       const { data, error: fetchError } = await query;
       if (fetchError) throw fetchError;
 
-      let result = (data || []) as ErrorNotebookEntry[];
-
-      if (filters?.search && filters.search.trim()) {
-        const searchLower = filters.search.toLowerCase().trim();
-        result = result.filter(e =>
-          e.learning_text?.toLowerCase().includes(searchLower)
-        );
-      }
-
-      setEntries(result);
+      setEntries((data || []) as ErrorNotebookEntry[]);
     } catch (err: any) {
       Logger.error('[ErrorNotebook] Fetch error:', err);
       setError('Erro ao carregar caderno de erros');
