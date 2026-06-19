@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -124,7 +126,26 @@ export const AIInsightsCard: React.FC<AIInsightsCardProps> = ({ entries }) => {
             <Skeleton className="h-4 w-5/6 rounded-lg" />
           </div>
         ) : insight ? (
-          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{insight}</p>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-3">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                p: ({ children }) => <p className="leading-relaxed">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                em: ({ children }) => <em className="italic">{children}</em>,
+                ol: ({ children }) => <ol className="list-decimal pl-5 space-y-1.5 marker:text-muted-foreground/60">{children}</ol>,
+                ul: ({ children }) => <ul className="list-disc pl-5 space-y-1.5 marker:text-muted-foreground/60">{children}</ul>,
+                li: ({ children }) => <li className="leading-relaxed pl-1">{children}</li>,
+                code: ({ children }) => <code className="px-1.5 py-0.5 rounded bg-muted text-foreground text-[0.85em] font-mono">{children}</code>,
+                h1: ({ children }) => <h4 className="text-sm font-semibold text-foreground mt-2">{children}</h4>,
+                h2: ({ children }) => <h4 className="text-sm font-semibold text-foreground mt-2">{children}</h4>,
+                h3: ({ children }) => <h4 className="text-sm font-semibold text-foreground mt-2">{children}</h4>,
+                a: ({ children, href }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:opacity-80">{children}</a>,
+              }}
+            >
+              {insight}
+            </ReactMarkdown>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground/60 italic">Clique em atualizar para gerar insights.</p>
         )}
