@@ -91,9 +91,7 @@ export function useTriageCandidates(simuladoId: string | null) {
       );
 
       const out: TriageCandidate[] = [];
-      for (const q of questoesRes.data ?? []) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const row = q as any;
+      for (const row of questoesRes.data ?? []) {
         if (row.anulada) continue;
 
         const correctLabel = (row.correta ?? '').toUpperCase();
@@ -102,8 +100,9 @@ export function useTriageCandidates(simuladoId: string | null) {
         const wasCorrect = !!selectedLabel && selectedLabel === correctLabel;
         if (wasCorrect) continue; // só erros/branco entram na triagem
 
+        const r = row as unknown as Record<string, string | null>;
         const optionLabels = Object.entries(ALL_LABELS)
-          .filter(([col]) => row[col] != null && row[col] !== '')
+          .filter(([col]) => r[col] != null && r[col] !== '')
           .map(([, label]) => label);
 
         out.push({
