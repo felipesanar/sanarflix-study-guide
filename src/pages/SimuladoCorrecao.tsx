@@ -20,6 +20,7 @@ import { ImageLightbox } from '@/components/simulados/ImageLightbox';
 import { QuestionNavigationRail } from '@/components/simulados/QuestionNavigationRail';
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
+import { FavoriteButton } from '@/components/caderno-erros/FavoriteButton';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { generateProvaRevisadaPDF, QuestaoRevisada, ProvaRevisadaStats } from '@/utils/pdfProvaRevisada';
 import { toast } from '@/hooks/use-toast';
@@ -644,15 +645,23 @@ export const SimuladoCorrecao: React.FC = () => {
                           <p className="text-sm font-semibold text-foreground">Registre no Caderno de Erros</p>
                           <p className="text-xs text-muted-foreground mt-0.5">Anote o motivo e evite repetir esse erro</p>
                         </div>
-                        <ErrorNotebookButtonInCorrection
-                          questionId={currentQuestion.id}
-                          simuladoId={selectedSimulado}
-                          simuladoNome={simuladoNome}
-                          wasCorrect={false}
-                          grandeArea={currentQuestion.grande_area}
-                          especialidade={currentQuestion.especialidade}
-                          tema={currentQuestion.tema}
-                        />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <FavoriteButton
+                            questionId={currentQuestion.id}
+                            simuladoId={selectedSimulado}
+                            grandeArea={currentQuestion.grande_area}
+                            tema={currentQuestion.tema}
+                          />
+                          <ErrorNotebookButtonInCorrection
+                            questionId={currentQuestion.id}
+                            simuladoId={selectedSimulado}
+                            simuladoNome={simuladoNome}
+                            wasCorrect={false}
+                            grandeArea={currentQuestion.grande_area}
+                            especialidade={currentQuestion.especialidade}
+                            tema={currentQuestion.tema}
+                          />
+                        </div>
                       </div>
                     </motion.div>
                   )}

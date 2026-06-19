@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +11,7 @@ import { ErrorNotebookDashboard } from '@/components/caderno-erros/ErrorNotebook
 import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
+import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
@@ -152,6 +153,13 @@ export const CadernoErros: React.FC = () => {
               )}
             </TabsTrigger>
             <TabsTrigger
+              value="favoritos"
+              className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
+            >
+              <Star className="h-4 w-4 mr-2" />
+              Favoritos
+            </TabsTrigger>
+            <TabsTrigger
               value="evolucao"
               className="rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:shadow-sm transition-all duration-200"
             >
@@ -207,6 +215,11 @@ export const CadernoErros: React.FC = () => {
               onEntryUpdated={handleRefresh}
             />
           </motion.div>
+        </TabsContent>
+
+        {/* Tab: Favoritos */}
+        <TabsContent value="favoritos" className="space-y-5 mt-0">
+          <FavoritesList />
         </TabsContent>
 
         {/* Tab: Evolução */}
