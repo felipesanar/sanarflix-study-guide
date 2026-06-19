@@ -23,6 +23,8 @@ const SanarClass = lazy(() => import("@/pages/SanarClass"));
 const Home = lazy(() => import("@/pages/Home").then(m => ({ default: m.Home })));
 const DesempenhoInstitucionalV2 = lazy(() => import("@/pages/DesempenhoInstitucionalV2"));
 const CadernoErros = lazy(() => import("@/pages/CadernoErros"));
+const CadernoRevisao = lazy(() => import("@/pages/CadernoRevisao").then(m => ({ default: m.CadernoRevisao })));
+const CadernoTriagem = lazy(() => import("@/pages/CadernoTriagem").then(m => ({ default: m.CadernoTriagem })));
 const MeusFeedbacks = lazy(() => import("@/pages/MeusFeedbacks"));
 
 
@@ -298,6 +300,38 @@ export const DynamicRoutes: React.FC = () => {
             />
           ) : (
             <Route path="/caderno-de-erros" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Caderno de Erros — Revisão (recall ativo persistido) */}
+          {accessRules.errorNotebook ? (
+            <Route
+              path="/caderno-de-erros/revisao"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper loadingMessage="Carregando revisão..." waitForData={false}>
+                    <CadernoRevisao />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/caderno-de-erros/revisao" element={<Navigate to={getDefaultRoute()} replace />} />
+          )}
+
+          {/* Caderno de Erros — Triagem pós-prova */}
+          {accessRules.errorNotebook ? (
+            <Route
+              path="/caderno-de-erros/triagem"
+              element={
+                <ProtectedRoute>
+                  <PageWrapper loadingMessage="Carregando triagem..." waitForData={false}>
+                    <CadernoTriagem />
+                  </PageWrapper>
+                </ProtectedRoute>
+              }
+            />
+          ) : (
+            <Route path="/caderno-de-erros/triagem" element={<Navigate to={getDefaultRoute()} replace />} />
           )}
 
           <Route path="/meus-feedbacks" element={<ProtectedRoute><PageWrapper loadingMessage="Carregando…" waitForData={false}><MeusFeedbacks /></PageWrapper></ProtectedRoute>} />
