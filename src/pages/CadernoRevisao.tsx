@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Brain, Check, X, Trophy, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Brain, Check, X, Trophy, AlertTriangle, Loader2, Volume2, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { REASON_LABELS, type ErrorReason } from '@/hooks/useErrorNotebook';
 import { useActiveRecallSession, type RecallMode } from '@/hooks/useActiveRecallSession';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import type { SrsConfidence, SrsOutcome } from '@/lib/srs';
 
 const CONFIDENCE_OPTIONS: { value: SrsConfidence; label: string; hint: string }[] = [
@@ -37,7 +38,8 @@ export const CadernoRevisao: React.FC = () => {
   const mode = (params.get('mode') === 'all' ? 'all' : 'due') as RecallMode;
 
   const s = useActiveRecallSession(mode);
-  const back = () => navigate('/caderno-de-erros');
+  const tts = useTextToSpeech();
+  const back = () => { tts.stop(); navigate('/caderno-de-erros'); };
 
   const progress = s.total > 0 ? (s.index / s.total) * 100 : 0;
 
@@ -151,8 +153,27 @@ export const CadernoRevisao: React.FC = () => {
                       </div>
                     )}
                     {(s.current.comentario || s.current.learningText) && (
-                      <div className="text-sm text-foreground leading-relaxed bg-muted/40 rounded-lg p-4 whitespace-pre-wrap">
-                        {s.current.comentario || s.current.learningText}
+                      <div className="space-y-2">
+                        {tts.supported && (
+                          <div className="flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1.5 h-8 text-xs text-muted-foreground"
+                              onClick={() =>
+                                tts.speaking
+                                  ? tts.stop()
+                                  : tts.speak((s.current!.comentario || s.current!.learningText) ?? '')
+                              }
+                            >
+                              {tts.speaking ? <Square className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                              {tts.speaking ? 'Parar' : 'Ouvir'}
+                            </Button>
+                          </div>
+                        )}
+                        <div className="text-sm text-foreground leading-relaxed bg-muted/40 rounded-lg p-4 whitespace-pre-wrap">
+                          {s.current.comentario || s.current.learningText}
+                        </div>
                       </div>
                     )}
 
@@ -180,7 +201,7 @@ export const CadernoRevisao: React.FC = () => {
                               <Button
                                 key={g.value}
                                 variant="outline"
-                                onClick={() => s.submitSelfGrade(g.value)}
+                                onClick={() => { tts.stop(); s.submitSelfGrade(g.value); }}
                                 disabled={disabled}
                                 className={cn('min-h-[44px]', g.tone)}
                               >

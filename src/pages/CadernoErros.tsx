@@ -12,6 +12,7 @@ import { ManualEntryForm } from '@/components/caderno-erros/ManualEntryForm';
 import { AIInsightsCard } from '@/components/caderno-erros/AIInsightsCard';
 import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
 import { InsightCards } from '@/components/caderno-erros/InsightCards';
+import { ExportCadernoButton } from '@/components/caderno-erros/ExportCadernoButton';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -191,6 +192,11 @@ export const CadernoErros: React.FC = () => {
 
         {/* Tab: Meus Erros */}
         <TabsContent value="erros" className="space-y-5 mt-0">
+          {allEntries.length > 0 && (
+            <div className="flex justify-end">
+              <ExportCadernoButton />
+            </div>
+          )}
           {/* Search bar */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
