@@ -87,23 +87,21 @@ export function useActiveRecallSession(mode: RecallMode = 'due') {
       setLoading(true);
       setError(null);
       try {
-        // colunas SRS ainda fora dos tipos gerados → cast localizado
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let q: any = supabase
+        let q = supabase
           .from('error_notebook_entries')
           .select('id,question_id,reason,grande_area,tema,especialidade,learning_text,srs_due_at,srs_ease,last_review_outcome,mastered_at')
           .eq('user_id', user.id)
           .is('deleted_at', null)
           .is('mastered_at', null);
         if (mode === 'due') q = q.lte('srs_due_at', new Date().toISOString());
-        q = q.order('srs_due_at', { ascending: true }).order('srs_ease', { ascending: true });
+        const ordered = q.order('srs_due_at', { ascending: true }).order('srs_ease', { ascending: true });
 
-        const { data, error: fetchErr } = await q;
+        const { data, error: fetchErr } = await ordered;
         if (fetchErr) throw fetchErr;
 
         // bloqueados (awaiting_lesson / leech_blocked) saem da fila — feito em JS
         // para não excluir entradas nunca revisadas (last_review_outcome = null).
-        const entries = ((data ?? []) as EntryRow[]).filter(
+        const entries = ((data ?? []) as unknown as EntryRow[]).filter(
           (e) => !BLOCKED_OUTCOMES.includes(e.last_review_outcome ?? ''),
         );
 
@@ -116,15 +114,13 @@ export function useActiveRecallSession(mode: RecallMode = 'due') {
             .select('id, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, alternativa_e, correta, comentario')
             .in('id', qIds);
           if (qErr) throw qErr;
-          for (const row of qData ?? []) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const r = row as any;
+          for (const r of qData ?? []) {
             const opts: RecallOption[] = [
               { label: 'A', text: r.alternativa_a },
               { label: 'B', text: r.alternativa_b },
               { label: 'C', text: r.alternativa_c },
               { label: 'D', text: r.alternativa_d },
-              { label: 'E', text: r.alternativa_e },
+              { label: 'E', text: r.alternativa_e ?? '' },
             ].filter((o) => o.text != null && o.text !== '');
             questionMap.set(r.id, { enunciado: r.enunciado, opts, correta: r.correta, comentario: r.comentario });
           }
