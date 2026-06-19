@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag } from 'lucide-react';
+import { BookMarked, Search, AlertCircle, PlusCircle, Brain, Sparkles, Star, FileText, Flag, Layers } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
