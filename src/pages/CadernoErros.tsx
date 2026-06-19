@@ -16,6 +16,7 @@ import { ExportCadernoButton } from '@/components/caderno-erros/ExportCadernoBut
 import { NotificationPreferenceToggle } from '@/components/caderno-erros/NotificationPreferenceToggle';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
+import { FlashcardsPanel } from '@/components/caderno-erros/FlashcardsPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { useNotebookDueCount } from '@/hooks/useNotebookDueCount';
 import { motion } from 'framer-motion';
