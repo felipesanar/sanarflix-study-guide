@@ -38,8 +38,18 @@ Entregue:
 4. Remover os casts `as any` em `src/lib/cadernoSrsApi.ts`, `useActiveRecallSession.ts`, `useTriageCandidates.ts`, `useNotebookDueCount.ts` (procurar `// ... fora dos tipos gerados`).
 5. Smoke test: revisar um item (record→schedule grava em `review_attempts`), triar um simulado, conferir o badge de devidas.
 
-### Próximas fases (não iniciadas)
-Fases 2–4 abaixo. Recomenda-se aplicar as migrações e verificar a Fase 1 em browser ANTES, para que as fases seguintes (insights, flashcards-com-SRS, reta-final, export, feeders) sejam construídas com verificação ponta a ponta — evitando código não verificável.
+**Fase 2 (diagnóstico + casca-hub) — PARCIALMENTE IMPLEMENTADA.** Verificação: `tsc` 0, 24 testes unitários verdes, `vite build` OK. Browser pendente das migrações.
+
+Entregue:
+- **Calibração de confiança:** `src/lib/confidenceCalibration.ts` (+ testes) + `useConfidenceCalibration` + `CalibrationPanel` na aba Evolução (compute client-side de review_attempts; sem RPC nova).
+- **Favoritos:** migração `20260618120300_caderno_favorites_notes.sql` (question_favorites + user_notes); `useFavorites` + `FavoriteButton` na correção + aba Favoritos (`FavoritesList`).
+- **Anotações:** `useNotes` + `NotesPanel` (save-on-blur, flush em troca/unmount) + aba Anotações.
+- **Busca server-side:** `useErrorNotebook` agora busca em learning_text + tema + grande_area.
+
+Falta na Fase 2 (não iniciado): **insights acionáveis estruturados** (5 tipos: área fraca, causa dominante, confusão recorrente, overconfidence, ROI) evoluindo `analyze-error-patterns` + cache server-side + gate de dados. É a peça mais acoplada à IA (Lovable gateway) e a menos verificável sem ambiente — recomendado fazer após aplicar migrações. O `AIInsightsCard` atual (prosa) cobre o insight básico nesse meio-tempo.
+
+### Próximas fases
+Fases 3–4 abaixo (flashcards-com-SRS, reta-final, export, feeders, Novu) + insights estruturados da Fase 2. Recomenda-se aplicar as migrações e verificar Fases 1–2 em browser ANTES, para construir com verificação ponta a ponta.
 
 ---
 
