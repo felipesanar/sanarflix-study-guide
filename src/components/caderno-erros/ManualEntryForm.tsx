@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useErrorNotebook, ErrorReason, REASON_LABELS, ErrorNotebookEntry } from '@/hooks/useErrorNotebook';
@@ -98,19 +97,20 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
       {/* Grande Área */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold">Grande Área</Label>
-        {existingAreas.length > 0 ? (
-          <Select value={grandeArea} onValueChange={setGrandeArea}>
-            <SelectTrigger><SelectValue placeholder="Selecione ou digite..." /></SelectTrigger>
-            <SelectContent>
-              {existingAreas.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            value={grandeArea}
-            onChange={(e) => setGrandeArea(e.target.value)}
-            placeholder="Ex.: Clínica Médica"
-          />
+        {/* Texto livre COM sugestões das áreas já usadas (datalist): permite
+            escolher uma existente OU digitar uma nova. Corrige o SAN-2986, em que
+            o dropdown fechado prendia o aluno às áreas já adicionadas. */}
+        <Input
+          value={grandeArea}
+          onChange={(e) => setGrandeArea(e.target.value)}
+          placeholder={existingAreas.length > 0 ? 'Selecione ou digite uma nova...' : 'Ex.: Clínica Médica'}
+          list="manual-entry-areas"
+          autoComplete="off"
+        />
+        {existingAreas.length > 0 && (
+          <datalist id="manual-entry-areas">
+            {existingAreas.map(a => <option key={a} value={a} />)}
+          </datalist>
         )}
       </div>
 
