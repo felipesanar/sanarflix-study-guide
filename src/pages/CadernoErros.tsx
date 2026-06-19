@@ -197,11 +197,6 @@ export const CadernoErros: React.FC = () => {
 
         {/* Tab: Meus Erros */}
         <TabsContent value="erros" className="space-y-5 mt-0">
-          {allEntries.length > 0 && (
-            <div className="flex justify-end">
-              <ExportCadernoButton />
-            </div>
-          )}
           {/* Search bar */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
