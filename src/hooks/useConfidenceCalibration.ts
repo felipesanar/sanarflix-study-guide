@@ -4,10 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Logger } from '@/utils/logger';
 import { computeCalibration, type CalibrationInput, type CalibrationResult } from '@/lib/confidenceCalibration';
 
-/**
- * Lê review_attempts do usuário (RLS own) e computa a calibração client-side.
- * review_attempts ainda não está nos tipos gerados → cast localizado.
- */
+/** Lê review_attempts do usuário (RLS own) e computa a calibração client-side. */
 export function useConfidenceCalibration() {
   const { user } = useAuth();
   const [result, setResult] = useState<CalibrationResult | null>(null);
@@ -18,14 +15,13 @@ export function useConfidenceCalibration() {
     let cancelled = false;
     (async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data, error } = await (supabase.from('review_attempts') as any)
+        const { data, error } = await supabase
+          .from('review_attempts')
           .select('confidence, was_correct')
           .eq('user_id', user.id);
         if (error) throw error;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rows: CalibrationInput[] = ((data ?? []) as any[]).map((r) => ({
-          confidence: r.confidence,
+        const rows: CalibrationInput[] = (data ?? []).map((r) => ({
+          confidence: r.confidence as CalibrationInput['confidence'],
           wasCorrect: !!r.was_correct,
         }));
         if (!cancelled) setResult(computeCalibration(rows));

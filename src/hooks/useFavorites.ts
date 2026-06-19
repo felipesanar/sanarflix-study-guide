@@ -20,10 +20,6 @@ export interface FavoriteMeta {
   tema?: string | null;
 }
 
-// question_favorites ainda fora dos tipos gerados → cast localizado.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const favTable = () => supabase.from('question_favorites') as any;
-
 /** Lista completa de favoritos + helpers (para a aba Favoritos). */
 export function useFavorites() {
   const { user } = useAuth();
@@ -34,7 +30,8 @@ export function useFavorites() {
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data, error } = await favTable()
+      const { data, error } = await supabase
+        .from('question_favorites')
         .select('id, question_id, simulado_id, grande_area, tema, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -56,7 +53,7 @@ export function useFavorites() {
 
   const add = useCallback(async (meta: FavoriteMeta) => {
     if (!user?.id) return;
-    const { error } = await favTable().insert({
+    const { error } = await supabase.from('question_favorites').insert({
       user_id: user.id,
       question_id: meta.questionId,
       simulado_id: meta.simuladoId ?? null,
@@ -73,7 +70,11 @@ export function useFavorites() {
 
   const remove = useCallback(async (questionId: string) => {
     if (!user?.id) return;
-    const { error } = await favTable().delete().eq('user_id', user.id).eq('question_id', questionId);
+    const { error } = await supabase
+      .from('question_favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('question_id', questionId);
     if (error) { Logger.error('[Favorites] remove error:', error); return; }
     trackEvent({ eventName: 'ce_favorite_removed', category: 'interaction', data: { question_id: questionId } });
     setFavorites((prev) => prev.filter((f) => f.question_id !== questionId));

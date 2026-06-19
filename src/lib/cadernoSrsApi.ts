@@ -1,21 +1,13 @@
 /**
  * Costura de acesso às RPCs de SRS do Caderno de Erros.
  *
- * As RPCs (schedule_next_review_guarded, record_review_attempt_guarded,
- * reset_leech_guarded) e as colunas SRS de error_notebook_entries ainda NÃO
- * estão em src/integrations/supabase/types.ts porque as migrações
- * (supabase/migrations/20260618120000_*, ..120100_*) não foram aplicadas.
- *
- * Enquanto isso, este módulo isola o cast `as any`. Ao aplicar as migrações e
- * regenerar os tipos, este é o ÚNICO arquivo a revisar.
+ * Os tipos das RPCs (record_review_attempt_guarded, schedule_next_review_guarded,
+ * reset_leech_guarded, add_to_notebook_bulk_guarded) vivem em
+ * src/integrations/supabase/types.ts, gerados após a migração da Fase 1.
  */
 import { supabase } from '@/integrations/supabase/client';
 import type { SrsConfidence, SrsOutcome } from '@/lib/srs';
 import type { ErrorReason } from '@/hooks/useErrorNotebook';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LooseRpc = (name: string, params?: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
-const looseRpc = supabase.rpc.bind(supabase) as unknown as LooseRpc;
 
 export interface ScheduleResult {
   srs_due_at: string;
@@ -34,7 +26,7 @@ export async function recordReviewAttempt(p: {
   confidence: SrsConfidence;
   selfGrade: SrsOutcome;
 }): Promise<string> {
-  const { data, error } = await looseRpc('record_review_attempt_guarded', {
+  const { data, error } = await supabase.rpc('record_review_attempt_guarded', {
     p_entry_id: p.entryId,
     p_was_correct: p.wasCorrect,
     p_confidence: p.confidence,
@@ -50,18 +42,18 @@ export async function scheduleNextReview(p: {
   outcome: SrsOutcome;
   confidence: SrsConfidence;
 }): Promise<ScheduleResult> {
-  const { data, error } = await looseRpc('schedule_next_review_guarded', {
+  const { data, error } = await supabase.rpc('schedule_next_review_guarded', {
     p_entry_id: p.entryId,
     p_outcome: p.outcome,
     p_confidence: p.confidence,
   });
   if (error) throw new Error(error.message);
-  return data as ScheduleResult;
+  return data as unknown as ScheduleResult;
 }
 
 /** Desbloqueia um item em leech (mantém histórico de lapses). */
 export async function resetLeech(entryId: string): Promise<void> {
-  const { error } = await looseRpc('reset_leech_guarded', { p_entry_id: entryId });
+  const { error } = await supabase.rpc('reset_leech_guarded', { p_entry_id: entryId });
   if (error) throw new Error(error.message);
 }
 
@@ -86,7 +78,9 @@ export interface BulkResult {
 
 /** Adiciona em lote a partir da triagem pós-prova (limite 100, dedup por questão). */
 export async function addToNotebookBulk(entries: BulkEntry[]): Promise<BulkResult> {
-  const { data, error } = await looseRpc('add_to_notebook_bulk_guarded', { p_entries: entries });
+  const { data, error } = await supabase.rpc('add_to_notebook_bulk_guarded', {
+    p_entries: entries as unknown as never,
+  });
   if (error) throw new Error(error.message);
   const r = (data ?? {}) as Partial<BulkResult>;
   return { added: r.added ?? 0, skipped: r.skipped ?? 0, entry_ids: r.entry_ids ?? [] };
