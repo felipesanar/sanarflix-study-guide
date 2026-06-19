@@ -683,6 +683,60 @@ export type Database = {
           },
         ]
       }
+      flashcards: {
+        Row: {
+          back_md: string
+          created_at: string
+          deleted_at: string | null
+          front_md: string
+          id: string
+          last_review_outcome: string | null
+          mastered_at: string | null
+          question_id: string | null
+          srs_due_at: string
+          srs_ease: number
+          srs_interval: number
+          srs_lapses: number
+          srs_reps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          back_md: string
+          created_at?: string
+          deleted_at?: string | null
+          front_md: string
+          id?: string
+          last_review_outcome?: string | null
+          mastered_at?: string | null
+          question_id?: string | null
+          srs_due_at?: string
+          srs_ease?: number
+          srs_interval?: number
+          srs_lapses?: number
+          srs_reps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          back_md?: string
+          created_at?: string
+          deleted_at?: string | null
+          front_md?: string
+          id?: string
+          last_review_outcome?: string | null
+          mastered_at?: string | null
+          question_id?: string | null
+          srs_due_at?: string
+          srs_ease?: number
+          srs_interval?: number
+          srs_lapses?: number
+          srs_reps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       group_ies: {
         Row: {
           created_at: string
@@ -2263,6 +2317,10 @@ export type Database = {
       }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       reset_leech_guarded: { Args: { p_entry_id: string }; Returns: undefined }
+      schedule_flashcard_review_guarded: {
+        Args: { p_flashcard_id: string; p_outcome: string }
+        Returns: Json
+      }
       schedule_next_review_guarded: {
         Args: { p_confidence: string; p_entry_id: string; p_outcome: string }
         Returns: Json
