@@ -16,10 +16,9 @@ export function useNotebookDueCount() {
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: c, error } = await (supabase
+      const { count: c, error } = await supabase
         .from('error_notebook_entries')
-        .select('id', { count: 'exact', head: true }) as any)
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .is('deleted_at', null)
         .is('mastered_at', null)

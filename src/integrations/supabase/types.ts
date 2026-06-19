@@ -599,57 +599,89 @@ export type Database = {
       }
       error_notebook_entries: {
         Row: {
+          confidence_at_answer: string | null
           created_at: string
           deleted_at: string | null
           especialidade: string | null
           grande_area: string | null
           id: string
+          last_review_outcome: string | null
           learning_text: string | null
+          mastered_at: string | null
           question_id: string | null
           reason: string
           simulado_id: string | null
           simulado_nome: string | null
           source: string
+          srs_due_at: string | null
+          srs_ease: number
+          srs_interval: number
+          srs_lapses: number
+          srs_reps: number
           tema: string | null
           updated_at: string
           user_id: string
           was_correct: boolean
         }
         Insert: {
+          confidence_at_answer?: string | null
           created_at?: string
           deleted_at?: string | null
           especialidade?: string | null
           grande_area?: string | null
           id?: string
+          last_review_outcome?: string | null
           learning_text?: string | null
+          mastered_at?: string | null
           question_id?: string | null
           reason: string
           simulado_id?: string | null
           simulado_nome?: string | null
           source?: string
+          srs_due_at?: string | null
+          srs_ease?: number
+          srs_interval?: number
+          srs_lapses?: number
+          srs_reps?: number
           tema?: string | null
           updated_at?: string
           user_id: string
           was_correct?: boolean
         }
         Update: {
+          confidence_at_answer?: string | null
           created_at?: string
           deleted_at?: string | null
           especialidade?: string | null
           grande_area?: string | null
           id?: string
+          last_review_outcome?: string | null
           learning_text?: string | null
+          mastered_at?: string | null
           question_id?: string | null
           reason?: string
           simulado_id?: string | null
           simulado_nome?: string | null
           source?: string
+          srs_due_at?: string | null
+          srs_ease?: number
+          srs_interval?: number
+          srs_lapses?: number
+          srs_reps?: number
           tema?: string | null
           updated_at?: string
           user_id?: string
           was_correct?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_en_question"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questoes_simulado"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       group_ies: {
         Row: {
@@ -912,6 +944,36 @@ export type Database = {
         }
         Relationships: []
       }
+      question_favorites: {
+        Row: {
+          created_at: string
+          grande_area: string | null
+          id: string
+          question_id: string
+          simulado_id: string | null
+          tema: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          grande_area?: string | null
+          id?: string
+          question_id: string
+          simulado_id?: string | null
+          tema?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          grande_area?: string | null
+          id?: string
+          question_id?: string
+          simulado_id?: string | null
+          tema?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       questoes_simulado: {
         Row: {
           alternativa_a: string
@@ -1130,6 +1192,47 @@ export type Database = {
             columns: ["simulado_id"]
             isOneToOne: false
             referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_attempts: {
+        Row: {
+          confidence: string
+          created_at: string
+          entry_id: string
+          id: string
+          reviewed_at: string
+          self_grade: string
+          user_id: string
+          was_correct: boolean
+        }
+        Insert: {
+          confidence: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          reviewed_at?: string
+          self_grade: string
+          user_id: string
+          was_correct: boolean
+        }
+        Update: {
+          confidence?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          reviewed_at?: string
+          self_grade?: string
+          user_id?: string
+          was_correct?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_attempts_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "error_notebook_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -1572,6 +1675,48 @@ export type Database = {
           },
         ]
       }
+      user_notes: {
+        Row: {
+          body_md: string
+          created_at: string
+          deleted_at: string | null
+          grande_area: string | null
+          id: string
+          question_id: string | null
+          simulado_id: string | null
+          tema: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_md?: string
+          created_at?: string
+          deleted_at?: string | null
+          grande_area?: string | null
+          id?: string
+          question_id?: string | null
+          simulado_id?: string | null
+          tema?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_md?: string
+          created_at?: string
+          deleted_at?: string | null
+          grande_area?: string | null
+          id?: string
+          question_id?: string | null
+          simulado_id?: string | null
+          tema?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_progress: {
         Row: {
           completed_at: string
@@ -1767,6 +1912,7 @@ export type Database = {
       }
     }
     Functions: {
+      add_to_notebook_bulk_guarded: { Args: { p_entries: Json }; Returns: Json }
       admin_get_batch_records: {
         Args: { p_batch_id: string }
         Returns: {
@@ -2106,7 +2252,21 @@ export type Database = {
         Returns: Json
       }
       normalize_grande_area: { Args: { raw: string }; Returns: string }
+      record_review_attempt_guarded: {
+        Args: {
+          p_confidence: string
+          p_entry_id: string
+          p_self_grade: string
+          p_was_correct: boolean
+        }
+        Returns: string
+      }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
+      reset_leech_guarded: { Args: { p_entry_id: string }; Returns: undefined }
+      schedule_next_review_guarded: {
+        Args: { p_confidence: string; p_entry_id: string; p_outcome: string }
+        Returns: Json
+      }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
