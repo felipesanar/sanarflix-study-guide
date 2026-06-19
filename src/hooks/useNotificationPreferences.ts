@@ -10,9 +10,9 @@ import { Logger } from '@/utils/logger';
  * serem regenerados.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prefsTable = () => supabase.from('notification_preferences') as any;
+const prefsTable = () => (supabase as any).from('notification_preferences');
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const looseRpc = supabase.rpc.bind(supabase) as unknown as (name: string, params?: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+const looseRpc = (supabase.rpc as any).bind(supabase) as (name: string, params?: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
 
 export function useNotificationPreferences() {
   const { user } = useAuth();
