@@ -123,6 +123,8 @@ export const CadernoErros: React.FC = () => {
                 Reta Final
               </Button>
             )}
+            {entries.length > 0 && <ExportCadernoButton />}
+
             <Button
               size="sm"
               onClick={() => setManualFormOpen(true)}
@@ -131,6 +133,7 @@ export const CadernoErros: React.FC = () => {
               <PlusCircle className="h-4 w-4" />
               Adicionar
             </Button>
+
           </div>
         </div>
       </motion.div>
@@ -194,11 +197,6 @@ export const CadernoErros: React.FC = () => {
 
         {/* Tab: Meus Erros */}
         <TabsContent value="erros" className="space-y-5 mt-0">
-          {allEntries.length > 0 && (
-            <div className="flex justify-end">
-              <ExportCadernoButton />
-            </div>
-          )}
           {/* Search bar */}
           <motion.div
             initial={{ opacity: 0, y: 6 }}
