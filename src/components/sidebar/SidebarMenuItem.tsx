@@ -22,6 +22,8 @@ interface MenuItemData {
   url: string;
   icon: LucideIcon;
   description?: string;
+  /** Contador opcional (ex.: itens devidos no caderno) exibido como pill/ponto. */
+  badge?: number;
 }
 
 interface SidebarNavItemProps {
@@ -68,6 +70,16 @@ export function SidebarNavItem({ item, isActive, collapsed }: SidebarNavItemProp
 
       {!collapsed && (
         <span className="text-sm truncate">{item.title}</span>
+      )}
+
+      {/* Badge de contagem (ex.: devidas no caderno) */}
+      {!collapsed && !!item.badge && item.badge > 0 && (
+        <span className="ml-auto shrink-0 rounded-full bg-primary/15 text-primary text-[11px] font-semibold tabular-nums px-1.5 py-0.5 min-w-[20px] text-center">
+          {item.badge > 99 ? "99+" : item.badge}
+        </span>
+      )}
+      {collapsed && !!item.badge && item.badge > 0 && (
+        <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
       )}
     </NavLink>
   );

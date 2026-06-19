@@ -5,6 +5,7 @@ import { useAnnouncements } from '@/hooks/home/useAnnouncements';
 import { useUserExams, calculateExamInsight } from '@/hooks/useUserExams';
 import { useProgressHub } from '@/hooks/useProgressHub';
 import { WelcomeCard } from '@/components/home/WelcomeCard';
+import { CadernoHomeBanner } from '@/components/home/CadernoHomeBanner';
 import { AnnouncementsCard } from '@/components/home/AnnouncementsCard';
 import { MeuDiaCard } from '@/components/home/MeuDiaCard';
 
@@ -127,6 +128,9 @@ export const Home: React.FC = () => {
         animate="show"
         className="relative w-full max-w-7xl mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 lg:py-10 overflow-hidden"
       >
+        {/* Surfacing do Caderno de Erros (some sozinho quando não aplicável) */}
+        <CadernoHomeBanner />
+
         {/* === DESKTOP LAYOUT (lg+) === */}
         <div className="hidden lg:block space-y-5 lg:space-y-6">
           {/* Row 1: Hero Welcome + Announcements */}

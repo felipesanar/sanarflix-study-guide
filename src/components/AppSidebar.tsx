@@ -15,6 +15,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
+import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
 import { isAdmin, isProfessor, isGestor, isAtendimento } from "@/utils/accessRules";
 import {
   BookOpen,
@@ -114,6 +115,7 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const { accessRules } = useAccessRules();
+  const { count: notebookDueCount } = useNotebookDueCount();
   const [studyGuideOpen, setStudyGuideOpen] = useState(false);
   const [hasStudyGuideContent, setHasStudyGuideContent] = useState(true);
 
@@ -258,7 +260,7 @@ export function AppSidebar() {
                 {visibleMenuItems.map((item) => (
                   <SidebarNavItem
                     key={item.url}
-                    item={item}
+                    item={item.accessKey === "errorNotebook" ? { ...item, badge: notebookDueCount } : item}
                     isActive={isActive(item.url)}
                     collapsed={collapsed}
                   />
