@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
+import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
 import { isAdmin } from "@/utils/accessRules";
 import { useTheme } from "next-themes";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
@@ -61,6 +62,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { accessRules } = useAccessRules();
+  const { count: notebookDueCount } = useNotebookDueCount();
   const { resolvedTheme, setTheme } = useTheme();
   const passwordDialog = usePasswordDialog();
 
@@ -110,14 +112,14 @@ export function MobileBottomNav() {
 
   // Menu sections
   const menuSections = useMemo(() => {
-    const sections: { title: string; items: { title: string; url?: string; icon: React.ElementType; action?: () => void; show: boolean }[] }[] = [];
+    const sections: { title: string; items: { title: string; url?: string; icon: React.ElementType; action?: () => void; show: boolean; badge?: number }[] }[] = [];
 
     // Estudos section
     const estudosItems = [
       { title: "Guia de Estudos", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
       { title: "Seu Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
       { title: "SanarClass", url: "/sanarclass", icon: GraduationCap, show: accessRules.sanarclass },
-      { title: "Caderno de Erros", url: "/caderno-de-erros", icon: BookMarked, show: accessRules.errorNotebook },
+      { title: "Caderno de Erros", url: "/caderno-de-erros", icon: BookMarked, show: accessRules.errorNotebook, badge: notebookDueCount },
     ].filter(item => item.show);
 
     if (estudosItems.length > 0) {
@@ -147,7 +149,7 @@ export function MobileBottomNav() {
     }
 
     return sections;
-  }, [accessRules, user]);
+  }, [accessRules, user, notebookDueCount]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -377,6 +379,11 @@ export function MobileBottomNav() {
                               >
                                 <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                                 <span className="flex-1 font-medium">{item.title}</span>
+                                {!!item.badge && item.badge > 0 && (
+                                  <span className="rounded-full bg-primary/15 text-primary text-[11px] font-semibold tabular-nums px-1.5 py-0.5 min-w-[20px] text-center">
+                                    {item.badge > 99 ? "99+" : item.badge}
+                                  </span>
+                                )}
                                 <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                               </NavLink>
                             ) : (

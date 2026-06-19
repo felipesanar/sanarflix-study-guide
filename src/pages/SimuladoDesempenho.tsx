@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AddToErrorNotebookButton } from '@/components/caderno-erros/AddToErrorNotebookButton';
 import { AddToErrorNotebookDrawer } from '@/components/caderno-erros/AddToErrorNotebookDrawer';
+import { FavoriteButton } from '@/components/caderno-erros/FavoriteButton';
 import { Logger } from '@/utils/logger';
 import { normalizeGrandeArea } from '@/utils/grandeArea';
 
@@ -38,12 +39,20 @@ const ErrorNotebookButtonInModal: React.FC<{
 
   return (
     <>
-      <AddToErrorNotebookButton
-        key={refreshKey}
-        questionId={questionId}
-        simuladoId={simuladoId}
-        onOpenDrawer={() => setDrawerOpen(true)}
-      />
+      <div className="flex items-center gap-2 flex-wrap">
+        <FavoriteButton
+          questionId={questionId}
+          simuladoId={simuladoId}
+          grandeArea={grandeArea}
+          tema={tema}
+        />
+        <AddToErrorNotebookButton
+          key={refreshKey}
+          questionId={questionId}
+          simuladoId={simuladoId}
+          onOpenDrawer={() => setDrawerOpen(true)}
+        />
+      </div>
       <AddToErrorNotebookDrawer
         isOpen={drawerOpen}
         onOpenChange={setDrawerOpen}

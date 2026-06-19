@@ -14,6 +14,7 @@ import { CalibrationPanel } from '@/components/caderno-erros/CalibrationPanel';
 import { InsightCards } from '@/components/caderno-erros/InsightCards';
 import { ExportCadernoButton } from '@/components/caderno-erros/ExportCadernoButton';
 import { FlashcardsPanel } from '@/components/caderno-erros/FlashcardsPanel';
+import { NotificationPreferenceToggle } from '@/components/caderno-erros/NotificationPreferenceToggle';
 import { FavoritesList } from '@/components/caderno-erros/FavoritesList';
 import { NotesPanel } from '@/components/caderno-erros/NotesPanel';
 import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
@@ -27,7 +28,7 @@ export const CadernoErros: React.FC = () => {
   const { entries, loading, error, fetchEntries, clearError } = useErrorNotebook();
   const { trackEvent } = useAnalyticsTracker();
   const navigate = useNavigate();
-  const { count: dueCount } = useNotebookDueCount();
+  const { count: dueCount, refresh: refreshDueCount } = useNotebookDueCount();
   const [filters, setFilters] = useState<Filters>({});
   const [searchInput, setSearchInput] = useState('');
   const [allEntries, setAllEntries] = useState<ErrorNotebookEntry[]>([]);
@@ -74,7 +75,7 @@ export const CadernoErros: React.FC = () => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
-  const handleRefresh = useCallback(() => { fetchEntries(filters); }, [fetchEntries, filters]);
+  const handleRefresh = useCallback(() => { fetchEntries(filters); refreshDueCount(); }, [fetchEntries, filters, refreshDueCount]);
   const hasFiltersActive = !!(filters.grande_area || filters.tema || filters.reason || filters.simulado_id || filters.search);
 
   return (
@@ -268,6 +269,7 @@ export const CadernoErros: React.FC = () => {
 
         {/* Tab: Evolução */}
         <TabsContent value="evolucao" className="space-y-6 mt-0">
+          <NotificationPreferenceToggle />
           {allEntries.length > 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
