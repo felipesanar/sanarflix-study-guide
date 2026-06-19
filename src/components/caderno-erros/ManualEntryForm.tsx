@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useErrorNotebook, ErrorReason, REASON_LABELS, ErrorNotebookEntry } from '@/hooks/useErrorNotebook';
+import { useStudentGrandeAreas } from '@/hooks/useStudentGrandeAreas';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -43,10 +45,15 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [reasonError, setReasonError] = useState(false);
 
-  const existingAreas = useMemo(() =>
-    [...new Set(existingEntries.map(e => e.grande_area).filter(Boolean) as string[])].sort(),
-    [existingEntries]
-  );
+  const { areas: simuladoAreas } = useStudentGrandeAreas();
+
+  // Opções de Grande Área = áreas dos simulados que o aluno fez, em união com as
+  // áreas já usadas no caderno (para não perder nenhuma). Dropdown fechado — sem
+  // texto livre (regra de produto). Ver SAN-2986.
+  const areaOptions = useMemo(() => {
+    const fromEntries = existingEntries.map(e => e.grande_area).filter(Boolean) as string[];
+    return [...new Set([...simuladoAreas, ...fromEntries])].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [simuladoAreas, existingEntries]);
 
   const resetForm = () => {
     setGrandeArea('');
@@ -97,20 +104,20 @@ export const ManualEntryForm: React.FC<ManualEntryFormProps> = ({
       {/* Grande Área */}
       <div className="space-y-2">
         <Label className="text-sm font-semibold">Grande Área</Label>
-        {/* Texto livre COM sugestões das áreas já usadas (datalist): permite
-            escolher uma existente OU digitar uma nova. Corrige o SAN-2986, em que
-            o dropdown fechado prendia o aluno às áreas já adicionadas. */}
-        <Input
-          value={grandeArea}
-          onChange={(e) => setGrandeArea(e.target.value)}
-          placeholder={existingAreas.length > 0 ? 'Selecione ou digite uma nova...' : 'Ex.: Clínica Médica'}
-          list="manual-entry-areas"
-          autoComplete="off"
-        />
-        {existingAreas.length > 0 && (
-          <datalist id="manual-entry-areas">
-            {existingAreas.map(a => <option key={a} value={a} />)}
-          </datalist>
+        {/* Dropdown fechado com as grandes áreas dos simulados que o aluno fez
+            (em união com as já usadas no caderno). Corrige o SAN-2986: antes só
+            listava as áreas já erradas, prendendo o aluno a elas. */}
+        {areaOptions.length > 0 ? (
+          <Select value={grandeArea} onValueChange={setGrandeArea}>
+            <SelectTrigger><SelectValue placeholder="Selecione a grande área..." /></SelectTrigger>
+            <SelectContent>
+              {areaOptions.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Faça um simulado para registrar erros por grande área.
+          </p>
         )}
       </div>
 
