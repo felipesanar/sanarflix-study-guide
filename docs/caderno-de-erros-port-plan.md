@@ -67,8 +67,13 @@ Entregue:
 - Surfacing na home: `CadernoHomeBanner` (auto-contido; some quando sem acesso/sem devidas) com CTA "Revisar".
 - Salvar/favoritar/anotar: já cobertos na correção (Fase 1–2).
 
-### Falta (não iniciado)
-**Lembretes via Novu** (edge function + preferências + cron) — depende de config de workflow/cadência/secrets do time. Único item da Fase 4 fora de escopo do que é construível/verificável sem infra.
+**Lembretes Novu — SCAFFOLD entregue (desativado).** Migração `20260619140000_caderno_notification_preferences.sql` + edge function `caderno-reminders` (gate por x-internal-secret, conta devidas, opt-out, dispara via `triggerNovuEvent`). Modo no-op até `CADERNO_REMINDER_WORKFLOW` existir. Ativação: secrets + cron pg_cron/pg_net + migração aplicada.
+
+### Pendências finais
+- **Aplicar via Lovable** as migrações da 2ª/3ª leva: `20260619130000_caderno_flashcards.sql` e `20260619140000_caderno_notification_preferences.sql` (+ regenerar tipos + remover casts em `flashcardsApi.ts`).
+- **Deploy + config do Novu** (workflow/secrets/cron) para ligar os lembretes.
+- **Smoke test runtime do ACADEMY**: pendente — a ferramenta de preview desta sessão roda no diretório do `enamed-arena` (projeto diferente), então não conseguiu servir o app do academy. Rodar pelo próprio projeto (Lovable/Playwright ou dev local do academy).
+- Pesos de área da Reta Final: validar com Conteúdo.
 
 ---
 
