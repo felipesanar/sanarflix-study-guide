@@ -136,7 +136,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           onClearFilters={clearFilters}
           simulados={simulados}
           iesList={iesList}
-          availableSemestres={data ? extractSemestresFromData(data) : []}
+          availableSemestres={availableSemestres}
           usingMock={usingMock}
         />
 
