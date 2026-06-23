@@ -32,7 +32,8 @@ const MultiSelectFilter: React.FC<{
   options: FilterOption[];
   selected: string[];
   onChange: (values: string[]) => void;
-}> = ({ label, options, selected, onChange }) => {
+  alwaysShow?: boolean;
+}> = ({ label, options, selected, onChange, alwaysShow }) => {
   const toggle = (id: string) => {
     onChange(
       selected.includes(id)
@@ -41,7 +42,7 @@ const MultiSelectFilter: React.FC<{
     );
   };
 
-  if (options.length === 0) return null;
+  if (options.length === 0 && !alwaysShow) return null;
 
   return (
     <Popover>
