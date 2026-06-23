@@ -62,9 +62,18 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
   }
 
   const nAlunos = data.headerSummary.totalAlunos;
-  const baseLabel = data.headerSummary.baseLabel ?? 'IES inteira';
   const mode = data.headerSummary.conceitoMode;
   const fallback = !!data.headerSummary.sixthYearFallback;
+  const semestresAtivos = data.headerSummary.semestresAtivos ?? [];
+
+  let baseDescricao: string;
+  if (mode === 'semestres' && semestresAtivos.length > 0) {
+    baseDescricao = `Semestre(s): ${[...semestresAtivos].sort((a, b) => a - b).join(', ')}`;
+  } else if (mode === 'general') {
+    baseDescricao = 'Geral — todos os alunos que fizeram a prova';
+  } else {
+    baseDescricao = '6º ano (11º e 12º semestres)';
+  }
 
   return (
     <motion.div
@@ -73,36 +82,31 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
     >
-      {/* Recorte ativo */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+      {/* Recorte ativo — única indicação de base */}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground px-1">
         <span>
           Analisando <span className="font-semibold text-foreground">{nAlunos}</span>{' '}
-          {nAlunos === 1 ? 'aluno' : 'alunos'}{' '}
-          · <span className="font-medium text-foreground">Base: {baseLabel}</span>
+          {nAlunos === 1 ? 'aluno' : 'alunos'}
+          {' · '}
+          Base: <span className="font-medium text-foreground">{baseDescricao}</span>
           {data.headerSummary.conceitoScoped && (
             <>
               {' · '}
               Conceito previsto:{' '}
-              <span className="font-semibold text-foreground">{data.headerSummary.conceitoScoped}</span>
+              <span className="font-semibold text-foreground">Conceito {data.headerSummary.conceitoScoped}</span>
             </>
           )}
-          {fallback && (
-            <span className="ml-2 text-amber-600 dark:text-amber-400">
-              Sem alunos do 6º ano — exibindo base geral
-            </span>
-          )}
         </span>
-        <span className="text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
-          {mode === 'sixth-year' && 'Padrão · 6º ano'}
-          {mode === 'general' && 'Base geral'}
-          {mode === 'semestres' && 'Recorte por semestre'}
-        </span>
+        {fallback && (
+          <span className="text-amber-600 dark:text-amber-400">
+            · Sem alunos do 6º ano — exibindo base geral
+          </span>
+        )}
       </div>
 
 
       {/* KPIs */}
       <KpiCardsGrid
-        showBaseBadge
         kpis={data.kpis}
         alunosAbaixo={data.alunosAbaixo.map((s) => {
           const hasTri = s.triScore !== null && s.triScore !== undefined;
