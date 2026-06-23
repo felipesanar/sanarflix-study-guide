@@ -92,8 +92,8 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
           {data.headerSummary.conceitoScoped && (
             <>
               {' · '}
-              Conceito previsto:{' '}
-              <span className="font-semibold text-foreground">Conceito {data.headerSummary.conceitoScoped}</span>
+              {(mode === 'general' || fallback) ? 'Conceito oficial:' : 'Conceito previsto:'}{' '}
+              <span className="font-semibold text-foreground">{data.headerSummary.conceitoScoped}</span>
             </>
           )}
         </span>

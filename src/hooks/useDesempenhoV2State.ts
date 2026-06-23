@@ -20,6 +20,15 @@ function parseTab(value: string | null): DesempenhoV2Tab {
   return 'visao-institucional';
 }
 
+function parseBaseMode(searchParams: URLSearchParams): DesempenhoV2Filters['baseMode'] {
+  const raw = searchParams.get('baseMode');
+  if (raw === 'general' || raw === 'semestres' || raw === 'sixth-year') return raw;
+  // Compat: querystring antiga
+  if (searchParams.get('conceitoGeral') === '1') return 'general';
+  if (parseListParam(searchParams.get('semestres')).length > 0) return 'semestres';
+  return 'sixth-year';
+}
+
 function parseFiltersFromParams(searchParams: URLSearchParams): DesempenhoV2Filters {
   return {
     iesId: searchParams.get('iesId') ?? '',
@@ -30,7 +39,7 @@ function parseFiltersFromParams(searchParams: URLSearchParams): DesempenhoV2Filt
     areas: parseListParam(searchParams.get('areas')),
     especialidades: parseListParam(searchParams.get('especialidades')),
     temas: parseListParam(searchParams.get('temas')),
-    conceitoGeral: searchParams.get('conceitoGeral') === '1',
+    baseMode: parseBaseMode(searchParams),
   };
 }
 
@@ -55,7 +64,14 @@ export function useDesempenhoV2State() {
   }, []);
 
   const updateFilter = useCallback(<K extends keyof DesempenhoV2Filters>(key: K, value: DesempenhoV2Filters[K]) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      // Quando mudamos de modo para algo diferente de "semestres", limpamos a lista.
+      if (key === 'baseMode' && value !== 'semestres') {
+        next.semestres = [];
+      }
+      return next;
+    });
     Logger.info('[GlobalFilterBar]', 'Filtro atualizado', { key, value });
   }, [setFilters]);
 
@@ -89,7 +105,7 @@ export function useDesempenhoV2State() {
     if (filters.areas.length) next.set('areas', filters.areas.join(','));
     if (filters.especialidades.length) next.set('especialidades', filters.especialidades.join(','));
     if (filters.temas.length) next.set('temas', filters.temas.join(','));
-    if (filters.conceitoGeral) next.set('conceitoGeral', '1');
+    if (filters.baseMode && filters.baseMode !== 'sixth-year') next.set('baseMode', filters.baseMode);
 
     const currentString = searchParams.toString();
     const nextString = next.toString();

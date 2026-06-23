@@ -220,7 +220,7 @@ export function hasActiveSecondaryFilters(filters: DesempenhoV2Filters): boolean
     filters.areas.length > 0 ||
     filters.especialidades.length > 0 ||
     filters.temas.length > 0 ||
-    filters.semestres.length > 0 ||
+    (filters.baseMode && filters.baseMode !== 'sixth-year') ||
     filters.turmas.length > 0 ||
     Boolean(filters.periodo)
   );

@@ -5,6 +5,8 @@ export type DesempenhoV2Tab =
   | 'insights-pedagogicos'
   | 'inteligencia-decisoria';
 
+export type InstitutionalBaseMode = 'sixth-year' | 'general' | 'semestres';
+
 export interface DesempenhoV2Filters {
   iesId: string;
   simuladoId: string;
@@ -14,7 +16,9 @@ export interface DesempenhoV2Filters {
   areas: string[];
   especialidades: string[];
   temas: string[];
-  /** Quando true, o card de Conceito (e Distância/Sanção) usa a base geral (`concept`/`pcp`) em vez do 6º ano. */
+  /** Modo de base ativo na Visão Institucional. Os 3 modos são mutuamente exclusivos. */
+  baseMode: InstitutionalBaseMode;
+  /** @deprecated Substituído por `baseMode === 'general'`. Mantido apenas para compat de query-string antiga. */
   conceitoGeral?: boolean;
 }
 
@@ -27,6 +31,7 @@ export const DEFAULT_FILTERS: DesempenhoV2Filters = {
   areas: [],
   especialidades: [],
   temas: [],
+  baseMode: 'sixth-year',
   conceitoGeral: false,
 };
 
@@ -37,11 +42,11 @@ export function countActiveFilters(filters: DesempenhoV2Filters): number {
   if (filters.simuladoId) count++;
   if (filters.periodo) count++;
   if (filters.turmas.length) count++;
-  if (filters.semestres.length) count++;
+  if (filters.baseMode !== 'sixth-year') count++;
+  if (filters.baseMode === 'semestres' && filters.semestres.length) count++;
   if (filters.areas.length) count++;
   if (filters.especialidades.length) count++;
   if (filters.temas.length) count++;
-  if (filters.conceitoGeral) count++;
   return count;
 }
 
