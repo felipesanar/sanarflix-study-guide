@@ -186,6 +186,7 @@ export const GlobalFilterBar: React.FC<Props> = ({
           options={availableSemestres}
           selected={filters.semestres}
           onChange={(v) => onFilterChange('semestres', v)}
+          alwaysShow
         />
       )}
 
