@@ -79,6 +79,28 @@ const DesempenhoInstitucionalV2: React.FC = () => {
 
   const simuladoNome = simulados.find(s => s.id === filters.simuladoId)?.nome;
 
+  // Mantém a lista de semestres disponíveis mesmo quando `data` é null
+  // (caso do modo "Por semestre" antes de qualquer seleção).
+  const [lastSemestresOptions, setLastSemestresOptions] = useState<{ id: string; label: string }[]>([]);
+  useEffect(() => {
+    if (!data) return;
+    const opts = extractSemestresFromData(data);
+    if (opts.length > 0) setLastSemestresOptions(opts);
+  }, [data]);
+
+  const FALLBACK_SEMESTRES = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), label: `${i + 1}º Semestre` })),
+    [],
+  );
+
+  const availableSemestres = useMemo(() => {
+    const fromData = data ? extractSemestresFromData(data) : [];
+    if (fromData.length > 0) return fromData;
+    if (lastSemestresOptions.length > 0) return lastSemestresOptions;
+    if (filters.baseMode === 'semestres') return FALLBACK_SEMESTRES;
+    return [];
+  }, [data, lastSemestresOptions, filters.baseMode, FALLBACK_SEMESTRES]);
+
   useEffect(() => {
     autoSelectSimulado(simulados);
   }, [simulados, autoSelectSimulado]);
@@ -114,7 +136,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
           onClearFilters={clearFilters}
           simulados={simulados}
           iesList={iesList}
-          availableSemestres={data ? extractSemestresFromData(data) : []}
+          availableSemestres={availableSemestres}
           usingMock={usingMock}
         />
 
@@ -138,6 +160,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         error={error}
         onRetry={refetch}
         iesId={filters.iesId}
+        baseMode={filters.baseMode}
       />
 
       {/* Drawers */}

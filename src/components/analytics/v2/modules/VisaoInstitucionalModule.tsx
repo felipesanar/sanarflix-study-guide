@@ -19,9 +19,10 @@ interface Props {
   loading: boolean;
   error: string | null;
   onRetry?: () => void;
+  baseMode?: 'sixth-year' | 'general' | 'semestres';
 }
 
-export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error, onRetry }) => {
+export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error, onRetry, baseMode }) => {
   if (loading) return <DesempenhoV2Skeleton />;
 
   if (error && !data) {
@@ -42,11 +43,18 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
   }
 
   if (!data) {
+    const isSemestresMode = baseMode === 'semestres';
     return (
       <Card className="border-dashed">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
-          <h3 className="text-base font-semibold mb-1">Selecione um simulado</h3>
-          <p className="text-sm text-muted-foreground">Escolha um simulado nos filtros acima para começar.</p>
+          <h3 className="text-base font-semibold mb-1">
+            {isSemestresMode ? 'Selecione ao menos um semestre' : 'Selecione um simulado'}
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            {isSemestresMode
+              ? 'Escolha um ou mais semestres no filtro acima para visualizar os dados desta base.'
+              : 'Escolha um simulado nos filtros acima para começar.'}
+          </p>
         </CardContent>
       </Card>
     );

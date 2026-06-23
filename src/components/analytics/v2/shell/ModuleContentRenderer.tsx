@@ -13,6 +13,7 @@ interface ModuleContentRendererProps {
   error: string | null;
   onRetry: () => void;
   iesId?: string;
+  baseMode?: 'sixth-year' | 'general' | 'semestres';
 }
 
 export const ModuleContentRenderer: React.FC<ModuleContentRendererProps> = ({
@@ -22,9 +23,10 @@ export const ModuleContentRenderer: React.FC<ModuleContentRendererProps> = ({
   error,
   onRetry,
   iesId,
+  baseMode,
 }) => {
   if (activeTab === 'visao-institucional') {
-    return <VisaoInstitucionalModule data={data} loading={loading} error={error} onRetry={onRetry} />;
+    return <VisaoInstitucionalModule data={data} loading={loading} error={error} onRetry={onRetry} baseMode={baseMode} />;
   }
 
   if (activeTab === 'diagnostico-curricular') {

@@ -32,7 +32,8 @@ const MultiSelectFilter: React.FC<{
   options: FilterOption[];
   selected: string[];
   onChange: (values: string[]) => void;
-}> = ({ label, options, selected, onChange }) => {
+  alwaysShow?: boolean;
+}> = ({ label, options, selected, onChange, alwaysShow }) => {
   const toggle = (id: string) => {
     onChange(
       selected.includes(id)
@@ -41,7 +42,7 @@ const MultiSelectFilter: React.FC<{
     );
   };
 
-  if (options.length === 0) return null;
+  if (options.length === 0 && !alwaysShow) return null;
 
   return (
     <Popover>
@@ -64,20 +65,26 @@ const MultiSelectFilter: React.FC<{
           <p className="text-xs font-medium text-foreground">{label}</p>
         </div>
         <div className="h-64 overflow-y-auto overscroll-contain">
-          <div className="p-1.5 space-y-0.5">
-            {options.map((opt) => (
-              <label
-                key={opt.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
-              >
-                <Checkbox
-                  checked={selected.includes(opt.id)}
-                  onCheckedChange={() => toggle(opt.id)}
-                />
-                <span className="truncate text-xs">{opt.label}</span>
-              </label>
-            ))}
-          </div>
+          {options.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              Nenhuma opção disponível.
+            </div>
+          ) : (
+            <div className="p-1.5 space-y-0.5">
+              {options.map((opt) => (
+                <label
+                  key={opt.id}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer text-sm"
+                >
+                  <Checkbox
+                    checked={selected.includes(opt.id)}
+                    onCheckedChange={() => toggle(opt.id)}
+                  />
+                  <span className="truncate text-xs">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         {selected.length > 0 && (
           <div className="border-t p-1.5">
@@ -179,6 +186,7 @@ export const GlobalFilterBar: React.FC<Props> = ({
           options={availableSemestres}
           selected={filters.semestres}
           onChange={(v) => onFilterChange('semestres', v)}
+          alwaysShow
         />
       )}
 
