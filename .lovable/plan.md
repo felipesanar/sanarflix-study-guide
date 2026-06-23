@@ -1,24 +1,36 @@
-## Problema
-O `AIInsightsCard` renderiza o texto da IA como string plana com `whitespace-pre-line`. Como o modelo retorna markdown (negritos `**texto**`, listas numeradas, etc.), os asteriscos aparecem crus e a hierarquia visual se perde.
+## Objetivo
+Eliminar a poluição visual da "Visão Institucional" removendo o badge de base no canto superior direito de cada KPI card e os textos "Base: ..." repetidos no corpo dos cards, mantendo uma única indicação de base na barra de contexto acima dos cards.
 
-## Solução
-Renderizar a resposta com `react-markdown` (já é dependência usada em outros pontos da stack de chat) e aplicar tipografia consistente com o design tokens do projeto — sem mudar o backend nem a lógica de cache/fetch.
+## Mudanças
 
-### Alterações
-**`src/components/caderno-erros/AIInsightsCard.tsx`**
-- Importar `ReactMarkdown` (e `remark-gfm` se já estiver disponível; senão só `react-markdown`).
-- Substituir o `<p ... whitespace-pre-line>{insight}</p>` por um wrapper estilizado que renderize markdown com componentes customizados:
-  - `strong` → `font-semibold text-foreground`
-  - `p` → `text-sm text-muted-foreground leading-relaxed` + espaçamento entre parágrafos
-  - `ol`/`ul` → listas com `space-y-1.5`, `pl-5`, marcadores discretos
-  - `li` → `text-sm text-muted-foreground leading-relaxed`
-  - `code` → estilo monoespaçado sutil
-- Manter o container `Card` atual e o estado de loading/skeleton inalterados.
+### 1. `src/components/analytics/v2/KpiCardsGrid.tsx`
+- Remover o `<span>` de badge (linhas 62–66) e a variável `showBadge`.
+- Remover a prop `showBaseBadge` da interface (não usada em outro lugar relevante após a limpeza).
 
-### Não muda
-- Cache em sessionStorage, fetch da edge function, prompt no backend, condições de exibição (`entries.length >= 3`).
-- Layout do card (header com ícone Sparkles + botão refresh).
+### 2. `src/utils/mapInstitutionalData.ts`
+Limpar o sufixo `· Base: <baseLabel>` das `description` dos KPIs (linhas 229–253), mantendo somente a descrição funcional:
+- "Total de Alunos" → `Alunos do simulado`
+- "Nota Prevista da IES" → `Nota ${notaAtual}` (sem `· Base: …`); manter fallback `sixthYearFallback` e `Conceito TRI indisponível`.
+- "Distância Próxima Faixa" → `Para próxima faixa`
+- "Alunos Abaixo do Esperado" → `Abaixo de ${PROFICIENCY_THRESHOLD} pts`
+- "Taxa de Adesão" → `${scopedTotalAlunos} de ${realTotalIesUsers} alunos` (remover `scopeLabelSuffix`); manter fallback.
+- "Percentual de Acertos" e "Proficiência Média (TRI)" já não têm base — manter.
+- Manter o campo `baseLabel` no objeto KPI (consumido em outros lugares como tooltips/relatórios) — apenas não exibido no card.
 
-### Verificação
-- Smoke visual: abrir Caderno de Erros com ≥3 entradas e conferir que negritos viram bold real, listas numeradas renderizam como lista, sem `**` visíveis.
-- `tsc` continua passando.
+### 3. `src/components/analytics/v2/modules/VisaoInstitucionalModule.tsx`
+Ajustar a barra de contexto (linhas ~70–94) para o formato pedido:
+`Analisando N alunos · Base: <base> · Conceito previsto: Conceito X`
+
+Onde `<base>` deriva de `data.headerSummary.conceitoMode`:
+- `sixth-year` → `6º ano (11º e 12º semestres)`
+- `general` → `Geral — todos os alunos que fizeram a prova`
+- `semestres` → `Semestre(s): <lista>` usando `data.headerSummary.semestresAtivos` (ex.: `Semestre(s): 9, 10`)
+
+Remover o selo lateral à direita ("Padrão · 6º ano" / "Base geral" / "Recorte por semestre") já que a base agora é descrita por extenso. Manter o aviso âmbar `sixthYearFallback`.
+
+Remover a prop `showBaseBadge` da chamada de `<KpiCardsGrid>`.
+
+## Fora do escopo
+- Lógica de cálculo de base, TRI, sanção, filtros e dados permanece inalterada.
+- Outras abas (Diagnóstico Curricular, etc.) não são afetadas.
+- `headerSummary.baseLabel` continua disponível para relatórios/export.
