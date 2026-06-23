@@ -145,29 +145,42 @@ export const GlobalFilterBar: React.FC<Props> = ({
       </Select>
 
       {/* Separator */}
-      {availableSemestres.length > 0 && (
-        <div className="h-5 w-px bg-border/60 hidden sm:block" />
+      <div className="h-5 w-px bg-border/60 hidden sm:block" />
+
+      {/* Modo de base — 3 modos mutuamente exclusivos */}
+      <div className="inline-flex items-center rounded-md border border-border/60 bg-background p-0.5">
+        {([
+          { id: 'sixth-year', label: 'Padrão (6º ano)' },
+          { id: 'general', label: 'Geral' },
+          { id: 'semestres', label: 'Por semestre' },
+        ] as const).map((opt) => {
+          const active = (filters.baseMode ?? 'sixth-year') === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onFilterChange('baseMode', opt.id)}
+              className={`h-7 px-2.5 text-xs rounded-[4px] transition-colors ${
+                active
+                  ? 'bg-secondary text-foreground font-medium'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Multi-select de semestres — visível só no modo "Por semestre" */}
+      {filters.baseMode === 'semestres' && (
+        <MultiSelectFilter
+          label={filters.semestres.length === 0 ? 'Selecionar semestres' : 'Semestres'}
+          options={availableSemestres}
+          selected={filters.semestres}
+          onChange={(v) => onFilterChange('semestres', v)}
+        />
       )}
-
-      {/* Multi-selects as text buttons */}
-      <MultiSelectFilter label="Semestres" options={availableSemestres} selected={filters.semestres} onChange={(v) => onFilterChange('semestres', v)} />
-
-      {/* Conceito Geral toggle — base global (IES inteira). Ignorado quando há semestres selecionados. */}
-      <Button
-        variant={filters.conceitoGeral ? 'secondary' : 'ghost'}
-        size="sm"
-        className="h-8 text-xs gap-1.5 px-2.5"
-        disabled={filters.semestres.length > 0}
-        onClick={() => onFilterChange('conceitoGeral', !filters.conceitoGeral)}
-        title={filters.semestres.length > 0
-          ? 'Desativado: filtro de Semestres tem precedência'
-          : 'Quando ativo, todos os cards usam a base geral da IES em vez do 6º ano'}
-      >
-        Conceito Geral
-        {filters.conceitoGeral && filters.semestres.length === 0 && (
-          <Badge variant="default" className="h-4 px-1 text-[10px] rounded-sm">ON</Badge>
-        )}
-      </Button>
 
       {extraActiveCount > 0 && (
         <Button
