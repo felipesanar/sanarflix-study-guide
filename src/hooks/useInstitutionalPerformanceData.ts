@@ -275,6 +275,15 @@ export function useInstitutionalPerformanceData(
       return;
     }
 
+    // Modo "Por semestre" sem semestres selecionados — não faz fetch.
+    if (activeBase.mode === 'semestres' && (!activeBase.semestres || activeBase.semestres.length === 0)) {
+      Logger.info('[DesempenhoInstitucional]', 'Modo por semestre sem seleção, aguardando escolha');
+      setData(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setUsingMock(false);
