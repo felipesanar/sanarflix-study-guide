@@ -160,6 +160,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
         error={error}
         onRetry={refetch}
         iesId={filters.iesId}
+        baseMode={filters.baseMode}
       />
 
       {/* Drawers */}
