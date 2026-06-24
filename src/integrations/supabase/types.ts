@@ -1389,6 +1389,7 @@ export type Database = {
           ies_ids: string[]
           liberacao_desempenho: string
           nome: string
+          simulado_pai_id: string | null
           status: string
           updated_at: string | null
         }
@@ -1404,6 +1405,7 @@ export type Database = {
           ies_ids?: string[]
           liberacao_desempenho?: string
           nome: string
+          simulado_pai_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -1419,10 +1421,19 @@ export type Database = {
           ies_ids?: string[]
           liberacao_desempenho?: string
           nome?: string
+          simulado_pai_id?: string | null
           status?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "simulados_admin_simulado_pai_id_fkey"
+            columns: ["simulado_pai_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       simulados_finalizados: {
         Row: {
