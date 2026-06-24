@@ -80,10 +80,13 @@ export const SimuladosDisponiveis = () => {
 
       const agora = new Date();
       
+      const tratarComoAluno = isGestor(user);
+
       const simuladosComStatus = dados.map((sim) => {
         // Verificar se o simulado está encerrado por tempo
-        const isEncerrado = sim.data_encerramento && agora > new Date(sim.data_encerramento);
-        
+        // Gestores ignoram o override de encerrado e seguem o fluxo normal de aluno
+        const isEncerrado = !tratarComoAluno && sim.data_encerramento && agora > new Date(sim.data_encerramento);
+
         if (isEncerrado) {
           return { 
             ...sim, 
@@ -91,6 +94,7 @@ export const SimuladosDisponiveis = () => {
             desempenho_liberado: verificarDesempenhoLiberado({ ...sim, status: 'encerrado' })
           };
         }
+        
         
         const estadoKey = `simulado_${sim.id}_estado`;
         const estadoStr = localStorage.getItem(estadoKey);
