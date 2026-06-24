@@ -54,12 +54,13 @@ const AppContent = () => {
     return (
       <Suspense fallback={<div className="min-h-screen bg-background" />}>
         <Routes>
-          <Route path="/login" element={<LoginForm />} />
+          <Route path="/" element={<LoginForm />} />
+          <Route path="/login" element={<Navigate to="/" replace />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auth/update-password" element={<UpdatePassword />} />
           <Route path="/auth/resend" element={<ResendWelcome />} />
           <Route path="/cadastro-b2c" element={<SignupB2C />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     );
