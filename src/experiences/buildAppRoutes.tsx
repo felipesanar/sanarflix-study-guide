@@ -4,6 +4,7 @@ import type { User, AccessRules } from '@/types';
 import { getDefaultRouteForUser } from '@/utils/experiences';
 import { getAlunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { getAdminRoutes } from '@/experiences/admin/adminRoutes';
+import { getGestorRoutes } from '@/experiences/gestor/gestorRoutes';
 
 const AuthCallbackPage = lazy(() => import('@/pages/AuthCallback'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
@@ -19,7 +20,8 @@ export const buildAppRoutes = (
     { path: '/auth/callback', element: <AuthCallbackPage /> },
     ...getAlunoRoutes(accessRules),
     ...getAdminRoutes(),
-    // Fases seguintes inserem aqui: gestor, atendimento + redirects de compat.
+    ...getGestorRoutes(),
+    // Fase seguinte insere aqui: atendimento.
     { path: '*', element: <NotFound /> },
   ];
 };

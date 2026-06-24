@@ -50,3 +50,20 @@ describe('buildAppRoutes — admin', () => {
     expect(out).toContain('/gestao-usuarios'); // redirect de compat
   });
 });
+
+describe('buildAppRoutes — gestor', () => {
+  it('gestor tem módulos como rota e redirects de compat', () => {
+    const out = paths(
+      { roles: ['gestor'] } as unknown as User,
+      { desempenhoInstitucional: true } as AccessRules,
+    );
+    [
+      '/gestor/visao-institucional',
+      '/gestor/diagnostico-curricular',
+      '/gestor/alunos',
+      '/gestor/insights-pedagogicos',
+      '/gestor/inteligencia-decisoria',
+    ].forEach((p) => expect(out).toContain(p));
+    expect(out).toContain('/desempenho-institucional-v2'); // compat
+  });
+});
