@@ -3,34 +3,39 @@ import { Simulado, Questao, ResultadoSimulado } from '@/types/simulado';
 import { Logger } from '@/utils/logger';
 
 export const simuladosApi = {
-  async listarSimulados(userIesId?: string): Promise<Simulado[]> {
+  async listarSimulados(
+    userIesId?: string,
+    opts?: { includeAll?: boolean }
+  ): Promise<Simulado[]> {
+    const includeAll = opts?.includeAll === true;
     // Obter data/hora atual em UTC para comparar com timestamps do banco
     const agoraISO = new Date().toISOString();
 
-    // Buscar simulados que:
-    // 1. Estão ativos OU aguardando (simulados agendados que devem aparecer quando a hora chegar)
-    // 2. Já foram liberados (data_liberacao <= agora) OU não têm data de liberação
-    // 3. Ainda não encerraram (data_encerramento >= agora) OU não têm data de encerramento
-    // 4. NÃO estão encerrados (status != 'encerrado')
-    const { data, error } = await supabase
+    // Para alunos: somente simulados ativos, dentro da janela de liberação.
+    // Para gestores (includeAll): todos os simulados da IES, inclusive
+    // encerrados ou fora da janela.
+    let query = supabase
       .from('simulados_admin')
       .select('*')
-      .neq('status', 'encerrado') // Excluir encerrados
       .order('data_liberacao', { ascending: false });
+
+    if (!includeAll) {
+      query = query.neq('status', 'encerrado');
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
-    // Filtrar no cliente para garantir lógica correta de datas
     const agoraDt = new Date(agoraISO);
-    const simuladosDisponiveis = (data || []).filter(s => {
-      // Verificar se já foi liberado
-      const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agoraDt;
-      
-      // Verificar se ainda não encerrou
-      const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agoraDt;
-      
-      return liberado && naoEncerrado;
-    });
+    const simuladosDisponiveis = includeAll
+      ? (data || [])
+      : (data || []).filter(s => {
+          const liberado = !s.data_liberacao || new Date(s.data_liberacao) <= agoraDt;
+          const naoEncerrado = !s.data_encerramento || new Date(s.data_encerramento) >= agoraDt;
+          return liberado && naoEncerrado;
+        });
+
 
     const idsStr = simuladosDisponiveis.map(s => s.id);
     let countsBySimulado: Record<string, number> = {};
