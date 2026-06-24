@@ -63,7 +63,9 @@ export const SimuladosDisponiveis = () => {
   const carregarSimulados = async () => {
     setLoading(true);
     try {
-      const dados = await simuladosApi.listarSimulados(user?.id_ies);
+      const dados = await simuladosApi.listarSimulados(user?.id_ies, {
+        includeAll: isGestor(user),
+      });
       const urlParams = new URLSearchParams(window.location.search);
       const justFinished = urlParams.get('just_finished');
 
