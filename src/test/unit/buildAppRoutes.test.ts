@@ -67,3 +67,13 @@ describe('buildAppRoutes — gestor', () => {
     expect(out).toContain('/desempenho-institucional-v2'); // compat
   });
 });
+
+describe('buildAppRoutes — atendimento', () => {
+  it('atendimento tem /atendimento/usuarios', () => {
+    const out = paths(
+      { roles: ['atendimento'] } as unknown as User,
+      { userManagement: true } as AccessRules,
+    );
+    expect(out).toContain('/atendimento/usuarios');
+  });
+});
