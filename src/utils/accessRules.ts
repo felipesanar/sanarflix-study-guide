@@ -148,7 +148,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
   }
 
   // Atendimento: acesso a todas as páginas, exceto desempenho institucional
-  // No portal do admin, tem acesso apenas à aba Usuários (lógica de abas em UserManagement)
+  // No portal do admin, tem acesso apenas à aba Usuários (filtro de nav em AdminLayout)
   if (isAtendimento(user)) {
     return {
       ...ADMIN_RULES,
