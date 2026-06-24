@@ -139,11 +139,13 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
 
 
-  // Gestor: acesso ao desempenho institucional
+  // Gestor: acesso ao desempenho institucional + simulados (visão/execução
+  // ampla, incluindo encerrados — controlado por RLS e por includeAll na API)
   if (isGestor(user)) {
     return {
       ...DEFAULT_RULES,
       desempenhoInstitucional: true,
+      simulados: true,
     };
   }
 

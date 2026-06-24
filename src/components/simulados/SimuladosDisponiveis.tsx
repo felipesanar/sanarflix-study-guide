@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
 import { supabase } from '@/integrations/supabase/client';
+import { isGestor } from '@/utils/accessRules';
+
 
 import { Simulado } from '@/types/simulado';
 import { SimuladoCard } from './SimuladoCard';
@@ -61,7 +63,9 @@ export const SimuladosDisponiveis = () => {
   const carregarSimulados = async () => {
     setLoading(true);
     try {
-      const dados = await simuladosApi.listarSimulados(user?.id_ies);
+      const dados = await simuladosApi.listarSimulados(user?.id_ies, {
+        includeAll: isGestor(user),
+      });
       const urlParams = new URLSearchParams(window.location.search);
       const justFinished = urlParams.get('just_finished');
 
