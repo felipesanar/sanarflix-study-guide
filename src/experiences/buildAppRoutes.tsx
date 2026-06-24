@@ -3,6 +3,7 @@ import { Navigate, type RouteObject } from 'react-router-dom';
 import type { User, AccessRules } from '@/types';
 import { getDefaultRouteForUser } from '@/utils/experiences';
 import { getAlunoRoutes } from '@/experiences/aluno/alunoRoutes';
+import { getAdminRoutes } from '@/experiences/admin/adminRoutes';
 
 const AuthCallbackPage = lazy(() => import('@/pages/AuthCallback'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
@@ -17,7 +18,8 @@ export const buildAppRoutes = (
     { path: '/login', element: <Navigate to={fallback} replace /> },
     { path: '/auth/callback', element: <AuthCallbackPage /> },
     ...getAlunoRoutes(accessRules),
-    // Fases seguintes inserem aqui: admin, gestor, atendimento + redirects de compat.
+    ...getAdminRoutes(),
+    // Fases seguintes inserem aqui: gestor, atendimento + redirects de compat.
     { path: '*', element: <NotFound /> },
   ];
 };

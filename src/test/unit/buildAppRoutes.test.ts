@@ -30,3 +30,23 @@ describe('buildAppRoutes — aluno', () => {
     expect(out).toContain('/home'); // redirect de compat
   });
 });
+
+describe('buildAppRoutes — admin', () => {
+  it('admin tem todas as abas como rota e redirect de compat', () => {
+    const out = paths(
+      { roles: ['admin'] } as unknown as User,
+      { userManagement: true, analytics: true } as AccessRules,
+    );
+    [
+      '/admin/usuarios',
+      '/admin/avisos',
+      '/admin/ies',
+      '/admin/guia',
+      '/admin/sanarclass',
+      '/admin/simulados',
+      '/admin/feedbacks',
+      '/admin/analytics',
+    ].forEach((p) => expect(out).toContain(p));
+    expect(out).toContain('/gestao-usuarios'); // redirect de compat
+  });
+});
