@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { simuladosApi } from '@/services/simuladosApi';
 import { supabase } from '@/integrations/supabase/client';
+import { isGestor } from '@/utils/accessRules';
+
 
 import { Simulado } from '@/types/simulado';
 import { SimuladoCard } from './SimuladoCard';
