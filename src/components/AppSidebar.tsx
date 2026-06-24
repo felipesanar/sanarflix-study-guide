@@ -41,7 +41,7 @@ import { Logger } from '@/utils/logger';
 const menuItems = [
   {
     title: "Início",
-    url: "/home",
+    url: "/",
     icon: HomeIcon,
     accessKey: "home" as const,
     description: "Sua página inicial personalizada",
@@ -69,21 +69,21 @@ const menuItems = [
   },
   {
     title: "Portal do Admin",
-    url: "/gestao-usuarios",
+    url: "/admin/usuarios",
     icon: UserCog,
     accessKey: "userManagement" as const,
     description: "Administração de elementos da plataforma",
   },
   {
     title: "Analytics",
-    url: "/analytics",
+    url: "/admin/analytics",
     icon: TrendingUp,
     accessKey: "analytics" as const,
     description: "Métricas e insights avançados",
   },
   {
     title: "Desempenho Institucional",
-    url: "/desempenho-institucional-v2",
+    url: "/gestor",
     icon: School,
     accessKey: "desempenhoInstitucional" as const,
     description: "Visão geral do desempenho dos alunos",
@@ -122,7 +122,18 @@ export function AppSidebar() {
     Logger.info("[Nav]", "breakpoint", { mode: "sidebar" });
   }, []);
 
-  const isActive = useCallback((path: string) => currentPath === path, [currentPath]);
+  const isActive = useCallback(
+    (path: string) => {
+      if (path === "/") return currentPath === "/";
+      // Itens com sub-rotas (admin/gestor) destacam em qualquer rota-filha.
+      const base = `/${path.split("/")[1]}`;
+      if (base === "/admin" || base === "/gestor") {
+        return currentPath.startsWith(base);
+      }
+      return currentPath === path || currentPath.startsWith(`${path}/`);
+    },
+    [currentPath],
+  );
   
   const isStudyGuideAreaActive = useCallback(
     () => studyGuideItems.some((item) => isActive(item.url) && accessRules[item.accessKey]),
@@ -225,11 +236,11 @@ export function AppSidebar() {
                   <SidebarNavItem
                     item={{
                       title: "Início",
-                      url: "/home",
+                      url: "/",
                       icon: HomeIcon,
                       description: "Sua página inicial personalizada",
                     }}
-                    isActive={isActive("/home")}
+                    isActive={isActive("/")}
                     collapsed={collapsed}
                   />
                 )}

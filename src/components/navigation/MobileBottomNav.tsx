@@ -90,7 +90,7 @@ export function MobileBottomNav() {
 
   // Quick nav items for bottom bar (4 items + Menu)
   const quickNavItems: BottomNavItem[] = useMemo(() => [
-    { id: "home", title: "Início", url: "/home", icon: Home, show: accessRules.home },
+    { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
     { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
     { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
     { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
@@ -132,9 +132,9 @@ export function MobileBottomNav() {
 
     // Admin section
     const adminItems = [
-      { title: "Portal do Admin", url: "/gestao-usuarios", icon: UserCog, show: accessRules.userManagement },
-      { title: "Analytics", url: "/analytics", icon: TrendingUp, show: accessRules.analytics },
-      { title: "Desempenho Institucional", url: "/desempenho-institucional-v2", icon: School, show: accessRules.desempenhoInstitucional },
+      { title: "Portal do Admin", url: "/admin/usuarios", icon: UserCog, show: accessRules.userManagement },
+      { title: "Analytics", url: "/admin/analytics", icon: TrendingUp, show: accessRules.analytics },
+      { title: "Desempenho Institucional", url: "/gestor", icon: School, show: accessRules.desempenhoInstitucional },
     ].filter(item => item.show);
 
     if (adminItems.length > 0) {
