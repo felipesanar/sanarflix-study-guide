@@ -85,31 +85,29 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
       EXPERIENCE_ENTRYPOINTS.admin,
     );
     expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
-      '/gestao-usuarios',
+      '/admin/usuarios',
     );
   });
 
-  it('atendimento entra no Portal do Admin (aba Usuários)', () => {
+  it('atendimento entra no Atendimento (aba Usuários)', () => {
     const user = makeUser(['atendimento']);
     expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
-      '/gestao-usuarios',
+      '/atendimento/usuarios',
     );
   });
 
-  it('gestão entra no Desempenho Institucional', () => {
+  it('gestão entra na experiência do gestor', () => {
     const user = makeUser(['gestor']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
-      '/desempenho-institucional-v2',
-    );
+    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe('/gestor');
     const grupo = makeUser(['gestor_grupo']);
     expect(getDefaultRouteForUser(grupo, getAccessRules(grupo))).toBe(
-      '/desempenho-institucional-v2',
+      '/gestor',
     );
   });
 
-  it('professor entra na home (tela liberada da sua experiência)', () => {
+  it('professor entra na raiz (home liberada da sua experiência)', () => {
     const user = makeUser(['professor']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe('/home');
+    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe('/');
   });
 
   it('o entrypoint de cada experiência é sempre uma tela liberada (sem loop de redirect)', () => {
@@ -130,9 +128,9 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
       );
     });
 
-    it('prioriza /home quando a IES libera a home', () => {
+    it('prioriza a raiz / quando a IES libera a home', () => {
       const rules: AccessRules = { ...alunoRules, home: true };
-      expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/home');
+      expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/');
     });
 
     it('cai em /guia-estudos quando home e simulados estão bloqueados', () => {
@@ -144,5 +142,21 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
       };
       expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/guia-estudos');
     });
+  });
+});
+
+describe('EXPERIENCE_ENTRYPOINTS (rotas aninhadas)', () => {
+  it('admin entra em /admin/usuarios', () => {
+    expect(EXPERIENCE_ENTRYPOINTS.admin).toBe('/admin/usuarios');
+  });
+  it('atendimento entra em /atendimento/usuarios', () => {
+    expect(EXPERIENCE_ENTRYPOINTS.atendimento).toBe('/atendimento/usuarios');
+  });
+  it('gestao entra em /gestor', () => {
+    expect(EXPERIENCE_ENTRYPOINTS.gestao).toBe('/gestor');
+  });
+  it('aluno com home liberada cai em / (raiz)', () => {
+    const rules = { home: true } as AccessRules;
+    expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/');
   });
 });
