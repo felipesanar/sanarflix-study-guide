@@ -146,6 +146,7 @@ export const getAccessRules = (user: User | null): AccessRules => {
       ...DEFAULT_RULES,
       desempenhoInstitucional: true,
       simulados: true,
+      SimuladoDesempenho: true,
     };
   }
 

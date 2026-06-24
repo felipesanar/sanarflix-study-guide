@@ -1,38 +1,39 @@
-## Objetivo
-Liberar a aba **Simulados** para gestores (`gestor` e `gestor_grupo`), permitindo que vejam e façam **todos** os simulados já aplicados à(s) sua(s) IES — inclusive os encerrados ou fora da janela de liberação. O fluxo de execução, salvamento de respostas e correção continua o mesmo de um aluno (eles respondem como eles mesmos).
+## Problema
 
-## Mudanças
+Para o gestor, todos os simulados aparecem como "Encerrado" com apenas o botão "Ver Desempenho" (que ele nunca poderá usar, pois nunca fez os simulados). Faltam:
 
-### 1. Permissão de menu — `src/utils/accessRules.ts`
-No bloco `if (isGestor(user))`, adicionar `simulados: true` mantendo `desempenhoInstitucional: true`. Resultado: o item "Simulados" passa a aparecer na sidebar e a rota `/simulados` deixa de bloquear.
+1. Permitir que o gestor inicie/continue/veja questões dos simulados, mesmo encerrados.
+2. Liberar a aba **Desempenho** para que, ao finalizar, ele veja seu próprio desempenho como aluno.
 
-### 2. RLS — nova migration
-Adicionar políticas de leitura para `gestor` e `gestor_grupo`:
+## Causa raiz
 
-- **`simulados_admin`**: nova policy `SELECT` permitindo gestores verem qualquer simulado cujo `ies_ids` contenha uma IES acessível ao usuário (`get_accessible_ies(auth.uid())`), **sem** filtrar por `status` nem por `data_liberacao`/`data_encerramento`. `gestor_grupo` já tem; criar a equivalente para `gestor` usando a mesma forma.
-- **`questoes_simulado`**: nova policy `SELECT` espelhando a anterior — gestor pode ler questões de qualquer simulado pertencente à(s) sua(s) IES.
+- Em `src/components/simulados/SimuladosDisponiveis.tsx`, o código força `status = 'encerrado'` sempre que `data_encerramento` passou, independentemente do papel. Isso faz o `SimuladoCard` renderizar só o botão "Ver Desempenho" / "Encerrado".
+- Em `src/utils/accessRules.ts`, o bloco do `isGestor` não habilita `SimuladoDesempenho`, então a aba "Desempenho" não aparece em `src/pages/Simulados.tsx` (que checa `accessRules.SimuladoDesempenho`).
 
-Inserts em `simulados_iniciados`, `answer_progress` e `simulados_finalizados` já são permitidos para qualquer usuário autenticado pela própria coluna `user_id = auth.uid()`, então o gestor consegue registrar tentativas como ele mesmo sem mudanças adicionais.
+## Alterações
 
-### 3. Listagem — `src/services/simuladosApi.ts` (`listarSimulados`)
-Hoje o método filtra `neq('status','encerrado')` e descarta simulados fora da janela `data_liberacao`/`data_encerramento`. Para gestores precisamos mostrar tudo da IES.
+### 1. `src/utils/accessRules.ts`
+No bloco `if (isGestor(user))`, adicionar `SimuladoDesempenho: true` junto com `desempenhoInstitucional: true` e `simulados: true`. Assim, a aba "Desempenho" passa a aparecer em `/simulados` para gestores.
 
-- Aceitar um parâmetro adicional `opts?: { includeAll?: boolean }`.
-- Quando `includeAll` for verdadeiro: remover o `neq('status','encerrado')` e pular o filtro de datas (manter apenas o filtro por `userIesId`).
-- Marcar status apresentado: simulados encerrados ou fora da janela aparecem com rótulo "Encerrado" no card (reaproveitar o badge existente do componente, sem novo componente).
+### 2. `src/components/simulados/SimuladosDisponiveis.tsx`
+No `carregarSimulados`, tratar o gestor como aluno "privilegiado":
 
-### 4. Chamada da listagem — `src/pages/Simulados.tsx`
-Detectar gestor via `useAuth` + `isGestor(user)` e passar `includeAll: true` para `listarSimulados`. Para `gestor_grupo` com múltiplas IES, iterar sobre `accessibleIes` (mesma lógica já usada em Desempenho Institucional) ou simplesmente não passar `userIesId` — a RLS já restringe ao conjunto correto.
+- Importar `isGestor` (já importado) e calcular `const tratarComoAluno = isGestor(user);`
+- No `map` que monta `simuladosComStatus`: quando `tratarComoAluno` for `true`, **ignorar o override de `encerrado` por `data_encerramento`** e manter o fluxo normal de estados (`disponivel` / `em_andamento` / `concluido`). Ou seja, o gestor verá:
+  - "Iniciar Simulado" se nunca iniciou,
+  - "Continuar" se há estado em `localStorage`,
+  - "Concluído" + "Ver Desempenho" depois que ele mesmo finalizar.
+- Para alunos comuns, comportamento permanece idêntico (encerrado vira badge "Encerrado" sem ação).
 
-### 5. Botão "Começar simulado"
-Nenhuma mudança: a tela de execução já usa `buscarQuestoesSimulado` (lê `questoes_simulado` via RLS) e `enviarResultado` (edge function `corrigir-simulado` que grava como o próprio usuário). Com as novas policies, gestores conseguem abrir e finalizar.
+Nada muda em `SimuladoCard.tsx`, na execução da prova (`/simulados/:id/prova`), na correção (edge function `corrigir-simulado`) ou em `SimuladoDesempenho.tsx` — eles já operam com base no `user.id`, então o gestor verá apenas o desempenho dos simulados que ele mesmo fizer.
 
-## Fora do escopo
-- Não alterar Desempenho Institucional.
-- Não alterar correção, ranking, ou métricas — gestor que fizer o simulado fica fora das agregações institucionais porque elas já excluem usuários com role (visto na função `get_institutional_performance`: `NOT EXISTS (SELECT 1 FROM user_roles ...)`).
-- Não tocar em `gestor_grupo` além de garantir paridade (ele já tinha a policy de leitura de simulados; ganha `simulados:true` no menu como subproduto da mudança em `isGestor`).
+## Fora de escopo
 
-## Validação
-1. Logar como `proensino@fai.com.br`: aba "Simulados" aparece, lista contém os 5 simulados aplicados à FAI (inclusive os encerrados), consegue abrir um, responder e finalizar.
-2. Logar como aluno comum da FAI: lista permanece igual à de hoje (só ativos dentro da janela).
-3. Desempenho Institucional do gestor segue exibindo apenas alunos (gestor que fez o simulado não polui os agregados).
+- RLS de `simulados_admin` / `questoes_simulado` para gestor já foi adicionada na migração anterior.
+- Inserções em `simulados_iniciados`, `answer_progress` e `simulados_finalizados` já são permitidas a qualquer usuário autenticado para `user_id = auth.uid()`.
+- Nenhuma mudança em Desempenho Institucional, ranking ou agregações.
+
+## Arquivos a editar
+
+- `src/utils/accessRules.ts`
+- `src/components/simulados/SimuladosDisponiveis.tsx`
