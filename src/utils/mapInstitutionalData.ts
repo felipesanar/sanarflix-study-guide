@@ -198,7 +198,12 @@ export function mapInstitutionalRpcToViewModel(
   const alunosAbaixoStrict = students.filter(
     (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
   );
-  const alunosAbaixoCount = triNumBelow !== null ? triNumBelow : alunosAbaixoStrict.length;
+  // Fallback por %acertos quando TRI não está disponível para nenhum aluno da base
+  const hasAnyTri = students.some((s) => s.triScore !== null && s.triScore !== undefined);
+  const alunosAbaixoByAccuracy = students.filter((s) => s.percentual < PROFICIENCY_THRESHOLD).length;
+  const alunosAbaixoCount = triNumBelow !== null
+    ? triNumBelow
+    : (hasAnyTri ? alunosAbaixoStrict.length : alunosAbaixoByAccuracy);
 
   // Total de alunos da base
   const scopedTotalAlunos = triNumStudents !== null ? triNumStudents : students.length;
