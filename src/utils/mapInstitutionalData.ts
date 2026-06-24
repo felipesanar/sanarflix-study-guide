@@ -198,7 +198,12 @@ export function mapInstitutionalRpcToViewModel(
   const alunosAbaixoStrict = students.filter(
     (s) => s.triScore !== null && s.triScore !== undefined && s.triScore < PROFICIENCY_THRESHOLD,
   );
-  const alunosAbaixoCount = triNumBelow !== null ? triNumBelow : alunosAbaixoStrict.length;
+  // Fallback por %acertos quando TRI não está disponível para nenhum aluno da base
+  const hasAnyTri = students.some((s) => s.triScore !== null && s.triScore !== undefined);
+  const alunosAbaixoByAccuracy = students.filter((s) => s.percentual < PROFICIENCY_THRESHOLD).length;
+  const alunosAbaixoCount = triNumBelow !== null
+    ? triNumBelow
+    : (hasAnyTri ? alunosAbaixoStrict.length : alunosAbaixoByAccuracy);
 
   // Total de alunos da base
   const scopedTotalAlunos = triNumStudents !== null ? triNumStudents : students.length;
@@ -248,7 +253,7 @@ export function mapInstitutionalRpcToViewModel(
     { label: 'Alunos Proficientes', value: triPercentProficientes !== null ? `${triPercentProficientes}%` : '—', icon: 'CheckCircle', status: triPercentProficientes !== null ? getKpiStatus(triPercentProficientes, { good: 60, warning: 40 }) : 'neutral', description: proficientesDescricao, scope: 'scoped', baseLabel },
     { label: 'Nota Prevista da IES', value: conceito ?? '—', icon: 'School', status: notaAtual !== null ? getKpiStatus(notaAtual, { good: 4, warning: 3 }) : 'neutral', description: conceitoDescription, scope: 'scoped', baseLabel },
     { label: 'Distância Próxima Faixa', value: basePctForConcept === null ? '—' : (basePctForDist >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`), icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Para próxima faixa', scope: 'scoped', baseLabel },
-    { label: 'Alunos Abaixo do Esperado', value: alunosAbaixoCount, icon: 'AlertTriangle', status: getKpiStatus(100 - (alunosAbaixoCount / Math.max(baseTotalForMeta ?? scopedTotalAlunos, 1)) * 100, { good: 60, warning: 40 }), description: `Abaixo de ${PROFICIENCY_THRESHOLD} pts`, scope: 'scoped', baseLabel },
+    { label: 'Alunos Abaixo do Esperado', value: alunosAbaixoCount, icon: 'AlertTriangle', status: getKpiStatus(100 - (alunosAbaixoCount / Math.max(baseTotalForMeta ?? scopedTotalAlunos, 1)) * 100, { good: 60, warning: 40 }), description: hasAnyTri || triNumBelow !== null ? `Abaixo de ${PROFICIENCY_THRESHOLD} pts (TRI)` : `Abaixo de ${PROFICIENCY_THRESHOLD}% de acerto (TRI indisponível)`, scope: 'scoped', baseLabel },
     { label: 'Taxa de Adesão', value: realTotalIesUsers > 0 ? `${taxaAdesao}%` : '—', icon: 'CheckCircle', status: taxaAdesao >= 80 ? 'good' : taxaAdesao >= 50 ? 'warning' : 'neutral', description: taxaAdesaoLabel, scope: 'scoped', baseLabel },
   ];
 
