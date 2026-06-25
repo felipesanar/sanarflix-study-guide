@@ -87,15 +87,28 @@ describe('experiences/buildAppRoutes — aluno', () => {
   });
 });
 
-describe('experiences/buildAppRoutes — geral', () => {
+describe('experiences/buildAppRoutes — compartilhadas', () => {
+  it('inclui a rota /auth/callback', () => {
+    const routes = byPath(buildAppRoutes(aluno, alunoRules));
+    expect(routes.has('/auth/callback')).toBe(true);
+    expect(redirectTarget(routes.get('/auth/callback'))).toBeUndefined();
+  });
+
+  it('/login redireciona para o entrypoint do usuário', () => {
+    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    // Aluno com home → entrypoint é a raiz.
+    expect(redirectTarget(routes.get('/login'))).toBe('/');
+  });
+
   it('sempre termina com o catch-all (*) para NotFound', () => {
     const routes = buildAppRoutes(aluno, alunoRules);
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
-  it('experiência sem módulo de rotas próprio ainda retorna o catch-all', () => {
+  it('experiência sem módulo próprio ainda retorna compartilhadas + catch-all', () => {
     // Admin ainda não tem rotas próprias nesta fase (tasks futuras do F1).
-    const routes = buildAppRoutes(makeUser(['admin']), getAccessRules(makeUser(['admin'])));
-    expect(routes.map((r) => r.path)).toEqual(['*']);
+    const admin = makeUser(['admin']);
+    const routes = buildAppRoutes(admin, getAccessRules(admin));
+    expect(routes.map((r) => r.path)).toEqual(['/login', '/auth/callback', '*']);
   });
 });

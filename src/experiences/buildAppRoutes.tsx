@@ -1,22 +1,26 @@
 import { lazy } from 'react';
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 import type { AccessRules, User } from '@/types';
-import { getExperience } from '@/utils/experiences';
+import { getExperience, getDefaultRouteForUser } from '@/utils/experiences';
 import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
+const AuthCallback = lazy(() => import('@/pages/AuthCallback'));
 
 /**
  * Monta a lista de rotas (RouteObject[]) da aplicação para o usuário atual.
  *
  * Função pura de `(user, accessRules)`: resolve a experiência do usuário
- * ({@link getExperience}) e delega ao módulo de rotas da experiência. Sempre
- * encerra com o catch-all (`*`) que renderiza o NotFound.
+ * ({@link getExperience}) e delega ao módulo de rotas da experiência. Além das
+ * rotas da experiência, inclui as rotas compartilhadas da área autenticada
+ * (`/login` → entrypoint do usuário e `/auth/callback`) e sempre encerra com o
+ * catch-all (`*`) que renderiza o NotFound.
  *
  * Nesta fase apenas a experiência Aluno + Professor possui módulo de rotas
  * próprio; as demais (admin, atendimento, gestão) recebem seus módulos em
- * tasks subsequentes do F1 e, por ora, contam apenas com o catch-all.
+ * tasks subsequentes do F1 e, por ora, contam apenas com as rotas
+ * compartilhadas e o catch-all.
  */
 export const buildAppRoutes = (
   user: User | null,
@@ -28,7 +32,24 @@ export const buildAppRoutes = (
     experience === 'aluno_professor' ? alunoRoutes(user, accessRules) : [];
 
   return [
+    // Rotas compartilhadas da área autenticada.
+    {
+      path: '/login',
+      element: (
+        <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />
+      ),
+    },
+    {
+      path: '/auth/callback',
+      element: (
+        <ExperiencePage waitForData={false}>
+          <AuthCallback />
+        </ExperiencePage>
+      ),
+    },
+
     ...experienceRoutes,
+
     {
       path: '*',
       element: (
