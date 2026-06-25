@@ -97,6 +97,7 @@ export function mapInstitutionalRpcToViewModel(
   studentTriScores?: { student_id: string; score_proprio: number | null }[],
   activeBase: ActiveBase = { semestres: null, mode: 'general', label: 'IES inteira' },
   sixthYearFallback: boolean = false,
+  hasTri: boolean = true,
 ): InstitutionalViewModel {
   const { overallStats } = performance;
   const totalStudents = overallStats.totalStudents || studentScores.students.length;
