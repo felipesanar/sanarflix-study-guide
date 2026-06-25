@@ -9,6 +9,7 @@ import {
   fetchInstitutionalTriEvolution,
   fetchStudentTriScores,
   fetchIesStudentCount,
+  fetchSimuladoTemTri,
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
@@ -307,10 +308,11 @@ export function useInstitutionalPerformanceData(
       const targetIesId = await resolveIesId(requestedIesId);
 
       // Críticas — se qualquer uma falhar, mostramos erro real (sem cair em mock).
-      const [perfData, scoresData, studentTriData] = await Promise.all([
+      const [perfData, scoresData, studentTriData, hasTri] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
+        fetchSimuladoTemTri(filters.simuladoId, targetIesId),
       ]);
 
       // Acessórias — não derrubam a tela se falharem (ex.: evolução com timeout).
@@ -325,17 +327,16 @@ export function useInstitutionalPerformanceData(
         safe(fetchInstitutionalTriEvolution(targetIesId), 'tri-evolution', []),
       ]);
 
-      let triScopedData = await safe(
-        fetchInstitutionalTri(filters.simuladoId, targetIesId, activeBase.semestres),
-        'tri-snapshot',
-        null,
-      );
+      let triScopedData = hasTri
+        ? await safe(fetchInstitutionalTri(filters.simuladoId, targetIesId, activeBase.semestres), 'tri-snapshot', null)
+        : null;
       let totalIesUsers = await safe(fetchIesStudentCount(targetIesId, activeBase.semestres), 'ies-count', 0);
       let effectiveBase = activeBase;
       let sixthYearFallback = false;
 
       // Fallback: 6º ano sem alunos → cai para base geral
-      if (activeBase.mode === 'sixth-year' && (!triScopedData || (triScopedData.num_students ?? 0) === 0)) {
+      // Só vale quando o simulado TEM TRI; sem TRI o snapshot zerado não indica ausência real de alunos.
+      if (hasTri && activeBase.mode === 'sixth-year' && (!triScopedData || (triScopedData.num_students ?? 0) === 0)) {
         Logger.info('[DesempenhoInstitucional]', '6º ano sem alunos — fallback para base geral');
         sixthYearFallback = true;
         effectiveBase = { semestres: null, mode: 'general', label: 'IES inteira' };
@@ -357,6 +358,7 @@ export function useInstitutionalPerformanceData(
         studentTriData,
         effectiveBase,
         sixthYearFallback,
+        hasTri,
       );
       setData(viewModel);
       Logger.info('[DesempenhoInstitucional]', 'Dados reais carregados', {

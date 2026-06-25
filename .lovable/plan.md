@@ -1,38 +1,52 @@
-## Diagnóstico
+## Objetivo
 
-O problema atual não é mais o `get_institutional_performance`; pelos logs do preview, a tela cai para dados de demonstração porque a chamada `get_institutional_evolution` estoura timeout:
+Quando um simulado ainda não tem TRI processado, a tela não pode parecer quebrada. Indicadores de **participação** (Total de Alunos, % de Acertos, Taxa de Adesão) precisam funcionar em todos os modos (Padrão 6º ano / Geral / Por semestre) e responder aos filtros normalmente. Indicadores **dependentes de TRI** (Proficiência Média, Alunos Proficientes, Nota Prevista, Distância, Abaixo do Esperado, % de proficientes no topo) ficam em branco com a mensagem "Aguardando cálculo do TRI". A barra de contexto mostra um aviso informativo (não erro) explicando o estado.
 
-```text
-Falha no carregamento, usando dados de demonstração: Evolution: canceling statement due to statement timeout
-```
+## Mudanças
 
-Como o hook trata qualquer falha de uma das consultas como falha geral, um erro apenas na evolução derruba a tela inteira e exibe os dados fake de 35% / Conceito 1.
+### 1. Serviço — `src/services/institutional.ts`
+Adicionar `fetchSimuladoTemTri(simuladoId, iesId): Promise<boolean>` chamando a RPC `get_simulado_tem_tri` (já existe no banco). Em caso de erro, retornar `false` por segurança e logar warning.
 
-## Plano de correção
+### 2. Hook — `src/hooks/useInstitutionalPerformanceData.ts`
+- Chamar `fetchSimuladoTemTri` em paralelo com as RPCs críticas.
+- Passar a flag `hasTri` para o mapper.
+- Quando `hasTri === false`:
+  - Não fazer fallback "6º ano → geral" baseado em `triSnapshot.num_students` (esse fallback hoje dispara porque sem TRI o snapshot vem zerado). A base ativa continua sendo a escolhida pelo usuário (6º ano = 11+12 mesmo sem TRI), pois Total/Acertos/Adesão saem de `bySemester` + `get_ies_student_count`.
+  - O `sixthYearFallback` flag só pode ficar `true` quando `hasTri === true` E a base 6º ano tiver `num_students === 0` no TRI.
 
-1. **Blindar o carregamento principal**
-   - Separar as consultas críticas dos dados acessórios.
-   - Dados críticos: performance, student scores, TRI, total de alunos.
-   - Dados acessórios: evolução e evolução TRI.
-   - Se evolução falhar por timeout, a tela principal continuará com dados reais; apenas o gráfico de evolução ficará vazio ou usando fallback seguro.
+### 3. Mapper — `src/utils/mapInstitutionalData.ts`
+Aceitar novo parâmetro `hasTri: boolean`. Comportamento:
+- **Sempre calcular** (independente de TRI), somando `bySemester` apenas dos semestres da base ativa (ou usando `overallStats` no modo Geral):
+  - Total de Alunos = soma de `num_students` dos semestres da base (fallback: contagem de alunos do `studentScores.students` filtrados pela base; no Geral usa `overallStats.totalStudents`).
+  - % de Acertos = `baseAcertos / baseTotal` (lógica atual já está correta, manter).
+  - Taxa de Adesão = Total de Alunos do recorte ÷ `totalIesUsers` (do `get_ies_student_count` com `p_semestres` da base; `null` no Geral).
+- **Quando `hasTri === false`**, os seguintes KPIs ficam com `value: '—'` e `description: 'Aguardando cálculo do TRI'`, `status: 'neutral'`:
+  - Proficiência Média (TRI)
+  - Alunos Proficientes
+  - Nota Prevista da IES
+  - Distância Próxima Faixa
+  - Alunos Abaixo do Esperado
+- `headerSummary.basePctProficientes` e `headerSummary.percentProficientes` ficam `null` quando `hasTri === false` (UI já trata `null`/`undefined`).
+- `headerSummary.sancao` fica `null` quando `hasTri === false` (banner não aparece).
+- `headerSummary.conceitoScoped` / `notaScoped` ficam `null`.
+- Nova flag `headerSummary.triPending: boolean` para o UI exibir a mensagem informativa.
 
-2. **Remover fallback silencioso para Demo em falhas reais**
-   - Manter dados Demo apenas quando não houver sessão/local preview sem autenticação.
-   - Para erro de RPC com usuário autenticado, exibir erro real ou carregar parcial, mas nunca substituir por mock como se fosse dado real.
-   - Isso evita o card “Demo” e os KPIs falsos quando uma RPC falha.
+Crucial: o Total de Alunos do recorte deve sair de `bySemester` (e não do TRI) sempre que `hasTri === false`, garantindo que o "Por semestre" com seleções válidas não caia em "Sem resultados".
 
-3. **Otimizar a RPC lenta `get_institutional_evolution`**
-   - Criar migração para reescrever/ajustar a função `get_institutional_evolution` filtrando primeiro os simulados da IES e os alunos da IES, como foi feito nas RPCs principais.
-   - Corrigir a evolução para respeitar a unificação pai/repescagens: ocultar filhos na lista, mas calcular dados usando o grupo do simulado pai quando aplicável.
-   - Adicionar índices direcionados, se necessário, para `answer_progress`, `simulados_finalizados`, `questoes_simulado`, `users` e vínculo pai/IES em `simulados_admin`.
+### 4. UI — barra de contexto em `VisaoInstitucionalModule.tsx`
+- Quando `triPending === true`:
+  - Substituir o trecho "Conceito previsto: …" por um aviso informativo (cinza/âmbar suave, não vermelho): "Os resultados de proficiência (TRI) deste simulado ainda estão em processamento. Os indicadores de participação — total de alunos, percentual de acertos e adesão — já estão disponíveis e respondem aos filtros; os de proficiência serão preenchidos após o processamento."
+  - **Não mostrar** o aviso "Sem alunos do 6º ano — exibindo base geral" (essa mensagem só vale quando o simulado tem TRI mas não há 11º/12º). Hoje ela só renderiza se `fallback`, e com a mudança no hook `fallback` só fica `true` quando `hasTri === true`, então isso já se resolve sozinho.
+- Manter "Analisando N alunos · Base: …" funcionando — `N` virá do Total de Alunos calculado por participação.
 
-4. **Validar com os IDs do caso atual**
-   - Testar a rota com `iesId=3e51663e-8766-4881-bfd1-0921678ed014` e `simuladoId=d3753831-4970-4714-8111-59be2359b88a`.
-   - Confirmar que não aparece mais “Demo”.
-   - Confirmar que os cards carregam com dados reais mesmo se a evolução estiver lenta/indisponível.
+### 5. Empty state em `VisaoInstitucionalModule.tsx`
+A guarda `data.headerSummary.totalAlunos === 0` continua válida, mas agora `totalAlunos` virá da participação real — então o "Sem resultados" só aparece quando de fato não há alunos no recorte (independe de TRI).
 
-## Arquivos/áreas afetadas
+### 6. Banner de Sanção
+Já condicional a `sancao` truthy. Como sancao será `null` quando `hasTri === false`, o banner some automaticamente — comportamento desejado.
 
-- `src/hooks/useInstitutionalPerformanceData.ts`: tratamento de erro e carregamento parcial.
-- `supabase/migrations/...sql`: otimização da `get_institutional_evolution` e índices necessários.
-- Possivelmente `src/services/institutional.ts`: wrappers seguros para chamadas opcionais, sem derrubar a tela inteira.
+## Não-objetivos
+
+- Não alterar nenhuma RPC do banco.
+- Não mexer em outras abas (Diagnóstico Curricular etc.) — escopo limitado à Visão Institucional.
+- Não tocar nos mocks/demo.

@@ -97,7 +97,7 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
           {nAlunos === 1 ? 'aluno' : 'alunos'}
           {' · '}
           Base: <span className="font-medium text-foreground">{baseDescricao}</span>
-          {data.headerSummary.conceitoScoped && (
+          {!data.headerSummary.triPending && data.headerSummary.conceitoScoped && (
             <>
               {' · '}
               {(mode === 'general' || fallback) ? 'Conceito oficial:' : 'Conceito previsto:'}{' '}
@@ -105,12 +105,24 @@ export const VisaoInstitucionalModule: React.FC<Props> = ({ data, loading, error
             </>
           )}
         </span>
-        {fallback && (
+        {fallback && !data.headerSummary.triPending && (
           <span className="text-amber-600 dark:text-amber-400">
             · Sem alunos do 6º ano — exibindo base geral
           </span>
         )}
       </div>
+
+      {data.headerSummary.triPending && (
+        <div className="rounded-lg border border-amber-200/60 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20 px-3.5 py-2.5">
+          <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+            Os resultados de proficiência (TRI) deste simulado ainda estão em processamento.
+            Os indicadores de participação — total de alunos, percentual de acertos e adesão —
+            já estão disponíveis e respondem aos filtros; os de proficiência serão preenchidos
+            após o processamento.
+          </p>
+        </div>
+      )}
+
 
 
       {/* KPIs */}
