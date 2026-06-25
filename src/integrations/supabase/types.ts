@@ -2249,6 +2249,10 @@ export type Database = {
           total: number
         }[]
       }
+      get_simulado_tem_tri: {
+        Args: { p_ies_id?: string; p_simulado_id: string }
+        Returns: boolean
+      }
       get_simulados_questoes_count: {
         Args: { p_simulado_ids: string[] }
         Returns: {
