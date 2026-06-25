@@ -364,17 +364,18 @@ export function mapInstitutionalRpcToViewModel(
   // ── Header summary ──
   const headerSummary: HeaderSummary = {
     totalAlunos: scopedTotalAlunos,
-    percentProficientes,
-    alunosFaltamMeta,
-    sancao,
-    conceitoScoped,
-    notaScoped,
+    percentProficientes: hasTri ? percentProficientes : 0,
+    alunosFaltamMeta: hasTri ? alunosFaltamMeta : 0,
+    sancao: hasTri ? sancao : null,
+    conceitoScoped: hasTri ? conceitoScoped : null,
+    notaScoped: hasTri ? notaScoped : null,
     isSemestreScoped,
     semestresAtivos: activeBase.semestres ?? [],
     conceitoMode: activeBase.mode,
-    sixthYearFallback,
-    basePctProficientes: basePctForConcept,
+    sixthYearFallback: hasTri ? sixthYearFallback : false,
+    basePctProficientes: hasTri ? basePctForConcept : null,
     baseLabel: activeBase.label,
+    triPending: !hasTri,
   };
 
 
