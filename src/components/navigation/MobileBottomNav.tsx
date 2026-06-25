@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
 import { isAdmin } from "@/utils/accessRules";
+import { isRouteActive } from "@/experiences/shared/navActive";
 import { useTheme } from "next-themes";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
 import {
@@ -87,13 +88,13 @@ export function MobileBottomNav() {
   }, []);
 
   const currentPath = location.pathname;
-  const isActive = (path: string) => currentPath === path;
+  const isActive = (path: string) => isRouteActive(currentPath, path);
 
   const transition = prefersReducedMotion ? reducedMotionTransition : springTransition;
 
   // Quick nav items for bottom bar (4 items + Menu)
   const quickNavItems: BottomNavItem[] = useMemo(() => [
-    { id: "home", title: "Início", url: "/home", icon: Home, show: accessRules.home },
+    { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
     { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
     { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
     { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
@@ -136,9 +137,9 @@ export function MobileBottomNav() {
 
     // Admin section
     const adminItems = [
-      { title: "Portal do Admin", url: "/gestao-usuarios", icon: UserCog, show: accessRules.userManagement },
-      { title: "Analytics", url: "/analytics", icon: TrendingUp, show: accessRules.analytics },
-      { title: "Desempenho Institucional", url: "/desempenho-institucional-v2", icon: School, show: accessRules.desempenhoInstitucional },
+      { title: "Portal do Admin", url: "/admin/usuarios", icon: UserCog, show: accessRules.userManagement },
+      { title: "Analytics", url: "/admin/analytics", icon: TrendingUp, show: accessRules.analytics },
+      { title: "Desempenho Institucional", url: "/gestor", icon: School, show: accessRules.desempenhoInstitucional },
     ].filter(item => item.show);
 
     if (adminItems.length > 0) {
