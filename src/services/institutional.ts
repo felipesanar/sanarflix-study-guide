@@ -130,6 +130,33 @@ export async function fetchInstitutionalTri(
   }
 }
 
+export async function fetchSimuladoTemTri(
+  simuladoId: string,
+  iesId: string,
+): Promise<boolean> {
+  try {
+    const result = await withTimeout(
+      Promise.resolve(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('get_simulado_tem_tri', {
+          p_simulado_id: simuladoId,
+          p_ies_id: iesId,
+        }),
+      ),
+      RPC_TIMEOUT,
+      'get_simulado_tem_tri',
+    );
+    if (result.error) {
+      Logger.warn('[TRI] get_simulado_tem_tri failed:', result.error.message);
+      return false;
+    }
+    return Boolean(result.data);
+  } catch (err) {
+    Logger.warn('[TRI] get_simulado_tem_tri error:', err);
+    return false;
+  }
+}
+
 export async function fetchInstitutionalTriEvolution(
   iesId: string,
 ): Promise<InstitutionalTriEvolutionEntry[]> {

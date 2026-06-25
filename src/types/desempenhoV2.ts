@@ -150,6 +150,8 @@ export interface HeaderSummary {
   basePctProficientes?: number | null;
   /** Rótulo curto da base ativa, ex.: "6º ano", "IES inteira", "Semestres 9, 10" */
   baseLabel?: string;
+  /** True quando o simulado ainda não tem TRI processado — KPIs de proficiência ficam em branco. */
+  triPending?: boolean;
 }
 
 // ── Raw RPC response types ──
