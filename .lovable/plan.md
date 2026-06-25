@@ -1,42 +1,38 @@
-## Problema
+## Diagnóstico
 
-Os RPCs `get_institutional_performance` e `get_institutional_student_scores` estão retornando 400. A causa é o erro de SQL:
+O problema atual não é mais o `get_institutional_performance`; pelos logs do preview, a tela cai para dados de demonstração porque a chamada `get_institutional_evolution` estoura timeout:
 
-```
-column ap.updated_at does not exist
-```
-
-A migration anterior (do mecanismo `simulado_pai_id`) usou `ap.updated_at` no CTE `ultima_fallback` para escolher a tentativa mais recente do aluno, mas a tabela `answer_progress` **não possui** coluna de timestamp algum (suas colunas são: `answer_id`, `correct`, `question_id`, `resposta_usuario`, `simulado`, `respondida?`, `user_id`).
-
-Resultado: nenhuma tela do **Desempenho Institucional** carrega ("completamente errado e apresentando problemas") porque essas duas RPCs alimentam KPIs, faixas, listas de alunos, etc.
-
-## Correção (1 migration, SQL apenas)
-
-Substituir a ordenação por `ap.updated_at` no CTE `ultima_fallback` (presente nas duas funções) por uma referência válida — ordenar pela `created_at` do simulado em `simulados_admin`, do mais recente para o mais antigo. Assim, quando o aluno tem respostas em mais de um simulado do grupo (pai + repescagens) mas não tem nenhum registro em `simulados_finalizados`, escolhemos a tentativa associada ao simulado **criado mais recentemente** (proxy razoável; o caminho principal continua usando `simulados_finalizados.finalizado_em`).
-
-Mudança exata em ambas as funções (`get_institutional_performance` e `get_institutional_student_scores`):
-
-```sql
-ultima_fallback AS (
-  SELECT DISTINCT ON (ap.user_id)
-         ap.user_id, ap.simulado AS simulado_id
-  FROM answer_progress ap
-  JOIN simulados_admin sa_ord ON sa_ord.id = ap.simulado
-  WHERE ap.simulado IN (SELECT simulado_id FROM grupo)
-    AND NOT EXISTS (SELECT 1 FROM ultima u WHERE u.user_id = ap.user_id)
-  ORDER BY ap.user_id, sa_ord.created_at DESC NULLS LAST
-)
+```text
+Falha no carregamento, usando dados de demonstração: Evolution: canceling statement due to statement timeout
 ```
 
-Nada mais muda: assinatura, permissões, joins, agregações, grants e o restante das 5 funções da migration anterior continuam idênticos.
+Como o hook trata qualquer falha de uma das consultas como falha geral, um erro apenas na evolução derruba a tela inteira e exibe os dados fake de 35% / Conceito 1.
 
-## Validação
+## Plano de correção
 
-- Re-executar `get_institutional_performance('7ac2a46b-…','9f21b138-…')` deve retornar JSON válido.
-- Painel de Desempenho da IES FAI deve voltar a renderizar KPIs, faixas, evolução e lista de alunos sem 400.
-- Logs do Postgres não devem mais conter "column ap.updated_at does not exist".
+1. **Blindar o carregamento principal**
+   - Separar as consultas críticas dos dados acessórios.
+   - Dados críticos: performance, student scores, TRI, total de alunos.
+   - Dados acessórios: evolução e evolução TRI.
+   - Se evolução falhar por timeout, a tela principal continuará com dados reais; apenas o gráfico de evolução ficará vazio ou usando fallback seguro.
 
-## Fora de escopo
+2. **Remover fallback silencioso para Demo em falhas reais**
+   - Manter dados Demo apenas quando não houver sessão/local preview sem autenticação.
+   - Para erro de RPC com usuário autenticado, exibir erro real ou carregar parcial, mas nunca substituir por mock como se fosse dado real.
+   - Isso evita o card “Demo” e os KPIs falsos quando uma RPC falha.
 
-- Não tocar em frontend, mocks, `/simulados`, `SimuladoDesempenho`, ranking, Caderno de Erros, Analytics.
-- Não alterar a lógica de pai/filho — só o critério de desempate do fallback.
+3. **Otimizar a RPC lenta `get_institutional_evolution`**
+   - Criar migração para reescrever/ajustar a função `get_institutional_evolution` filtrando primeiro os simulados da IES e os alunos da IES, como foi feito nas RPCs principais.
+   - Corrigir a evolução para respeitar a unificação pai/repescagens: ocultar filhos na lista, mas calcular dados usando o grupo do simulado pai quando aplicável.
+   - Adicionar índices direcionados, se necessário, para `answer_progress`, `simulados_finalizados`, `questoes_simulado`, `users` e vínculo pai/IES em `simulados_admin`.
+
+4. **Validar com os IDs do caso atual**
+   - Testar a rota com `iesId=3e51663e-8766-4881-bfd1-0921678ed014` e `simuladoId=d3753831-4970-4714-8111-59be2359b88a`.
+   - Confirmar que não aparece mais “Demo”.
+   - Confirmar que os cards carregam com dados reais mesmo se a evolução estiver lenta/indisponível.
+
+## Arquivos/áreas afetadas
+
+- `src/hooks/useInstitutionalPerformanceData.ts`: tratamento de erro e carregamento parcial.
+- `supabase/migrations/...sql`: otimização da `get_institutional_evolution` e índices necessários.
+- Possivelmente `src/services/institutional.ts`: wrappers seguros para chamadas opcionais, sem derrubar a tela inteira.
