@@ -206,8 +206,14 @@ export function mapInstitutionalRpcToViewModel(
     ? triNumBelow
     : (hasAnyTri ? alunosAbaixoStrict.length : alunosAbaixoByAccuracy);
 
-  // Total de alunos da base
-  const scopedTotalAlunos = triNumStudents !== null ? triNumStudents : students.length;
+  // Total de alunos da base — preferimos bySemester (participação real). TRI só se houver.
+  let baseStudentsFromPerf = 0;
+  (performance.bySemester ?? []).forEach((row) => {
+    if (inBase(row.semestre)) baseStudentsFromPerf += row.num_students ?? 0;
+  });
+  const scopedTotalAlunos = hasTri && triNumStudents !== null
+    ? triNumStudents
+    : (baseStudentsFromPerf || students.length || overallStats.totalStudents);
 
   // % Acertos / Total — somar bySemester apenas dos semestres da base
   let baseAcertos = 0;
@@ -247,14 +253,15 @@ export function mapInstitutionalRpcToViewModel(
     ? 'Sem alunos do 6º ano — exibindo base geral'
     : (notaAtual !== null ? `Nota ${notaAtual}` : 'Conceito TRI indisponível');
 
+  const triPendingDesc = 'Aguardando cálculo do TRI';
   const kpis: KpiData[] = [
     { label: 'Total de Alunos', value: scopedTotalAlunos, icon: 'Users', status: 'neutral', description: 'Alunos do simulado', scope: 'scoped', baseLabel },
     { label: 'Percentual de Acertos', value: `${percentualAcertos}%`, icon: 'Target', status: getKpiStatus(percentualAcertos, { good: 60, warning: 40 }), description: `${baseAcertos} acertos de ${baseTotal} questões`, scope: 'scoped', baseLabel },
-    { label: 'Proficiência Média (TRI)', value: proficiencyForKpi !== null ? proficiencyForKpi : '—', icon: 'Target', status: proficiencyForKpi !== null ? getKpiStatus(proficiencyForKpi, { good: 60, warning: 40 }) : 'neutral', description: proficienciaDesc, scope: 'scoped', baseLabel },
-    { label: 'Alunos Proficientes', value: triPercentProficientes !== null ? `${triPercentProficientes}%` : '—', icon: 'CheckCircle', status: triPercentProficientes !== null ? getKpiStatus(triPercentProficientes, { good: 60, warning: 40 }) : 'neutral', description: proficientesDescricao, scope: 'scoped', baseLabel },
-    { label: 'Nota Prevista da IES', value: conceito ?? '—', icon: 'School', status: notaAtual !== null ? getKpiStatus(notaAtual, { good: 4, warning: 3 }) : 'neutral', description: conceitoDescription, scope: 'scoped', baseLabel },
-    { label: 'Distância Próxima Faixa', value: basePctForConcept === null ? '—' : (basePctForDist >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`), icon: 'TrendingUp', status: distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good', description: 'Para próxima faixa', scope: 'scoped', baseLabel },
-    { label: 'Alunos Abaixo do Esperado', value: alunosAbaixoCount, icon: 'AlertTriangle', status: getKpiStatus(100 - (alunosAbaixoCount / Math.max(baseTotalForMeta ?? scopedTotalAlunos, 1)) * 100, { good: 60, warning: 40 }), description: hasAnyTri || triNumBelow !== null ? `Abaixo de ${PROFICIENCY_THRESHOLD} pts (TRI)` : `Abaixo de ${PROFICIENCY_THRESHOLD}% de acerto (TRI indisponível)`, scope: 'scoped', baseLabel },
+    { label: 'Proficiência Média (TRI)', value: hasTri && proficiencyForKpi !== null ? proficiencyForKpi : '—', icon: 'Target', status: hasTri && proficiencyForKpi !== null ? getKpiStatus(proficiencyForKpi, { good: 60, warning: 40 }) : 'neutral', description: hasTri ? proficienciaDesc : triPendingDesc, scope: 'scoped', baseLabel },
+    { label: 'Alunos Proficientes', value: hasTri && triPercentProficientes !== null ? `${triPercentProficientes}%` : '—', icon: 'CheckCircle', status: hasTri && triPercentProficientes !== null ? getKpiStatus(triPercentProficientes, { good: 60, warning: 40 }) : 'neutral', description: hasTri ? proficientesDescricao : triPendingDesc, scope: 'scoped', baseLabel },
+    { label: 'Nota Prevista da IES', value: hasTri ? (conceito ?? '—') : '—', icon: 'School', status: hasTri && notaAtual !== null ? getKpiStatus(notaAtual, { good: 4, warning: 3 }) : 'neutral', description: hasTri ? conceitoDescription : triPendingDesc, scope: 'scoped', baseLabel },
+    { label: 'Distância Próxima Faixa', value: hasTri && basePctForConcept !== null ? (basePctForDist >= 90 ? '0 p.p.' : `${distanciaPP} p.p.`) : '—', icon: 'TrendingUp', status: hasTri ? (distanciaPP > 15 ? 'critical' : distanciaPP > 5 ? 'warning' : 'good') : 'neutral', description: hasTri ? 'Para próxima faixa' : triPendingDesc, scope: 'scoped', baseLabel },
+    { label: 'Alunos Abaixo do Esperado', value: hasTri ? alunosAbaixoCount : '—', icon: 'AlertTriangle', status: hasTri ? getKpiStatus(100 - (alunosAbaixoCount / Math.max(baseTotalForMeta ?? scopedTotalAlunos, 1)) * 100, { good: 60, warning: 40 }) : 'neutral', description: hasTri ? (hasAnyTri || triNumBelow !== null ? `Abaixo de ${PROFICIENCY_THRESHOLD} pts (TRI)` : `Abaixo de ${PROFICIENCY_THRESHOLD}% de acerto (TRI indisponível)`) : triPendingDesc, scope: 'scoped', baseLabel },
     { label: 'Taxa de Adesão', value: realTotalIesUsers > 0 ? `${taxaAdesao}%` : '—', icon: 'CheckCircle', status: taxaAdesao >= 80 ? 'good' : taxaAdesao >= 50 ? 'warning' : 'neutral', description: taxaAdesaoLabel, scope: 'scoped', baseLabel },
   ];
 
