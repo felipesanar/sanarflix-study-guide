@@ -306,17 +306,31 @@ export function useInstitutionalPerformanceData(
           : (user?.id_ies || undefined);
       const targetIesId = await resolveIesId(requestedIesId);
 
-      // Chamadas em paralelo — TRI/Adesão usam a base ativa.
-      const [perfData, scoresData, evoData, triEvoData, studentTriData] = await Promise.all([
+      // Críticas — se qualquer uma falhar, mostramos erro real (sem cair em mock).
+      const [perfData, scoresData, studentTriData] = await Promise.all([
         fetchInstitutionalPerformance(filters.simuladoId, targetIesId),
         fetchStudentScores(filters.simuladoId, targetIesId),
-        fetchInstitutionalEvolution(targetIesId),
-        fetchInstitutionalTriEvolution(targetIesId),
         fetchStudentTriScores(filters.simuladoId, targetIesId),
       ]);
 
-      let triScopedData = await fetchInstitutionalTri(filters.simuladoId, targetIesId, activeBase.semestres);
-      let totalIesUsers = await fetchIesStudentCount(targetIesId, activeBase.semestres);
+      // Acessórias — não derrubam a tela se falharem (ex.: evolução com timeout).
+      const safe = async <T,>(p: Promise<T>, label: string, fallback: T): Promise<T> => {
+        try { return await p; } catch (e) {
+          Logger.warn('[DesempenhoInstitucional]', `${label} falhou — seguindo sem ela:`, e instanceof Error ? e.message : e);
+          return fallback;
+        }
+      };
+      const [evoData, triEvoData] = await Promise.all([
+        safe(fetchInstitutionalEvolution(targetIesId), 'evolution', []),
+        safe(fetchInstitutionalTriEvolution(targetIesId), 'tri-evolution', []),
+      ]);
+
+      let triScopedData = await safe(
+        fetchInstitutionalTri(filters.simuladoId, targetIesId, activeBase.semestres),
+        'tri-snapshot',
+        null,
+      );
+      let totalIesUsers = await safe(fetchIesStudentCount(targetIesId, activeBase.semestres), 'ies-count', 0);
       let effectiveBase = activeBase;
       let sixthYearFallback = false;
 
@@ -325,8 +339,8 @@ export function useInstitutionalPerformanceData(
         Logger.info('[DesempenhoInstitucional]', '6º ano sem alunos — fallback para base geral');
         sixthYearFallback = true;
         effectiveBase = { semestres: null, mode: 'general', label: 'IES inteira' };
-        triScopedData = await fetchInstitutionalTri(filters.simuladoId, targetIesId, null);
-        totalIesUsers = await fetchIesStudentCount(targetIesId, null);
+        triScopedData = await safe(fetchInstitutionalTri(filters.simuladoId, targetIesId, null), 'tri-snapshot-fallback', null);
+        totalIesUsers = await safe(fetchIesStudentCount(targetIesId, null), 'ies-count-fallback', 0);
       }
 
       if (!perfData?.overallStats || !scoresData?.students) {
@@ -354,10 +368,11 @@ export function useInstitutionalPerformanceData(
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro inesperado ao carregar dados';
-      Logger.error('[DesempenhoInstitucional]', 'Falha no carregamento, usando dados de demonstração:', message);
-      setUsingMock(true);
-      setData(getMockViewModel());
-      setError(null);
+      Logger.error('[DesempenhoInstitucional]', 'Falha no carregamento:', message);
+      // Não substitui por mock — mostramos erro real para evitar exibir dados falsos.
+      setData(null);
+      setUsingMock(false);
+      setError(message);
     } finally {
       setLoading(false);
     }
