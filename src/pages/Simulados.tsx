@@ -96,11 +96,10 @@ export const Simulados = () => {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="correcao" className="mt-0">
-            <SimuladoCorrecao />
-          </TabsContent>
-        )}
+        <TabsContent value="correcao" className="mt-0">
+          <SimuladoCorrecao />
+        </TabsContent>
+
       </Tabs>
 
       {/* Modal do tutorial */}
