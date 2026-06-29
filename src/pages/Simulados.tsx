@@ -26,7 +26,7 @@ export const Simulados = () => {
     const abaParam = params.get('aba');
     if (abaParam === 'desempenho') {
       setAbaAtiva('desempenho');
-    } else if (abaParam === 'correcao' && isAdmin) {
+    } else if (abaParam === 'correcao') {
       setAbaAtiva('correcao');
     } else {
       setAbaAtiva('disponiveis');
