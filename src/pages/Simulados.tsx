@@ -65,7 +65,7 @@ export const Simulados = () => {
       </div>
 
       <Tabs value={abaAtiva} onValueChange={handleTabChange} className="w-full">
-        <TabsList className={`grid w-full max-w-lg ${isAdmin ? 'grid-cols-3' : showDesempenho ? 'grid-cols-2' : 'grid-cols-1'} mb-8`}>
+        <TabsList className={`grid w-full max-w-lg ${showDesempenho ? 'grid-cols-3' : 'grid-cols-2'} mb-8`}>
           <TabsTrigger value="disponiveis" className="gap-2">
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Simulados</span>
@@ -78,14 +78,13 @@ export const Simulados = () => {
               <span className="sm:hidden text-xs">Desempenho</span>
             </TabsTrigger>
           )}
-          {isAdmin && (
-            <TabsTrigger value="correcao" className="gap-2">
-              <ClipboardCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Correção</span>
-              <span className="sm:hidden text-xs">Correção</span>
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="correcao" className="gap-2">
+            <ClipboardCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Correção</span>
+            <span className="sm:hidden text-xs">Correção</span>
+          </TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="disponiveis" className="mt-0">
           <SimuladosDisponiveis />
