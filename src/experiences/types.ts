@@ -30,8 +30,9 @@ export interface NavItem {
   title: string;
   /** Rota de destino. */
   url: string;
-  /** Ícone do item (componente React ou tag intrínseca). */
-  icon: ElementType;
+  /** Ícone do item (componente React ou tag intrínseca). Opcional: navegações
+   *  text-only (ex.: módulos do gestor) podem omiti-lo. */
+  icon?: ElementType;
   /**
    * Chave de {@link AccessRules} que controla a visibilidade do item.
    *
