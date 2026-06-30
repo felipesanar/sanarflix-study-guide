@@ -1,61 +1,84 @@
-# V1 / F1 — Experiências apartadas por rota (relatório de progresso)
+# V1 — Experiências apartadas por rota (relatório de progresso)
 
-> **Branch:** `feat/v1-experiencias-rotas-apartadas` · **Último commit:** `cdc0c76` · **PR:** ainda não aberto (combinado: abrir ao final do F1).
+> **Branch:** `feat/v1-experiencias-rotas-apartadas` · **PR:** a abrir ao final da F4 (regression-free).
 >
-> Objetivo da V1: separar as rotas por finalidade (experiências apartadas — aluno+professor, gestão, admin, atendimento), com cada role caindo na sua experiência e bloqueio de acesso cruzado.
+> Objetivo da V1: separar as rotas por finalidade (experiências apartadas — aluno+professor, gestão, admin, atendimento), com cada role caindo na sua experiência e bloqueio de acesso cruzado. Roteamento data-driven (`buildAppRoutes` → `useRoutes`).
+>
+> _(O nome do arquivo mantém "f1" por histórico; o conteúdo cobre F1–F4.)_
 
 ---
 
-## ✅ O que foi feito (F1·1 a F1·7)
+## ✅ Fases concluídas
+
+### F1 · Fundação (F1·1–F1·7)
 
 | Task | Entrega | Commit |
 |---|---|---|
-| **F1·1** | `EXPERIENCE_ENTRYPOINTS` apontando para rotas aninhadas (admin→`/admin/usuarios`, atendimento→`/atendimento/usuarios`, gestão→`/gestor`) e 1ª preferência do aluno `/home`→`/`. Teste estendido. | `8b8511d` |
-| **F1·2** | `src/experiences/types.ts`: `ExperienceId`, `NavItem`, `filterNavByAccess` (filtro de navegação por regras de acesso). TDD (6 casos). | `daff8b8` |
-| **F1·3** | `ExperienceGuard` — bloqueio de acesso cruzado: redireciona quem está fora da sua experiência para o próprio entrypoint. TDD (6 casos). | `1713bc1` |
-| **F1·4** | `buildAppRoutes` (função pura `(user, accessRules)→RouteObject[]`), `alunoRoutes` (Home em `/`, `/home`→`/`) e `ExperiencePage`. TDD (9 casos). | `ab5ce1c` |
-| **F1·5** | `DynamicRoutes` reescrito para `useRoutes(buildAppRoutes(...))`; rotas compartilhadas (`/login`, `/auth/callback`) incorporadas ao builder. | `bec717b` |
-| **F1·6** | Bloco não autenticado do `App.tsx`: `/`→login, `/login`→`/`, catch-all→`/`. **Verificado no navegador (deslogado).** | `d1d8199` |
-| **F1·7** | `AlunoNav.ts` (navegação canônica do aluno), `isRouteActive` (ativo por prefixo) + teste; URLs novas e detecção de ativo aplicadas em `AppSidebar` e `MobileBottomNav`. | `cdc0c76` |
+| F1·1 | `EXPERIENCE_ENTRYPOINTS` → rotas aninhadas; aluno `/home`→`/`. | `8b8511d` |
+| F1·2 | `experiences/types.ts`: `ExperienceId`, `NavItem`, `filterNavByAccess`. | `daff8b8` |
+| F1·3 | `ExperienceGuard` (bloqueio de acesso cruzado). | `1713bc1` |
+| F1·4 | `buildAppRoutes` (pura), `alunoRoutes` (Home em `/`), `ExperiencePage`. | `ab5ce1c` |
+| F1·5 | `DynamicRoutes` via `useRoutes(buildAppRoutes(...))`; rotas compartilhadas. | `bec717b` |
+| F1·6 | Raiz `/` serve login (deslogado); `/login`→`/`. **Verificado no navegador.** | `d1d8199` |
+| F1·7 | `AlunoNav.ts`, `isRouteActive` (ativo por prefixo); URLs novas na sidebar/bottom-nav. | `cdc0c76` |
 
-**Qualidade:** em todas as tasks o `tsc --noEmit` ficou limpo e o **build de produção** passou. Os testes novos somam **25 casos** (todos verdes). A experiência do **aluno** está funcional ponta a ponta (login → Home na raiz → telas controladas por `ies_features`).
+### F2 · Admin (F2·8–F2·11)
 
-### Novos módulos criados (`src/experiences/`)
+| Task | Entrega | Commit |
+|---|---|---|
+| F2·8 | `admin/AdminNav.ts` + `AdminLayout.tsx` (sub-nav NavLink + Outlet; CX só Usuários). | `234eefc` |
+| F2·9 | 8 páginas finas em `admin/pages/` reusando os `*Tab.tsx`. | `8f320bc` |
+| F2·10 | `adminRoutes.tsx` (layout + filhas + guard + redirects compat) no `buildAppRoutes`. | `7747c67` |
+| F2·11 | Removido `UserManagement.tsx` + teste; sem referências vivas. | `e1169ec` |
 
-- `types.ts` — `ExperienceId`, `NavItem`, `filterNavByAccess`.
-- `buildAppRoutes.tsx` — montagem data-driven das rotas por experiência.
-- `aluno/alunoRoutes.tsx` — rotas da experiência Aluno + Professor.
-- `aluno/AlunoNav.ts` — navegação canônica do aluno.
-- `shared/ExperiencePage.tsx` — wrapper de página (Suspense + PageWrapper).
-- `shared/ExperienceGuard.tsx` — bloqueio de acesso cruzado.
-- `shared/navActive.ts` — `isRouteActive` (detecção de ativo por prefixo).
+### F3 · Gestor (F3·12–F3·14)
 
----
+| Task | Entrega | Commit |
+|---|---|---|
+| F3·12 | `GestorNav.ts`, `GestorFiltersProvider` (filtros globais persistem entre módulos), `GestorLayout.tsx`. | `bbb1e7d` |
+| F3·13 | 5 páginas-módulo em `gestor/pages/` (extraídas do `ModuleContentRenderer`). | `5ec67df` |
+| F3·14 | `gestorRoutes.tsx` (layout + 5 módulos + guard + redirects `/desempenho-institucional(-v2)`). | `08d9fc4` |
 
-## ⚠️ O que NÃO foi feito / precisa de atenção
+### F4 · Atendimento/CX (F4·15) + fechamento
 
-**1. Admin, Atendimento e Gestão ainda caem em "NotFound" (o ponto mais importante).**
-Os entrypoints já apontam para `/admin/usuarios`, `/atendimento/usuarios`, `/gestor`, mas **os módulos de rota dessas experiências ainda não existem** no `buildAppRoutes` (só o aluno foi criado). Hoje, ao logar como admin/CX/gestor, o usuário é redirecionado para uma rota inexistente. → São as **próximas tasks do F1**.
-
-**2. Consequência direta: a branch não pode ir para produção ainda.** Estado intermediário esperado; só fica "shippable" quando os módulos de admin/atendimento/gestão entrarem.
-
-**3. `ExperienceGuard` criado mas ainda não plugado.** Será usado para envolver as rotas das experiências admin/gestão (tasks futuras).
-
-**4. `ALUNO_NAV` ainda não é consumido pelos componentes.** `AppSidebar`/`MobileBottomNav` receberam as URLs corretas, mas mantêm seus próprios arrays. A unificação acontece quando a navegação for apartada por experiência.
-
-**5. Outros arquivos ainda usam URLs antigas** (`useIntelligentPrefetch.ts`, `MeuDiaCard.tsx`, `BulkEmailUpdateTab.tsx`) — fora do escopo do F1·7; provavelmente entram em tasks seguintes.
-
-**6. Verificação visual da navegação pendente.** `AppSidebar`/`MobileBottomNav` só montam logados — validado por build/typecheck/teste do matcher, mas **falta conferência visual** (logado como aluno: "Início" ativo em `/`).
-
-**7. Detalhe menor:** o fallback final de `getDefaultRouteForUser` ainda retorna `/home` no caso extremo de "nenhuma tela liberada" (ex.: usuário nulo). Sem impacto prático para usuários reais (alunos têm simulados na base), mas vale alinhar depois.
+| Task | Entrega | Commit |
+|---|---|---|
+| F4·15 | `AtendimentoLayout.tsx` + `atendimentoRoutes.tsx` (reusa `UsuariosPage`; guard; compat `/gestao-usuarios`). | `f405ef2` |
+| F4·16 | Regressão final + **abertura do PR** (em andamento). | — |
 
 ---
 
-## Contexto importante para o time
+## 🗺️ Mapa de rotas final
 
-- **46 falhas de teste são pré-existentes** (LoginForm, UserManagement, Announcements, auth-smoke, sidebar) — confirmado que existem na `main` antes destas mudanças; **não foram introduzidas por este trabalho**.
-- A lógica de rotas é **testada por unidade** e o roteamento agora é **data-driven** (`RouteObject[]`), o que facilita adicionar as próximas experiências.
+- **Aluno + Professor** (raiz): `/` (Home) · `/guia-estudos` · `/simulados` · `/simulados/:id/prova` · `/desempenho-simulado` · `/dashboard` · `/caderno-de-erros` (+ sub) · `/sanarclass` · `/meus-feedbacks`
+- **Admin** `/admin/*`: `usuarios · avisos · ies · guia · sanarclass · simulados · feedbacks · analytics`
+- **Gestão** `/gestor/*`: `visao-institucional · diagnostico-curricular · alunos · insights-pedagogicos · inteligencia-decisoria`
+- **Atendimento** `/atendimento/usuarios`
+- **Compat:** `/home → /` · `/gestao-usuarios → /admin/usuarios` (ou `/atendimento/usuarios` p/ CX) · `/desempenho-institucional(-v2) → /gestor` · `/analytics → /admin/analytics`
 
 ---
 
-*Documento gerado durante a execução das tasks F1·1–F1·7. Atualizar conforme novas tasks do F1 forem concluídas.*
+## 🔍 Estado / qualidade
+
+- **As 4 experiências têm módulo de rotas próprio** — o NotFound de admin/gestor/CX foi **resolvido**. Cada usuário recebe só as rotas da sua experiência (+ compartilhadas + catch-all), reforçado por `ExperienceGuard` em cada layout.
+- `tsc --noEmit` limpo; **build de produção** OK; boot deslogado validado no navegador.
+- **Testes novos:** ~40 casos unitários verdes (experiences, buildAppRoutes, navActive, adminNav, gestorNav, ExperienceGuard).
+- **Falhas de teste pré-existentes (não introduzidas por este trabalho):** `LoginForm`, `AnnouncementEditor`, `AnnouncementsTab`, `UsersTab`, `tests/auth-smoke`, `tests/sidebar` — confirmadas na `main` antes destas mudanças (mocks/ambiente + specs Playwright capturados pelo vitest).
+
+## ⚠️ Verificação manual logada pendente (recomendado antes/depois do merge)
+
+Os layouts montam só autenticado; validei estrutura por testes/build, mas vale conferir logado:
+- **Aluno:** Home em `/`, item "Início" ativo em `/`.
+- **Admin:** `/admin/*` (sub-nav, deep-link/refresh/back-forward), `/gestao-usuarios` e `/analytics` redirecionam.
+- **Gestor:** `/gestor/*`, e **trocar de módulo não reseta os filtros globais**.
+- **CX:** `/atendimento/usuarios` (sem recursos exclusivos de admin).
+
+## 📌 Pontos menores / follow-ups
+
+- `useIntelligentPrefetch.ts` ainda mapeia algumas URLs antigas (`/home`, `/analytics`) — prefetch é só perf; vale um refresh futuro.
+- `ALUNO_NAV` ainda não é consumido pela sidebar/bottom-nav (que mantêm seus arrays com as URLs corretas) — unificação futura.
+- Fallback final de `getDefaultRouteForUser` retorna `/home` no caso extremo "nenhuma tela liberada" (sem impacto prático).
+
+---
+
+*Atualizado ao concluir F4·15 (regressão final). PR único cobrindo F1–F4 a ser aberto na F4·16.*
