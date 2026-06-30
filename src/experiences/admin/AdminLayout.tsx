@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -57,8 +58,12 @@ export const AdminLayout: React.FC = () => {
           ))}
         </nav>
 
-        {/* Conteúdo da seção ativa */}
-        <Outlet />
+        {/* Conteúdo da seção ativa (carregada sob demanda) */}
+        <Suspense
+          fallback={<div className="min-h-[40vh]" aria-busy="true" />}
+        >
+          <Outlet />
+        </Suspense>
       </div>
     </div>
   );

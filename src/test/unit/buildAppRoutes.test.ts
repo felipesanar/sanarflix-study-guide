@@ -106,9 +106,56 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
   });
 
   it('experiência sem módulo próprio ainda retorna compartilhadas + catch-all', () => {
-    // Admin ainda não tem rotas próprias nesta fase (tasks futuras do F1).
-    const admin = makeUser(['admin']);
-    const routes = buildAppRoutes(admin, getAccessRules(admin));
+    // Gestão ainda não tem rotas próprias nesta fase (F3).
+    const gestor = makeUser(['gestor']);
+    const routes = buildAppRoutes(gestor, getAccessRules(gestor));
     expect(routes.map((r) => r.path)).toEqual(['/login', '/auth/callback', '*']);
+  });
+});
+
+describe('experiences/buildAppRoutes — admin', () => {
+  const admin = makeUser(['admin']);
+  const adminRules = getAccessRules(admin);
+
+  it('expõe a rota-layout /admin com as seções como filhas', () => {
+    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const adminRoute = routes.get('/admin');
+    expect(adminRoute).toBeDefined();
+
+    const childPaths = (adminRoute?.children ?? []).map((c) =>
+      c.index ? 'index' : c.path,
+    );
+    expect(childPaths).toEqual([
+      'index',
+      'usuarios',
+      'avisos',
+      'ies',
+      'guia',
+      'sanarclass',
+      'simulados',
+      'feedbacks',
+      'analytics',
+    ]);
+  });
+
+  it('a index de /admin redireciona para /admin/usuarios', () => {
+    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const indexChild = (routes.get('/admin')?.children ?? []).find(
+      (c) => c.index,
+    );
+    expect(redirectTarget(indexChild)).toBe('/admin/usuarios');
+  });
+
+  it('inclui os redirects de compatibilidade das URLs antigas', () => {
+    const routes = byPath(buildAppRoutes(admin, adminRules));
+    expect(redirectTarget(routes.get('/gestao-usuarios'))).toBe(
+      '/admin/usuarios',
+    );
+    expect(redirectTarget(routes.get('/analytics'))).toBe('/admin/analytics');
+  });
+
+  it('mantém o catch-all (*) ao final também para o admin', () => {
+    const routes = buildAppRoutes(admin, adminRules);
+    expect(routes[routes.length - 1].path).toBe('*');
   });
 });
