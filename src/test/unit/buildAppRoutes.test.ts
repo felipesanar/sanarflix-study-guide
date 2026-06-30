@@ -105,11 +105,36 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
-  it('experiência sem módulo próprio ainda retorna compartilhadas + catch-all', () => {
-    // Atendimento ainda não tem rotas próprias nesta fase (F4).
-    const cx = makeUser(['atendimento']);
-    const routes = buildAppRoutes(cx, getAccessRules(cx));
-    expect(routes.map((r) => r.path)).toEqual(['/login', '/auth/callback', '*']);
+});
+
+describe('experiences/buildAppRoutes — atendimento (CX)', () => {
+  const cx = makeUser(['atendimento']);
+  const cxRules = getAccessRules(cx);
+
+  it('expõe a rota-layout /atendimento com a seção Usuários', () => {
+    const routes = byPath(buildAppRoutes(cx, cxRules));
+    const cxRoute = routes.get('/atendimento');
+    expect(cxRoute).toBeDefined();
+
+    const childPaths = (cxRoute?.children ?? []).map((c) =>
+      c.index ? 'index' : c.path,
+    );
+    expect(childPaths).toEqual(['index', 'usuarios']);
+  });
+
+  it('a index de /atendimento redireciona para /atendimento/usuarios', () => {
+    const routes = byPath(buildAppRoutes(cx, cxRules));
+    const indexChild = (routes.get('/atendimento')?.children ?? []).find(
+      (c) => c.index,
+    );
+    expect(redirectTarget(indexChild)).toBe('/atendimento/usuarios');
+  });
+
+  it('redireciona /gestao-usuarios para /atendimento/usuarios (compat do CX)', () => {
+    const routes = byPath(buildAppRoutes(cx, cxRules));
+    expect(redirectTarget(routes.get('/gestao-usuarios'))).toBe(
+      '/atendimento/usuarios',
+    );
   });
 });
 
