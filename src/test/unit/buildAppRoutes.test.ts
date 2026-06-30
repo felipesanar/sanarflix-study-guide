@@ -106,10 +106,53 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
   });
 
   it('experiência sem módulo próprio ainda retorna compartilhadas + catch-all', () => {
-    // Gestão ainda não tem rotas próprias nesta fase (F3).
-    const gestor = makeUser(['gestor']);
-    const routes = buildAppRoutes(gestor, getAccessRules(gestor));
+    // Atendimento ainda não tem rotas próprias nesta fase (F4).
+    const cx = makeUser(['atendimento']);
+    const routes = buildAppRoutes(cx, getAccessRules(cx));
     expect(routes.map((r) => r.path)).toEqual(['/login', '/auth/callback', '*']);
+  });
+});
+
+describe('experiences/buildAppRoutes — gestão', () => {
+  const gestor = makeUser(['gestor']);
+  const gestorRules = getAccessRules(gestor);
+
+  it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
+    const routes = byPath(buildAppRoutes(gestor, gestorRules));
+    const gestorRoute = routes.get('/gestor');
+    expect(gestorRoute).toBeDefined();
+
+    const childPaths = (gestorRoute?.children ?? []).map((c) =>
+      c.index ? 'index' : c.path,
+    );
+    expect(childPaths).toEqual([
+      'index',
+      'visao-institucional',
+      'diagnostico-curricular',
+      'alunos',
+      'insights-pedagogicos',
+      'inteligencia-decisoria',
+    ]);
+  });
+
+  it('a index de /gestor redireciona para /gestor/visao-institucional', () => {
+    const routes = byPath(buildAppRoutes(gestor, gestorRules));
+    const indexChild = (routes.get('/gestor')?.children ?? []).find(
+      (c) => c.index,
+    );
+    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
+  });
+
+  it('inclui os redirects de compatibilidade do Desempenho Institucional', () => {
+    const routes = byPath(buildAppRoutes(gestor, gestorRules));
+    expect(redirectTarget(routes.get('/desempenho-institucional'))).toBe('/gestor');
+    expect(redirectTarget(routes.get('/desempenho-institucional-v2'))).toBe('/gestor');
+  });
+
+  it('gestor_grupo cai na mesma experiência de gestão', () => {
+    const grupo = makeUser(['gestor_grupo']);
+    const routes = byPath(buildAppRoutes(grupo, getAccessRules(grupo)));
+    expect(routes.get('/gestor')).toBeDefined();
   });
 });
 

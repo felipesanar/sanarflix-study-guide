@@ -5,6 +5,7 @@ import { getExperience, getDefaultRouteForUser } from '@/utils/experiences';
 import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { adminRoutes } from '@/experiences/admin/adminRoutes';
+import { gestorRoutes } from '@/experiences/gestor/gestorRoutes';
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'));
@@ -18,10 +19,9 @@ const AuthCallback = lazy(() => import('@/pages/AuthCallback'));
  * (`/login` → entrypoint do usuário e `/auth/callback`) e sempre encerra com o
  * catch-all (`*`) que renderiza o NotFound.
  *
- * Nesta fase as experiências Aluno + Professor e Admin possuem módulo de rotas
- * próprio; as demais (atendimento, gestão) recebem seus módulos nas fases
- * seguintes (F3/F4) e, por ora, contam apenas com as rotas compartilhadas e o
- * catch-all.
+ * Nesta fase as experiências Aluno + Professor, Admin e Gestão possuem módulo
+ * de rotas próprio; Atendimento (CX) recebe o seu na fase seguinte (F4) e, por
+ * ora, conta apenas com as rotas compartilhadas e o catch-all.
  */
 export const buildAppRoutes = (
   user: User | null,
@@ -34,7 +34,9 @@ export const buildAppRoutes = (
       ? alunoRoutes(user, accessRules)
       : experience === 'admin'
         ? adminRoutes()
-        : [];
+        : experience === 'gestao'
+          ? gestorRoutes()
+          : [];
 
   return [
     // Rotas compartilhadas da área autenticada.
