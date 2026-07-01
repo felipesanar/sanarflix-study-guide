@@ -30,6 +30,7 @@ export const buildAppRoutes = (
   accessRules: AccessRules,
 ): RouteObject[] => {
   const experience = getExperience(user);
+  const isAluno = experience === 'aluno_professor';
 
   const experienceRoutes: RouteObject[] =
     experience === 'aluno_professor'
@@ -68,6 +69,24 @@ export const buildAppRoutes = (
         </ExperiencePage>
       ),
     },
+
+    // Raiz autenticada: o aluno monta '/' (Home) no seu módulo de rotas; as
+    // demais experiências (admin/gestão/CX) NÃO têm '/'. Sem este redirect,
+    // um não-aluno que abre a raiz cai no catch-all (NotFound). Devolve cada um
+    // ao entrypoint da sua experiência.
+    ...(isAluno
+      ? []
+      : [
+          {
+            path: '/',
+            element: (
+              <Navigate
+                to={getDefaultRouteForUser(user, accessRules)}
+                replace
+              />
+            ),
+          },
+        ]),
 
     ...experienceRoutes,
 

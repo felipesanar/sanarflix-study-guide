@@ -121,6 +121,26 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     }
   });
 
+  it('/ (raiz autenticada) devolve admin/gestor/CX ao entrypoint (não NotFound)', () => {
+    // Regressão: o aluno monta '/' (Home) no seu módulo; as demais experiências
+    // não têm '/'. Sem o redirect compartilhado, um não-aluno que abre a raiz
+    // cai no catch-all (NotFound) — foi o que quebrou prod após o V1.
+    const cases: Array<[User, string]> = [
+      [makeUser(['admin']), '/admin/usuarios'],
+      [makeUser(['gestor']), '/gestor'],
+      [makeUser(['atendimento']), '/atendimento/usuarios'],
+    ];
+    for (const [user, expected] of cases) {
+      const routes = byPath(buildAppRoutes(user, getAccessRules(user)));
+      expect(redirectTarget(routes.get('/'))).toBe(expected);
+    }
+  });
+
+  it('aluno mantém a Home na raiz (/) — não vira redirect', () => {
+    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    expect(redirectTarget(routes.get('/'))).toBeUndefined();
+  });
+
 });
 
 describe('experiences/buildAppRoutes — atendimento (CX)', () => {
