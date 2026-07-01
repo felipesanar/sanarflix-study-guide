@@ -24,7 +24,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { isAdmin } from "@/utils/accessRules";
+import { getExperience } from "@/utils/experiences";
+import { getGlobalNav } from "@/experiences/shared/globalNav";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import { useTheme } from "next-themes";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
@@ -92,13 +93,29 @@ export function MobileBottomNav() {
 
   const transition = prefersReducedMotion ? reducedMotionTransition : springTransition;
 
+  // Navegação apartada por experiência: só links cujas rotas a experiência do
+  // usuário realmente monta (evita itens que caem em NotFound). O aluno mantém
+  // a barra rica; admin/gestão/CX mostram apenas o(s) ponto(s) de entrada.
+  const isAluno = getExperience(user) === "aluno_professor";
+
   // Quick nav items for bottom bar (4 items + Menu)
-  const quickNavItems: BottomNavItem[] = useMemo(() => [
-    { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
-    { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
-    { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
-    { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
-  ].filter((item) => item.show), [accessRules]);
+  const quickNavItems: BottomNavItem[] = useMemo(() => {
+    if (!isAluno) {
+      return getGlobalNav(user, accessRules).map((item) => ({
+        id: item.url,
+        title: item.title,
+        url: item.url,
+        icon: item.icon ?? ChevronRight,
+        show: true,
+      }));
+    }
+    return [
+      { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
+      { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
+      { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
+      { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
+    ].filter((item) => item.show);
+  }, [accessRules, isAluno, user]);
 
   // User info for menu header
   const userInitials = useMemo(() => {
@@ -114,6 +131,10 @@ export function MobileBottomNav() {
   // Menu sections
   const menuSections = useMemo(() => {
     const sections: { title: string; items: { title: string; url?: string; icon: React.ElementType; action?: () => void; show: boolean; badge?: number }[] }[] = [];
+
+    // Fora da experiência do aluno, os pontos de entrada já vivem na barra
+    // rápida (e a navegação profunda nas abas do layout) — não repetir aqui.
+    if (!isAluno) return sections;
 
     // Estudos section
     const estudosItems = [
@@ -150,7 +171,7 @@ export function MobileBottomNav() {
     }
 
     return sections;
-  }, [accessRules, user, notebookDueCount]);
+  }, [accessRules, user, notebookDueCount, isAluno]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;

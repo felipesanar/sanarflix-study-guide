@@ -16,7 +16,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { isAdmin, isProfessor, isGestor, isAtendimento } from "@/utils/accessRules";
+import { getExperience } from "@/utils/experiences";
+import { getGlobalNav } from "@/experiences/shared/globalNav";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import {
   BookOpen,
@@ -167,11 +168,20 @@ export function AppSidebar() {
     return accessRules[item.accessKey];
   });
 
+  // Navegação global apartada por experiência: cada experiência só mostra links
+  // cujas rotas ela realmente monta (evita itens que caem em NotFound). O aluno
+  // mantém a estrutura rica (Home destacada + grupo Guia de Estudos); admin,
+  // gestão e CX mostram apenas o(s) ponto(s) de entrada — a navegação profunda
+  // vive nas abas do próprio layout (AdminLayout/GestorLayout).
+  const experience = getExperience(user);
+  const isAluno = experience === "aluno_professor";
+
   // Filter visible main menu items
-  const visibleMenuItems = menuItems.filter((item) => {
-    if (item.accessKey === "home") return false; // Rendered separately above
-    return accessRules[(item as (typeof menuItems)[number]).accessKey];
-  });
+  const visibleMenuItems = isAluno
+    ? menuItems.filter(
+        (item) => item.accessKey !== "home" && accessRules[item.accessKey],
+      )
+    : getGlobalNav(user, accessRules);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -223,8 +233,8 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1">
-                {/* Home */}
-                {accessRules.home && (
+                {/* Home (só na experiência do aluno; a raiz "/" só é montada lá) */}
+                {isAluno && accessRules.home && (
                   <SidebarNavItem
                     item={{
                       title: "Início",
@@ -237,8 +247,8 @@ export function AppSidebar() {
                   />
                 )}
 
-                {/* Study Guide Group */}
-                {accessRules.studyGuide && hasStudyGuideContent && (
+                {/* Study Guide Group (rotas /guia-estudos e /dashboard só no aluno) */}
+                {isAluno && accessRules.studyGuide && hasStudyGuideContent && (
                   <SidebarNavGroup
                     title="Guia de Estudos"
                     icon={BookOpen}
