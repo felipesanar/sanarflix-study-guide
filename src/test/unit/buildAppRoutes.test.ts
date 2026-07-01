@@ -147,7 +147,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
   const cx = makeUser(['atendimento']);
   const cxRules = getAccessRules(cx);
 
-  it('expõe a rota-layout /atendimento com a seção Usuários', () => {
+  it('expõe a rota-layout /atendimento com as seções Usuários e Feedbacks', () => {
     const routes = byPath(buildAppRoutes(cx, cxRules));
     const cxRoute = routes.get('/atendimento');
     expect(cxRoute).toBeDefined();
@@ -155,7 +155,11 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
     const childPaths = (cxRoute?.children ?? []).map((c) =>
       c.index ? 'index' : c.path,
     );
-    expect(childPaths).toEqual(['index', 'usuarios']);
+    expect(childPaths).toEqual(['index', 'usuarios', 'feedbacks']);
+  });
+
+  it('CX não tem analytics liberado no accessRules (fora do escopo v0)', () => {
+    expect(cxRules.analytics).toBe(false);
   });
 
   it('a index de /atendimento redireciona para /atendimento/usuarios', () => {

@@ -150,12 +150,13 @@ export const getAccessRules = (user: User | null): AccessRules => {
     };
   }
 
-  // Atendimento: acesso a todas as páginas, exceto desempenho institucional
-  // No portal do admin, tem acesso apenas à aba Usuários (lógica de abas em UserManagement)
+  // Atendimento (CX) na v0: gestão de Usuários + Feedbacks (leitura+moderação).
+  // Sem desempenho institucional e sem analytics (fora do escopo do CX).
   if (isAtendimento(user)) {
     return {
       ...ADMIN_RULES,
       desempenhoInstitucional: false,
+      analytics: false,
     };
   }
 

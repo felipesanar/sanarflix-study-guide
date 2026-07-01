@@ -1,14 +1,21 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Headset } from 'lucide-react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { Headset, Users, MessageSquare } from 'lucide-react';
+
+/** Sub-navegação do Atendimento (CX): seções da experiência como rota. */
+const atendimentoNav = [
+  { title: 'Usuários', url: '/atendimento/usuarios', icon: Users },
+  { title: 'Feedbacks', url: '/atendimento/feedbacks', icon: MessageSquare },
+];
 
 /**
  * Layout da experiência Atendimento / CX (`/atendimento/*`).
  *
- * O Atendimento tem acesso apenas à gestão de Usuários — por isso o layout é
- * enxuto (cabeçalho + Outlet). A página de Usuários é reaproveitada do admin
- * (`UsuariosPage`), que já oculta a edição de e-mails em massa para não-admins.
+ * Cabeçalho + sub-nav (Usuários, Feedbacks) + Outlet. Usuários reaproveita a
+ * página do admin (que oculta a edição de e-mails em massa para não-admins);
+ * Feedbacks reaproveita a página de feedbacks do admin (CX tem leitura +
+ * moderação do feedback da plataforma na v0).
  */
 export const AtendimentoLayout: React.FC = () => (
   <div className="min-h-screen bg-background p-4 md:p-8">
@@ -19,9 +26,28 @@ export const AtendimentoLayout: React.FC = () => (
           Atendimento
         </h1>
         <p className="text-muted-foreground">
-          Gestão de usuários para o time de Atendimento (CX).
+          Gestão de usuários e feedback da plataforma para o time de Atendimento (CX).
         </p>
       </div>
+
+      <nav className="flex flex-wrap gap-2 border-b">
+        {atendimentoNav.map(({ title, url, icon: Icon }) => (
+          <NavLink
+            key={url}
+            to={url}
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-4 py-2 rounded-t-md text-sm ${
+                isActive
+                  ? 'bg-card border-b-2 border-primary font-medium'
+                  : 'text-muted-foreground'
+              }`
+            }
+          >
+            <Icon className="h-4 w-4" />
+            {title}
+          </NavLink>
+        ))}
+      </nav>
 
       <Suspense fallback={<div className="min-h-[40vh]" aria-busy="true" />}>
         <Outlet />
