@@ -51,21 +51,31 @@ export default function LiberacoesTab() {
 
       if (finalizacoesError) throw finalizacoesError;
 
-      // Buscar dados de usuários
+      // Buscar dados de usuários EM LOTES. A lista de user_ids distintos pode
+      // ter centenas de itens (1 por aluno que finalizou); um único .in() com
+      // todos geraria uma URL grande demais no GET e a requisição falha
+      // silenciosamente — deixando TODAS as linhas sem nome/email. Mesmo padrão
+      // de chunk usado em useSimuladosAnalytics.
       const userIds = [...new Set(finalizacoesData?.map(f => f.user_id) || [])];
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, email, nome')
-        .in('id', userIds);
+      const USERS_BATCH_SIZE = 200;
+      const userBatches: string[][] = [];
+      for (let i = 0; i < userIds.length; i += USERS_BATCH_SIZE) {
+        userBatches.push(userIds.slice(i, i + USERS_BATCH_SIZE));
+      }
+      const usersResults = await Promise.all(
+        userBatches.map(batch =>
+          supabase.from('users').select('id, email, nome').in('id', batch)
+        )
+      );
+      const usersError = usersResults.find(r => r.error)?.error ?? null;
+      const usersData = usersResults.flatMap(r => r.data ?? []);
 
       if (usersError) {
         console.error('Erro ao carregar dados dos alunos:', usersError);
-      } else if (userIds.length > 0 && (usersData?.length ?? 0) === 0) {
-        // Sem erro mas nenhum aluno resolvido: provável bloqueio de RLS em
-        // public.users para a role atual (ex.: gestor_grupo sem policy de SELECT).
+      } else if (userIds.length > 0 && usersData.length === 0) {
         console.warn(
           `[Liberações] ${userIds.length} finalizações carregadas mas nenhum aluno ` +
-          `retornado de public.users — verifique as RLS policies de SELECT em users.`
+          `retornado de public.users.`
         );
       }
 
