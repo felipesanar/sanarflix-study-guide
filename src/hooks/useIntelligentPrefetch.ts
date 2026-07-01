@@ -45,7 +45,6 @@ const ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/desempenho-simulado': () => import('../pages/SimuladoDesempenho'),
   '/dashboard': () => import('../pages/Dashboard'),
   '/analytics': () => import('../pages/Analytics'),
-  '/gestao-usuarios': () => import('../pages/UserManagement'),
   '/simulados': () => import('../pages/Simulados'),
   '/sanarclass': () => import('../pages/SanarClass'),
 };

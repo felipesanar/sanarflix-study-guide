@@ -46,9 +46,9 @@ export const EXPERIENCE_ENTRYPOINTS: Record<
   Exclude<Experience, 'aluno_professor'>,
   string
 > = {
-  admin: '/gestao-usuarios',
-  atendimento: '/gestao-usuarios',
-  gestao: '/desempenho-institucional-v2',
+  admin: '/admin/usuarios',
+  atendimento: '/atendimento/usuarios',
+  gestao: '/gestor',
 };
 
 /**
@@ -74,7 +74,7 @@ export const getDefaultRouteForUser = (
     return EXPERIENCE_ENTRYPOINTS[experience];
   }
 
-  if (accessRules.home) return '/home';
+  if (accessRules.home) return '/';
   if (accessRules.simulados) return '/simulados';
   if (accessRules.studyGuide) return '/guia-estudos';
   if (accessRules.dashboard) return '/dashboard';

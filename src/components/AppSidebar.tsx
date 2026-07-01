@@ -16,7 +16,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { isAdmin, isProfessor, isGestor, isAtendimento } from "@/utils/accessRules";
+import { getExperience } from "@/utils/experiences";
+import { getGlobalNav } from "@/experiences/shared/globalNav";
+import { isRouteActive } from "@/experiences/shared/navActive";
 import {
   BookOpen,
   BarChart3,
@@ -42,7 +44,7 @@ import { Logger } from '@/utils/logger';
 const menuItems = [
   {
     title: "Início",
-    url: "/home",
+    url: "/",
     icon: HomeIcon,
     accessKey: "home" as const,
     description: "Sua página inicial personalizada",
@@ -70,21 +72,21 @@ const menuItems = [
   },
   {
     title: "Portal do Admin",
-    url: "/gestao-usuarios",
+    url: "/admin/usuarios",
     icon: UserCog,
     accessKey: "userManagement" as const,
     description: "Administração de elementos da plataforma",
   },
   {
     title: "Analytics",
-    url: "/analytics",
+    url: "/admin/analytics",
     icon: TrendingUp,
     accessKey: "analytics" as const,
     description: "Métricas e insights avançados",
   },
   {
     title: "Desempenho Institucional",
-    url: "/desempenho-institucional-v2",
+    url: "/gestor",
     icon: School,
     accessKey: "desempenhoInstitucional" as const,
     description: "Visão geral do desempenho dos alunos",
@@ -124,7 +126,7 @@ export function AppSidebar() {
     Logger.info("[Nav]", "breakpoint", { mode: "sidebar" });
   }, []);
 
-  const isActive = useCallback((path: string) => currentPath === path, [currentPath]);
+  const isActive = useCallback((path: string) => isRouteActive(currentPath, path), [currentPath]);
   
   const isStudyGuideAreaActive = useCallback(
     () => studyGuideItems.some((item) => isActive(item.url) && accessRules[item.accessKey]),
@@ -166,11 +168,20 @@ export function AppSidebar() {
     return accessRules[item.accessKey];
   });
 
+  // Navegação global apartada por experiência: cada experiência só mostra links
+  // cujas rotas ela realmente monta (evita itens que caem em NotFound). O aluno
+  // mantém a estrutura rica (Home destacada + grupo Guia de Estudos); admin,
+  // gestão e CX mostram apenas o(s) ponto(s) de entrada — a navegação profunda
+  // vive nas abas do próprio layout (AdminLayout/GestorLayout).
+  const experience = getExperience(user);
+  const isAluno = experience === "aluno_professor";
+
   // Filter visible main menu items
-  const visibleMenuItems = menuItems.filter((item) => {
-    if (item.accessKey === "home") return false; // Rendered separately above
-    return accessRules[(item as (typeof menuItems)[number]).accessKey];
-  });
+  const visibleMenuItems = isAluno
+    ? menuItems.filter(
+        (item) => item.accessKey !== "home" && accessRules[item.accessKey],
+      )
+    : getGlobalNav(user, accessRules);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -222,22 +233,22 @@ export function AppSidebar() {
 
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1">
-                {/* Home */}
-                {accessRules.home && (
+                {/* Home (só na experiência do aluno; a raiz "/" só é montada lá) */}
+                {isAluno && accessRules.home && (
                   <SidebarNavItem
                     item={{
                       title: "Início",
-                      url: "/home",
+                      url: "/",
                       icon: HomeIcon,
                       description: "Sua página inicial personalizada",
                     }}
-                    isActive={isActive("/home")}
+                    isActive={isActive("/")}
                     collapsed={collapsed}
                   />
                 )}
 
-                {/* Study Guide Group */}
-                {accessRules.studyGuide && hasStudyGuideContent && (
+                {/* Study Guide Group (rotas /guia-estudos e /dashboard só no aluno) */}
+                {isAluno && accessRules.studyGuide && hasStudyGuideContent && (
                   <SidebarNavGroup
                     title="Guia de Estudos"
                     icon={BookOpen}
