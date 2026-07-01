@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Gestor de grupo pode ver usuarios do grupo" ON public.users;
