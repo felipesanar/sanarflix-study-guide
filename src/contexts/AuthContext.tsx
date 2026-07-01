@@ -55,7 +55,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         supabase.rpc('get_accessible_ies', { _user: userId }),
         supabase
           .from('user_groups')
-          .select('group_id, educational_groups:group_id (id, name), group_ies:group_id (ies:ies_id (id, nome))')
+          // group_ies é embutido POR DENTRO de educational_groups: não existe FK
+          // user_groups→group_ies (só user_groups→educational_groups), então o
+          // pivô é educational_groups, que tem FK real para group_ies e para ies.
+          .select('group_id, educational_groups:group_id (id, name, group_ies (ies:ies_id (id, nome)))')
           .eq('user_id', userId),
       ]);
 
@@ -86,8 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const groups = ((groupsResult.data as any[]) ?? []).map((g) => ({
         id: g.educational_groups?.id ?? g.group_id,
         name: g.educational_groups?.name ?? '',
-        ies: Array.isArray(g.group_ies)
-          ? g.group_ies.map((gi: any) => gi.ies).filter(Boolean)
+        ies: Array.isArray(g.educational_groups?.group_ies)
+          ? g.educational_groups.group_ies
+              .map((gi: any) => gi.ies)
+              .filter(Boolean)
           : [],
       }));
 
