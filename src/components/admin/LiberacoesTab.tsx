@@ -53,17 +53,32 @@ export default function LiberacoesTab() {
 
       // Buscar dados de usuários
       const userIds = [...new Set(finalizacoesData?.map(f => f.user_id) || [])];
-      const { data: usersData } = await supabase
+      const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, email, nome')
         .in('id', userIds);
 
+      if (usersError) {
+        console.error('Erro ao carregar dados dos alunos:', usersError);
+      } else if (userIds.length > 0 && (usersData?.length ?? 0) === 0) {
+        // Sem erro mas nenhum aluno resolvido: provável bloqueio de RLS em
+        // public.users para a role atual (ex.: gestor_grupo sem policy de SELECT).
+        console.warn(
+          `[Liberações] ${userIds.length} finalizações carregadas mas nenhum aluno ` +
+          `retornado de public.users — verifique as RLS policies de SELECT em users.`
+        );
+      }
+
       // Buscar dados de simulados
       const simuladoIds = [...new Set(finalizacoesData?.map(f => f.simulado_id) || [])];
-      const { data: simuladosData } = await supabase
+      const { data: simuladosData, error: simuladosError } = await supabase
         .from('simulados_admin')
         .select('id, nome')
         .in('id', simuladoIds);
+
+      if (simuladosError) {
+        console.error('Erro ao carregar dados dos simulados:', simuladosError);
+      }
 
       // Combinar dados
       const finalizacoesCompletas = finalizacoesData?.map(f => {
