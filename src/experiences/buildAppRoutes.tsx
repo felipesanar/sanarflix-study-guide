@@ -50,6 +50,16 @@ export const buildAppRoutes = (
         <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />
       ),
     },
+    // Compat: /home foi a home histórica de TODAS as roles e ainda é o destino
+    // pós-login do LoginForm. Como cada usuário monta apenas as rotas da sua
+    // experiência, /home precisa ser compartilhada — senão admin/gestor/CX caem
+    // no catch-all (NotFound). Devolve cada um ao entrypoint da sua experiência.
+    {
+      path: '/home',
+      element: (
+        <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />
+      ),
+    },
     {
       path: '/auth/callback',
       element: (

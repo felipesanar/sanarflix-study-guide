@@ -82,9 +82,6 @@ export const alunoRoutes = (
         <Navigate to={fallback} replace />
       ),
     },
-    // Rota legada: a antiga home dá lugar à raiz.
-    { path: '/home', element: <Navigate to="/" replace /> },
-
     gated(
       accessRules.studyGuide,
       '/guia-estudos',

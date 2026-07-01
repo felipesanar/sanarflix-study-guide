@@ -105,6 +105,22 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
+  it('/home é compartilhada e devolve admin/gestor/CX ao entrypoint da sua experiência (não NotFound)', () => {
+    // Regressão: o LoginForm navega TODA role para /home no pós-login. Como cada
+    // usuário monta só as rotas da sua experiência, /home precisa existir para
+    // todos — senão admin/gestor/CX caem no catch-all (NotFound).
+    const cases: Array<[User, string]> = [
+      [makeUser(['admin']), '/admin/usuarios'],
+      [makeUser(['gestor']), '/gestor'],
+      [makeUser(['atendimento']), '/atendimento/usuarios'],
+    ];
+    for (const [user, expected] of cases) {
+      const routes = byPath(buildAppRoutes(user, getAccessRules(user)));
+      expect(routes.has('/home')).toBe(true);
+      expect(redirectTarget(routes.get('/home'))).toBe(expected);
+    }
+  });
+
 });
 
 describe('experiences/buildAppRoutes — atendimento (CX)', () => {
