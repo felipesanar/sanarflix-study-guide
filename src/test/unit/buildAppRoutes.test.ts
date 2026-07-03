@@ -121,24 +121,45 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     }
   });
 
-  it('/ (raiz autenticada) devolve admin/gestor/CX ao entrypoint (não NotFound)', () => {
-    // Regressão: o aluno monta '/' (Home) no seu módulo; as demais experiências
-    // não têm '/'. Sem o redirect compartilhado, um não-aluno que abre a raiz
-    // cai no catch-all (NotFound) — foi o que quebrou prod após o V1.
-    const cases: Array<[User, string]> = [
-      [makeUser(['admin']), '/admin/usuarios'],
-      [makeUser(['gestor']), '/gestor'],
-      [makeUser(['atendimento']), '/atendimento/usuarios'],
+  it('/ (raiz) renderiza a Home do aluno para admin/gestor/CX (base compartilhada)', () => {
+    // No modelo híbrido a raiz é a experiência de aluno para TODOS. admin/gestor/CX
+    // têm home liberada → '/' renderiza conteúdo (Home), não redireciona.
+    const cases: User[] = [
+      makeUser(['admin']),
+      makeUser(['gestor']),
+      makeUser(['atendimento']),
     ];
-    for (const [user, expected] of cases) {
+    for (const user of cases) {
       const routes = byPath(buildAppRoutes(user, getAccessRules(user)));
-      expect(redirectTarget(routes.get('/'))).toBe(expected);
+      expect(routes.has('/')).toBe(true);
+      expect(redirectTarget(routes.get('/'))).toBeUndefined();
     }
   });
 
   it('aluno mantém a Home na raiz (/) — não vira redirect', () => {
     const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
     expect(redirectTarget(routes.get('/'))).toBeUndefined();
+  });
+
+  it('privilegiados têm as rotas base de aluno montadas (/simulados, /guia-estudos)', () => {
+    const admin = makeUser(['admin']);
+    const routes = byPath(buildAppRoutes(admin, getAccessRules(admin)));
+    expect(routes.has('/simulados')).toBe(true);
+    expect(routes.has('/guia-estudos')).toBe(true);
+  });
+
+  it('monta apenas os portais das roles do usuário', () => {
+    const aluno = makeUser([]);
+    const rAluno = byPath(buildAppRoutes(aluno, getAccessRules(aluno)));
+    expect(rAluno.has('/admin')).toBe(false);
+    expect(rAluno.has('/gestor')).toBe(false);
+    expect(rAluno.has('/atendimento')).toBe(false);
+
+    const admin = makeUser(['admin']);
+    const rAdmin = byPath(buildAppRoutes(admin, getAccessRules(admin)));
+    expect(rAdmin.has('/admin')).toBe(true);
+    expect(rAdmin.has('/gestor')).toBe(false);
+    expect(rAdmin.has('/atendimento')).toBe(false);
   });
 
 });

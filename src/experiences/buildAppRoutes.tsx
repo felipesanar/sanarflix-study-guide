@@ -1,7 +1,8 @@
 import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import type { AccessRules, User } from '@/types';
-import { getExperience, getDefaultRouteForUser } from '@/utils/experiences';
+import { getDefaultRouteForUser } from '@/utils/experiences';
+import { isAdmin, isGestor, isAtendimento } from '@/utils/accessRules';
 import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { adminRoutes } from '@/experiences/admin/adminRoutes';
@@ -12,55 +13,31 @@ const NotFound = lazy(() => import('@/pages/NotFound'));
 const AuthCallback = lazy(() => import('@/pages/AuthCallback'));
 
 /**
- * Monta a lista de rotas (RouteObject[]) da aplicação para o usuário atual.
+ * Monta a lista de rotas (RouteObject[]) do usuário atual — modelo HÍBRIDO.
  *
- * Função pura de `(user, accessRules)`: resolve a experiência do usuário
- * ({@link getExperience}) e delega ao módulo de rotas da experiência. Além das
- * rotas da experiência, inclui as rotas compartilhadas da área autenticada
- * (`/login` → entrypoint do usuário e `/auth/callback`) e sempre encerra com o
- * catch-all (`*`) que renderiza o NotFound.
+ * Função pura de `(user, accessRules)`:
+ *  - Rotas compartilhadas da área autenticada (`/login`, `/home` → entrypoint do
+ *    usuário; `/auth/callback`).
+ *  - BASE: a experiência de aluno/professor é montada para TODOS (a Home vive em
+ *    `/`; as telas seguem controladas por AccessRules). É isso que dá à camada de
+ *    gestão "ver e ter a experiência como aluno" e elimina o 404 da raiz.
+ *  - POR CIMA: cada portal dedicado é montado apenas quando a role do usuário o
+ *    concede (admin/gestor/atendimento), evitando colisão de paths de compat.
+ *  - Catch-all (`*`) com o NotFound.
  *
- * Todas as quatro experiências (Aluno + Professor, Admin, Gestão e Atendimento)
- * possuem módulo de rotas próprio. Cada usuário recebe apenas as rotas da SUA
- * experiência, mais as compartilhadas e o catch-all — o que, por si só, impede
- * o acesso cruzado (reforçado pelos ExperienceGuard em cada layout).
+ * A autorização fina de cada portal fica no ExperienceGuard (por role).
  */
 export const buildAppRoutes = (
   user: User | null,
   accessRules: AccessRules,
 ): RouteObject[] => {
-  const experience = getExperience(user);
-  const isAluno = experience === 'aluno_professor';
-
-  const experienceRoutes: RouteObject[] =
-    experience === 'aluno_professor'
-      ? alunoRoutes(user, accessRules)
-      : experience === 'admin'
-        ? adminRoutes()
-        : experience === 'gestao'
-          ? gestorRoutes()
-          : experience === 'atendimento'
-            ? atendimentoRoutes()
-            : [];
+  const defaultRoute = getDefaultRouteForUser(user, accessRules);
 
   return [
-    // Rotas compartilhadas da área autenticada.
-    {
-      path: '/login',
-      element: (
-        <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />
-      ),
-    },
-    // Compat: /home foi a home histórica de TODAS as roles e ainda é o destino
-    // pós-login do LoginForm. Como cada usuário monta apenas as rotas da sua
-    // experiência, /home precisa ser compartilhada — senão admin/gestor/CX caem
-    // no catch-all (NotFound). Devolve cada um ao entrypoint da sua experiência.
-    {
-      path: '/home',
-      element: (
-        <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />
-      ),
-    },
+    { path: '/login', element: <Navigate to={defaultRoute} replace /> },
+    // Compat: /home é o destino pós-login do LoginForm para TODA role. Devolve
+    // cada usuário ao entrypoint da sua experiência (portal p/ privilegiado).
+    { path: '/home', element: <Navigate to={defaultRoute} replace /> },
     {
       path: '/auth/callback',
       element: (
@@ -70,25 +47,13 @@ export const buildAppRoutes = (
       ),
     },
 
-    // Raiz autenticada: o aluno monta '/' (Home) no seu módulo de rotas; as
-    // demais experiências (admin/gestão/CX) NÃO têm '/'. Sem este redirect,
-    // um não-aluno que abre a raiz cai no catch-all (NotFound). Devolve cada um
-    // ao entrypoint da sua experiência.
-    ...(isAluno
-      ? []
-      : [
-          {
-            path: '/',
-            element: (
-              <Navigate
-                to={getDefaultRouteForUser(user, accessRules)}
-                replace
-              />
-            ),
-          },
-        ]),
+    // BASE: experiência de aluno/professor — para TODOS os usuários.
+    ...alunoRoutes(user, accessRules),
 
-    ...experienceRoutes,
+    // POR CIMA: portais dedicados, montados conforme as roles do usuário.
+    ...(isAdmin(user) ? adminRoutes() : []),
+    ...(isGestor(user) ? gestorRoutes() : []),
+    ...(isAtendimento(user) ? atendimentoRoutes() : []),
 
     {
       path: '*',
