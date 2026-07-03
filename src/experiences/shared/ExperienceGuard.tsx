@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
-import { getExperience, getDefaultRouteForUser } from '@/utils/experiences';
+import { canAccessExperience, getDefaultRouteForUser } from '@/utils/experiences';
 import type { ExperienceId } from '@/experiences/types';
 
 interface ExperienceGuardProps {
@@ -12,17 +12,15 @@ interface ExperienceGuardProps {
 }
 
 /**
- * Bloqueio de acesso cruzado entre experiências apartadas.
+ * Fronteira de autorização das experiências dedicadas.
  *
- * Renderiza os filhos apenas quando a experiência do usuário (resolvida por
- * {@link getExperience} a partir das suas roles) corresponde à `experience`
- * guardada. Caso contrário, redireciona o usuário para o entrypoint da SUA
- * própria experiência — o mesmo destino padrão calculado por
- * {@link getDefaultRouteForUser} usado no restante do roteador —, evitando
- * que uma role acesse telas de outra experiência.
+ * Renderiza os filhos apenas quando a role do usuário concede a `experience`
+ * guardada ({@link canAccessExperience}). Caso contrário, redireciona para o
+ * entrypoint padrão do usuário ({@link getDefaultRouteForUser}) — um aluno cai
+ * em `/` (sua base); um gestor tentando `/admin` cai em `/gestor`.
  *
  * Pressupõe que as regras de acesso já estejam carregadas (o gate de loading
- * fica em DynamicRoutes, que monta as rotas só após `useAccessRules`).
+ * fica em DynamicRoutes).
  */
 export const ExperienceGuard: React.FC<ExperienceGuardProps> = ({
   experience,
@@ -31,7 +29,7 @@ export const ExperienceGuard: React.FC<ExperienceGuardProps> = ({
   const { user } = useAuth();
   const { accessRules } = useAccessRules();
 
-  if (getExperience(user) !== experience) {
+  if (!canAccessExperience(user, experience)) {
     return <Navigate to={getDefaultRouteForUser(user, accessRules)} replace />;
   }
 

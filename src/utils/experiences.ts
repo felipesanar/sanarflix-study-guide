@@ -33,6 +33,30 @@ export const getExperience = (user: User | null): Experience => {
 };
 
 /**
+ * Autorização de acesso a uma experiência DEDICADA, baseada em role (não na
+ * experiência única de maior poder). É a fronteira usada pelo ExperienceGuard:
+ * no modelo híbrido, o usuário tem a experiência de aluno na base E, por cima,
+ * a(s) experiência(s) dedicada(s) que a(s) sua(s) role(s) concede(m).
+ *
+ * A base (aluno_professor) é acessível a todo usuário autenticado.
+ */
+export const canAccessExperience = (
+  user: User | null,
+  experience: Experience,
+): boolean => {
+  switch (experience) {
+    case 'admin':
+      return isAdmin(user);
+    case 'atendimento':
+      return isAtendimento(user);
+    case 'gestao':
+      return isGestor(user);
+    case 'aluno_professor':
+      return true;
+  }
+};
+
+/**
  * Rota de entrada (entrypoint) fixa por experiência.
  *
  * A experiência Aluno + Professor não tem entrypoint fixo: a sua "home"

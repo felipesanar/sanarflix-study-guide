@@ -3,6 +3,7 @@ import {
   getExperience,
   getDefaultRouteForUser,
   EXPERIENCE_ENTRYPOINTS,
+  canAccessExperience,
 } from '@/utils/experiences';
 import { getAccessRules } from '@/utils/accessRules';
 import { AccessRules, User } from '@/types';
@@ -146,5 +147,30 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
       };
       expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/guia-estudos');
     });
+  });
+});
+
+describe('utils/experiences — canAccessExperience (autorização por role)', () => {
+  it('a base (aluno_professor) é acessível a todos, inclusive nulo', () => {
+    expect(canAccessExperience(null, 'aluno_professor')).toBe(true);
+    expect(canAccessExperience(makeUser([]), 'aluno_professor')).toBe(true);
+    expect(canAccessExperience(makeUser(['admin']), 'aluno_professor')).toBe(true);
+  });
+
+  it('admin só para quem tem a role admin', () => {
+    expect(canAccessExperience(makeUser(['admin']), 'admin')).toBe(true);
+    expect(canAccessExperience(makeUser(['gestor']), 'admin')).toBe(false);
+    expect(canAccessExperience(makeUser([]), 'admin')).toBe(false);
+  });
+
+  it('gestao cobre gestor e gestor_grupo', () => {
+    expect(canAccessExperience(makeUser(['gestor']), 'gestao')).toBe(true);
+    expect(canAccessExperience(makeUser(['gestor_grupo']), 'gestao')).toBe(true);
+    expect(canAccessExperience(makeUser(['atendimento']), 'gestao')).toBe(false);
+  });
+
+  it('atendimento só para quem tem a role atendimento', () => {
+    expect(canAccessExperience(makeUser(['atendimento']), 'atendimento')).toBe(true);
+    expect(canAccessExperience(makeUser(['admin']), 'atendimento')).toBe(false);
   });
 });
