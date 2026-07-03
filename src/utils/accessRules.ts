@@ -139,14 +139,20 @@ export const getAccessRules = (user: User | null): AccessRules => {
 
 
 
-  // Gestor: acesso ao desempenho institucional + simulados (visão/execução
-  // ampla, incluindo encerrados — controlado por RLS e por includeAll na API)
+  // Gestor: experiência de aluno completa (para "ver e ter a exp como aluno")
+  // + os flags de gestão (desempenho institucional e simulados com visão ampla,
+  // incluindo encerrados — controlado por RLS e por includeAll na API).
   if (isGestor(user)) {
     return {
       ...DEFAULT_RULES,
-      desempenhoInstitucional: true,
+      home: true,
+      studyGuide: true,
+      dashboard: true,
+      sanarclass: true,
+      errorNotebook: true,
       simulados: true,
       SimuladoDesempenho: true,
+      desempenhoInstitucional: true,
     };
   }
 
