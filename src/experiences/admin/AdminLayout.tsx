@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isAdmin } from '@/utils/accessRules';
 import { cn } from '@/lib/utils';
 import { ADMIN_NAV, filterAdminNav } from '@/experiences/admin/AdminNav';
+import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 
 /**
  * Layout do Portal do Admin (`/admin/*`).
@@ -23,14 +24,17 @@ export const AdminLayout: React.FC = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
-            <Shield className="h-10 w-10 text-primary" />
-            Portal do Administrador
-          </h1>
-          <p className="text-muted-foreground">
-            Gerencie usuários, configurações e todos os aspectos da plataforma
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
+              <Shield className="h-10 w-10 text-primary" />
+              Portal do Administrador
+            </h1>
+            <p className="text-muted-foreground">
+              Gerencie usuários, configurações e todos os aspectos da plataforma
+            </p>
+          </div>
+          <GoToStudentButton />
         </div>
 
         {/* Sub-navegação por rota */}

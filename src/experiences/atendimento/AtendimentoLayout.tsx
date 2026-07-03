@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Headset, Users, MessageSquare } from 'lucide-react';
+import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 
 /** Sub-navegação do Atendimento (CX): seções da experiência como rota. */
 const atendimentoNav = [
@@ -20,14 +21,17 @@ const atendimentoNav = [
 export const AtendimentoLayout: React.FC = () => (
   <div className="min-h-screen bg-background p-4 md:p-8">
     <div className="max-w-7xl mx-auto space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
-          <Headset className="h-10 w-10 text-primary" />
-          Atendimento
-        </h1>
-        <p className="text-muted-foreground">
-          Gestão de usuários e feedback da plataforma para o time de Atendimento (CX).
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-3">
+            <Headset className="h-10 w-10 text-primary" />
+            Atendimento
+          </h1>
+          <p className="text-muted-foreground">
+            Gestão de usuários e feedback da plataforma para o time de Atendimento (CX).
+          </p>
+        </div>
+        <GoToStudentButton />
       </div>
 
       <nav className="flex flex-wrap gap-2 border-b">

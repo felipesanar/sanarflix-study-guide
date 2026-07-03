@@ -14,6 +14,7 @@ import {
   GestorFiltersProvider,
   useGestorFilters,
 } from '@/experiences/gestor/GestorFiltersProvider';
+import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 
 /**
  * Conteúdo do layout do gestor: consome os filtros globais do contexto e
@@ -47,6 +48,7 @@ const GestorLayoutContent: React.FC = () => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <InstitutionalHeader summary={data?.headerSummary} />
           <div className="flex items-center gap-1.5 shrink-0">
+            <GoToStudentButton className="h-8" />
             <Button
               variant="ghost"
               size="sm"
