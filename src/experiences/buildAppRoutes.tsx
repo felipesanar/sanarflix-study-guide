@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import React, { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import type { AccessRules, User } from '@/types';
 import { getDefaultRouteForUser } from '@/utils/experiences';
