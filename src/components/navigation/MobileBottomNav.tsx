@@ -10,22 +10,18 @@ import {
   X,
   ChevronRight,
   GraduationCap,
-  UserCog,
-  TrendingUp,
   BookMarked,
   Lock,
   Sun,
   Moon,
-  
+
   LogOut,
   User,
-  School,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { getExperience } from "@/utils/experiences";
-import { getGlobalNav } from "@/experiences/shared/globalNav";
+import { getPortalEntries } from "@/experiences/shared/globalNav";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import { useTheme } from "next-themes";
 import { usePasswordDialog } from "@/contexts/PasswordDialogContext";
@@ -93,29 +89,17 @@ export function MobileBottomNav() {
 
   const transition = prefersReducedMotion ? reducedMotionTransition : springTransition;
 
-  // Navegação apartada por experiência: só links cujas rotas a experiência do
-  // usuário realmente monta (evita itens que caem em NotFound). O aluno mantém
-  // a barra rica; admin/gestão/CX mostram apenas o(s) ponto(s) de entrada.
-  const isAluno = getExperience(user) === "aluno_professor";
-
-  // Quick nav items for bottom bar (4 items + Menu)
-  const quickNavItems: BottomNavItem[] = useMemo(() => {
-    if (!isAluno) {
-      return getGlobalNav(user, accessRules).map((item) => ({
-        id: item.url,
-        title: item.title,
-        url: item.url,
-        icon: item.icon ?? ChevronRight,
-        show: true,
-      }));
-    }
-    return [
-      { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
-      { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
-      { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
-      { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
-    ].filter((item) => item.show);
-  }, [accessRules, isAluno, user]);
+  // Barra rápida: sempre a navegação de aluno (filtrada por accessRules), para todos.
+  const quickNavItems: BottomNavItem[] = useMemo(
+    () =>
+      [
+        { id: "home", title: "Início", url: "/", icon: Home, show: accessRules.home },
+        { id: "guide", title: "Guia", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
+        { id: "progress", title: "Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
+        { id: "simulados", title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
+      ].filter((item) => item.show),
+    [accessRules],
+  );
 
   // User info for menu header
   const userInitials = useMemo(() => {
@@ -128,50 +112,42 @@ export function MobileBottomNav() {
       .toUpperCase();
   }, [user?.nome]);
 
-  // Menu sections
+  // Menu completo: seções de aluno para todos + seção de portal para privilegiados.
   const menuSections = useMemo(() => {
     const sections: { title: string; items: { title: string; url?: string; icon: React.ElementType; action?: () => void; show: boolean; badge?: number }[] }[] = [];
 
-    // Fora da experiência do aluno, os pontos de entrada já vivem na barra
-    // rápida (e a navegação profunda nas abas do layout) — não repetir aqui.
-    if (!isAluno) return sections;
-
-    // Estudos section
+    // Estudos
     const estudosItems = [
       { title: "Guia de Estudos", url: "/guia-estudos", icon: BookOpen, show: accessRules.studyGuide },
       { title: "Seu Progresso", url: "/dashboard", icon: BarChart3, show: accessRules.dashboard },
       { title: "SanarClass", url: "/sanarclass", icon: GraduationCap, show: accessRules.sanarclass },
       { title: "Caderno de Erros", url: "/caderno-de-erros", icon: BookMarked, show: accessRules.errorNotebook, badge: notebookDueCount },
-    ].filter(item => item.show);
-
+    ].filter((item) => item.show);
     if (estudosItems.length > 0) {
       sections.push({ title: "Estudos", items: estudosItems });
     }
 
-    // Ferramentas section
-    sections.push({
-      title: "Ferramentas",
-      items: [
-        { title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
-      ],
-    });
+    // Ferramentas
+    const ferramentasItems = [
+      { title: "Simulados", url: "/simulados", icon: ClipboardCheck, show: accessRules.simulados },
+    ].filter((item) => item.show);
+    if (ferramentasItems.length > 0) {
+      sections.push({ title: "Ferramentas", items: ferramentasItems });
+    }
 
-    // Admin section
-    const adminItems = [
-      { title: "Portal do Admin", url: "/admin/usuarios", icon: UserCog, show: accessRules.userManagement },
-      { title: "Analytics", url: "/admin/analytics", icon: TrendingUp, show: accessRules.analytics },
-      { title: "Desempenho Institucional", url: "/gestor", icon: School, show: accessRules.desempenhoInstitucional },
-    ].filter(item => item.show);
-
-    if (adminItems.length > 0) {
-      sections.push({
-        title: "Administração",
-        items: adminItems,
-      });
+    // Gestão: entradas dos portais que a role concede (URLs corretas por role).
+    const portalItems = getPortalEntries(user).map((e) => ({
+      title: e.title,
+      url: e.url,
+      icon: e.icon ?? ChevronRight,
+      show: true,
+    }));
+    if (portalItems.length > 0) {
+      sections.push({ title: "Gestão", items: portalItems });
     }
 
     return sections;
-  }, [accessRules, user, notebookDueCount, isAluno]);
+  }, [accessRules, user, notebookDueCount]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
