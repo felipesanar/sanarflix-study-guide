@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getGlobalNav } from '@/experiences/shared/globalNav';
-import { getAccessRules } from '@/utils/accessRules';
+import { getPortalEntries } from '@/experiences/shared/globalNav';
 import type { User } from '@/types';
 
 const makeUser = (roles: string[]): User => ({
@@ -12,40 +11,34 @@ const makeUser = (roles: string[]): User => ({
   roles,
 });
 
-const urls = (user: User) =>
-  getGlobalNav(user, getAccessRules(user)).map((i) => i.url);
+const urls = (user: User) => getPortalEntries(user).map((i) => i.url);
 
-describe('experiences/shared/getGlobalNav — nav apartada por experiência', () => {
-  it('admin: só links da própria experiência (/admin/*), nenhum de outra', () => {
-    const out = urls(makeUser(['admin']));
-    expect(out).toEqual(['/admin/usuarios', '/admin/analytics']);
-    expect(out.every((u) => u.startsWith('/admin/'))).toBe(true);
+describe('experiences/shared/getPortalEntries — links de portal por role', () => {
+  it('admin: link para o Portal do Admin', () => {
+    expect(urls(makeUser(['admin']))).toEqual(['/admin/usuarios']);
   });
 
-  it('gestão: só o Desempenho Institucional (/gestor)', () => {
+  it('gestor / gestor_grupo: link para o Desempenho Institucional', () => {
     expect(urls(makeUser(['gestor']))).toEqual(['/gestor']);
+    expect(urls(makeUser(['gestor_grupo']))).toEqual(['/gestor']);
   });
 
-  it('atendimento (CX): só Usuários apontando para /atendimento/usuarios', () => {
-    // Regressão: o item "Portal do Admin" apontava para /admin/usuarios, que o
-    // CX não monta (só monta /atendimento/*) → NotFound.
-    expect(urls(makeUser(['atendimento']))).toEqual(['/atendimento/usuarios']);
+  it('atendimento (CX): aponta para /atendimento/usuarios (nunca /admin)', () => {
+    const out = urls(makeUser(['atendimento']));
+    expect(out).toEqual(['/atendimento/usuarios']);
+    expect(out.some((u) => u.startsWith('/admin'))).toBe(false);
   });
 
-  it('aluno: inclui a raiz (/) e nenhum link de admin/gestão/atendimento', () => {
-    const aluno = makeUser([]);
-    const out = getGlobalNav(aluno, {
-      ...getAccessRules(aluno),
-      home: true,
-    }).map((i) => i.url);
-    expect(out).toContain('/');
-    expect(
-      out.some(
-        (u) =>
-          u.startsWith('/admin') ||
-          u.startsWith('/gestor') ||
-          u.startsWith('/atendimento'),
-      ),
-    ).toBe(false);
+  it('aluno/professor: nenhuma entrada de portal', () => {
+    expect(urls(makeUser([]))).toEqual([]);
+    expect(urls(makeUser(['professor']))).toEqual([]);
+  });
+
+  it('múltiplas roles: uma entrada por portal, na ordem admin > gestão > CX', () => {
+    expect(urls(makeUser(['atendimento', 'admin', 'gestor']))).toEqual([
+      '/admin/usuarios',
+      '/gestor',
+      '/atendimento/usuarios',
+    ]);
   });
 });

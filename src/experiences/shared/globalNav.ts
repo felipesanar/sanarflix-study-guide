@@ -1,43 +1,27 @@
-import { UserCog, TrendingUp, School, Users } from 'lucide-react';
-import type { AccessRules, User } from '@/types';
-import { getExperience } from '@/utils/experiences';
-import { ALUNO_NAV } from '@/experiences/aluno/AlunoNav';
-import { filterNavByAccess, type NavItem } from '@/experiences/types';
+import { UserCog, School, Headset } from 'lucide-react';
+import type { User } from '@/types';
+import { isAdmin, isGestor, isAtendimento } from '@/utils/accessRules';
+import type { NavItem } from '@/experiences/types';
 
 /**
- * Navegação global (rail lateral / bottom-nav) da experiência do usuário.
+ * Entradas de navegação para os PORTAIS dedicados do usuário.
  *
- * Como o {@link buildAppRoutes} monta apenas as rotas da experiência de cada
- * usuário, a nav global precisa ser **experience-aware**: cada experiência só
- * expõe links cujas rotas ela realmente monta — do contrário o link cai no
- * catch-all (NotFound). A navegação profunda de admin/gestão vive nas abas do
- * próprio layout (`AdminLayout`/`GestorLayout`); aqui ficam apenas os pontos de
- * entrada da experiência.
- *
- * Aluno + Professor mantém a lista canônica ({@link ALUNO_NAV}) filtrada pelas
- * `ies_features` (AccessRules), já que estas rotas são todas montadas na sua
- * experiência.
+ * No modelo híbrido, todo usuário tem a experiência de aluno na base; quem tem
+ * role privilegiada ganha, por cima, o(s) link(s) para o seu portal dedicado.
+ * Cada entrada aponta para o entrypoint CORRETO da role — em especial, o CX vai
+ * para `/atendimento/usuarios` (não `/admin/*`, que ele não acessa). Um usuário
+ * com múltiplas roles recebe uma entrada por portal, na ordem admin > gestão > CX.
  */
-export const getGlobalNav = (
-  user: User | null,
-  accessRules: AccessRules,
-): NavItem[] => {
-  switch (getExperience(user)) {
-    case 'admin':
-      return [
-        { title: 'Portal do Admin', url: '/admin/usuarios', icon: UserCog },
-        { title: 'Analytics', url: '/admin/analytics', icon: TrendingUp },
-      ];
-    case 'gestao':
-      // Somente o Desempenho Institucional. O acesso do gestor a Simulados
-      // (accessRules.simulados) não tem rota na experiência de gestão — ver
-      // nota de revisão; se for para reexpor, montar /simulados em gestorRoutes.
-      return [
-        { title: 'Desempenho Institucional', url: '/gestor', icon: School },
-      ];
-    case 'atendimento':
-      return [{ title: 'Usuários', url: '/atendimento/usuarios', icon: Users }];
-    default:
-      return filterNavByAccess(ALUNO_NAV, accessRules);
+export const getPortalEntries = (user: User | null): NavItem[] => {
+  const entries: NavItem[] = [];
+  if (isAdmin(user)) {
+    entries.push({ title: 'Portal do Admin', url: '/admin/usuarios', icon: UserCog });
   }
+  if (isGestor(user)) {
+    entries.push({ title: 'Desempenho Institucional', url: '/gestor', icon: School });
+  }
+  if (isAtendimento(user)) {
+    entries.push({ title: 'Atendimento', url: '/atendimento/usuarios', icon: Headset });
+  }
+  return entries;
 };
