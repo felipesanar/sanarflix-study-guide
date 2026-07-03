@@ -16,18 +16,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAccessRules } from "@/hooks/useAccessRules";
 import { useNotebookDueCount } from "@/hooks/useNotebookDueCount";
-import { getExperience } from "@/utils/experiences";
-import { getGlobalNav } from "@/experiences/shared/globalNav";
+import { getPortalEntries } from "@/experiences/shared/globalNav";
 import { isRouteActive } from "@/experiences/shared/navActive";
 import {
   BookOpen,
   BarChart3,
   ClipboardCheck,
-  UserCog,
   Home as HomeIcon,
   GraduationCap,
-  TrendingUp,
-  School,
   BookMarked,
 } from "lucide-react";
 
@@ -69,27 +65,6 @@ const menuItems = [
     icon: BookMarked,
     accessKey: "errorNotebook" as const,
     description: "Revise seus gaps e evite repeti-los",
-  },
-  {
-    title: "Portal do Admin",
-    url: "/admin/usuarios",
-    icon: UserCog,
-    accessKey: "userManagement" as const,
-    description: "Administração de elementos da plataforma",
-  },
-  {
-    title: "Analytics",
-    url: "/admin/analytics",
-    icon: TrendingUp,
-    accessKey: "analytics" as const,
-    description: "Métricas e insights avançados",
-  },
-  {
-    title: "Desempenho Institucional",
-    url: "/gestor",
-    icon: School,
-    accessKey: "desempenhoInstitucional" as const,
-    description: "Visão geral do desempenho dos alunos",
   },
 ];
 
@@ -168,20 +143,14 @@ export function AppSidebar() {
     return accessRules[item.accessKey];
   });
 
-  // Navegação global apartada por experiência: cada experiência só mostra links
-  // cujas rotas ela realmente monta (evita itens que caem em NotFound). O aluno
-  // mantém a estrutura rica (Home destacada + grupo Guia de Estudos); admin,
-  // gestão e CX mostram apenas o(s) ponto(s) de entrada — a navegação profunda
-  // vive nas abas do próprio layout (AdminLayout/GestorLayout).
-  const experience = getExperience(user);
-  const isAluno = experience === "aluno_professor";
-
-  // Filter visible main menu items
-  const visibleMenuItems = isAluno
-    ? menuItems.filter(
-        (item) => item.accessKey !== "home" && accessRules[item.accessKey],
-      )
-    : getGlobalNav(user, accessRules);
+  // Modelo híbrido: a navegação de aluno é mostrada para TODOS (filtrada por
+  // accessRules). Usuários privilegiados recebem, ao final, as entradas para o(s)
+  // seu(s) portal(is) dedicado(s) — cada uma apontando para o entrypoint da role.
+  const studentItems = menuItems.filter(
+    (item) => item.accessKey !== "home" && accessRules[item.accessKey],
+  );
+  const portalEntries = getPortalEntries(user);
+  const visibleMenuItems = [...studentItems, ...portalEntries];
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -234,7 +203,7 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="space-y-1">
                 {/* Home (só na experiência do aluno; a raiz "/" só é montada lá) */}
-                {isAluno && accessRules.home && (
+                {accessRules.home && (
                   <SidebarNavItem
                     item={{
                       title: "Início",
@@ -248,7 +217,7 @@ export function AppSidebar() {
                 )}
 
                 {/* Study Guide Group (rotas /guia-estudos e /dashboard só no aluno) */}
-                {isAluno && accessRules.studyGuide && hasStudyGuideContent && (
+                {accessRules.studyGuide && hasStudyGuideContent && (
                   <SidebarNavGroup
                     title="Guia de Estudos"
                     icon={BookOpen}
