@@ -52,7 +52,9 @@ export const buildAppRoutes = (
 
     // POR CIMA: portais dedicados, montados conforme as roles do usuário.
     ...(isAdmin(user) ? adminRoutes() : []),
-    ...(isGestor(user) ? gestorRoutes() : []),
+    // Gestor/gestor_grupo por role própria; admin como super usuário também
+    // monta o portal de Gestão (mesma fronteira do ExperienceGuard 'gestao').
+    ...(isGestor(user) || isAdmin(user) ? gestorRoutes() : []),
     ...(isAtendimento(user) ? atendimentoRoutes() : []),
 
     {

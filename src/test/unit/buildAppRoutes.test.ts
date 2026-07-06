@@ -148,17 +148,18 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     expect(routes.has('/guia-estudos')).toBe(true);
   });
 
-  it('monta apenas os portais das roles do usuário', () => {
+  it('monta os portais das roles do usuário (admin também enxerga a Gestão)', () => {
     const aluno = makeUser([]);
     const rAluno = byPath(buildAppRoutes(aluno, getAccessRules(aluno)));
     expect(rAluno.has('/admin')).toBe(false);
     expect(rAluno.has('/gestor')).toBe(false);
     expect(rAluno.has('/atendimento')).toBe(false);
 
+    // Admin é super usuário: monta o próprio portal E o de Gestão, mas não o CX.
     const admin = makeUser(['admin']);
     const rAdmin = byPath(buildAppRoutes(admin, getAccessRules(admin)));
     expect(rAdmin.has('/admin')).toBe(true);
-    expect(rAdmin.has('/gestor')).toBe(false);
+    expect(rAdmin.has('/gestor')).toBe(true);
     expect(rAdmin.has('/atendimento')).toBe(false);
   });
 
@@ -286,5 +287,14 @@ describe('experiences/buildAppRoutes — admin', () => {
   it('mantém o catch-all (*) ao final também para o admin', () => {
     const routes = buildAppRoutes(admin, adminRules);
     expect(routes[routes.length - 1].path).toBe('*');
+  });
+
+  it('admin (super usuário) também monta a rota /gestor da experiência de Gestão', () => {
+    const routes = byPath(buildAppRoutes(admin, adminRules));
+    expect(routes.get('/admin')).toBeDefined();
+    const gestorRoute = routes.get('/gestor');
+    expect(gestorRoute).toBeDefined();
+    const indexChild = (gestorRoute?.children ?? []).find((c) => c.index);
+    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
   });
 });
