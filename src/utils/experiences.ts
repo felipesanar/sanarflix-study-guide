@@ -50,7 +50,10 @@ export const canAccessExperience = (
     case 'atendimento':
       return isAtendimento(user);
     case 'gestao':
-      return isGestor(user);
+      // Admin é super usuário: além do seu portal, enxerga a experiência de
+      // gestão (Desempenho Institucional / Visão Institucional) para demos e
+      // suporte. Gestor e gestor_grupo mantêm o acesso por role própria.
+      return isGestor(user) || isAdmin(user);
     case 'aluno_professor':
       return true;
   }

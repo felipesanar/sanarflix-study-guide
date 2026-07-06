@@ -14,8 +14,8 @@ const makeUser = (roles: string[]): User => ({
 const urls = (user: User) => getPortalEntries(user).map((i) => i.url);
 
 describe('experiences/shared/getPortalEntries — links de portal por role', () => {
-  it('admin: link para o Portal do Admin', () => {
-    expect(urls(makeUser(['admin']))).toEqual(['/admin/usuarios']);
+  it('admin: Portal do Admin + Desempenho Institucional (super usuário)', () => {
+    expect(urls(makeUser(['admin']))).toEqual(['/admin/usuarios', '/gestor']);
   });
 
   it('gestor / gestor_grupo: link para o Desempenho Institucional', () => {

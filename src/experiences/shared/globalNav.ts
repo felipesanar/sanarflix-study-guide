@@ -17,7 +17,7 @@ export const getPortalEntries = (user: User | null): NavItem[] => {
   if (isAdmin(user)) {
     entries.push({ title: 'Portal do Admin', url: '/admin/usuarios', icon: UserCog });
   }
-  if (isGestor(user)) {
+  if (isGestor(user) || isAdmin(user)) {
     entries.push({ title: 'Desempenho Institucional', url: '/gestor', icon: School });
   }
   if (isAtendimento(user)) {

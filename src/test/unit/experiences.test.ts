@@ -163,10 +163,12 @@ describe('utils/experiences — canAccessExperience (autorização por role)', (
     expect(canAccessExperience(makeUser([]), 'admin')).toBe(false);
   });
 
-  it('gestao cobre gestor e gestor_grupo', () => {
+  it('gestao cobre gestor, gestor_grupo e admin (super usuário)', () => {
     expect(canAccessExperience(makeUser(['gestor']), 'gestao')).toBe(true);
     expect(canAccessExperience(makeUser(['gestor_grupo']), 'gestao')).toBe(true);
+    expect(canAccessExperience(makeUser(['admin']), 'gestao')).toBe(true);
     expect(canAccessExperience(makeUser(['atendimento']), 'gestao')).toBe(false);
+    expect(canAccessExperience(makeUser([]), 'gestao')).toBe(false);
   });
 
   it('atendimento só para quem tem a role atendimento', () => {
