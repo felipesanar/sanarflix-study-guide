@@ -13,17 +13,12 @@ import { useSessionTracker } from '@/hooks/useSessionTracker';
 import { usePresenceTracker } from '@/hooks/usePresenceTracker';
 import { MobileBottomNav, MobileHeader } from '@/components/navigation';
 import { SemesterPromptBanner } from './SemesterPromptBanner';
+import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
+import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
+import { FeedbackFab } from '@/components/feedback/FeedbackFab';
+import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
 
-/**
- * Shell EXCLUSIVO da experiência de aluno (sidebar + header + bottom-nav).
- *
- * ImpersonationBanner e FeedbackFab NÃO vivem mais aqui — subiram para o
- * nível autenticado do App (fora de qualquer shell de experiência) para
- * persistirem em admin/gestão/atendimento também. Este Layout só envolve a
- * árvore de rotas do aluno (ver alunoRoutes/buildAppRoutes); os portais
- * dedicados (/admin, /gestor, /atendimento) têm cada um o seu próprio shell
- * full-page independente.
- */
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -34,70 +29,80 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isModoProva = location.pathname.startsWith('/simulados/') && location.pathname.includes('/prova');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
-
+  
   // Session tracking
   useSessionTracker();
-
+  
   // Presence tracking for real-time online users
   usePresenceTracker();
-
+  
   if (!authContext) {
     return <>{children}</>;
   }
-
+  
   const { user } = authContext;
 
   return (
     <PasswordDialogProvider>
-      <OfflineIndicator />
-      <SidebarProvider>
-        {/* Desktop Sidebar */}
-        {!isModoProva && <AppSidebar />}
+      <FeedbackProvider>
+        <FeedbackShortcutBridge />
+        <OfflineIndicator />
+        <ImpersonationBanner />
+        <SidebarProvider>
+          {/* Desktop Sidebar */}
+          {!isModoProva && <AppSidebar />}
 
-        <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
-          {/* Desktop Header */}
-          {!isModoProva && (
-            <header className={`sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 transition-all duration-300 ${
-              hasScrolled
-                ? 'bg-background/60 backdrop-blur-md border-b border-border/20'
-                : 'bg-transparent'
-            }`}>
-              <SidebarTrigger className="p-2 hover:bg-accent rounded-lg transition-colors">
-                <Menu className="h-5 w-5 text-foreground" />
-              </SidebarTrigger>
+          <SidebarInset className="flex-1 flex flex-col min-h-screen min-w-0 w-full transition-all duration-300 overflow-x-clip">
+            {/* Desktop Header */}
+            {!isModoProva && (
+              <header className={`sticky top-0 z-30 h-14 hidden md:flex items-center px-4 w-full shrink-0 transition-all duration-300 ${
+                hasScrolled
+                  ? 'bg-background/60 backdrop-blur-md border-b border-border/20'
+                  : 'bg-transparent'
+              }`}>
+                <SidebarTrigger className="p-2 hover:bg-accent rounded-lg transition-colors">
+                  <Menu className="h-5 w-5 text-foreground" />
+                </SidebarTrigger>
 
-              <div className="ml-auto flex items-center gap-2">
-                <ThemeToggle />
-              </div>
-            </header>
-          )}
+                <div className="ml-auto flex items-center gap-2">
+                  <ThemeToggle />
+                </div>
+              </header>
+            )}
 
-          {/* Mobile Header */}
-          {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
+            {/* Mobile Header */}
+            {!isModoProva && <MobileHeader hasScrolled={hasScrolled} />}
 
-          {/* Semester prompt banner */}
-          {!isModoProva && <SemesterPromptBanner />}
+            {/* Semester prompt banner */}
+            {!isModoProva && <SemesterPromptBanner />}
 
-          {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
-          <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">
-            {children}
-          </main>
+            {/* Main content - no overflow-auto on mobile to avoid scroll conflicts */}
+            <main className="flex-1 min-w-0 md:overflow-auto overflow-x-clip pb-24 md:pb-0">
+              {children}
+            </main>
 
-          {/* Mobile Bottom Navigation */}
-          {!isModoProva && <MobileBottomNav />}
+            {/* Mobile Bottom Navigation */}
+            {!isModoProva && <MobileBottomNav />}
 
-          {/* Floating actions */}
-          {!isModoProva && (
-            <FloatingActions showScrollTop={showScrollTop} />
-          )}
-          <ScrollTopWatcher setShowScrollTop={setShowScrollTop} setHasScrolled={setHasScrolled} />
-        </SidebarInset>
+            {/* Floating actions */}
+            {!isModoProva && (
+              <FloatingActions showScrollTop={showScrollTop} />
+            )}
+            <ScrollTopWatcher setShowScrollTop={setShowScrollTop} setHasScrolled={setHasScrolled} />
+          </SidebarInset>
 
-        <PasswordDialogConsumer />
-      </SidebarProvider>
+          <PasswordDialogConsumer />
+        </SidebarProvider>
+      </FeedbackProvider>
     </PasswordDialogProvider>
   );
 };
+
+function FeedbackShortcutBridge() {
+  useFeedbackShortcut();
+  return null;
+}
+
 
 function PasswordDialogConsumer() {
   const { open, setOpen } = usePasswordDialog();
@@ -118,8 +123,6 @@ function ScrollTopWatcher({ setShowScrollTop, setHasScrolled }: { setShowScrollT
 }
 
 function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
-  // FeedbackFab agora vive no App (nível autenticado, fora do shell), com o
-  // seu próprio wrapper `fixed` — não é mais renderizado aqui.
   return (
     <div className="fixed right-4 md:right-6 bottom-28 md:bottom-6 z-30 flex items-center gap-2 md:gap-4">
       {showScrollTop && (
@@ -133,6 +136,10 @@ function FloatingActions({ showScrollTop }: { showScrollTop: boolean }) {
           <ArrowUp className="h-4 w-4" />
         </Button>
       )}
+      <FeedbackFab />
+
+
+
     </div>
   );
 }

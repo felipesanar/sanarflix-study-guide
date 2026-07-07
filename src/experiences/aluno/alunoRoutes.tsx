@@ -3,9 +3,7 @@ import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import type { AccessRules, User } from '@/types';
 import { getDefaultRouteForUser } from '@/utils/experiences';
-import type { Access } from '@/experiences/access';
 import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
-import { Layout } from '@/components/Layout';
 import {
   HomePageSkeleton,
   StudyGuideSkeleton,
@@ -43,19 +41,9 @@ const CadernoRetaFinal = lazy(() =>
 const MeusFeedbacks = lazy(() => import('@/pages/MeusFeedbacks'));
 
 /**
- * Envolve o conteúdo da experiência de aluno no seu shell exclusivo (sidebar
- * desktop + header + bottom-nav mobile). O Layout já trata o Modo Prova
- * internamente (esconde a chrome quando a rota é `/simulados/:id/prova`).
- */
-const withAlunoLayout = (element: React.ReactNode): React.ReactNode => (
-  <Layout>{element}</Layout>
-);
-
-/**
  * Monta uma rota controlada por uma regra de acesso: quando liberada renderiza
- * o elemento (dentro do shell de aluno); quando bloqueada redireciona para o
- * entrypoint da experiência (mantendo o "bloqueio de acesso cruzado volta
- * para a sua tela inicial" — sem shell, é um redirect imediato).
+ * o elemento; quando bloqueada redireciona para o entrypoint da experiência
+ * (mantendo o "bloqueio de acesso cruzado volta para a sua tela inicial").
  */
 const gated = (
   enabled: boolean,
@@ -64,7 +52,7 @@ const gated = (
   fallback: string,
 ): RouteObject => ({
   path,
-  element: enabled ? withAlunoLayout(element) : <Navigate to={fallback} replace />,
+  element: enabled ? <>{element}</> : <Navigate to={fallback} replace />,
 });
 
 /**
@@ -72,28 +60,24 @@ const gated = (
  *
  * A Home passa a viver na raiz (`/`); a rota legada `/home` redireciona para
  * `/`. As demais telas seguem controladas dinamicamente pelas `ies_features`
- * (via AccessRules), redirecionando para o entrypoint quando bloqueadas. Toda
- * tela de conteúdo é envolvida pelo shell exclusivo do aluno ({@link Layout}).
+ * (via AccessRules), redirecionando para o entrypoint quando bloqueadas.
  */
 export const alunoRoutes = (
   user: User | null,
   accessRules: AccessRules,
-  access?: Access,
 ): RouteObject[] => {
-  const fallback = getDefaultRouteForUser(user, accessRules, access);
+  const fallback = getDefaultRouteForUser(user, accessRules);
 
   return [
     {
       path: '/',
       element: accessRules.home ? (
-        withAlunoLayout(
-          <ExperiencePage
-            loadingMessage="Carregando início..."
-            skeleton={<HomePageSkeleton />}
-          >
-            <Home />
-          </ExperiencePage>,
-        )
+        <ExperiencePage
+          loadingMessage="Carregando início..."
+          skeleton={<HomePageSkeleton />}
+        >
+          <Home />
+        </ExperiencePage>
       ) : (
         <Navigate to={fallback} replace />
       ),
@@ -131,15 +115,13 @@ export const alunoRoutes = (
       fallback,
     ),
 
-    // Modo Prova roda em tela cheia (sem aguardar dados de página). Ainda
-    // passa pelo Layout — que esconde sidebar/bottom-nav internamente
-    // (isModoProva) — para preservar ImpersonationBanner/FeedbackFab do App.
+    // Modo Prova roda em tela cheia (sem aguardar dados de página).
     {
       path: '/simulados/:id/prova',
-      element: withAlunoLayout(
+      element: (
         <ExperiencePage waitForData={false}>
           <ModoProva />
-        </ExperiencePage>,
+        </ExperiencePage>
       ),
     },
 
@@ -196,10 +178,10 @@ export const alunoRoutes = (
 
     {
       path: '/meus-feedbacks',
-      element: withAlunoLayout(
+      element: (
         <ExperiencePage loadingMessage="Carregando…" waitForData={false}>
           <MeusFeedbacks />
-        </ExperiencePage>,
+        </ExperiencePage>
       ),
     },
   ];

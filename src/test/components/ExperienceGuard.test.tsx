@@ -2,10 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
 import { getAccessRules } from '@/utils/accessRules';
-import { deriveAccessFromRoles } from '@/experiences/access';
 import { User } from '@/types';
 
-// useAuth e useAccessRules são mockados; getDefaultRouteForUser/hasExperience
+// useAuth e useAccessRules são mockados; getExperience/getDefaultRouteForUser
 // são exercitados de verdade (é o que o guard reusa).
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({
@@ -41,17 +40,18 @@ const makeUser = (roles: string[]): User => ({
   roles,
 });
 
-/** Aponta os mocks para um usuário e o `access` derivado das suas roles. */
+/** Aponta os mocks para um usuário e suas regras de acesso reais. */
 const setUser = (user: User | null) => {
-  const access = deriveAccessFromRoles(user?.roles);
-  mockUseAuth.mockReturnValue({ user, access });
+  mockUseAuth.mockReturnValue({ user });
   mockUseAccessRules.mockReturnValue({
     accessRules: getAccessRules(user),
     loading: false,
   });
 };
 
-const renderGuard = (experience: 'admin' | 'atendimento' | 'gestao' | 'aluno') =>
+const renderGuard = (
+  experience: 'admin' | 'atendimento' | 'gestao' | 'aluno_professor',
+) =>
   render(
     <ExperienceGuard experience={experience}>
       <div>conteúdo protegido</div>
@@ -76,7 +76,7 @@ describe('ExperienceGuard', () => {
   it('bloqueia e redireciona o aluno que tenta acessar a experiência admin', () => {
     // Aluno com home liberada → entrypoint dinâmico é a raiz (/).
     const user = makeUser([]);
-    mockUseAuth.mockReturnValue({ user, access: deriveAccessFromRoles([]) });
+    mockUseAuth.mockReturnValue({ user });
     mockUseAccessRules.mockReturnValue({
       accessRules: { ...getAccessRules(user), home: true },
       loading: false,
@@ -104,12 +104,10 @@ describe('ExperienceGuard', () => {
   it('redireciona o admin que tenta acessar a experiência de gestão para a sua própria (/admin/usuarios)', () => {
     setUser(makeUser(['admin']));
     renderGuard('gestao');
-    // Admin também tem a experiência de gestão (super usuário) — não é bloqueado.
-    expect(screen.getByText('conteúdo protegido')).toBeInTheDocument();
-    expect(redirectedTo()).toBeNull();
+    expect(redirectedTo()).toBe('/admin/usuarios');
   });
 
-  it('trata usuário nulo como aluno e bloqueia a experiência admin', () => {
+  it('trata usuário nulo como aluno+professor e bloqueia a experiência admin', () => {
     setUser(null);
     renderGuard('admin');
     expect(screen.queryByText('conteúdo protegido')).not.toBeInTheDocument();

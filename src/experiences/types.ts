@@ -1,20 +1,21 @@
 import type { ElementType } from 'react';
 import type { AccessRules } from '@/types';
-import type { ExperienceId, Capability } from '@/experiences/access';
+import type { Experience } from '@/utils/experiences';
 
 /**
  * Identificador de cada experiência apartada do SanarFlix Academy.
  *
- * Reexportado de {@link ExperienceId} em `src/experiences/access.ts` —
- * fonte única de verdade para as experiências (aditivas, uma por
- * `access.experiences`):
+ * É o mesmo conjunto resolvido por {@link Experience} em
+ * `src/utils/experiences.ts` — aqui apenas reexportado com o nome canônico
+ * usado pelo módulo de experiências (`src/experiences/`), mantendo uma única
+ * fonte da verdade para as roles/experiências:
  *
- *  - `aluno`       — Aluno + Professor (base, todo usuário autenticado tem)
- *  - `gestao`      — Gestor IES + Gestor de Grupo
- *  - `admin`       — Admin
- *  - `atendimento` — Atendimento (CX)
+ *  - `aluno_professor` — Aluno + Professor
+ *  - `gestao`          — Gestor IES + Gestor de Grupo
+ *  - `admin`           — Admin
+ *  - `atendimento`     — Atendimento (CX)
  */
-export type { ExperienceId };
+export type ExperienceId = Experience;
 
 /**
  * Item de navegação de uma experiência.
@@ -38,13 +39,6 @@ export interface NavItem {
    * Quando omitida, o item é sempre visível (não depende de regra de acesso).
    */
   accessKey?: keyof AccessRules;
-  /**
-   * Capability que controla a visibilidade do item nos portais dedicados
-   * (admin/gestão/atendimento). Telas e navegação checam `can(access, cap)` —
-   * nunca role literal. Quando omitida, o item é sempre visível dentro do
-   * portal (não depende de capability).
-   */
-  capability?: Capability;
   /** Descrição opcional (tooltip / acessibilidade). */
   description?: string;
   /** Contador opcional exibido como badge (ex.: pendências do caderno de erros). */

@@ -74,28 +74,30 @@ interface UserRow {
   roles: string[];
 }
 
-type AppRole = 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento';
-
 interface EditingState {
   userId: string | null;
   nome: string;
   id_ies: string;
   semestre: string;
-  roles: AppRole[]; // papéis privilegiados marcados (aditivo — pode acumular vários)
+  role: string; // 'aluno' = sem papel privilegiado
 }
 
-const EDITABLE_ROLES: { value: AppRole; label: string }[] = [
+const ROLE_NONE = 'aluno';
+const EDITABLE_ROLES: { value: string; label: string }[] = [
+  { value: ROLE_NONE,      label: 'Aluno' },
   { value: 'admin',        label: 'Admin' },
   { value: 'professor',    label: 'Professor' },
   { value: 'gestor',       label: 'Gestor' },
   { value: 'gestor_grupo', label: 'Gestor de Grupo' },
   { value: 'atendimento',  label: 'Atendimento' },
 ];
-const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value);
+const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value).filter(v => v !== ROLE_NONE);
 
-/** Papéis privilegiados atuais do usuário (subconjunto de PRIVILEGED_ROLES), preservando ordem estável. */
-const deriveEditableRoles = (roles: string[] | undefined): AppRole[] =>
-  PRIVILEGED_ROLES.filter(r => roles?.includes(r));
+const derivePrimaryRole = (roles: string[] | undefined): string => {
+  if (!roles?.length) return ROLE_NONE;
+  const found = roles.find(r => PRIVILEGED_ROLES.includes(r));
+  return found ?? ROLE_NONE;
+};
 
 interface UsersListTableProps {
   iesList: IES[];
@@ -153,7 +155,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     nome: '',
     id_ies: '',
     semestre: '',
-    roles: [],
+    role: ROLE_NONE,
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -577,26 +579,19 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     cancelEmailRef.current = true;
   };
 
-  // ──── Existing single-user actions ────
+  // ──── Existing single-user actions (unchanged) ────
   const startEditing = (user: UserRow) => {
     setEditing({
       userId: user.id,
       nome: user.nome,
       id_ies: user.id_ies || '',
       semestre: user.semestre?.toString() || '',
-      roles: deriveEditableRoles(user.roles),
+      role: derivePrimaryRole(user.roles),
     });
   };
 
   const cancelEditing = () => {
-    setEditing({ userId: null, nome: '', id_ies: '', semestre: '', roles: [] });
-  };
-
-  const toggleEditingRole = (role: AppRole, checked: boolean) => {
-    setEditing(prev => ({
-      ...prev,
-      roles: checked ? [...prev.roles, role] : prev.roles.filter(r => r !== role),
-    }));
+    setEditing({ userId: null, nome: '', id_ies: '', semestre: '', role: ROLE_NONE });
   };
 
   const saveEditing = async () => {
@@ -625,29 +620,23 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
 
-      // Papéis são aditivos (um usuário pode acumular admin+gestor+professor+atendimento).
-      // Aplicamos diff: inserimos os marcados que faltam, removemos os desmarcados que existiam.
-      // Nunca "delete all + insert" — evita apagar papéis não tocados nesta edição.
-      const currentRoles = deriveEditableRoles(user.roles);
-      const toAdd = editing.roles.filter(r => !currentRoles.includes(r));
-      const toRemove = currentRoles.filter(r => !editing.roles.includes(r));
-
-      if (toRemove.length > 0) {
+      // Sincronizar papel (mutuamente exclusivo entre os papéis editáveis)
+      const currentRole = derivePrimaryRole(user.roles);
+      if (editing.role !== currentRole) {
         const { error: delErr } = await supabase
           .from('user_roles')
           .delete()
           .eq('user_id', user.id)
-          .in('role', toRemove);
+          .in('role', PRIVILEGED_ROLES as Array<'admin' | 'professor' | 'gestor' | 'atendimento' | 'gestor_grupo'>);
         if (delErr) {
-          toast.error(`Usuário atualizado, mas falhou ao remover papéis: ${delErr.message}`);
-        }
-      }
-      if (toAdd.length > 0) {
-        const { error: insErr } = await supabase
-          .from('user_roles')
-          .insert(toAdd.map(role => ({ user_id: user.id, role })));
-        if (insErr) {
-          toast.error(`Falha ao adicionar papéis: ${insErr.message}`);
+          toast.error(`Usuário atualizado, mas falhou ao alterar papel: ${delErr.message}`);
+        } else if (editing.role !== ROLE_NONE) {
+          const { error: insErr } = await supabase
+            .from('user_roles')
+            .insert({ user_id: user.id, role: editing.role as 'admin' | 'professor' | 'gestor' | 'atendimento' | 'gestor_grupo' });
+          if (insErr) {
+            toast.error(`Falha ao definir novo papel: ${insErr.message}`);
+          }
         }
       }
 
@@ -1148,18 +1137,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
                       <TableCell>
                         {isEditing ? (
-                          <div className="flex flex-col gap-1 min-w-[160px]">
-                            {EDITABLE_ROLES.map((r) => (
-                              <label key={r.value} className="flex items-center gap-2 text-xs cursor-pointer">
-                                <Checkbox
-                                  checked={editing.roles.includes(r.value)}
-                                  onCheckedChange={(checked) => toggleEditingRole(r.value, checked === true)}
-                                  aria-label={r.label}
-                                />
-                                {r.label}
-                              </label>
-                            ))}
-                          </div>
+                          <Select
+                            value={editing.role}
+                            onValueChange={(v) => setEditing({ ...editing, role: v })}
+                          >
+                            <SelectTrigger className="h-8 min-w-[140px]">
+                              <SelectValue placeholder="Papel" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {EDITABLE_ROLES.map((r) => (
+                                <SelectItem key={r.value} value={r.value}>
+                                  {r.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {user.roles && user.roles.length > 0 ? (

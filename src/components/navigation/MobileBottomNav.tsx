@@ -58,7 +58,7 @@ const reducedMotionTransition = {
 export function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, access, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { accessRules } = useAccessRules();
   const { count: notebookDueCount } = useNotebookDueCount();
   const { resolvedTheme, setTheme } = useTheme();
@@ -135,8 +135,8 @@ export function MobileBottomNav() {
       sections.push({ title: "Ferramentas", items: ferramentasItems });
     }
 
-    // Gestão: entradas dos portais que o access concede (URLs corretas por experiência).
-    const portalItems = getPortalEntries(access).map((e) => ({
+    // Gestão: entradas dos portais que a role concede (URLs corretas por role).
+    const portalItems = getPortalEntries(user).map((e) => ({
       title: e.title,
       url: e.url,
       icon: e.icon ?? ChevronRight,
@@ -147,7 +147,7 @@ export function MobileBottomNav() {
     }
 
     return sections;
-  }, [accessRules, user, access, notebookDueCount]);
+  }, [accessRules, user, notebookDueCount]);
 
   const handleLogout = async () => {
     if (isLoggingOut) return;

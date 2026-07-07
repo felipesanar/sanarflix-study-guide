@@ -9,17 +9,16 @@ import { SimuladoCorrecao } from './SimuladoCorrecao';
 import { HowToUseSimuladoModal } from '@/components/simulados/HowToUseSimuladoModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
-import { can } from '@/experiences/access';
 
 export const Simulados = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { access } = useAuth();
+  const { user } = useAuth();
   const { accessRules } = useAccessRules();
   const [abaAtiva, setAbaAtiva] = useState('disponiveis');
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
-  const canManageSimulados = can(access, 'simulados.manage');
+  const isAdmin = user?.roles?.includes('admin') ?? false;
   const showDesempenho = accessRules.SimuladoDesempenho;
 
   useEffect(() => {
@@ -32,7 +31,7 @@ export const Simulados = () => {
     } else {
       setAbaAtiva('disponiveis');
     }
-  }, [location.search, canManageSimulados]);
+  }, [location.search, isAdmin]);
 
   const handleTabChange = (val: string) => {
     setAbaAtiva(val);

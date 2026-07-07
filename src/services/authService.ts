@@ -10,7 +10,6 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
-import { Access, deriveAccessFromRoles, parseAccessPayload } from '@/experiences/access';
 
 export type UserRole = 'admin' | 'professor' | 'gestor' | 'gestor_grupo' | 'atendimento' | 'aluno' | 'guest' | string;
 
@@ -37,44 +36,6 @@ export const authService = {
       return [];
     }
     return (data ?? []) as UserRole[];
-  },
-
-  /**
-   * Busca o payload cru da RPC `get_access` (fonte da verdade no banco,
-   * SECURITY DEFINER, sem args — usa auth.uid()) e valida com
-   * `parseAccessPayload`. Retorna `null` se a RPC falhar, ainda não existir,
-   * ou devolver um payload malformado — o caller deve tratar `null` com
-   * `deriveAccessFromRoles(roles)` como fallback.
-   *
-   * A RPC pode ainda não existir nos types gerados do Supabase; chamamos com
-   * cast até o schema ser regenerado.
-   */
-  async fetchAccessPayload(): Promise<Access | null> {
-    try {
-      const { data, error } = await (supabase.rpc as any)('get_access');
-      if (error) {
-        Logger.warn('[authService.fetchAccessPayload] RPC error', error);
-        return null;
-      }
-      const parsed = parseAccessPayload(data);
-      if (!parsed) {
-        Logger.warn('[authService.fetchAccessPayload] payload inválido', data);
-      }
-      return parsed;
-    } catch (e) {
-      Logger.warn('[authService.fetchAccessPayload] exceção inesperada', e);
-      return null;
-    }
-  },
-
-  /**
-   * Acesso por experiências + capabilities, com fallback client-side.
-   * Conveniência sobre `fetchAccessPayload` para callers que já têm as
-   * roles do usuário disponíveis (login, refresh síncrono simples).
-   */
-  async getAccess(fallbackRoles: string[] | undefined | null): Promise<Access> {
-    const parsed = await this.fetchAccessPayload();
-    return parsed ?? deriveAccessFromRoles(fallbackRoles);
   },
 
   /**

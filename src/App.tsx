@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useWebVitals } from "@/hooks/usePerformance";
+import { Layout } from '@/components/Layout';
 import { LoginForm } from '@/components/LoginForm';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { StudyProvider } from '@/contexts/StudyContext';
@@ -15,10 +16,6 @@ import { ThemeProvider } from "next-themes";
 import { ScrollManager } from '@/components/ScrollManager';
 import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 import { DynamicRoutes } from '@/components/DynamicRoutes';
-import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
-import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
-import { FeedbackFab } from '@/components/feedback/FeedbackFab';
-import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
 
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
@@ -39,7 +36,7 @@ const queryClient = new QueryClient({
 });
 
 const AppContent = () => {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
 
   // Sistema de prefetch inteligente baseado em probabilidade
   useIntelligentPrefetch();
@@ -51,14 +48,6 @@ const AppContent = () => {
   // while processing recovery tokens.
   const isUpdatePasswordPage = window.location.pathname === '/auth/update-password';
   const isResetPasswordPage = window.location.pathname === '/reset-password';
-
-  // Enquanto a sessão restaura (cold load), não renderizar a árvore pública:
-  // o catch-all dela redirecionaria para '/' e perderia a URL de entrada
-  // (ex.: usuário digitando /gestor direto). O splash preserva a rota até o
-  // auth resolver.
-  if (isLoading && !user && !isUpdatePasswordPage && !isResetPasswordPage) {
-    return <div className="min-h-screen bg-background" />;
-  }
 
   // Rotas públicas (usuário não autenticado OR recovery flow pages)
   if (!user || isUpdatePasswordPage || isResetPasswordPage) {
@@ -80,29 +69,15 @@ const AppContent = () => {
   }
 
   // Rotas protegidas (usuário autenticado)
-  // DynamicRoutes usa useAccessRules para controle dinâmico baseado em ies_features.
-  // ImpersonationBanner e FeedbackFab vivem aqui (fora de qualquer shell de
-  // experiência) para persistirem em TODAS as experiências (aluno/admin/gestão/
-  // atendimento) — cada portal tem seu próprio shell full-page independente,
-  // montado dentro de DynamicRoutes (ver buildAppRoutes).
+  // DynamicRoutes usa useAccessRules para controle dinâmico baseado em ies_features
   return (
     <StudyProvider>
-      <FeedbackProvider>
-        <FeedbackShortcutBridge />
-        <ImpersonationBanner />
+      <Layout>
         <DynamicRoutes />
-        <div className="fixed right-4 md:right-6 bottom-4 md:bottom-6 z-30">
-          <FeedbackFab />
-        </div>
-      </FeedbackProvider>
+      </Layout>
     </StudyProvider>
   );
 };
-
-function FeedbackShortcutBridge() {
-  useFeedbackShortcut();
-  return null;
-}
 
 const App = () => {
   // Monitorar Web Vitals

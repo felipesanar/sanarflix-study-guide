@@ -2054,7 +2054,6 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
-      get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
       get_all_user_performance_by_area: {
         Args: never
@@ -2096,10 +2095,6 @@ export type Database = {
         Returns: {
           semestre: string
         }[]
-      }
-      get_group_ies_comparison: {
-        Args: { p_simulado_id?: string }
-        Returns: Json
       }
       get_ies_features: {
         Args: { p_ies_id: string }
@@ -2158,10 +2153,6 @@ export type Database = {
         }
         Returns: Json
       }
-      get_institutional_question_stats: {
-        Args: { p_ies_id?: string; p_simulado_id: string }
-        Returns: Json
-      }
       get_institutional_simulados: {
         Args: { p_ies_id?: string }
         Returns: {
@@ -2169,10 +2160,6 @@ export type Database = {
           id: string
           nome: string
         }[]
-      }
-      get_institutional_student_engagement: {
-        Args: { p_days?: number; p_ies_id?: string }
-        Returns: Json
       }
       get_institutional_student_scores: {
         Args: { p_ies_id?: string; p_simulado_id: string }

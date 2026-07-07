@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { can } from '@/experiences/access';
+import { isAdmin } from '@/utils/accessRules';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -338,8 +338,8 @@ const StudentScoresTable: React.FC<{ areas: string[]; students: StudentScore[]; 
 
 // --- Main Page ---
 const DesempenhoInstitucional: React.FC = () => {
-  const { user, access } = useAuth();
-  const canFilterIES = can(access, 'ies.manage');
+  const { user } = useAuth();
+  const canFilterIES = isAdmin(user);
   
   // IES filter (for admin)
   const [iesList, setIesList] = useState<{ id: string; nome: string }[]>([]);

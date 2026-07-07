@@ -1,26 +1,26 @@
 import { UserCog, School, Headset } from 'lucide-react';
-import { hasExperience, type Access } from '@/experiences/access';
+import type { User } from '@/types';
+import { isAdmin, isGestor, isAtendimento } from '@/utils/accessRules';
 import type { NavItem } from '@/experiences/types';
 
 /**
  * Entradas de navegação para os PORTAIS dedicados do usuário.
  *
- * Todo usuário tem a experiência de aluno na base; quem tem experiência
- * dedicada em `access.experiences` ganha, por cima, o(s) link(s) para o seu
- * portal. Cada entrada aponta para o entrypoint CORRETO da experiência — em
- * especial, o CX vai para `/atendimento/usuarios` (não `/admin/*`, que ele não
- * acessa). Um usuário com múltiplas experiências recebe uma entrada por
- * portal, na ordem admin > gestão > CX.
+ * No modelo híbrido, todo usuário tem a experiência de aluno na base; quem tem
+ * role privilegiada ganha, por cima, o(s) link(s) para o seu portal dedicado.
+ * Cada entrada aponta para o entrypoint CORRETO da role — em especial, o CX vai
+ * para `/atendimento/usuarios` (não `/admin/*`, que ele não acessa). Um usuário
+ * com múltiplas roles recebe uma entrada por portal, na ordem admin > gestão > CX.
  */
-export const getPortalEntries = (access: Access | null | undefined): NavItem[] => {
+export const getPortalEntries = (user: User | null): NavItem[] => {
   const entries: NavItem[] = [];
-  if (hasExperience(access, 'admin')) {
+  if (isAdmin(user)) {
     entries.push({ title: 'Portal do Admin', url: '/admin/usuarios', icon: UserCog });
   }
-  if (hasExperience(access, 'gestao')) {
+  if (isGestor(user) || isAdmin(user)) {
     entries.push({ title: 'Desempenho Institucional', url: '/gestor', icon: School });
   }
-  if (hasExperience(access, 'atendimento')) {
+  if (isAtendimento(user)) {
     entries.push({ title: 'Atendimento', url: '/atendimento/usuarios', icon: Headset });
   }
   return entries;
