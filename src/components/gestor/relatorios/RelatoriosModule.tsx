@@ -17,12 +17,46 @@ const DEFAULT_SECTIONS: ReportSection[] = [
   {
     id: 'alunos-risco',
     label: 'Alunos em risco (nominal)',
-    note: 'dado nominal — restrito',
+    note: 'Inclui nomes de alunos — disponível para gestores com permissão de dados nominais.',
     checked: false,
   },
   { id: 'plano-intervencao', label: 'Plano de intervenção', checked: true },
   { id: 'anexo-dados', label: 'Anexo de dados', checked: false },
 ];
+
+/**
+ * Módulos que o `ExportReportDrawer` sabe gerar, na mesma união de tipo usada
+ * lá dentro (não exportada — replicada aqui deliberadamente para não alterar
+ * a superfície pública do drawer além das novas props opcionais).
+ */
+type DrawerModule = 'visao-institucional' | 'diagnostico-curricular' | 'visao-alunos' | 'inteligencia-decisoria';
+
+/**
+ * Mapeamento seção do builder → módulo do drawer. "Anexo de dados" não tem
+ * módulo equivalente no drawer hoje (o drawer não gera um anexo de dados
+ * brutos à parte) — fica documentado aqui e é ignorado na conversão.
+ */
+const SECTION_TO_MODULE: Partial<Record<string, DrawerModule>> = {
+  sumario: 'visao-institucional',
+  diagnostico: 'diagnostico-curricular',
+  'alunos-risco': 'visao-alunos',
+  'plano-intervencao': 'inteligencia-decisoria',
+  // 'anexo-dados': sem módulo equivalente no ExportReportDrawer.
+};
+
+function sectionsToModules(sections: ReportSection[]): DrawerModule[] {
+  const modules = sections
+    .filter((s) => s.checked)
+    .map((s) => SECTION_TO_MODULE[s.id])
+    .filter((m): m is DrawerModule => Boolean(m));
+  // dedup preservando ordem, caso duas seções mapeiem pro mesmo módulo
+  return Array.from(new Set(modules));
+}
+
+/** O drawer só sabe gerar pdf/xlsx; "link" (em breve, hoje desabilitado no seletor) cai em pdf. */
+function formatToDrawerFormat(fmt: ReportFormat): 'pdf' | 'xlsx' {
+  return fmt === 'xlsx' ? 'xlsx' : 'pdf';
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -38,9 +72,12 @@ const itemVariants = {
  * seletor de formato + prévia da capa. O botão "Gerar relatório" aciona o
  * fluxo do `ExportReportDrawer` já usado no `GestorLayout` (Exportar da
  * topbar), aqui renderizado localmente e controlado por estado próprio da
- * página — o drawer é um componente reusável independente que só depende de
- * props (`data`, `filters`, `simuladoNome`), então não há necessidade de
- * tocar no layout para reusá-lo.
+ * página. As seções marcadas e o formato escolhido nesta tela são
+ * convertidos (`sectionsToModules` / `formatToDrawerFormat`) e passados via
+ * `initialModules`/`initialFormat`, que reinicializam o estado interno do
+ * drawer a cada abertura — o que o usuário monta aqui é o que abre
+ * pré-selecionado lá. O `GestorLayout` continua usando o drawer sem essas
+ * props (comportamento padrão inalterado).
  */
 export const RelatoriosModule: React.FC = () => {
   const { user } = useAuth();
@@ -133,6 +170,9 @@ export const RelatoriosModule: React.FC = () => {
         data={data}
         filters={filters}
         simuladoNome={simuladoNome}
+        initialModules={sectionsToModules(sections)}
+        initialFormat={formatToDrawerFormat(format)}
+        autoFocusGenerate
       />
     </div>
   );

@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Send, Loader2, ShieldAlert, Sparkles,
-  BarChart3,
+  BarChart3, FlaskConical,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,55 @@ import { Separator } from '@/components/ui/separator';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
-import type { InstitutionalViewModel, DesempenhoV2Tab } from '@/types/desempenhoV2';
+import type { DesempenhoV2Filters, InstitutionalViewModel, DesempenhoV2Tab } from '@/types/desempenhoV2';
+import { deriveInsights } from '@/experiences/gestor/copiloto';
+
+/**
+ * Rotas reais das 7 telas do console de Gestão (`/gestor/*`). Mantidas aqui
+ * (em vez de importar `GestorNav`) para o drawer não depender de módulo de
+ * navegação — só precisa do path para escolher contexto/sugestões.
+ */
+type GestorRoute =
+  | '/gestor/panorama'
+  | '/gestor/diagnostico-curricular'
+  | '/gestor/alunos-risco'
+  | '/gestor/intervencao-impacto'
+  | '/gestor/simulados-questoes'
+  | '/gestor/comparar-ies'
+  | '/gestor/relatorios';
+
+/**
+ * Mapeia o `DesempenhoV2Tab` legado (usado pelo call-site antigo em
+ * `src/pages/DesempenhoInstitucionalV2.tsx`) para a rota real mais próxima —
+ * só para preservar compatibilidade enquanto aquela página legada existir.
+ * Novo código deve usar `route`, não `activeTab`.
+ */
+const ROUTE_BY_LEGACY_TAB: Record<DesempenhoV2Tab, GestorRoute> = {
+  'visao-institucional': '/gestor/panorama',
+  'diagnostico-curricular': '/gestor/diagnostico-curricular',
+  'visao-alunos': '/gestor/alunos-risco',
+  'insights-pedagogicos': '/gestor/simulados-questoes',
+  'inteligencia-decisoria': '/gestor/intervencao-impacto',
+};
 
 interface AiChatDrawerProps {
   open: boolean;
   onClose: () => void;
   data: InstitutionalViewModel | null;
-  activeTab: DesempenhoV2Tab;
+  /** Path atual do console (ex.: `/gestor/panorama`). Preferido — cobre as 7 telas reais. */
+  route?: string;
+  /**
+   * @deprecated Use `route`. Mantido só para o call-site legado
+   * (`DesempenhoInstitucionalV2.tsx`) não quebrar — mapeado internamente
+   * para a rota mais próxima via {@link ROUTE_BY_LEGACY_TAB}.
+   */
+  activeTab?: DesempenhoV2Tab;
+  /** Filtros ativos do recorte — citados no rodapé das respostas mock. */
+  filters?: DesempenhoV2Filters;
+  /** Nome do simulado selecionado — citado no rodapé das respostas mock. */
+  simuladoNome?: string;
+  /** Pergunta a enviar automaticamente ao abrir (fluxo "Perguntar" da CopilotoStrip). */
+  initialQuestion?: string;
 }
 
 interface ChatMessage {
@@ -27,102 +69,173 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const TAB_CONTEXT: Record<DesempenhoV2Tab, string> = {
-  'visao-institucional': 'Visão Institucional — KPIs, evolução e metas',
-  'diagnostico-curricular': 'Diagnóstico Curricular — áreas, especialidades e temas',
-  'visao-alunos': 'Visão de Alunos — ranking, risco e segmentação',
-  'insights-pedagogicos': 'Insights Pedagógicos — recomendações e prioridades',
-  'inteligencia-decisoria': 'Inteligência Decisória — ações e impacto',
+const ROUTE_CONTEXT: Record<GestorRoute, string> = {
+  '/gestor/panorama': 'Panorama — conceito MEC, evolução e adesão',
+  '/gestor/diagnostico-curricular': 'Diagnóstico Curricular — áreas, especialidades e temas',
+  '/gestor/alunos-risco': 'Alunos & Risco — ranking, risco e segmentação',
+  '/gestor/intervencao-impacto': 'Intervenção & Impacto — fila priorizada e simulador',
+  '/gestor/simulados-questoes': 'Simulados & Questões — caderno de erros da turma',
+  '/gestor/comparar-ies': 'Comparar IES — desempenho entre instituições do grupo',
+  '/gestor/relatorios': 'Relatórios — exportação do recorte atual',
 };
 
-const SUGGESTED_QUESTIONS: Record<string, string[]> = {
-  'visao-institucional': [
+const SUGGESTED_QUESTIONS: Record<GestorRoute, string[]> = {
+  '/gestor/panorama': [
     'Qual o conceito atual da IES e como ele se compara com o último simulado?',
     'Quantos alunos estão abaixo da proficiência e quais as principais áreas de risco?',
     'Resuma a evolução da IES nos últimos simulados.',
   ],
-  'diagnostico-curricular': [
+  '/gestor/diagnostico-curricular': [
     'Quais são os 3 temas com pior desempenho?',
     'Existe alguma área com performance acima da meta?',
     'Qual especialidade merece intervenção imediata?',
   ],
-  'visao-alunos': [
+  '/gestor/alunos-risco': [
     'Quantos alunos estão em risco crítico e quem são?',
     'Quais alunos estão mais próximos de atingir proficiência?',
     'Existe padrão entre semestre e desempenho?',
   ],
-  default: [
-    'Resuma a situação geral da IES.',
-    'Quais são as 3 ações mais urgentes?',
-    'Como está a distribuição dos alunos por nível de risco?',
+  '/gestor/intervencao-impacto': [
+    'Qual tema tem o maior impacto se eu intervir agora?',
+    'Quanto o conceito melhora se eu resolver os 3 temas do topo da fila?',
+    'Quais temas são ganho rápido (50-60% de acerto)?',
+  ],
+  '/gestor/simulados-questoes': [
+    'Quais questões tiveram o pior índice de acerto?',
+    'Existe alguma questão candidata a anulação?',
+    'Quais temas merecem revisão com o colegiado?',
+  ],
+  '/gestor/comparar-ies': [
+    'Qual IES do grupo teve a pior variação neste simulado?',
+    'Como a IES atual se compara à média do grupo?',
+    'Existe alguma IES em risco de sanção no grupo?',
+  ],
+  '/gestor/relatorios': [
+    'O que muda no relatório se eu trocar o recorte de base?',
+    'Quais dados entram no relatório exportado?',
+    'Como compartilhar este relatório com o colegiado?',
   ],
 };
 
-function generateMockResponse(question: string, data: InstitutionalViewModel | null, _tab: DesempenhoV2Tab): string {
+const DEFAULT_ROUTE: GestorRoute = '/gestor/panorama';
+
+function resolveRoute(route?: string, activeTab?: DesempenhoV2Tab): GestorRoute {
+  if (route) {
+    const match = (Object.keys(ROUTE_CONTEXT) as GestorRoute[]).find((r) => route.startsWith(r));
+    if (match) return match;
+  }
+  if (activeTab) return ROUTE_BY_LEGACY_TAB[activeTab] ?? DEFAULT_ROUTE;
+  return DEFAULT_ROUTE;
+}
+
+function sourceFooter(filters?: DesempenhoV2Filters, simuladoNome?: string): string {
+  if (!simuladoNome && !filters) return '';
+  const base = filters?.baseMode === 'semestres'
+    ? (filters.semestres.length ? `Semestres ${filters.semestres.join(', ')}` : 'Semestres (todos)')
+    : filters?.baseMode === 'general'
+      ? 'IES inteira'
+      : '6º ano';
+  const simulado = simuladoNome ?? 'simulado não selecionado';
+  return `\n\n_Fonte: ${simulado} · ${base}._`;
+}
+
+function generateMockResponse(
+  question: string,
+  data: InstitutionalViewModel | null,
+  filters?: DesempenhoV2Filters,
+  simuladoNome?: string,
+): string {
   if (!data) return 'Não há dados carregados. Selecione um simulado para que eu possa analisar.';
 
   const q = question.toLowerCase();
   const { headerSummary, curricular } = data;
+  const footer = sourceFooter(filters, simuladoNome);
 
   if (q.includes('conceito') || q.includes('situação') || q.includes('resuma')) {
-    const conceito = headerSummary.percentProficientes >= 80 ? '5' :
-      headerSummary.percentProficientes >= 60 ? '4' :
-      headerSummary.percentProficientes >= 40 ? '3' :
-      headerSummary.percentProficientes >= 20 ? '2' : '1';
     return `**Situação atual da IES:**\n\n` +
       `- **Total de alunos:** ${headerSummary.totalAlunos}\n` +
       `- **Proficientes:** ${headerSummary.percentProficientes}%\n` +
-      `- **Conceito estimado:** ${conceito}\n` +
+      `- **Conceito estimado:** ${headerSummary.conceitoScoped ?? '—'}\n` +
       `- **Alunos faltando para meta:** ${headerSummary.alunosFaltamMeta}\n` +
       (headerSummary.sancao ? `\n⚠️ **Alerta de sanção:** ${headerSummary.sancao}` : '') +
-      `\n\n_Baseado nos dados do último simulado carregado._`;
+      footer;
   }
 
-  if (q.includes('risco') || q.includes('crítico')) {
-    const criticos = data.allStudents.filter(s => s.percentual < 45).length;
-    const atencao = data.allStudents.filter(s => s.percentual >= 45 && s.percentual < 55).length;
+  if (q.includes('risco') || q.includes('crítico') || q.includes('critico')) {
+    const criticos = data.allStudents.filter(s => s.percentual < 50).length;
+    const proximo = data.allStudents.filter(s => s.percentual >= 50 && s.percentual < 60).length;
+    const proficientes = data.allStudents.filter(s => s.percentual >= 60).length;
     return `**Distribuição de risco:**\n\n` +
-      `- 🔴 Crítico (< 45%): **${criticos}** alunos\n` +
-      `- 🟡 Atenção (45-55%): **${atencao}** alunos\n` +
-      `- 🔵 Oportunidade (55-60%): **${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
-      `- 🟢 Proficientes (≥60%): **${data.allStudents.filter(s => s.percentual >= 60).length}** alunos\n\n` +
-      `_Os alunos em "Oportunidade" são os com maior potencial de impacto com intervenções pontuais._`;
+      `- 🔴 Crítico (< 50%): **${criticos}** alunos\n` +
+      `- 🟡 Próximo (50-60%): **${proximo}** alunos\n` +
+      `- 🟢 Proficientes (≥ 60%): **${proficientes}** alunos\n\n` +
+      `_Os alunos "Próximo" são os com maior potencial de impacto com intervenções pontuais._` +
+      footer;
   }
 
-  if (q.includes('tema') || q.includes('pior') || q.includes('fraco')) {
+  if (q.includes('tema') || q.includes('pior') || q.includes('fraco') || q.includes('question') || q.includes('quest')) {
     const allTemas: { name: string; area: string; pct: number }[] = [];
     curricular.areas.forEach(a => a.specialties.forEach(sp => sp.temas.forEach(t => {
       allTemas.push({ name: t.name, area: a.name, pct: t.percentual });
     })));
     const worst = allTemas.sort((a, b) => a.pct - b.pct).slice(0, 3);
+    if (worst.length === 0) return `Não encontrei temas com dados suficientes no recorte atual.${footer}`;
     return `**3 temas com pior desempenho:**\n\n` +
       worst.map((t, i) => `${i + 1}. **${t.name}** (${t.area}) — ${t.pct}%`).join('\n') +
-      `\n\n_Estes temas são candidatos prioritários para intervenção pedagógica._`;
+      `\n\n_Estes temas são candidatos prioritários para intervenção pedagógica._` +
+      footer;
   }
 
-  if (q.includes('ação') || q.includes('urgente') || q.includes('intervenção')) {
+  if (q.includes('ação') || q.includes('acao') || q.includes('urgente') || q.includes('intervenção') || q.includes('intervencao') || q.includes('impacto')) {
     return `**3 ações mais urgentes:**\n\n` +
       `1. **Reforço em temas críticos** — Focar nos temas com <50% de acurácia com sessões intensivas.\n` +
-      `2. **Tutoria para alunos próximos** — Os ${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
-      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.allStudents.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
-      `_Estas recomendações são baseadas nos dados do simulado atual._`;
+      `2. **Tutoria para alunos próximos** — Os ${data.allStudents.filter(s => s.percentual >= 50 && s.percentual < 60).length} alunos entre 50-60% podem virar proficientes com pouco esforço.\n` +
+      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.allStudents.filter(s => s.percentual < 50).length} alunos em risco crítico.\n\n` +
+      `_Estas recomendações são baseadas nos dados do simulado atual._` +
+      footer;
+  }
+
+  if (q.includes('ies') || q.includes('grupo') || q.includes('compar')) {
+    return `A comparação entre IES do grupo usa o mesmo simulado selecionado no recorte atual. ` +
+      `Abra a tela **Comparar IES** para ver o ranking completo — aqui no chat ainda não calculo a comparação entre instituições.` +
+      footer;
+  }
+
+  if (q.includes('relatório') || q.includes('relatorio') || q.includes('exportar') || q.includes('exportação')) {
+    return `O relatório exportado usa exatamente o recorte ativo (simulado, base e filtros aplicados). ` +
+      `Use o botão **Exportar** no topo do console para gerar o arquivo com estes mesmos dados.` +
+      footer;
   }
 
   return `Com base nos dados carregados, a IES tem **${headerSummary.totalAlunos} alunos** com **${headerSummary.percentProficientes}%** de proficiência. ` +
     `${headerSummary.alunosFaltamMeta} alunos precisam melhorar para atingir a meta.` +
     `\n\nPosso detalhar por **área**, **tema** ou **aluno específico**. Tente uma das perguntas sugeridas!` +
-    `\n\n_Resposta gerada com base nos dados do último simulado._`;
+    footer;
 }
 
 export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
-  open, onClose, data, activeTab,
+  open, onClose, data, route, activeTab, filters, simuladoNome, initialQuestion,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const askedInitialRef = useRef<string | undefined>(undefined);
 
-  const suggestions = SUGGESTED_QUESTIONS[activeTab] ?? SUGGESTED_QUESTIONS.default;
+  const resolvedRoute = resolveRoute(route, activeTab);
+  const suggestions = SUGGESTED_QUESTIONS[resolvedRoute];
+
+  // Sugestão dinâmica: reaproveita o motor de insights do copiloto condutor
+  // e usa o primeiro insight com `question` como sugestão em destaque —
+  // assim o drawer nunca sugere algo desalinhado do pior indicador real.
+  const dynamicSuggestion = useMemo(() => {
+    if (!data) return null;
+    const insights = deriveInsights(resolvedRoute, data, filters ?? {
+      iesId: '', simuladoId: '', periodo: '', turmas: [], semestres: [],
+      areas: [], especialidades: [], temas: [], baseMode: 'sixth-year',
+    }, simuladoNome);
+    return insights.find((i) => i.question)?.question ?? null;
+  }, [data, resolvedRoute, filters, simuladoNome]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -146,7 +259,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
     // Simulate AI response delay
     await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
 
-    const response = generateMockResponse(text, data, activeTab);
+    const response = generateMockResponse(text, data, filters, simuladoNome);
     const aiMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -155,7 +268,19 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
     };
     setMessages(prev => [...prev, aiMsg]);
     setIsTyping(false);
-  }, [data, activeTab]);
+  }, [data, filters, simuladoNome]);
+
+  // Fluxo "Perguntar" da CopilotoStrip: quando o drawer abre com
+  // `initialQuestion` setada, envia automaticamente (uma vez por pergunta).
+  useEffect(() => {
+    if (open && initialQuestion && askedInitialRef.current !== initialQuestion) {
+      askedInitialRef.current = initialQuestion;
+      sendMessage(initialQuestion);
+    }
+    if (!open) {
+      askedInitialRef.current = undefined;
+    }
+  }, [open, initialQuestion, sendMessage]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +294,10 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             Assistente de Análise
+            <Badge variant="outline" className="gap-1 text-[10px] font-medium tracking-wide border-dashed text-muted-foreground">
+              <FlaskConical className="h-3 w-3" />
+              Protótipo
+            </Badge>
           </SheetTitle>
         </SheetHeader>
 
@@ -176,7 +305,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
         <div className="px-6 pb-3">
           <Badge variant="outline" className="text-xs gap-1">
             <BarChart3 className="h-3 w-3" />
-            Contexto: {TAB_CONTEXT[activeTab]}
+            Contexto: {ROUTE_CONTEXT[resolvedRoute]}
           </Badge>
         </div>
 
@@ -186,8 +315,9 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
             <CardContent className="py-2 px-3 flex items-start gap-2">
               <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Respostas baseadas nos dados do simulado carregado. O assistente não calcula TRI,
-                não inventa regras do ENAMED e não substitui análise pedagógica qualificada.
+                Protótipo com respostas simuladas a partir dos dados do recorte carregado — ainda não é
+                um modelo de IA real. Não calcula TRI, não inventa regras do ENAMED e não substitui
+                análise pedagógica qualificada.
               </p>
             </CardContent>
           </Card>
@@ -203,6 +333,15 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
                 Faça uma pergunta sobre os dados da IES ou use uma sugestão:
               </p>
               <div className="space-y-1.5">
+                {dynamicSuggestion && (
+                  <button
+                    onClick={() => sendMessage(dynamicSuggestion)}
+                    className="w-full text-left p-2.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-sm text-foreground flex items-start gap-2"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                    <span>{dynamicSuggestion}</span>
+                  </button>
+                )}
                 {suggestions.map((q, i) => (
                   <button
                     key={i}

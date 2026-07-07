@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -9,13 +10,16 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { StatusBadge, type StatusLevel } from '@/experiences/gestor/ui';
+import type { StudentGrowthEntry } from '@/services/institutional';
 import type { AlunoRiscoRow, GapSeverity } from './useAlunosRisco';
 import { TRI_PROFICIENCY_THRESHOLD } from './useAlunosRisco';
+import { AlunoDetailSheet } from './AlunoDetailSheet';
 
 const PAGE_SIZE = 25;
 
 interface AlunosRiscoTableProps {
   rows: AlunoRiscoRow[];
+  growthByStudentId: Map<string, StudentGrowthEntry>;
 }
 
 function initials(nome: string): string {
@@ -59,10 +63,14 @@ const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-�
  * (avatar + nome), semestre, TRI, gap até 500, consumo (horas do período) e
  * status.
  */
-export const AlunosRiscoTable: React.FC<AlunosRiscoTableProps> = ({ rows }) => {
-  const [searchInput, setSearchInput] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+export const AlunosRiscoTable: React.FC<AlunosRiscoTableProps> = ({ rows, growthByStudentId }) => {
+  const [searchParams] = useSearchParams();
+  // Deep-link `?q=<nome>` pré-preenche a busca (unidirecional: URL → estado inicial apenas).
+  const initialQuery = searchParams.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(initialQuery);
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [page, setPage] = useState(0);
+  const [selectedRow, setSelectedRow] = useState<AlunoRiscoRow | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -118,18 +126,31 @@ export const AlunosRiscoTable: React.FC<AlunosRiscoTableProps> = ({ rows }) => {
               <TableHead className="w-28 text-right">Gap até {TRI_PROFICIENCY_THRESHOLD}</TableHead>
               <TableHead className="w-40">Consumo</TableHead>
               <TableHead className="w-28">Status</TableHead>
+              <TableHead className="w-8" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {pageRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-sm text-muted-foreground">
                   Nenhum aluno encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               pageRows.map((row) => (
-                <TableRow key={row.key}>
+                <TableRow
+                  key={row.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedRow(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedRow(row);
+                    }
+                  }}
+                  className="cursor-pointer hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-8 w-8">
@@ -167,6 +188,9 @@ export const AlunosRiscoTable: React.FC<AlunosRiscoTableProps> = ({ rows }) => {
                   <TableCell>
                     <StatusBadge status={statusFromRow(row)} />
                   </TableCell>
+                  <TableCell>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -202,6 +226,15 @@ export const AlunosRiscoTable: React.FC<AlunosRiscoTableProps> = ({ rows }) => {
           </div>
         </div>
       )}
+
+      <AlunoDetailSheet
+        row={selectedRow}
+        growthByStudentId={growthByStudentId}
+        open={selectedRow !== null}
+        onOpenChange={(next) => {
+          if (!next) setSelectedRow(null);
+        }}
+      />
     </div>
   );
 };

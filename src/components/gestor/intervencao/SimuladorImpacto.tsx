@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, FlaskConical, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
@@ -30,6 +31,15 @@ const CONCEITO_COLOR: Record<number, string> = {
   5: 'text-emerald-600 dark:text-emerald-400',
 };
 
+/** Normaliza nome de tema para comparação tolerante (case-insensitive, sem acento). */
+function normalizeTemaName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 /**
  * Simulador de impacto (HIPOTÉTICO) — projeção linear simplificada e
  * transparente, calculada 100% no cliente:
@@ -44,8 +54,30 @@ const CONCEITO_COLOR: Record<number, string> = {
  * não é uma previsão garantida, apenas uma referência de ordem de grandeza.
  */
 export const SimuladorImpacto: React.FC<SimuladorImpactoProps> = ({ temas, headerSummary }) => {
+  const [searchParams] = useSearchParams();
   const [temaId, setTemaId] = React.useState(temas[0]?.id ?? '');
   const [melhoria, setMelhoria] = React.useState(10);
+
+  // `temas` já chega ordenado por impacto desc (ver `sortByImpacto` em
+  // `IntervencaoImpactoContent`), então `temas[0]` é o de maior impacto —
+  // usado como default quando não há `?tema=` na URL ou o nome não bate.
+  React.useEffect(() => {
+    const temaParam = searchParams.get('tema');
+    if (!temaParam || temas.length === 0) return;
+
+    const exato = temas.find((t) => t.tema === temaParam);
+    if (exato) {
+      setTemaId(exato.id);
+      return;
+    }
+
+    const normalizado = normalizeTemaName(temaParam);
+    const porNormalizacao = temas.find((t) => normalizeTemaName(t.tema) === normalizado);
+    if (porNormalizacao) {
+      setTemaId(porNormalizacao.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temas]);
 
   const temaAlvo = React.useMemo(
     () => temas.find((t) => t.id === temaId) ?? temas[0] ?? null,

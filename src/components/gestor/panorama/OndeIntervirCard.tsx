@@ -85,7 +85,7 @@ export const OndeIntervirCard: React.FC<OndeIntervirCardProps> = ({ curricular }
                 className="h-full"
               >
                 <Link
-                  to="/gestor/intervencao-impacto"
+                  to={`/gestor/intervencao-impacto?tema=${encodeURIComponent(tema.name)}`}
                   className="group flex flex-col justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/30 h-full"
                 >
                   <div className="space-y-2">

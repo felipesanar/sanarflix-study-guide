@@ -114,6 +114,8 @@ interface UseAlunosRiscoResult {
   hasEngagementData: boolean;
   casoDeVirada: StudentGrowthEntry | null;
   growthLoading: boolean;
+  /** Entradas de crescimento TRI indexadas por `student_id`, para lookup O(1) no detalhe de um aluno. */
+  growthByStudentId: Map<string, StudentGrowthEntry>;
 }
 
 /**
@@ -167,6 +169,12 @@ export function useAlunosRisco({ allStudents, iesId }: UseAlunosRiscoArgs): UseA
     );
   }, [growthQuery.data]);
 
+  const growthByStudentId = useMemo<Map<string, StudentGrowthEntry>>(() => {
+    const map = new Map<string, StudentGrowthEntry>();
+    (growthQuery.data ?? []).forEach((g) => map.set(g.student_id, g));
+    return map;
+  }, [growthQuery.data]);
+
   return {
     rows,
     segmentCounts,
@@ -176,5 +184,6 @@ export function useAlunosRisco({ allStudents, iesId }: UseAlunosRiscoArgs): UseA
     hasEngagementData: engagement.length > 0,
     casoDeVirada,
     growthLoading: growthQuery.isLoading,
+    growthByStudentId,
   };
 }

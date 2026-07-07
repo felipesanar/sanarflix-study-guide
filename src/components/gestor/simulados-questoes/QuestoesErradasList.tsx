@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { X } from 'lucide-react';
 import { MetricValue, GestorPanel } from '@/experiences/gestor/ui';
 import { cn } from '@/lib/utils';
 import type { QuestionStat } from '@/services/gestor/questionStats';
@@ -17,18 +18,26 @@ interface QuestoesErradasListProps {
   questoes: QuestionStat[];
   selectedId: string | null;
   onSelect: (questionId: string) => void;
+  /** Tema atualmente filtrado via `?tema=` na URL, se houver. */
+  temaFiltro?: string | null;
+  /** Remove o filtro por tema (chama `setSearchParams` deletando só a chave `tema`). */
+  onClearTemaFiltro?: () => void;
 }
 
 /**
  * Lista das questões com pior desempenho do simulado ativo (até 20, já vêm
- * ordenadas por `pct_acerto` ascendente do RPC). Cada linha é um botão que
- * seleciona a questão exibida no painel de detalhe ao lado.
+ * ordenadas por `pct_acerto` ascendente do RPC). `questoes` já deve chegar
+ * filtrada por tema (quando aplicável) — o corte de 20 é aplicado por último,
+ * sobre a lista já filtrada, para não esconder o tema alvo. Cada linha é um
+ * botão que seleciona a questão exibida no painel de detalhe ao lado.
  */
 export const QuestoesErradasList: React.FC<QuestoesErradasListProps> = ({
   simuladoNome,
   questoes,
   selectedId,
   onSelect,
+  temaFiltro,
+  onClearTemaFiltro,
 }) => {
   const top = questoes.slice(0, MAX_QUESTOES);
 
@@ -37,6 +46,21 @@ export const QuestoesErradasList: React.FC<QuestoesErradasListProps> = ({
       title={`Questões mais erradas${simuladoNome ? ` · ${simuladoNome}` : ''}`}
       contentClassName="p-0"
     >
+      {temaFiltro && (
+        <div className="flex items-center px-4 py-3 border-b border-border">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium px-2.5 py-1">
+            Tema: {temaFiltro}
+            <button
+              type="button"
+              onClick={onClearTemaFiltro}
+              aria-label={`Remover filtro de tema: ${temaFiltro}`}
+              className="rounded-full hover:text-primary/70 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        </div>
+      )}
       <ul className="divide-y divide-border">
         {top.map((q) => {
           const isActive = q.question_id === selectedId;

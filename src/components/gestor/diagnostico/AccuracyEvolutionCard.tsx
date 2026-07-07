@@ -93,7 +93,13 @@ export const AccuracyEvolutionCard: React.FC<AccuracyEvolutionCardProps> = ({
   return (
     <GestorPanel title="Evolução de acurácia" subtitle={subtitle} icon={TrendingUp}>
       {!temaName ? (
-        <EmptySeries reason="Selecione um tema para ver a série histórica de acurácia deste recorte." />
+        <EmptySeries
+          reason={
+            drill.level !== 'temas'
+              ? 'Evolução disponível apenas por tema — entre em um tema para ver a série.'
+              : 'Selecione um tema na lista.'
+          }
+        />
       ) : loading ? (
         <Skeleton className="h-[160px] w-full rounded-lg" />
       ) : errored || entries.length <= 1 ? (

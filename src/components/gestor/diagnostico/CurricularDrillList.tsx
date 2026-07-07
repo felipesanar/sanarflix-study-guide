@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { ChevronRight, ListTree } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ChevronRight, FileQuestion, ListTree } from 'lucide-react';
 import { GestorPanel, MetricValue, StatusBadge } from '@/experiences/gestor/ui';
 import { cn } from '@/lib/utils';
 import { StatusProgressBar } from './StatusProgressBar';
@@ -14,15 +15,19 @@ interface CurricularDrillListProps {
   onSelectRow: (row: DrillRowItem) => void;
 }
 
-const DrillRow: React.FC<{ row: DrillRowItem; onClick: () => void }> = ({ row, onClick }) => {
+const DrillRow: React.FC<{ row: DrillRowItem; onClick: () => void; onVerQuestoes: () => void }> = ({
+  row,
+  onClick,
+  onVerQuestoes,
+}) => {
   const Tag = row.navigable ? 'button' : 'div';
   return (
     <Tag
       onClick={row.navigable ? onClick : undefined}
       className={cn(
-        'w-full flex items-center gap-3 sm:gap-4 rounded-lg border border-border bg-card p-3 sm:p-4 text-left transition-all duration-200',
+        'group w-full flex items-center gap-3 sm:gap-4 rounded-lg border border-border bg-card p-3 sm:p-4 text-left transition-all duration-200',
         row.navigable
-          ? 'group cursor-pointer hover:bg-accent hover:translate-x-1 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          ? 'cursor-pointer hover:bg-accent hover:translate-x-1 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
           : 'cursor-default',
       )}
     >
@@ -38,6 +43,20 @@ const DrillRow: React.FC<{ row: DrillRowItem; onClick: () => void }> = ({ row, o
           {row.total} questões
         </span>
         <StatusBadge percent={row.percentual} />
+        {row.isLeaf && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerQuestoes();
+            }}
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground opacity-100 transition-opacity hover:text-primary sm:opacity-0 sm:group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Ver questões do tema ${row.name}`}
+          >
+            <FileQuestion className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline whitespace-nowrap">Ver questões</span>
+          </button>
+        )}
         {row.navigable ? (
           <ChevronRight
             className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
@@ -61,12 +80,28 @@ export const CurricularDrillList: React.FC<CurricularDrillListProps> = ({
   subtitle,
   rows,
   onSelectRow,
-}) => (
-  <GestorPanel title={title} subtitle={subtitle} icon={ListTree}>
-    <div className="space-y-2">
-      {rows.map((row) => (
-        <DrillRow key={row.key} row={row} onClick={() => onSelectRow(row)} />
-      ))}
-    </div>
-  </GestorPanel>
-);
+}) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const handleVerQuestoes = (temaNome: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tema', temaNome);
+    navigate(`/gestor/simulados-questoes?${next.toString()}`);
+  };
+
+  return (
+    <GestorPanel title={title} subtitle={subtitle} icon={ListTree}>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <DrillRow
+            key={row.key}
+            row={row}
+            onClick={() => onSelectRow(row)}
+            onVerQuestoes={() => handleVerQuestoes(row.name)}
+          />
+        ))}
+      </div>
+    </GestorPanel>
+  );
+};

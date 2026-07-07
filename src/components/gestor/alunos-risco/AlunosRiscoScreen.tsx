@@ -39,6 +39,7 @@ export const AlunosRiscoScreen: React.FC = () => {
     engagementLoading,
     hasEngagementData,
     casoDeVirada,
+    growthByStudentId,
   } = useAlunosRisco({ allStudents, iesId: filters.iesId || undefined });
 
   const visibleRows = useMemo(
@@ -95,7 +96,7 @@ export const AlunosRiscoScreen: React.FC = () => {
             title="Alunos"
             subtitle={activeSegment ? 'Filtrado pelo segmento selecionado — clique novamente no card para limpar.' : 'Todos os alunos do recorte ativo'}
           >
-            <AlunosRiscoTable rows={visibleRows} />
+            <AlunosRiscoTable rows={visibleRows} growthByStudentId={growthByStudentId} />
           </GestorPanel>
         </motion.div>
       </motion.div>

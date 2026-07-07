@@ -21,6 +21,8 @@ export interface DrillRowItem {
   total: number;
   /** Presente apenas quando o item tem filhos navegáveis (área → especialidades, especialidade → temas). */
   navigable: boolean;
+  /** true quando a linha representa um tema (folha da árvore curricular) — habilita ações de nível-tema (ex.: "Ver questões"). */
+  isLeaf?: boolean;
 }
 
 export const toAreaRow = (area: CurricularAreaNode): DrillRowItem => ({
@@ -45,4 +47,5 @@ export const toTemaRow = (tema: CurricularTemaNode): DrillRowItem => ({
   percentual: tema.percentual,
   total: tema.total,
   navigable: false,
+  isLeaf: true,
 });

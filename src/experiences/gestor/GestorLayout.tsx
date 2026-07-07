@@ -1,16 +1,10 @@
 import * as React from 'react';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileDown, Sparkles, ChevronDown, GraduationCap, ArrowRight, LogOut } from 'lucide-react';
+import { FileDown, Sparkles, GraduationCap, ArrowRight, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +21,7 @@ import {
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/experiences/access';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { ExportReportDrawer } from '@/components/analytics/v2/shared/ExportReportDrawer';
@@ -36,34 +31,9 @@ import {
   GestorFiltersProvider,
   useGestorFilters,
 } from '@/experiences/gestor/GestorFiltersProvider';
-import type { DesempenhoV2Tab } from '@/types/desempenhoV2';
-
-/**
- * Mapeia a rota ativa do console novo para o `DesempenhoV2Tab` mais próximo
- * — usado apenas para dar contexto ao `AiChatDrawer` (que ainda referencia o
- * vocabulário de módulos legado). Fallback: 'visao-institucional'.
- */
-const TAB_BY_PATH_PREFIX: [prefix: string, tab: DesempenhoV2Tab][] = [
-  ['/gestor/panorama', 'visao-institucional'],
-  ['/gestor/diagnostico-curricular', 'diagnostico-curricular'],
-  ['/gestor/alunos-risco', 'visao-alunos'],
-  ['/gestor/intervencao-impacto', 'inteligencia-decisoria'],
-  ['/gestor/simulados-questoes', 'insights-pedagogicos'],
-  ['/gestor/comparar-ies', 'visao-institucional'],
-  ['/gestor/relatorios', 'visao-institucional'],
-];
-
-const tabForPath = (pathname: string): DesempenhoV2Tab =>
-  TAB_BY_PATH_PREFIX.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? 'visao-institucional';
-
-const iesInitials = (nome: string): string =>
-  nome
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase();
+import { SidebarIesContext } from '@/experiences/gestor/shell/SidebarIesContext';
+import { GestorLoading } from '@/experiences/gestor/ui';
+import { CopilotoStrip, deriveInsights } from '@/experiences/gestor/copiloto';
 
 const userInitials = (nome: string | undefined): string =>
   (nome ?? '')
@@ -113,9 +83,10 @@ const GestorUserCard: React.FC<{ nome: string | undefined }> = ({ nome }) => {
 };
 
 /**
- * Conteúdo do console de Gestão: sidebar de navegação, topbar (seletor de
- * IES + ações) e barra de recorte (filtros globais), todos ligados ao
- * {@link GestorFiltersProvider}. O módulo ativo é a rota-filha (Outlet).
+ * Conteúdo do console de Gestão: sidebar de navegação (com o contexto global
+ * de IES no topo — {@link SidebarIesContext}), topbar de ações e barra de
+ * recorte (filtros globais), todos ligados ao {@link GestorFiltersProvider}.
+ * O módulo ativo é a rota-filha (Outlet).
  */
 const GestorLayoutContent: React.FC = () => {
   const { user, access, logout } = useAuth();
@@ -132,6 +103,8 @@ const GestorLayoutContent: React.FC = () => {
     usingMock,
     availableSemestres,
     simuladoNome,
+    bootstrapping,
+    isRefreshing,
   } = useGestorFilters();
 
   const [exportOpen, setExportOpen] = useState(false);
@@ -148,12 +121,25 @@ const GestorLayoutContent: React.FC = () => {
 
   const accessibleIes = user?.accessible_ies ?? [];
   const isMultiIes = accessibleIes.length > 1;
+  const canSeeAllIes = can(access, 'ies.manage');
   const navItems = filterGestorNav(GESTOR_NAV, access, accessibleIes.length);
-  const activeTab = tabForPath(location.pathname);
+  const [askQuestion, setAskQuestion] = useState<string | undefined>(undefined);
+  const insights = useMemo(
+    () => deriveInsights(location.pathname, filteredData, filters, simuladoNome),
+    [location.pathname, filteredData, filters, simuladoNome],
+  );
+  const handleAskQuestion = (q: string) => {
+    setAskQuestion(q);
+    setChatOpen(true);
+  };
 
-  const activeIesNome = isMultiIes
-    ? (accessibleIes.find((ies) => ies.id === filters.iesId)?.nome ?? accessibleIes[0]?.nome ?? user?.ies_nome)
+  const activeIesNome = isMultiIes || canSeeAllIes
+    ? (accessibleIes.find((ies) => ies.id === filters.iesId)?.nome ?? (filters.iesId ? undefined : (canSeeAllIes ? 'Todas as IES' : accessibleIes[0]?.nome)) ?? user?.ies_nome)
     : user?.ies_nome;
+
+  const handleSelectIes = (iesId: string, _iesNome: string) => {
+    updateFilter('iesId', iesId);
+  };
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -188,7 +174,17 @@ const GestorLayoutContent: React.FC = () => {
         </SidebarHeader>
 
         <SidebarContent className="px-2 space-y-4">
-          <div className="px-2 pt-1 group-data-[collapsible=icon]:hidden">
+          <div className="px-2 pt-1">
+            <SidebarIesContext
+              activeIesNome={activeIesNome}
+              accessibleIes={accessibleIes}
+              canSeeAllIes={canSeeAllIes}
+              activeIesId={filters.iesId}
+              onSelectIes={handleSelectIes}
+            />
+          </div>
+
+          <div className="px-2 group-data-[collapsible=icon]:hidden">
             <GestorUserCard nome={user?.nome} />
           </div>
 
@@ -269,51 +265,6 @@ const GestorLayoutContent: React.FC = () => {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 md:px-6">
             <SidebarTrigger className="md:hidden shrink-0" />
 
-            {/* Seletor de IES */}
-            {isMultiIes ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-1.5 text-left hover:bg-accent/50 transition-colors">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-[11px] font-semibold">
-                      {iesInitials(activeIesNome ?? '')}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase leading-none">
-                        Grupo educacional
-                      </p>
-                      <p className="text-sm font-semibold text-foreground truncate max-w-[160px] leading-tight mt-0.5">
-                        {activeIesNome}
-                      </p>
-                    </div>
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64">
-                  {accessibleIes.map((ies) => (
-                    <DropdownMenuItem
-                      key={ies.id}
-                      onClick={() => updateFilter('iesId', ies.id)}
-                      className="gap-2.5"
-                    >
-                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary text-[10px] font-semibold">
-                        {iesInitials(ies.nome)}
-                      </div>
-                      <span className="truncate">{ies.nome}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase leading-none">
-                  Instituição
-                </p>
-                <p className="text-sm font-semibold text-foreground truncate leading-tight mt-0.5">
-                  {activeIesNome}
-                </p>
-              </div>
-            )}
-
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => navigate('/')}>
                 Ver como aluno
@@ -348,11 +299,12 @@ const GestorLayoutContent: React.FC = () => {
                 iesList={iesList}
                 availableSemestres={availableSemestres}
                 usingMock={usingMock}
+                isRefreshing={isRefreshing}
               />
-              {data?.headerSummary && (
+              {filteredData?.headerSummary && (
                 <span className="text-xs text-muted-foreground ml-auto shrink-0">
-                  Base: {data.headerSummary.baseLabel ?? 'IES inteira'} ·{' '}
-                  <span className="font-mono tabular-nums">{data.headerSummary.totalAlunos}</span> alunos
+                  Base: {filteredData.headerSummary.baseLabel ?? 'IES inteira'} ·{' '}
+                  <span className="font-mono tabular-nums">{filteredData.headerSummary.totalAlunos}</span> alunos
                 </span>
               )}
             </div>
@@ -361,8 +313,9 @@ const GestorLayoutContent: React.FC = () => {
 
         {/* Banner de sanção — InstitutionalAlertBanner já tem chrome próprio
             (ícone + borda); não duplicamos com um wrapper premium por cima
-            (ver nota de decisão no relatório de entrega). */}
-        {data?.headerSummary?.sancao && (
+            (ver nota de decisão no relatório de entrega). Some durante o
+            bootstrap para não piscar antes do recorte estar resolvido. */}
+        {!bootstrapping && data?.headerSummary?.sancao && (
           <div className="relative px-4 pt-4 md:px-6">
             <InstitutionalAlertBanner
               sancao={data.headerSummary.sancao}
@@ -383,6 +336,15 @@ const GestorLayoutContent: React.FC = () => {
           </div>
         )}
 
+        {/* Copiloto — insights contextuais da tela atual, com próximos passos */}
+        {!bootstrapping && insights.length > 0 && (
+          <div className="px-4 pt-4 md:px-6">
+            <div className="max-w-[1280px] mx-auto">
+              <CopilotoStrip insights={insights} onAskQuestion={handleAskQuestion} />
+            </div>
+          </div>
+        )}
+
         {/* Conteúdo */}
         <motion.main
           initial={{ opacity: 0 }}
@@ -391,9 +353,30 @@ const GestorLayoutContent: React.FC = () => {
           className="relative flex-1 px-4 py-6 md:px-6"
         >
           <div className="max-w-[1280px] mx-auto">
-            <Suspense fallback={<div className="min-h-[40vh]" aria-busy="true" />}>
-              <Outlet />
-            </Suspense>
+            {bootstrapping ? (
+              // Contexto (IES/simulado) ainda não resolvido — skeleton do
+              // console inteiro. Nenhuma página chega a renderizar com
+              // filtros vazios/transitórios (zero flash de GestorEmpty).
+              <GestorLoading />
+            ) : (
+              <div
+                className={`relative transition-opacity duration-200 ${
+                  isRefreshing ? 'opacity-60 pointer-events-none' : 'opacity-100'
+                }`}
+                aria-busy={isRefreshing}
+              >
+                <Suspense fallback={<div className="min-h-[40vh]" aria-busy="true" />}>
+                  <Outlet />
+                </Suspense>
+
+                {isRefreshing && (
+                  <div className="pointer-events-none fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-3.5 py-2 shadow-lg backdrop-blur-sm">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                    <span className="text-xs font-medium text-muted-foreground">Atualizando…</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </motion.main>
       </div>
@@ -408,9 +391,15 @@ const GestorLayoutContent: React.FC = () => {
       />
       <AiChatDrawer
         open={chatOpen}
-        onClose={() => setChatOpen(false)}
+        onClose={() => {
+          setChatOpen(false);
+          setAskQuestion(undefined);
+        }}
         data={filteredData}
-        activeTab={activeTab}
+        route={location.pathname}
+        filters={filters}
+        simuladoNome={simuladoNome}
+        initialQuestion={askQuestion}
       />
     </SidebarProvider>
   );

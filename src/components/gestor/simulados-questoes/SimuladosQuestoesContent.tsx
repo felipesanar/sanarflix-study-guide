@@ -1,12 +1,31 @@
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileQuestion, ListChecks } from 'lucide-react';
+import { FileQuestion, ListChecks, SearchX } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GestorError, GestorEmpty } from '@/experiences/gestor/ui';
-import { useInstitutionalQuestionStats } from '@/services/gestor/questionStats';
+import { useInstitutionalQuestionStats, type QuestionStat } from '@/services/gestor/questionStats';
 import { QuestoesErradasList } from './QuestoesErradasList';
 import { QuestaoDetailPanel } from './QuestaoDetailPanel';
+
+/** Normaliza para comparação tolerante: lowercase + remove acentos/diacríticos. */
+function normalizeTema(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+/** Filtra questões pelo tema da URL: tenta match exato primeiro, com fallback normalizado. */
+function filterByTema(questoes: QuestionStat[], tema: string | null): QuestionStat[] {
+  if (!tema) return questoes;
+  const exact = questoes.filter((q) => q.tema === tema);
+  if (exact.length > 0) return exact;
+  const normalizedTema = normalizeTema(tema);
+  return questoes.filter((q) => q.tema && normalizeTema(q.tema) === normalizedTema);
+}
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -47,19 +66,36 @@ export const SimuladosQuestoesContent: React.FC<SimuladosQuestoesContentProps> =
 }) => {
   const { data, isLoading, isError, refetch } = useInstitutionalQuestionStats(simuladoId, iesId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const temaFiltro = searchParams.get('tema');
+
+  const clearTemaFiltro = React.useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('tema');
+      return next;
+    });
+  }, [setSearchParams]);
 
   const questoes = useMemo(() => data ?? [], [data]);
+  const questoesFiltradas = useMemo(
+    () => filterByTema(questoes, temaFiltro),
+    [questoes, temaFiltro],
+  );
 
-  // Seleciona a primeira questão por padrão quando os dados chegam ou mudam de recorte.
+  // Seleciona a primeira questão por padrão quando os dados (já filtrados por tema) chegam ou mudam de recorte.
   useEffect(() => {
-    if (questoes.length === 0) {
+    if (questoesFiltradas.length === 0) {
       setSelectedId(null);
       return;
     }
     setSelectedId((prev) =>
-      prev && questoes.some((q) => q.question_id === prev) ? prev : questoes[0].question_id,
+      prev && questoesFiltradas.some((q) => q.question_id === prev)
+        ? prev
+        : questoesFiltradas[0].question_id,
     );
-  }, [questoes]);
+  }, [questoesFiltradas]);
 
   if (!simuladoId) {
     return (
@@ -94,7 +130,27 @@ export const SimuladosQuestoesContent: React.FC<SimuladosQuestoesContentProps> =
     );
   }
 
-  const selected = questoes.find((q) => q.question_id === selectedId) ?? questoes[0];
+  if (temaFiltro && questoesFiltradas.length === 0) {
+    return (
+      <GestorEmpty
+        icon={SearchX}
+        title="Nenhuma questão encontrada para este tema"
+        description={`Não há questões de "${temaFiltro}" neste recorte. Limpe o filtro para ver todas as questões do simulado.`}
+        action={
+          <button
+            type="button"
+            onClick={clearTemaFiltro}
+            className="inline-flex items-center rounded-xl bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+          >
+            Limpar filtro de tema
+          </button>
+        }
+      />
+    );
+  }
+
+  const selected =
+    questoesFiltradas.find((q) => q.question_id === selectedId) ?? questoesFiltradas[0];
 
   return (
     <motion.div
@@ -106,9 +162,11 @@ export const SimuladosQuestoesContent: React.FC<SimuladosQuestoesContentProps> =
       <motion.div variants={itemVariants} className="min-w-0">
         <QuestoesErradasList
           simuladoNome={simuladoNome}
-          questoes={questoes}
+          questoes={questoesFiltradas}
           selectedId={selected.question_id}
           onSelect={setSelectedId}
+          temaFiltro={temaFiltro}
+          onClearTemaFiltro={clearTemaFiltro}
         />
       </motion.div>
       <motion.div variants={itemVariants} className="min-w-0">

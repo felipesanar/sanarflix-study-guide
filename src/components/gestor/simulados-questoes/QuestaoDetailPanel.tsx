@@ -1,8 +1,6 @@
 import * as React from 'react';
-import { Download, FileQuestion, Lightbulb } from 'lucide-react';
+import { FileQuestion, Lightbulb } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { GestorPanel } from '@/experiences/gestor/ui';
 import { cn } from '@/lib/utils';
 import type { QuestionStat } from '@/services/gestor/questionStats';
@@ -95,22 +93,6 @@ export const QuestaoDetailPanel: React.FC<QuestaoDetailPanelProps> = ({ questao 
             <p className="text-sm leading-relaxed text-foreground">{questao.comentario}</p>
           </div>
         )}
-
-        <div className="flex justify-end pt-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button variant="outline" size="sm" disabled className="gap-2">
-                    <Download className="h-3.5 w-3.5" />
-                    Exportar PDF
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Em breve</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
       </div>
     </GestorPanel>
   );

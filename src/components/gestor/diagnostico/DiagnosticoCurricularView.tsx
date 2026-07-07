@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -59,25 +59,70 @@ export const DiagnosticoCurricularView: React.FC<DiagnosticoCurricularViewProps>
   simuladoNome,
 }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [drill, setDrill] = React.useState<DiagnosticoDrillState>({ level: 'areas' });
   const [temaName, setTemaName] = React.useState<string | undefined>(undefined);
 
-  // Reseta o drill-down ao trocar de recorte (simulado/base) para não deixar
-  // a tela presa em uma área/especialidade que pode não existir no novo dado.
+  // Atualiza a querystring compondo com os params já presentes (filtros,
+  // ?tema= vindo de outra tela etc.) — nunca substitui tudo.
+  const updateAreaEspecialidadeParams = React.useCallback(
+    (area?: string, especialidade?: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (area) next.set('area', area);
+        else next.delete('area');
+        if (especialidade) next.set('especialidade', especialidade);
+        else next.delete('especialidade');
+        return next;
+      });
+    },
+    [setSearchParams],
+  );
+
+  // Reconstrói o drill inicial a partir de `?area=`/`?especialidade=` na URL
+  // quando os dados chegam/mudam. Se os nomes não existirem na árvore
+  // curricular atual (recorte mudou), cai no reset padrão (topo da árvore).
   React.useEffect(() => {
-    setDrill({ level: 'areas' });
     setTemaName(undefined);
+
+    if (!data) {
+      setDrill({ level: 'areas' });
+      return;
+    }
+
+    const areaParam = searchParams.get('area');
+    const especialidadeParam = searchParams.get('especialidade');
+
+    if (areaParam) {
+      const area = data.curricular.areas.find((a) => a.name === areaParam);
+      if (area) {
+        if (especialidadeParam) {
+          const especialidade = area.specialties.find((sp) => sp.name === especialidadeParam);
+          if (especialidade) {
+            setDrill({ level: 'temas', area, especialidade });
+            return;
+          }
+        }
+        setDrill({ level: 'especialidades', area });
+        return;
+      }
+    }
+
+    setDrill({ level: 'areas' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
   const goToAreas = React.useCallback(() => {
     setDrill({ level: 'areas' });
     setTemaName(undefined);
-  }, []);
+    updateAreaEspecialidadeParams(undefined, undefined);
+  }, [updateAreaEspecialidadeParams]);
 
   const goToEspecialidades = React.useCallback(() => {
     setDrill((prev) => ({ level: 'especialidades', area: prev.area }));
     setTemaName(undefined);
-  }, []);
+    updateAreaEspecialidadeParams(drill.area?.name, undefined);
+  }, [drill.area, updateAreaEspecialidadeParams]);
 
   if (loading) return <GestorLoading />;
   if (error && !data) return <GestorError message={error} onRetry={onRetry} />;
@@ -106,12 +151,18 @@ export const DiagnosticoCurricularView: React.FC<DiagnosticoCurricularViewProps>
   const handleSelectRow = (row: DrillRowItem) => {
     if (drill.level === 'areas') {
       const area = areas.find((a) => a.name === row.key);
-      if (area) setDrill({ level: 'especialidades', area });
+      if (area) {
+        setDrill({ level: 'especialidades', area });
+        updateAreaEspecialidadeParams(area.name, undefined);
+      }
       return;
     }
     if (drill.level === 'especialidades' && drill.area) {
       const especialidade = drill.area.specialties.find((sp) => sp.name === row.key);
-      if (especialidade) setDrill({ level: 'temas', area: drill.area, especialidade });
+      if (especialidade) {
+        setDrill({ level: 'temas', area: drill.area, especialidade });
+        updateAreaEspecialidadeParams(drill.area.name, especialidade.name);
+      }
       return;
     }
     // Nível 'temas' é folha — linhas não são navegáveis (ver `toTemaRow`), então
@@ -182,7 +233,13 @@ export const DiagnosticoCurricularView: React.FC<DiagnosticoCurricularViewProps>
       </motion.div>
 
       <motion.div variants={itemVariants} className="flex flex-col items-end gap-1">
-        <Button onClick={() => navigate('/gestor/intervencao-impacto')} className="gap-2">
+        <Button
+          onClick={() => {
+            const target = temaName ? `/gestor/intervencao-impacto?tema=${encodeURIComponent(temaName)}` : '/gestor/intervencao-impacto';
+            navigate(target);
+          }}
+          className="gap-2"
+        >
           Simular impacto deste recorte
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
