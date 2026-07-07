@@ -601,6 +601,12 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[CreateUser] User ${email} created successfully.`);
+      const _rolesGrantedNew: string[] = [];
+      if (id_ies === B2B_IES_ID) _rolesGrantedNew.push('admin');
+      if (role && role !== 'aluno') _rolesGrantedNew.push(role);
+      await auditUserWrite(supabaseAdmin, 'user_create', callerUserId, userId, {
+        email, id_ies, roles_granted: _rolesGrantedNew, ip: getClientIp(req),
+      });
 
       return successResponse(
         'created', 
