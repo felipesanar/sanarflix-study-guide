@@ -476,6 +476,12 @@ Deno.serve(async (req) => {
           : 'Usuário já estava atualizado';
 
       console.log(`[CreateUser] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}. Email resent: ${emailSent}`);
+      const _rolesGrantedUpd: string[] = [];
+      if (id_ies === B2B_IES_ID) _rolesGrantedUpd.push('admin');
+      if (role && role !== 'aluno') _rolesGrantedUpd.push(role);
+      await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, existingUser.id, {
+        email, id_ies, roles_granted: _rolesGrantedUpd, fields_updated: fieldsUpdated, ip: getClientIp(req),
+      });
       return successResponse('updated', existingUser.id, email, message, { fieldsUpdated, emailSent });
 
     } else {
