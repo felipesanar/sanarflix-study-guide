@@ -37,6 +37,33 @@ const DEPENDENT_TABLES = [
 // Each user requires ~23 DB calls, so keep this low
 const MAX_BATCH_SIZE = 3;
 
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get('x-forwarded-for');
+  if (!xff) return null;
+  return xff.split(',')[0]?.trim() || null;
+}
+
+async function auditDelete(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  adminId: string,
+  targetUserId: string,
+  email: string | null | undefined,
+  modo: 'single' | 'lote',
+  ip: string | null,
+) {
+  try {
+    const { error } = await supabaseAdmin.from('admin_audit_log').insert({
+      admin_id: adminId,
+      action: 'delete_user',
+      target_user_id: targetUserId,
+      metadata: { email: email ?? null, modo, ip },
+    });
+    if (error) console.warn('[delete-user] audit log insert failed:', error.message);
+  } catch (e) {
+    console.warn('[delete-user] audit log exception:', (e as Error).message);
+  }
+}
+
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
   userId: string,
@@ -242,6 +269,8 @@ Deno.serve(async (req) => {
         const result = await deleteSingleUser(supabaseAdmin, id);
         if (result.success) {
           deleted.push(id);
+          const info = detailsMap.get(id);
+          await auditDelete(supabaseAdmin, caller.id, id, info?.email, 'lote', getClientIp(req));
         } else {
           const info = detailsMap.get(id);
           failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: result.error || 'Erro desconhecido' });
@@ -279,6 +308,13 @@ Deno.serve(async (req) => {
 
     console.log(`[delete-user] Admin ${maskEmail(caller.email)} removing user ${user_id}`);
 
+    // Fetch target email for audit metadata before deletion
+    const { data: targetInfo } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('id', user_id)
+      .maybeSingle();
+
     const result = await deleteSingleUser(supabaseAdmin, user_id);
 
     if (!result.success) {
@@ -287,6 +323,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    await auditDelete(supabaseAdmin, caller.id, user_id, targetInfo?.email, 'single', getClientIp(req));
 
     console.log(`[delete-user] User ${user_id} removed successfully`);
 

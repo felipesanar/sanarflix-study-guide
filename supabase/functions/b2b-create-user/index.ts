@@ -66,6 +66,33 @@ async function grantRoleIfNeeded(
   else console.log(`[RBAC] Role '${role}' granted to ${email}`);
 }
 
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get('x-forwarded-for');
+  if (!xff) return null;
+  return xff.split(',')[0]?.trim() || null;
+}
+
+async function auditUserWrite(
+  supabaseAdmin: any,
+  action: 'user_create' | 'user_update',
+  adminId: string | null,
+  targetUserId: string,
+  metadata: Record<string, unknown>,
+) {
+  if (!adminId) return; // No auditing when caller is not an authenticated admin
+  try {
+    const { error } = await supabaseAdmin.from('admin_audit_log').insert({
+      admin_id: adminId,
+      action,
+      target_user_id: targetUserId,
+      metadata,
+    });
+    if (error) console.warn('[b2b-create-user] audit log insert failed:', error.message);
+  } catch (e) {
+    console.warn('[b2b-create-user] audit log exception:', (e as Error).message);
+  }
+}
+
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
     JSON.stringify({ success: false, error: message, code, details }),
@@ -450,6 +477,12 @@ Deno.serve(async (req) => {
           : 'Usuário já estava atualizado';
 
       console.log(`[CreateUser] User ${email} updated. Fields: ${fieldsUpdated.join(', ') || 'none'}. Email resent: ${emailSent}`);
+      const _rolesGrantedUpd: string[] = [];
+      if (id_ies === B2B_IES_ID) _rolesGrantedUpd.push('admin');
+      if (role && role !== 'aluno') _rolesGrantedUpd.push(role);
+      await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, existingUser.id, {
+        email, id_ies, roles_granted: _rolesGrantedUpd, fields_updated: fieldsUpdated, ip: getClientIp(req),
+      });
       return successResponse('updated', existingUser.id, email, message, { fieldsUpdated, emailSent });
 
     } else {
@@ -514,6 +547,12 @@ Deno.serve(async (req) => {
             // Send welcome email (awaited for accurate status)
             const emailOk = await sendWelcomeEmail(supabaseAdmin, foundId, nome, email).catch(() => false);
             console.log(`[CreateUser] User recovered successfully. ID: ${foundId}`);
+            const _rolesGrantedRec: string[] = [];
+            if (id_ies === B2B_IES_ID) _rolesGrantedRec.push('admin');
+            if (role && role !== 'aluno') _rolesGrantedRec.push(role);
+            await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, foundId, {
+              email, id_ies, roles_granted: _rolesGrantedRec, recovered: true, ip: getClientIp(req),
+            });
             return successResponse('updated', foundId, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           } catch (recoveryErr) {
             console.error('[CreateUser] Recovery failed:', recoveryErr);
@@ -563,6 +602,12 @@ Deno.serve(async (req) => {
       }
 
       console.log(`[CreateUser] User ${email} created successfully.`);
+      const _rolesGrantedNew: string[] = [];
+      if (id_ies === B2B_IES_ID) _rolesGrantedNew.push('admin');
+      if (role && role !== 'aluno') _rolesGrantedNew.push(role);
+      await auditUserWrite(supabaseAdmin, 'user_create', callerUserId, userId, {
+        email, id_ies, roles_granted: _rolesGrantedNew, ip: getClientIp(req),
+      });
 
       return successResponse(
         'created', 

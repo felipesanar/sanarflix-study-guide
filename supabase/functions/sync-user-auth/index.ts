@@ -51,6 +51,32 @@ serve(async (req) => {
     const normalizedEmail = email.trim().toLowerCase();
     console.log(`[sync-user-auth] Attempting to sync user: ${maskEmail(normalizedEmail)}`);
 
+    // Best-effort: extract caller id from Authorization header for audit trail.
+    const authHeader = req.headers.get('Authorization') ?? '';
+    let callerId: string | null = null;
+    if (authHeader.startsWith('Bearer ')) {
+      try {
+        const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice('Bearer '.length));
+        callerId = user?.id ?? null;
+      } catch { /* ignore */ }
+    }
+    const xff = req.headers.get('x-forwarded-for');
+    const clientIp = xff ? (xff.split(',')[0]?.trim() || null) : null;
+
+    const auditSync = async (targetUserId: string, didWhat: string) => {
+      try {
+        const { error } = await supabaseAdmin.from('admin_audit_log').insert({
+          admin_id: callerId,
+          action: 'sync_user_auth',
+          target_user_id: targetUserId,
+          metadata: { email: normalizedEmail, did: didWhat, ip: clientIp },
+        });
+        if (error) console.warn('[sync-user-auth] audit log insert failed:', error.message);
+      } catch (e) {
+        console.warn('[sync-user-auth] audit log exception:', (e as Error).message);
+      }
+    };
+
     // 1. Check if user exists in public.users
     const { data: publicUser, error: publicUserError } = await supabaseAdmin
       .from('users')
@@ -118,6 +144,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+
+      await auditSync(existingAuthUser.id, 'updated_id');
 
       return new Response(JSON.stringify({ 
         success: true,
@@ -204,6 +232,8 @@ serve(async (req) => {
     }
 
     console.log('[sync-user-auth] Successfully synced user!');
+
+    await auditSync(newAuthUser.user.id, 'created_auth');
 
     return new Response(JSON.stringify({ 
       success: true,
