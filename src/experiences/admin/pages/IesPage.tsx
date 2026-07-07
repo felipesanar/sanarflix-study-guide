@@ -1,17 +1,21 @@
 import * as React from 'react';
+import { AdminSectionHeader } from '@/experiences/admin/ui';
+import { IesFeaturesBoard } from '@/components/admin/ies/IesFeaturesBoard';
 
 /**
- * Seção IES do Portal do Admin (`/admin/ies`).
+ * Seção IES do Portal do Admin (`/admin/ies`) — contrato §E.
  *
- * Placeholder da reescrita do shell (contrato §E — IES): cabeçalho
- * definitivo, conteúdo pendente (cards por IES com switches das 9 features,
- * "alterações pendentes" + Salvar via RPC `admin_set_ies_features`).
+ * Cards por IES com as 9 features configuráveis (switches), diff local de
+ * "alterações pendentes" e "Salvar" por IES via RPC `admin_set_ies_features`
+ * (ver {@link IesFeaturesBoard}).
  */
 const IesPage: React.FC = () => (
-  <div className="space-y-1">
-    <h1 className="text-2xl font-bold tracking-tight">IES</h1>
-    <p className="text-sm text-muted-foreground">Instituições parceiras e features habilitadas por IES.</p>
-    <div />
+  <div className="space-y-6">
+    <AdminSectionHeader
+      title="IES & contratos"
+      subtitle="O que cada faculdade tem contratado e quais features estão ligadas. Alterações salvam por IES."
+    />
+    <IesFeaturesBoard />
   </div>
 );
 

@@ -55,8 +55,8 @@ export default {
 					800: 'hsl(0 65% 15%)',
 					900: 'hsl(0 65% 10%)',
 				},
-				// USCS Brand Colors
-				uscs: {
+				// Sanar brand colors
+				brand: {
 					blue: 'hsl(214 76% 38%)',
 					'blue-dark': 'hsl(214 76% 28%)',
 					'blue-light': 'hsl(214 100% 85%)',

@@ -1,18 +1,14 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Plus, Search, Filter, Calendar, Target, Bell, 
-  Edit, Trash2, Power, Check, X, Clock 
-} from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Power } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getBrazilDate, toBrazilDate } from '@/utils/timezone';
+import { StatusPill, MonoValue, AdminEmpty, type StatusPillVariant } from '@/experiences/admin/ui';
+import { cn } from '@/lib/utils';
 
 interface Announcement {
   id: string;
@@ -21,7 +17,7 @@ interface Announcement {
   link_botao: string | null;
   texto_botao: string;
   ativo: boolean;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'critica';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
@@ -32,10 +28,6 @@ interface Announcement {
 
 interface Props {
   announcements: Announcement[];
-  selectedIds: string[];
-  onSelectAnnouncement: (id: string) => void;
-  onToggleSelect: (id: string) => void;
-  onSelectAll: () => void;
   onEdit: (announcement: Announcement) => void;
   onToggleStatus: (id: string, currentStatus: boolean) => void;
   onDelete: (id: string) => void;
@@ -43,117 +35,95 @@ interface Props {
   totalIes: number;
 }
 
+/** Cor sólida da barra lateral (identidade visual do aviso) por `paleta_cores`. */
+const PALETTE_BAR_CLASS: Record<string, string> = {
+  flame: 'bg-red-500',
+  flameSoft: 'bg-red-400',
+  emerald: 'bg-emerald-500',
+  emeraldSoft: 'bg-emerald-400',
+  royal: 'bg-blue-500',
+  royalSoft: 'bg-blue-400',
+  sunset: 'bg-orange-500',
+  sunsetSoft: 'bg-orange-400',
+  amethyst: 'bg-violet-500',
+  amethystSoft: 'bg-violet-400',
+};
+
+const PRIORITY_PILL: Record<Announcement['prioridade'], { label: string; variant: StatusPillVariant }> = {
+  critica: { label: 'Crítica', variant: 'red' },
+  alta: { label: 'Alta', variant: 'amber' },
+  media: { label: 'Média', variant: 'blue' },
+  baixa: { label: 'Baixa', variant: 'muted' },
+};
+
 export const AnnouncementsList: React.FC<Props> = ({
   announcements,
-  selectedIds,
-  onSelectAnnouncement,
-  onToggleSelect,
-  onSelectAll,
   onEdit,
   onToggleStatus,
   onDelete,
   onCreateNew,
-  totalIes
+  totalIes,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'expired'>('all');
   const [sortBy, setSortBy] = useState<'date' | 'priority' | 'title'>('date');
 
-  const getPriorityColor = (prioridade: string) => {
-    switch (prioridade) {
-      case 'alta': return 'border-l-red-500';
-      case 'media': return 'border-l-orange-500';
-      case 'baixa': return 'border-l-blue-500';
-      default: return 'border-l-gray-500';
-    }
-  };
+  const isExpired = (ann: Announcement) =>
+    !!ann.data_expiracao && toBrazilDate(ann.data_expiracao) < getBrazilDate();
 
-  const getPriorityBadge = (prioridade: string) => {
-    switch (prioridade) {
-      case 'alta': return <Badge variant="destructive">Alta</Badge>;
-      case 'media': return <Badge className="bg-orange-500">Média</Badge>;
-      case 'baixa': return <Badge variant="secondary">Baixa</Badge>;
-      default: return null;
-    }
-  };
-
-  const getStatusBadge = (announcement: Announcement) => {
-    const isExpired = announcement.data_expiracao && toBrazilDate(announcement.data_expiracao) < getBrazilDate();
-    
-    if (isExpired) {
-      return (
-        <Badge variant="outline" className="gap-1">
-          <Clock className="h-3 w-3" />
-          Expirado
-        </Badge>
-      );
-    }
-    
-    return announcement.ativo ? (
-      <Badge className="bg-green-500 gap-1">
-        <Check className="h-3 w-3" />
+  const getStatusPill = (ann: Announcement) => {
+    if (isExpired(ann)) return <StatusPill variant="muted">Expirado</StatusPill>;
+    return ann.ativo ? (
+      <StatusPill variant="emerald" dot>
         Ativo
-      </Badge>
+      </StatusPill>
     ) : (
-      <Badge variant="secondary" className="gap-1">
-        <X className="h-3 w-3" />
-        Inativo
-      </Badge>
+      <StatusPill variant="muted">Inativo</StatusPill>
     );
   };
 
-  const getVisibilityText = (announcement: Announcement) => {
-    if (announcement.visibilidade === 'todas') {
-      return `Todas as IES (${totalIes})`;
-    } else if (announcement.visibilidade === 'seletivo') {
-      return `${announcement.ies_selecionadas.length} de ${totalIes} IES`;
-    } else {
-      return `${totalIes - announcement.ies_excluidas.length} de ${totalIes} IES`;
-    }
+  const getVisibilityText = (ann: Announcement) => {
+    if (ann.visibilidade === 'todas') return `Todas as IES (${totalIes})`;
+    if (ann.visibilidade === 'seletivo') return `${ann.ies_selecionadas.length} de ${totalIes} IES`;
+    return `${totalIes - ann.ies_excluidas.length} de ${totalIes} IES`;
   };
 
   const filteredAnnouncements = announcements
-    .filter(ann => {
-      // Filtro de busca
-      const matchesSearch = ann.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           ann.descricao.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Filtro de status
-      const isExpired = ann.data_expiracao && toBrazilDate(ann.data_expiracao) < getBrazilDate();
+    .filter((ann) => {
+      const matchesSearch =
+        ann.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ann.descricao.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const expired = isExpired(ann);
       let matchesStatus = true;
-      
-      if (statusFilter === 'active') matchesStatus = ann.ativo && !isExpired;
-      if (statusFilter === 'inactive') matchesStatus = !ann.ativo && !isExpired;
-      if (statusFilter === 'expired') matchesStatus = !!isExpired;
-      
+      if (statusFilter === 'active') matchesStatus = ann.ativo && !expired;
+      if (statusFilter === 'inactive') matchesStatus = !ann.ativo && !expired;
+      if (statusFilter === 'expired') matchesStatus = expired;
+
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
-      if (sortBy === 'date') {
-        return toBrazilDate(b.created_at).getTime() - toBrazilDate(a.created_at).getTime();
-      } else if (sortBy === 'priority') {
-        const priorityOrder = { alta: 3, media: 2, baixa: 1 };
+      if (sortBy === 'date') return toBrazilDate(b.created_at).getTime() - toBrazilDate(a.created_at).getTime();
+      if (sortBy === 'priority') {
+        const priorityOrder: Record<Announcement['prioridade'], number> = { critica: 4, alta: 3, media: 2, baixa: 1 };
         return priorityOrder[b.prioridade] - priorityOrder[a.prioridade];
-      } else {
-        return a.titulo.localeCompare(b.titulo);
       }
+      return a.titulo.localeCompare(b.titulo);
     });
 
   return (
     <div className="space-y-4">
-      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold">Avisos</h2>
-          <Badge variant="secondary">{announcements.length}</Badge>
+          <h2 className="text-lg font-semibold">Avisos</h2>
+          <MonoValue muted>{announcements.length}</MonoValue>
         </div>
         <Button onClick={onCreateNew}>
           <Plus className="h-4 w-4 mr-2" />
-          Novo Aviso
+          Novo aviso
         </Button>
       </div>
 
-      {/* Filtros e Busca */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -165,156 +135,91 @@ export const AnnouncementsList: React.FC<Props> = ({
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+        <Select value={statusFilter} onValueChange={(v: 'all' | 'active' | 'inactive' | 'expired') => setStatusFilter(v)}>
           <SelectTrigger>
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="all">Todos os status</SelectItem>
             <SelectItem value="active">Ativos</SelectItem>
             <SelectItem value="inactive">Inativos</SelectItem>
             <SelectItem value="expired">Expirados</SelectItem>
           </SelectContent>
         </Select>
 
-        <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+        <Select value={sortBy} onValueChange={(v: 'date' | 'priority' | 'title') => setSortBy(v)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="date">Data de Criação</SelectItem>
+            <SelectItem value="date">Data de criação</SelectItem>
             <SelectItem value="priority">Prioridade</SelectItem>
             <SelectItem value="title">Título</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Ações em Lote */}
-      {selectedIds.length > 0 && (
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={true} onCheckedChange={onSelectAll} />
-                <span className="text-sm font-medium">
-                  {selectedIds.length} {selectedIds.length === 1 ? 'aviso selecionado' : 'avisos selecionados'}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Check className="h-4 w-4 mr-1" />
-                  Ativar
-                </Button>
-                <Button variant="outline" size="sm">
-                  <X className="h-4 w-4 mr-1" />
-                  Desativar
-                </Button>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Excluir
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lista de Avisos */}
       <div className="space-y-3">
         {filteredAnnouncements.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum aviso encontrado</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Tente ajustar os filtros de busca'
-                  : 'Clique em "Novo Aviso" para começar'}
-              </p>
-              {announcements.length === 0 && (
+          <AdminEmpty
+            title="Nenhum aviso encontrado"
+            description={
+              searchTerm || statusFilter !== 'all' ? 'Tente ajustar os filtros de busca.' : 'Clique em "Novo aviso" para começar.'
+            }
+            action={
+              announcements.length === 0 ? (
                 <Button onClick={onCreateNew}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Criar Primeiro Aviso
+                  Criar primeiro aviso
                 </Button>
-              )}
-            </CardContent>
-          </Card>
+              ) : undefined
+            }
+          />
         ) : (
-          filteredAnnouncements.map(announcement => (
-            <Card 
-              key={announcement.id} 
-              className={`border-l-4 ${getPriorityColor(announcement.prioridade)} hover:shadow-md transition-shadow cursor-pointer`}
-              onClick={() => onSelectAnnouncement(announcement.id)}
-            >
-              <CardContent className="py-4">
-                <div className="flex items-start gap-3">
-                  <Checkbox 
-                    checked={selectedIds.includes(announcement.id)}
-                    onCheckedChange={() => onToggleSelect(announcement.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {getStatusBadge(announcement)}
-                        <h3 className="font-semibold text-lg">{announcement.titulo}</h3>
-                      </div>
-                      {getPriorityBadge(announcement.prioridade)}
+          filteredAnnouncements.map((announcement) => {
+            const priorityPill = PRIORITY_PILL[announcement.prioridade];
+            return (
+              <div key={announcement.id} className="flex overflow-hidden rounded-xl border">
+                <div className={cn('w-1.5 shrink-0', PALETTE_BAR_CLASS[announcement.paleta_cores] ?? 'bg-muted-foreground')} />
+                <div className="flex-1 space-y-2 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {getStatusPill(announcement)}
+                      <StatusPill variant={priorityPill.variant}>{priorityPill.label}</StatusPill>
+                      <h3 className="font-semibold">{announcement.titulo}</h3>
                     </div>
-
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {announcement.descricao}
-                    </p>
-
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {format(toBrazilDate(announcement.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </div>
-                      
-                      <div className="flex items-center gap-1">
-                        <Target className="h-3 w-3" />
-                        {getVisibilityText(announcement)}
-                      </div>
-
-                      {announcement.data_expiracao && (
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Expira: {format(toBrazilDate(announcement.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}
-                        </div>
-                      )}
+                    <div className="flex shrink-0 gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(announcement)} aria-label="Editar aviso">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onToggleStatus(announcement.id, announcement.ativo)}
+                        aria-label={announcement.ativo ? 'Desativar aviso' : 'Ativar aviso'}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => onDelete(announcement.id)} aria-label="Excluir aviso">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onEdit(announcement)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onToggleStatus(announcement.id, announcement.ativo)}
-                    >
-                      <Power className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      size="sm"
-                      onClick={() => onDelete(announcement.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{announcement.descricao}</p>
+
+                  <MonoValue muted className="block text-xs">
+                    {getVisibilityText(announcement)}
+                    {' · '}
+                    {announcement.data_expiracao
+                      ? `expira ${format(toBrazilDate(announcement.data_expiracao), "dd/MM/yyyy", { locale: ptBR })}`
+                      : 'sem expiração'}
+                  </MonoValue>
                 </div>
-              </CardContent>
-            </Card>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
     </div>

@@ -26,7 +26,7 @@ export type { ExperienceId };
  * experiência (ver getAccessRules), o que evita loop de redirecionamento.
  */
 export const EXPERIENCE_ENTRYPOINTS: Record<Exclude<ExperienceId, 'aluno'>, string> = {
-  admin: '/admin/usuarios',
+  admin: '/admin',
   atendimento: '/atendimento/usuarios',
   gestao: '/gestor',
 };

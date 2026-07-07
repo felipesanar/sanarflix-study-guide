@@ -1,18 +1,18 @@
 import * as React from 'react';
+import { AdminSectionHeader } from '@/experiences/admin/ui';
+import { StudyGuideImportTab } from '@/components/admin/StudyGuideImportTab';
 
 /**
- * Seção Guia de Estudos do Portal do Admin (`/admin/guia`).
+ * Seção Guia de Estudos do Portal do Admin (`/admin/guia`) — contrato §E.
  *
- * MANTIDA por decisão do contrato (o protótipo omitiu, mas é feature real em
- * uso — grupo "Conteúdo & comunicação"). Placeholder da reescrita do shell:
- * cabeçalho definitivo, conteúdo pendente (reapresenta o fluxo existente de
- * importação/gestão de conteúdo do Guia por IES/semestre).
+ * MANTIDA por decisão do contrato (feature real em uso, fora do protótipo).
+ * Página fina: só o cabeçalho novo em volta do wizard existente
+ * (`StudyGuideImportTab`/`StudyGuideImportWizard`) — o wizard em si não foi alterado.
  */
 const GuiaPage: React.FC = () => (
-  <div className="space-y-1">
-    <h1 className="text-2xl font-bold tracking-tight">Guia de Estudos</h1>
-    <p className="text-sm text-muted-foreground">Conteúdo do Guia de Estudos por IES e semestre.</p>
-    <div />
+  <div className="space-y-6">
+    <AdminSectionHeader title="Guia de Estudos" subtitle="Conteúdo do Guia de Estudos por IES e semestre." />
+    <StudyGuideImportTab />
   </div>
 );
 

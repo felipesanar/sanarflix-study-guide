@@ -60,7 +60,7 @@ describe('AnnouncementEditor', () => {
     );
     
     expect(screen.getByPlaceholderText(/Título do aviso/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Descrição detalhada/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Descrição do aviso/i)).toBeInTheDocument();
   });
 
   it('should display form with pre-filled values', () => {
@@ -214,7 +214,7 @@ describe('AnnouncementEditor', () => {
       />
     );
     
-    expect(screen.getByText(/Selecionar IES/i)).toBeInTheDocument();
+    expect(screen.getByText(/IES selecionadas/i)).toBeInTheDocument();
   });
 
   it('should show preview section', () => {

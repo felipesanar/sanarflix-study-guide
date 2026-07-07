@@ -157,6 +157,7 @@ export const LoginForm: React.FC = () => {
                       size="sm"
                       className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />

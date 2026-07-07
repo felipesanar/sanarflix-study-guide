@@ -20,7 +20,8 @@ import {
 interface MenuItemData {
   title: string;
   url: string;
-  icon: LucideIcon;
+  /** Componente de ícone (Lucide ou compatível) — renderizado como <Icon className=…>. */
+  icon?: LucideIcon | React.ElementType;
   description?: string;
   /** Contador opcional (ex.: itens devidos no caderno) exibido como pill/ponto. */
   badge?: number;
@@ -33,7 +34,7 @@ interface SidebarNavItemProps {
 }
 
 export function SidebarNavItem({ item, isActive, collapsed }: SidebarNavItemProps) {
-  const Icon = item.icon;
+  const Icon = item.icon ?? (() => null);
 
   const content = (
     <NavLink
@@ -228,7 +229,7 @@ interface SidebarSubItemProps {
 }
 
 export function SidebarSubItem({ item, isActive }: SidebarSubItemProps) {
-  const Icon = item.icon;
+  const Icon = item.icon ?? (() => null);
 
   return (
     <NavLink

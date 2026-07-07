@@ -1,18 +1,18 @@
 import * as React from 'react';
+import { AdminSectionHeader } from '@/experiences/admin/ui';
+import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
 
 /**
- * Seção Avisos do Portal do Admin (`/admin/avisos`).
+ * Seção Avisos do Portal do Admin (`/admin/avisos`) — contrato §E.
  *
- * Placeholder da reescrita do shell (contrato §E — Avisos): cabeçalho
- * definitivo, conteúdo pendente (reapresenta `AnnouncementsTab`/Editor como
- * cards com badge de prioridade, toggle ativo real e auditoria via
- * `admin_log_action`).
+ * Reapresenta o CRUD real de `AnnouncementsTab`/`AnnouncementEditor` no
+ * vocabulário do console (cards com barra de cor, badge de prioridade,
+ * toggle ativo real e exclusão com `DangerZone` + auditoria).
  */
 const AvisosPage: React.FC = () => (
-  <div className="space-y-1">
-    <h1 className="text-2xl font-bold tracking-tight">Avisos</h1>
-    <p className="text-sm text-muted-foreground">Avisos e comunicados exibidos aos alunos.</p>
-    <div />
+  <div className="space-y-6">
+    <AdminSectionHeader title="Avisos" subtitle="Avisos e comunicados exibidos aos alunos." />
+    <AnnouncementsTab />
   </div>
 );
 

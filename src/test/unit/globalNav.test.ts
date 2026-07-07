@@ -6,7 +6,7 @@ const urls = (roles: string[]) => getPortalEntries(deriveAccessFromRoles(roles))
 
 describe('experiences/shared/getPortalEntries — links de portal por experiência', () => {
   it('admin: Portal do Admin + Desempenho Institucional (super usuário)', () => {
-    expect(urls(['admin'])).toEqual(['/admin/usuarios', '/gestor']);
+    expect(urls(['admin'])).toEqual(['/admin', '/gestor']);
   });
 
   it('gestor / gestor_grupo: link para o Desempenho Institucional', () => {
@@ -27,7 +27,7 @@ describe('experiences/shared/getPortalEntries — links de portal por experiênc
 
   it('múltiplas roles: uma entrada por portal, na ordem admin > gestão > CX', () => {
     expect(urls(['atendimento', 'admin', 'gestor'])).toEqual([
-      '/admin/usuarios',
+      '/admin',
       '/gestor',
       '/atendimento/usuarios',
     ]);

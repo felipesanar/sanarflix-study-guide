@@ -19,8 +19,8 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground transition-smooth",
         link: "text-primary underline-offset-4 hover:underline transition-smooth",
         premium: "bg-gradient-premium text-white hover:shadow-xl transition-all duration-300 hover:scale-105",
-        "uscs-blue": "bg-uscs-blue text-white hover:bg-uscs-blue-dark transition-smooth hover:shadow-lg",
-        "uscs-wine": "bg-uscs-wine text-white hover:bg-primary-dark transition-smooth hover:shadow-lg",
+        "brand-blue": "bg-brand-blue text-white hover:bg-brand-blue-dark transition-smooth hover:shadow-lg",
+        "brand-wine": "bg-brand-wine text-white hover:bg-primary-dark transition-smooth hover:shadow-lg",
       },
       size: {
         default: "h-10 px-4 py-2",

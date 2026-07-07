@@ -1,15 +1,29 @@
+/**
+ * Fatia B — Usuários: lista/tabela principal (`/admin/usuarios` e
+ * `/atendimento/usuarios`, mesmo componente, recorte por `canManage`/`canSupport`).
+ *
+ * Reapresenta a lista antiga no vocabulário do console admin (`AdminTable`,
+ * `AdminLoading/Error/Empty`, `DangerZone`) mantendo a lógica que já
+ * funcionava: paginação server-side, busca com debounce, painel de suporte,
+ * geração de links, edição de roles, exclusão (single e em massa, em chunks
+ * de 3 via a edge `delete-user` já existente).
+ *
+ * Removido nesta reescrita (fora do contrato §B — não fazia parte da lista de
+ * recursos pedida): os fluxos de "excluir/reenviar TODOS os usuários de uma
+ * IES" que existiam via o filtro de IES. A exclusão em massa continua
+ * disponível via seleção de linhas.
+ */
 import * as React from 'react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -23,17 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Search,
   MoreHorizontal,
@@ -44,19 +48,30 @@ import {
   ShieldOff,
   RefreshCw,
   Mail,
-  Users,
   ChevronLeft,
   ChevronRight,
   Loader2,
-  AlertCircle,
   Trash2,
   Eye,
   UserCheck,
   Link,
   KeyRound,
 } from 'lucide-react';
+import {
+  AdminEmpty,
+  AdminError,
+  AdminLoading,
+  AdminPartial,
+  AdminTable,
+  DangerZone,
+  MonoValue,
+  adminTableCellClass,
+  adminTableHeadClass,
+} from '@/experiences/admin/ui';
+import { logAdminAction } from '@/services/admin/logAction';
 import { UserSupportPanel } from './UserSupportPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
 
 interface IES {
@@ -93,13 +108,28 @@ const EDITABLE_ROLES: { value: AppRole; label: string }[] = [
 ];
 const PRIVILEGED_ROLES = EDITABLE_ROLES.map(r => r.value);
 
+const ROLE_BADGE: Record<string, { label: string; icon?: boolean }> = {
+  admin: { label: 'Admin', icon: true },
+  professor: { label: 'Professor' },
+  gestor: { label: 'Gestor' },
+  gestor_grupo: { label: 'Gestor de Grupo' },
+  atendimento: { label: 'Atendimento' },
+};
+
 /** Papéis privilegiados atuais do usuário (subconjunto de PRIVILEGED_ROLES), preservando ordem estável. */
 const deriveEditableRoles = (roles: string[] | undefined): AppRole[] =>
   PRIVILEGED_ROLES.filter(r => roles?.includes(r));
 
-interface UsersListTableProps {
+export interface UsersListTableProps {
   iesList: IES[];
-  onStatsUpdate?: (totalUsers: number, totalAdmins: number) => void;
+  /** Ações administrativas plenas (criar/lote/excluir/trocar e-mail/selecionar em massa/editar roles). */
+  canManage: boolean;
+  /** Busca, visualização e painel de suporte — disponível também para Atendimento (CX). */
+  canSupport: boolean;
+  /** Incrementar para forçar um refetch (ex.: após criar usuário em outro diálogo). */
+  refreshKey?: number;
+  /** Abre o fluxo de "Trocar e-mail em massa" (diálogo controlado pela página). */
+  onOpenBulkEmail: () => void;
 }
 
 interface FailedUser {
@@ -109,31 +139,27 @@ interface FailedUser {
   error: string;
 }
 
-interface BatchProgress {
+interface DeleteProgress {
   total: number;
-  completed: number;
-  deleted: number;
-  failed: number;
+  done: number;
+  ok: number;
+  failed: FailedUser[];
   active: boolean;
-  failedUsers: FailedUser[];
-}
-
-interface EmailProgress {
-  total: number;
-  completed: number;
-  sent: number;
-  failed: number;
-  active: boolean;
-  failedUsers: FailedUser[];
 }
 
 const ITEMS_PER_PAGE = 25;
-const BATCH_CHUNK_SIZE = 3; // Must match edge function MAX_BATCH_SIZE
+const BATCH_CHUNK_SIZE = 3; // Deve casar com MAX_BATCH_SIZE da edge function
 
-export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStatsUpdate }) => {
-  const { startImpersonation } = useAuth();
+const EMPTY_DELETE_PROGRESS: DeleteProgress = { total: 0, done: 0, ok: 0, failed: [], active: false };
+
+export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, refreshKey, onOpenBulkEmail }) => {
+  const { startImpersonation, access } = useAuth();
+  const navigate = useNavigate();
+  const canImpersonate = can(access, 'impersonate');
+
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterIes, setFilterIes] = useState<string>('all');
@@ -147,7 +173,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     const timer = setTimeout(() => setSearchTerm(searchInput), 400);
     return () => clearTimeout(timer);
   }, [searchInput]);
-  
+
   const [editing, setEditing] = useState<EditingState>({
     userId: null,
     nome: '',
@@ -157,31 +183,21 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   });
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<UserRow | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  // Batch selection state
+  // Exclusão — single e em massa compartilham o mesmo fluxo (chunk de 3).
+  const [deleteTargets, setDeleteTargets] = useState<UserRow[] | null>(null);
+  const [deleteProgress, setDeleteProgress] = useState<DeleteProgress>(EMPTY_DELETE_PROGRESS);
+  const cancelDeleteRef = useRef(false);
+
+  // Seleção em massa (só canManage)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
-  const [iesDeleteOpen, setIesDeleteOpen] = useState(false);
-  const [iesResendOpen, setIesResendOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
-  const [emailConfirmText, setEmailConfirmText] = useState('');
-
-  // Batch progress state
-  const EMPTY_PROGRESS: BatchProgress = { total: 0, completed: 0, deleted: 0, failed: 0, active: false, failedUsers: [] };
-  const EMPTY_EMAIL_PROGRESS: EmailProgress = { total: 0, completed: 0, sent: 0, failed: 0, active: false, failedUsers: [] };
-  const [batchProgress, setBatchProgress] = useState<BatchProgress>(EMPTY_PROGRESS);
-  const [emailProgress, setEmailProgress] = useState<EmailProgress>(EMPTY_EMAIL_PROGRESS);
-  const cancelRef = useRef(false);
-  const cancelEmailRef = useRef(false);
 
   // Support panel state
   const [supportUserId, setSupportUserId] = useState<string | null>(null);
   const [supportUserName, setSupportUserName] = useState('');
   const [supportOpen, setSupportOpen] = useState(false);
 
-  // Clear selection on page/filter change
+  // Limpa seleção ao trocar página/filtro
   useEffect(() => {
     setSelectedIds(new Set());
   }, [page, searchTerm, filterIes, filterSemestre]);
@@ -194,19 +210,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const allPageSelected = selectableUsers.length > 0 && selectableUsers.every(u => selectedIds.has(u.id));
 
   const toggleSelectAll = () => {
-    if (allPageSelected) {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        selectableUsers.forEach(u => next.delete(u.id));
-        return next;
-      });
-    } else {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        selectableUsers.forEach(u => next.add(u.id));
-        return next;
-      });
-    }
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allPageSelected) selectableUsers.forEach(u => next.delete(u.id));
+      else selectableUsers.forEach(u => next.add(u.id));
+      return next;
+    });
   };
 
   const toggleSelect = (id: string) => {
@@ -221,6 +230,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
   const fetchUsers = useCallback(async () => {
     const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
+    setFetchError(null);
     try {
       let query = supabase
         .from('users')
@@ -236,15 +246,13 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       if (filterIes !== 'all') {
         query = query.eq('id_ies', filterIes);
       }
-
       if (filterSemestre !== 'all') {
-        query = query.eq('semestre', parseInt(filterSemestre));
+        query = query.eq('semestre', parseInt(filterSemestre, 10));
       }
-
       if (searchTerm.trim()) {
-        // Sanitize: only remove characters that break PostgREST .or() filter syntax
-        // Commas and parentheses are filter delimiters; % and _ are SQL LIKE wildcards
-        // Dots, @, hyphens etc. are valid in names/emails and must be preserved
+        // Sanitiza apenas caracteres que quebram a sintaxe do filtro .or() do
+        // PostgREST (vírgulas/parênteses são delimitadores; %/_ são wildcards
+        // de LIKE). Pontos, @, hífens etc. são válidos em nomes/emails.
         const sanitized = searchTerm.replace(/[%_,()]/g, '').trim();
         if (sanitized) {
           query = query.or(`nome.ilike.%${sanitized}%,email.ilike.%${sanitized}%`);
@@ -253,21 +261,18 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
       const from = page * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
-      
-      const { data: usersData, count, error } = await query
-        .order('nome')
-        .range(from, to);
 
+      const { data: usersData, count, error } = await query.order('nome').range(from, to);
       if (error) throw error;
 
-      // Discard stale responses from previous searches
+      // Descarta respostas obsoletas de buscas anteriores
       if (currentFetchId !== fetchIdRef.current) return;
 
       const userIds = usersData?.map(u => u.id) || [];
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('user_id, role')
-        .in('user_id', userIds);
+        .in('user_id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
 
       const rolesMap = new Map<string, string[]>();
       rolesData?.forEach(r => {
@@ -287,297 +292,85 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
 
       setUsers(mappedUsers);
       setTotalCount(count || 0);
-
-      const { count: adminCount } = await supabase
-        .from('user_roles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'admin');
-
-      onStatsUpdate?.(count || 0, adminCount || 0);
     } catch (err) {
       Logger.error('Error fetching users:', err);
-      toast.error('Erro ao carregar usuários');
+      setFetchError(err instanceof Error ? err.message : 'Erro ao carregar usuários.');
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, filterIes, filterSemestre, onStatsUpdate]);
+  }, [page, searchTerm, filterIes, filterSemestre]);
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, [fetchUsers, refreshKey]);
 
   useEffect(() => {
     setPage(0);
   }, [searchTerm, filterIes, filterSemestre]);
 
-  // ──── Chunked batch deletion with progress ────
-  const executeChunkedDelete = async (idsToDelete: string[]) => {
-    cancelRef.current = false;
-    const total = idsToDelete.length;
+  // ──── Exclusão em chunks (single = batch de 1) ────
+  const executeChunkedDelete = async (targets: UserRow[]) => {
+    cancelDeleteRef.current = false;
+    const total = targets.length;
+    setDeleteProgress({ total, done: 0, ok: 0, failed: [], active: true });
 
-    setBatchProgress({ total, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
-    setBatchDeleteOpen(false);
-    setIesDeleteOpen(false);
-    setConfirmText('');
-
-    let totalDeleted = 0;
-    let totalFailed = 0;
-    const allFailedUsers: FailedUser[] = [];
+    let totalOk = 0;
+    const failed: FailedUser[] = [];
 
     for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
-      if (cancelRef.current) {
-        toast.info('Exclusão cancelada pelo usuário');
-        break;
-      }
+      if (cancelDeleteRef.current) break;
 
-      const chunk = idsToDelete.slice(i, i + BATCH_CHUNK_SIZE);
-
+      const chunk = targets.slice(i, i + BATCH_CHUNK_SIZE);
       try {
         const { data, error } = await supabase.functions.invoke('delete-user', {
-          body: { user_ids: chunk },
+          body: { user_ids: chunk.map(u => u.id) },
         });
-
         if (error) throw error;
 
-        const chunkDeleted = data?.results?.deleted?.length || 0;
-        const chunkFailedItems: FailedUser[] = (data?.results?.failed || []).map((f: { id: string; nome?: string; email?: string; error: string }) => ({
-          id: f.id,
-          nome: f.nome || '',
-          email: f.email || '',
-          error: f.error,
-        }));
-        totalDeleted += chunkDeleted;
-        totalFailed += chunkFailedItems.length;
-        allFailedUsers.push(...chunkFailedItems);
+        const deletedIds = new Set<string>(data?.results?.deleted ?? []);
+        totalOk += deletedIds.size;
+        (data?.results?.failed ?? []).forEach((f: { id: string; nome?: string; email?: string; error: string }) => {
+          failed.push({ id: f.id, nome: f.nome || '', email: f.email || '', error: f.error });
+        });
 
-        // Remove deleted users from local state immediately
-        if (chunkDeleted > 0) {
-          const deletedSet = new Set(data.results.deleted as string[]);
-          setUsers(prev => prev.filter(u => !deletedSet.has(u.id)));
+        if (deletedIds.size > 0) {
+          setUsers(prev => prev.filter(u => !deletedIds.has(u.id)));
           setSelectedIds(prev => {
             const next = new Set(prev);
-            deletedSet.forEach(id => next.delete(id));
+            deletedIds.forEach(id => next.delete(id));
             return next;
           });
         }
       } catch (err) {
-        Logger.error('[BatchDelete] Chunk error:', err);
-        totalFailed += chunk.length;
+        Logger.error('[UsersListTable] delete chunk error:', err);
+        chunk.forEach(u => failed.push({ id: u.id, nome: u.nome, email: u.email, error: 'Falha de rede/servidor' }));
       }
 
-      const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
-      setBatchProgress({ total, completed, deleted: totalDeleted, failed: totalFailed, active: true, failedUsers: allFailedUsers });
+      setDeleteProgress({ total, done: Math.min(i + BATCH_CHUNK_SIZE, total), ok: totalOk, failed: [...failed], active: true });
     }
 
-    // Final state
-    setBatchProgress(prev => ({ ...prev, active: false }));
-    setTotalCount(prev => Math.max(0, prev - totalDeleted));
+    setDeleteProgress(prev => ({ ...prev, active: false }));
+    setTotalCount(prev => Math.max(0, prev - totalOk));
 
-    if (totalFailed > 0) {
-      toast.warning(`${totalDeleted} removidos, ${totalFailed} falharam`);
-    } else if (totalDeleted > 0) {
-      toast.success(`${totalDeleted} usuários removidos com sucesso`);
-    } else {
-      toast.info('Nenhum usuário foi removido');
-    }
+    if (failed.length > 0) toast.warning(`${totalOk} removido(s), ${failed.length} falharam`);
+    else if (totalOk > 0) toast.success(`${totalOk} usuário(s) removido(s) com sucesso`);
 
     fetchUsers();
   };
 
-  // ──── Batch delete selected ────
-  const handleBatchDelete = () => {
-    executeChunkedDelete(Array.from(selectedIds));
+  const cancelDelete = () => {
+    cancelDeleteRef.current = true;
   };
 
-  // ──── Delete all from IES (paginated resolve → chunked delete) ────
-  const handleIesDelete = async () => {
-    if (filterIes === 'all') return;
-
-    cancelRef.current = false;
-    setBatchProgress({ total: 0, completed: 0, deleted: 0, failed: 0, active: true, failedUsers: [] });
-    setIesDeleteOpen(false);
-    setConfirmText('');
-
-    try {
-      // Step 1: Resolve all deletable IDs via paginated calls
-      const allIds: string[] = [];
-      let cursor: number | null = 0;
-
-      while (cursor !== null) {
-        if (cancelRef.current) {
-          toast.info('Exclusão cancelada pelo usuário');
-          setBatchProgress(prev => ({ ...prev, active: false }));
-          return;
-        }
-
-        const { data, error } = await supabase.functions.invoke('delete-user', {
-          body: {
-            ies_id: filterIes,
-            resolve_only: true,
-            cursor,
-            page_size: 500,
-            ...(filterSemestre !== 'all' ? { semestre: filterSemestre } : {}),
-          },
-        });
-
-        if (error) throw error;
-
-        const pageIds: string[] = data?.user_ids || [];
-        allIds.push(...pageIds);
-        cursor = data?.has_more ? data.next_cursor : null;
-      }
-
-      if (allIds.length === 0) {
-        setBatchProgress(prev => ({ ...prev, active: false }));
-        toast.info('Nenhum usuário encontrado para remoção nesta IES');
-        return;
-      }
-
-      // Step 2: Delete in chunks
-      await executeChunkedDelete(allIds);
-    } catch (err) {
-      setBatchProgress(prev => ({ ...prev, active: false }));
-      toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
-    }
+  const confirmDeleteTargets = async () => {
+    const targets = deleteTargets ?? [];
+    setDeleteTargets(null);
+    // Fire-and-forget: a DangerZone fecha aqui; o progresso/cancelamento
+    // aparece abaixo da tabela (mesmo padrão do BulkRunner).
+    void executeChunkedDelete(targets);
   };
 
-  const cancelBatchDelete = () => {
-    cancelRef.current = true;
-  };
-
-  // ──── Chunked batch email resend with progress ────
-  const executeChunkedResend = async (usersToResend: { nome: string; email: string; id_ies: string | null; semestre: number | null }[]) => {
-    cancelEmailRef.current = false;
-    const total = usersToResend.length;
-
-    setEmailProgress({ total, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
-    setIesResendOpen(false);
-    setEmailConfirmText('');
-
-    let totalSent = 0;
-    let totalFailed = 0;
-    const allFailedUsers: FailedUser[] = [];
-
-    for (let i = 0; i < total; i += BATCH_CHUNK_SIZE) {
-      if (cancelEmailRef.current) {
-        toast.info('Reenvio cancelado pelo usuário');
-        break;
-      }
-
-      const chunk = usersToResend.slice(i, i + BATCH_CHUNK_SIZE);
-
-      const results = await Promise.allSettled(
-        chunk.map(async (u) => {
-          const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-            body: { nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre || 1, resend_email: true },
-          });
-          if (error) throw error;
-          if (!data?.success) throw new Error(data?.error || 'Falha ao reenviar');
-          return data;
-        })
-      );
-
-      results.forEach((r, idx) => {
-        if (r.status === 'fulfilled') {
-          totalSent++;
-        } else {
-          totalFailed++;
-          allFailedUsers.push({
-            id: chunk[idx].email,
-            nome: chunk[idx].nome,
-            email: chunk[idx].email,
-            error: r.reason?.message || 'Erro desconhecido',
-          });
-        }
-      });
-
-      const completed = Math.min(i + BATCH_CHUNK_SIZE, total);
-      setEmailProgress({ total, completed, sent: totalSent, failed: totalFailed, active: true, failedUsers: allFailedUsers });
-    }
-
-    setEmailProgress(prev => ({ ...prev, active: false }));
-
-    if (totalFailed > 0) {
-      toast.warning(`${totalSent} enviados, ${totalFailed} falharam`);
-    } else if (totalSent > 0) {
-      toast.success(`${totalSent} emails reenviados com sucesso`);
-    } else {
-      toast.info('Nenhum email foi enviado');
-    }
-  };
-
-  // ──── Resend all from IES (paginated resolve → chunked resend) ────
-  const handleIesResend = async () => {
-    if (filterIes === 'all') return;
-
-    cancelEmailRef.current = false;
-    setEmailProgress({ total: 0, completed: 0, sent: 0, failed: 0, active: true, failedUsers: [] });
-    setIesResendOpen(false);
-    setEmailConfirmText('');
-
-    try {
-      // Resolve all users from the selected IES+semester via paginated queries (excluding admins)
-      const allUsers: { nome: string; email: string; id_ies: string | null; semestre: number | null }[] = [];
-      const PAGE_SIZE = 500;
-      let from = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        if (cancelEmailRef.current) {
-          toast.info('Reenvio cancelado pelo usuário');
-          setEmailProgress(prev => ({ ...prev, active: false }));
-          return;
-        }
-
-        let query = supabase
-          .from('users')
-          .select('id, nome, email, id_ies, semestre')
-          .eq('id_ies', filterIes)
-          .order('nome')
-          .range(from, from + PAGE_SIZE - 1);
-
-        if (filterSemestre !== 'all') {
-          query = query.eq('semestre', parseInt(filterSemestre));
-        }
-
-        const { data, error } = await query;
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          allUsers.push(...data.map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre })));
-          from += PAGE_SIZE;
-          hasMore = data.length === PAGE_SIZE;
-        } else {
-          hasMore = false;
-        }
-      }
-
-      if (allUsers.length === 0) {
-        setEmailProgress(prev => ({ ...prev, active: false }));
-        toast.info('Nenhum usuário encontrado para reenvio');
-        return;
-      }
-
-      await executeChunkedResend(allUsers);
-    } catch (err) {
-      setEmailProgress(prev => ({ ...prev, active: false }));
-      toast.error(err instanceof Error ? err.message : 'Erro ao resolver usuários da IES');
-    }
-  };
-
-  // ──── Batch resend selected ────
-  const handleBatchResend = () => {
-    const usersToResend = users
-      .filter(u => selectedIds.has(u.id))
-      .map(u => ({ nome: u.nome, email: u.email, id_ies: u.id_ies, semestre: u.semestre }));
-    executeChunkedResend(usersToResend);
-  };
-
-  const cancelEmailResend = () => {
-    cancelEmailRef.current = true;
-  };
-
-  // ──── Existing single-user actions ────
+  // ──── Ações single-user existentes ────
   const startEditing = (user: UserRow) => {
     setEditing({
       userId: user.id,
@@ -612,8 +405,8 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       toast.error('Selecione uma IES');
       return;
     }
-    const semestre = parseInt(editing.semestre);
-    if (isNaN(semestre) || semestre < 1 || semestre > 12) {
+    const semestre = parseInt(editing.semestre, 10);
+    if (Number.isNaN(semestre) || semestre < 1 || semestre > 12) {
       toast.error('Semestre deve ser um número entre 1 e 12');
       return;
     }
@@ -625,30 +418,22 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       });
       if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao atualizar');
 
-      // Papéis são aditivos (um usuário pode acumular admin+gestor+professor+atendimento).
-      // Aplicamos diff: inserimos os marcados que faltam, removemos os desmarcados que existiam.
-      // Nunca "delete all + insert" — evita apagar papéis não tocados nesta edição.
+      // Papéis são aditivos — diff em vez de "delete all + insert" para não
+      // apagar papéis não tocados nesta edição.
       const currentRoles = deriveEditableRoles(user.roles);
       const toAdd = editing.roles.filter(r => !currentRoles.includes(r));
       const toRemove = currentRoles.filter(r => !editing.roles.includes(r));
 
       if (toRemove.length > 0) {
-        const { error: delErr } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', user.id)
-          .in('role', toRemove);
-        if (delErr) {
-          toast.error(`Usuário atualizado, mas falhou ao remover papéis: ${delErr.message}`);
-        }
+        const { error: delErr } = await supabase.from('user_roles').delete().eq('user_id', user.id).in('role', toRemove);
+        if (delErr) toast.error(`Usuário atualizado, mas falhou ao remover papéis: ${delErr.message}`);
       }
       if (toAdd.length > 0) {
-        const { error: insErr } = await supabase
-          .from('user_roles')
-          .insert(toAdd.map(role => ({ user_id: user.id, role })));
-        if (insErr) {
-          toast.error(`Falha ao adicionar papéis: ${insErr.message}`);
-        }
+        const { error: insErr } = await supabase.from('user_roles').insert(toAdd.map(role => ({ user_id: user.id, role })));
+        if (insErr) toast.error(`Falha ao adicionar papéis: ${insErr.message}`);
+      }
+      if (toAdd.length > 0 || toRemove.length > 0) {
+        await logAdminAction('roles_update', user.id, { added: toAdd, removed: toRemove });
       }
 
       toast.success('Usuário atualizado com sucesso');
@@ -668,10 +453,12 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
       if (isAdmin) {
         const { error } = await supabase.from('user_roles').delete().eq('user_id', user.id).eq('role', 'admin');
         if (error) throw error;
+        await logAdminAction('roles_update', user.id, { added: [], removed: ['admin'] });
         toast.success(`${user.nome} não é mais administrador`);
       } else {
         const { error } = await supabase.from('user_roles').insert({ user_id: user.id, role: 'admin' });
         if (error) throw error;
+        await logAdminAction('roles_update', user.id, { added: ['admin'], removed: [] });
         toast.success(`${user.nome} agora é administrador`);
       }
       fetchUsers();
@@ -716,9 +503,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     const label = type === 'welcome' ? 'primeiro acesso' : 'redefinição de senha';
     try {
       toast.info(`Gerando link de ${label}...`);
-      const { data, error } = await supabase.functions.invoke('generate-user-link', {
-        body: { email, type },
-      });
+      const { data, error } = await supabase.functions.invoke('generate-user-link', { body: { email, type } });
       if (error) throw error;
       if (!data?.url) throw new Error('URL não retornada');
       await navigator.clipboard.writeText(data.url);
@@ -729,719 +514,345 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, onStats
     }
   };
 
-  const deleteUser = async () => {
-    if (!deleteConfirm) return;
-    const userToDelete = deleteConfirm;
-    setDeleting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: userToDelete.id },
-      });
-      if (error || !data?.success) throw new Error(data?.error || error?.message || 'Erro ao remover usuário');
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      setTotalCount(prev => Math.max(0, prev - 1));
-      setDeleteConfirm(null);
-      toast.success(`${userToDelete.nome} foi removido com sucesso`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erro ao remover usuário');
-    } finally {
-      setDeleting(false);
-    }
+  const accessAsAluno = async (user: UserRow) => {
+    await startImpersonation(user.id);
   };
 
-  const selectedIesName = useMemo(
-    () => iesList.find(i => i.id === filterIes)?.nome || '',
-    [iesList, filterIes],
-  );
+  const accessAsGestor = async (user: UserRow) => {
+    await startImpersonation(user.id);
+    navigate('/gestor');
+  };
 
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-  const showingFrom = page * ITEMS_PER_PAGE + 1;
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+  const showingFrom = totalCount === 0 ? 0 : page * ITEMS_PER_PAGE + 1;
   const showingTo = Math.min((page + 1) * ITEMS_PER_PAGE, totalCount);
-  const progressPercent = batchProgress.total > 0
-    ? Math.round((batchProgress.completed / batchProgress.total) * 100)
-    : 0;
-  const emailProgressPercent = emailProgress.total > 0
-    ? Math.round((emailProgress.completed / emailProgress.total) * 100)
-    : 0;
-  const isAnyBatchActive = batchProgress.active || emailProgress.active;
+  const deleteProgressPct = deleteProgress.total > 0 ? Math.round((deleteProgress.done / deleteProgress.total) * 100) : 0;
+  const isDeleteBusy = deleteProgress.active;
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Lista de Usuários
-        </CardTitle>
-        <CardDescription>
-          Visualize e edite os dados de todos os usuários cadastrados
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Batch progress overlay */}
-        {(batchProgress.active || batchProgress.completed > 0) && batchProgress.total > 0 && (
-          <div className="rounded-lg border bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {batchProgress.active ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : (
-                  <Check className="h-4 w-4 text-green-600" />
-                )}
-                <span className="text-sm font-medium">
-                  {batchProgress.active
-                    ? `Excluindo usuários... ${batchProgress.completed}/${batchProgress.total}`
-                    : `Exclusão concluída: ${batchProgress.deleted} removidos`
-                  }
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {batchProgress.failed > 0 && (
-                  <Badge variant="destructive" className="text-xs">
-                    {batchProgress.failed} falha{batchProgress.failed > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {batchProgress.active ? (
-                  <Button variant="outline" size="sm" onClick={cancelBatchDelete}>
-                    Cancelar
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setBatchProgress(EMPTY_PROGRESS)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+  const deleteImpact = (() => {
+    const targets = deleteTargets ?? [];
+    const examples = targets.slice(0, 3).map(u => u.email).join(', ');
+    const more = targets.length > 3 ? ` e mais ${targets.length - 3}` : '';
+    return (
+      <>
+        <strong className="font-mono">{targets.length}</strong> usuário{targets.length === 1 ? '' : 's'} será
+        {targets.length === 1 ? '' : 'ão'} removido{targets.length === 1 ? '' : 's'} permanentemente: {examples}
+        {more}.
+      </>
+    );
+  })();
+
+  const renderContent = () => {
+    if (loading) return <AdminLoading rows={6} />;
+    if (fetchError) return <AdminError message={fetchError} onRetry={fetchUsers} />;
+    if (users.length === 0) {
+      return (
+        <AdminEmpty
+          title="Nenhum usuário encontrado"
+          description={searchTerm || filterIes !== 'all' ? 'Ajuste a busca ou os filtros.' : 'Nenhum usuário cadastrado ainda.'}
+        />
+      );
+    }
+
+    return (
+      <AdminTable
+        toolbar={
+          <>
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-9"
+              />
             </div>
-            <Progress value={progressPercent} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {batchProgress.deleted} removidos • {batchProgress.failed} falhas • {progressPercent}% concluído
-            </p>
-
-            {/* Failure report */}
-            {!batchProgress.active && batchProgress.failedUsers.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-medium text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  Usuários que falharam ({batchProgress.failedUsers.length}):
-                </p>
-                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs py-1.5">Nome</TableHead>
-                        <TableHead className="text-xs py-1.5">Email</TableHead>
-                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {batchProgress.failedUsers.map((f) => (
-                        <TableRow key={f.id}>
-                          <TableCell className="text-xs py-1.5">{f.nome || f.id.slice(0, 8)}</TableCell>
-                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
-                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Email resend progress overlay */}
-        {(emailProgress.active || emailProgress.completed > 0) && emailProgress.total > 0 && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {emailProgress.active ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
-                <span className="text-sm font-medium">
-                  {emailProgress.active
-                    ? `Reenviando emails... ${emailProgress.completed}/${emailProgress.total}`
-                    : `Reenvio concluído: ${emailProgress.sent} enviados`
-                  }
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {emailProgress.failed > 0 && (
-                  <Badge variant="destructive" className="text-xs">
-                    {emailProgress.failed} falha{emailProgress.failed > 1 ? 's' : ''}
-                  </Badge>
-                )}
-                {emailProgress.active ? (
-                  <Button variant="outline" size="sm" onClick={cancelEmailResend}>
-                    Cancelar
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEmailProgress(EMPTY_EMAIL_PROGRESS)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-            <Progress value={emailProgressPercent} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {emailProgress.sent} enviados • {emailProgress.failed} falhas • {emailProgressPercent}% concluído
-            </p>
-
-            {/* Failure report */}
-            {!emailProgress.active && emailProgress.failedUsers.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <p className="text-sm font-medium text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  Emails que falharam ({emailProgress.failedUsers.length}):
-                </p>
-                <div className="max-h-48 overflow-y-auto rounded border bg-muted/30">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs py-1.5">Nome</TableHead>
-                        <TableHead className="text-xs py-1.5">Email</TableHead>
-                        <TableHead className="text-xs py-1.5">Motivo</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {emailProgress.failedUsers.map((f) => (
-                        <TableRow key={f.id}>
-                          <TableCell className="text-xs py-1.5">{f.nome || '-'}</TableCell>
-                          <TableCell className="text-xs py-1.5">{f.email || '-'}</TableCell>
-                          <TableCell className="text-xs py-1.5 text-destructive">{f.error}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou email..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-9"
-              disabled={isAnyBatchActive}
-            />
-          </div>
-          <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }} disabled={isAnyBatchActive}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Filtrar por IES" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as IES</SelectItem>
-              {iesList.map((ies) => (
-                <SelectItem key={ies.id} value={ies.id}>
-                  {ies.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {filterIes !== 'all' && (
-            <Select value={filterSemestre} onValueChange={setFilterSemestre} disabled={isAnyBatchActive}>
-              <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Semestre" />
+            <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filtrar por IES" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os semestres</SelectItem>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
-                  <SelectItem key={s} value={s.toString()}>
-                    {s}º semestre
-                  </SelectItem>
+                <SelectItem value="all">Todas as IES</SelectItem>
+                {iesList.map((ies) => (
+                  <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
-          {filterIes !== 'all' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setEmailConfirmText(''); setIesResendOpen(true); }}
-              className="whitespace-nowrap"
-              disabled={isAnyBatchActive}
-            >
-              <Mail className="h-4 w-4 mr-1" />
-              {filterSemestre !== 'all' ? `Reenviar ${filterSemestre}º sem.` : 'Reenviar emails'}
+            {filterIes !== 'all' && (
+              <Select value={filterSemestre} onValueChange={setFilterSemestre}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Semestre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os semestres</SelectItem>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
+                    <SelectItem key={s} value={s.toString()}>{s}º semestre</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>
-          )}
-          {filterIes !== 'all' && (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { setConfirmText(''); setIesDeleteOpen(true); }}
-              className="whitespace-nowrap"
-              disabled={isAnyBatchActive}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              {filterSemestre !== 'all' ? `Excluir ${filterSemestre}º sem.` : 'Excluir todos da IES'}
-            </Button>
-          )}
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading || isAnyBatchActive}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </>
+        }
+        footer={
+          totalCount > ITEMS_PER_PAGE ? (
+            <>
+              <p>Mostrando {showingFrom}-{showingTo} de {totalCount} usuários</p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[100px] text-center">Página {page + 1} de {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          ) : undefined
+        }
+      >
+        <TableHeader>
+          <TableRow>
+            {canManage && (
+              <TableHead className={adminTableHeadClass}>
+                <Checkbox
+                  checked={allPageSelected && selectableUsers.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
+            )}
+            <TableHead className={adminTableHeadClass}>Usuário</TableHead>
+            <TableHead className={adminTableHeadClass}>IES</TableHead>
+            <TableHead className={adminTableHeadClass}>Sem.</TableHead>
+            <TableHead className={adminTableHeadClass}>Roles</TableHead>
+            <TableHead className={`${adminTableHeadClass} text-right`}>Ações</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users.map((user) => {
+            const isEditing = editing.userId === user.id;
+            const isAdmin = user.roles.includes('admin');
+            const isGestorRole = user.roles.includes('gestor') || user.roles.includes('gestor_grupo');
+            const isLoading = actionLoading === user.id || actionLoading === user.email;
+            const isSelected = selectedIds.has(user.id);
+
+            return (
+              <TableRow key={user.id} className={isEditing ? 'bg-muted/50' : isSelected ? 'bg-primary/5' : ''}>
+                {canManage && (
+                  <TableCell className={adminTableCellClass}>
+                    {isAdmin ? (
+                      <Checkbox disabled checked={false} aria-label="Admin não selecionável" />
+                    ) : (
+                      <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(user.id)} aria-label={`Selecionar ${user.nome}`} />
+                    )}
+                  </TableCell>
+                )}
+
+                <TableCell className={adminTableCellClass}>
+                  {isEditing ? (
+                    <Input value={editing.nome} onChange={(e) => setEditing({ ...editing, nome: e.target.value })} className="h-8" autoFocus />
+                  ) : (
+                    <div>
+                      <div className="font-medium">{user.nome}</div>
+                      <MonoValue className="text-xs" muted>{user.email}</MonoValue>
+                    </div>
+                  )}
+                </TableCell>
+
+                <TableCell className={adminTableCellClass}>
+                  {isEditing ? (
+                    <Select value={editing.id_ies} onValueChange={(v) => setEditing({ ...editing, id_ies: v })}>
+                      <SelectTrigger className="h-8"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {iesList.map((ies) => <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <span>{user.ies_nome || '—'}</span>
+                  )}
+                </TableCell>
+
+                <TableCell className={adminTableCellClass}>
+                  {isEditing ? (
+                    <Input
+                      type="number" min={1} max={12}
+                      value={editing.semestre}
+                      onChange={(e) => setEditing({ ...editing, semestre: e.target.value })}
+                      className="h-8 w-16"
+                    />
+                  ) : (
+                    <MonoValue muted={!user.semestre}>{user.semestre ?? '—'}</MonoValue>
+                  )}
+                </TableCell>
+
+                <TableCell className={adminTableCellClass}>
+                  {isEditing ? (
+                    <div className="flex flex-col gap-1 min-w-[160px]">
+                      {EDITABLE_ROLES.map((r) => (
+                        <label key={r.value} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={editing.roles.includes(r.value)}
+                            onCheckedChange={(checked) => toggleEditingRole(r.value, checked === true)}
+                            aria-label={r.label}
+                          />
+                          {r.label}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.length > 0 ? (
+                        user.roles.map((role) => {
+                          const cfg = ROLE_BADGE[role] || { label: role };
+                          return (
+                            <Badge key={role} variant={role === 'admin' ? 'default' : 'secondary'} className={role === 'admin' ? 'bg-primary' : ''}>
+                              {cfg.icon && <Shield className="h-3 w-3 mr-1" />}
+                              {cfg.label}
+                            </Badge>
+                          );
+                        })
+                      ) : (
+                        <Badge variant="secondary">Aluno</Badge>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+
+                <TableCell className={`${adminTableCellClass} text-right`}>
+                  {isEditing ? (
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="ghost" onClick={saveEditing} disabled={saving} className="h-8 w-8 p-0">
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-emerald-600" />}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={saving} className="h-8 w-8 p-0">
+                        <X className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        size="sm" variant="ghost"
+                        onClick={() => { setSupportUserId(user.id); setSupportUserName(user.nome); setSupportOpen(true); }}
+                        className="h-8 w-8 p-0" title="Ver detalhes"
+                      >
+                        <Eye className="h-4 w-4 text-primary" />
+                      </Button>
+                      {canManage && (
+                        <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading} aria-label="Mais ações">
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {canImpersonate && !isAdmin && (
+                            <DropdownMenuItem onClick={() => accessAsAluno(user)}>
+                              <UserCheck className="h-4 w-4 mr-2" /> Acessar como Aluno
+                            </DropdownMenuItem>
+                          )}
+                          {canImpersonate && !isAdmin && isGestorRole && (
+                            <DropdownMenuItem onClick={() => accessAsGestor(user)}>
+                              <UserCheck className="h-4 w-4 mr-2" /> Acessar como Gestor
+                            </DropdownMenuItem>
+                          )}
+                          {canImpersonate && <DropdownMenuSeparator />}
+                          <DropdownMenuItem onClick={() => resendInvite(user)}>
+                            <Mail className="h-4 w-4 mr-2" /> Reenviar Convite
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
+                            <Link className="h-4 w-4 mr-2" /> Copiar link de primeiro acesso
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
+                            <KeyRound className="h-4 w-4 mr-2" /> Copiar link de redefinição
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
+                            <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar Auth
+                          </DropdownMenuItem>
+                          {canManage && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => toggleAdminRole(user)}>
+                                {isAdmin ? (
+                                  <><ShieldOff className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Admin</span></>
+                                ) : (
+                                  <><Shield className="h-4 w-4 mr-2" />Promover a Admin</>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeleteTargets([user])}>
+                                <Trash2 className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Usuário</span>
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </AdminTable>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {canManage && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-xl bg-primary/10 px-4 py-3">
+          <span className="text-sm font-medium">{selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''}</span>
+          <Button variant="outline" size="sm" onClick={onOpenBulkEmail}>
+            <Mail className="h-4 w-4 mr-1" /> Trocar e-mail
+          </Button>
+          <Button variant="outline" size="sm" className="text-red-600 dark:text-red-400" onClick={() => setDeleteTargets(users.filter(u => selectedIds.has(u.id)))}>
+            <Trash2 className="h-4 w-4 mr-1" /> Excluir
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            <X className="h-4 w-4 mr-1" /> Limpar seleção
           </Button>
         </div>
+      )}
 
-        {/* Batch action bar */}
-        {selectedIds.size > 0 && !isAnyBatchActive && (
-          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+      {(deleteProgress.active || deleteProgress.done > 0) && deleteProgress.total > 0 && (
+        <div className="rounded-xl border p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium">
-              {selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''}
+              {isDeleteBusy ? `Excluindo usuários… ${deleteProgress.done}/${deleteProgress.total}` : `Exclusão concluída: ${deleteProgress.ok} removido(s)`}
             </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBatchResend}
-            >
-              <Mail className="h-4 w-4 mr-1" />
-              Reenviar emails
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => { setConfirmText(''); setBatchDeleteOpen(true); }}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              Excluir selecionados
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              Limpar seleção
-            </Button>
+            {isDeleteBusy ? (
+              <Button variant="outline" size="sm" onClick={cancelDelete}>Cancelar</Button>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setDeleteProgress(EMPTY_DELETE_PROGRESS)}><X className="h-4 w-4" /></Button>
+            )}
           </div>
-        )}
-
-        {/* Table */}
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40px]">
-                  <Checkbox
-                    checked={allPageSelected && selectableUsers.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Selecionar todos"
-                    disabled={isAnyBatchActive}
-                  />
-                </TableHead>
-                <TableHead className="min-w-[200px]">Nome</TableHead>
-                <TableHead className="min-w-[220px]">Email</TableHead>
-                <TableHead className="min-w-[150px]">IES</TableHead>
-                <TableHead className="w-[80px] text-center">Sem.</TableHead>
-                <TableHead className="w-[100px]">Papel</TableHead>
-                <TableHead className="w-[100px] text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-8 mx-auto" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                    <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <AlertCircle className="h-8 w-8" />
-                      <p>Nenhum usuário encontrado</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => {
-                  const isEditing = editing.userId === user.id;
-                  const isAdmin = user.roles.includes('admin');
-                  const isLoading = actionLoading === user.id || actionLoading === user.email;
-                  const isSelected = selectedIds.has(user.id);
-
-                  return (
-                    <TableRow key={user.id} className={isEditing ? 'bg-muted/50' : isSelected ? 'bg-primary/5' : ''}>
-                      <TableCell>
-                        {isAdmin ? (
-                          <Checkbox disabled checked={false} aria-label="Admin não selecionável" />
-                        ) : (
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelect(user.id)}
-                            aria-label={`Selecionar ${user.nome}`}
-                            disabled={isAnyBatchActive}
-                          />
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {isEditing ? (
-                          <Input
-                            value={editing.nome}
-                            onChange={(e) => setEditing({ ...editing, nome: e.target.value })}
-                            className="h-8"
-                            autoFocus
-                          />
-                        ) : (
-                          <span className="font-medium">{user.nome}</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-muted-foreground">
-                        {user.email}
-                      </TableCell>
-
-                      <TableCell>
-                        {isEditing ? (
-                          <Select
-                            value={editing.id_ies}
-                            onValueChange={(v) => setEditing({ ...editing, id_ies: v })}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Selecione" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {iesList.map((ies) => (
-                                <SelectItem key={ies.id} value={ies.id}>
-                                  {ies.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <span>{user.ies_nome || '-'}</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            min={1}
-                            max={12}
-                            value={editing.semestre}
-                            onChange={(e) => setEditing({ ...editing, semestre: e.target.value })}
-                            className="h-8 w-16 mx-auto text-center"
-                          />
-                        ) : (
-                          <span>{user.semestre || '-'}</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        {isEditing ? (
-                          <div className="flex flex-col gap-1 min-w-[160px]">
-                            {EDITABLE_ROLES.map((r) => (
-                              <label key={r.value} className="flex items-center gap-2 text-xs cursor-pointer">
-                                <Checkbox
-                                  checked={editing.roles.includes(r.value)}
-                                  onCheckedChange={(checked) => toggleEditingRole(r.value, checked === true)}
-                                  aria-label={r.label}
-                                />
-                                {r.label}
-                              </label>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {user.roles && user.roles.length > 0 ? (
-                              user.roles.map((role: string) => {
-                                const config: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; icon?: boolean }> = {
-                                  admin: { label: 'Admin', variant: 'default', icon: true },
-                                  professor: { label: 'Professor', variant: 'secondary' },
-                                  gestor: { label: 'Gestor', variant: 'secondary' },
-                                  gestor_grupo: { label: 'Gestor de Grupo', variant: 'secondary' },
-                                  atendimento: { label: 'Atendimento', variant: 'secondary' },
-                                };
-                                const c = config[role] || { label: role, variant: 'secondary' as const };
-                                return (
-                                  <Badge key={role} variant={c.variant} className={c.variant === 'default' ? 'bg-primary' : ''}>
-                                    {c.icon && <Shield className="h-3 w-3 mr-1" />}
-                                    {c.label}
-                                  </Badge>
-                                );
-                              })
-                            ) : (
-                              <Badge variant="secondary">Aluno</Badge>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-
-
-                      <TableCell className="text-right">
-                        {isEditing ? (
-                          <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" onClick={saveEditing} disabled={saving} className="h-8 w-8 p-0">
-                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 text-green-600" />}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={cancelEditing} disabled={saving} className="h-8 w-8 p-0">
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSupportUserId(user.id);
-                                setSupportUserName(user.nome);
-                                setSupportOpen(true);
-                              }}
-                              className="h-8 w-8 p-0"
-                              disabled={isAnyBatchActive}
-                              title="Ver Detalhes"
-                            >
-                              <Eye className="h-4 w-4 text-primary" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" disabled={isAnyBatchActive}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading || isAnyBatchActive}>
-                                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {!isAdmin && (
-                                  <DropdownMenuItem onClick={() => startImpersonation(user.id)}>
-                                    <UserCheck className="h-4 w-4 mr-2" />
-                                    Acessar como Aluno
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => resendInvite(user)}>
-                                  <Mail className="h-4 w-4 mr-2" />
-                                  Reenviar Convite
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
-                                  <Link className="h-4 w-4 mr-2" />
-                                  Copiar link de primeiro acesso
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
-                                  <KeyRound className="h-4 w-4 mr-2" />
-                                  Copiar link de redefinição
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
-                                  <RefreshCw className="h-4 w-4 mr-2" />
-                                  Sincronizar Auth
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => toggleAdminRole(user)}>
-                                  {isAdmin ? (
-                                    <>
-                                      <ShieldOff className="h-4 w-4 mr-2 text-destructive" />
-                                      <span className="text-destructive">Remover Admin</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Shield className="h-4 w-4 mr-2" />
-                                      Promover a Admin
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setDeleteConfirm(user)}>
-                                  <Trash2 className="h-4 w-4 mr-2 text-destructive" />
-                                  <span className="text-destructive">Remover Usuário</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+          <Progress value={deleteProgressPct} />
+          {!isDeleteBusy && deleteProgress.failed.length > 0 && (
+            <AdminPartial ok={deleteProgress.ok} falhas={deleteProgress.failed.length} />
+          )}
         </div>
+      )}
 
-        {/* Pagination */}
-        {totalCount > ITEMS_PER_PAGE && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {showingFrom}-{showingTo} de {totalCount} usuários
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0 || loading || isAnyBatchActive}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm min-w-[100px] text-center">
-                Página {page + 1} de {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1 || loading || isAnyBatchActive}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+      {renderContent()}
 
-        {/* Single Delete Confirmation */}
-        <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remover Usuário</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja remover <strong>{deleteConfirm?.nome}</strong> ({deleteConfirm?.email})?
-                Esta ação é irreversível.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-              <Button variant="destructive" onClick={deleteUser} disabled={deleting}>
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-                Remover
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <DangerZone
+        open={!!deleteTargets}
+        onOpenChange={(open) => { if (!open) setDeleteTargets(null); }}
+        level="high"
+        confirmWord="EXCLUIR"
+        title={`Excluir ${deleteTargets?.length ?? 0} usuário${(deleteTargets?.length ?? 0) === 1 ? '' : 's'}`}
+        impact={deleteImpact}
+        actionLabel="Excluir"
+        onConfirm={confirmDeleteTargets}
+      />
 
-        {/* Batch Delete Confirmation */}
-        <AlertDialog open={batchDeleteOpen} onOpenChange={(open) => { if (!open) { setBatchDeleteOpen(false); setConfirmText(''); } }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir {selectedIds.size} usuário{selectedIds.size > 1 ? 's' : ''}</AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-3">
-                  <p>
-                    Esta ação é <strong>irreversível</strong>. Todos os dados dos usuários selecionados serão permanentemente removidos.
-                  </p>
-                  <p>Digite <strong>EXCLUIR</strong> para confirmar:</p>
-                  <Input
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    placeholder="EXCLUIR"
-                    autoFocus
-                  />
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <Button variant="destructive" onClick={handleBatchDelete} disabled={confirmText !== 'EXCLUIR'}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Confirmar Exclusão
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* IES Delete Confirmation */}
-        <AlertDialog open={iesDeleteOpen} onOpenChange={(open) => { if (!open) { setIesDeleteOpen(false); setConfirmText(''); } }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {filterSemestre !== 'all'
-                  ? `Excluir usuários do ${filterSemestre}º semestre da IES`
-                  : 'Excluir todos os usuários da IES'}
-              </AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-3">
-                  <p>
-                    Esta ação é <strong>irreversível</strong>.{' '}
-                    {filterSemestre !== 'all' ? (
-                      <>Todos os usuários (exceto admins) do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
-                    ) : (
-                      <>Todos os usuários (exceto admins) da IES <strong>{selectedIesName}</strong> serão permanentemente removidos.</>
-                    )}
-                  </p>
-                  <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
-                  <Input
-                    value={confirmText}
-                    onChange={(e) => setConfirmText(e.target.value)}
-                    placeholder={selectedIesName}
-                    autoFocus
-                  />
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <Button variant="destructive" onClick={handleIesDelete} disabled={confirmText !== selectedIesName}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                {filterSemestre !== 'all' ? `Excluir do ${filterSemestre}º sem.` : 'Excluir Todos da IES'}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        {/* IES Resend Confirmation */}
-        <AlertDialog open={iesResendOpen} onOpenChange={(open) => { if (!open) { setIesResendOpen(false); setEmailConfirmText(''); } }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {filterSemestre !== 'all'
-                  ? `Reenviar emails do ${filterSemestre}º semestre da IES`
-                  : 'Reenviar emails para todos da IES'}
-              </AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-3">
-                  <p>
-                    {filterSemestre !== 'all' ? (
-                      <>Os emails de convite serão reenviados para todos os usuários do <strong>{filterSemestre}º semestre</strong> da IES <strong>{selectedIesName}</strong>.</>
-                    ) : (
-                      <>Os emails de convite serão reenviados para todos os usuários da IES <strong>{selectedIesName}</strong>.</>
-                    )}
-                  </p>
-                  <p>Digite o nome da IES (<strong>{selectedIesName}</strong>) para confirmar:</p>
-                  <Input
-                    value={emailConfirmText}
-                    onChange={(e) => setEmailConfirmText(e.target.value)}
-                    placeholder={selectedIesName}
-                    autoFocus
-                  />
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <Button onClick={handleIesResend} disabled={emailConfirmText !== selectedIesName}>
-                <Mail className="h-4 w-4 mr-2" />
-                {filterSemestre !== 'all' ? `Reenviar do ${filterSemestre}º sem.` : 'Reenviar para Todos'}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <UserSupportPanel
-          userId={supportUserId}
-          userName={supportUserName}
-          open={supportOpen}
-          onOpenChange={setSupportOpen}
-        />
-      </CardContent>
-    </Card>
+      <UserSupportPanel userId={supportUserId} userName={supportUserName} open={supportOpen} onOpenChange={setSupportOpen} />
+    </div>
   );
 };

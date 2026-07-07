@@ -15,7 +15,7 @@ import type { NavItem } from '@/experiences/types';
 export const getPortalEntries = (access: Access | null | undefined): NavItem[] => {
   const entries: NavItem[] = [];
   if (hasExperience(access, 'admin')) {
-    entries.push({ title: 'Portal do Admin', url: '/admin/usuarios', icon: UserCog });
+    entries.push({ title: 'Portal do Admin', url: '/admin', icon: UserCog });
   }
   if (hasExperience(access, 'gestao')) {
     entries.push({ title: 'Desempenho Institucional', url: '/gestor', icon: School });

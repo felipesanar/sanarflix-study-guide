@@ -119,9 +119,18 @@ export function useAdminAttention(options: { enabled?: boolean } = {}) {
 
   return {
     attention,
+    /**
+     * Detalhe cru de `attention` (listas por fila) — usado pelo Command
+     * Center para os exemplos reais dos cards ("UEA, UFRJ e mais 20"). A
+     * sidebar só precisa das contagens (`attention`); este campo é aditivo e
+     * não afeta quem já consome só `attention`/`kpis`/`auditRecentes`.
+     */
+    attentionDetail: query.data?.attention ?? null,
     kpis: query.data?.kpis ?? null,
     auditRecentes: query.data?.audit_recentes ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
+    /** Retry manual (ex.: botão "Tentar novamente" do AdminError). */
+    refetch: query.refetch,
   };
 }

@@ -1,21 +1,35 @@
 import * as React from 'react';
+import { AdminSectionHeader } from '@/experiences/admin/ui';
+import { HonestyBanner } from '@/components/admin/monitoramento/HonestyBanner';
+import { EmProvaAgoraBlock } from '@/components/admin/monitoramento/EmProvaAgoraBlock';
+import { FinalizacoesHojeBlock } from '@/components/admin/monitoramento/FinalizacoesHojeBlock';
+import { ErrorRatesBlock } from '@/components/admin/monitoramento/ErrorRatesBlock';
+import { IntegridadeBlock } from '@/components/admin/monitoramento/IntegridadeBlock';
 
 /**
- * Seção Monitoramento do Portal do Admin (`/admin/monitoramento`) — NOVA.
+ * Seção Monitoramento (`/admin/monitoramento`) — contrato §D.
  *
- * Placeholder da reescrita do shell (contrato §D — Monitoramento): cabeçalho
- * definitivo, conteúdo pendente (banner de honestidade de dados + blocos "Em
- * prova agora" [requer instrumentação], "Finalizações hoje", "Questões com
- * maior taxa de erro" e "Integridade — saídas de aba/tela", via
- * `admin_monitor_summary`/`admin_question_error_rates`).
+ * Substitui o antigo `MonitoramentoTab`/`RealtimeDashboard` (removidos: eram
+ * dashboards com métricas fabricadas — tempo médio = duração×0,7, abandono
+ * fixo em 15%). Aqui cada bloco declara explicitamente se usa dado real
+ * (`admin_monitor_summary`/`admin_question_error_rates`) ou se requer
+ * instrumentação ainda não construída (sessões de prova em tempo real).
  */
 const MonitoramentoPage: React.FC = () => (
-  <div className="space-y-1">
-    <h1 className="text-2xl font-bold tracking-tight">Monitoramento</h1>
-    <p className="text-sm text-muted-foreground">
-      Métricas ao vivo da plataforma — separando dado real de instrumentação pendente.
-    </p>
-    <div />
+  <div className="space-y-6">
+    <AdminSectionHeader
+      title="Monitoramento operacional"
+      subtitle="Acompanhamento de simulados em andamento e integridade das provas."
+    />
+
+    <HonestyBanner />
+
+    <div className="grid gap-4 sm:grid-cols-2">
+      <EmProvaAgoraBlock />
+      <FinalizacoesHojeBlock />
+      <ErrorRatesBlock />
+      <IntegridadeBlock />
+    </div>
   </div>
 );
 

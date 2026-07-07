@@ -15,16 +15,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 13% 9%;
 
-    /* USCS Brand Colors */
-    --uscs-blue: 214 76% 38%;      /* #1976D2 - USCS institutional blue */
-    --uscs-blue-dark: 214 76% 28%; /* #1565C0 - darker blue */
-    --uscs-blue-light: 214 100% 85%; /* light blue accent */
-    --uscs-orange: 24 100% 57%;    /* #FF8A00 - USCS orange */
-    --uscs-orange-light: 24 100% 85%; /* light orange */
-    --uscs-wine: 0 65% 35%;        /* #8B1538 - wine/burgundy */
-    --uscs-wine-light: 0 65% 85%;  /* light wine */
+    /* Sanar brand colors */
+    --brand-blue: 214 76% 38%;      /* #1976D2 - Sanar brand blue */
+    --brand-blue-dark: 214 76% 28%; /* #1565C0 - darker blue */
+    --brand-blue-light: 214 100% 85%; /* light blue accent */
+    --brand-orange: 24 100% 57%;    /* #FF8A00 - Sanar brand orange */
+    --brand-orange-light: 24 100% 85%; /* light orange */
+    --brand-wine: 0 65% 35%;        /* #8B1538 - wine/burgundy */
+    --brand-wine-light: 0 65% 85%;  /* light wine */
 
-    /* Primary palette - using USCS wine as primary */
+    /* Primary palette - using Sanar wine as primary */
     --primary: 0 65% 35%;
     --primary-foreground: 0 0% 98%;
     --primary-dark: 0 65% 25%;
@@ -91,7 +91,7 @@
     --popover: 220 13% 10%;
     --popover-foreground: 220 13% 91%;
 
-    /* Keep USCS brand colors in dark mode */
+    /* Keep Sanar brand colors in dark mode */
     --primary: 0 65% 45%;
     --primary-foreground: 0 0% 98%;
 
@@ -238,11 +238,11 @@
     background: linear-gradient(135deg, hsl(0 65% 35%) 0%, hsl(0 65% 45%) 100%);
   }
   
-  .gradient-uscs-blue {
+  .gradient-brand-blue {
     background: linear-gradient(135deg, hsl(214 76% 38%) 0%, hsl(214 76% 48%) 100%);
   }
 
-  .gradient-uscs-wine {
+  .gradient-brand-wine {
     background: linear-gradient(135deg, hsl(0 65% 35%) 0%, hsl(0 65% 45%) 100%);
   }
   

@@ -1,20 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -23,22 +15,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toBrazilDate } from '@/utils/timezone';
 import { Logger } from '@/utils/logger';
+import {
+  AdminTable,
+  AdminLoading,
+  AdminError,
+  AdminEmpty,
+  StatusPill,
+  MonoValue,
+  DangerZone,
+  adminTableHeadClass,
+  adminTableCellClass,
+  type StatusPillVariant,
+} from '@/experiences/admin/ui';
+import { logAdminAction } from '@/services/admin/logAction';
 
 interface SanarClassLesson {
   id: string;
@@ -69,19 +64,41 @@ interface LessonFormData {
   arquivo?: File | null;
 }
 
+const FORMAT_PILL: Record<string, { label: string; variant: StatusPillVariant }> = {
+  pdf: { label: 'PDF', variant: 'blue' },
+  pptx: { label: 'PPTX', variant: 'violet' },
+};
+
+function formatBytes(bytes: number | undefined): string {
+  if (bytes == null) return '—';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Extrai o nome do arquivo (chave no bucket) de uma URL pública do Supabase Storage. */
+function fileKeyFromUrl(url: string): string | null {
+  try {
+    return decodeURIComponent(url.split('/').pop() ?? '') || null;
+  } catch {
+    return null;
+  }
+}
+
 export default function SanarClassTab() {
   const [lessons, setLessons] = useState<SanarClassLesson[]>([]);
   const [iesList, setIesList] = useState<IES[]>([]);
+  const [fileSizes, setFileSizes] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  
+
   // Modal states
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<SanarClassLesson | null>(null);
-  
+
   // Form data
   const [formData, setFormData] = useState<LessonFormData>({
     titulo: "",
@@ -93,14 +110,11 @@ export default function SanarClassTab() {
     ies_id: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [lessonsResult, iesResult] = await Promise.all([
+      const [lessonsResult, iesResult, storageResult] = await Promise.all([
         supabase
           .from('sanarclass_lessons')
           .select('*')
@@ -108,7 +122,8 @@ export default function SanarClassTab() {
         supabase
           .from('ies')
           .select('*')
-          .order('nome')
+          .order('nome'),
+        supabase.storage.from('sanarclass-files').list('', { limit: 1000 }),
       ]);
 
       if (lessonsResult.error) throw lessonsResult.error;
@@ -116,13 +131,27 @@ export default function SanarClassTab() {
 
       setLessons((lessonsResult.data as SanarClassLesson[]) || []);
       setIesList(iesResult.data || []);
-    } catch (error) {
-      Logger.error('Erro ao buscar dados:', error);
-      toast.error('Erro ao carregar dados');
+
+      // Tamanho real dos arquivos (uma única chamada em lote ao storage — não inventamos o dado).
+      if (!storageResult.error && storageResult.data) {
+        const sizes: Record<string, number> = {};
+        storageResult.data.forEach((obj) => {
+          const size = (obj.metadata as { size?: number } | null)?.size;
+          if (typeof size === 'number') sizes[obj.name] = size;
+        });
+        setFileSizes(sizes);
+      }
+    } catch (err) {
+      Logger.error('Erro ao buscar dados:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const resetForm = () => {
     setFormData({
@@ -140,15 +169,13 @@ export default function SanarClassTab() {
   const handleFileUpload = async (file: File): Promise<string> => {
     try {
       setUploading(true);
-      
-      // Gerar nome único para o arquivo
+
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(7);
       const fileExt = file.name.split('.').pop();
       const fileName = `${timestamp}-${randomString}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Upload do arquivo para o Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('sanarclass-files')
         .upload(filePath, file, {
@@ -158,7 +185,6 @@ export default function SanarClassTab() {
 
       if (uploadError) throw uploadError;
 
-      // Obter URL pública do arquivo
       const { data: { publicUrl } } = supabase.storage
         .from('sanarclass-files')
         .getPublicUrl(filePath);
@@ -173,7 +199,7 @@ export default function SanarClassTab() {
   };
 
   const handleAddLesson = async () => {
-    if (!formData.titulo || !formData.professor || !formData.disciplina || 
+    if (!formData.titulo || !formData.professor || !formData.disciplina ||
         formData.semestres.length === 0 || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
@@ -186,7 +212,6 @@ export default function SanarClassTab() {
 
     setSaving(true);
     try {
-      // Upload do arquivo
       const arquivoUrl = await handleFileUpload(formData.arquivo);
 
       const rows = formData.semestres.map(sem => ({
@@ -206,7 +231,7 @@ export default function SanarClassTab() {
 
       if (error) throw error;
 
-      toast.success(`Aula adicionada para ${rows.length} semestre(s) ✅`);
+      toast.success(`Aula adicionada para ${rows.length} semestre(s)`);
       setAddModalOpen(false);
       resetForm();
       fetchData();
@@ -220,8 +245,8 @@ export default function SanarClassTab() {
 
   const handleEditLesson = async () => {
     if (!selectedLesson) return;
-    
-    if (!formData.titulo || !formData.professor || !formData.disciplina || 
+
+    if (!formData.titulo || !formData.professor || !formData.disciplina ||
         formData.semestres.length === 0 || !formData.ies_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
@@ -231,13 +256,11 @@ export default function SanarClassTab() {
     try {
       let arquivoUrl = formData.arquivo_url;
 
-      // Se um novo arquivo foi selecionado, faz upload
       if (formData.arquivo) {
         arquivoUrl = await handleFileUpload(formData.arquivo);
-        
-        // Deletar arquivo antigo se existir
+
         if (selectedLesson.arquivo_url) {
-          const oldPath = selectedLesson.arquivo_url.split('/').pop();
+          const oldPath = fileKeyFromUrl(selectedLesson.arquivo_url);
           if (oldPath) {
             await supabase.storage
               .from('sanarclass-files')
@@ -262,7 +285,7 @@ export default function SanarClassTab() {
 
       if (error) throw error;
 
-      toast.success('Aula atualizada com sucesso ✅');
+      toast.success('Aula atualizada com sucesso');
       setEditModalOpen(false);
       setSelectedLesson(null);
       resetForm();
@@ -277,12 +300,12 @@ export default function SanarClassTab() {
 
   const handleDeleteLesson = async () => {
     if (!selectedLesson) return;
+    const target = selectedLesson;
 
     setSaving(true);
     try {
-      // Deletar arquivo do storage
-      if (selectedLesson.arquivo_url) {
-        const filePath = selectedLesson.arquivo_url.split('/').pop();
+      if (target.arquivo_url) {
+        const filePath = fileKeyFromUrl(target.arquivo_url);
         if (filePath) {
           await supabase.storage
             .from('sanarclass-files')
@@ -293,17 +316,19 @@ export default function SanarClassTab() {
       const { error } = await supabase
         .from('sanarclass_lessons')
         .delete()
-        .eq('id', selectedLesson.id);
+        .eq('id', target.id);
 
       if (error) throw error;
 
       toast.success('Aula excluída com sucesso');
+      await logAdminAction('material_delete', null, { lesson_id: target.id, file_name: target.titulo });
       setDeleteDialogOpen(false);
       setSelectedLesson(null);
       fetchData();
     } catch (error) {
       Logger.error('Erro ao excluir aula:', error);
       toast.error('Erro ao excluir aula');
+      throw error;
     } finally {
       setSaving(false);
     }
@@ -328,90 +353,86 @@ export default function SanarClassTab() {
     setDeleteDialogOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const iesNome = (iesId: string) => iesList.find((i) => i.id === iesId)?.nome ?? '—';
+
+  if (loading) return <AdminLoading rows={6} />;
+  if (error) return <AdminError message={error} onRetry={fetchData} />;
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Gerenciar SanarClass
-              </CardTitle>
-              <CardDescription>
-                Adicione, edite e exclua aulas do SanarClass
-              </CardDescription>
-            </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <Button onClick={() => setAddModalOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Adicionar nova aula
+        </Button>
+      </div>
+
+      {lessons.length === 0 ? (
+        <AdminEmpty
+          icon={<FileText className="h-8 w-8" />}
+          title="Nenhum material cadastrado"
+          description="Adicione a primeira aula do SanarClass."
+          action={
             <Button onClick={() => setAddModalOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               Adicionar nova aula
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Professor</TableHead>
-                  <TableHead>Disciplina</TableHead>
-                  <TableHead>Semestre</TableHead>
-                  <TableHead>Formato</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+          }
+        />
+      ) : (
+        <AdminTable>
+          <TableHeader>
+            <TableRow>
+              <TableHead className={adminTableHeadClass}>Material</TableHead>
+              <TableHead className={adminTableHeadClass}>IES</TableHead>
+              <TableHead className={adminTableHeadClass}>Sem.</TableHead>
+              <TableHead className={adminTableHeadClass}>Disciplina</TableHead>
+              <TableHead className={adminTableHeadClass}>Professor</TableHead>
+              <TableHead className={adminTableHeadClass}>Tamanho</TableHead>
+              <TableHead className={adminTableHeadClass}>Publicado</TableHead>
+              <TableHead className={adminTableHeadClass}></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lessons.map((lesson) => {
+              const pill = FORMAT_PILL[lesson.formato] ?? { label: lesson.formato.toUpperCase(), variant: 'muted' as StatusPillVariant };
+              const fileKey = fileKeyFromUrl(lesson.arquivo_url);
+              return (
+                <TableRow key={lesson.id}>
+                  <TableCell className={adminTableCellClass}>
+                    <div className="flex items-center gap-2">
+                      <StatusPill variant={pill.variant}>{pill.label}</StatusPill>
+                      <span className="font-medium">{lesson.titulo}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className={adminTableCellClass}>{iesNome(lesson.ies_id)}</TableCell>
+                  <TableCell className={adminTableCellClass}>
+                    <MonoValue>{lesson.semestre}º</MonoValue>
+                  </TableCell>
+                  <TableCell className={adminTableCellClass}>{lesson.disciplina}</TableCell>
+                  <TableCell className={adminTableCellClass}>{lesson.professor}</TableCell>
+                  <TableCell className={adminTableCellClass}>
+                    <MonoValue muted>{formatBytes(fileKey ? fileSizes[fileKey] : undefined)}</MonoValue>
+                  </TableCell>
+                  <TableCell className={adminTableCellClass}>
+                    <MonoValue muted>{format(toBrazilDate(lesson.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}</MonoValue>
+                  </TableCell>
+                  <TableCell className={adminTableCellClass}>
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEditModal(lesson)} aria-label="Editar material">
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(lesson)} aria-label="Excluir material">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lessons.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma aula cadastrada ainda
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  lessons.map((lesson) => (
-                    <TableRow key={lesson.id}>
-                      <TableCell className="font-medium">{lesson.titulo}</TableCell>
-                      <TableCell>{lesson.professor}</TableCell>
-                      <TableCell>{lesson.disciplina}</TableCell>
-                      <TableCell>{lesson.semestre}º</TableCell>
-                      <TableCell className="uppercase">{lesson.formato}</TableCell>
-                      <TableCell>
-                        {format(toBrazilDate(lesson.data_publicacao), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditModal(lesson)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openDeleteDialog(lesson)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              );
+            })}
+          </TableBody>
+        </AdminTable>
+      )}
 
       {/* Modal Adicionar */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
@@ -532,11 +553,11 @@ export default function SanarClassTab() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                📎 Tamanho máximo: 50MB. O arquivo será automaticamente comprimido para economizar espaço.
+                Tamanho máximo: 50MB.
               </p>
               {formData.arquivo && (
-                <p className="text-xs text-green-600">
-                  ✓ Arquivo selecionado: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  Arquivo selecionado: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
             </div>
@@ -645,7 +666,7 @@ export default function SanarClassTab() {
               <Label htmlFor="edit-arquivo">Arquivo atual</Label>
               {formData.arquivo_url && (
                 <p className="text-xs text-muted-foreground mb-2">
-                  📄 Arquivo: {formData.arquivo_url.split('/').pop()}
+                  Arquivo: {formData.arquivo_url.split('/').pop()}
                 </p>
               )}
               <Label htmlFor="edit-arquivo-novo">Substituir arquivo (opcional)</Label>
@@ -661,22 +682,22 @@ export default function SanarClassTab() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                📎 Deixe em branco para manter o arquivo atual. Máximo: 50MB.
+                Deixe em branco para manter o arquivo atual. Máximo: 50MB.
               </p>
               {formData.arquivo && (
-                <p className="text-xs text-green-600">
-                  ✓ Novo arquivo: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
+                <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  Novo arquivo: {formData.arquivo.name} ({(formData.arquivo.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => {
                 setEditModalOpen(false);
-                openDeleteDialog(selectedLesson!);
+                if (selectedLesson) openDeleteDialog(selectedLesson);
               }}
             >
               Excluir aula
@@ -698,35 +719,19 @@ export default function SanarClassTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Confirmação de Exclusão */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir a aula "{selectedLesson?.titulo}"?
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteLesson}
-              disabled={saving}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                'Excluir'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DangerZone
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        level="medium"
+        title="Excluir material"
+        impact={
+          <span>
+            A aula <strong>{selectedLesson?.titulo}</strong> e seu arquivo serão excluídos permanentemente.
+          </span>
+        }
+        actionLabel="Excluir aula"
+        onConfirm={handleDeleteLesson}
+      />
     </div>
   );
 }

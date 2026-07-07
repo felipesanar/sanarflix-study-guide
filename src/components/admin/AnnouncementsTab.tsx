@@ -1,19 +1,11 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AnnouncementsList } from './announcements/AnnouncementsList';
 import { AnnouncementEditor } from './announcements/AnnouncementEditor';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { AdminLoading, AdminError, DangerZone } from '@/experiences/admin/ui';
+import { logAdminAction } from '@/services/admin/logAction';
 import { Logger } from '@/utils/logger';
 
 interface IES {
@@ -45,7 +37,7 @@ interface Announcement {
   paleta_cores: string;
   ativo: boolean;
   data_expiracao: string | null;
-  prioridade: 'baixa' | 'media' | 'alta';
+  prioridade: 'baixa' | 'media' | 'alta' | 'critica';
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
@@ -57,7 +49,7 @@ const defaultConfig: AnnouncementConfig = {
   descricao: '',
   link_botao: '',
   texto_botao: 'Ver mais',
-  paleta_cores: 'primary',
+  paleta_cores: 'flame',
   ativo: false,
   data_expiracao: null,
   prioridade: 'media',
@@ -69,35 +61,45 @@ const defaultConfig: AnnouncementConfig = {
 export const AnnouncementsTab: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [iesList, setIesList] = useState<IES[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchIes, setSearchIes] = useState('');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingConfig, setEditingConfig] = useState<AnnouncementConfig | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
 
-  useEffect(() => {
-    fetchIesList();
-    fetchAnnouncements();
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [iesResult, announcementsResult] = await Promise.all([
+        supabase.from('ies').select('id, nome').order('nome'),
+        supabase.from('announcements').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (iesResult.error) throw iesResult.error;
+      if (announcementsResult.error) throw announcementsResult.error;
+
+      setIesList(iesResult.data || []);
+      setAnnouncements((announcementsResult.data as Announcement[]) || []);
+    } catch (err) {
+      Logger.error('Erro ao carregar avisos:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar avisos');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchIesList = async () => {
-    const { data, error } = await supabase
-      .from('ies')
-      .select('id, nome')
-      .order('nome');
-    
-    if (!error && data) {
-      setIesList(data);
-    }
-  };
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   const fetchAnnouncements = async () => {
-    const { data, error } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('announcements')
       .select('*')
       .order('created_at', { ascending: false });
-    
-    if (!error && data) {
+
+    if (!fetchError && data) {
       setAnnouncements(data as Announcement[]);
     }
   };
@@ -105,26 +107,24 @@ export const AnnouncementsTab: React.FC = () => {
   const handleSave = async () => {
     if (!editingConfig) return;
 
-    const { error } = await supabase
-      .from('announcements')
-      .upsert({
-        id: editingConfig.id,
-        titulo: editingConfig.titulo,
-        descricao: editingConfig.descricao,
-        link_botao: editingConfig.link_botao || null,
-        texto_botao: editingConfig.texto_botao,
-        paleta_cores: editingConfig.paleta_cores,
-        ativo: editingConfig.ativo,
-        data_expiracao: editingConfig.data_expiracao,
-        prioridade: editingConfig.prioridade,
-        visibilidade: editingConfig.visibilidade,
-        ies_selecionadas: editingConfig.ies_selecionadas,
-        ies_excluidas: editingConfig.ies_excluidas,
-      });
+    const { error: saveError } = await supabase.from('announcements').upsert({
+      id: editingConfig.id,
+      titulo: editingConfig.titulo,
+      descricao: editingConfig.descricao,
+      link_botao: editingConfig.link_botao || null,
+      texto_botao: editingConfig.texto_botao,
+      paleta_cores: editingConfig.paleta_cores,
+      ativo: editingConfig.ativo,
+      data_expiracao: editingConfig.data_expiracao,
+      prioridade: editingConfig.prioridade,
+      visibilidade: editingConfig.visibilidade,
+      ies_selecionadas: editingConfig.ies_selecionadas,
+      ies_excluidas: editingConfig.ies_excluidas,
+    });
 
-    if (error) {
+    if (saveError) {
       toast.error('Erro ao salvar aviso');
-      Logger.error('Erro ao salvar aviso', error);
+      Logger.error('Erro ao salvar aviso', saveError);
     } else {
       toast.success(editingConfig.id ? 'Aviso atualizado!' : 'Aviso criado!');
       setEditingConfig(null);
@@ -133,50 +133,50 @@ export const AnnouncementsTab: React.FC = () => {
   };
 
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase
-      .from('announcements')
-      .update({ ativo: !currentStatus })
-      .eq('id', id);
+    const { error: toggleError } = await supabase.from('announcements').update({ ativo: !currentStatus }).eq('id', id);
 
-    if (error) {
+    if (toggleError) {
       toast.error('Erro ao alterar status');
-    } else {
-      toast.success(currentStatus ? 'Aviso desativado' : 'Aviso ativado');
-      fetchAnnouncements();
+      return;
     }
+
+    toast.success(currentStatus ? 'Aviso desativado' : 'Aviso ativado');
+    await logAdminAction('aviso_toggle', null, { announcement_id: id, ativo: !currentStatus });
+    fetchAnnouncements();
   };
 
   const handleDelete = async () => {
     if (!announcementToDelete) return;
+    const target = announcementToDelete;
 
-    const { error } = await supabase
-      .from('announcements')
-      .delete()
-      .eq('id', announcementToDelete);
+    const { error: deleteError } = await supabase.from('announcements').delete().eq('id', target.id);
 
-    if (error) {
+    if (deleteError) {
       toast.error('Erro ao excluir aviso');
-    } else {
-      toast.success('Aviso excluído');
-      fetchAnnouncements();
+      throw deleteError;
     }
 
-    setDeleteDialogOpen(false);
+    toast.success('Aviso excluído');
+    await logAdminAction('aviso_delete', null, { announcement_id: target.id, titulo: target.titulo });
     setAnnouncementToDelete(null);
+    fetchAnnouncements();
   };
 
   const handleDuplicate = () => {
     if (!editingConfig) return;
-    
+
     setEditingConfig({
       ...editingConfig,
       id: undefined,
       titulo: `${editingConfig.titulo} (Cópia)`,
       ativo: false,
     });
-    
+
     toast.info('Aviso duplicado. Edite e salve.');
   };
+
+  if (loading) return <AdminLoading rows={4} rowHeight="h-24" />;
+  if (error) return <AdminError message={error} onRetry={fetchAll} />;
 
   if (editingConfig) {
     return (
@@ -197,54 +197,37 @@ export const AnnouncementsTab: React.FC = () => {
     <>
       <AnnouncementsList
         announcements={announcements}
-        selectedIds={selectedIds}
-        onSelectAnnouncement={(id) => {
-          const ann = announcements.find(a => a.id === id);
-          if (ann) setEditingConfig({
-            ...ann,
-            link_botao: ann.link_botao || '',
-          });
-        }}
-        onToggleSelect={(id) => {
-          setSelectedIds(prev => 
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-          );
-        }}
-        onSelectAll={() => {
-          setSelectedIds(prev => 
-            prev.length === announcements.length ? [] : announcements.map(a => a.id)
-          );
-        }}
-        onEdit={(announcement) => setEditingConfig({
-          ...announcement,
-          link_botao: announcement.link_botao || '',
-          texto_botao: announcement.texto_botao || 'Ver mais',
-        })}
+        onEdit={(announcement) =>
+          setEditingConfig({
+            ...announcement,
+            link_botao: announcement.link_botao || '',
+            texto_botao: announcement.texto_botao || 'Ver mais',
+          })
+        }
         onToggleStatus={handleToggleStatus}
         onDelete={(id) => {
-          setAnnouncementToDelete(id);
-          setDeleteDialogOpen(true);
+          const ann = announcements.find((a) => a.id === id);
+          if (ann) setAnnouncementToDelete(ann);
         }}
         onCreateNew={() => setEditingConfig(defaultConfig)}
         totalIes={iesList.length}
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este aviso? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DangerZone
+        open={!!announcementToDelete}
+        onOpenChange={(open) => {
+          if (!open) setAnnouncementToDelete(null);
+        }}
+        level="medium"
+        title="Excluir aviso"
+        impact={
+          <span>
+            O aviso <strong>{announcementToDelete?.titulo}</strong> será excluído permanentemente para todos os alunos que o veem hoje.
+          </span>
+        }
+        actionLabel="Excluir aviso"
+        onConfirm={handleDelete}
+      />
     </>
   );
 };

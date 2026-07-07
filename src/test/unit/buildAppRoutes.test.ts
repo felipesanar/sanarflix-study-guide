@@ -131,7 +131,7 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     // precisa existir para todos — senão admin/gestor/CX caem no catch-all
     // (NotFound).
     const cases: Array<[string[], string]> = [
-      [['admin'], '/admin/usuarios'],
+      [['admin'], '/admin'],
       [['gestor'], '/gestor'],
       [['atendimento'], '/atendimento/usuarios'],
     ];
@@ -182,7 +182,7 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     const rAdmin = routesForRoles(['admin']);
     expect(rAdmin.get('/admin')?.children?.length).toBeGreaterThan(0);
     expect(rAdmin.get('/gestor')?.children?.length).toBeGreaterThan(0);
-    expect(redirectTarget(rAdmin.get('/atendimento'))).toBe('/admin/usuarios');
+    expect(redirectTarget(rAdmin.get('/atendimento'))).toBe('/admin');
     expect(rAdmin.get('/atendimento')?.children).toBeUndefined();
   });
 

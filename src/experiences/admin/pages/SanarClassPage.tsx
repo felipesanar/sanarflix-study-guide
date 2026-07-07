@@ -1,17 +1,18 @@
 import * as React from 'react';
+import { AdminSectionHeader } from '@/experiences/admin/ui';
+import SanarClassTab from '@/components/admin/SanarClassTab';
 
 /**
- * Seção SanarClass do Portal do Admin (`/admin/sanarclass`).
+ * Seção SanarClass do Portal do Admin (`/admin/sanarclass`) — contrato §E.
  *
- * Placeholder da reescrita do shell (contrato §E — SanarClass): cabeçalho
- * definitivo, conteúdo pendente (reapresenta o CRUD existente via
- * `AdminTable`; remove a copy de compressão automática incorreta).
+ * Reapresenta o CRUD real de materiais (bucket `sanarclass-files`) via
+ * `AdminTable` — badge de tipo, IES, semestre, disciplina, professor, tamanho
+ * real do arquivo e exclusão com `DangerZone` + auditoria.
  */
 const SanarClassPage: React.FC = () => (
-  <div className="space-y-1">
-    <h1 className="text-2xl font-bold tracking-tight">SanarClass</h1>
-    <p className="text-sm text-muted-foreground">Materiais e aulas do SanarClass por IES.</p>
-    <div />
+  <div className="space-y-6">
+    <AdminSectionHeader title="SanarClass" subtitle="Materiais e aulas do SanarClass por IES." />
+    <SanarClassTab />
   </div>
 );
 

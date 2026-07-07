@@ -84,14 +84,14 @@ describe('experiences/access — hasExperience', () => {
 });
 
 describe('utils/experiences — getDefaultRouteForUser', () => {
-  it('admin entra na experiência admin (/admin/usuarios)', () => {
+  it('admin entra na experiência admin (/admin — Command Center)', () => {
     const user = makeUser(['admin']);
     const access = deriveAccessFromRoles(user.roles);
     expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       EXPERIENCE_ENTRYPOINTS.admin,
     );
     expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
-      '/admin/usuarios',
+      '/admin',
     );
   });
 
@@ -130,7 +130,7 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
     // access sintético só para testar a precedência isoladamente.
     const access = deriveAccessFromRoles(['admin', 'atendimento', 'gestor']);
     expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
-      '/admin/usuarios',
+      '/admin',
     );
   });
 
