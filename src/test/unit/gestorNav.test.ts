@@ -1,39 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { GESTOR_NAV, filterGestorNav, tabForPath } from '@/experiences/gestor/GestorNav';
+import { GESTOR_NAV, filterGestorNav } from '@/experiences/gestor/GestorNav';
 import { deriveAccessFromRoles } from '@/experiences/access';
 
 describe('experiences/gestor/GestorNav', () => {
-  it('expõe os 5 módulos do gestor nas URLs /gestor/*', () => {
-    expect(GESTOR_NAV.map((i) => i.url)).toEqual([
-      '/gestor/visao-institucional',
+  it('expõe os 7 itens do console de Gestão nas URLs /gestor/*', () => {
+    expect(GESTOR_NAV.map((i) => i.path)).toEqual([
+      '/gestor/panorama',
       '/gestor/diagnostico-curricular',
-      '/gestor/alunos',
-      '/gestor/insights-pedagogicos',
-      '/gestor/inteligencia-decisoria',
+      '/gestor/alunos-risco',
+      '/gestor/intervencao-impacto',
+      '/gestor/simulados-questoes',
+      '/gestor/comparar-ies',
+      '/gestor/relatorios',
     ]);
   });
 
-  it('mapeia cada URL ao seu módulo (tab) do Desempenho Institucional', () => {
-    expect(tabForPath('/gestor/visao-institucional')).toBe('visao-institucional');
-    expect(tabForPath('/gestor/diagnostico-curricular')).toBe('diagnostico-curricular');
-    // /gestor/alunos casa com o módulo visao-alunos.
-    expect(tabForPath('/gestor/alunos')).toBe('visao-alunos');
-    expect(tabForPath('/gestor/insights-pedagogicos')).toBe('insights-pedagogicos');
-    expect(tabForPath('/gestor/inteligencia-decisoria')).toBe('inteligencia-decisoria');
+  it('marca "Simulados & questões" com o badge "novo"', () => {
+    const item = GESTOR_NAV.find((i) => i.path === '/gestor/simulados-questoes');
+    expect(item?.badge).toBe('novo');
   });
 
-  it('faz fallback para visão institucional em rota desconhecida', () => {
-    expect(tabForPath('/gestor')).toBe('visao-institucional');
-    expect(tabForPath('/gestor/qualquer-coisa')).toBe('visao-institucional');
+  it('marca "Comparar IES" como groupOnly (só multi-IES)', () => {
+    const item = GESTOR_NAV.find((i) => i.path === '/gestor/comparar-ies');
+    expect(item?.groupOnly).toBe(true);
   });
 
-  it('gestor (institutional.view + alunos.view) vê todos os módulos', () => {
+  it('gestor (institutional.view + alunos.view) com 1 única IES não vê Comparar IES', () => {
     const access = deriveAccessFromRoles(['gestor']);
-    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
+    const visible = filterGestorNav(GESTOR_NAV, access, 1);
+    expect(visible.map((i) => i.path)).not.toContain('/gestor/comparar-ies');
+    expect(visible).toHaveLength(GESTOR_NAV.length - 1);
   });
 
-  it('admin (super usuário) também vê todos os módulos', () => {
+  it('gestor de grupo com multi-IES vê todos os 7 itens, incluindo Comparar IES', () => {
+    const access = deriveAccessFromRoles(['gestor_grupo']);
+    const visible = filterGestorNav(GESTOR_NAV, access, 3);
+    expect(visible).toHaveLength(GESTOR_NAV.length);
+  });
+
+  it('admin (super usuário) com multi-IES também vê todos os itens', () => {
     const access = deriveAccessFromRoles(['admin']);
-    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
+    expect(filterGestorNav(GESTOR_NAV, access, 2)).toHaveLength(GESTOR_NAV.length);
   });
 });
