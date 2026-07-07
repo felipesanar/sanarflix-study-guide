@@ -269,6 +269,8 @@ Deno.serve(async (req) => {
         const result = await deleteSingleUser(supabaseAdmin, id);
         if (result.success) {
           deleted.push(id);
+          const info = detailsMap.get(id);
+          await auditDelete(supabaseAdmin, caller.id, id, info?.email, 'lote', getClientIp(req));
         } else {
           const info = detailsMap.get(id);
           failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: result.error || 'Erro desconhecido' });
