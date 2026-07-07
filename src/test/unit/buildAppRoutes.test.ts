@@ -264,7 +264,7 @@ describe('experiences/buildAppRoutes — gestão', () => {
 describe('experiences/buildAppRoutes — admin', () => {
   const adminRules = getAccessRules(makeUser(['admin']));
 
-  it('expõe a rota-layout /admin com as seções como filhas', () => {
+  it('expõe a rota-layout /admin com as 11 seções como filhas (index = Command Center)', () => {
     const routes = routesForRoles(['admin'], adminRules);
     const adminRoute = routes.get('/admin');
     expect(adminRoute).toBeDefined();
@@ -274,23 +274,26 @@ describe('experiences/buildAppRoutes — admin', () => {
     );
     expect(childPaths).toEqual([
       'index',
+      'simulados',
+      'monitoramento',
       'usuarios',
-      'avisos',
       'ies',
       'guia',
+      'avisos',
       'sanarclass',
-      'simulados',
       'feedbacks',
       'analytics',
+      'auditoria',
     ]);
   });
 
-  it('a index de /admin redireciona para /admin/usuarios', () => {
+  it('a index de /admin renderiza o Command Center — NÃO redireciona mais para /admin/usuarios', () => {
     const routes = routesForRoles(['admin'], adminRules);
     const indexChild = (routes.get('/admin')?.children ?? []).find(
       (c) => c.index,
     );
-    expect(redirectTarget(indexChild)).toBe('/admin/usuarios');
+    expect(indexChild).toBeDefined();
+    expect(redirectTarget(indexChild)).toBeUndefined();
   });
 
   it('inclui os redirects de compatibilidade das URLs antigas', () => {

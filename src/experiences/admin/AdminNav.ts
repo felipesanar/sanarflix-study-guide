@@ -1,44 +1,128 @@
 import {
-  Users,
-  Bell,
-  Building2,
-  Upload,
-  FileText,
+  Home,
   ClipboardList,
+  Activity,
+  Users,
+  Building2,
+  BookOpen,
+  Bell,
+  FileText,
   MessageSquare,
   BarChart3,
+  History,
 } from 'lucide-react';
 import type { NavItem } from '@/experiences/types';
 import { can, type Access } from '@/experiences/access';
-
-/** Item da sub-navegação do Portal do Admin — cada seção declara a sua capability. */
-export type AdminNavItem = NavItem;
+import type { AdminAttentionCounts } from '@/services/admin/useAdminAttention';
 
 /**
- * Sub-navegação canônica do Portal do Admin (`/admin/*`).
+ * Item da navegação do console (Admin/CX) — cada seção declara a `capability`
+ * que controla a sua visibilidade (ver {@link filterAdminNav}). Item sem
+ * `capability` é sempre visível dentro do portal (caso do Command Center,
+ * home só do admin).
  *
- * Cada seção — hoje uma aba por estado em `UserManagement` — passa a ter URL
- * própria e uma `capability` que controla a sua visibilidade (ver
- * {@link filterAdminNav}). Atendimento (CX) só tem `users.support`, então só
- * enxerga "Usuários".
+ * `badgeKey`, quando presente, indexa a contagem de atenção devolvida por
+ * `useAdminAttention` (ver `src/services/admin/useAdminAttention.ts`) — o
+ * shell exibe o número como badge; sem contagem carregada (loading/erro), o
+ * item aparece sem badge, nunca com um número inventado.
  */
-export const ADMIN_NAV: AdminNavItem[] = [
-  { title: 'Usuários', url: '/admin/usuarios', icon: Users, capability: 'users.manage' },
-  { title: 'Avisos', url: '/admin/avisos', icon: Bell, capability: 'avisos.manage' },
-  { title: 'IES', url: '/admin/ies', icon: Building2, capability: 'ies.manage' },
-  { title: 'Guia', url: '/admin/guia', icon: Upload, capability: 'guia.manage' },
-  { title: 'SanarClass', url: '/admin/sanarclass', icon: FileText, capability: 'sanarclass.manage' },
-  { title: 'Simulados', url: '/admin/simulados', icon: ClipboardList, capability: 'simulados.manage' },
-  { title: 'Feedbacks', url: '/admin/feedbacks', icon: MessageSquare, capability: 'feedbacks.moderate' },
-  { title: 'Analytics', url: '/admin/analytics', icon: BarChart3, capability: 'analytics.view' },
+export interface AdminNavItem extends NavItem {
+  badgeKey?: keyof AdminAttentionCounts;
+}
+
+/** Grupo de itens da navegação — o rótulo aparece mono/uppercase no shell. */
+export interface AdminNavGroup {
+  label: string;
+  items: AdminNavItem[];
+}
+
+/**
+ * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 11 itens.
+ *
+ * - Operação: Command Center, Simulados, Monitoramento.
+ * - Contas & acesso: Usuários, IES.
+ * - Conteúdo & comunicação: Guia de Estudos, Avisos, SanarClass.
+ * - Suporte & dados: Feedbacks, Analytics, Auditoria.
+ */
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    label: 'Operação',
+    items: [
+      { title: 'Command Center', url: '/admin', icon: Home },
+      {
+        title: 'Simulados',
+        url: '/admin/simulados',
+        icon: ClipboardList,
+        capability: 'simulados.manage',
+        badgeKey: 'simuladosEncerrandoHoje',
+      },
+      { title: 'Monitoramento', url: '/admin/monitoramento', icon: Activity, capability: 'simulados.manage' },
+    ],
+  },
+  {
+    label: 'Contas & acesso',
+    items: [
+      { title: 'Usuários', url: '/admin/usuarios', icon: Users, capability: 'users.manage' },
+      {
+        title: 'IES',
+        url: '/admin/ies',
+        icon: Building2,
+        capability: 'ies.manage',
+        badgeKey: 'iesSemSimuladoAtivo',
+      },
+    ],
+  },
+  {
+    label: 'Conteúdo & comunicação',
+    items: [
+      { title: 'Guia de Estudos', url: '/admin/guia', icon: BookOpen, capability: 'guia.manage' },
+      { title: 'Avisos', url: '/admin/avisos', icon: Bell, capability: 'avisos.manage' },
+      { title: 'SanarClass', url: '/admin/sanarclass', icon: FileText, capability: 'sanarclass.manage' },
+    ],
+  },
+  {
+    label: 'Suporte & dados',
+    items: [
+      {
+        title: 'Feedbacks',
+        url: '/admin/feedbacks',
+        icon: MessageSquare,
+        capability: 'feedbacks.moderate',
+        badgeKey: 'feedbacksPendentes',
+      },
+      { title: 'Analytics', url: '/admin/analytics', icon: BarChart3, capability: 'analytics.view' },
+      { title: 'Auditoria', url: '/admin/auditoria', icon: History, capability: 'admin.tools' },
+    ],
+  },
 ];
 
 /**
- * Filtra a sub-navegação do admin pela capability do `access` do usuário.
- *
- * Usuários de Atendimento (CX) acessam esta mesma árvore de rotas quando
- * `users.support` está presente (ver AtendimentoLayout), mas aqui a checagem
- * é sempre por capability — nunca role literal.
+ * Navegação do Atendimento (CX, `/atendimento/*`): 1 grupo ("Atendimento"),
+ * 2 itens — Usuários e Feedbacks — reusando as MESMAS páginas do admin com
+ * capability de suporte (`users.support`/`feedbacks.support`).
  */
-export const filterAdminNav = (items: AdminNavItem[], access: Access): AdminNavItem[] =>
-  items.filter((item) => item.capability == null || can(access, item.capability));
+export const CX_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    label: 'Atendimento',
+    items: [
+      { title: 'Usuários', url: '/atendimento/usuarios', icon: Users, capability: 'users.support' },
+      { title: 'Feedbacks', url: '/atendimento/feedbacks', icon: MessageSquare, capability: 'feedbacks.support' },
+    ],
+  },
+];
+
+/**
+ * Filtra os grupos de navegação pela capability do `access` do usuário.
+ *
+ * Remove, em cada grupo, os itens cuja `capability` o usuário não tem;
+ * grupos que ficam sem nenhum item visível são removidos da lista. Item sem
+ * `capability` (Command Center) é sempre mantido. Página NUNCA checa role
+ * literal — a fonte da verdade é `can()`.
+ */
+export const filterAdminNav = (groups: AdminNavGroup[], access: Access): AdminNavGroup[] =>
+  groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.capability == null || can(access, item.capability)),
+    }))
+    .filter((group) => group.items.length > 0);

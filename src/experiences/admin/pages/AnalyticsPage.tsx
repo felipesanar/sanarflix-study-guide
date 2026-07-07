@@ -1,13 +1,18 @@
 import * as React from 'react';
-import Analytics from '@/pages/Analytics';
 
 /**
  * Seção Analytics do Portal do Admin (`/admin/analytics`).
  *
- * Reusa a página de Analytics existente. Obs.: a `Analytics` traz o próprio
- * container/cabeçalho de página — o ajuste fino de layout dentro do AdminLayout
- * (ex.: evitar cabeçalho/largura duplicados) será feito ao plugar as rotas (F2·10).
+ * Placeholder da reescrita do shell (contrato §G — Analytics): cabeçalho
+ * definitivo, conteúdo pendente (encaixa a página `Analytics` existente —
+ * dados reais — no shell novo, com header único e sub-abas no padrão visual).
  */
-const AnalyticsPage: React.FC = () => <Analytics />;
+const AnalyticsPage: React.FC = () => (
+  <div className="space-y-1">
+    <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+    <p className="text-sm text-muted-foreground">Engajamento, progresso e desempenho da plataforma.</p>
+    <div />
+  </div>
+);
 
 export default AnalyticsPage;
