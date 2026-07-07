@@ -119,7 +119,7 @@ export const MatrizPrioridadeCurricular: React.FC<MatrizPrioridadeCurricularProp
               x2={maxPrevalencia}
               y1={0}
               y2={ALTO_IMPACTO_ACERTO_MAX}
-              fill="hsl(0 84% 60%)"
+              fill="hsl(var(--destructive))"
               fillOpacity={0.07}
               strokeOpacity={0}
               label={{
@@ -127,7 +127,7 @@ export const MatrizPrioridadeCurricular: React.FC<MatrizPrioridadeCurricularProp
                 position: 'insideTopRight',
                 fontSize: 10,
                 fontWeight: 600,
-                fill: 'hsl(0 70% 45%)',
+                fill: 'hsl(var(--destructive))',
               }}
             />
             <ReferenceLine
@@ -148,15 +148,15 @@ export const MatrizPrioridadeCurricular: React.FC<MatrizPrioridadeCurricularProp
       </div>
       <div className="flex flex-wrap gap-4 mt-1 justify-center text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(0 84% 60%)' }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(var(--destructive))' }} />
           Crítico (&lt;50%)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(38 92% 50%)' }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-3))' }} />
           Próximo (50-60%)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(142 71% 45%)' }} />
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
           Proficiente (≥60%)
         </div>
       </div>

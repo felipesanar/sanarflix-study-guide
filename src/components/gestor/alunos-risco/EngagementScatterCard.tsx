@@ -34,7 +34,7 @@ const ScatterTooltipContent = ({ active, payload }: any) => {
 };
 
 function dotColor(tri: number): string {
-  return tri >= TRI_PROFICIENCY_THRESHOLD ? 'hsl(142 71% 45%)' : 'hsl(0 84% 60%)';
+  return tri >= TRI_PROFICIENCY_THRESHOLD ? 'hsl(var(--chart-1))' : 'hsl(var(--destructive))';
 }
 
 /**
@@ -104,7 +104,7 @@ export const EngagementScatterCard: React.FC<EngagementScatterCardProps> = ({
                 />
                 <ReferenceLine
                   y={TRI_PROFICIENCY_THRESHOLD}
-                  stroke="hsl(142 71% 45%)"
+                  stroke="hsl(var(--chart-1))"
                   strokeDasharray="6 3"
                   strokeWidth={1.5}
                   label={{ value: 'proficiência', position: 'right', fontSize: 10, className: 'fill-muted-foreground' }}

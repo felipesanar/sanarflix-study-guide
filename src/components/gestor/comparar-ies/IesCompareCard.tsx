@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUp, ArrowDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { GestorPanel, MetricValue } from '@/experiences/gestor/ui';
+import { GestorPanel, MetricValue, DeltaChip } from '@/experiences/gestor/ui';
 import type { IesComparisonEntry } from '@/services/gestor/iesComparison';
 import { CONCEPT_TEXT_COLOR } from './conceitoColor';
 
@@ -19,30 +18,6 @@ interface IesCompareCardProps {
 
 const fmtPct = (v: number | null): string => (v == null ? '—' : `${Math.round(v)}%`);
 const fmtScore = (v: number | null): string => (v == null ? '—' : Math.round(v).toString());
-
-/** Tendência derivada de `delta_pcp`: ▲ subindo (emerald) / ▼ caindo (red) / — estável (muted). */
-const Tendencia: React.FC<{ delta: number | null }> = ({ delta }) => {
-  if (delta == null || delta === 0) {
-    return (
-      <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-        <Minus className="h-3 w-3" aria-hidden="true" /> estável
-      </span>
-    );
-  }
-  const isUp = delta > 0;
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono tabular-nums text-xs font-medium',
-        isUp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/10 text-red-600 dark:text-red-400',
-      )}
-    >
-      {isUp ? <ArrowUp className="h-3 w-3" aria-hidden="true" /> : <ArrowDown className="h-3 w-3" aria-hidden="true" />}
-      {isUp ? '+' : ''}
-      {delta.toFixed(1)}pp
-    </span>
-  );
-};
 
 /**
  * Card de uma IES no comparativo de grupo: avatar de iniciais, nome,
@@ -85,7 +60,13 @@ export const IesCompareCard: React.FC<IesCompareCardProps> = ({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{entry.ies_nome}</p>
-            <Tendencia delta={entry.delta_pcp} />
+            <DeltaChip
+              value={entry.delta_pcp}
+              suffix="pp"
+              decimals={1}
+              neutralLabel="estável"
+              className="text-xs"
+            />
           </div>
         </button>
 

@@ -94,10 +94,10 @@ export const PRIORITY_TAG_CONFIG: Record<PriorityTag, { label: string; className
 export function scatterColorFromStatus(status: StatusLevel): string {
   switch (status) {
     case 'critico':
-      return 'hsl(0 84% 60%)';
+      return 'hsl(var(--destructive))';
     case 'proximo':
-      return 'hsl(38 92% 50%)';
+      return 'hsl(var(--chart-3))';
     case 'proficiente':
-      return 'hsl(142 71% 45%)';
+      return 'hsl(var(--chart-1))';
   }
 }

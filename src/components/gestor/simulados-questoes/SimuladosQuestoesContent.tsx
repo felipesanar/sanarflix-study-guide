@@ -3,8 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FileQuestion, ListChecks, SearchX } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { GestorError, GestorEmpty } from '@/experiences/gestor/ui';
+import { GestorError, GestorEmpty, GestorLoading } from '@/experiences/gestor/ui';
 import { useInstitutionalQuestionStats, type QuestionStat } from '@/services/gestor/questionStats';
 import { QuestoesErradasList } from './QuestoesErradasList';
 import { QuestaoDetailPanel } from './QuestaoDetailPanel';
@@ -35,18 +34,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
 };
-
-/** Esqueleto de carregamento no layout de 2 colunas (lista + detalhe) desta tela. */
-const SimuladosQuestoesLoading: React.FC = () => (
-  <div
-    className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr] animate-in fade-in duration-300"
-    aria-busy="true"
-    aria-live="polite"
-  >
-    <Skeleton className="h-[520px] rounded-xl" />
-    <Skeleton className="h-[520px] rounded-xl" />
-  </div>
-);
 
 interface SimuladosQuestoesContentProps {
   simuladoId?: string;
@@ -108,7 +95,7 @@ export const SimuladosQuestoesContent: React.FC<SimuladosQuestoesContentProps> =
   }
 
   if (isLoading) {
-    return <SimuladosQuestoesLoading />;
+    return <GestorLoading metricCards={0} />;
   }
 
   if (isError) {
