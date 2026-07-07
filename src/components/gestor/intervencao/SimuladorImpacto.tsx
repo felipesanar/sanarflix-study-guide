@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ArrowRight, FlaskConical } from 'lucide-react';
+import { ArrowRight, FlaskConical, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -96,6 +96,7 @@ export const SimuladorImpacto: React.FC<SimuladorImpactoProps> = ({ temas, heade
     <GestorPanel
       title="Simulador de impacto"
       subtitle="Projeção linear simplificada — quanto uma melhoria no tema-alvo pode gerar em proficientes"
+      icon={FlaskConical}
       action={
         <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">
           HIPOTÉTICO
@@ -143,7 +144,10 @@ export const SimuladorImpacto: React.FC<SimuladorImpactoProps> = ({ temas, heade
 
         {resultado && (
           <>
-            <div className="rounded-lg bg-primary/5 border border-primary/10 px-4 py-5 text-center space-y-1">
+            <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] to-primary/[0.02] p-4 sm:p-5 text-center space-y-2">
+              <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
               <MetricValue size="xl" className="text-primary block">
                 +{resultado.novosProficientes}
               </MetricValue>

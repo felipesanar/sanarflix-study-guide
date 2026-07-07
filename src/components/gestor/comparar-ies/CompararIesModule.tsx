@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { motion } from 'framer-motion';
 import { Users2 } from 'lucide-react';
 import {
   SectionHeader,
@@ -21,6 +22,11 @@ const iesInitials = (nome: string): string =>
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
 
 /**
  * Módulo "Comparar IES" (`/gestor/comparar-ies`) — só faz sentido para
@@ -69,7 +75,7 @@ export const CompararIesModule: React.FC = () => {
           description="Esta tela compara o desempenho entre as IES acessíveis por você. Como sua conta tem acesso a apenas uma instituição, não há o que comparar aqui."
         />
       ) : (
-        <div className="space-y-6">
+        <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="show">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {entries.map((entry, i) => (
               <IesCompareCard
@@ -84,7 +90,7 @@ export const CompararIesModule: React.FC = () => {
           </div>
 
           <IesComparisonBarChart entries={entries} />
-        </div>
+        </motion.div>
       )}
     </div>
   );

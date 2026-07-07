@@ -24,7 +24,7 @@ const fmtScore = (v: number | null): string => (v == null ? '—' : Math.round(v
 const Tendencia: React.FC<{ delta: number | null }> = ({ delta }) => {
   if (delta == null || delta === 0) {
     return (
-      <span className="inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground">
+      <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
         <Minus className="h-3 w-3" aria-hidden="true" /> estável
       </span>
     );
@@ -33,8 +33,8 @@ const Tendencia: React.FC<{ delta: number | null }> = ({ delta }) => {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-0.5 font-mono tabular-nums text-xs font-medium',
-        isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+        'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono tabular-nums text-xs font-medium',
+        isUp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/10 text-red-600 dark:text-red-400',
       )}
     >
       {isUp ? <ArrowUp className="h-3 w-3" aria-hidden="true" /> : <ArrowDown className="h-3 w-3" aria-hidden="true" />}
@@ -64,6 +64,7 @@ export const IesCompareCard: React.FC<IesCompareCardProps> = ({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.03 * delayIndex, duration: 0.3 }}
+      {...(onClick ? { whileHover: { scale: 1.01, y: -2 }, whileTap: { scale: 0.98 } } : {})}
     >
       <GestorPanel
         className={cn(

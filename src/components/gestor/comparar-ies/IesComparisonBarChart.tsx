@@ -11,6 +11,7 @@ import {
   ReferenceLine,
   Cell,
 } from 'recharts';
+import { BarChart3 } from 'lucide-react';
 import { GestorPanel } from '@/experiences/gestor/ui';
 import type { IesComparisonEntry } from '@/services/gestor/iesComparison';
 import { pcpBarColor } from './conceitoColor';
@@ -34,7 +35,11 @@ export const IesComparisonBarChart: React.FC<IesComparisonBarChartProps> = ({ en
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3 }}>
-      <GestorPanel title="% de proficientes por IES" subtitle="Meta institucional: conceito 3 (60% de proficientes)">
+      <GestorPanel
+        title="% de proficientes por IES"
+        subtitle="Meta institucional: conceito 3 (60% de proficientes)"
+        icon={BarChart3}
+      >
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>

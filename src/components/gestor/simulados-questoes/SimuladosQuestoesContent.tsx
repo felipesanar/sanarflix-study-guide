@@ -1,11 +1,21 @@
 import * as React from 'react';
 import { useState, useMemo, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { FileQuestion, ListChecks } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GestorError, GestorEmpty } from '@/experiences/gestor/ui';
 import { useInstitutionalQuestionStats } from '@/services/gestor/questionStats';
 import { QuestoesErradasList } from './QuestoesErradasList';
 import { QuestaoDetailPanel } from './QuestaoDetailPanel';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
 
 /** Esqueleto de carregamento no layout de 2 colunas (lista + detalhe) desta tela. */
 const SimuladosQuestoesLoading: React.FC = () => (
@@ -87,14 +97,23 @@ export const SimuladosQuestoesContent: React.FC<SimuladosQuestoesContentProps> =
   const selected = questoes.find((q) => q.question_id === selectedId) ?? questoes[0];
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-      <QuestoesErradasList
-        simuladoNome={simuladoNome}
-        questoes={questoes}
-        selectedId={selected.question_id}
-        onSelect={setSelectedId}
-      />
-      <QuestaoDetailPanel questao={selected} />
-    </div>
+    <motion.div
+      className="grid grid-cols-1 gap-4 lg:grid-cols-[0.9fr_1.1fr]"
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+    >
+      <motion.div variants={itemVariants} className="min-w-0">
+        <QuestoesErradasList
+          simuladoNome={simuladoNome}
+          questoes={questoes}
+          selectedId={selected.question_id}
+          onSelect={setSelectedId}
+        />
+      </motion.div>
+      <motion.div variants={itemVariants} className="min-w-0">
+        <QuestaoDetailPanel questao={selected} />
+      </motion.div>
+    </motion.div>
   );
 };

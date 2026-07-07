@@ -21,6 +21,15 @@ interface IntervencaoImpactoContentProps {
   onRetry?: () => void;
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+};
+
 /**
  * Orquestra loading → error → empty → dados para a tela de Intervenção &
  * Impacto. Toda a lógica de priorização (matriz + fila + simulador) deriva
@@ -70,9 +79,9 @@ export const IntervencaoImpactoContent: React.FC<IntervencaoImpactoContentProps>
   return (
     <motion.div
       className="space-y-4"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
     >
       {usingMock && (
         <div className="flex justify-end">
@@ -80,14 +89,14 @@ export const IntervencaoImpactoContent: React.FC<IntervencaoImpactoContentProps>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4">
         <MatrizPrioridadeCurricular temas={temas} />
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <FilaIntervencoes temas={temas} />
         <SimuladorImpacto temas={temas} headerSummary={data.headerSummary} />
-      </div>
+      </motion.div>
     </motion.div>
   );
 };

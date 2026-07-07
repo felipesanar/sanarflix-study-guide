@@ -18,9 +18,10 @@ interface DeltaChipProps {
 }
 
 /**
- * Chip de variação (delta) com seta e cor semântica: emerald quando a
- * variação é boa, red quando é ruim. Usa `pp` (pontos percentuais) como
- * sufixo padrão — comum aos KPIs do console de Gestão.
+ * Chip de variação (delta) com seta, cor semântica e fundo tintado em pill:
+ * emerald quando a variação é boa, red quando é ruim, neutro (sem
+ * destaque) quando zero/neutral. Usa `pp` (pontos percentuais) como sufixo
+ * padrão — comum aos KPIs do console de Gestão.
  */
 export const DeltaChip: React.FC<DeltaChipProps> = ({
   value,
@@ -39,10 +40,23 @@ export const DeltaChip: React.FC<DeltaChipProps> = ({
       ? 'text-emerald-600 dark:text-emerald-400'
       : 'text-red-600 dark:text-red-400';
 
+  const bgClass = neutral || isZero
+    ? 'bg-muted/40'
+    : isGood
+      ? 'bg-emerald-500/10'
+      : 'bg-red-500/10';
+
   const sign = value > 0 ? '+' : '';
 
   return (
-    <span className={cn('inline-flex items-center gap-0.5 font-mono tabular-nums text-sm font-medium', colorClass, className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono tabular-nums text-sm font-medium',
+        colorClass,
+        bgClass,
+        className,
+      )}
+    >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {sign}{value}{suffix}
     </span>

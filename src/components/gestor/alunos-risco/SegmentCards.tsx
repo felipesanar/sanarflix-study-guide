@@ -78,6 +78,8 @@ export const SegmentCards: React.FC<SegmentCardsProps> = ({ counts, active, onSe
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, duration: 0.3 }}
+          whileHover={{ scale: 1.01, y: -2 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => onSelect(isActive ? null : seg.value)}
           className={cn(
             'rounded-lg border border-border bg-card p-4 text-left shadow-none transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -86,7 +88,7 @@ export const SegmentCards: React.FC<SegmentCardsProps> = ({ counts, active, onSe
           aria-pressed={isActive}
         >
           <div className="flex items-center justify-between">
-            <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', seg.iconBgClass)}>
+            <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl', seg.iconBgClass)}>
               <Icon className={cn('h-4 w-4', seg.colorClass)} aria-hidden="true" />
             </div>
             <MetricValue size="lg" className={seg.colorClass}>{counts[seg.value]}</MetricValue>

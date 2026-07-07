@@ -44,7 +44,7 @@ export const ReportCoverPreview: React.FC<ReportCoverPreviewProps> = ({
   return (
     <div
       className={cn(
-        'flex aspect-[3/4] w-full flex-col justify-between rounded-lg border border-neutral-200 bg-white p-6 text-neutral-900 shadow-sm',
+        'flex aspect-[3/4] w-full flex-col justify-between rounded-lg border border-neutral-200 bg-white p-6 text-neutral-900 shadow-lg',
       )}
     >
       <div className="space-y-8">

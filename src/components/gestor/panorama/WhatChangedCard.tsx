@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { GestorPanel, DeltaChip } from '@/experiences/gestor/ui';
 import type { EvolucaoSimulado } from '@/mocks/desempenhoInstitucionalV2';
 
@@ -59,28 +59,54 @@ export const WhatChangedCard: React.FC<WhatChangedCardProps> = ({ evolucao, pior
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.3 }} className="h-full">
+    <div className="h-full">
       <GestorPanel
         title="O que mudou desde o último simulado"
         subtitle={`${anterior.simulado} → ${atual.simulado}`}
         className="h-full"
       >
         <div className="space-y-3">
-          {items.map((item) => (
-            <div key={item.label} className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-                <span className="text-sm text-foreground truncate">{item.label}</span>
+          {items.map((item) => {
+            const isZero = item.value === 0;
+            const isGood = item.higherIsBetter ? item.value > 0 : item.value < 0;
+            return (
+              <div key={item.label} className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+                      isZero ? 'bg-muted' : isGood ? 'bg-emerald-500/10' : 'bg-red-500/10',
+                    )}
+                  >
+                    <TrendingUp
+                      className={cn(
+                        'h-4 w-4',
+                        isZero
+                          ? 'text-muted-foreground'
+                          : isGood
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-red-600 dark:text-red-400',
+                      )}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span className="text-sm text-foreground truncate">{item.label}</span>
+                </div>
+                <DeltaChip value={item.value} suffix={item.suffix} higherIsBetter={item.higherIsBetter} />
               </div>
-              <DeltaChip value={item.value} suffix={item.suffix} higherIsBetter={item.higherIsBetter} />
-            </div>
-          ))}
+            );
+          })}
 
           {piorTema && (
             <div className="flex items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="text-sm text-foreground truncate">{piorTema.nome}</p>
-                <p className="text-[11px] text-muted-foreground">Tema com pior desempenho no recorte</p>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+                  <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm text-foreground truncate">{piorTema.nome}</p>
+                  <p className="text-[11px] text-muted-foreground">Tema com pior desempenho no recorte</p>
+                </div>
               </div>
               <span className="font-mono tabular-nums text-sm font-medium text-red-600 dark:text-red-400 shrink-0">
                 {piorTema.percentual}%
@@ -89,6 +115,6 @@ export const WhatChangedCard: React.FC<WhatChangedCardProps> = ({ evolucao, pior
           )}
         </div>
       </GestorPanel>
-    </motion.div>
+    </div>
   );
 };

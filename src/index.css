@@ -375,10 +375,20 @@
   }
 
   .card-premium:hover {
-    box-shadow: 
+    box-shadow:
       0 4px 8px hsl(var(--foreground) / 0.04),
       0 12px 32px hsl(var(--foreground) / 0.08);
     transform: translateY(-2px);
+  }
+
+  /* Variante estática do card-premium (sem hover-lift) — para painéis não
+     clicáveis (listas, drill-down, tabelas) que devem herdar a moldura
+     premium (radius, sombra, borda) sem sugerir interatividade. */
+  .card-premium-static:hover {
+    box-shadow:
+      0 1px 2px hsl(var(--foreground) / 0.03),
+      0 4px 12px hsl(var(--foreground) / 0.04);
+    transform: none;
   }
 
   .dark .card-premium {
@@ -389,10 +399,18 @@
   }
 
   .dark .card-premium:hover {
-    box-shadow: 
+    box-shadow:
       0 4px 8px hsl(0 0% 0% / 0.3),
       0 12px 32px hsl(0 0% 0% / 0.4);
     border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .dark .card-premium-static:hover {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.2),
+      0 4px 12px hsl(0 0% 0% / 0.3);
+    border: 1px solid hsl(var(--border) / 0.4);
+    transform: none;
   }
 
   /* Hero Glass Card */

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Download } from 'lucide-react';
+import { Download, FileQuestion, Lightbulb } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -20,20 +20,17 @@ export const QuestaoDetailPanel: React.FC<QuestaoDetailPanelProps> = ({ questao 
   const areaTema = [questao.grande_area, questao.especialidade].filter(Boolean).join(' · ');
 
   return (
-    <GestorPanel>
+    <GestorPanel
+      title={`Questão Q${questao.numero_questao}`}
+      subtitle={areaTema || undefined}
+      icon={FileQuestion}
+      action={
+        <Badge className="w-fit bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400">
+          {Math.round(questao.pct_acerto)}% de acerto
+        </Badge>
+      }
+    >
       <div className="space-y-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              Questão Q{questao.numero_questao}
-            </p>
-            {areaTema && <p className="text-xs text-muted-foreground">{areaTema}</p>}
-          </div>
-          <Badge className="w-fit bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400">
-            {Math.round(questao.pct_acerto)}% de acerto
-          </Badge>
-        </div>
-
         <p className="text-sm leading-relaxed text-foreground whitespace-pre-line">
           {questao.enunciado}
         </p>
@@ -86,10 +83,15 @@ export const QuestaoDetailPanel: React.FC<QuestaoDetailPanelProps> = ({ questao 
         </div>
 
         {questao.comentario && (
-          <div className="rounded-lg border bg-muted/40 p-3">
-            <p className="mb-1 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              Comentário Sanar
-            </p>
+          <div className="rounded-2xl border border-amber-500/15 bg-gradient-to-br from-amber-500/[0.07] to-amber-500/[0.02] p-4 sm:p-5">
+            <div className="mb-2 flex items-center gap-3">
+              <div className="h-9 w-9 shrink-0 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                Comentário Sanar
+              </p>
+            </div>
             <p className="text-sm leading-relaxed text-foreground">{questao.comentario}</p>
           </div>
         )}

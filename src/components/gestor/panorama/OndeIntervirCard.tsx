@@ -69,7 +69,7 @@ export const OndeIntervirCard: React.FC<OndeIntervirCardProps> = ({ curricular }
     .slice(0, 3);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.3 }}>
+    <div>
       <GestorPanel
         title="Onde intervir primeiro"
         subtitle="Temas priorizados por impacto no exame (prevalência × lacuna de acerto)"
@@ -78,32 +78,38 @@ export const OndeIntervirCard: React.FC<OndeIntervirCardProps> = ({ curricular }
           {items.map(({ tema, tag }) => {
             const config = TAG_CONFIG[tag];
             return (
-              <Link
+              <motion.div
                 key={`${tema.areaName}-${tema.specialtyName}-${tema.name}`}
-                to="/gestor/intervencao-impacto"
-                className="group flex flex-col justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/30"
+                whileHover={{ scale: 1.01, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="h-full"
               >
-                <div className="space-y-2">
-                  <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide', config.className)}>
-                    {config.label}
-                  </span>
-                  <p className="text-sm font-semibold text-foreground leading-snug">{tema.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {tema.areaName} · {tema.specialtyName}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <MetricValue size="lg" className="leading-none">{tema.percentual}%</MetricValue>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">de acerto · {tema.total} questões</p>
+                <Link
+                  to="/gestor/intervencao-impacto"
+                  className="group flex flex-col justify-between gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/30 h-full"
+                >
+                  <div className="space-y-2">
+                    <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide', config.className)}>
+                      {config.label}
+                    </span>
+                    <p className="text-sm font-semibold text-foreground leading-snug">{tema.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {tema.areaName} · {tema.specialtyName}
+                    </p>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
-                </div>
-              </Link>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <MetricValue size="lg" className="leading-none">{tema.percentual}%</MetricValue>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">de acerto · {tema.total} questões</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" aria-hidden="true" />
+                  </div>
+                </Link>
+              </motion.div>
             );
           })}
         </div>
       </GestorPanel>
-    </motion.div>
+    </div>
   );
 };

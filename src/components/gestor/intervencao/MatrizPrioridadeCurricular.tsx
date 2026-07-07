@@ -12,6 +12,7 @@ import {
   ReferenceLine,
   Cell,
 } from 'recharts';
+import { Crosshair } from 'lucide-react';
 import { GestorPanel } from '@/experiences/gestor/ui';
 import { scatterColorFromStatus, type TemaPrioridade } from './priorizacao';
 
@@ -63,9 +64,10 @@ export const MatrizPrioridadeCurricular: React.FC<MatrizPrioridadeCurricularProp
 
   return (
     <GestorPanel
+      className="col-span-full"
       title="Matriz de prioridade curricular"
       subtitle="Prevalência no exame × % de acerto da turma — tamanho do ponto = nº de questões"
-      className="col-span-full"
+      icon={Crosshair}
     >
       <div className="h-[380px] w-full">
         <ResponsiveContainer width="100%" height="100%">

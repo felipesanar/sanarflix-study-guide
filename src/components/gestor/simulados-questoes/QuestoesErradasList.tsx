@@ -48,9 +48,9 @@ export const QuestoesErradasList: React.FC<QuestoesErradasListProps> = ({
                 onClick={() => onSelect(q.question_id)}
                 aria-current={isActive ? 'true' : undefined}
                 className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-l-2 border-transparent',
+                  'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-200 border-l-2 border-transparent',
                   'hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isActive && 'border-l-primary bg-accent',
+                  isActive && 'border-l-primary bg-primary/10',
                 )}
               >
                 <span className="shrink-0 inline-flex items-center justify-center rounded-md bg-muted px-2 py-1 text-xs font-mono tabular-nums font-semibold text-muted-foreground">

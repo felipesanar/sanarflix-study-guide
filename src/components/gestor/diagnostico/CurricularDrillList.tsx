@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ListTree } from 'lucide-react';
 import { GestorPanel, MetricValue, StatusBadge } from '@/experiences/gestor/ui';
 import { cn } from '@/lib/utils';
 import { StatusProgressBar } from './StatusProgressBar';
@@ -20,9 +20,9 @@ const DrillRow: React.FC<{ row: DrillRowItem; onClick: () => void }> = ({ row, o
     <Tag
       onClick={row.navigable ? onClick : undefined}
       className={cn(
-        'w-full flex items-center gap-3 sm:gap-4 rounded-lg border border-border bg-card p-3 sm:p-4 text-left transition-colors',
+        'w-full flex items-center gap-3 sm:gap-4 rounded-lg border border-border bg-card p-3 sm:p-4 text-left transition-all duration-200',
         row.navigable
-          ? 'cursor-pointer hover:bg-accent/40 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          ? 'group cursor-pointer hover:bg-accent hover:translate-x-1 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
           : 'cursor-default',
       )}
     >
@@ -39,7 +39,10 @@ const DrillRow: React.FC<{ row: DrillRowItem; onClick: () => void }> = ({ row, o
         </span>
         <StatusBadge percent={row.percentual} />
         {row.navigable ? (
-          <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <ChevronRight
+            className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
         ) : (
           <span className="inline-block h-4 w-4" aria-hidden="true" />
         )}
@@ -59,7 +62,7 @@ export const CurricularDrillList: React.FC<CurricularDrillListProps> = ({
   rows,
   onSelectRow,
 }) => (
-  <GestorPanel title={title} subtitle={subtitle}>
+  <GestorPanel title={title} subtitle={subtitle} icon={ListTree}>
     <div className="space-y-2">
       {rows.map((row) => (
         <DrillRow key={row.key} row={row} onClick={() => onSelectRow(row)} />

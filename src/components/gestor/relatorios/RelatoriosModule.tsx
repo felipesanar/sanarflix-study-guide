@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader, GestorLoading, GestorError, GestorEmpty } from '@/experiences/gestor/ui';
@@ -22,6 +23,15 @@ const DEFAULT_SECTIONS: ReportSection[] = [
   { id: 'plano-intervencao', label: 'Plano de intervenção', checked: true },
   { id: 'anexo-dados', label: 'Anexo de dados', checked: false },
 ];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
 
 /**
  * Módulo "Relatórios" (`/gestor/relatorios`) — construtor de seções +
@@ -87,25 +97,35 @@ export const RelatoriosModule: React.FC = () => {
     <div className="space-y-6">
       <SectionHeader eyebrow="Relatórios" title="Relatório para a mantenedora / MEC" />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.85fr]">
-        <div className="space-y-4">
+      <motion.div
+        className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_0.85fr]"
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+      >
+        <motion.div className="space-y-4" variants={itemVariants}>
           <ReportSectionsBuilder sections={sections} onToggle={toggleSection} />
           <ReportFormatSelector value={format} onChange={setFormat} />
-          <Button className="w-full gap-2 sm:w-auto" onClick={() => setExportOpen(true)}>
+          <Button
+            className="group w-full gap-2 rounded-xl bg-gradient-to-r from-primary/90 to-primary/80 shadow-md transition-all duration-300 hover:from-primary hover:to-primary/90 hover:shadow-lg sm:w-auto"
+            onClick={() => setExportOpen(true)}
+          >
             <Download className="h-4 w-4" />
             Gerar relatório
           </Button>
-        </div>
+        </motion.div>
 
-        <ReportCoverPreview
-          iesNome={iesNome}
-          simuladoNome={simuladoNome}
-          baseLabel={headerSummary.baseLabel}
-          conceito={headerSummary.notaScoped}
-          percentProficientes={headerSummary.percentProficientes}
-          triMedio={meta.proficienciaAtual ?? null}
-        />
-      </div>
+        <motion.div variants={itemVariants}>
+          <ReportCoverPreview
+            iesNome={iesNome}
+            simuladoNome={simuladoNome}
+            baseLabel={headerSummary.baseLabel}
+            conceito={headerSummary.notaScoped}
+            percentProficientes={headerSummary.percentProficientes}
+            triMedio={meta.proficienciaAtual ?? null}
+          />
+        </motion.div>
+      </motion.div>
 
       <ExportReportDrawer
         open={exportOpen}

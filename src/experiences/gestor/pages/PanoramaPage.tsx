@@ -20,6 +20,16 @@ import {
   getPiorTema,
 } from '@/components/gestor/panorama';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+};
+
 /** Panorama executivo do gestor (`/gestor/panorama`). */
 const PanoramaPage: React.FC = () => {
   const { user } = useAuth();
@@ -98,33 +108,43 @@ const PanoramaPage: React.FC = () => {
   return (
     <motion.div
       className="space-y-6"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.25 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
     >
-      <SectionHeader
-        eyebrow="Panorama executivo"
-        title={`Como está ${iesLabel} agora`}
-        corner={<AdesaoCorner percent={adesaoPercent} respondentes={respondentes} base={baseAdesao} />}
-      />
+      <motion.div variants={itemVariants}>
+        <SectionHeader
+          eyebrow="Panorama executivo"
+          title={`Como está ${iesLabel} agora`}
+          corner={<AdesaoCorner percent={adesaoPercent} respondentes={respondentes} base={baseAdesao} />}
+        />
+      </motion.div>
 
-      {usingMock && <GestorDemoBadge />}
+      {usingMock && (
+        <motion.div variants={itemVariants}>
+          <GestorDemoBadge />
+        </motion.div>
+      )}
 
       {headerSummary.triPending ? (
-        <GestorTriPending />
+        <motion.div variants={itemVariants}>
+          <GestorTriPending />
+        </motion.div>
       ) : (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ConceitoMecCard headerSummary={headerSummary} footerKpis={footerKpis} />
             <WhatChangedCard evolucao={evolucao} piorTema={piorTema ? { nome: piorTema.name, percentual: piorTema.percentual } : null} />
-          </div>
+          </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <EvolucaoChart evolucao={evolucao} />
             <FaixaDistribuicaoChart faixas={faixas} />
-          </div>
+          </motion.div>
 
-          <OndeIntervirCard curricular={curricular} />
+          <motion.div variants={itemVariants}>
+            <OndeIntervirCard curricular={curricular} />
+          </motion.div>
         </>
       )}
     </motion.div>

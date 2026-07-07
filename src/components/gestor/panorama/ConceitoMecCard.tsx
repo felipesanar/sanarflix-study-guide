@@ -1,8 +1,7 @@
 import * as React from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { GestorPanel, MetricValue } from '@/experiences/gestor/ui';
+import { MetricValue } from '@/experiences/gestor/ui';
 import type { HeaderSummary } from '@/types/desempenhoV2';
 
 interface ConceitoMecCardProps {
@@ -40,17 +39,22 @@ export const ConceitoMecCard: React.FC<ConceitoMecCardProps> = ({ headerSummary,
   const CONCEITO_META = 3; // meta institucional padrão (conceito 3)
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.3 }}>
-      <GestorPanel
-        title="Conceito MEC projetado"
-        action={hasSancao && (
-          <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold tracking-wide">
-            SANÇÃO ATIVA
-          </Badge>
-        )}
-        className="h-full"
-      >
-        <div className="space-y-5">
+    <div className="relative overflow-hidden rounded-2xl card-hero-glass h-full">
+      <div className="absolute inset-0 gradient-hero-light dark:gradient-hero-dark opacity-60" />
+      <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-primary/5 dark:bg-primary/10 blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full bg-blue-500/5 dark:bg-blue-500/8 blur-3xl" />
+
+      <div className="relative p-5 sm:p-6 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold text-foreground">Conceito MEC projetado</h3>
+          {hasSancao && (
+            <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold tracking-wide shrink-0">
+              SANÇÃO ATIVA
+            </Badge>
+          )}
+        </div>
+
+        <div>
           {nota !== null ? (
             <MetricValue size="xl" className={cn('leading-none', NOTA_COLOR[nota] ?? 'text-foreground')}>
               {nota}
@@ -58,51 +62,51 @@ export const ConceitoMecCard: React.FC<ConceitoMecCardProps> = ({ headerSummary,
           ) : (
             <MetricValue size="xl" className="leading-none text-muted-foreground">—</MetricValue>
           )}
-          <p className="text-xs text-muted-foreground -mt-3">de 5 · escala INEP</p>
-
-          {/* Escala de 5 blocos: atual preenchido, meta (3) tracejada */}
-          <div className="flex items-center gap-1.5">
-            {[1, 2, 3, 4, 5].map((n) => {
-              const isActive = nota === n;
-              const isMeta = n === CONCEITO_META;
-              return (
-                <div
-                  key={n}
-                  className={cn(
-                    'flex h-9 flex-1 items-center justify-center rounded-md border font-mono text-sm font-semibold transition-colors',
-                    isActive
-                      ? BLOCK_COLOR_ACTIVE[n]
-                      : 'border-border text-muted-foreground bg-muted/30',
-                    isMeta && !isActive && 'border-dashed border-foreground/40 text-foreground',
-                  )}
-                  aria-current={isActive ? 'true' : undefined}
-                >
-                  {n}
-                </div>
-              );
-            })}
-          </div>
-
-          {headerSummary.alunosFaltamMeta > 0 && (
-            <p className="text-sm text-foreground leading-relaxed">
-              Para alcançar o <span className="font-semibold">conceito {CONCEITO_META}</span> (meta institucional) faltam{' '}
-              <span className="font-semibold text-primary">{headerSummary.alunosFaltamMeta} alunos proficientes</span>.
-            </p>
-          )}
-
-          {/* Rodapé: 3 KPIs mono */}
-          {footerKpis.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 border-t border-border pt-4">
-              {footerKpis.map((kpi) => (
-                <div key={kpi.label} className="space-y-0.5">
-                  <MetricValue size="lg" className="block leading-none">{kpi.value}</MetricValue>
-                  <p className="text-[11px] text-muted-foreground">{kpi.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground mt-1">de 5 · escala INEP</p>
         </div>
-      </GestorPanel>
-    </motion.div>
+
+        {/* Escala de 5 blocos: atual preenchido, meta (3) tracejada */}
+        <div className="flex items-center gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => {
+            const isActive = nota === n;
+            const isMeta = n === CONCEITO_META;
+            return (
+              <div
+                key={n}
+                className={cn(
+                  'flex h-9 flex-1 items-center justify-center rounded-md border font-mono text-sm font-semibold transition-colors',
+                  isActive
+                    ? BLOCK_COLOR_ACTIVE[n]
+                    : 'border-border text-muted-foreground bg-muted/30',
+                  isMeta && !isActive && 'border-dashed border-foreground/40 text-foreground',
+                )}
+                aria-current={isActive ? 'true' : undefined}
+              >
+                {n}
+              </div>
+            );
+          })}
+        </div>
+
+        {headerSummary.alunosFaltamMeta > 0 && (
+          <p className="text-sm text-foreground leading-relaxed">
+            Para alcançar o <span className="font-semibold">conceito {CONCEITO_META}</span> (meta institucional) faltam{' '}
+            <span className="font-semibold text-primary">{headerSummary.alunosFaltamMeta} alunos proficientes</span>.
+          </p>
+        )}
+
+        {/* Rodapé: 3 KPIs mono */}
+        {footerKpis.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 border-t border-border pt-4">
+            {footerKpis.map((kpi) => (
+              <div key={kpi.label} className="space-y-0.5">
+                <MetricValue size="lg" className="block leading-none">{kpi.value}</MetricValue>
+                <p className="text-[11px] text-muted-foreground">{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

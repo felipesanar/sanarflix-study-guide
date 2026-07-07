@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ListChecks } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { GestorPanel } from '@/experiences/gestor/ui';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,11 @@ interface ReportSectionsBuilderProps {
  * nota muted opcional (ex.: "dado nominal — restrito" em Alunos em risco).
  */
 export const ReportSectionsBuilder: React.FC<ReportSectionsBuilderProps> = ({ sections, onToggle }) => (
-  <GestorPanel title="Montar relatório" subtitle="Selecione as seções · o recorte global é aplicado">
+  <GestorPanel
+    title="Montar relatório"
+    subtitle="Selecione as seções · o recorte global é aplicado"
+    icon={ListChecks}
+  >
     <div className="space-y-1">
       {sections.map((section) => (
         <label

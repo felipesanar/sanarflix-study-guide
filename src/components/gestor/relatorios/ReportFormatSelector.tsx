@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { motion } from 'framer-motion';
 import { FileText, Table2, Link2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -33,11 +34,13 @@ export const ReportFormatSelector: React.FC<ReportFormatSelectorProps> = ({ valu
         const Icon = opt.icon;
         const selected = value === opt.id;
         return (
-          <button
+          <motion.button
             key={opt.id}
             type="button"
             disabled={opt.disabled}
             onClick={() => onChange(opt.id)}
+            whileHover={opt.disabled ? undefined : { scale: 1.01, y: -2 }}
+            whileTap={opt.disabled ? undefined : { scale: 0.98 }}
             className={cn(
               'flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors',
               selected ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'hover:bg-accent/50',
@@ -56,7 +59,7 @@ export const ReportFormatSelector: React.FC<ReportFormatSelectorProps> = ({ valu
               <p className="text-sm font-medium text-foreground">{opt.label}</p>
               <p className="text-[11px] text-muted-foreground">{opt.description}</p>
             </div>
-          </button>
+          </motion.button>
         );
       })}
     </div>

@@ -91,7 +91,7 @@ export const AccuracyEvolutionCard: React.FC<AccuracyEvolutionCardProps> = ({
   const subtitle = `${recorteLabel(drill, temaName)} · últimos simulados`;
 
   return (
-    <GestorPanel title="Evolução de acurácia" subtitle={subtitle}>
+    <GestorPanel title="Evolução de acurácia" subtitle={subtitle} icon={TrendingUp}>
       {!temaName ? (
         <EmptySeries reason="Selecione um tema para ver a série histórica de acurácia deste recorte." />
       ) : loading ? (

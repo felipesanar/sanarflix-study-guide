@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { ListOrdered } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GestorPanel, MetricValue } from '@/experiences/gestor/ui';
 import { PRIORITY_TAG_CONFIG, priorityTagFromAcerto, type TemaPrioridade } from './priorizacao';
@@ -15,6 +16,7 @@ export const FilaIntervencoes: React.FC<FilaIntervencoesProps> = ({ temas }) => 
   <GestorPanel
     title="Fila de intervenções priorizada"
     subtitle="Ordenada por impacto = prevalência no exame × (1 − % de acerto)"
+    icon={ListOrdered}
   >
     <ul className="space-y-2">
       {temas.map((t) => {
@@ -24,7 +26,7 @@ export const FilaIntervencoes: React.FC<FilaIntervencoesProps> = ({ temas }) => 
           <li
             key={t.id}
             className={cn(
-              'flex items-center justify-between gap-3 rounded-lg border border-l-4 bg-card px-3 py-2.5',
+              'flex items-center justify-between gap-3 rounded-lg border border-l-4 bg-card px-3 py-2.5 transition-colors hover:bg-accent/40',
               cfg.borderClassName,
             )}
           >

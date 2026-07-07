@@ -23,6 +23,16 @@ import {
   type DrillRowItem,
 } from './types';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
+};
+
 interface DiagnosticoCurricularViewProps {
   data: InstitutionalViewModel | null;
   loading: boolean;
@@ -145,26 +155,23 @@ export const DiagnosticoCurricularView: React.FC<DiagnosticoCurricularViewProps>
   const recorteAtivo = drill.especialidade?.name ?? drill.area?.name ?? 'todo o exame';
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="show">
       <SectionHeader
         eyebrow="Diagnóstico curricular"
         title="Do exame ao tema: onde a turma erra"
         corner={usingMock ? <GestorDemoBadge /> : undefined}
       />
 
-      <DiagnosticoBreadcrumb
-        drill={drill}
-        simuladoNome={simuladoNome}
-        onGoToAreas={goToAreas}
-        onGoToEspecialidades={goToEspecialidades}
-      />
+      <motion.div variants={itemVariants}>
+        <DiagnosticoBreadcrumb
+          drill={drill}
+          simuladoNome={simuladoNome}
+          onGoToAreas={goToAreas}
+          onGoToEspecialidades={goToEspecialidades}
+        />
+      </motion.div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
         <CurricularDrillList
           title={panelTitle}
           subtitle={panelSubtitle}
@@ -172,15 +179,15 @@ export const DiagnosticoCurricularView: React.FC<DiagnosticoCurricularViewProps>
           onSelectRow={onSelect}
         />
         <AccuracyEvolutionCard drill={drill} temaName={temaName} iesId={iesId} />
-      </div>
+      </motion.div>
 
-      <div className="flex flex-col items-end gap-1">
+      <motion.div variants={itemVariants} className="flex flex-col items-end gap-1">
         <Button onClick={() => navigate('/gestor/intervencao-impacto')} className="gap-2">
           Simular impacto deste recorte
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
         <p className="text-xs text-muted-foreground">Recorte atual: {recorteAtivo}</p>
-      </div>
+      </motion.div>
     </motion.div>
   );
 };

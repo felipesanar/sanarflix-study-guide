@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ArrowRight, Sparkles, Activity } from 'lucide-react';
+import { ArrowRight, TrendingUp, Activity } from 'lucide-react';
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, ReferenceLine, Cell,
@@ -121,13 +121,13 @@ export const EngagementScatterCard: React.FC<EngagementScatterCardProps> = ({
         )}
 
         {casoDeVirada && (
-          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <div className="rounded-2xl border border-emerald-500/15 bg-gradient-to-br from-emerald-500/[0.07] to-emerald-500/[0.02] p-4 sm:p-5">
             <div className="flex items-start gap-2.5">
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+              <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
+                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-primary">Caso de virada</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Caso de virada</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground">
                   <MetricValue size="sm">{Math.round(casoDeVirada.first_score_enamed ?? 0)}</MetricValue>
                   <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />

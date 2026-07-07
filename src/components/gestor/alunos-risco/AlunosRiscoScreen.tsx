@@ -11,6 +11,15 @@ import { EngagementScatterCard } from './EngagementScatterCard';
 import { AlunosRiscoTable } from './AlunosRiscoTable';
 import { useAlunosRisco, type SegmentoAluno } from './useAlunosRisco';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
+};
+
 /**
  * Tela Alunos & Risco (`/gestor/alunos-risco`). Orquestra
  * loading → error → empty → dados sobre `useGestorFilters()` (allStudents +
@@ -64,25 +73,31 @@ export const AlunosRiscoScreen: React.FC = () => {
     body = (
       <motion.div
         className="space-y-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
       >
-        <SegmentCards counts={segmentCounts} active={activeSegment} onSelect={setActiveSegment} />
+        <motion.div variants={itemVariants}>
+          <SegmentCards counts={segmentCounts} active={activeSegment} onSelect={setActiveSegment} />
+        </motion.div>
 
-        <EngagementScatterCard
-          data={scatterData}
-          loading={engagementLoading}
-          hasEngagementSource={hasEngagementData}
-          casoDeVirada={casoDeVirada}
-        />
+        <motion.div variants={itemVariants}>
+          <EngagementScatterCard
+            data={scatterData}
+            loading={engagementLoading}
+            hasEngagementSource={hasEngagementData}
+            casoDeVirada={casoDeVirada}
+          />
+        </motion.div>
 
-        <GestorPanel
-          title="Alunos"
-          subtitle={activeSegment ? 'Filtrado pelo segmento selecionado — clique novamente no card para limpar.' : 'Todos os alunos do recorte ativo'}
-        >
-          <AlunosRiscoTable rows={visibleRows} />
-        </GestorPanel>
+        <motion.div variants={itemVariants}>
+          <GestorPanel
+            title="Alunos"
+            subtitle={activeSegment ? 'Filtrado pelo segmento selecionado — clique novamente no card para limpar.' : 'Todos os alunos do recorte ativo'}
+          >
+            <AlunosRiscoTable rows={visibleRows} />
+          </GestorPanel>
+        </motion.div>
       </motion.div>
     );
   }
