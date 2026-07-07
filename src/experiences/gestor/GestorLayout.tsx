@@ -120,9 +120,13 @@ const GestorLayoutContent: React.FC = () => {
   }, []);
 
   const accessibleIes = user?.accessible_ies ?? [];
-  const isMultiIes = accessibleIes.length > 1;
   const canSeeAllIes = can(access, 'ies.manage');
-  const navItems = filterGestorNav(GESTOR_NAV, access, accessibleIes.length);
+  // Lista de IES selecionáveis no contexto global: o iesList do provider já é
+  // escopado (todas as IES p/ admin com ies.manage, IES do grupo p/
+  // gestor_grupo, a própria p/ gestor) — accessible_ies do user é só fallback.
+  const selectableIes = iesList.length > 0 ? iesList : accessibleIes;
+  const isMultiIes = selectableIes.length > 1;
+  const navItems = filterGestorNav(GESTOR_NAV, access, selectableIes.length);
   const [askQuestion, setAskQuestion] = useState<string | undefined>(undefined);
   const insights = useMemo(
     () => deriveInsights(location.pathname, filteredData, filters, simuladoNome),
@@ -134,7 +138,7 @@ const GestorLayoutContent: React.FC = () => {
   };
 
   const activeIesNome = isMultiIes || canSeeAllIes
-    ? (accessibleIes.find((ies) => ies.id === filters.iesId)?.nome ?? (filters.iesId ? undefined : (canSeeAllIes ? 'Todas as IES' : accessibleIes[0]?.nome)) ?? user?.ies_nome)
+    ? (selectableIes.find((ies) => ies.id === filters.iesId)?.nome ?? (filters.iesId ? undefined : (canSeeAllIes ? 'Todas as IES' : selectableIes[0]?.nome)) ?? user?.ies_nome)
     : user?.ies_nome;
 
   const handleSelectIes = (iesId: string, _iesNome: string) => {
@@ -177,7 +181,7 @@ const GestorLayoutContent: React.FC = () => {
           <div className="px-2 pt-1">
             <SidebarIesContext
               activeIesNome={activeIesNome}
-              accessibleIes={accessibleIes}
+              accessibleIes={selectableIes}
               canSeeAllIes={canSeeAllIes}
               activeIesId={filters.iesId}
               onSelectIes={handleSelectIes}
