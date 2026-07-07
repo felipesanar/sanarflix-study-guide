@@ -2054,6 +2054,7 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
       get_all_user_performance_by_area: {
         Args: never
