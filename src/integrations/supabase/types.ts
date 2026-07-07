@@ -1978,6 +1978,22 @@ export type Database = {
     }
     Functions: {
       add_to_notebook_bulk_guarded: { Args: { p_entries: Json }; Returns: Json }
+      admin_anular_questao: {
+        Args: { p_motivo?: string; p_questao_id: string }
+        Returns: Json
+      }
+      admin_command_center: { Args: never; Returns: Json }
+      admin_get_audit_log: {
+        Args: {
+          p_action?: string
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_to?: string
+        }
+        Returns: Json
+      }
       admin_get_batch_records: {
         Args: { p_batch_id: string }
         Returns: {
@@ -2011,6 +2027,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_liberar_tentativa: {
+        Args: { p_finalizacao_id: string; p_motivo?: string }
+        Returns: Json
+      }
       admin_list_import_batches: {
         Args: { p_limit?: number }
         Returns: {
@@ -2031,6 +2051,10 @@ export type Database = {
           total_rows: number
         }[]
       }
+      admin_log_action: {
+        Args: { p_action: string; p_metadata?: Json; p_target_user_id?: string }
+        Returns: string
+      }
       admin_lookup_users_by_email_in_ies: {
         Args: { p_emails: string[]; p_ies_ids: string[] }
         Returns: {
@@ -2039,6 +2063,15 @@ export type Database = {
           semestre: number
           user_id: string
         }[]
+      }
+      admin_monitor_summary: { Args: never; Returns: Json }
+      admin_question_error_rates: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
+      admin_set_ies_features: {
+        Args: { p_changes: Json; p_ies_id: string }
+        Returns: Json
       }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }
