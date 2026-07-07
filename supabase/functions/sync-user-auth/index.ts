@@ -145,6 +145,8 @@ serve(async (req) => {
         });
       }
 
+      await auditSync(existingAuthUser.id, 'updated_id');
+
       return new Response(JSON.stringify({ 
         success: true,
         message: 'IDs sincronizados. Usuário já possui senha configurada no auth.',
