@@ -233,6 +233,8 @@ serve(async (req) => {
 
     console.log('[sync-user-auth] Successfully synced user!');
 
+    await auditSync(newAuthUser.user.id, 'created_auth');
+
     return new Response(JSON.stringify({ 
       success: true,
       message: 'Usuário sincronizado com sucesso! Email de acesso enviado.',
