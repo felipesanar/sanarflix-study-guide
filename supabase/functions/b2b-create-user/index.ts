@@ -546,6 +546,12 @@ Deno.serve(async (req) => {
             // Send welcome email (awaited for accurate status)
             const emailOk = await sendWelcomeEmail(supabaseAdmin, foundId, nome, email).catch(() => false);
             console.log(`[CreateUser] User recovered successfully. ID: ${foundId}`);
+            const _rolesGrantedRec: string[] = [];
+            if (id_ies === B2B_IES_ID) _rolesGrantedRec.push('admin');
+            if (role && role !== 'aluno') _rolesGrantedRec.push(role);
+            await auditUserWrite(supabaseAdmin, 'user_update', callerUserId, foundId, {
+              email, id_ies, roles_granted: _rolesGrantedRec, recovered: true, ip: getClientIp(req),
+            });
             return successResponse('updated', foundId, email, 'Usuário recuperado e sincronizado com sucesso', { emailSent: emailOk });
           } catch (recoveryErr) {
             console.error('[CreateUser] Recovery failed:', recoveryErr);
