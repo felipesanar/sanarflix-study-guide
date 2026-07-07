@@ -91,6 +91,7 @@ async function auditUserWrite(
   } catch (e) {
     console.warn('[b2b-create-user] audit log exception:', (e as Error).message);
   }
+}
 
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
