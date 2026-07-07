@@ -13,7 +13,8 @@ import {
   resolveIesId,
 } from '@/services/institutional';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin, isGestor, isGestorGrupo } from '@/utils/accessRules';
+import { isGestor, isGestorGrupo } from '@/utils/accessRules';
+import { can } from '@/experiences/access';
 import { resolveActiveBase } from '@/utils/activeBase';
 import type {
   DesempenhoV2Filters,
@@ -150,7 +151,7 @@ function getMockViewModel(): InstitutionalViewModel {
 export function useInstitutionalPerformanceData(
   filters: DesempenhoV2Filters,
 ): UseInstitutionalPerformanceResult {
-  const { user } = useAuth();
+  const { user, access } = useAuth();
   const [data, setData] = useState<InstitutionalViewModel | null>(null);
   const [simulados, setSimulados] = useState<SimuladoOption[]>([]);
   const [iesList, setIesList] = useState<IesOption[]>([]);
@@ -158,10 +159,12 @@ export function useInstitutionalPerformanceData(
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
 
-  // Determina se o usuário pode ver todas as IES (apenas admin).
+  // Determina se o usuário pode ver todas as IES (capability de gestão de IES).
   // Gestores (gestor) e demais perfis ficam restritos à própria IES,
-  // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele.
-  const canSeeAllIes = isAdmin(user);
+  // EXCETO gestor_grupo, que pode acessar as IES vinculadas ao(s) grupo(s) dele
+  // (escopo de dados espelhado no backend por get_accessible_ies — não é gate
+  // de privilégio, por isso segue derivado da role).
+  const canSeeAllIes = can(access, 'ies.manage');
   const isGroupManager = isGestorGrupo(user);
   const accessibleIes = user?.accessible_ies ?? [];
 

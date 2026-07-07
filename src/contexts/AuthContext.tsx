@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import Logger from '@/utils/logger';
 import { validateUser } from '@/utils/validation';
 import { useTabSync } from '@/hooks/useTabSync';
+import { Access, EMPTY_ACCESS, can, deriveAccessFromRoles } from '@/experiences/access';
+import { authService } from '@/services/authService';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -16,9 +18,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [needsPasswordChange, setNeedsPasswordChange] = useState(false);
   const lastRefreshRef = useRef<number>(0);
 
+  // Access (experiências + capabilities) do usuário REAL (não impersonado).
+  // EMPTY_ACCESS é neutro (só experiência 'aluno', sem capabilities) — nunca
+  // undefined, mesmo antes do primeiro refreshUserProfile completar.
+  const [realAccess, setRealAccess] = useState<Access>(EMPTY_ACCESS);
+
   // Impersonation state
   const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
   const [realAdminUser, setRealAdminUser] = useState<User | null>(null);
+  const [impersonatedAccess, setImpersonatedAccess] = useState<Access | null>(null);
+  // Ref (não state) para refreshUserProfile checar impersonação sem precisar
+  // depender de impersonatedUser e recriar seu useCallback a cada troca.
+  // Durante impersonação, `user` state passa a apontar para o usuário
+  // impersonado (comportamento pré-existente) — sem essa guarda, um refresh
+  // em background (ex.: visibilitychange) sobrescreveria realAccess com o
+  // access do impersonado.
+  const isImpersonatingRef = useRef(false);
 
   /**
    * Fetches fresh user profile from public.users + ies + roles,
@@ -45,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastRefreshRef.current = now;
 
     try {
-      const [profileResult, rolesResult, accessibleIdsResult, groupsResult] = await Promise.all([
+      const [profileResult, rolesResult, accessibleIdsResult, groupsResult, accessResult] = await Promise.all([
         supabase
           .from('users')
           .select('id, email, nome, id_ies, semestre, ies:id_ies(nome)')
@@ -60,6 +75,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // pivô é educational_groups, que tem FK real para group_ies e para ies.
           .select('group_id, educational_groups:group_id (id, name, group_ies (ies:ies_id (id, nome)))')
           .eq('user_id', userId),
+        // get_access ainda pode não existir no banco/types — validamos com
+        // fetchAccessPayload e resolvemos o fallback abaixo já com as roles
+        // corretas (get_user_roles roda em paralelo, então não está pronto aqui).
+        authService.fetchAccessPayload(),
       ]);
 
       if (profileResult.error) {
@@ -75,6 +94,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const row = profileResult.data as any;
       const iesNome = row.ies?.nome ?? '';
       const roles = rolesResult.data ?? [];
+      // accessResult é null se a RPC get_access falhou/não existe/payload inválido —
+      // nesse caso caímos no espelho client-side com as roles reais (já disponíveis).
+      const access = accessResult ?? deriveAccessFromRoles(roles);
 
       const accessibleIds = (accessibleIdsResult.data as string[] | null) ?? [];
       let accessibleIes: { id: string; nome: string }[] = [];
@@ -109,6 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       setUser(updated);
+      if (!isImpersonatingRef.current) {
+        setRealAccess(access);
+      }
       // Trade-off documentado (auditoria 🟡 MED — PII em localStorage):
       // O perfil completo é persistido para hidratação rápida em reloads,
       // evitando flash de "loading" enquanto refreshUserProfile completa
@@ -131,10 +156,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleTabSync = useCallback((message: { type: string; data?: any }) => {
     if (message.type === 'LOGOUT') {
       setUser(null);
+      setRealAccess(EMPTY_ACCESS);
       setNeedsPasswordChange(false);
       localStorage.removeItem('sanarflix-user');
     } else if (message.type === 'LOGIN' && message.data) {
       setUser(message.data);
+      setRealAccess(deriveAccessFromRoles(message.data.roles));
       setNeedsPasswordChange(false);
     }
   }, []);
@@ -154,6 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (validation.success) {
               setUser(parsed);
+              setRealAccess(deriveAccessFromRoles(parsed.roles));
               setNeedsPasswordChange(false);
               // Refresh profile in background to get fresh data
               refreshUserProfile(parsed.id);
@@ -170,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (event === 'SIGNED_OUT') {
         setUser(null);
+        setRealAccess(EMPTY_ACCESS);
         setNeedsPasswordChange(false);
         localStorage.removeItem('sanarflix-user');
       }
@@ -184,6 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const parsed = JSON.parse(storedUser);
             setUser(parsed);
+            setRealAccess(deriveAccessFromRoles(parsed.roles));
             setNeedsPasswordChange(false);
             // Refresh profile in background to get fresh data
             refreshUserProfile(parsed.id);
@@ -320,6 +350,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const userData = data.user;
+      let loginAccess: Access = EMPTY_ACCESS;
 
       if (data.session?.access_token && data.session?.refresh_token) {
         try {
@@ -327,29 +358,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             access_token: data.session.access_token,
             refresh_token: data.session.refresh_token,
           });
-          
+
           try {
-            const { data: rolesData } = await supabase.rpc('get_user_roles', { 
-              _user_id: userData.id 
-            });
-            
+            // get_user_roles e get_access (RPC nova, fonte da verdade de
+            // experiências+capabilities) em paralelo — mesmo padrão do
+            // refreshUserProfile. get_access pode ainda não existir; nesse
+            // caso fetchAccessPayload retorna null e caímos no fallback
+            // client-side com as roles reais logo abaixo.
+            const [rolesResp, accessPayload] = await Promise.all([
+              supabase.rpc('get_user_roles', { _user_id: userData.id }),
+              authService.fetchAccessPayload(),
+            ]);
+
+            const rolesData = rolesResp.data;
             if (rolesData) {
               userData.roles = rolesData;
             }
+            loginAccess = accessPayload ?? deriveAccessFromRoles(userData.roles);
           } catch (roleError) {
             Logger.warn('Failed to fetch user roles', roleError);
             userData.roles = [];
+            loginAccess = EMPTY_ACCESS;
           }
         } catch (e) {
           userData.roles = [];
+          loginAccess = EMPTY_ACCESS;
         }
       } else {
         userData.roles = [];
+        loginAccess = EMPTY_ACCESS;
       }
 
       setUser(userData);
+      setRealAccess(loginAccess);
       setNeedsPasswordChange(data.needsPasswordChange || false);
-      
+
       localStorage.setItem('sanarflix-user', JSON.stringify(userData));
       Logger.info('[Auth] role from DB:', userData.roles);
       Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
@@ -474,10 +517,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     setUser(null);
+    setRealAccess(EMPTY_ACCESS);
     setNeedsPasswordChange(false);
     localStorage.removeItem('sanarflix-user');
     localStorage.removeItem('study-progress');
-    
+
     toast({
       title: "Logout realizado",
       description: "Até logo!",
@@ -493,7 +537,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user?.id, refreshUserProfile]);
 
   const startImpersonation = useCallback(async (userId: string) => {
-    if (!user?.roles?.includes('admin')) {
+    // Checagem de permissão usa SEMPRE o access do usuário REAL (realAccess),
+    // nunca o access impersonado — mesmo que uma impersonação já esteja ativa,
+    // a capability de impersonar é decidida por quem está de fato logado.
+    if (!can(realAccess, 'impersonate')) {
       toast({ title: 'Sem permissão', description: 'Apenas admins podem usar este recurso', variant: 'destructive' });
       return;
     }
@@ -502,33 +549,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: { userId, section: 'impersonate' },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
-      
+
       setRealAdminUser(user);
       setImpersonatedUser(data as User);
       setUser(data as User);
-      
+      setImpersonatedAccess(deriveAccessFromRoles((data as User).roles));
+      isImpersonatingRef.current = true;
+
       toast({ title: 'Impersonação ativa', description: `Visualizando como ${data.nome}` });
     } catch (err) {
       toast({ title: 'Erro ao impersonar', description: err instanceof Error ? err.message : 'Erro desconhecido', variant: 'destructive' });
     }
-  }, [user]);
+  }, [user, realAccess]);
 
   const stopImpersonation = useCallback(() => {
     if (realAdminUser) {
       setUser(realAdminUser);
       setImpersonatedUser(null);
       setRealAdminUser(null);
+      setImpersonatedAccess(null);
+      isImpersonatingRef.current = false;
       toast({ title: 'Impersonação encerrada', description: 'Você voltou à sua conta admin' });
     }
   }, [realAdminUser]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user: impersonatedUser || user, 
-      login, 
-      logout, 
-      isLoading, 
-      needsPasswordChange, 
+    <AuthContext.Provider value={{
+      user: impersonatedUser || user,
+      access: impersonatedAccess ?? realAccess,
+      login,
+      logout,
+      isLoading,
+      needsPasswordChange,
       changePassword,
       forceRefreshProfile,
       impersonatedUser,

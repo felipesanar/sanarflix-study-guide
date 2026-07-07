@@ -1,3 +1,4 @@
+import type { Access } from '@/experiences/access';
 
 export interface AccessibleIes {
   id: string;
@@ -66,6 +67,12 @@ export interface Progress {
 
 export interface AuthContextType {
   user: User | null;
+  /**
+   * Acesso por experiências + capabilities do usuário atualmente exposto
+   * (segue impersonation quando ativa). Nunca undefined com user logado;
+   * ver src/experiences/access.ts (EMPTY_ACCESS como fallback neutro).
+   */
+  access: Access;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;

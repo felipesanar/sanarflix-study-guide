@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin } from '@/utils/accessRules';
+import { can } from '@/experiences/access';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { BulkEmailUpdateTab } from '@/components/admin/BulkEmailUpdateTab';
 
@@ -8,14 +8,15 @@ import { BulkEmailUpdateTab } from '@/components/admin/BulkEmailUpdateTab';
  * Seção Usuários do Portal do Admin (`/admin/usuarios`).
  *
  * Página fina: reusa `UsersTab`; a atualização de e-mails em massa
- * (`BulkEmailUpdateTab`) fica restrita ao admin (Atendimento não a vê).
+ * (`BulkEmailUpdateTab`) fica restrita a quem tem `users.manage`
+ * (Atendimento, sem essa capability, não a vê).
  */
 const UsuariosPage: React.FC = () => {
-  const { user } = useAuth();
+  const { access } = useAuth();
   return (
     <div className="space-y-8">
       <UsersTab />
-      {isAdmin(user) && <BulkEmailUpdateTab />}
+      {can(access, 'users.manage') && <BulkEmailUpdateTab />}
     </div>
   );
 };

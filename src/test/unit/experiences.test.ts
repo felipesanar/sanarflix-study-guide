@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getExperience,
-  getDefaultRouteForUser,
-  EXPERIENCE_ENTRYPOINTS,
-  canAccessExperience,
-} from '@/utils/experiences';
+import { getDefaultRouteForUser, EXPERIENCE_ENTRYPOINTS } from '@/utils/experiences';
+import { deriveAccessFromRoles, hasExperience } from '@/experiences/access';
 import { getAccessRules } from '@/utils/accessRules';
 import { AccessRules, User } from '@/types';
 
@@ -21,98 +17,125 @@ const makeUser = (roles: string[]): User => ({
 /** AccessRules base de aluno (apenas simulados liberado, como DEFAULT_RULES). */
 const alunoRules: AccessRules = getAccessRules(makeUser([]));
 
-describe('utils/experiences — getExperience', () => {
-  it('roteia admin para a experiência admin', () => {
-    expect(getExperience(makeUser(['admin']))).toBe('admin');
+describe('experiences/access — deriveAccessFromRoles (experiências por role)', () => {
+  it('admin ganha as experiências admin + gestao', () => {
+    const access = deriveAccessFromRoles(['admin']);
+    expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'admin', 'gestao']));
   });
 
-  it('roteia atendimento para a experiência atendimento', () => {
-    expect(getExperience(makeUser(['atendimento']))).toBe('atendimento');
+  it('atendimento ganha a experiência atendimento', () => {
+    const access = deriveAccessFromRoles(['atendimento']);
+    expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'atendimento']));
+    expect(access.experiences).not.toContain('admin');
   });
 
-  it('roteia gestor para a experiência de gestão', () => {
-    expect(getExperience(makeUser(['gestor']))).toBe('gestao');
-  });
-
-  it('roteia gestor_grupo para a experiência de gestão', () => {
-    expect(getExperience(makeUser(['gestor_grupo']))).toBe('gestao');
-  });
-
-  it('roteia professor para a experiência aluno+professor', () => {
-    expect(getExperience(makeUser(['professor']))).toBe('aluno_professor');
-  });
-
-  it('fallback: usuário sem roles cai em aluno+professor', () => {
-    expect(getExperience(makeUser([]))).toBe('aluno_professor');
-    expect(getExperience(makeUser(undefined as unknown as string[]))).toBe(
-      'aluno_professor',
+  it('gestor e gestor_grupo ganham a experiência gestao', () => {
+    expect(deriveAccessFromRoles(['gestor']).experiences).toEqual(
+      expect.arrayContaining(['aluno', 'gestao']),
+    );
+    expect(deriveAccessFromRoles(['gestor_grupo']).experiences).toEqual(
+      expect.arrayContaining(['aluno', 'gestao']),
     );
   });
 
-  it('fallback: usuário nulo cai em aluno+professor', () => {
-    expect(getExperience(null)).toBe('aluno_professor');
+  it('professor não ganha experiência extra (usa a base aluno)', () => {
+    expect(deriveAccessFromRoles(['professor']).experiences).toEqual(['aluno']);
   });
 
-  describe('precedência com múltiplas roles', () => {
-    it('admin vence todas as demais', () => {
-      expect(getExperience(makeUser(['professor', 'gestor', 'admin']))).toBe(
-        'admin',
-      );
-      expect(getExperience(makeUser(['atendimento', 'admin']))).toBe('admin');
-    });
+  it('fallback: sem roles (ou roles undefined/null) só tem a experiência aluno', () => {
+    expect(deriveAccessFromRoles([]).experiences).toEqual(['aluno']);
+    expect(deriveAccessFromRoles(undefined).experiences).toEqual(['aluno']);
+    expect(deriveAccessFromRoles(null).experiences).toEqual(['aluno']);
+  });
 
-    it('atendimento vence gestão e aluno/professor', () => {
-      expect(getExperience(makeUser(['gestor', 'atendimento']))).toBe(
-        'atendimento',
-      );
-      expect(getExperience(makeUser(['professor', 'atendimento']))).toBe(
-        'atendimento',
-      );
-    });
+  it('múltiplas roles são aditivas', () => {
+    const access = deriveAccessFromRoles(['professor', 'gestor', 'admin']);
+    expect(access.experiences).toEqual(
+      expect.arrayContaining(['aluno', 'admin', 'gestao']),
+    );
+  });
+});
 
-    it('gestão vence professor/aluno', () => {
-      expect(getExperience(makeUser(['professor', 'gestor']))).toBe('gestao');
-      expect(getExperience(makeUser(['gestor_grupo', 'professor']))).toBe(
-        'gestao',
-      );
-    });
+describe('experiences/access — hasExperience', () => {
+  it('aluno é sempre true, mesmo com access nulo/indefinido', () => {
+    expect(hasExperience(null, 'aluno')).toBe(true);
+    expect(hasExperience(undefined, 'aluno')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles([]), 'aluno')).toBe(true);
+  });
+
+  it('admin só para quem tem a experiência admin', () => {
+    expect(hasExperience(deriveAccessFromRoles(['admin']), 'admin')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles(['gestor']), 'admin')).toBe(false);
+    expect(hasExperience(deriveAccessFromRoles([]), 'admin')).toBe(false);
+  });
+
+  it('gestao cobre gestor, gestor_grupo e admin (super usuário)', () => {
+    expect(hasExperience(deriveAccessFromRoles(['gestor']), 'gestao')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles(['gestor_grupo']), 'gestao')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles(['admin']), 'gestao')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles(['atendimento']), 'gestao')).toBe(false);
+    expect(hasExperience(deriveAccessFromRoles([]), 'gestao')).toBe(false);
+  });
+
+  it('atendimento só para quem tem a experiência atendimento', () => {
+    expect(hasExperience(deriveAccessFromRoles(['atendimento']), 'atendimento')).toBe(true);
+    expect(hasExperience(deriveAccessFromRoles(['admin']), 'atendimento')).toBe(false);
   });
 });
 
 describe('utils/experiences — getDefaultRouteForUser', () => {
   it('admin entra na experiência admin (/admin/usuarios)', () => {
     const user = makeUser(['admin']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
+    const access = deriveAccessFromRoles(user.roles);
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       EXPERIENCE_ENTRYPOINTS.admin,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       '/admin/usuarios',
     );
   });
 
   it('atendimento entra na experiência de atendimento (/atendimento/usuarios)', () => {
     const user = makeUser(['atendimento']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
+    const access = deriveAccessFromRoles(user.roles);
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       EXPERIENCE_ENTRYPOINTS.atendimento,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       '/atendimento/usuarios',
     );
   });
 
   it('gestão entra na experiência do gestor (/gestor)', () => {
     const user = makeUser(['gestor']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe(
+    const access = deriveAccessFromRoles(user.roles);
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
       EXPERIENCE_ENTRYPOINTS.gestao,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe('/gestor');
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe('/gestor');
+
     const grupo = makeUser(['gestor_grupo']);
-    expect(getDefaultRouteForUser(grupo, getAccessRules(grupo))).toBe('/gestor');
+    const grupoAccess = deriveAccessFromRoles(grupo.roles);
+    expect(getDefaultRouteForUser(grupo, getAccessRules(grupo), grupoAccess)).toBe('/gestor');
   });
 
   it('professor entra na raiz (home na nova rota /)', () => {
     const user = makeUser(['professor']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user))).toBe('/');
+    const access = deriveAccessFromRoles(user.roles);
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe('/');
+  });
+
+  it('admin com múltiplas experiências segue a precedência admin > atendimento > gestao', () => {
+    const user = makeUser(['admin']);
+    // access sintético só para testar a precedência isoladamente.
+    const access = deriveAccessFromRoles(['admin', 'atendimento', 'gestor']);
+    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
+      '/admin/usuarios',
+    );
+  });
+
+  it('sem access explícito (undefined), cai no comportamento de aluno (compat)', () => {
+    expect(getDefaultRouteForUser(makeUser([]), alunoRules)).toBe('/simulados');
   });
 
   it('o entrypoint de cada experiência é sempre uma tela liberada (sem loop de redirect)', () => {
@@ -126,16 +149,18 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
     expect(getAccessRules(gestor).desempenhoInstitucional).toBe(true);
   });
 
-  describe('aluno + professor: home dinâmica por telas liberadas', () => {
+  describe('aluno: home dinâmica por telas liberadas', () => {
+    const alunoAccess = deriveAccessFromRoles([]);
+
     it('cai em /simulados quando só simulados está liberado (DEFAULT)', () => {
-      expect(getDefaultRouteForUser(makeUser([]), alunoRules)).toBe(
+      expect(getDefaultRouteForUser(makeUser([]), alunoRules, alunoAccess)).toBe(
         '/simulados',
       );
     });
 
     it('prioriza a raiz (/) quando a IES libera a home', () => {
       const rules: AccessRules = { ...alunoRules, home: true };
-      expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/');
+      expect(getDefaultRouteForUser(makeUser([]), rules, alunoAccess)).toBe('/');
     });
 
     it('cai em /guia-estudos quando home e simulados estão bloqueados', () => {
@@ -145,34 +170,9 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
         simulados: false,
         studyGuide: true,
       };
-      expect(getDefaultRouteForUser(makeUser([]), rules)).toBe('/guia-estudos');
+      expect(getDefaultRouteForUser(makeUser([]), rules, alunoAccess)).toBe(
+        '/guia-estudos',
+      );
     });
-  });
-});
-
-describe('utils/experiences — canAccessExperience (autorização por role)', () => {
-  it('a base (aluno_professor) é acessível a todos, inclusive nulo', () => {
-    expect(canAccessExperience(null, 'aluno_professor')).toBe(true);
-    expect(canAccessExperience(makeUser([]), 'aluno_professor')).toBe(true);
-    expect(canAccessExperience(makeUser(['admin']), 'aluno_professor')).toBe(true);
-  });
-
-  it('admin só para quem tem a role admin', () => {
-    expect(canAccessExperience(makeUser(['admin']), 'admin')).toBe(true);
-    expect(canAccessExperience(makeUser(['gestor']), 'admin')).toBe(false);
-    expect(canAccessExperience(makeUser([]), 'admin')).toBe(false);
-  });
-
-  it('gestao cobre gestor, gestor_grupo e admin (super usuário)', () => {
-    expect(canAccessExperience(makeUser(['gestor']), 'gestao')).toBe(true);
-    expect(canAccessExperience(makeUser(['gestor_grupo']), 'gestao')).toBe(true);
-    expect(canAccessExperience(makeUser(['admin']), 'gestao')).toBe(true);
-    expect(canAccessExperience(makeUser(['atendimento']), 'gestao')).toBe(false);
-    expect(canAccessExperience(makeUser([]), 'gestao')).toBe(false);
-  });
-
-  it('atendimento só para quem tem a role atendimento', () => {
-    expect(canAccessExperience(makeUser(['atendimento']), 'atendimento')).toBe(true);
-    expect(canAccessExperience(makeUser(['admin']), 'atendimento')).toBe(false);
   });
 });
