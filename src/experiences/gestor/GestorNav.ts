@@ -1,37 +1,60 @@
-import type { NavItem } from '@/experiences/types';
+import {
+  LayoutDashboard,
+  BookOpenCheck,
+  Users,
+  Target,
+  ClipboardList,
+  GitCompareArrows,
+  Download,
+  type LucideIcon,
+} from 'lucide-react';
 import { can, type Access } from '@/experiences/access';
-import type { DesempenhoV2Tab } from '@/types/desempenhoV2';
+import type { Capability } from '@/experiences/access';
 
 /**
- * Item da sub-navegação da experiência Gestão, ligando a URL `/gestor/*` ao
- * módulo correspondente do Desempenho Institucional (v2).
+ * Item de navegação da sidebar do console de Gestão (`/gestor/*`).
+ *
+ * Independente de {@link NavItem} (aluno/admin) porque o badge aqui é um
+ * rótulo textual (ex.: "novo"), não um contador numérico.
  */
-export interface GestorNavItem extends NavItem {
-  /** Módulo do Desempenho Institucional renderizado nesta rota. */
-  tab: DesempenhoV2Tab;
+export interface GestorNavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  /** Capability que controla a visibilidade do item. Sempre visível quando omitida. */
+  capability?: Capability;
+  /** Quando `true`, só aparece para usuários com mais de 1 IES acessível (gestor de grupo). */
+  groupOnly?: boolean;
+  /** Rótulo curto de destaque (ex.: "novo"). */
+  badge?: string;
 }
 
 /**
- * Sub-navegação canônica da experiência Gestão (`/gestor/*`).
+ * Navegação canônica do console de Gestão — 7 itens fixos da sidebar.
  *
- * Cada módulo do Desempenho Institucional v2 — hoje uma aba por estado
- * (`PerformanceModuleTabs`) — passa a ter URL própria. A `tab` mantém o vínculo
- * com {@link DesempenhoV2Tab} para o conteúdo (ModuleContentRenderer) e os
- * drawers (Export/IA) saberem o módulo ativo a partir da rota.
+ * Ver contrato: `.superpowers/gestor-design/PLANO-IMPLEMENTACAO.md`.
  */
 export const GESTOR_NAV: GestorNavItem[] = [
-  { title: 'Visão Institucional', url: '/gestor/visao-institucional', tab: 'visao-institucional', capability: 'institutional.view' },
-  { title: 'Diagnóstico Curricular', url: '/gestor/diagnostico-curricular', tab: 'diagnostico-curricular', capability: 'institutional.view' },
-  { title: 'Visão de Alunos', url: '/gestor/alunos', tab: 'visao-alunos', capability: 'alunos.view' },
-  { title: 'Insights Pedagógicos', url: '/gestor/insights-pedagogicos', tab: 'insights-pedagogicos', capability: 'institutional.view' },
-  { title: 'Inteligência Decisória', url: '/gestor/inteligencia-decisoria', tab: 'inteligencia-decisoria', capability: 'institutional.view' },
+  { path: '/gestor/panorama', label: 'Panorama', icon: LayoutDashboard, capability: 'institutional.view' },
+  { path: '/gestor/diagnostico-curricular', label: 'Diagnóstico curricular', icon: BookOpenCheck, capability: 'institutional.view' },
+  { path: '/gestor/alunos-risco', label: 'Alunos & risco', icon: Users, capability: 'alunos.view' },
+  { path: '/gestor/intervencao-impacto', label: 'Intervenção & impacto', icon: Target, capability: 'institutional.view' },
+  { path: '/gestor/simulados-questoes', label: 'Simulados & questões', icon: ClipboardList, capability: 'institutional.view', badge: 'novo' },
+  { path: '/gestor/comparar-ies', label: 'Comparar IES', icon: GitCompareArrows, capability: 'institutional.view', groupOnly: true },
+  { path: '/gestor/relatorios', label: 'Relatórios', icon: Download, capability: 'institutional.view' },
 ];
 
-/** Sub-navegação filtrada pelas capabilities do `access` do usuário. */
-export const filterGestorNav = (items: GestorNavItem[], access: Access): GestorNavItem[] =>
-  items.filter((item) => item.capability == null || can(access, item.capability));
-
-/** Módulo (tab) correspondente a um pathname `/gestor/*` (fallback: visão institucional). */
-export const tabForPath = (pathname: string): DesempenhoV2Tab =>
-  GESTOR_NAV.find((item) => pathname.startsWith(item.url))?.tab ??
-  'visao-institucional';
+/**
+ * Navegação filtrada pelas capabilities do `access` do usuário e pelo escopo
+ * multi-IES (`groupOnly`). Nunca checa role literal — só `can(access, cap)`.
+ */
+export const filterGestorNav = (
+  items: GestorNavItem[],
+  access: Access,
+  accessibleIesCount: number,
+): GestorNavItem[] =>
+  items.filter((item) => {
+    if (item.capability != null && !can(access, item.capability)) return false;
+    if (item.groupOnly && accessibleIesCount <= 1) return false;
+    return true;
+  });

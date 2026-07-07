@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   FileDown, FileText, Table2, CheckCircle2, Loader2,
   Filter, BarChart3, Users, Target, Sparkles, AlertTriangle,
@@ -34,6 +34,17 @@ interface ExportReportDrawerProps {
   data: InstitutionalViewModel | null;
   filters: DesempenhoV2Filters;
   simuladoNome?: string;
+  /**
+   * Módulos pré-selecionados ao abrir o drawer (ex.: vindos do "Montar
+   * relatório" da tela Relatórios). Aplicado como reset do estado interno a
+   * cada abertura (`open` passa a `true`) — sem esta prop, mantém o
+   * comportamento atual (default `['visao-institucional']`).
+   */
+  initialModules?: ExportModule[];
+  /** Formato pré-selecionado ao abrir o drawer. Sem esta prop, mantém o default `'pdf'`. */
+  initialFormat?: ExportFormat;
+  /** Quando `true`, foca o botão "Gerar Relatório" assim que o drawer abre, reduzindo o fluxo a 1 clique adicional. */
+  autoFocusGenerate?: boolean;
 }
 
 function triggerDownload(blob: Blob, filename: string) {
@@ -49,11 +60,33 @@ function triggerDownload(blob: Blob, filename: string) {
 
 export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
   open, onClose, data, filters, simuladoNome,
+  initialModules, initialFormat, autoFocusGenerate,
 }) => {
-  const [fmt, setFmt] = useState<ExportFormat>('pdf');
-  const [selectedModules, setSelectedModules] = useState<ExportModule[]>(['visao-institucional']);
+  const [fmt, setFmt] = useState<ExportFormat>(initialFormat ?? 'pdf');
+  const [selectedModules, setSelectedModules] = useState<ExportModule[]>(
+    initialModules ?? ['visao-institucional']
+  );
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const generateButtonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Reinicializa o estado interno a cada abertura com os valores recebidos
+  // (ex.: seções/formato escolhidos na tela Relatórios). Sem `initialModules`/
+  // `initialFormat`, cai no comportamento padrão de sempre.
+  useEffect(() => {
+    if (!open) return;
+    setFmt(initialFormat ?? 'pdf');
+    setSelectedModules(initialModules ?? ['visao-institucional']);
+    setGenerated(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (open && autoFocusGenerate) {
+      const id = requestAnimationFrame(() => generateButtonRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open, autoFocusGenerate]);
 
   const toggleModule = useCallback((mod: ExportModule) => {
     setSelectedModules(prev =>
@@ -228,6 +261,7 @@ export const ExportReportDrawer: React.FC<ExportReportDrawerProps> = ({
               </Card>
             ) : (
               <Button
+                ref={generateButtonRef}
                 className="w-full gap-2"
                 disabled={selectedModules.length === 0 || generating || !data}
                 onClick={handleGenerate}

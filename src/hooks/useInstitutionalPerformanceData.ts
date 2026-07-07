@@ -36,7 +36,17 @@ interface UseInstitutionalPerformanceResult {
   data: InstitutionalViewModel | null;
   simulados: SimuladoOption[];
   iesList: IesOption[];
+  /** True somente na primeira carga (ainda sem dado nenhum para exibir). */
   loading: boolean;
+  /** True quando há um fetch em andamento MAS já existe `data` anterior — refetch em segundo plano, sem derrubar a tela. */
+  isRefreshing: boolean;
+  /**
+   * True enquanto a lista de simulados da IES ativa ainda está sendo buscada
+   * — independente do fetch de performance (que só começa depois que um
+   * simulado é selecionado). Consumido pelo GestorFiltersProvider para saber
+   * quando é seguro decidir "sem simulados" vs. "ainda carregando".
+   */
+  simuladosLoading: boolean;
   error: string | null;
   usingMock: boolean;
   refetch: () => void;
@@ -155,9 +165,21 @@ export function useInstitutionalPerformanceData(
   const [data, setData] = useState<InstitutionalViewModel | null>(null);
   const [simulados, setSimulados] = useState<SimuladoOption[]>([]);
   const [iesList, setIesList] = useState<IesOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Estado interno "cru" — true sempre que há um fetch em andamento, mesmo em
+  // refetch com dado presente. `loading`/`isRefreshing` (expostos) derivam
+  // deste + `data`, para implementar keepPreviousData: nunca zeramos `data`
+  // ao iniciar um novo fetch, então a tela pode continuar mostrando o
+  // conteúdo anterior enquanto o novo chega (ver `isRefreshing` abaixo).
+  const [isFetching, setIsFetching] = useState(true);
+  const [simuladosLoading, setSimuladosLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
+
+  // "loading" (primeira carga, sem dado nenhum pra mostrar) vs "isRefreshing"
+  // (já há dado, só está atualizando em segundo plano) — páginas continuam
+  // renderizando os dados antigos durante o refresh em vez de trocar para skeleton.
+  const loading = isFetching && data === null;
+  const isRefreshing = isFetching && data !== null;
 
   // Determina se o usuário pode ver todas as IES (capability de gestão de IES).
   // Gestores (gestor) e demais perfis ficam restritos à própria IES,
@@ -214,12 +236,14 @@ export function useInstitutionalPerformanceData(
   useEffect(() => {
     const fetchSimulados = async () => {
       Logger.info('[DesempenhoInstitucional]', 'Fetching simulados');
+      setSimuladosLoading(true);
       const { data: session } = await supabase.auth.getSession();
       if (!session?.session) {
         Logger.info('[DesempenhoInstitucional]', 'No session, using mock');
         setUsingMock(true);
         setData(getMockViewModel());
-        setLoading(false);
+        setIsFetching(false);
+        setSimuladosLoading(false);
         return;
       }
 
@@ -238,7 +262,8 @@ export function useInstitutionalPerformanceData(
           Logger.warn('[DesempenhoInstitucional]', 'Simulados fetch failed:', simErr.message);
           setSimulados([]);
           setError(`Erro ao carregar simulados: ${simErr.message}`);
-          setLoading(false);
+          setIsFetching(false);
+          setSimuladosLoading(false);
           return;
         }
 
@@ -255,15 +280,17 @@ export function useInstitutionalPerformanceData(
           setUsingMock(true);
           setData(getMockViewModel());
           setError(null);
-          setLoading(false);
+          setIsFetching(false);
         }
+        setSimuladosLoading(false);
       } catch (err) {
         Logger.warn('[DesempenhoInstitucional]', 'Error resolving IES, falling back to mock:', err);
         setSimulados([]);
         setUsingMock(true);
         setData(getMockViewModel());
         setError(null);
-        setLoading(false);
+        setIsFetching(false);
+        setSimuladosLoading(false);
       }
     };
     fetchSimulados();
@@ -284,11 +311,11 @@ export function useInstitutionalPerformanceData(
       Logger.info('[DesempenhoInstitucional]', 'Modo por semestre sem seleção, aguardando escolha');
       setData(null);
       setError(null);
-      setLoading(false);
+      setIsFetching(false);
       return;
     }
 
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     setUsingMock(false);
     Logger.info('[DesempenhoInstitucional]', 'Fetching with active base:', activeBase);
@@ -299,7 +326,7 @@ export function useInstitutionalPerformanceData(
         Logger.info('[DesempenhoInstitucional]', 'No session, falling back to mock');
         setUsingMock(true);
         setData(getMockViewModel());
-        setLoading(false);
+        setIsFetching(false);
         return;
       }
 
@@ -379,7 +406,7 @@ export function useInstitutionalPerformanceData(
       setUsingMock(false);
       setError(message);
     } finally {
-      setLoading(false);
+      setIsFetching(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.simuladoId, filters.iesId, baseKey, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
@@ -389,5 +416,5 @@ export function useInstitutionalPerformanceData(
     fetchPerformance();
   }, [fetchPerformance]);
 
-  return { data, simulados, iesList, loading, error, usingMock, refetch: fetchPerformance };
+  return { data, simulados, iesList, loading, isRefreshing, simuladosLoading, error, usingMock, refetch: fetchPerformance };
 }

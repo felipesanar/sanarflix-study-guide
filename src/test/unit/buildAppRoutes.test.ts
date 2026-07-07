@@ -225,7 +225,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 describe('experiences/buildAppRoutes — gestão', () => {
   const gestorRules = getAccessRules(makeUser(['gestor']));
 
-  it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
+  it('expõe a rota-layout /gestor com as 7 telas do console como filhas', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
@@ -235,18 +235,34 @@ describe('experiences/buildAppRoutes — gestão', () => {
     );
     expect(childPaths).toEqual([
       'index',
-      'visao-institucional',
+      'panorama',
       'diagnostico-curricular',
+      'alunos-risco',
+      'intervencao-impacto',
+      'simulados-questoes',
+      'comparar-ies',
+      'relatorios',
+      'visao-institucional',
       'alunos',
       'insights-pedagogicos',
       'inteligencia-decisoria',
     ]);
   });
 
-  it('a index de /gestor redireciona para /gestor/visao-institucional', () => {
+  it('a index de /gestor redireciona para /gestor/panorama', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const indexChild = (routes.get('/gestor')?.children ?? []).find((c) => c.index);
-    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
+    expect(redirectTarget(indexChild)).toBe('/gestor/panorama');
+  });
+
+  it('inclui os redirects de compatibilidade do console antigo (sub-nav em pills)', () => {
+    const routes = routesForRoles(['gestor'], gestorRules);
+    const children = routes.get('/gestor')?.children ?? [];
+    const byPath = new Map(children.map((c) => [c.path, c]));
+    expect(redirectTarget(byPath.get('visao-institucional'))).toBe('/gestor/panorama');
+    expect(redirectTarget(byPath.get('alunos'))).toBe('/gestor/alunos-risco');
+    expect(redirectTarget(byPath.get('insights-pedagogicos'))).toBe('/gestor/intervencao-impacto');
+    expect(redirectTarget(byPath.get('inteligencia-decisoria'))).toBe('/gestor/intervencao-impacto');
   });
 
   it('inclui os redirects de compatibilidade do Desempenho Institucional', () => {
@@ -316,6 +332,6 @@ describe('experiences/buildAppRoutes — admin', () => {
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
     const indexChild = (gestorRoute?.children ?? []).find((c) => c.index);
-    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
+    expect(redirectTarget(indexChild)).toBe('/gestor/panorama');
   });
 });
