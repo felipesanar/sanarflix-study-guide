@@ -66,6 +66,32 @@ async function grantRoleIfNeeded(
   else console.log(`[RBAC] Role '${role}' granted to ${email}`);
 }
 
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get('x-forwarded-for');
+  if (!xff) return null;
+  return xff.split(',')[0]?.trim() || null;
+}
+
+async function auditUserWrite(
+  supabaseAdmin: any,
+  action: 'user_create' | 'user_update',
+  adminId: string | null,
+  targetUserId: string,
+  metadata: Record<string, unknown>,
+) {
+  if (!adminId) return; // No auditing when caller is not an authenticated admin
+  try {
+    const { error } = await supabaseAdmin.from('admin_audit_log').insert({
+      admin_id: adminId,
+      action,
+      target_user_id: targetUserId,
+      metadata,
+    });
+    if (error) console.warn('[b2b-create-user] audit log insert failed:', error.message);
+  } catch (e) {
+    console.warn('[b2b-create-user] audit log exception:', (e as Error).message);
+  }
+
 function errorResponse(code: ErrorCode, message: string, details?: string) {
   return new Response(
     JSON.stringify({ success: false, error: message, code, details }),
