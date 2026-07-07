@@ -453,6 +453,23 @@ export const StudyGuide: React.FC = () => {
     fetchFreshData(normalizedSem, user.id_ies, !cachedData);
   }, [user?.id_ies, fetchFreshData]);
 
+  // Fallback geral de semestre: se o semestre do perfil não existe na lista
+  // DISTINCT da IES (ex.: IES que só tem um guia textual como "Intensivo ENAMED",
+  // ou perfil sem semestre preenchido), seleciona o primeiro semestre disponível.
+  // Complementa o fallback de INTERNATO (9-12), que continua com prioridade.
+  useEffect(() => {
+    if (!user?.id_ies || allSemestres.length === 0) return;
+    const userSemStr = user?.semestre?.toString() || '';
+    // Só age enquanto o usuário está na seleção inicial do perfil (não navegou)
+    if (selectedSemestre !== '' && selectedSemestre !== userSemStr) return;
+    if (selectedSemestre && allSemestres.includes(selectedSemestre)) return;
+    const userSemNum = Number(user?.semestre);
+    const internato = allSemestres.find((s) => s.toUpperCase() === 'INTERNATO');
+    const target = (INTERNATO_FALLBACK_SEMESTERS.includes(userSemNum) && internato) || allSemestres[0];
+    setSelectedSemestre(target);
+    fetchSemestreData(target);
+  }, [allSemestres, selectedSemestre, user?.id_ies, user?.semestre, fetchSemestreData]);
+
   // Manual refresh handler
   const handleManualRefresh = useCallback(async () => {
     if (!user?.id_ies || !selectedSemestre) return;
