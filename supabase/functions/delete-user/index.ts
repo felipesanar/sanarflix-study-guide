@@ -37,6 +37,33 @@ const DEPENDENT_TABLES = [
 // Each user requires ~23 DB calls, so keep this low
 const MAX_BATCH_SIZE = 3;
 
+function getClientIp(req: Request): string | null {
+  const xff = req.headers.get('x-forwarded-for');
+  if (!xff) return null;
+  return xff.split(',')[0]?.trim() || null;
+}
+
+async function auditDelete(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  adminId: string,
+  targetUserId: string,
+  email: string | null | undefined,
+  modo: 'single' | 'lote',
+  ip: string | null,
+) {
+  try {
+    const { error } = await supabaseAdmin.from('admin_audit_log').insert({
+      admin_id: adminId,
+      action: 'delete_user',
+      target_user_id: targetUserId,
+      metadata: { email: email ?? null, modo, ip },
+    });
+    if (error) console.warn('[delete-user] audit log insert failed:', error.message);
+  } catch (e) {
+    console.warn('[delete-user] audit log exception:', (e as Error).message);
+  }
+}
+
 async function deleteSingleUser(
   supabaseAdmin: ReturnType<typeof createClient>,
   userId: string,
