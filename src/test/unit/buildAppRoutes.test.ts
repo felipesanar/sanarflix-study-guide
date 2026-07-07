@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { buildAppRoutes } from '@/experiences/buildAppRoutes';
 import { getAccessRules } from '@/utils/accessRules';
+import { deriveAccessFromRoles } from '@/experiences/access';
 import { AccessRules, User } from '@/types';
 
 const makeUser = (roles: string[]): User => ({
@@ -26,40 +27,57 @@ const redirectTarget = (route: RouteObject | undefined): string | undefined =>
   (route?.element as ReactElement<{ to?: string }> | undefined)?.props?.to;
 
 const aluno = makeUser([]);
+const alunoAccess = deriveAccessFromRoles(aluno.roles);
+
+/** Monta as rotas para um usuário a partir das suas roles (access derivado). */
+const routesForRoles = (roles: string[], rulesOverride?: AccessRules) => {
+  const user = makeUser(roles);
+  const rules = rulesOverride ?? getAccessRules(user);
+  const access = deriveAccessFromRoles(roles);
+  return byPath(buildAppRoutes(user, rules, access));
+};
 
 describe('experiences/buildAppRoutes — aluno', () => {
   it('coloca a Home na raiz (/) quando a home está liberada', () => {
-    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    const routes = byPath(
+      buildAppRoutes(aluno, { ...alunoRules, home: true }, alunoAccess),
+    );
     expect(routes.has('/')).toBe(true);
     // Renderiza conteúdo (Home), não um redirect.
     expect(redirectTarget(routes.get('/'))).toBeUndefined();
   });
 
   it('redireciona /home para a raiz (/)', () => {
-    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    const routes = byPath(
+      buildAppRoutes(aluno, { ...alunoRules, home: true }, alunoAccess),
+    );
     expect(redirectTarget(routes.get('/home'))).toBe('/');
   });
 
   it('quando a home está bloqueada, a raiz redireciona para o entrypoint padrão', () => {
     // home off, simulados on (base) → default é /simulados.
     const routes = byPath(
-      buildAppRoutes(aluno, { ...alunoRules, home: false, simulados: true }),
+      buildAppRoutes(
+        aluno,
+        { ...alunoRules, home: false, simulados: true },
+        alunoAccess,
+      ),
     );
     expect(redirectTarget(routes.get('/'))).toBe('/simulados');
   });
 
   it('tela liberada vira página; tela bloqueada vira redirect', () => {
     const liberado = byPath(
-      buildAppRoutes(aluno, { ...alunoRules, simulados: true }),
+      buildAppRoutes(aluno, { ...alunoRules, simulados: true }, alunoAccess),
     );
     expect(redirectTarget(liberado.get('/simulados'))).toBeUndefined();
 
     const bloqueado = byPath(
-      buildAppRoutes(aluno, {
-        ...alunoRules,
-        home: true,
-        simulados: false,
-      }),
+      buildAppRoutes(
+        aluno,
+        { ...alunoRules, home: true, simulados: false },
+        alunoAccess,
+      ),
     );
     // Bloqueado → redireciona para o entrypoint (com home on, é a raiz).
     expect(redirectTarget(bloqueado.get('/simulados'))).toBe('/');
@@ -67,7 +85,7 @@ describe('experiences/buildAppRoutes — aluno', () => {
 
   it('expõe as rotas do caderno de erros quando liberado', () => {
     const routes = byPath(
-      buildAppRoutes(aluno, { ...alunoRules, errorNotebook: true }),
+      buildAppRoutes(aluno, { ...alunoRules, errorNotebook: true }, alunoAccess),
     );
     expect(redirectTarget(routes.get('/caderno-de-erros'))).toBeUndefined();
     expect(routes.has('/caderno-de-erros/revisao')).toBe(true);
@@ -76,101 +94,105 @@ describe('experiences/buildAppRoutes — aluno', () => {
   });
 
   it('mantém a sub-rota do modo prova', () => {
-    const routes = byPath(buildAppRoutes(aluno, alunoRules));
+    const routes = byPath(buildAppRoutes(aluno, alunoRules, alunoAccess));
     expect(routes.has('/simulados/:id/prova')).toBe(true);
   });
 
   it('é pura: mesma entrada → mesmos paths', () => {
     const paths = (rules: AccessRules) =>
-      buildAppRoutes(aluno, rules).map((r) => r.path);
+      buildAppRoutes(aluno, rules, alunoAccess).map((r) => r.path);
     expect(paths(alunoRules)).toEqual(paths(alunoRules));
   });
 });
 
 describe('experiences/buildAppRoutes — compartilhadas', () => {
   it('inclui a rota /auth/callback', () => {
-    const routes = byPath(buildAppRoutes(aluno, alunoRules));
+    const routes = byPath(buildAppRoutes(aluno, alunoRules, alunoAccess));
     expect(routes.has('/auth/callback')).toBe(true);
     expect(redirectTarget(routes.get('/auth/callback'))).toBeUndefined();
   });
 
   it('/login redireciona para o entrypoint do usuário', () => {
-    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    const routes = byPath(
+      buildAppRoutes(aluno, { ...alunoRules, home: true }, alunoAccess),
+    );
     // Aluno com home → entrypoint é a raiz.
     expect(redirectTarget(routes.get('/login'))).toBe('/');
   });
 
   it('sempre termina com o catch-all (*) para NotFound', () => {
-    const routes = buildAppRoutes(aluno, alunoRules);
+    const routes = buildAppRoutes(aluno, alunoRules, alunoAccess);
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
   it('/home é compartilhada e devolve admin/gestor/CX ao entrypoint da sua experiência (não NotFound)', () => {
-    // Regressão: o LoginForm navega TODA role para /home no pós-login. Como cada
-    // usuário monta só as rotas da sua experiência, /home precisa existir para
-    // todos — senão admin/gestor/CX caem no catch-all (NotFound).
-    const cases: Array<[User, string]> = [
-      [makeUser(['admin']), '/admin/usuarios'],
-      [makeUser(['gestor']), '/gestor'],
-      [makeUser(['atendimento']), '/atendimento/usuarios'],
+    // Regressão: o LoginForm navega TODA experiência para /home no pós-login.
+    // Como cada usuário monta só as árvores das suas experiências, /home
+    // precisa existir para todos — senão admin/gestor/CX caem no catch-all
+    // (NotFound).
+    const cases: Array<[string[], string]> = [
+      [['admin'], '/admin/usuarios'],
+      [['gestor'], '/gestor'],
+      [['atendimento'], '/atendimento/usuarios'],
     ];
-    for (const [user, expected] of cases) {
-      const routes = byPath(buildAppRoutes(user, getAccessRules(user)));
+    for (const [roles, expected] of cases) {
+      const routes = routesForRoles(roles);
       expect(routes.has('/home')).toBe(true);
       expect(redirectTarget(routes.get('/home'))).toBe(expected);
     }
   });
 
   it('/ (raiz) renderiza a Home do aluno para admin/gestor/CX (base compartilhada)', () => {
-    // No modelo híbrido a raiz é a experiência de aluno para TODOS. admin/gestor/CX
-    // têm home liberada → '/' renderiza conteúdo (Home), não redireciona.
-    const cases: User[] = [
-      makeUser(['admin']),
-      makeUser(['gestor']),
-      makeUser(['atendimento']),
-    ];
-    for (const user of cases) {
-      const routes = byPath(buildAppRoutes(user, getAccessRules(user)));
+    // A raiz é a experiência de aluno para TODOS. admin/gestor/CX têm home
+    // liberada → '/' renderiza conteúdo (Home), não redireciona.
+    const cases: string[][] = [['admin'], ['gestor'], ['atendimento']];
+    for (const roles of cases) {
+      const routes = routesForRoles(roles);
       expect(routes.has('/')).toBe(true);
       expect(redirectTarget(routes.get('/'))).toBeUndefined();
     }
   });
 
   it('aluno mantém a Home na raiz (/) — não vira redirect', () => {
-    const routes = byPath(buildAppRoutes(aluno, { ...alunoRules, home: true }));
+    const routes = byPath(
+      buildAppRoutes(aluno, { ...alunoRules, home: true }, alunoAccess),
+    );
     expect(redirectTarget(routes.get('/'))).toBeUndefined();
   });
 
   it('privilegiados têm as rotas base de aluno montadas (/simulados, /guia-estudos)', () => {
-    const admin = makeUser(['admin']);
-    const routes = byPath(buildAppRoutes(admin, getAccessRules(admin)));
+    const routes = routesForRoles(['admin']);
     expect(routes.has('/simulados')).toBe(true);
     expect(routes.has('/guia-estudos')).toBe(true);
   });
 
-  it('monta os portais das roles do usuário (admin também enxerga a Gestão)', () => {
-    const aluno = makeUser([]);
-    const rAluno = byPath(buildAppRoutes(aluno, getAccessRules(aluno)));
-    expect(rAluno.has('/admin')).toBe(false);
-    expect(rAluno.has('/gestor')).toBe(false);
-    expect(rAluno.has('/atendimento')).toBe(false);
+  it('monta as árvores das experiências do usuário (admin também enxerga a Gestão)', () => {
+    // Aluno puro: os paths de portal existem, mas como REDIRECT de negação
+    // (volta ao entrypoint do usuário), nunca como a rota-layout do portal.
+    const rAluno = routesForRoles([]);
+    for (const portal of ['/admin', '/gestor', '/atendimento']) {
+      // O destino exato depende das AccessRules do fixture; o que importa é
+      // ser um redirect (negação) e não a rota-layout do portal.
+      expect(redirectTarget(rAluno.get(portal))).toBeDefined();
+      expect(rAluno.get(portal)?.children).toBeUndefined();
+    }
 
-    // Admin é super usuário: monta o próprio portal E o de Gestão, mas não o CX.
-    const admin = makeUser(['admin']);
-    const rAdmin = byPath(buildAppRoutes(admin, getAccessRules(admin)));
-    expect(rAdmin.has('/admin')).toBe(true);
-    expect(rAdmin.has('/gestor')).toBe(true);
-    expect(rAdmin.has('/atendimento')).toBe(false);
+    // Admin é super usuário: monta o próprio portal E o de Gestão (com filhos),
+    // mas o CX vira redirect de negação para o entrypoint dele.
+    const rAdmin = routesForRoles(['admin']);
+    expect(rAdmin.get('/admin')?.children?.length).toBeGreaterThan(0);
+    expect(rAdmin.get('/gestor')?.children?.length).toBeGreaterThan(0);
+    expect(redirectTarget(rAdmin.get('/atendimento'))).toBe('/admin/usuarios');
+    expect(rAdmin.get('/atendimento')?.children).toBeUndefined();
   });
 
 });
 
 describe('experiences/buildAppRoutes — atendimento (CX)', () => {
-  const cx = makeUser(['atendimento']);
-  const cxRules = getAccessRules(cx);
+  const cxRules = getAccessRules(makeUser(['atendimento']));
 
   it('expõe a rota-layout /atendimento com as seções Usuários e Feedbacks', () => {
-    const routes = byPath(buildAppRoutes(cx, cxRules));
+    const routes = routesForRoles(['atendimento'], cxRules);
     const cxRoute = routes.get('/atendimento');
     expect(cxRoute).toBeDefined();
 
@@ -185,7 +207,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
   });
 
   it('a index de /atendimento redireciona para /atendimento/usuarios', () => {
-    const routes = byPath(buildAppRoutes(cx, cxRules));
+    const routes = routesForRoles(['atendimento'], cxRules);
     const indexChild = (routes.get('/atendimento')?.children ?? []).find(
       (c) => c.index,
     );
@@ -193,7 +215,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
   });
 
   it('redireciona /gestao-usuarios para /atendimento/usuarios (compat do CX)', () => {
-    const routes = byPath(buildAppRoutes(cx, cxRules));
+    const routes = routesForRoles(['atendimento'], cxRules);
     expect(redirectTarget(routes.get('/gestao-usuarios'))).toBe(
       '/atendimento/usuarios',
     );
@@ -201,11 +223,10 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 });
 
 describe('experiences/buildAppRoutes — gestão', () => {
-  const gestor = makeUser(['gestor']);
-  const gestorRules = getAccessRules(gestor);
+  const gestorRules = getAccessRules(makeUser(['gestor']));
 
   it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
-    const routes = byPath(buildAppRoutes(gestor, gestorRules));
+    const routes = routesForRoles(['gestor'], gestorRules);
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
 
@@ -223,32 +244,28 @@ describe('experiences/buildAppRoutes — gestão', () => {
   });
 
   it('a index de /gestor redireciona para /gestor/visao-institucional', () => {
-    const routes = byPath(buildAppRoutes(gestor, gestorRules));
-    const indexChild = (routes.get('/gestor')?.children ?? []).find(
-      (c) => c.index,
-    );
+    const routes = routesForRoles(['gestor'], gestorRules);
+    const indexChild = (routes.get('/gestor')?.children ?? []).find((c) => c.index);
     expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
   });
 
   it('inclui os redirects de compatibilidade do Desempenho Institucional', () => {
-    const routes = byPath(buildAppRoutes(gestor, gestorRules));
+    const routes = routesForRoles(['gestor'], gestorRules);
     expect(redirectTarget(routes.get('/desempenho-institucional'))).toBe('/gestor');
     expect(redirectTarget(routes.get('/desempenho-institucional-v2'))).toBe('/gestor');
   });
 
   it('gestor_grupo cai na mesma experiência de gestão', () => {
-    const grupo = makeUser(['gestor_grupo']);
-    const routes = byPath(buildAppRoutes(grupo, getAccessRules(grupo)));
+    const routes = routesForRoles(['gestor_grupo']);
     expect(routes.get('/gestor')).toBeDefined();
   });
 });
 
 describe('experiences/buildAppRoutes — admin', () => {
-  const admin = makeUser(['admin']);
-  const adminRules = getAccessRules(admin);
+  const adminRules = getAccessRules(makeUser(['admin']));
 
   it('expõe a rota-layout /admin com as seções como filhas', () => {
-    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const routes = routesForRoles(['admin'], adminRules);
     const adminRoute = routes.get('/admin');
     expect(adminRoute).toBeDefined();
 
@@ -269,7 +286,7 @@ describe('experiences/buildAppRoutes — admin', () => {
   });
 
   it('a index de /admin redireciona para /admin/usuarios', () => {
-    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const routes = routesForRoles(['admin'], adminRules);
     const indexChild = (routes.get('/admin')?.children ?? []).find(
       (c) => c.index,
     );
@@ -277,7 +294,7 @@ describe('experiences/buildAppRoutes — admin', () => {
   });
 
   it('inclui os redirects de compatibilidade das URLs antigas', () => {
-    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const routes = routesForRoles(['admin'], adminRules);
     expect(redirectTarget(routes.get('/gestao-usuarios'))).toBe(
       '/admin/usuarios',
     );
@@ -285,12 +302,16 @@ describe('experiences/buildAppRoutes — admin', () => {
   });
 
   it('mantém o catch-all (*) ao final também para o admin', () => {
-    const routes = buildAppRoutes(admin, adminRules);
+    const routes = buildAppRoutes(
+      makeUser(['admin']),
+      adminRules,
+      deriveAccessFromRoles(['admin']),
+    );
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
   it('admin (super usuário) também monta a rota /gestor da experiência de Gestão', () => {
-    const routes = byPath(buildAppRoutes(admin, adminRules));
+    const routes = routesForRoles(['admin'], adminRules);
     expect(routes.get('/admin')).toBeDefined();
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();

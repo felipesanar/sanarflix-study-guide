@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ConsistencyCard } from '@/components/progress-hub/ConsistencyCard';
 import { AiTutorCard } from '../AiTutorCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { isAdmin } from '@/utils/accessRules';
+import { can } from '@/experiences/access';
 import type { NextAction, RiskAlert, ProgressStreak, ProgressOverview, MateriaProgress, ExamInsight } from '@/types/progressHub';
 
 interface AgoraTabProps {
@@ -159,8 +159,8 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
   onRiskDismiss,
   onGoalChange,
 }) => {
-  const { user } = useAuth();
-  const userIsAdmin = isAdmin(user);
+  const { access } = useAuth();
+  const showAiTutor = can(access, 'admin.tools');
 
   return (
     <div className="px-4 py-4 space-y-6">
@@ -174,7 +174,7 @@ export const AgoraTab: React.FC<AgoraTabProps> = ({
       </div>
 
       {/* AI Coach — admin only */}
-      {userIsAdmin && <AiTutorCard />}
+      {showAiTutor && <AiTutorCard />}
 
       {/* Consistency */}
       <div className="space-y-2">

@@ -1,105 +1,67 @@
 import { AccessRules, User } from '@/types';
-import { isAdmin, isAtendimento, isGestor } from '@/utils/accessRules';
+import type { Access, ExperienceId } from '@/experiences/access';
 
 /**
  * Experiências apartadas do SanarFlix Academy (v0).
  *
- * Cada usuário autenticado é roteado para UMA das quatro experiências
- * conforme a sua role. Ver "Plano de migração — experiências apartadas"
- * na Central do SanarFlix Academy (Notion).
+ * Duas dimensões ortogonais (ver `src/experiences/access.ts`):
+ *  - Experiência: qual portal/árvore de rota o usuário acessa (aditivo — um
+ *    usuário pode ter várias; `'aluno'` é a base de TODO usuário autenticado).
+ *  - Capability: o que as telas mostram (não tratado aqui).
  *
- *  1. `aluno_professor` — Aluno + Professor
- *  2. `gestao`          — Gestor IES + Gestor de Grupo
- *  3. `admin`           — Admin
- *  4. `atendimento`     — Atendimento (CX)
+ * Este módulo resolve apenas a ROTA DEFAULT pós-login a partir de
+ * `access.experiences` — a montagem/guard das árvores de rota usam
+ * {@link hasExperience} diretamente (ver buildAppRoutes, ExperienceGuard).
  */
-export type Experience = 'aluno_professor' | 'gestao' | 'admin' | 'atendimento';
+export type { ExperienceId };
 
 /**
- * Resolve a experiência do usuário a partir das suas roles.
+ * Rota de entrada (entrypoint) fixa por experiência dedicada.
  *
- * Precedência (usuário com múltiplas roles cai na de maior poder):
- *   admin > atendimento > gestor / gestor_grupo (gestão) > professor / aluno
- *
- * Fallback: usuário sem role especial (ou sem roles) → experiência
- * Aluno + Professor, que é a base mínima equivalente a um aluno padrão.
- */
-export const getExperience = (user: User | null): Experience => {
-  if (isAdmin(user)) return 'admin';
-  if (isAtendimento(user)) return 'atendimento';
-  if (isGestor(user)) return 'gestao'; // cobre 'gestor' e 'gestor_grupo'
-  // professor e aluno compartilham a experiência (1); é também o fallback.
-  return 'aluno_professor';
-};
-
-/**
- * Autorização de acesso a uma experiência DEDICADA, baseada em role (não na
- * experiência única de maior poder). É a fronteira usada pelo ExperienceGuard:
- * no modelo híbrido, o usuário tem a experiência de aluno na base E, por cima,
- * a(s) experiência(s) dedicada(s) que a(s) sua(s) role(s) concede(m).
- *
- * A base (aluno_professor) é acessível a todo usuário autenticado.
- */
-export const canAccessExperience = (
-  user: User | null,
-  experience: Experience,
-): boolean => {
-  switch (experience) {
-    case 'admin':
-      return isAdmin(user);
-    case 'atendimento':
-      return isAtendimento(user);
-    case 'gestao':
-      // Admin é super usuário: além do seu portal, enxerga a experiência de
-      // gestão (Desempenho Institucional / Visão Institucional) para demos e
-      // suporte. Gestor e gestor_grupo mantêm o acesso por role própria.
-      return isGestor(user) || isAdmin(user);
-    case 'aluno_professor':
-      return true;
-  }
-};
-
-/**
- * Rota de entrada (entrypoint) fixa por experiência.
- *
- * A experiência Aluno + Professor não tem entrypoint fixo: a sua "home"
- * depende das telas liberadas para a IES (ies_features) e é resolvida
- * dinamicamente por {@link getDefaultRouteForUser}.
+ * A experiência `aluno` não tem entrypoint fixo: a sua "home" depende das
+ * telas liberadas para a IES (ies_features) e é resolvida dinamicamente por
+ * {@link getDefaultRouteForUser}.
  *
  * Cada entrypoint abaixo é sempre uma tela liberada para a respectiva
  * experiência (ver getAccessRules), o que evita loop de redirecionamento.
  */
-export const EXPERIENCE_ENTRYPOINTS: Record<
-  Exclude<Experience, 'aluno_professor'>,
-  string
-> = {
+export const EXPERIENCE_ENTRYPOINTS: Record<Exclude<ExperienceId, 'aluno'>, string> = {
   admin: '/admin/usuarios',
   atendimento: '/atendimento/usuarios',
   gestao: '/gestor',
 };
 
+/** Ordem de precedência das experiências dedicadas para a rota default pós-login. */
+const ENTRYPOINT_PRECEDENCE: Exclude<ExperienceId, 'aluno'>[] = [
+  'admin',
+  'atendimento',
+  'gestao',
+];
+
 /**
  * Rota inicial pós-login: roteia cada usuário para a SUA experiência apartada.
  *
+ * Precedência (usuário com múltiplas experiências cai na de maior poder):
+ *   admin > atendimento > gestao > aluno
+ *
  * - admin / atendimento / gestão → entrypoint fixo da experiência
- * - aluno + professor → primeira tela liberada (home → simulados → guia →
- *   dashboard → sanarclass), preservando o comportamento dinâmico baseado
- *   em ies_features que já existia.
+ * - aluno → primeira tela liberada (home → simulados → guia → dashboard →
+ *   sanarclass), preservando o comportamento dinâmico baseado em
+ *   ies_features que já existia.
  *
  * É usada como destino padrão em todos os redirecionamentos do roteador
- * (login, raiz e bloqueio de acesso cruzado), garantindo que cada role
+ * (login, raiz e bloqueio de acesso cruzado), garantindo que cada usuário
  * "caia na sua experiência" e que tentativas de acesso fora dela voltem
  * para o entrypoint correto.
  */
 export const getDefaultRouteForUser = (
   user: User | null,
   accessRules: AccessRules,
+  access?: Access,
 ): string => {
-  const experience = getExperience(user);
-
-  if (experience !== 'aluno_professor') {
-    return EXPERIENCE_ENTRYPOINTS[experience];
-  }
+  const experiences = access?.experiences ?? ['aluno'];
+  const dedicated = ENTRYPOINT_PRECEDENCE.find((exp) => experiences.includes(exp));
+  if (dedicated) return EXPERIENCE_ENTRYPOINTS[dedicated];
 
   if (accessRules.home) return '/';
   if (accessRules.simulados) return '/simulados';
