@@ -2097,6 +2097,10 @@ export type Database = {
           semestre: string
         }[]
       }
+      get_group_ies_comparison: {
+        Args: { p_simulado_id?: string }
+        Returns: Json
+      }
       get_ies_features: {
         Args: { p_ies_id: string }
         Returns: {
@@ -2154,6 +2158,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_institutional_question_stats: {
+        Args: { p_ies_id?: string; p_simulado_id: string }
+        Returns: Json
+      }
       get_institutional_simulados: {
         Args: { p_ies_id?: string }
         Returns: {
@@ -2161,6 +2169,10 @@ export type Database = {
           id: string
           nome: string
         }[]
+      }
+      get_institutional_student_engagement: {
+        Args: { p_days?: number; p_ies_id?: string }
+        Returns: Json
       }
       get_institutional_student_scores: {
         Args: { p_ies_id?: string; p_simulado_id: string }
