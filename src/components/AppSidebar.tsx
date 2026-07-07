@@ -88,7 +88,7 @@ const studyGuideItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, access, logout } = useAuth();
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
   const { accessRules } = useAccessRules();
@@ -149,7 +149,7 @@ export function AppSidebar() {
   const studentItems = menuItems.filter(
     (item) => item.accessKey !== "home" && accessRules[item.accessKey],
   );
-  const portalEntries = getPortalEntries(user);
+  const portalEntries = getPortalEntries(access);
   const visibleMenuItems = [...studentItems, ...portalEntries];
 
   return (

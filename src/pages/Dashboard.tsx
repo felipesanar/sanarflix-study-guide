@@ -34,7 +34,7 @@ import {
 } from '@/components/progress-hub';
 import type { NextAction, MateriaProgress, ExamInsight } from '@/types/progressHub';
 import { AiTutorCard } from '@/components/progress-hub/mobile/AiTutorCard';
-import { isAdmin } from '@/utils/accessRules';
+import { can } from '@/experiences/access';
 
 // Track milestone thresholds to trigger celebrations
 const MILESTONE_THRESHOLDS: MilestoneType[] = [25, 50, 75, 100];
@@ -47,7 +47,7 @@ const getMilestoneStorageKey = (userId: string, semestre: number) =>
 type CelebratedMilestones = Record<string, MilestoneType[]>;
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, access } = useAuth();
   const { semestreAtivo, warning: semestreWarning } = useActiveSemester();
   const { trackEvent } = useAnalyticsTracker();
   const shouldReduceMotion = useReducedMotion();
@@ -712,7 +712,7 @@ export const Dashboard: React.FC = () => {
           </motion.div>
           
           <motion.div variants={itemVariants} className="col-span-12 md:col-span-6 flex flex-col gap-4 lg:gap-5">
-            {isAdmin(user) && <AiTutorCard />}
+            {can(access, 'admin.tools') && <AiTutorCard />}
             <ConsistencyCard 
               streak={data.streak} 
               onGoalChange={handleGoalChange}

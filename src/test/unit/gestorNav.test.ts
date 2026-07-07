@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GESTOR_NAV, tabForPath } from '@/experiences/gestor/GestorNav';
+import { GESTOR_NAV, filterGestorNav, tabForPath } from '@/experiences/gestor/GestorNav';
+import { deriveAccessFromRoles } from '@/experiences/access';
 
 describe('experiences/gestor/GestorNav', () => {
   it('expõe os 5 módulos do gestor nas URLs /gestor/*', () => {
@@ -24,5 +25,15 @@ describe('experiences/gestor/GestorNav', () => {
   it('faz fallback para visão institucional em rota desconhecida', () => {
     expect(tabForPath('/gestor')).toBe('visao-institucional');
     expect(tabForPath('/gestor/qualquer-coisa')).toBe('visao-institucional');
+  });
+
+  it('gestor (institutional.view + alunos.view) vê todos os módulos', () => {
+    const access = deriveAccessFromRoles(['gestor']);
+    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
+  });
+
+  it('admin (super usuário) também vê todos os módulos', () => {
+    const access = deriveAccessFromRoles(['admin']);
+    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
   });
 });
