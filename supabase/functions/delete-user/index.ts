@@ -308,6 +308,13 @@ Deno.serve(async (req) => {
 
     console.log(`[delete-user] Admin ${maskEmail(caller.email)} removing user ${user_id}`);
 
+    // Fetch target email for audit metadata before deletion
+    const { data: targetInfo } = await supabaseAdmin
+      .from('users')
+      .select('email')
+      .eq('id', user_id)
+      .maybeSingle();
+
     const result = await deleteSingleUser(supabaseAdmin, user_id);
 
     if (!result.success) {
@@ -316,6 +323,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    await auditDelete(supabaseAdmin, caller.id, user_id, targetInfo?.email, 'single', getClientIp(req));
 
     console.log(`[delete-user] User ${user_id} removed successfully`);
 
