@@ -17,6 +17,7 @@ import {
 } from '@/experiences/gestor/GestorFiltersProvider';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { getPortalEntries } from '@/experiences/shared/globalNav';
+import { FeedbackHeaderButton } from '@/components/feedback/FeedbackHeaderButton';
 
 /**
  * Conteúdo do layout do gestor: consome os filtros globais do contexto e
