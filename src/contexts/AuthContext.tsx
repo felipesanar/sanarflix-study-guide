@@ -7,6 +7,7 @@ import { validateUser } from '@/utils/validation';
 import { useTabSync } from '@/hooks/useTabSync';
 import { Access, EMPTY_ACCESS, can, deriveAccessFromRoles } from '@/experiences/access';
 import { authService } from '@/services/authService';
+import { logAdminAction } from '@/services/admin/logAction';
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -35,11 +36,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // access do impersonado.
   const isImpersonatingRef = useRef(false);
 
+  // Ref auxiliar (não state) que espelha o `user.id` atual sem closure stale.
+  // refreshUserProfile usa isso para detectar, ao terminar, se o usuário
+  // logado mudou enquanto o fetch estava em voo (ex.: stopImpersonation
+  // rodou no meio do caminho de um refresh disparado para o id impersonado).
+  const currentUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    currentUserIdRef.current = user?.id ?? null;
+  }, [user?.id]);
+
   /**
    * Fetches fresh user profile from public.users + ies + roles,
    * updating state and localStorage cache.
    */
   const refreshUserProfile = useCallback(async (userId: string, force = false) => {
+    // Durante impersonação, nunca roda em background: sem essa guarda, um
+    // refresh disparado (ex.: visibilitychange) com o id do impersonado
+    // gravava o perfil dele em localStorage incondicionalmente, prendendo
+    // o admin como "aluno" após um reload — sem banner, sem console, sem
+    // autocorreção (P1). Opção mais segura: pular o refresh inteiro.
+    if (isImpersonatingRef.current) return;
+
     const now = Date.now();
     // Bypass throttle when forced OR when the cached user has no roles —
     // prevents a stale "empty roles" cache from surviving after a role
@@ -130,6 +147,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         groups,
       };
 
+      // Descarta o resultado se o usuário logado mudou enquanto este fetch
+      // estava em voo (ex.: stopImpersonation rodou no meio do caminho de um
+      // refresh que havia sido disparado para o id do usuário impersonado).
+      // Sem isso, o admin real podia ser rebaixado a aluno silenciosamente,
+      // sem banner (P1).
+      if (currentUserIdRef.current !== userId) {
+        Logger.debug('refreshUserProfile: resultado descartado, usuário mudou durante o fetch', {
+          requested: userId,
+          current: currentUserIdRef.current,
+        });
+        return;
+      }
+
       setUser(updated);
       if (!isImpersonatingRef.current) {
         setRealAccess(access);
@@ -208,17 +238,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession()
       .then(({ data }) => {
         const storedUser = localStorage.getItem('sanarflix-user');
-        
+
         if (storedUser) {
-          try {
-            const parsed = JSON.parse(storedUser);
-            setUser(parsed);
-            setRealAccess(deriveAccessFromRoles(parsed.roles));
-            setNeedsPasswordChange(false);
-            // Refresh profile in background to get fresh data
-            refreshUserProfile(parsed.id);
-          } catch (error) {
+          if (!data.session) {
+            // Cache presente mas sessão nula (token revogado/expirado sem
+            // refresh): sem essa checagem o usuário ficava "autenticado" no
+            // client enquanto toda query falhava silenciosamente por falta
+            // de sessão real. Limpa o cache e mantém user null — cai no login.
             localStorage.removeItem('sanarflix-user');
+          } else {
+            try {
+              const parsed = JSON.parse(storedUser);
+              setUser(parsed);
+              setRealAccess(deriveAccessFromRoles(parsed.roles));
+              setNeedsPasswordChange(false);
+              // Refresh profile in background to get fresh data
+              refreshUserProfile(parsed.id);
+            } catch (error) {
+              localStorage.removeItem('sanarflix-user');
+            }
           }
         }
         setIsLoading(false);
@@ -564,14 +602,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const stopImpersonation = useCallback(() => {
     if (realAdminUser) {
+      const stoppedUser = impersonatedUser;
       setUser(realAdminUser);
       setImpersonatedUser(null);
       setRealAdminUser(null);
       setImpersonatedAccess(null);
       isImpersonatingRef.current = false;
       toast({ title: 'Impersonação encerrada', description: 'Você voltou à sua conta admin' });
+      // Auditoria best-effort — não bloqueia a restauração do admin real.
+      // A sessão Supabase nunca troca durante impersonação (sempre é a do
+      // admin real), então o actor do log já sai correto sem esforço extra.
+      if (stoppedUser) {
+        logAdminAction('impersonate_stop', stoppedUser.id, { nome: stoppedUser.nome });
+      }
     }
-  }, [realAdminUser]);
+  }, [realAdminUser, impersonatedUser]);
 
   return (
     <AuthContext.Provider value={{

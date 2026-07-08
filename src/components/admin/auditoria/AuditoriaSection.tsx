@@ -28,6 +28,9 @@ export function AuditoriaSection() {
   const [action, setAction] = useState('all');
   const [period, setPeriod] = useState<AuditPeriod>('7d');
   const [page, setPage] = useState(0);
+  // Ligado por default: eventos `view_*` (1 por aba aberta no painel de suporte) são
+  // ruído de navegação e dominam a trilha se não filtrados (ver auditActions.ts:6).
+  const [hideNavigation, setHideNavigation] = useState(true);
 
   // Debounce da busca — evita 1 chamada de RPC por tecla digitada.
   useEffect(() => {
@@ -54,7 +57,15 @@ export function AuditoriaSection() {
   const { data, isLoading, isError, isFetching, refetch } = useAuditLog(filters);
 
   const total = data?.total ?? 0;
-  const rows = data?.rows ?? [];
+  const rawRows = data?.rows ?? [];
+  // Filtro client-side: a RPC `admin_get_audit_log` não aceita (ainda) um param para
+  // excluir `view_*` no banco, então filtramos a página já carregada. Limitação: como o
+  // corte acontece depois da paginação, uma página pode vir com menos linhas do que os
+  // `LIMIT` esperados — a nota abaixo avisa o admin disso quando o filtro está ligado.
+  const rows = useMemo(
+    () => (hideNavigation ? rawRows.filter((r) => !r.action.startsWith('view_')) : rawRows),
+    [rawRows, hideNavigation],
+  );
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
 
   return (
@@ -71,7 +82,16 @@ export function AuditoriaSection() {
         onActionChange={setAction}
         period={period}
         onPeriodChange={setPeriod}
+        hideNavigation={hideNavigation}
+        onHideNavigationChange={setHideNavigation}
       />
+
+      {hideNavigation && !isLoading && !isError && (
+        <p className="text-xs text-muted-foreground">
+          Navegação (view_*) oculta nesta página. Como o filtro é aplicado no navegador após a paginação, uma
+          página pode mostrar menos eventos do que o total indicado.
+        </p>
+      )}
 
       {isLoading && <AdminLoading rows={8} />}
 

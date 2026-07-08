@@ -17,7 +17,15 @@ export interface Announcement {
   data_expiracao?: string;
 }
 
+// Mapa de ícones por prioridade — cobre tanto o vocabulário canônico
+// ('critica'|'alta'|'media'|'baixa', gravado pelo admin desde a normalização)
+// quanto o legado ('Muito Alta'|'Alta'|'Media'|'Baixa'), que pode ainda
+// existir em linhas antigas até a migration de backfill ser aplicada em prod.
 export const priorityIcons: Record<string, LucideIcon> = {
+  'critica': AlertCircle,
+  'alta': AlertTriangle,
+  'media': Bell,
+  'baixa': Info,
   'Muito Alta': AlertCircle,
   'Alta': AlertTriangle,
   'Media': Bell,
@@ -87,12 +95,16 @@ export const useAnnouncements = () => {
         return true; // 'todas'
       });
       const active = filtered;
+      // Peso por prioridade — vocabulário canônico ('critica'|'alta'|'media'|'baixa')
+      // tolerante ao legado ('Muito Alta' etc.) enquanto a migration de backfill
+      // não é aplicada em produção. Sem isso, 'critica' caía no fallback (peso 0),
+      // ficando com a MENOR prioridade — o oposto do esperado.
       const weight = (p: string) => {
         const x = (p || '').toLowerCase();
-        if (x.includes('muito')) return 3;
+        if (x.includes('critica') || x.includes('muito')) return 3;
         if (x.includes('alta')) return 2;
         if (x.includes('med')) return 1;
-        return 0;
+        return 0; // 'baixa'
       };
       const sorted = active.sort((a: Announcement, b: Announcement) => {
         const dw = weight(b.prioridade) - weight(a.prioridade);
@@ -103,7 +115,13 @@ export const useAnnouncements = () => {
       });
       setAnnouncements(sorted);
       
-      const highPriorityAnnouncement = data.find(a => a.prioridade === 'Muito Alta');
+      // Popup dispara com a prioridade canônica 'critica' OU o legado 'Muito Alta'
+      // (linhas gravadas antes da normalização, enquanto a migration de backfill
+      // não é aplicada em prod).
+      const highPriorityAnnouncement = filtered.find((a: any) => {
+        const p = (a.prioridade || '').toLowerCase();
+        return p === 'critica' || p === 'muito alta';
+      });
       if (highPriorityAnnouncement) {
         checkAndShowPopup(highPriorityAnnouncement);
       }

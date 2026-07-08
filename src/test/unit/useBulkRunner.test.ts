@@ -114,6 +114,86 @@ describe('experiences/admin/ui/useBulkRunner', () => {
     });
   });
 
+  it('cancel() no meio de um chunk (execute rejeita AbortError) finaliza como cancelled com o parcial', async () => {
+    const rows = makeRows(6); // chunkSize 2 => 3 chunks
+    let callCount = 0;
+    const { result } = renderHook(() =>
+      useBulkRunner<Row>({
+        dryRun: vi.fn(),
+        // 1º chunk cancela via signal e rejeita com AbortError, simulando um fetch/invoke
+        // que respeita o AbortSignal repassado por `execute`.
+        execute: vi.fn().mockImplementation((_chunk: Row[], signal: AbortSignal) => {
+          callCount += 1;
+          if (callCount === 1) {
+            return new Promise((_resolve, reject) => {
+              const abortError = new Error('The operation was aborted.');
+              abortError.name = 'AbortError';
+              // Registra o listener antes de disparar o cancelamento, senão o abort()
+              // síncrono do cancel() dispara antes de termos alguém ouvindo.
+              signal.addEventListener('abort', () => reject(abortError));
+              result.current.actions.cancel();
+            });
+          }
+          return Promise.resolve({ ok: 2, falhas: [] });
+        }),
+        chunkSize: 2,
+      }),
+    );
+
+    act(() => result.current.actions.setRows(rows));
+
+    await act(async () => {
+      await result.current.actions.start();
+    });
+
+    expect(callCount).toBe(1);
+    expect(result.current.phase).toBe('cancelled');
+    expect(result.current.result).toEqual({
+      ok: 0,
+      falhas: 0,
+      canceladas: 6,
+      itens: [],
+    });
+  });
+
+  it('start() ignora chamada reentrante enquanto já está running', async () => {
+    const rows = makeRows(4); // chunkSize 2 => 2 chunks
+    let resolveFirstChunk: (value: { ok: number; falhas: never[] }) => void;
+    const firstChunkPromise = new Promise<{ ok: number; falhas: never[] }>((resolve) => {
+      resolveFirstChunk = resolve;
+    });
+    const execute = vi
+      .fn()
+      .mockImplementationOnce(() => firstChunkPromise)
+      .mockResolvedValueOnce({ ok: 2, falhas: [] });
+
+    const { result } = renderHook(() =>
+      useBulkRunner<Row>({ dryRun: vi.fn(), execute, chunkSize: 2 }),
+    );
+
+    act(() => result.current.actions.setRows(rows));
+
+    let firstStart!: Promise<void>;
+    act(() => {
+      firstStart = result.current.actions.start();
+    });
+    expect(result.current.phase).toBe('running');
+
+    // Segunda chamada, enquanto a primeira ainda está em andamento — deve ser ignorada.
+    await act(async () => {
+      await result.current.actions.start();
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstChunk({ ok: 2, falhas: [] });
+      await firstStart;
+    });
+
+    expect(result.current.phase).toBe('done');
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+
   it('reset() volta tudo para idle', async () => {
     const dryRun = vi.fn().mockResolvedValue(previewStats);
     const { result } = renderHook(() =>

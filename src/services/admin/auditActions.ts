@@ -48,6 +48,33 @@ const ACTION_DESCRIBERS: Record<string, AuditDescriber> = {
   aviso_delete: () => 'excluiu um aviso',
   material_delete: () => 'excluiu um material',
   feedback_update: () => 'respondeu/atualizou um feedback',
+  roles_update: () => 'alterou papéis de um usuário',
+  encerrar_simulado: (m) => {
+    const nome = pickValue(m, 'simulado_nome', 'nome');
+    return nome != null ? `encerrou o simulado "${nome}"` : 'encerrou um simulado';
+  },
+  import_simulado_responses: (m) => {
+    const n = pickNumber(m, 'total', 'count', 'quantidade', 'imported_count');
+    return n != null ? `importou ${n} resposta${n === 1 ? '' : 's'} de simulado` : 'importou respostas de simulado';
+  },
+  impersonate_start: () => 'iniciou impersonation de um usuário',
+  impersonate_stop: () => 'encerrou impersonation de um usuário',
+  user_update: () => 'atualizou dados de um usuário',
+  criar_simulado: (m) => {
+    const nome = pickValue(m, 'simulado_nome', 'nome');
+    return nome != null ? `criou o simulado "${nome}"` : 'criou um simulado';
+  },
+  editar_simulado: (m) => {
+    const nome = pickValue(m, 'simulado_nome', 'nome');
+    return nome != null ? `editou o simulado "${nome}"` : 'editou um simulado';
+  },
+  aviso_save: () => 'salvou um aviso',
+  material_create: () => 'criou um material',
+  material_update: () => 'atualizou um material',
+  study_guide_import: (m) => {
+    const n = pickNumber(m, 'total', 'count', 'quantidade');
+    return n != null ? `importou ${n} item${n === 1 ? '' : 's'} de guia de estudo` : 'importou um guia de estudo';
+  },
 };
 
 /** Rótulos para o filtro de ação da tela de Auditoria (select). */
@@ -65,6 +92,18 @@ export const AUDIT_ACTION_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'aviso_delete', label: 'Exclusão de aviso' },
   { value: 'material_delete', label: 'Exclusão de material' },
   { value: 'feedback_update', label: 'Atualização de feedback' },
+  { value: 'roles_update', label: 'Alteração de papéis' },
+  { value: 'encerrar_simulado', label: 'Encerramento de simulado' },
+  { value: 'import_simulado_responses', label: 'Importação de respostas de simulado' },
+  { value: 'impersonate_start', label: 'Início de impersonation' },
+  { value: 'impersonate_stop', label: 'Fim de impersonation' },
+  { value: 'user_update', label: 'Atualização de usuário' },
+  { value: 'criar_simulado', label: 'Criação de simulado' },
+  { value: 'editar_simulado', label: 'Edição de simulado' },
+  { value: 'aviso_save', label: 'Salvamento de aviso' },
+  { value: 'material_create', label: 'Criação de material' },
+  { value: 'material_update', label: 'Atualização de material' },
+  { value: 'study_guide_import', label: 'Importação de guia de estudo' },
 ];
 
 /**

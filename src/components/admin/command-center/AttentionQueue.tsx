@@ -2,11 +2,11 @@ import * as React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle } from 'lucide-react';
-import type { AdminCommandCenterPayload } from '@/services/admin/useAdminAttention';
+import type { AdminAttentionDetail } from '@/services/admin/useAdminAttention';
 
 export interface AttentionQueueProps {
-  /** `attentionDetail` de `useAdminAttention` — listas cruas (não as contagens). */
-  attention: AdminCommandCenterPayload['attention'];
+  /** `attentionDetail` de `useAdminAttention` — listas normalizadas (não as contagens). */
+  attention: AdminAttentionDetail;
 }
 
 interface AttentionItem {
@@ -44,7 +44,7 @@ function feedbackBreakdown(byCategory: Record<string, number>): string {
   return parts.join(' · ');
 }
 
-function buildItems(attention: AdminCommandCenterPayload['attention']): AttentionItem[] {
+function buildItems(attention: AdminAttentionDetail): AttentionItem[] {
   const items: AttentionItem[] = [];
 
   if (attention.simulados_encerrando_hoje.length > 0) {
@@ -57,12 +57,14 @@ function buildItems(attention: AdminCommandCenterPayload['attention']): Attentio
     });
   }
 
-  if (attention.import_batches_falha_7d.length > 0) {
+  // `total` é a contagem real (sem cap); `rows` só traz as 10 primeiras para
+  // os exemplos do subtítulo — ver normalizeImportBatchesFalha.
+  if (attention.import_batches_falha_7d.total > 0) {
     items.push({
       key: 'falhas',
-      count: attention.import_batches_falha_7d.length,
+      count: attention.import_batches_falha_7d.total,
       title: 'Importações com falha (7d)',
-      subtitle: joinWithMore(attention.import_batches_falha_7d.map((b) => b.simulado_nome)),
+      subtitle: joinWithMore(attention.import_batches_falha_7d.rows.map((b) => b.simulado_nome)),
       to: '/admin/simulados?tab=importar',
     });
   }

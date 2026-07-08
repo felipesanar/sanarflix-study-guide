@@ -30,6 +30,13 @@ interface RequestPayload {
   rows: InputRow[];
   dry_run?: boolean;
   batch_id?: string; // se omitido em modo real, criamos um novo
+  // Metadados de chunk: o client envia isso no commit (modo real) quando quebra a
+  // planilha em vários chunks de 50 linhas com o mesmo batch_id. Ausente => chamada
+  // "monolítica" antiga (retrocompatível, ver validatePayload e o bloco de escrita do batch).
+  chunk_meta?: {
+    total_rows?: number; // total de linhas da planilha inteira (não do chunk)
+    is_last?: boolean; // true no último chunk enviado para este batch_id
+  };
 }
 
 interface RowResult {
@@ -217,7 +224,18 @@ Deno.serve(async (req) => {
     // --- Modo REAL: cria batch e processa ---
     const batchId = payload.batch_id ?? crypto.randomUUID();
 
-    // Cria registro de batch (se ainda não existir — idempotente por reenvio)
+    // Com chunk_meta, o client está enviando a planilha em vários chunks de 50 linhas
+    // com o mesmo batch_id. Sem chunk_meta, é a chamada monolítica antiga — comportamento
+    // 100% preservado (total_rows = tamanho do próprio payload).
+    const chunkMeta = payload.chunk_meta;
+    const hasChunkMeta = chunkMeta != null;
+    const totalRowsForBatch = hasChunkMeta
+      ? (chunkMeta!.total_rows ?? payload.rows.length)
+      : payload.rows.length;
+
+    // Cria registro de batch (se ainda não existir — idempotente por reenvio).
+    // total_rows é sempre gravado com o total da planilha inteira (quando chunk_meta vem),
+    // então repetir o mesmo valor a cada chunk é inofensivo — não há "condição de primeiro chunk".
     const { error: batchErr } = await supabaseAdmin
       .from('admin_import_batches')
       .upsert(
@@ -226,7 +244,7 @@ Deno.serve(async (req) => {
           simulado_id: payload.simulado_id,
           source_label: payload.source_label,
           conflict_mode: payload.conflict_mode,
-          total_rows: payload.rows.length,
+          total_rows: totalRowsForBatch,
           status: 'in_progress',
           created_by: adminId,
         },
@@ -363,32 +381,81 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Atualizar contagens e status do batch
-    await supabaseAdmin
-      .from('admin_import_batches')
-      .update({
-        imported_count: imported,
-        skipped_count: skipped,
-        replaced_count: replaced,
-        failed_count: failed,
-        status: 'completed',
-        finished_at: new Date().toISOString(),
-      })
-      .eq('id', batchId);
+    // Atualizar contagens e status do batch.
+    //
+    // Sem chunk_meta: comportamento antigo intacto — sobrescreve com os contadores desta
+    // chamada (que é a chamada inteira) e fecha o batch como 'completed'.
+    //
+    // Com chunk_meta: os contadores de `imported`/`skipped`/`replaced`/`failed` acima são
+    // só deste chunk (até 50 linhas). Para não perder o progresso dos chunks anteriores,
+    // lemos o valor atual do batch e ACUMULAMOS. Premissa: o client envia os chunks de um
+    // mesmo batch_id sequencialmente, um de cada vez (aguarda a resposta antes do próximo),
+    // então não há concorrência real entre o read e o write abaixo — se isso mudar (chunks
+    // em paralelo), essa acumulação read-then-write deixa de ser segura e precisaria virar
+    // um incremento atômico (RPC/SQL `imported_count = imported_count + $1`).
+    let finalImported = imported;
+    let finalSkipped = skipped;
+    let finalReplaced = replaced;
+    let finalFailed = failed;
+    // Sem chunk_meta, cada chamada já é "a última" (é a única) — mantém o log por chamada.
+    let isLastChunk = true;
 
-    // Audit log
-    await supabaseAdmin.from('admin_audit_log').insert({
-      admin_id: adminId,
-      action: 'import_simulado_responses',
-      metadata: {
-        batch_id: batchId,
-        simulado_id: payload.simulado_id,
-        source_label: payload.source_label,
-        conflict_mode: payload.conflict_mode,
-        total: payload.rows.length,
-        imported, skipped, replaced, failed,
-      },
-    });
+    if (hasChunkMeta) {
+      const { data: currentBatchRow, error: currentBatchErr } = await supabaseAdmin
+        .from('admin_import_batches')
+        .select('imported_count, skipped_count, replaced_count, failed_count')
+        .eq('id', batchId)
+        .maybeSingle();
+      if (currentBatchErr) {
+        return jsonResponse({ error: 'batch_read_failed', details: currentBatchErr.message }, 500);
+      }
+      const prev = currentBatchRow as {
+        imported_count: number | null;
+        skipped_count: number | null;
+        replaced_count: number | null;
+        failed_count: number | null;
+      } | null;
+      finalImported = (prev?.imported_count ?? 0) + imported;
+      finalSkipped = (prev?.skipped_count ?? 0) + skipped;
+      finalReplaced = (prev?.replaced_count ?? 0) + replaced;
+      finalFailed = (prev?.failed_count ?? 0) + failed;
+      isLastChunk = chunkMeta!.is_last === true;
+    }
+
+    const batchUpdate: Record<string, unknown> = {
+      imported_count: finalImported,
+      skipped_count: finalSkipped,
+      replaced_count: finalReplaced,
+      failed_count: finalFailed,
+      // Só fecha o batch como 'completed' (com finished_at) quando for de fato o último chunk
+      // (ou quando não há chunk_meta, caso em que a chamada é sempre única).
+      status: isLastChunk ? 'completed' : 'in_progress',
+    };
+    if (isLastChunk) batchUpdate.finished_at = new Date().toISOString();
+
+    await supabaseAdmin.from('admin_import_batches').update(batchUpdate).eq('id', batchId);
+
+    // Audit log: sem chunk_meta, grava a cada chamada (comportamento atual, preservado).
+    // Com chunk_meta, grava só no último chunk, com os totais já acumulados (finalImported
+    // etc. acima), nunca os totais isolados deste chunk — senão o log mostraria "42/50"
+    // igual ao bug original, só que numa tabela diferente.
+    if (isLastChunk) {
+      await supabaseAdmin.from('admin_audit_log').insert({
+        admin_id: adminId,
+        action: 'import_simulado_responses',
+        metadata: {
+          batch_id: batchId,
+          simulado_id: payload.simulado_id,
+          source_label: payload.source_label,
+          conflict_mode: payload.conflict_mode,
+          total: totalRowsForBatch,
+          imported: finalImported,
+          skipped: finalSkipped,
+          replaced: finalReplaced,
+          failed: finalFailed,
+        },
+      });
+    }
 
     return jsonResponse({
       batch_id: batchId,
@@ -422,6 +489,30 @@ function validatePayload(p: RequestPayload): string[] {
   if (!Array.isArray(p?.rows)) errs.push('rows deve ser array');
   else if (p.rows.length === 0) errs.push('rows vazio');
   else if (p.rows.length > 200) errs.push('máximo 200 alunos por chamada (faça em lotes)');
+
+  // chunk_meta é opcional; se vier, precisa ter o shape certo (ver comentário na interface).
+  if (p?.chunk_meta !== undefined) {
+    const cm = p.chunk_meta as unknown;
+    if (typeof cm !== 'object' || cm === null || Array.isArray(cm)) {
+      errs.push('chunk_meta deve ser um objeto');
+    } else {
+      const { total_rows, is_last } = cm as { total_rows?: unknown; is_last?: unknown };
+      if (total_rows !== undefined) {
+        if (
+          typeof total_rows !== 'number' ||
+          !Number.isInteger(total_rows) ||
+          total_rows <= 0 ||
+          total_rows > 100000
+        ) {
+          errs.push('chunk_meta.total_rows deve ser inteiro positivo até 100000');
+        }
+      }
+      if (is_last !== undefined && typeof is_last !== 'boolean') {
+        errs.push('chunk_meta.is_last deve ser boolean');
+      }
+    }
+  }
+
   return errs;
 }
 

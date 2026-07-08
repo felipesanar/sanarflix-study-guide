@@ -20,6 +20,7 @@ import { ValidationSummary } from './components/ValidationSummary';
 import { ImportProgressComponent } from './components/ImportProgress';
 import { ImportResult } from './components/ImportResult';
 import { parseCSV, parseXLSX, validateAndNormalize } from './utils/parseFile';
+import { DangerZone } from '@/experiences/admin/ui';
 import type {
   ImportStep,
   ImportStatus,
@@ -79,8 +80,6 @@ export const StudyGuideImportWizard: React.FC = () => {
   const [config, setConfig] = useState<ImportConfig>({
     mode: 'MERGE',
     scope: 'ies_semestre',
-    emptyBehavior: 'ignore',
-    strictMode: false,
     dryRun: false,
     duplicateStrategy: 'keep_first',
   });
@@ -92,6 +91,8 @@ export const StudyGuideImportWizard: React.FC = () => {
   const [iesList, setIesList] = useState<IES[]>([]);
   const [approvedNewSemestres, setApprovedNewSemestres] = useState<Set<string>>(new Set());
   const [excludedSheets, setExcludedSheets] = useState<Set<string>>(new Set());
+  // DangerZone de confirmação para REPLACE antes de disparar a importação (item 3 da auditoria).
+  const [replaceDangerZoneOpen, setReplaceDangerZoneOpen] = useState(false);
 
   // Load IES list on mount
   useEffect(() => {
@@ -123,6 +124,13 @@ export const StudyGuideImportWizard: React.FC = () => {
     setError(null);
     setStatus('parsing');
 
+    // Reseta estado herdado do arquivo anterior (item 5 da auditoria): sem isso, trocar de
+    // arquivo mantém abas excluídas, semestres já aprovados e validação/changePlan antigos.
+    setExcludedSheets(new Set());
+    setApprovedNewSemestres(new Set());
+    setValidation(null);
+    setChangePlan(null);
+
     try {
       if (type === 'csv') {
         const { rows, sheetInfo } = await parseCSV(selectedFile);
@@ -140,10 +148,14 @@ export const StudyGuideImportWizard: React.FC = () => {
         setRawData(newRawData);
 
         // Auto-map sheets to IES based on parser results
+        // Item 2 da auditoria: mappedIesId vem cru de rows[0]?.id_ies (parseFile.ts), sem garantia
+        // de que existe na tabela `ies`. Se aceitarmos qualquer UUID aqui, o botão "Continuar"
+        // habilita com uma IES inexistente e a importação só estoura (erro de FK) no meio dos
+        // lotes já no servidor. Por isso só auto-mapeamos quando o id bate com o iesList carregado;
+        // caso contrário a aba fica sem mapeamento e o admin precisa escolher manualmente.
         const autoMappings: SheetMapping[] = [];
         for (const sheet of newSheets) {
-          if (sheet.mappedIesId) {
-            // Find IES name from list or use the one from parser
+          if (sheet.mappedIesId && iesList.some(i => i.id === sheet.mappedIesId)) {
             const ies = iesList.find(i => i.id === sheet.mappedIesId);
             const iesNome = ies?.nome || sheet.mappedIesName || 'IES';
             autoMappings.push({
@@ -466,23 +478,106 @@ export const StudyGuideImportWizard: React.FC = () => {
       const aggregatedCounts = { inserted: 0, updated: 0, deleted: 0, ignored: 0, errors: 0, unchanged: 0 };
       const aggregatedErrors: ImportResultRow[] = [];
       let lastRequestId = '';
-      let verificationResult: { expected: number; actual: number; match: boolean } | null = null;
+      // Item 8 da auditoria: agrega expected/actual de TODOS os lotes (antes só sobrescrevia com
+      // o último lote, escondendo divergências dos lotes anteriores). Mismatch de qualquer lote
+      // marca o total inteiro como divergente.
+      const verificationAgg = { expected: 0, actual: 0, anyMismatch: false, sawAny: false };
 
       if (config.mode === 'MERGE' || config.mode === 'REPLACE') {
         // ── Smart Import: server-side field-by-field comparison with batching ──
+        //
+        // Item 1 da auditoria: o servidor (handleSmartImport) apaga, dentro do escopo (IES [+
+        // semestre]), todo registro cuja identidade não está nas linhas RECEBIDAS NAQUELA
+        // CHAMADA. Se um lote cortar um escopo ao meio — ex.: metade das linhas de um semestre
+        // no lote 1 e a outra metade no lote 2 — o lote 2 apaga o que o lote 1 acabou de inserir
+        // (o servidor só vê as linhas do lote 2 como "o que deveria existir" naquele escopo).
+        // Por isso agrupamos as linhas por escopo ANTES de fatiar em lotes, e nunca dividimos um
+        // escopo entre lotes — um lote pode ficar com menos de SMART_BATCH_SIZE linhas para
+        // respeitar isso, e um escopo maior que o limite vai inteiro numa única chamada (ver
+        // packRowsIntoScopeBatches abaixo).
         const SMART_BATCH_SIZE = 5000;
-        const totalBatchesSmart = Math.ceil(rowsToImport.length / SMART_BATCH_SIZE);
 
-        Logger.info(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows in ${totalBatchesSmart} batch(es)`);
+        // Chave de escopo: para MERGE o servidor sempre usa ies_semestre (ignora config.scope);
+        // para REPLACE usa o scope escolhido. Só agrupamos por IES inteira (ies_full) quando o
+        // servidor também vai tratar o escopo como a IES inteira — senão duas chamadas para o
+        // mesmo par IES+semestre mas com escopo "maior" que o necessário desperdiçariam trabalho
+        // sem necessidade.
+        const useIesFullScope = config.mode === 'REPLACE' && config.scope === 'ies_full';
+        const scopeKeyOf = (row: NormalizedRow) =>
+          useIesFullScope ? row.id_ies : `${row.id_ies}|${row.semestre}`;
+
+        const scopeGroups = new Map<string, NormalizedRow[]>();
+        for (const row of rowsToImport) {
+          const key = scopeKeyOf(row);
+          const list = scopeGroups.get(key);
+          if (list) list.push(row); else scopeGroups.set(key, [row]);
+        }
+
+        const smartBatches: NormalizedRow[][] = [];
+        if (useIesFullScope) {
+          // REPLACE + escopo IES completa: cada grupo já é uma IES inteira (ver scopeKeyOf
+          // acima). Aqui NÃO fazemos bin-packing entre grupos: se combinássemos duas IES
+          // pequenas no mesmo lote, seria preciso decidir qual scope mandar na chamada, e um
+          // rebaixamento por posição do lote (ver bug corrigido abaixo) apagaria apenas os
+          // semestres presentes no arquivo daquela IES em vez da IES inteira — quebrando a
+          // promessa do DangerZone. Em vez disso: 1 IES = 1 lote, sempre com scope 'ies_full'.
+          // A garantia deixa de depender de índice e passa a ser estrutural.
+          for (const groupRows of scopeGroups.values()) {
+            smartBatches.push(groupRows);
+          }
+        } else {
+          // MERGE (sempre ies_semestre) e REPLACE + escopo ies_semestre: bin-packing simples,
+          // acumula grupos de escopo até o limite alvo; nunca quebra um grupo. Se um grupo
+          // sozinho já excede o limite, ele vira um lote próprio (maior que o alvo) — isso é
+          // intencional (ver comentário acima). Se a edge tiver algum limite hard de payload
+          // (tamanho de body), esse é o único caso em que estouraríamos SMART_BATCH_SIZE de
+          // propósito; hoje a função não impõe esse limite, mas documentamos aqui para quem for
+          // investigar um erro de payload no futuro.
+          let currentBatch: NormalizedRow[] = [];
+          for (const groupRows of scopeGroups.values()) {
+            if (groupRows.length > SMART_BATCH_SIZE) {
+              if (currentBatch.length > 0) {
+                smartBatches.push(currentBatch);
+                currentBatch = [];
+              }
+              smartBatches.push(groupRows); // escopo único, enviado inteiro numa chamada só
+              continue;
+            }
+            if (currentBatch.length > 0 && currentBatch.length + groupRows.length > SMART_BATCH_SIZE) {
+              smartBatches.push(currentBatch);
+              currentBatch = [];
+            }
+            currentBatch.push(...groupRows);
+          }
+          if (currentBatch.length > 0) smartBatches.push(currentBatch);
+        }
+
+        const totalBatchesSmart = smartBatches.length;
+
+        Logger.info(LOG_PREFIX, `Sending smart_import: ${rowsToImport.length} rows in ${totalBatchesSmart} batch(es), agrupados por ${useIesFullScope ? 'IES completa' : 'IES+semestre'}`);
 
         for (let i = 0; i < totalBatchesSmart; i++) {
-          const batchRows = rowsToImport.slice(i * SMART_BATCH_SIZE, (i + 1) * SMART_BATCH_SIZE);
+          const batchRows = smartBatches[i];
           const batchProgress = Math.round((i / totalBatchesSmart) * 100);
           const batchLabel = totalBatchesSmart > 1
             ? `Lote ${i + 1}/${totalBatchesSmart} (${batchRows.length} linhas)...`
             : `Enviando ${batchRows.length} linhas para comparação inteligente...`;
           updateProgress('uploading', batchProgress, batchLabel);
 
+          if (batchRows.length > SMART_BATCH_SIZE) {
+            Logger.warn(LOG_PREFIX, `Lote ${i + 1} excede o tamanho alvo (${batchRows.length} > ${SMART_BATCH_SIZE}) porque contém um único escopo que não pode ser dividido sem risco de apagamento indevido.`);
+          }
+
+          // Item 1 da auditoria (REPLACE + escopo IES completa): antes, apenas o primeiro lote
+          // carregava scope='ies_full' e os demais eram rebaixados para 'ies_semestre' com base
+          // no ÍNDICE do lote — mas o bin-packing por escopo podia colocar uma IES inteira em
+          // um lote de índice > 0 (ex.: várias IES pequenas somando mais de SMART_BATCH_SIZE
+          // linhas), fazendo essa IES receber um replace PARCIAL (só os semestres presentes no
+          // arquivo), quando o DangerZone prometeu apagar a IES inteira. Agora não há
+          // rebaixamento por índice: quando useIesFullScope, cada lote já é exatamente uma IES
+          // completa (ver montagem de smartBatches acima), então TODOS os lotes usam
+          // config.scope='ies_full' sem exceção — a garantia é estrutural (1 IES = 1 lote), não
+          // posicional.
           const { data, error: fnError } = await supabase.functions.invoke('admin-upload-study-guide', {
             body: {
               action: 'smart_import',
@@ -512,7 +607,10 @@ export const StudyGuideImportWizard: React.FC = () => {
             aggregatedCounts.unchanged += data.counts.unchanged || 0;
           }
           if (data.verification) {
-            verificationResult = data.verification;
+            verificationAgg.sawAny = true;
+            verificationAgg.expected += data.verification.expected || 0;
+            verificationAgg.actual += data.verification.actual || 0;
+            if (!data.verification.match) verificationAgg.anyMismatch = true;
           }
           if (data.errors?.length) {
             aggregatedErrors.push(...data.errors);
@@ -520,8 +618,8 @@ export const StudyGuideImportWizard: React.FC = () => {
           lastRequestId = data.requestId || lastRequestId;
         }
 
-        if (verificationResult && !verificationResult.match) {
-          Logger.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationResult.expected}, actual=${verificationResult.actual}`);
+        if (verificationAgg.sawAny && (verificationAgg.anyMismatch || verificationAgg.expected !== verificationAgg.actual)) {
+          Logger.warn(LOG_PREFIX, `Verification mismatch: expected=${verificationAgg.expected}, actual=${verificationAgg.actual}`);
         }
       } else {
         // ── APPEND mode: simple insert_only batches ──
@@ -567,6 +665,15 @@ export const StudyGuideImportWizard: React.FC = () => {
         counts: aggregatedCounts,
         errors: aggregatedErrors,
         durationMs: Date.now() - startTime,
+        // Item 8 da auditoria: verificação agregada de todos os lotes, exibida no ImportResult
+        // quando houver divergência (antes só ia para Logger.warn, invisível para o admin).
+        verification: verificationAgg.sawAny
+          ? {
+              expected: verificationAgg.expected,
+              actual: verificationAgg.actual,
+              match: !verificationAgg.anyMismatch && verificationAgg.expected === verificationAgg.actual,
+            }
+          : null,
       };
 
       setResult(importResult);
@@ -630,8 +737,6 @@ export const StudyGuideImportWizard: React.FC = () => {
     setConfig({
       mode: 'MERGE',
       scope: 'ies_semestre',
-      emptyBehavior: 'ignore',
-      strictMode: false,
       dryRun: false,
       duplicateStrategy: 'keep_first',
     });
@@ -642,6 +747,7 @@ export const StudyGuideImportWizard: React.FC = () => {
     setError(null);
     setApprovedNewSemestres(new Set());
     setExcludedSheets(new Set());
+    setReplaceDangerZoneOpen(false);
   }, []);
 
   // Navigation
@@ -649,14 +755,20 @@ export const StudyGuideImportWizard: React.FC = () => {
     switch (step) {
       case 'upload':
         return file && sheets.length > 0 && status === 'idle';
-      case 'configure':
+      case 'configure': {
+        // Item 2 da auditoria: além de existir um iesId no mapping, ele precisa corresponder a
+        // uma IES real do iesList — senão a importação estoura FK no meio dos lotes no servidor.
+        const isValidMapping = (m: SheetMapping | undefined) =>
+          !!m?.iesId && iesList.some(i => i.id === m.iesId);
+
         if (fileType === 'csv') {
-          return sheetMappings.length > 0 && sheetMappings[0]?.iesId;
+          return isValidMapping(sheetMappings[0]);
         }
-        // For XLSX, all enabled sheets must be mapped, and at least 1 must be enabled
+        // For XLSX, all enabled sheets must be mapped to a valid IES, and at least 1 must be enabled
         const enabledSheets = sheets.filter(s => !excludedSheets.has(s.name));
         if (enabledSheets.length === 0) return false;
-        return enabledSheets.every(s => sheetMappings.some(m => m.sheetName === s.name && m.iesId));
+        return enabledSheets.every(s => isValidMapping(sheetMappings.find(m => m.sheetName === s.name)));
+      }
       case 'validate': {
         if (!validation?.isValid || status !== 'ready_to_import') return false;
         // If there are new semesters, all must be approved
@@ -669,7 +781,28 @@ export const StudyGuideImportWizard: React.FC = () => {
       default:
         return false;
     }
-  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres, excludedSheets]);
+  }, [step, file, sheets, status, fileType, sheetMappings, validation, approvedNewSemestres, excludedSheets, iesList]);
+
+  // Resumo de impacto exibido na DangerZone de confirmação do modo REPLACE (item 3 da auditoria).
+  const replaceImpactSummary = React.useMemo(() => {
+    const deletes = changePlan?.deletes ?? 0;
+    const inserts = changePlan?.inserts ?? 0;
+    const updates = changePlan?.updates ?? 0;
+    const scopeLabel = config.scope === 'ies_full'
+      ? 'TODOS os conteúdos da(s) IES mapeada(s) (todos os semestres, não apenas os do arquivo)'
+      : 'os conteúdos dos semestres presentes no arquivo, por IES';
+    return (
+      <div className="space-y-1.5">
+        <p>O modo <strong>REPLACE</strong> vai apagar {scopeLabel} antes de inserir os novos dados.</p>
+        <p>
+          Estimativa: <strong className="text-destructive">{deletes.toLocaleString('pt-BR')}</strong> removido(s),{' '}
+          <strong>{inserts.toLocaleString('pt-BR')}</strong> inserido(s) e{' '}
+          <strong>{updates.toLocaleString('pt-BR')}</strong> atualizado(s).
+        </p>
+        <p className="text-xs text-muted-foreground">Esta ação é irreversível.</p>
+      </div>
+    );
+  }, [changePlan, config.scope]);
 
   const handleNext = useCallback(() => {
     const currentIndex = STEPS.indexOf(step);
@@ -683,13 +816,20 @@ export const StudyGuideImportWizard: React.FC = () => {
       
       // Start import when moving to import step
       if (nextStep === 'import') {
+        // Item 3 da auditoria: REPLACE apaga registros do escopo antes de inserir — é destrutivo
+        // e irreversível, então exige confirmação extra via DangerZone antes de rodar runImport.
+        // Para escopo ies_full (apaga a IES inteira) usamos nível "high" com palavra de confirmação.
+        if (config.mode === 'REPLACE') {
+          setReplaceDangerZoneOpen(true);
+          return;
+        }
         runImport();
         return;
       }
-      
+
       setStep(nextStep);
     }
-  }, [step, runValidation, runImport]);
+  }, [step, runValidation, runImport, config.mode]);
 
   const handleBack = useCallback(() => {
     const currentIndex = STEPS.indexOf(step);
@@ -915,6 +1055,32 @@ export const StudyGuideImportWizard: React.FC = () => {
             </Button>
           </div>
         </>
+      )}
+
+      {/* Confirmação obrigatória antes de rodar REPLACE (item 3 da auditoria) */}
+      {config.mode === 'REPLACE' && (
+        config.scope === 'ies_full' ? (
+          <DangerZone
+            open={replaceDangerZoneOpen}
+            onOpenChange={setReplaceDangerZoneOpen}
+            title="Confirmar REPLACE — IES completa"
+            level="high"
+            confirmWord="SUBSTITUIR TUDO"
+            impact={replaceImpactSummary}
+            actionLabel="Substituir e importar"
+            onConfirm={runImport}
+          />
+        ) : (
+          <DangerZone
+            open={replaceDangerZoneOpen}
+            onOpenChange={setReplaceDangerZoneOpen}
+            title="Confirmar REPLACE"
+            level="medium"
+            impact={replaceImpactSummary}
+            actionLabel="Substituir e importar"
+            onConfirm={runImport}
+          />
+        )
       )}
     </Card>
   );

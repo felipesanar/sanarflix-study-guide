@@ -39,12 +39,18 @@ export async function anularQuestao(questaoId: string, motivo?: string): Promise
 }
 
 /**
- * Conta quantas respostas (`answer_progress`) existem para uma questão —
- * usado para compor o resumo de impacto real exibido na `DangerZone` antes
- * de anular ("N respostas serão recontabilizadas"). Retorna 0 em caso de
- * erro (nunca bloqueia a abertura do diálogo por uma falha de contagem).
+ * Conta quantas respostas (`answer_progress`) existem para uma questão — usado
+ * para compor o resumo de impacto exibido na `DangerZone` antes de anular
+ * ("até N respostas serão recontabilizadas"). É um TETO, não o número exato:
+ * a RPC `admin_anular_questao` só recontabiliza respostas NÃO corretas (quem
+ * já tinha acertado não muda), então o total aqui pode ser maior que o que
+ * de fato será alterado.
+ *
+ * Retorna `null` em caso de erro de contagem — NUNCA 0, para o chamador não
+ * confundir "não foi possível contar" com "não há respostas registradas"
+ * (achado de auditoria P3).
  */
-export async function countRespostasQuestao(questionId: string): Promise<number> {
+export async function countRespostasQuestao(questionId: string): Promise<number | null> {
   const { count, error } = await supabase
     .from('answer_progress')
     .select('answer_id', { count: 'exact', head: true })
@@ -52,7 +58,7 @@ export async function countRespostasQuestao(questionId: string): Promise<number>
 
   if (error) {
     Logger.error('[services/admin/simulados] contagem de respostas falhou:', error);
-    return 0;
+    return null;
   }
   return count ?? 0;
 }

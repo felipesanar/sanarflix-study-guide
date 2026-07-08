@@ -104,29 +104,37 @@ export const AnnouncementsTab: React.FC = () => {
     }
   };
 
-  const handleSave = async () => {
-    if (!editingConfig) return;
+  const handleSave = async (configToSave: AnnouncementConfig) => {
+    // O editor já monta `configToSave` com a conversão de timezone correta
+    // (data de expiração local -> UTC). Usar `editingConfig` cru aqui salvava
+    // a data como string local naive (~3h de erro; o aviso expirava antes da
+    // hora configurada) — bug corrigido recebendo o parâmetro.
+    if (!configToSave.titulo.trim() || !configToSave.descricao.trim()) {
+      toast.error('Preencha título e descrição do aviso');
+      return;
+    }
 
     const { error: saveError } = await supabase.from('announcements').upsert({
-      id: editingConfig.id,
-      titulo: editingConfig.titulo,
-      descricao: editingConfig.descricao,
-      link_botao: editingConfig.link_botao || null,
-      texto_botao: editingConfig.texto_botao,
-      paleta_cores: editingConfig.paleta_cores,
-      ativo: editingConfig.ativo,
-      data_expiracao: editingConfig.data_expiracao,
-      prioridade: editingConfig.prioridade,
-      visibilidade: editingConfig.visibilidade,
-      ies_selecionadas: editingConfig.ies_selecionadas,
-      ies_excluidas: editingConfig.ies_excluidas,
+      id: configToSave.id,
+      titulo: configToSave.titulo,
+      descricao: configToSave.descricao,
+      link_botao: configToSave.link_botao || null,
+      texto_botao: configToSave.texto_botao,
+      paleta_cores: configToSave.paleta_cores,
+      ativo: configToSave.ativo,
+      data_expiracao: configToSave.data_expiracao,
+      prioridade: configToSave.prioridade,
+      visibilidade: configToSave.visibilidade,
+      ies_selecionadas: configToSave.ies_selecionadas,
+      ies_excluidas: configToSave.ies_excluidas,
     });
 
     if (saveError) {
       toast.error('Erro ao salvar aviso');
       Logger.error('Erro ao salvar aviso', saveError);
     } else {
-      toast.success(editingConfig.id ? 'Aviso atualizado!' : 'Aviso criado!');
+      toast.success(configToSave.id ? 'Aviso atualizado!' : 'Aviso criado!');
+      await logAdminAction('aviso_save', null, { id: configToSave.id ?? null, titulo: configToSave.titulo });
       setEditingConfig(null);
       fetchAnnouncements();
     }

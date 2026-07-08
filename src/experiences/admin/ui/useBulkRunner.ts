@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BulkPhase, PreviewStats, RunResult, RunResultItem } from './bulk-types';
 
 export interface BulkExecuteChunkResult {
@@ -45,6 +45,27 @@ export type UseBulkRunnerReturn<TRow> = BulkRunnerState<TRow> & { actions: BulkR
 
 const INITIAL_PROGRESS = { done: 0, total: 0 };
 
+/** `setTimeout` que rejeita assim que `signal` é abortado — sem isso, cancelar
+ * durante a pausa entre chunks esperava o timer inteiro (até `interChunkDelayMs`)
+ * antes de parar. */
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * Hook genérico para operações em lote com dry-run, chunking, cancelamento e relatório final.
  * Modelado a partir de SimuladosImportRespostasTab (dry-run/cancel/histórico) e
@@ -63,28 +84,45 @@ export function useBulkRunner<TRow>(config: BulkRunnerConfig<TRow>): UseBulkRunn
 
   const cancelRequestedRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Espelha `phase` em ref para leitura síncrona (evita closures obsoletas em start()/cancel()).
+  const phaseRef = useRef<BulkPhase>('idle');
+
+  const setPhaseSynced = useCallback((next: BulkPhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+
+  // Aborta qualquer chunk em voo se o componente desmontar no meio de uma execução.
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const reset = useCallback(() => {
     cancelRequestedRef.current = false;
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
-    setPhase('idle');
+    setPhaseSynced('idle');
     setRowsState([]);
     setFileName(null);
     setPreviewStats(null);
     setProgress(INITIAL_PROGRESS);
     setResult(null);
     setError(null);
-  }, []);
+  }, [setPhaseSynced]);
 
-  const setRows = useCallback((next: TRow[]) => {
-    setRowsState(next);
-    setPreviewStats(null);
-    setResult(null);
-    setError(null);
-    setProgress(INITIAL_PROGRESS);
-    setPhase('idle');
-  }, []);
+  const setRows = useCallback(
+    (next: TRow[]) => {
+      setRowsState(next);
+      setPreviewStats(null);
+      setResult(null);
+      setError(null);
+      setProgress(INITIAL_PROGRESS);
+      setPhaseSynced('idle');
+    },
+    [setPhaseSynced],
+  );
 
   const loadFile = useCallback(
     async (file: File) => {
@@ -106,16 +144,16 @@ export function useBulkRunner<TRow>(config: BulkRunnerConfig<TRow>): UseBulkRunn
 
   const runDryRun = useCallback(async () => {
     if (rows.length === 0) return;
-    setPhase('preview');
+    setPhaseSynced('preview');
     setError(null);
     try {
       const stats = await dryRun(rows);
       setPreviewStats(stats);
     } catch (err) {
-      setPhase('error');
+      setPhaseSynced('error');
       setError(err instanceof Error ? err.message : 'Falha na pré-visualização.');
     }
-  }, [rows, dryRun]);
+  }, [rows, dryRun, setPhaseSynced]);
 
   const cancel = useCallback(() => {
     cancelRequestedRef.current = true;
@@ -124,8 +162,11 @@ export function useBulkRunner<TRow>(config: BulkRunnerConfig<TRow>): UseBulkRunn
 
   const start = useCallback(async () => {
     if (rows.length === 0) return;
+    // Reentrância: uma execução já em andamento não pode ser reiniciada por cima.
+    if (phaseRef.current === 'running') return;
+
     cancelRequestedRef.current = false;
-    setPhase('running');
+    setPhaseSynced('running');
     setError(null);
     setResult(null);
     setProgress({ done: 0, total: rows.length });
@@ -134,6 +175,13 @@ export function useBulkRunner<TRow>(config: BulkRunnerConfig<TRow>): UseBulkRunn
     let falhas = 0;
     const itens: RunResultItem[] = [];
     let cancelled = false;
+
+    // Finaliza como `cancelled` preservando o que já foi processado até aqui.
+    const finalizeCancelled = () => {
+      const canceladas = Math.max(rows.length - ok - falhas, 0);
+      setResult({ ok, falhas, canceladas, itens });
+      setPhaseSynced('cancelled');
+    };
 
     try {
       for (let i = 0; i < rows.length; i += chunkSize) {
@@ -161,20 +209,35 @@ export function useBulkRunner<TRow>(config: BulkRunnerConfig<TRow>): UseBulkRunn
           break;
         }
         if (interChunkDelayMs > 0 && i + chunkSize < rows.length) {
-          await new Promise((resolve) => setTimeout(resolve, interChunkDelayMs));
+          // Abortável pelo signal do chunk que acabou de rodar: cancelar durante a
+          // pausa entre chunks não deve esperar o timer inteiro (ver catch abaixo,
+          // que já trata AbortError como cancelamento, não erro).
+          await abortableDelay(interChunkDelayMs, controller.signal);
         }
       }
 
-      const canceladas = cancelled ? Math.max(rows.length - ok - falhas, 0) : 0;
-      setResult({ ok, falhas, canceladas, itens });
-      setPhase(cancelled ? 'cancelled' : 'done');
+      if (cancelled) {
+        finalizeCancelled();
+      } else {
+        setResult({ ok, falhas, canceladas: 0, itens });
+        setPhaseSynced('done');
+      }
     } catch (err) {
-      setPhase('error');
-      setError(err instanceof Error ? err.message : 'Falha ao executar o lote.');
+      // `execute` recebe o AbortSignal e pode rejeitar com AbortError ao ser cancelado no
+      // meio do chunk — nesse caso o cancelamento já foi pedido por `cancel()`, então o
+      // resultado parcial acumulado até aqui deve virar um `cancelled`, não um `error`.
+      const isAbort =
+        cancelRequestedRef.current || (err instanceof Error && err.name === 'AbortError');
+      if (isAbort) {
+        finalizeCancelled();
+      } else {
+        setPhaseSynced('error');
+        setError(err instanceof Error ? err.message : 'Falha ao executar o lote.');
+      }
     } finally {
       abortControllerRef.current = null;
     }
-  }, [rows, chunkSize, interChunkDelayMs, execute]);
+  }, [rows, chunkSize, interChunkDelayMs, execute, setPhaseSynced]);
 
   return {
     phase,

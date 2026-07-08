@@ -108,6 +108,11 @@ export const IesFeaturesBoard: React.FC = () => {
     const changes = pendingChanges[iesId];
     if (!changes || Object.keys(changes).length === 0) return;
 
+    // Snapshot das chaves enviadas nesse payload — usado depois para remover
+    // do pending SÓ o que foi de fato salvo, preservando toggles feitos pelo
+    // usuário enquanto a RPC estava em voo.
+    const sentKeys = Object.keys(changes);
+
     setSaving(iesId);
     try {
       await setIesFeatures(iesId, changes);
@@ -125,8 +130,19 @@ export const IesFeaturesBoard: React.FC = () => {
       );
 
       setPendingChanges((prev) => {
+        const iesChanges = prev[iesId];
+        if (!iesChanges) return prev;
         const next = { ...prev };
-        delete next[iesId];
+        const remaining = { ...iesChanges };
+        // Remove só as chaves que estavam neste payload — um toggle feito
+        // DURANTE a RPC em voo (chave ainda não presente em `sentKeys`)
+        // permanece pendente, em vez de ser descartado silenciosamente.
+        sentKeys.forEach((key) => delete remaining[key]);
+        if (Object.keys(remaining).length === 0) {
+          delete next[iesId];
+        } else {
+          next[iesId] = remaining;
+        }
         return next;
       });
     } catch (err) {
@@ -193,6 +209,7 @@ export const IesFeaturesBoard: React.FC = () => {
                     <Switch
                       id={`${ies.id}-${feature.key}`}
                       checked={isEnabled}
+                      disabled={saving === ies.id}
                       onCheckedChange={(checked) => handleFeatureToggle(ies.id, feature.key, checked)}
                     />
                   </div>

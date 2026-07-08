@@ -9,9 +9,9 @@
  */
 import { useEffect, useState } from 'react';
 import { Ban, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -47,7 +47,6 @@ export interface QuestoesDialogProps {
 }
 
 export default function QuestoesDialog({ open, onOpenChange, simuladoId, simuladoNome }: QuestoesDialogProps) {
-  const { toast } = useToast();
   const [questoes, setQuestoes] = useState<QuestaoRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +54,8 @@ export default function QuestoesDialog({ open, onOpenChange, simuladoId, simulad
 
   const [countingId, setCountingId] = useState<string | null>(null);
   const [anularTarget, setAnularTarget] = useState<QuestaoRow | null>(null);
-  const [anularImpact, setAnularImpact] = useState(0);
+  // `null` = a contagem falhou (nunca deve virar "não há respostas" — achado P3).
+  const [anularImpact, setAnularImpact] = useState<number | null>(0);
   const [dangerOpen, setDangerOpen] = useState(false);
 
   const fetchQuestoes = async () => {
@@ -110,16 +110,11 @@ export default function QuestoesDialog({ open, onOpenChange, simuladoId, simulad
     try {
       const result = await anularQuestao(anularTarget.id);
       setQuestoes((prev) => prev.map((q) => (q.id === anularTarget.id ? { ...q, anulada: true } : q)));
-      toast({
-        title: 'Questão anulada',
+      toast.success('Questão anulada', {
         description: `${result.respostas_recontabilizadas} resposta(s) recontabilizada(s) como corretas.`,
       });
     } catch (err) {
-      toast({
-        title: 'Erro ao anular questão',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro ao anular questão', { description: err instanceof Error ? err.message : String(err) });
       throw err; // mantém a DangerZone aberta para nova tentativa.
     }
   };
@@ -216,10 +211,12 @@ export default function QuestoesDialog({ open, onOpenChange, simuladoId, simulad
         level="medium"
         title={`Anular Questão ${anularTarget?.numero_questao ?? anularTarget?.ordem ?? ''}`}
         impact={
-          anularImpact > 0 ? (
+          anularImpact === null ? (
+            'A questão será marcada como anulada. Não foi possível estimar o impacto.'
+          ) : anularImpact > 0 ? (
             <>
-              A questão será marcada como anulada e <MonoValue>{anularImpact}</MonoValue> resposta(s) serão
-              recontabilizadas — todos que a responderam passam a ser considerados corretos.
+              A questão será marcada como anulada e até <MonoValue>{anularImpact}</MonoValue> resposta(s) serão
+              recontabilizadas — quem a respondeu errado por causa dela pode passar a ser considerado correto.
             </>
           ) : (
             'A questão será marcada como anulada. Ainda não há respostas registradas para ela.'

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { Logger } from '@/utils/logger';
 
 /**
@@ -16,11 +17,12 @@ export async function logAdminAction(
   metadata?: Record<string, unknown>,
 ): Promise<void> {
   try {
-    // RPC ainda não presente nos tipos gerados — cast documentado (padrão do repo).
-    const { error } = await (supabase.rpc as CallableFunction)('admin_log_action', {
+    // RPC tipada em src/integrations/supabase/types.ts (Args/Returns já gerados).
+    const { error } = await supabase.rpc('admin_log_action', {
       p_action: action,
       p_target_user_id: targetUserId ?? null,
-      p_metadata: metadata ?? {},
+      // metadata é `Record<string, unknown>` no call-site; serializa como Json para a RPC.
+      p_metadata: (metadata ?? {}) as Json,
     });
     if (error) throw error;
   } catch (err) {

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { Download, Loader2, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
   AdminEmpty,
@@ -59,7 +59,6 @@ export interface ImportarHistoricoLotesProps {
 
 /** Histórico "Últimos lotes" — sempre visível (RPC `admin_list_import_batches` já existente). */
 export function ImportarHistoricoLotes({ refreshKey }: ImportarHistoricoLotesProps) {
-  const { toast } = useToast();
   const [batches, setBatches] = useState<BatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,13 +98,9 @@ export function ImportarHistoricoLotes({ refreshKey }: ImportarHistoricoLotesPro
       XLSX.utils.book_append_sheet(wb, ws, 'Relatório');
       const safeName = batch.simulado_nome.replace(/[^\w]/g, '_').slice(0, 40);
       XLSX.writeFile(wb, `import-${safeName}-${batch.id.slice(0, 8)}.xlsx`);
-      toast({ title: 'Relatório baixado', description: `${rows.length} linha(s)` });
+      toast.success('Relatório baixado', { description: `${rows.length} linha(s)` });
     } catch (err) {
-      toast({
-        title: 'Erro ao baixar relatório',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro ao baixar relatório', { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setDownloadingId(null);
     }

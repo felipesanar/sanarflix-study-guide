@@ -256,7 +256,7 @@ export const ValidationSummary: React.FC<ValidationSummaryProps> = ({
             </h4>
           </div>
           <p className="text-sm text-muted-foreground">
-            Os semestres abaixo não existem no banco para as IES correspondentes. Marque os que deseja criar durante a importação.
+            Os semestres abaixo não existem no banco para as IES correspondentes. Confirme todos os semestres novos para prosseguir — é preciso aprovar todos para continuar a importação.
           </p>
           <div className="space-y-2">
             {validation.newSemestres.map((ns) => {

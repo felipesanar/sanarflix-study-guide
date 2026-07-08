@@ -94,7 +94,17 @@ export function ErrorRatesBlock() {
                 <p className="text-xs text-muted-foreground">
                   {q.erros}/{q.total_respostas} erros · candidatas a revisão pedagógica ou anulação
                 </p>
-                <Link to="/admin/simulados" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                {/*
+                  P3 (auditoria): antes linkava pro /admin/simulados genérico
+                  (sem contexto — o admin caía na tela de simulados sem saber
+                  qual prova/aba abrir). Fix: aponta para a aba Provas já com
+                  `?questoes=<simuladoId>` — contrato combinado com o agente
+                  que está dando suporte a esse parâmetro no ProvasTab.
+                */}
+                <Link
+                  to={`/admin/simulados?tab=provas&questoes=${simuladoId}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
                   Ver questões <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>

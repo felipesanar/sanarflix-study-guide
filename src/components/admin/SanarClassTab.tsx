@@ -84,6 +84,49 @@ function fileKeyFromUrl(url: string): string | null {
   }
 }
 
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
+
+/**
+ * Valida o arquivo escolhido antes do upload: tamanho máximo e extensão
+ * compatível com o `formato` selecionado. Retorna a mensagem de erro (ou
+ * `null` se válido) para o chamador decidir o toast específico.
+ */
+function validateLessonFile(file: File, formato: 'pdf' | 'pptx'): string | null {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return `Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Máximo permitido: 50MB.`;
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const expectedExt = formato === 'pdf' ? 'pdf' : 'pptx';
+  if (ext !== expectedExt) {
+    return `O arquivo selecionado (.${ext ?? '?'}) não corresponde ao formato escolhido (${expectedExt.toUpperCase()}).`;
+  }
+  return null;
+}
+
+/**
+ * Conta quantas linhas de `sanarclass_lessons` ainda referenciam o mesmo
+ * `arquivo_url` (o mesmo arquivo físico pode estar associado a várias linhas
+ * — uma por semestre — quando uma aula é cadastrada para múltiplos semestres
+ * de uma vez). Usado para só remover o objeto do storage quando for a
+ * última referência, evitando 404 nas linhas irmãs.
+ */
+async function countLessonsUsingFile(arquivoUrl: string, excludeId?: string): Promise<number> {
+  let query = supabase
+    .from('sanarclass_lessons')
+    .select('id', { count: 'exact', head: true })
+    .eq('arquivo_url', arquivoUrl);
+  if (excludeId) query = query.neq('id', excludeId);
+
+  const { count, error } = await query;
+  if (error) {
+    Logger.error('Erro ao contar referências do arquivo:', error);
+    // Conservador: em caso de erro na contagem, assume que há outra
+    // referência para não apagar um arquivo ainda em uso por engano.
+    return 1;
+  }
+  return count ?? 0;
+}
+
 export default function SanarClassTab() {
   const [lessons, setLessons] = useState<SanarClassLesson[]>([]);
   const [iesList, setIesList] = useState<IES[]>([]);
@@ -210,6 +253,12 @@ export default function SanarClassTab() {
       return;
     }
 
+    const fileError = validateLessonFile(formData.arquivo, formData.formato);
+    if (fileError) {
+      toast.error(fileError);
+      return;
+    }
+
     setSaving(true);
     try {
       const arquivoUrl = await handleFileUpload(formData.arquivo);
@@ -232,6 +281,7 @@ export default function SanarClassTab() {
       if (error) throw error;
 
       toast.success(`Aula adicionada para ${rows.length} semestre(s)`);
+      await logAdminAction('material_create', null, { titulo: formData.titulo, semestres: formData.semestres });
       setAddModalOpen(false);
       resetForm();
       fetchData();
@@ -252,21 +302,24 @@ export default function SanarClassTab() {
       return;
     }
 
+    if (formData.arquivo) {
+      const fileError = validateLessonFile(formData.arquivo, formData.formato);
+      if (fileError) {
+        toast.error(fileError);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
+      const previousArquivoUrl = selectedLesson.arquivo_url;
       let arquivoUrl = formData.arquivo_url;
 
       if (formData.arquivo) {
+        // Upload do novo arquivo primeiro — é aditivo (na pior hipótese, se o
+        // update abaixo falhar, sobra um objeto órfão novo, nunca uma linha
+        // apontando para um arquivo já removido).
         arquivoUrl = await handleFileUpload(formData.arquivo);
-
-        if (selectedLesson.arquivo_url) {
-          const oldPath = fileKeyFromUrl(selectedLesson.arquivo_url);
-          if (oldPath) {
-            await supabase.storage
-              .from('sanarclass-files')
-              .remove([oldPath]);
-          }
-        }
       }
 
       const { error } = await supabase
@@ -285,7 +338,28 @@ export default function SanarClassTab() {
 
       if (error) throw error;
 
+      // DB já foi atualizado com sucesso — a partir daqui, qualquer falha na
+      // limpeza do storage é só um warning (não desfaz a edição).
+      if (formData.arquivo && previousArquivoUrl && previousArquivoUrl !== arquivoUrl) {
+        // Só remove o arquivo antigo do storage se nenhuma outra linha (outro
+        // semestre da mesma aula) ainda usar o mesmo `arquivo_url`.
+        const remaining = await countLessonsUsingFile(previousArquivoUrl, selectedLesson.id);
+        if (remaining === 0) {
+          const oldPath = fileKeyFromUrl(previousArquivoUrl);
+          if (oldPath) {
+            const { error: storageError } = await supabase.storage
+              .from('sanarclass-files')
+              .remove([oldPath]);
+            if (storageError) {
+              Logger.error('Erro ao remover arquivo antigo do storage:', storageError);
+              toast.warning('Aula atualizada, mas o arquivo antigo pode ter ficado órfão no storage.');
+            }
+          }
+        }
+      }
+
       toast.success('Aula atualizada com sucesso');
+      await logAdminAction('material_update', null, { lesson_id: selectedLesson.id, titulo: formData.titulo, semestres: formData.semestres });
       setEditModalOpen(false);
       setSelectedLesson(null);
       resetForm();
@@ -304,21 +378,33 @@ export default function SanarClassTab() {
 
     setSaving(true);
     try {
-      if (target.arquivo_url) {
-        const filePath = fileKeyFromUrl(target.arquivo_url);
-        if (filePath) {
-          await supabase.storage
-            .from('sanarclass-files')
-            .remove([filePath]);
-        }
-      }
-
+      // DB primeiro: a falha do storage não deve impedir a exclusão da linha
+      // (e nem deixar a linha apontando para um arquivo já removido).
       const { error } = await supabase
         .from('sanarclass_lessons')
         .delete()
         .eq('id', target.id);
 
       if (error) throw error;
+
+      // Só remove o objeto do storage se nenhuma outra linha (outro semestre
+      // da mesma aula) ainda usar o mesmo `arquivo_url` — evita 404 nas
+      // linhas irmãs quando uma aula foi cadastrada para múltiplos semestres.
+      if (target.arquivo_url) {
+        const remaining = await countLessonsUsingFile(target.arquivo_url);
+        if (remaining === 0) {
+          const filePath = fileKeyFromUrl(target.arquivo_url);
+          if (filePath) {
+            const { error: storageError } = await supabase.storage
+              .from('sanarclass-files')
+              .remove([filePath]);
+            if (storageError) {
+              Logger.error('Erro ao remover arquivo do storage:', storageError);
+              toast.warning('Aula excluída, mas o arquivo pode ter ficado órfão no storage.');
+            }
+          }
+        }
+      }
 
       toast.success('Aula excluída com sucesso');
       await logAdminAction('material_delete', null, { lesson_id: target.id, file_name: target.titulo });

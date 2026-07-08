@@ -32,8 +32,32 @@ const CHUNK_SIZE = 3;
 const INTER_CHUNK_DELAY_MS = 500;
 const RATE_LIMIT_RETRY_MAX = 2;
 const RATE_LIMIT_RETRY_DELAY_MS = 60_000;
+// PostgREST monta `.in('email', [...])` como querystring — com até 1000
+// e-mails numa chamada só, a URL estoura (mesma causa raiz do bug histórico
+// "Nome não disponível" na lista de usuários). Chunka em lotes de 200.
+const EMAIL_LOOKUP_CHUNK_SIZE = 200;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** `setTimeout` que rejeita assim que `signal` é abortado — sem isso, o
+ * backoff de RATE_LIMITED (até 60s x2) ignora o cancelamento do usuário. */
+function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 interface Row {
   nome: string;
@@ -161,6 +185,12 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
   const fileInputRef = useRef<HTMLInputElement>(null);
   const richResultsRef = useRef<BatchResult[]>([]);
   const startedAtRef = useRef<Date | null>(null);
+  // E-mails marcados como 'conflito' (já cadastrados em outra IES) no último
+  // dry-run. Sem isso, `execute` processaria essas linhas normalmente e a edge
+  // (fluxo UPDATE) sobrescreveria `id_ies`, migrando o aluno silenciosamente —
+  // exatamente o que o aviso de conflito deveria impedir. Recalculado a cada
+  // dry-run e limpo sempre que o arquivo muda.
+  const conflictEmailsRef = useRef<Set<string>>(new Set());
   const [report, setReport] = useState<BatchReport | null>(null);
 
   const runner = useBulkRunner<Row>({
@@ -168,36 +198,77 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
     dryRun: async (rows) => {
       const candidatas = rows.filter((r) => !r.erro);
       const emails = candidatas.map((r) => r.email);
-      let existentes = new Set<string>();
-      if (emails.length > 0) {
-        const { data } = await supabase.from('users').select('email').in('email', emails);
-        existentes = new Set((data ?? []).map((u: { email: string }) => u.email));
+      // email -> id_ies atual (null se o usuário existe mas sem IES definida).
+      const existentes = new Map<string, string | null>();
+      for (let i = 0; i < emails.length; i += EMAIL_LOOKUP_CHUNK_SIZE) {
+        const chunkEmails = emails.slice(i, i + EMAIL_LOOKUP_CHUNK_SIZE);
+        const { data, error } = await supabase.from('users').select('email, id_ies').in('email', chunkEmails);
+        // Sem checar o erro de cada chunk, uma falha silenciosa classificaria
+        // todo mundo como "novo" (e o lote tentaria recriar usuários já existentes).
+        if (error) {
+          throw new Error(`Falha ao verificar e-mails já cadastrados: ${error.message}`);
+        }
+        (data ?? []).forEach((u: { email: string; id_ies: string | null }) => existentes.set(u.email, u.id_ies));
       }
+
       let novos = 0;
       let atualizados = 0;
+      let conflitos = 0;
+      const conflictEmails = new Set<string>();
       const detalhes = rows.map((r) => {
         if (r.erro) return { linha: r.linha, status: 'erro' as const, mensagem: r.erro };
         if (existentes.has(r.email)) {
+          const idIesExistente = existentes.get(r.email);
+          // E-mail já pertence a outra IES: sem esse aviso a importação move
+          // silenciosamente o aluno para a IES do lote atual.
+          if (idIesExistente && idIesExistente !== batchIesId) {
+            conflitos++;
+            conflictEmails.add(r.email);
+            return { linha: r.linha, status: 'conflito' as const, mensagem: 'E-mail já cadastrado em outra IES' };
+          }
           atualizados++;
           return { linha: r.linha, status: 'atualizar' as const };
         }
         novos++;
         return { linha: r.linha, status: 'novo' as const };
       });
-      return { total: rows.length, novos, atualizados, erros: rows.filter((r) => r.erro).length, detalhes };
+      // Só substitui o Set após classificar todas as linhas com sucesso — se o
+      // dry-run falhar antes (ex.: erro na consulta de e-mails), o Set anterior
+      // (de um dry-run válido) é preservado em vez de ser esvaziado.
+      conflictEmailsRef.current = conflictEmails;
+      return { total: rows.length, novos, atualizados, conflitos, erros: rows.filter((r) => r.erro).length, detalhes };
     },
-    execute: async (chunk) => {
+    execute: async (chunk, signal) => {
       const outcomes = await Promise.allSettled(
         chunk.map(async (row): Promise<BatchResult> => {
           if (row.erro) {
             return { email: row.email, nome: row.nome, linha: row.linha, success: false, error: { code: 'VALIDATION_ERROR', message: row.erro } };
           }
 
+          // Linha marcada como conflito de IES no último dry-run: NÃO chama a edge.
+          // O fluxo UPDATE da edge sobrescreveria `id_ies`, migrando o aluno para a
+          // IES do lote atual silenciosamente — o próprio motivo do aviso de conflito.
+          if (conflictEmailsRef.current.has(row.email)) {
+            return {
+              email: row.email,
+              nome: row.nome,
+              linha: row.linha,
+              success: false,
+              error: { code: 'IES_CONFLICT', message: 'Conflito de IES — linha ignorada; ajuste a planilha ou mova o aluno manualmente.' },
+            };
+          }
+
           let attempt = 0;
           let data = await usersService.createUser({ nome: row.nome, email: row.email, id_ies: batchIesId, semestre: row.semestre });
           while (!data.success && (data.code === 'RATE_LIMITED' || data.code === 'rate_limited') && attempt < RATE_LIMIT_RETRY_MAX) {
             attempt++;
-            await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_RETRY_DELAY_MS));
+            try {
+              // Sleep abortável: sem isso, cancelar durante o backoff de 60s
+              // demorava até 2min para de fato parar.
+              await abortableSleep(RATE_LIMIT_RETRY_DELAY_MS, signal);
+            } catch {
+              break; // cancelado — mantém `data` (RATE_LIMITED) como resultado desta linha
+            }
             data = await usersService.createUser({ nome: row.nome, email: row.email, id_ies: batchIesId, semestre: row.semestre });
           }
 
@@ -248,6 +319,10 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
   const handleFile = async (file: File) => {
     setFileName(file.name);
     setReport(null);
+    // Novo arquivo invalida a classificação de conflitos do dry-run anterior —
+    // `runDryRun` recalcula antes do próximo `start`, mas o Set não deve
+    // sobreviver a uma troca de arquivo enquanto isso não acontece.
+    conflictEmailsRef.current = new Set();
     await actions.loadFile(file);
   };
 
@@ -286,6 +361,7 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
       setFileName(null);
       setReport(null);
       richResultsRef.current = [];
+      conflictEmailsRef.current = new Set();
       if (fileInputRef.current) fileInputRef.current.value = '';
       if (hadResults) onDone();
     }
@@ -361,11 +437,13 @@ export function BulkCreateUsersDialog({ open, onOpenChange, iesList, onDone }: B
             state={runner}
             onStart={handleStart}
             onCancel={actions.cancel}
-            onReset={() => { actions.reset(); setFileName(null); setReport(null); }}
+            onReset={() => { actions.reset(); setFileName(null); setReport(null); conflictEmailsRef.current = new Set(); }}
             chunkSize={CHUNK_SIZE}
+            confirmWord="CADASTRAR"
+            title="Confirmar cadastro em lote"
             startLabel="Iniciar cadastro"
             unidadeLabel="usuário(s)"
-            metricLabels={{ novos: 'Novos', atualizados: 'Atualizar', erros: 'Erros' }}
+            metricLabels={{ novos: 'Novos', atualizados: 'Atualizar', conflitos: 'Conflitos (outra IES)', erros: 'Erros' }}
           />
         )}
 

@@ -1,7 +1,6 @@
 import { DataBadge, MonoValue } from '@/experiences/admin/ui';
 import { AdminLoading, AdminError } from '@/experiences/admin/ui';
 import { useAdminMonitorSummary } from '@/services/admin/monitor';
-import { cn } from '@/lib/utils';
 
 /** Bloco "Finalizações hoje" — dado real de `admin_monitor_summary`, com delta vs ontem e fonte citada. */
 export function FinalizacoesHojeBlock() {
@@ -33,12 +32,15 @@ export function FinalizacoesHojeBlock() {
 function DeltaVsOntem({ hoje, ontem }: { hoje: number; ontem: number }) {
   const diff = hoje - ontem;
   const arrow = diff > 0 ? '▲' : diff < 0 ? '▼' : '=';
-  const accent =
-    diff > 0 ? 'text-emerald-600 dark:text-emerald-400' : diff < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground';
 
+  // P3 (auditoria): "hoje" é sempre um dia PARCIAL (ainda em andamento) sendo
+  // comparado com "ontem", um dia COMPLETO — de manhã, hoje < ontem quase
+  // sempre, então o accent vermelho/verde pintava um falso "piorou" que é só
+  // efeito do horário do dia, não uma tendência real. Fix: cor neutra sempre
+  // + rótulo deixando explícito que "ontem" é dia completo.
   return (
-    <p className={cn('text-sm font-medium', accent)}>
-      {arrow} {Math.abs(diff)} vs ontem <span className="text-muted-foreground font-normal">({ontem} ontem)</span>
+    <p className="text-sm font-medium text-muted-foreground">
+      {arrow} {Math.abs(diff)} vs ontem <span className="font-normal">(ontem: {ontem} — dia completo)</span>
     </p>
   );
 }

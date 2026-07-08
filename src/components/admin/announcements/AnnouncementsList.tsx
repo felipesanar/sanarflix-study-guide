@@ -178,7 +178,11 @@ export const AnnouncementsList: React.FC<Props> = ({
           />
         ) : (
           filteredAnnouncements.map((announcement) => {
-            const priorityPill = PRIORITY_PILL[announcement.prioridade];
+            // Fallback para valores legados (ex.: 'Muito Alta', gravados antes da
+            // normalização do vocabulário) — sem isso, um valor fora do enum
+            // canônico faz `PRIORITY_PILL[prioridade]` retornar undefined e
+            // `.variant` crasha a lista inteira.
+            const priorityPill = PRIORITY_PILL[announcement.prioridade] ?? PRIORITY_PILL.media;
             return (
               <div key={announcement.id} className="flex overflow-hidden rounded-xl border">
                 <div className={cn('w-1.5 shrink-0', PALETTE_BAR_CLASS[announcement.paleta_cores] ?? 'bg-muted-foreground')} />

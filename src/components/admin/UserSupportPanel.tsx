@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
-import { User, FileText, BarChart3, Clock, Activity } from 'lucide-react';
+import { User, FileText, BarChart3, Clock, Activity, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Logger } from '@/utils/logger';
@@ -21,20 +22,29 @@ export const UserSupportPanel: React.FC<UserSupportPanelProps> = ({ userId, user
   const [activeTab, setActiveTab] = useState('perfil');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Guarda contra resposta obsoleta: trocar de aba rapidamente não pode
+  // preencher a aba atual com o resultado de uma seção já abandonada.
+  const fetchIdRef = useRef(0);
 
   const fetchSection = useCallback(async (section: string) => {
     if (!userId) return;
+    const currentFetchId = ++fetchIdRef.current;
     setLoading(true);
+    setError(null);
     try {
-      const { data: result, error } = await supabase.functions.invoke('admin-user-support', {
+      const { data: result, error: fnError } = await supabase.functions.invoke('admin-user-support', {
         body: { userId, section },
       });
-      if (error) throw error;
+      if (fnError) throw fnError;
+      if (currentFetchId !== fetchIdRef.current) return;
       setData(result);
     } catch (err) {
+      if (currentFetchId !== fetchIdRef.current) return;
       Logger.error('Error fetching support data:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao carregar dados de suporte.');
     } finally {
-      setLoading(false);
+      if (currentFetchId === fetchIdRef.current) setLoading(false);
     }
   }, [userId]);
 
@@ -47,6 +57,11 @@ export const UserSupportPanel: React.FC<UserSupportPanelProps> = ({ userId, user
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setData(null);
+    setError(null);
+  };
+
+  const retryCurrentSection = () => {
+    fetchSection(activeTab === 'perfil' ? 'profile' : activeTab);
   };
 
   const formatDate = (d: string) => {
@@ -84,6 +99,14 @@ export const UserSupportPanel: React.FC<UserSupportPanelProps> = ({ userId, user
             {loading ? (
               <div className="space-y-3">
                 {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <p className="text-sm text-destructive">{error}</p>
+                <Button variant="outline" size="sm" onClick={retryCurrentSection}>
+                  Tentar novamente
+                </Button>
               </div>
             ) : (
               <>

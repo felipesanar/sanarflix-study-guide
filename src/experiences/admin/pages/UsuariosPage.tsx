@@ -65,13 +65,15 @@ const UsuariosPage: React.FC = () => {
   }, [fetchStats, refreshKey]);
 
   // Abre "Novo usuário" automaticamente quando a URL tem ?new=1 (deep-link
-  // do Command Center). O parâmetro é limpo ao fechar o diálogo.
+  // do Command Center). O parâmetro é limpo ao fechar o diálogo — isso evita
+  // loop mesmo com `searchParams` nas deps (precisa estar aqui: sem ele, o
+  // efeito só rodava no mount e um deep-link chegando depois — ex.: troca de
+  // rota sem remount — nunca abria o diálogo).
   useEffect(() => {
     if (canManage && searchParams.get('new') === '1') {
       setCreateOpen(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canManage]);
+  }, [canManage, searchParams]);
 
   const clearNewParam = useCallback(() => {
     if (searchParams.get('new')) {

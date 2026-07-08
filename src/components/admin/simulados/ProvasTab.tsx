@@ -9,11 +9,11 @@ import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { isSameDay } from 'date-fns';
 import { Download, Edit2, Eye, Plus, Search, StopCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
 import { toBrazilDate } from '@/utils/timezone';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,6 +44,15 @@ export interface Simulado {
   data_encerramento: string | null;
   duracao_minutos: number;
   status: 'aguardando' | 'ativo' | 'encerrado';
+  /**
+   * Status BRUTO gravado em `simulados_admin.status` — ao contrário de `status`
+   * (computado por `calcularStatus`, que também retorna 'encerrado' quando
+   * `data_encerramento` já passou), este campo só é 'encerrado' quando alguém
+   * de fato persistiu esse valor (encerramento manual). Usado pelo dialog de
+   * edição para distinguir "encerrado manualmente" (trava permanente) de
+   * "encerrado só porque a data passou" (estender a data reabre a prova).
+   */
+  statusDb: 'aguardando' | 'ativo' | 'encerrado';
   created_at: string;
   ies_ids: string[];
   questoes_count: number;
@@ -82,7 +91,6 @@ function getStatusDisplay(s: Simulado): { variant: StatusPillVariant; label: str
 }
 
 export default function ProvasTab() {
-  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [simulados, setSimulados] = useState<Simulado[]>([]);
@@ -147,6 +155,7 @@ export default function ProvasTab() {
         data_encerramento: s.data_encerramento,
         duracao_minutos: s.duracao_minutos,
         status: calcularStatus(s.data_liberacao, s.data_encerramento, s.status),
+        statusDb: s.status as Simulado['statusDb'],
         created_at: s.created_at ?? '',
         ies_ids: s.ies_ids ?? [],
         questoes_count: countsBySimulado[String(s.id)] ?? 0,
@@ -168,28 +177,56 @@ export default function ProvasTab() {
     fetchIES();
   }, [fetchSimulados, fetchIES]);
 
+  // Remove um parâmetro da URL (usado para os dois deep-links abaixo) sem empilhar
+  // entradas no histórico.
+  const clearParam = useCallback(
+    (name: string) => {
+      if (searchParams.get(name)) {
+        const next = new URLSearchParams(searchParams);
+        next.delete(name);
+        setSearchParams(next, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const clearNewParam = useCallback(() => clearParam('new'), [clearParam]);
+  const clearQuestoesParam = useCallback(() => clearParam('questoes'), [clearParam]);
+
   // Abre a criação automaticamente quando a URL tem ?new=1 (deep-link do
   // Command Center / sidebar). O parâmetro é limpo ao fechar o diálogo.
+  // Depende de `searchParams` (em vez de rodar só no mount) para reagir a
+  // navegações subsequentes para a mesma rota com ?new=1 — a guarda
+  // `!configOpen` evita reabrir em loop enquanto o diálogo já está aberto.
   useEffect(() => {
-    if (searchParams.get('new') === '1') {
+    if (searchParams.get('new') === '1' && !configOpen) {
       setConfigMode('create');
       setEditingSimulado(null);
       setConfigOpen(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, configOpen]);
 
-  const clearNewParam = useCallback(() => {
-    if (searchParams.get('new')) {
-      const next = new URLSearchParams(searchParams);
-      next.delete('new');
-      setSearchParams(next, { replace: true });
+  // Deep-link ?questoes=<simuladoId> (usado pelo bloco de monitoramento
+  // "Questões com maior taxa de erro" para linkar direto ao diálogo de questões
+  // de um simulado). Só abre quando `simulados` já carregou o alvo.
+  useEffect(() => {
+    const questoesId = searchParams.get('questoes');
+    if (!questoesId || questoesOpen) return;
+    const target = simulados.find((s) => s.id === questoesId);
+    if (target) {
+      setQuestoesTarget(target);
+      setQuestoesOpen(true);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, simulados, questoesOpen]);
 
   const handleConfigOpenChange = (open: boolean) => {
     setConfigOpen(open);
     if (!open) clearNewParam();
+  };
+
+  const handleQuestoesOpenChange = (open: boolean) => {
+    setQuestoesOpen(open);
+    if (!open) clearQuestoesParam();
   };
 
   const handleNovoSimulado = () => {
@@ -232,14 +269,10 @@ export default function ProvasTab() {
 
       await logAdminAction('encerrar_simulado', null, { simulado_id: encerrarTarget.id, nome: encerrarTarget.nome });
 
-      toast({ title: 'Simulado encerrado', description: 'Os alunos perderam acesso imediatamente.' });
+      toast.success('Simulado encerrado', { description: 'Os alunos perderam acesso imediatamente.' });
       fetchSimulados();
     } catch (err) {
-      toast({
-        title: 'Erro ao encerrar simulado',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro ao encerrar simulado', { description: err instanceof Error ? err.message : String(err) });
       throw err; // mantém a DangerZone aberta para nova tentativa.
     } finally {
       setEncerrando(false);
@@ -273,13 +306,9 @@ export default function ProvasTab() {
       XLSX.utils.book_append_sheet(wb, ws, 'Questões');
       XLSX.writeFile(wb, `${simulado.nome}.xlsx`);
 
-      toast({ title: 'Exportação concluída', description: 'O arquivo foi baixado com sucesso.' });
+      toast.success('Exportação concluída', { description: 'O arquivo foi baixado com sucesso.' });
     } catch (err) {
-      toast({
-        title: 'Erro na exportação',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro na exportação', { description: err instanceof Error ? err.message : String(err) });
     }
   };
 
@@ -300,51 +329,51 @@ export default function ProvasTab() {
   const renderBody = () => {
     if (loading) return <AdminLoading rows={6} />;
     if (error) return <AdminError message={error} onRetry={fetchSimulados} />;
-    if (filtered.length === 0) {
+
+    // Sem nenhum simulado cadastrado ainda — não há o que buscar/filtrar, então a
+    // toolbar não aparece aqui.
+    if (simulados.length === 0) {
       return (
         <AdminEmpty
           title="Nenhum simulado encontrado"
-          description={
-            simulados.length === 0
-              ? 'Crie o primeiro simulado para começar.'
-              : 'Ajuste a busca ou o filtro de status.'
-          }
+          description="Crie o primeiro simulado para começar."
           action={
-            simulados.length === 0 ? (
-              <Button size="sm" onClick={handleNovoSimulado}>
-                <Plus className="h-4 w-4 mr-2" /> Novo simulado
-              </Button>
-            ) : undefined
+            <Button size="sm" onClick={handleNovoSimulado}>
+              <Plus className="h-4 w-4 mr-2" /> Novo simulado
+            </Button>
           }
         />
+      );
+    }
+
+    // Há simulados, mas o filtro/busca não bateu com nenhum — mantém a toolbar
+    // visível fora do branch condicional para o admin poder ajustar a busca sem
+    // precisar limpar o filtro manualmente (padrão de `AuditoriaSection`).
+    if (filtered.length === 0) {
+      return (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ProvasToolbar
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+            />
+          </div>
+          <AdminEmpty title="Nenhum simulado encontrado" description="Ajuste a busca ou o filtro de status." />
+        </div>
       );
     }
 
     return (
       <AdminTable
         toolbar={
-          <>
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar simulados…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os status</SelectItem>
-                <SelectItem value="aguardando">Agendados</SelectItem>
-                <SelectItem value="ativo">Em andamento</SelectItem>
-                <SelectItem value="encerrado">Encerrados</SelectItem>
-              </SelectContent>
-            </Select>
-          </>
+          <ProvasToolbar
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
         }
       >
         <TableHeader>
@@ -450,7 +479,7 @@ export default function ProvasTab() {
 
       <QuestoesDialog
         open={questoesOpen}
-        onOpenChange={setQuestoesOpen}
+        onOpenChange={handleQuestoesOpenChange}
         simuladoId={questoesTarget?.id ?? null}
         simuladoNome={questoesTarget?.nome ?? ''}
       />
@@ -472,4 +501,39 @@ export default function ProvasTab() {
 /** Alinha à direita preservando as classes base da célula/cabeçalho mono. */
 function cnRight(base: string) {
   return `${base} text-right`;
+}
+
+interface ProvasToolbarProps {
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
+  statusFilter: StatusFilter;
+  onStatusFilterChange: (value: StatusFilter) => void;
+}
+
+/** Busca + filtro de status — extraída para ficar visível também no estado vazio do filtro. */
+function ProvasToolbar({ searchTerm, onSearchTermChange, statusFilter, onStatusFilterChange }: ProvasToolbarProps) {
+  return (
+    <>
+      <div className="relative flex-1 min-w-[220px]">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar simulados…"
+          value={searchTerm}
+          onChange={(e) => onSearchTermChange(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+      <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as StatusFilter)}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="todos">Todos os status</SelectItem>
+          <SelectItem value="aguardando">Agendados</SelectItem>
+          <SelectItem value="ativo">Em andamento</SelectItem>
+          <SelectItem value="encerrado">Encerrados</SelectItem>
+        </SelectContent>
+      </Select>
+    </>
+  );
 }

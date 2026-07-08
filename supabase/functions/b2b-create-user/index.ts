@@ -40,6 +40,12 @@ const createUserSchema = z.object({
     .transform(val => val.toLowerCase()),
   id_ies: z.string()
     .uuid('ID da IES deve ser um UUID válido'),
+  // Opcional/nullable no schema porque este endpoint atende tanto criação
+  // quanto atualização de usuário. No fluxo de UPDATE, ausente/null significa
+  // "não alterar o semestre existente" (contrato com UsersListTable — reenvio
+  // de convite manda semestre: null). No fluxo de CREATE, ausente/null é
+  // aceito e persistido como null (CreateUserDialog não exige o campo para
+  // nenhum papel, incluindo staff) — não há obrigatoriedade em runtime.
   semestre: z.number()
     .int('Semestre deve ser um número inteiro')
     .min(1, 'Semestre mínimo: 1')
@@ -417,35 +423,39 @@ Deno.serve(async (req) => {
       return errorResponse('INTERNAL_ERROR', 'Erro ao verificar usuário existente');
     }
 
-    const userMetadata = { 
-      full_name: nome, 
-      id_ies, 
-      semestre: semestre ?? null, 
-      must_change_password: true 
-    };
-
     if (existingUser) {
       // ========== UPDATE FLOW ==========
       console.log(`[CreateUser] User ${email} exists (ID: ${existingUser.id}), updating...`);
-      
+
+      // `semestre` ausente ou null no payload significa "não alterar" — contrato
+      // com UsersListTable, que manda semestre: null no reenvio de convite
+      // esperando que o perfil existente não seja sobrescrito.
+      const semestreProvided = semestre !== null && semestre !== undefined;
+      const effectiveSemestre = semestreProvided ? semestre : existingUser.semestre;
+
       const fieldsUpdated: string[] = [];
-      if (existingUser.semestre !== semestre) fieldsUpdated.push('semestre');
+      if (semestreProvided && existingUser.semestre !== semestre) fieldsUpdated.push('semestre');
       if (existingUser.nome !== nome) fieldsUpdated.push('nome');
       if (existingUser.id_ies !== id_ies) fieldsUpdated.push('id_ies');
 
       // Update auth metadata
       const { error: authUpdateErr } = await supabaseAdmin.auth.admin.updateUserById(
         existingUser.id,
-        { user_metadata: userMetadata }
+        { user_metadata: { full_name: nome, id_ies, semestre: effectiveSemestre, must_change_password: true } }
       );
       if (authUpdateErr) {
         console.error('[Auth] Failed to update auth metadata:', authUpdateErr);
       }
 
-      // Update public.users
+      // Update public.users — semestre só entra no payload quando informado,
+      // para não sobrescrever com null um valor já existente.
+      const updatePayload: Record<string, unknown> = { nome, id_ies };
+      if (semestreProvided) {
+        updatePayload.semestre = semestre;
+      }
       const { error: updateErr } = await supabaseAdmin
         .from('users')
-        .update({ nome, id_ies, semestre: semestre ?? null })
+        .update(updatePayload)
         .eq('id', existingUser.id);
 
       if (updateErr) {
@@ -488,6 +498,20 @@ Deno.serve(async (req) => {
     } else {
       // ========== CREATE FLOW ==========
       console.log(`[CreateUser] User ${email} does not exist, creating...`);
+
+      // `semestre` é opcional na criação: papéis de staff (admin/atendimento/
+      // professor/gestor/gestor_grupo) e até alunos podem ser cadastrados sem
+      // semestre pela UI (CreateUserDialog não exige o campo e envia
+      // `semestre: null` quando em branco). Ausente/null vira null tanto em
+      // public.users quanto no user_metadata — sem exigência de obrigatoriedade
+      // aqui. A semântica de "ausente/null = não alterar" fica restrita ao
+      // fluxo de UPDATE (acima).
+      const userMetadata = {
+        full_name: nome,
+        id_ies,
+        semestre: semestre ?? null,
+        must_change_password: true
+      };
 
       const tempPassword = generateTempPassword();
 
@@ -541,7 +565,10 @@ Deno.serve(async (req) => {
             }
             // B2B admin role
             if (id_ies === B2B_IES_ID) {
-              await supabaseAdmin.from('user_roles')
+              const { error: rErr } = await supabaseAdmin
+                .from('user_roles')
+                .upsert({ user_id: foundId, role: 'admin', granted_by: callerUserId }, { onConflict: 'user_id,role' });
+              if (rErr) console.error('[RBAC] Failed to grant admin role (recovery flow):', rErr);
             }
             await grantRoleIfNeeded(supabaseAdmin, foundId, role, callerUserId, email);
             // Send welcome email (awaited for accurate status)

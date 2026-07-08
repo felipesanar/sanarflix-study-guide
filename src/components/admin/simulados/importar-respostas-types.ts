@@ -58,7 +58,35 @@ export const REASON_LABEL: Record<string, string> = {
 };
 
 export const CHUNK_SIZE = 50;
+/** Limite de linhas por chamada da edge `admin-import-simulado-responses` — vale
+ * inclusive para o dry-run, então tanto o preview quanto o commit precisam chunkar. */
+export const DRY_RUN_CHUNK_SIZE = 200;
 const EMAIL_HEADER_REGEX = /^(e[\s\-_.]?-?\s?mail|email|e-mail)$/i;
+
+// dd/mm/yyyy, com "hh:mm" ou "hh:mm:ss" opcional, separado por espaço ou "T".
+const PT_BR_DATE_REGEX = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/;
+
+/**
+ * Faz o parse de uma data de planilha no formato brasileiro dd/mm/yyyy[ hh:mm[:ss]].
+ * `new Date(string)` interpreta "05/04" como mês/dia (formato US) — trocando dia e
+ * mês silenciosamente — ou retorna "Invalid Date" sem avisar quando o formato não é
+ * reconhecido. Quando a string bate com o padrão brasileiro, monta a data
+ * explicitamente assumindo horário de Brasília (offset fixo -03:00, sem horário de
+ * verão — mesmo racional de `src/utils/timezone.ts`). Fora desse padrão (ex.: já vem
+ * em ISO), cai para `new Date(raw)` como fallback. Retorna `null` se nada for válido.
+ */
+export function parseDataPtBrOuIso(raw: string): Date | null {
+  const trimmed = raw.trim();
+  const match = trimmed.match(PT_BR_DATE_REGEX);
+  if (match) {
+    const [, dd, mm, yyyy, hh = '00', min = '00', ss = '00'] = match;
+    const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}T${hh.padStart(2, '0')}:${min.padStart(2, '0')}:${ss.padStart(2, '0')}-03:00`;
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const fallback = new Date(trimmed);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
 
 /**
  * Detecta a coluna de e-mail de forma estrita (sem fallback silencioso).

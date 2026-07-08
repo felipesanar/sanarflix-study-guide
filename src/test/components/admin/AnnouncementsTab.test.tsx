@@ -3,6 +3,18 @@ import { screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { render } from '../../utils';
 import { AnnouncementsTab } from '@/components/admin/AnnouncementsTab';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+// Mock do sonner — precisamos espionar toast.error/success sem depender de um
+// <Toaster /> montado na árvore de testes (que não renderiza texto no jsdom).
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
 
 describe('AnnouncementsTab', () => {
   const mockAnnouncements = [
@@ -186,6 +198,54 @@ describe('AnnouncementsTab', () => {
     render(<AnnouncementsTab />);
 
     expect(screen.getByRole('status', { name: /Carregando/i })).toBeInTheDocument();
+  });
+
+  it('should validate required fields before saving an announcement (handleSave receives configToSave)', async () => {
+    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
+    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
+
+    render(<AnnouncementsTab />);
+
+    await waitFor(() => screen.getByRole('button', { name: /Novo aviso/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Novo aviso/i }));
+
+    await waitFor(() => screen.getByRole('button', { name: /Salvar Aviso/i }));
+    // Título e descrição continuam vazios (config padrão) — deve bloquear o save.
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Preencha título e descrição do aviso');
+    });
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  it('should save the announcement using the configToSave param from the editor', async () => {
+    // Regressão: handleSave usava `editingConfig` cru (sem a conversão de
+    // timezone da data de expiração feita pelo editor). Agora recebe
+    // `configToSave` como parâmetro e é isso que deve ir para o upsert.
+    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
+    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
+
+    render(<AnnouncementsTab />);
+
+    await waitFor(() => screen.getByRole('button', { name: /Novo aviso/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Novo aviso/i }));
+
+    await waitFor(() => screen.getByPlaceholderText(/Título do aviso/i));
+    fireEvent.change(screen.getByPlaceholderText(/Título do aviso/i), { target: { value: 'Aviso de teste' } });
+    fireEvent.change(screen.getByPlaceholderText(/Descrição do aviso/i), { target: { value: 'Descrição de teste' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
+
+    await waitFor(() => {
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          titulo: 'Aviso de teste',
+          descricao: 'Descrição de teste',
+        }),
+      );
+    });
+    expect(toast.success).toHaveBeenCalledWith('Aviso criado!');
   });
 
   it('should show error state with retry when fetch fails', async () => {

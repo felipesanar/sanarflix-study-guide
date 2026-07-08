@@ -1,8 +1,8 @@
 /** Fatia C2 — sub-aba Importar respostas (wizard existente reapresentado sobre os primitivos novos). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { AdminSectionHeader, BulkStepper } from '@/experiences/admin/ui';
 import { Logger } from '@/utils/logger';
 import { ImportarSimuladoStep } from './ImportarSimuladoStep';
@@ -12,7 +12,9 @@ import { ImportarConcluidoStep } from './ImportarConcluidoStep';
 import { ImportarHistoricoLotes } from './ImportarHistoricoLotes';
 import {
   CHUNK_SIZE,
+  DRY_RUN_CHUNK_SIZE,
   detectEmailHeader,
+  parseDataPtBrOuIso,
   REASON_LABEL,
   type FinalReport,
   type ParsedRow,
@@ -34,8 +36,6 @@ const STEPS = ['1 Simulado', '2 Planilha', '3 Dry-run', '4 Concluído'];
  * o mecanismo já testado. Optou-se por reaproveitar o estado/imperativo atual sob a UI nova.
  */
 export default function ImportarRespostasTab() {
-  const { toast } = useToast();
-
   const [simulados, setSimulados] = useState<SimuladoOpt[]>([]);
   const [loadingSimulados, setLoadingSimulados] = useState(false);
   const [simuladosError, setSimuladosError] = useState<string | null>(null);
@@ -119,7 +119,7 @@ export default function ImportarRespostasTab() {
 
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (!ext || !['xlsx', 'xls', 'csv'].includes(ext)) {
-        toast({ title: 'Formato não suportado', description: 'Use .xlsx, .xls ou .csv', variant: 'destructive' });
+        toast.error('Formato não suportado', { description: 'Use .xlsx, .xls ou .csv' });
         return;
       }
 
@@ -135,23 +135,21 @@ export default function ImportarRespostasTab() {
 
         const sheet = wb.Sheets[wb.SheetNames[0]];
         if (!sheet) {
-          toast({ title: 'Planilha vazia', description: 'Nenhuma aba detectada', variant: 'destructive' });
+          toast.error('Planilha vazia', { description: 'Nenhuma aba detectada' });
           return;
         }
         const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false });
 
         if (json.length === 0) {
-          toast({ title: 'Planilha vazia', description: 'Nenhuma linha de dados', variant: 'destructive' });
+          toast.error('Planilha vazia', { description: 'Nenhuma linha de dados' });
           return;
         }
 
         const headers = Object.keys(json[0] ?? {});
         const emailKey = detectEmailHeader(headers, json[0]);
         if (!emailKey) {
-          toast({
-            title: 'Coluna de e-mail não encontrada',
+          toast.error('Coluna de e-mail não encontrada', {
             description: 'A planilha precisa ter uma coluna chamada "email" (ou similar) ou conter e-mails na primeira linha.',
-            variant: 'destructive',
           });
           return;
         }
@@ -165,10 +163,8 @@ export default function ImportarRespostasTab() {
 
         const hasNumericCols = questionKeys.some((k) => /^\d+$/.test(String(k).trim()));
         if (!hasNumericCols) {
-          toast({
-            title: 'Sem colunas de questões',
+          toast.error('Sem colunas de questões', {
             description: 'Esperava colunas com números (1, 2, 3, ...) representando questões.',
-            variant: 'destructive',
           });
           return;
         }
@@ -183,32 +179,35 @@ export default function ImportarRespostasTab() {
           }
           const tempoMin = tempoKey ? Number(row[tempoKey]) : NaN;
           const dataRaw = dataKey && row[dataKey] ? String(row[dataKey]).trim() : undefined;
-          const dataIsValid = dataRaw && !Number.isNaN(new Date(dataRaw).getTime());
+          // Formato brasileiro dd/mm/yyyy explícito antes de cair no `new Date()` —
+          // que interpretaria "05/04" como mês/dia (formato US), trocando dia e mês
+          // silenciosamente, ou geraria "Invalid Date" sem avisar (achado P2).
+          const dataParsed = dataRaw ? parseDataPtBrOuIso(dataRaw) : null;
           return {
             rowIndex: idx + 2,
             email: String(row[emailKey] ?? '').trim().toLowerCase(),
             answers,
             tempo_segundos: Number.isFinite(tempoMin) ? Math.round(tempoMin * 60) : undefined,
             saidas_aba: saidasKey ? Number(row[saidasKey]) || 0 : undefined,
-            finalizado_em: dataIsValid ? new Date(dataRaw!).toISOString() : undefined,
+            finalizado_em: dataParsed ? dataParsed.toISOString() : undefined,
           };
         });
 
         setParsedRows(rows);
         setQuestionColumnsCount(questionKeys.filter((k) => /^\d+$/.test(String(k).trim())).length);
-        toast({ title: 'Planilha carregada', description: `${rows.length} linha(s) detectada(s) — coluna "${emailKey}" usada como e-mail` });
+        toast.success('Planilha carregada', { description: `${rows.length} linha(s) detectada(s) — coluna "${emailKey}" usada como e-mail` });
       } catch (err) {
-        toast({ title: 'Erro ao ler planilha', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+        toast.error('Erro ao ler planilha', { description: err instanceof Error ? err.message : String(err) });
       }
     },
-    [toast],
+    [],
   );
 
   const downloadTemplate = () => {
     if (!selectedSimuladoData) return;
     const total = selectedSimuladoData.total_questoes;
     if (total === 0) {
-      toast({ title: 'Simulado sem questões', description: 'Cadastre as questões antes de gerar o template.', variant: 'destructive' });
+      toast.error('Simulado sem questões', { description: 'Cadastre as questões antes de gerar o template.' });
       return;
     }
     const headers = ['email', ...Array.from({ length: total }, (_, i) => String(i + 1)), 'tempo_minutos', 'saidas_aba', 'finalizado_em'];
@@ -247,42 +246,65 @@ export default function ImportarRespostasTab() {
   const runPreview = async () => {
     if (!selectedSimulado || parsedRows.length === 0) return;
     setPreviewing(true);
+    // Fallback do rótulo calculado uma única vez (fora do loop de chunks) — evita
+    // rótulos diferentes por lote (achado P3, mesmo racional do `runImport` abaixo).
+    const resolvedSourceLabel = sourceLabel || `Importação ${new Date().toISOString()}`;
     try {
-      const { data, error } = await supabase.functions.invoke('admin-import-simulado-responses', {
-        body: {
-          simulado_id: selectedSimulado,
-          conflict_mode: conflictMode,
-          source_label: sourceLabel || `Importação ${new Date().toISOString()}`,
-          dry_run: true,
-          rows: parsedRows.map((r) => ({
-            email: r.email,
-            answers: r.answers,
-            tempo_segundos: r.tempo_segundos,
-            saidas_aba: r.saidas_aba,
-            finalizado_em: r.finalizado_em,
-          })),
-        },
-      });
-      if (error) {
-        let detail = error.message ?? 'Falha desconhecida';
-        try {
-          const ctx = (error as { context?: Response }).context;
-          if (ctx && typeof ctx.text === 'function') {
-            const body = await ctx.text();
-            if (body) detail = body.length > 500 ? `${body.slice(0, 500)}…` : body;
+      // A edge limita 200 linhas por chamada — INCLUSIVE no dry-run — então uma
+      // planilha de turma inteira precisa ser chunkada aqui também (achado P1: antes
+      // enviava tudo de uma vez e travava o wizard entre os passos 2 e 3 para
+      // planilhas grandes). Os summaries/resultados de cada lote são agregados no
+      // client antes de exibir o passo 3.
+      const aggregatedResults: PreviewResult[] = [];
+      const aggregatedSummary: PreviewSummary = { total: 0, ok: 0, warning: 0, error: 0, already_finalized: 0 };
+
+      for (let i = 0; i < parsedRows.length; i += DRY_RUN_CHUNK_SIZE) {
+        const chunk = parsedRows.slice(i, i + DRY_RUN_CHUNK_SIZE);
+        const { data, error } = await supabase.functions.invoke('admin-import-simulado-responses', {
+          body: {
+            simulado_id: selectedSimulado,
+            conflict_mode: conflictMode,
+            source_label: resolvedSourceLabel,
+            dry_run: true,
+            rows: chunk.map((r) => ({
+              email: r.email,
+              answers: r.answers,
+              tempo_segundos: r.tempo_segundos,
+              saidas_aba: r.saidas_aba,
+              finalizado_em: r.finalizado_em,
+            })),
+          },
+        });
+        if (error) {
+          let detail = error.message ?? 'Falha desconhecida';
+          try {
+            const ctx = (error as { context?: Response }).context;
+            if (ctx && typeof ctx.text === 'function') {
+              const body = await ctx.text();
+              if (body) detail = body.length > 500 ? `${body.slice(0, 500)}…` : body;
+            }
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
+          Logger.error('[import-preview] edge function error', error, detail);
+          throw new Error(detail);
         }
-        Logger.error('[import-preview] edge function error', error, detail);
-        throw new Error(detail);
+        const d = data as { results: PreviewResult[]; summary: PreviewSummary };
+        aggregatedResults.push(...d.results);
+        aggregatedSummary.total += d.summary.total;
+        aggregatedSummary.ok += d.summary.ok;
+        aggregatedSummary.warning += d.summary.warning;
+        aggregatedSummary.error += d.summary.error;
+        aggregatedSummary.already_finalized += d.summary.already_finalized;
       }
-      const d = data as { results: PreviewResult[]; summary: PreviewSummary };
-      setPreviewResults(d.results);
-      setPreviewSummary(d.summary);
-      toast({ title: 'Pré-visualização gerada', description: `${d.summary.ok} prontos · ${d.summary.warning} avisos · ${d.summary.error} erros` });
+
+      setPreviewResults(aggregatedResults);
+      setPreviewSummary(aggregatedSummary);
+      toast.success('Pré-visualização gerada', {
+        description: `${aggregatedSummary.ok} prontos · ${aggregatedSummary.warning} avisos · ${aggregatedSummary.error} erros`,
+      });
     } catch (err) {
-      toast({ title: 'Erro na pré-visualização', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+      toast.error('Erro na pré-visualização', { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setPreviewing(false);
     }
@@ -290,7 +312,7 @@ export default function ImportarRespostasTab() {
 
   const cancelImport = () => {
     cancelRequestedRef.current = true;
-    toast({ title: 'Cancelando…', description: 'O lote atual ainda será processado, mas nenhum novo lote será enviado.' });
+    toast.info('Cancelando…', { description: 'O lote atual ainda será processado, mas nenhum novo lote será enviado.' });
   };
 
   const runImport = useCallback(async () => {
@@ -314,6 +336,10 @@ export default function ImportarRespostasTab() {
     const totalChunks = Math.ceil(rowsToSend.length / CHUNK_SIZE) || 1;
     setChunkInfo({ current: 0, total: totalChunks, processed: 0, totalRows: rowsToSend.length });
 
+    // Calculado uma única vez fora do loop — antes era reavaliado a cada chunk,
+    // gerando um `source_label` (com timestamp) diferente por lote (achado P3).
+    const resolvedSourceLabel = sourceLabel || `Importação ${new Date().toISOString()}`;
+
     let cancelled = false;
     try {
       for (let i = 0; i < rowsToSend.length; i += CHUNK_SIZE) {
@@ -329,9 +355,13 @@ export default function ImportarRespostasTab() {
           body: {
             simulado_id: selectedSimulado,
             conflict_mode: conflictMode,
-            source_label: sourceLabel || `Importação ${new Date().toISOString()}`,
+            source_label: resolvedSourceLabel,
             batch_id: batchId,
             default_finalizado_em: defaultDate || undefined,
+            // Contrato com a edge `admin-import-simulado-responses`: com `chunk_meta`,
+            // os contadores do batch são acumulados entre chunks (total_rows vem daqui)
+            // e o audit log só é gravado no chunk com is_last=true.
+            chunk_meta: { total_rows: rowsToSend.length, is_last: chunkIndex === totalChunks },
             rows: chunk.map((r) => ({
               email: r.email,
               answers: r.answers,
@@ -353,20 +383,19 @@ export default function ImportarRespostasTab() {
 
       setFinalReport({ batch_id: batchId, summary: { total: rowsToSend.length, imported, skipped, replaced, failed }, results: allResults });
       setCancelledLast(cancelled);
-      toast({
-        title: cancelled ? 'Importação interrompida' : 'Importação concluída',
+      toast.success(cancelled ? 'Importação interrompida' : 'Importação concluída', {
         description: cancelled
           ? `Parcial — ${imported} importados, ${replaced} substituídos, ${skipped} pulados, ${failed} falhas`
           : `${imported} importados · ${replaced} substituídos · ${skipped} pulados · ${failed} falhas`,
       });
     } catch (err) {
-      toast({ title: 'Erro na importação', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+      toast.error('Erro na importação', { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setImporting(false);
       setChunkInfo(null);
       cancelRequestedRef.current = false;
     }
-  }, [previewSummary, importing, previewResults, parsedRows, selectedSimulado, conflictMode, sourceLabel, defaultDate, toast]);
+  }, [previewSummary, importing, previewResults, parsedRows, selectedSimulado, conflictMode, sourceLabel, defaultDate]);
 
   const startImport = useCallback(() => {
     void runImport();

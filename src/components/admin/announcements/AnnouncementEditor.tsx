@@ -107,17 +107,12 @@ export const AnnouncementEditor: React.FC<Props> = ({
   };
 
   const handleSave = () => {
-    const mapPriorityForDB = (p: AnnouncementConfig['prioridade']): string => {
-      if (p === 'critica') return 'Muito Alta';
-      if (p === 'baixa') return 'Baixa';
-      if (p === 'media') return 'Media';
-      if (p === 'alta') return 'Alta';
-      return 'Media';
-    };
-    // Converter data de expiração para UTC antes de salvar
+    // Prioridade é salva no vocabulário canônico direto (sem remapeamento —
+    // o antigo `mapPriorityForDB` convertia para o legado 'Muito Alta' etc.,
+    // mas nunca era chamado; código morto removido).
+    // Converter data de expiração para UTC antes de salvar.
     const configToSave: AnnouncementConfig = {
       ...config,
-      prioridade: config.prioridade as 'baixa' | 'media' | 'alta' | 'critica',
       data_expiracao: config.data_expiracao ? datetimeLocalToBrazilISO(config.data_expiracao) : null
     };
     onSave(configToSave);

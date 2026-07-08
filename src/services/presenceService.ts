@@ -39,8 +39,14 @@ class PresenceService {
 
   getCount() {
     if (!this.channel) return 0;
+    // P1: TODOS os clientes usam a MESMA presence key ('shared' — ver init()),
+    // de propósito, para não expor identidade por chave. Isso significa que
+    // `presenceState()` sempre tem UMA única chave top-level ("shared") com um
+    // meta por conexão dentro do array. `Object.keys(state).length` colapsava
+    // sempre em 0 ou 1 (o "Usuários online agora" nunca refletia a contagem
+    // real). A contagem certa é o tamanho do array dentro da chave compartilhada.
     const state = this.channel.presenceState();
-    return Object.keys(state).length;
+    return state['shared']?.length ?? 0;
   }
 
   getIsConnected() {

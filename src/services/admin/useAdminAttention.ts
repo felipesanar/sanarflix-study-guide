@@ -14,6 +14,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/** Linha de `import_batches_falha_7d` — mesma forma no array legado e no `rows` do shape novo. */
+export interface ImportBatchFalhaRow {
+  id: string;
+  simulado_nome: string;
+  source_label: string;
+  failed_count: number;
+  total_rows: number;
+  status: string;
+  created_at: string;
+}
+
 /**
  * Payload da RPC `admin_command_center()` (contrato de implementação do
  * Admin, §Backend·1). A RPC ainda NÃO está nos tipos gerados do Supabase
@@ -33,15 +44,16 @@ export interface AdminCommandCenterPayload {
   };
   attention: {
     simulados_encerrando_hoje: Array<{ id: string; nome: string; data_encerramento: string }>;
-    import_batches_falha_7d: Array<{
-      id: string;
-      simulado_nome: string;
-      source_label: string;
-      failed_count: number;
-      total_rows: number;
-      status: string;
-      created_at: string;
-    }>;
+    /**
+     * P2 (auditoria §7): shape ANTIGO (pré-migration `20260708122000_admin_command_center_v2`)
+     * é um array cru capado em `LIMIT 10` pela RPC — o badge da fila subcontava
+     * falhas quando havia mais de 10 na semana. O shape NOVO é
+     * `{ total, rows }`, com `total` real (sem cap) e `rows` = as 10 primeiras
+     * (para os exemplos da fila). Os dois formatos convivem aqui porque o
+     * client pode rodar em prod ANTES da migration ser aplicada — ver
+     * {@link normalizeImportBatchesFalha}.
+     */
+    import_batches_falha_7d: ImportBatchFalhaRow[] | { total: number; rows: ImportBatchFalhaRow[] };
     feedbacks_pendentes: { total: number; by_category: Record<string, number> };
     ies_sem_simulado_ativo: Array<{ id: string; nome: string }>;
   };
@@ -53,6 +65,35 @@ export interface AdminCommandCenterPayload {
     target_email: string | null;
     metadata: Record<string, unknown> | null;
   }>;
+}
+
+/**
+ * Detalhe de `attention` já normalizado — mesmo shape de
+ * `AdminCommandCenterPayload['attention']`, exceto `import_batches_falha_7d`,
+ * sempre `{ total, rows }` independente da versão da RPC em prod.
+ */
+export interface AdminAttentionDetail {
+  simulados_encerrando_hoje: AdminCommandCenterPayload['attention']['simulados_encerrando_hoje'];
+  import_batches_falha_7d: { total: number; rows: ImportBatchFalhaRow[] };
+  feedbacks_pendentes: AdminCommandCenterPayload['attention']['feedbacks_pendentes'];
+  ies_sem_simulado_ativo: AdminCommandCenterPayload['attention']['ies_sem_simulado_ativo'];
+}
+
+/**
+ * Normaliza `import_batches_falha_7d` para `{ total, rows }` — fallback
+ * retrocompatível (P2 auditoria §7b): se a RPC ainda devolve o array cru
+ * (shape antigo, pré-migration), `total` vira `array.length` (capado em 10,
+ * igual ao comportamento atual); se já devolve o objeto novo, usa `total`
+ * direto (sem cap) e cai para `rows.length` só se `total` vier ausente.
+ */
+function normalizeImportBatchesFalha(
+  raw: AdminCommandCenterPayload['attention']['import_batches_falha_7d'],
+): { total: number; rows: ImportBatchFalhaRow[] } {
+  if (Array.isArray(raw)) {
+    return { total: raw.length, rows: raw };
+  }
+  const rows = raw?.rows ?? [];
+  return { total: raw?.total ?? rows.length, rows };
 }
 
 /**
@@ -104,28 +145,54 @@ export function useAdminAttention(options: { enabled?: boolean } = {}) {
     queryKey: ['admin', 'command-center'],
     queryFn: fetchAdminCommandCenter,
     staleTime: 60_000,
-    retry: false, // fetchAdminCommandCenter já faz retry com backoff.
+    // Este hook roda no AdminLayout inteiro (alimenta o badge da sidebar em
+    // TODAS as 11 seções do admin), não só no Command Center — um badge sem
+    // SLA de 60s não justifica bater a RPC agregada `admin_command_center` a
+    // cada minuto durante a sessão inteira. 5min é fresco o bastante para
+    // contadores de atenção; o Command Center em si continua fresco de fato
+    // ao navegar via `refetchOnMount: 'always'` abaixo.
+    refetchInterval: 300_000,
+    refetchOnMount: 'always',
+    // fetchAdminCommandCenter usa withRetry, mas withRetry só reage a erros de
+    // rede/HTTP reconhecíveis (ver isRecoverableError em networkRetry.ts) —
+    // erros de RPC (ex.: permissão) não têm `status` e não são re-tentados. O
+    // refetchInterval acima é o gatilho real de atualização periódica.
+    retry: false,
     enabled,
   });
+
+  const importBatchesFalha7d = query.data
+    ? normalizeImportBatchesFalha(query.data.attention.import_batches_falha_7d)
+    : null;
 
   const attention: AdminAttentionCounts | null = query.data
     ? {
         simuladosEncerrandoHoje: query.data.attention.simulados_encerrando_hoje.length,
-        importBatchesFalha7d: query.data.attention.import_batches_falha_7d.length,
+        importBatchesFalha7d: importBatchesFalha7d?.total ?? 0,
         feedbacksPendentes: query.data.attention.feedbacks_pendentes.total,
         iesSemSimuladoAtivo: query.data.attention.ies_sem_simulado_ativo.length,
+      }
+    : null;
+
+  const attentionDetail: AdminAttentionDetail | null = query.data
+    ? {
+        simulados_encerrando_hoje: query.data.attention.simulados_encerrando_hoje,
+        import_batches_falha_7d: importBatchesFalha7d ?? { total: 0, rows: [] },
+        feedbacks_pendentes: query.data.attention.feedbacks_pendentes,
+        ies_sem_simulado_ativo: query.data.attention.ies_sem_simulado_ativo,
       }
     : null;
 
   return {
     attention,
     /**
-     * Detalhe cru de `attention` (listas por fila) — usado pelo Command
-     * Center para os exemplos reais dos cards ("UEA, UFRJ e mais 20"). A
-     * sidebar só precisa das contagens (`attention`); este campo é aditivo e
-     * não afeta quem já consome só `attention`/`kpis`/`auditRecentes`.
+     * Detalhe de `attention` (listas por fila), com `import_batches_falha_7d`
+     * já normalizado para `{ total, rows }` — usado pelo Command Center para
+     * os exemplos reais dos cards ("UEA, UFRJ e mais 20"). A sidebar só
+     * precisa das contagens (`attention`); este campo é aditivo e não afeta
+     * quem já consome só `attention`/`kpis`/`auditRecentes`.
      */
-    attentionDetail: query.data?.attention ?? null,
+    attentionDetail,
     kpis: query.data?.kpis ?? null,
     auditRecentes: query.data?.audit_recentes ?? [],
     isLoading: query.isLoading,

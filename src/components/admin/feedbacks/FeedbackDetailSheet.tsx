@@ -19,6 +19,13 @@ export interface FeedbackDetailSheetProps {
   onSave: (feedback: FeedbackRow, next: { status: FeedbackStatus; resposta: string }) => Promise<void>;
 }
 
+/** Estado do carregamento do print: sem anexo, carregando, ok ou falha do signed URL. */
+type ScreenshotState =
+  | { kind: 'none' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; url: string }
+  | { kind: 'error' };
+
 /**
  * Sheet lateral (~460px) de detalhe/resposta de um feedback: mensagem
  * completa, screenshot (signed URL do bucket `feedback-screenshots`),
@@ -27,7 +34,7 @@ export interface FeedbackDetailSheetProps {
 export function FeedbackDetailSheet({ feedback, userInfo, onOpenChange, onSave }: FeedbackDetailSheetProps) {
   const [draftStatus, setDraftStatus] = useState<FeedbackStatus>('received');
   const [draftResponse, setDraftResponse] = useState('');
-  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [screenshot, setScreenshot] = useState<ScreenshotState>({ kind: 'none' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -39,15 +46,24 @@ export function FeedbackDetailSheet({ feedback, userInfo, onOpenChange, onSave }
 
   useEffect(() => {
     let cancelled = false;
-    setScreenshotUrl(null);
-    if (feedback?.screenshot_url) {
-      supabase.storage
-        .from('feedback-screenshots')
-        .createSignedUrl(feedback.screenshot_url, 3600)
-        .then(({ data }) => {
-          if (!cancelled) setScreenshotUrl(data?.signedUrl ?? null);
-        });
+    if (!feedback?.screenshot_url) {
+      setScreenshot({ kind: 'none' });
+      return;
     }
+    setScreenshot({ kind: 'loading' });
+    supabase.storage
+      .from('feedback-screenshots')
+      .createSignedUrl(feedback.screenshot_url, 3600)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        // Aluno anexou um print, mas o signed URL falhou (bucket/permissão/objeto ausente) —
+        // isso é diferente de "não anexou" e não deve ser confundido com isso na UI.
+        if (error || !data?.signedUrl) {
+          setScreenshot({ kind: 'error' });
+          return;
+        }
+        setScreenshot({ kind: 'ready', url: data.signedUrl });
+      });
     return () => {
       cancelled = true;
     };
@@ -87,9 +103,22 @@ export function FeedbackDetailSheet({ feedback, userInfo, onOpenChange, onSave }
 
                 <div>
                   <div className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">Print</div>
-                  {screenshotUrl ? (
-                    <img src={screenshotUrl} alt="Print enviado pelo aluno" className="w-full rounded-xl border" />
-                  ) : (
+                  {screenshot.kind === 'ready' && (
+                    <img src={screenshot.url} alt="Print enviado pelo aluno" className="w-full rounded-xl border" />
+                  )}
+                  {screenshot.kind === 'loading' && (
+                    <div className="flex items-center justify-center rounded-xl border py-6 text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando print…
+                    </div>
+                  )}
+                  {screenshot.kind === 'error' && (
+                    <AdminEmpty
+                      title="Não foi possível carregar o print"
+                      description="O aluno anexou uma captura de tela, mas ela não pôde ser carregada agora. Tente reabrir este feedback."
+                      className="py-6"
+                    />
+                  )}
+                  {screenshot.kind === 'none' && (
                     <AdminEmpty
                       title="Sem print"
                       description="O aluno não anexou uma captura de tela a este feedback."

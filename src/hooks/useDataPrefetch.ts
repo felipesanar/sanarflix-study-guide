@@ -15,7 +15,6 @@ const ROUTE_PROBABILITIES: Record<string, Record<string, number>> = {
   },
   '/desempenho-simulado': {
     '/guia-estudos': 0.6,
-    '/analytics': 0.3,
   },
   '/cronograma-enamed': {
     

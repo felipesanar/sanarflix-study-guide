@@ -8,9 +8,9 @@
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { AlertCircle, CheckCircle, Download, Loader2, Plus, Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
-import { useToast } from '@/hooks/use-toast';
 import { datetimeLocalToBrazilISO, brazilISOToDatetimeLocal } from '@/utils/timezone';
 import {
   extractImagesFromXlsx,
@@ -27,7 +27,9 @@ import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MonoValue } from '@/experiences/admin/ui';
+import { logAdminAction } from '@/services/admin/logAction';
 import { cn } from '@/lib/utils';
 import type { IES, Simulado } from './ProvasTab';
 
@@ -38,6 +40,30 @@ const DURACAO_OPCOES = [
   { value: 300, label: '5h' },
   { value: 360, label: '6h' },
 ];
+
+/**
+ * Status calculado a partir das datas para SALVAR — mesma regra de
+ * `ProvasTab.calcularStatus` (usada para EXIBIR), incluindo `data_encerramento`
+ * passada. Recebe o status BRUTO DO BANCO (`Simulado.statusDb`, não o
+ * computado `Simulado.status`) e o PRESERVA quando for 'encerrado' — editar um
+ * simulado encerrado MANUALMENTE nunca deve reativá-lo silenciosamente
+ * (achado de auditoria P1). Quando o encerramento é apenas computado (banco
+ * 'ativo', `data_encerramento` no passado), o cálculo roda normalmente: se o
+ * admin estender a data para o futuro, a prova volta a 'ativo' (reabertura
+ * intencional); se a data continuar no passado, o resultado permanece
+ * 'encerrado' pelo próprio cálculo de data.
+ */
+function calcularStatusSalvar(
+  dataLiberacaoISO: string | null,
+  dataEncerramentoISO: string | null,
+  statusBancoAtual: 'aguardando' | 'ativo' | 'encerrado' | null,
+): 'aguardando' | 'ativo' | 'encerrado' {
+  const agora = new Date();
+  if (statusBancoAtual === 'encerrado') return 'encerrado';
+  if (dataEncerramentoISO && new Date(dataEncerramentoISO) < agora) return 'encerrado';
+  if (dataLiberacaoISO && new Date(dataLiberacaoISO) > agora) return 'aguardando';
+  return 'ativo';
+}
 
 const colIdxToLetter = (idx: number): string => {
   if (idx < 0) return '?';
@@ -152,7 +178,6 @@ export default function SimuladoConfigDialog({
   iesList,
   onSaved,
 }: SimuladoConfigDialogProps) {
-  const { toast } = useToast();
   const [form, setForm] = useState(FORM_INITIAL);
   const [selectedIES, setSelectedIES] = useState<string[]>([]);
   const [duracaoMinutos, setDuracaoMinutos] = useState(DURACAO_OPCOES[0].value);
@@ -163,6 +188,13 @@ export default function SimuladoConfigDialog({
   const [parseProgress, setParseProgress] = useState(0);
   const [ignoreImageWarning, setIgnoreImageWarning] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Valor original de `data_liberacao` (ISO) no momento em que o diálogo abriu em modo
+  // edição, e se o admin alterou o agendamento NESTA sessão de edição. Usados no save
+  // para não reescrever `data_liberacao` para "agora" só porque o simulado já estava
+  // liberado (achado de auditoria P2) — só sobrescrevemos se o usuário de fato mexeu.
+  const [dataLiberacaoOriginalISO, setDataLiberacaoOriginalISO] = useState<string | null>(null);
+  const [scheduleChanged, setScheduleChanged] = useState(false);
 
   // Reseta/preenche o formulário sempre que o diálogo abre.
   useEffect(() => {
@@ -183,14 +215,25 @@ export default function SimuladoConfigDialog({
       });
       setSelectedIES(simulado.ies_ids);
       setDuracaoMinutos(simulado.duracao_minutos);
+      setDataLiberacaoOriginalISO(simulado.data_liberacao);
+      setScheduleChanged(false);
     } else {
       setForm(FORM_INITIAL);
       setSelectedIES([]);
       setDuracaoMinutos(DURACAO_OPCOES[0].value);
+      setDataLiberacaoOriginalISO(null);
+      setScheduleChanged(false);
     }
     setParsedFile(null);
     setIgnoreImageWarning(false);
   }, [open, mode, simulado]);
+
+  // Trava de encerramento (alerta + preservação no save) considera o status DO
+  // BANCO (`statusDb`), não o computado (`status`) — este último também vira
+  // 'encerrado' quando `data_encerramento` já passou mesmo com o banco em
+  // 'ativo', e nesse caso estender a data para o futuro deve reabrir a prova
+  // normalmente em vez de ficar preso no encerramento manual.
+  const simuladoEncerrado = mode === 'edit' && simulado?.statusDb === 'encerrado';
 
   const toggleIES = (id: string, checked: boolean) => {
     setSelectedIES((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)));
@@ -221,8 +264,7 @@ export default function SimuladoConfigDialog({
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Simulado');
     XLSX.writeFile(workbook, 'modelo_simulado.xlsx');
-    toast({
-      title: 'Modelo baixado',
+    toast.success('Modelo baixado', {
       description: 'Cole imagens diretamente nas colunas "Imagem do Enunciado" e "Imagem do Comentário".',
     });
   };
@@ -408,14 +450,10 @@ export default function SimuladoConfigDialog({
 
       const totalEmbedded = extracted.stats.matchedEnunciado + extracted.stats.matchedEnunciado2 + extracted.stats.matchedComentario;
       if (totalEmbedded > 0) {
-        toast({ title: 'Imagens detectadas', description: `${totalEmbedded} imagem(ns) vinculada(s) às questões.` });
+        toast.success('Imagens detectadas', { description: `${totalEmbedded} imagem(ns) vinculada(s) às questões.` });
       }
     } catch (err) {
-      toast({
-        title: 'Erro ao processar arquivo',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro ao processar arquivo', { description: err instanceof Error ? err.message : String(err) });
       setParsedFile(null);
     } finally {
       setParsing(false);
@@ -440,17 +478,33 @@ export default function SimuladoConfigDialog({
     try {
       setSaving(true);
       const agora = new Date();
+      // Em edição, só recalculamos `data_liberacao` se o admin de fato mexeu no
+      // agendamento nesta sessão — do contrário mantemos o valor original tal como
+      // veio do banco (achado P2: antes, editar um simulado já liberado reescrevia
+      // `data_liberacao` para "agora" a cada save, mesmo sem o admin tocar na data).
       let dataLiberacaoISO: string | null;
-      if (form.liberarImediatamente) {
+      if (mode === 'edit' && !scheduleChanged) {
+        dataLiberacaoISO = dataLiberacaoOriginalISO;
+      } else if (form.liberarImediatamente) {
         dataLiberacaoISO = agora.toISOString();
       } else if (form.dataLiberacao) {
         dataLiberacaoISO = datetimeLocalToBrazilISO(form.dataLiberacao);
       } else {
         dataLiberacaoISO = null;
       }
-      const statusCalculado: 'aguardando' | 'ativo' =
-        dataLiberacaoISO && new Date(dataLiberacaoISO) > agora ? 'aguardando' : 'ativo';
       const dataEncerramentoISO = form.dataEncerramento ? datetimeLocalToBrazilISO(form.dataEncerramento) : null;
+      // Preserva 'encerrado' ao editar (achado P1) SOMENTE quando o encerramento foi
+      // manual/persistido no banco (`simulado.statusDb`) — nunca reabrimos uma prova
+      // encerrada dessa forma silenciosamente. Quando o encerramento é apenas
+      // computado (banco 'ativo', `data_encerramento` passada), passamos o status do
+      // banco ('ativo') e deixamos `calcularStatusSalvar` recalcular pelas datas: se o
+      // admin estendeu `data_encerramento` para o futuro, a prova reabre — que é a
+      // intenção explícita ao editar a data.
+      const statusCalculado = calcularStatusSalvar(
+        dataLiberacaoISO,
+        dataEncerramentoISO,
+        mode === 'edit' ? simulado?.statusDb ?? null : null,
+      );
       const dataLiberacaoDesempenhoISO =
         form.liberacaoDesempenho === 'agendado' && form.dataLiberacaoDesempenho
           ? datetimeLocalToBrazilISO(form.dataLiberacaoDesempenho)
@@ -473,7 +527,9 @@ export default function SimuladoConfigDialog({
           .eq('id', simulado.id);
         if (updateError) throw updateError;
 
-        toast({ title: 'Simulado atualizado!', description: 'As configurações foram salvas com sucesso.' });
+        await logAdminAction('editar_simulado', null, { simulado_id: simulado.id, nome: form.nome });
+
+        toast.success('Simulado atualizado!', { description: 'As configurações foram salvas com sucesso.' });
       } else {
         if (!parsedFile) return;
         const { data: novoSimulado, error: insertError } = await supabase
@@ -527,30 +583,24 @@ export default function SimuladoConfigDialog({
         }
 
         if (fatalError) {
-          toast({
-            title: 'Simulado criado, mas as imagens não subiram',
+          toast.error('Simulado criado, mas as imagens não subiram', {
             description: `${fatalError}. Anexe manualmente pelo editor de cada questão depois.`,
-            variant: 'destructive',
           });
         } else if (partialErrors.length > 0) {
           const amostra = partialErrors.slice(0, 3).map((e) => `Q${e.ordem}${e.slot ? `/${e.slot}` : ''}: ${e.message}`).join(' · ');
-          toast({
-            title: `${partialErrors.length} imagem(ns) falharam`,
+          toast.error(`${partialErrors.length} imagem(ns) falharam`, {
             description: `${amostra}${partialErrors.length > 3 ? ' …' : ''}.`,
-            variant: 'destructive',
           });
         }
 
-        toast({ title: 'Simulado criado com sucesso!', description: `${parsedFile.questoes.length} questões foram adicionadas.` });
+        await logAdminAction('criar_simulado', null, { simulado_id: novoSimulado.id, nome: form.nome });
+
+        toast.success('Simulado criado com sucesso!', { description: `${parsedFile.questoes.length} questões foram adicionadas.` });
       }
 
       onSaved();
     } catch (err) {
-      toast({
-        title: 'Erro ao salvar simulado',
-        description: err instanceof Error ? err.message : String(err),
-        variant: 'destructive',
-      });
+      toast.error('Erro ao salvar simulado', { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
@@ -716,6 +766,16 @@ export default function SimuladoConfigDialog({
             </div>
           </div>
 
+          {simuladoEncerrado && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Esta prova está encerrada</AlertTitle>
+              <AlertDescription>
+                Salvar não a reabre — o status "Encerrado" é mantido mesmo que você altere as datas abaixo.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Início</Label>
@@ -723,12 +783,18 @@ export default function SimuladoConfigDialog({
                 type="datetime-local"
                 value={form.dataLiberacao}
                 disabled={form.liberarImediatamente}
-                onChange={(e) => setForm((prev) => ({ ...prev, dataLiberacao: e.target.value, liberarImediatamente: false }))}
+                onChange={(e) => {
+                  setScheduleChanged(true);
+                  setForm((prev) => ({ ...prev, dataLiberacao: e.target.value, liberarImediatamente: false }));
+                }}
               />
               <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox
                   checked={form.liberarImediatamente}
-                  onCheckedChange={(c) => setForm((prev) => ({ ...prev, liberarImediatamente: !!c, dataLiberacao: '' }))}
+                  onCheckedChange={(c) => {
+                    setScheduleChanged(true);
+                    setForm((prev) => ({ ...prev, liberarImediatamente: !!c, dataLiberacao: '' }));
+                  }}
                 />
                 Liberar imediatamente ao salvar
               </label>

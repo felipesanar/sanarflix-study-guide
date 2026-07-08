@@ -26,8 +26,6 @@ const corsHeaders = {
 interface ImportConfig {
   mode: "MERGE" | "REPLACE" | "APPEND";
   scope: "ies_semestre" | "ies_full";
-  emptyBehavior: "ignore" | "null";
-  strictMode: boolean;
   dryRun: boolean;
 }
 
@@ -318,7 +316,8 @@ async function handlePreviewChanges(
 async function handleSmartImport(
   supabaseAdmin: ReturnType<typeof createClient>,
   body: { config: ImportConfig; rows: NormalizedRow[] },
-  requestId: string
+  requestId: string,
+  userId: string
 ) {
   const { config, rows } = body;
 
@@ -346,9 +345,12 @@ async function handleSmartImport(
   const errorRows: ImportResultRow[] = [];
   let verifiedTotal = 0;
   let expectedTotal = 0;
+  // Item 4 da auditoria: acumulado para o registro de auditoria ao final desta chamada.
+  const touchedSemestres = new Set<string>();
 
   for (const [iesId, iesRows] of rowsByIes.entries()) {
     const semestresInFile = [...new Set(iesRows.map(r => r.semestre))];
+    semestresInFile.forEach(s => touchedSemestres.add(s));
     const effectiveScope = config.mode === "MERGE" ? "ies_semestre" : config.scope;
     const fetchSemestres = effectiveScope === "ies_semestre" ? semestresInFile : undefined;
 
@@ -480,6 +482,20 @@ async function handleSmartImport(
 
   console.log(LOG_PREFIX, `Request ${requestId}: smart_import done — inserted=${totalInserted}, updated=${totalUpdated}, deleted=${totalDeleted}, unchanged=${totalUnchanged}, errors=${totalErrors}, verified=${verifiedTotal}/${expectedTotal}`);
 
+  await logImportAudit(supabaseAdmin, userId, requestId, "smart_import", {
+    mode: config.mode,
+    scope: config.scope,
+    iesIds: [...rowsByIes.keys()],
+    semestres: [...touchedSemestres],
+    counts: {
+      inserted: totalInserted,
+      updated: totalUpdated,
+      deleted: totalDeleted,
+      unchanged: totalUnchanged,
+      errors: totalErrors,
+    },
+  });
+
   return jsonResponse({
     success: totalErrors === 0,
     requestId,
@@ -505,7 +521,8 @@ async function handleSmartImport(
 async function handleDeleteScope(
   supabaseAdmin: ReturnType<typeof createClient>,
   body: { config: ImportConfig; scopes: DeleteScopeEntry[] },
-  requestId: string
+  requestId: string,
+  userId: string
 ) {
   const { config, scopes } = body;
 
@@ -546,6 +563,14 @@ async function handleDeleteScope(
 
   console.log(LOG_PREFIX, `Request ${requestId}: Total deleted = ${totalDeleted}`);
 
+  await logImportAudit(supabaseAdmin, userId, requestId, "delete_scope", {
+    mode: config.mode,
+    scope: config.scope,
+    iesIds: scopes.map(s => s.iesId),
+    semestres: [...new Set(scopes.flatMap(s => s.semestres))],
+    counts: { deleted: totalDeleted },
+  });
+
   return jsonResponse({
     success: true,
     requestId,
@@ -559,7 +584,8 @@ async function handleDeleteScope(
 async function handleInsertOnly(
   supabaseAdmin: ReturnType<typeof createClient>,
   rows: NormalizedRow[],
-  requestId: string
+  requestId: string,
+  userId: string
 ) {
   if (!rows || rows.length === 0) {
     return jsonResponse({ error: "No rows to insert", requestId }, 400);
@@ -609,6 +635,16 @@ async function handleInsertOnly(
 
   console.log(LOG_PREFIX, `Request ${requestId}: insert_only done — inserted=${inserted}, errors=${errors}`);
 
+  // insert_only não recebe config (não há delete de escopo aqui, só inserção), então mode/scope
+  // ficam fixos para refletir a semântica da ação em vez de um config inexistente.
+  await logImportAudit(supabaseAdmin, userId, requestId, "insert_only", {
+    mode: "APPEND",
+    scope: null,
+    iesIds: [...new Set(rows.map(r => r.id_ies))],
+    semestres: [...new Set(rows.map(r => r.semestre))],
+    counts: { inserted, errors },
+  });
+
   return jsonResponse({
     success: errors === 0,
     requestId,
@@ -622,7 +658,8 @@ async function handleInsertOnly(
 async function handleLegacyAppend(
   supabaseAdmin: ReturnType<typeof createClient>,
   rows: NormalizedRow[],
-  requestId: string
+  requestId: string,
+  userId: string
 ) {
   if (!rows || rows.length === 0) {
     return jsonResponse({ error: "No rows to import", requestId }, 400);
@@ -674,12 +711,65 @@ async function handleLegacyAppend(
 
   console.log(LOG_PREFIX, `Request ${requestId}: APPEND done — inserted=${inserted}, errors=${errors}`);
 
+  await logImportAudit(supabaseAdmin, userId, requestId, "append_legacy", {
+    mode: "APPEND",
+    scope: null,
+    iesIds: [...new Set(rows.map(r => r.id_ies))],
+    semestres: [...new Set(rows.map(r => r.semestre))],
+    counts: { inserted, errors },
+  });
+
   return jsonResponse({
     success: errors === 0,
     requestId,
     counts: { inserted, updated: 0, deleted: 0, ignored: 0, errors },
     errors: errorRows.filter((r) => r.status === "error"),
   });
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+
+/**
+ * Item 4 da auditoria: nenhuma operação de escrita desta função (smart_import, delete_scope,
+ * insert_only, APPEND legado) gerava registro de auditoria — nem client, nem edge. Como esta
+ * função já roda com o service client e conhece o userId autenticado (via authenticateAdmin),
+ * é o lugar certo para registrar. Segue o padrão de outras edges (ex.: delete-user, admin-import-
+ * simulado-responses): nunca lança — falha ao gravar auditoria não pode derrubar uma importação
+ * que já foi concluída no banco.
+ */
+async function logImportAudit(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+  requestId: string,
+  subAction: string,
+  details: {
+    mode: string;
+    scope?: string | null;
+    iesIds: string[];
+    semestres: string[];
+    counts: Record<string, number>;
+  }
+) {
+  try {
+    const { error } = await supabaseAdmin.from("admin_audit_log").insert({
+      admin_id: userId,
+      action: "study_guide_import",
+      metadata: {
+        sub_action: subAction,
+        mode: details.mode,
+        scope: details.scope ?? null,
+        ies_id: details.iesIds,
+        semestres: details.semestres,
+        counts: details.counts,
+        requestId,
+      },
+    });
+    if (error) {
+      console.warn(LOG_PREFIX, `Request ${requestId}: audit log insert failed:`, error.message);
+    }
+  } catch (e) {
+    console.warn(LOG_PREFIX, `Request ${requestId}: audit log exception:`, e instanceof Error ? e.message : String(e));
+  }
 }
 
 // ─── Response helper ─────────────────────────────────────────────────────────
@@ -712,7 +802,7 @@ Deno.serve(async (req: Request) => {
     if ("error" in authResult) {
       return jsonResponse({ error: authResult.error, requestId }, authResult.status);
     }
-    const { supabaseAdmin } = authResult;
+    const { supabaseAdmin, userId } = authResult;
 
     const body = await req.json();
     const action: string = body.action || "";
@@ -721,19 +811,20 @@ Deno.serve(async (req: Request) => {
 
     // ── Route by action ──
     if (action === "preview_changes") {
+      // Dry-run: não escreve no banco, então não gera registro de auditoria.
       return await handlePreviewChanges(supabaseAdmin, body, requestId);
     }
 
     if (action === "smart_import") {
-      return await handleSmartImport(supabaseAdmin, body, requestId);
+      return await handleSmartImport(supabaseAdmin, body, requestId, userId);
     }
 
     if (action === "delete_scope") {
-      return await handleDeleteScope(supabaseAdmin, body, requestId);
+      return await handleDeleteScope(supabaseAdmin, body, requestId, userId);
     }
 
     if (action === "insert_only") {
-      return await handleInsertOnly(supabaseAdmin, body.rows, requestId);
+      return await handleInsertOnly(supabaseAdmin, body.rows, requestId, userId);
     }
 
     // ── Legacy / APPEND path ──
@@ -745,12 +836,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (config.mode === "APPEND") {
-      return await handleLegacyAppend(supabaseAdmin, rows, requestId);
+      return await handleLegacyAppend(supabaseAdmin, rows, requestId, userId);
     }
 
     // Legacy MERGE/REPLACE — redirect to smart_import
     console.warn(LOG_PREFIX, `Request ${requestId}: Legacy MERGE/REPLACE redirected to smart_import`);
-    return await handleSmartImport(supabaseAdmin, body, requestId);
+    return await handleSmartImport(supabaseAdmin, body, requestId, userId);
 
   } catch (error) {
     console.error(LOG_PREFIX, `Request ${requestId}: Unexpected error`, error);

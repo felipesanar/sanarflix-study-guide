@@ -4,13 +4,10 @@
  */
 
 import * as React from 'react';
-import { Settings2, AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Switch } from '@/components/ui/switch';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ImportConfig, ImportMode } from '../types';
 
@@ -23,22 +20,12 @@ export const ImportConfigPanel: React.FC<ImportConfigPanelProps> = ({
   config,
   onChange,
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-
   const handleModeChange = (mode: ImportMode) => {
     onChange({ ...config, mode });
   };
 
   const handleScopeChange = (scope: 'ies_semestre' | 'ies_full') => {
     onChange({ ...config, scope });
-  };
-
-  const handleEmptyBehaviorChange = (checked: boolean) => {
-    onChange({ ...config, emptyBehavior: checked ? 'null' : 'ignore' });
-  };
-
-  const handleStrictModeChange = (checked: boolean) => {
-    onChange({ ...config, strictMode: checked });
   };
 
   return (
@@ -76,7 +63,8 @@ export const ImportConfigPanel: React.FC<ImportConfigPanelProps> = ({
             <div className="space-y-1">
               <span className="font-medium text-sm">APPEND (Apenas inserir)</span>
               <p className="text-xs text-muted-foreground">
-                Insere apenas registros novos. Duplicatas são ignoradas.
+                Insere todas as linhas do arquivo sem checar duplicatas (não há índice único em conteúdos).
+                Reimportar o mesmo arquivo duplica os registros — prefira MERGE para reimportações.
               </p>
             </div>
           </label>
@@ -96,7 +84,8 @@ export const ImportConfigPanel: React.FC<ImportConfigPanelProps> = ({
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Remove todos os registros do escopo e insere novos. Requer confirmação extra.
+                Remove todos os registros do escopo e insere novos. Ao confirmar a importação,
+                será exigida uma confirmação extra antes de executar.
               </p>
             </div>
           </label>
@@ -159,43 +148,6 @@ export const ImportConfigPanel: React.FC<ImportConfigPanelProps> = ({
           </RadioGroup>
         </div>
       )}
-
-      {/* Advanced Options */}
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
-            <Settings2 className="h-4 w-4" />
-            <span>Opções avançadas</span>
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 pt-4">
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Sobrescrever com null</Label>
-              <p className="text-xs text-muted-foreground">
-                Células vazias substituem valores existentes por null
-              </p>
-            </div>
-            <Switch
-              checked={config.emptyBehavior === 'null'}
-              onCheckedChange={handleEmptyBehaviorChange}
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Modo Estrito</Label>
-              <p className="text-xs text-muted-foreground">
-                Bloqueia importação se houver colunas desconhecidas
-              </p>
-            </div>
-            <Switch
-              checked={config.strictMode}
-              onCheckedChange={handleStrictModeChange}
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
     </div>
   );
 };

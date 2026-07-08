@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withRetry } from '@/utils/networkRetry';
-import { Logger } from '@/utils/logger';
 
 const RPC_TIMEOUT = 15_000;
 
@@ -111,33 +110,61 @@ async function fetchSimuladosParaSelecao(): Promise<SimuladoOption[]> {
   return options.sort((a, b) => rank[a.status] - rank[b.status]);
 }
 
-/** Resumo de monitoramento (`admin_monitor_summary`) — React Query com staleTime 60s. */
+/**
+ * Resumo de monitoramento (`admin_monitor_summary`) — React Query com staleTime
+ * 60s. `refetchInterval`/`refetchOnMount: 'always'` são o gatilho real de
+ * atualização: o QueryClient global (`src/App.tsx`) desliga
+ * refetchOnMount/Focus/Reconnect para evitar refetches indesejados em toda a
+ * app, o que deixava esta tela "congelada" (só `staleTime` sem nenhum
+ * gatilho não refaz nada sozinho). Ver também o botão "Atualizar" em
+ * `MonitoramentoPage`, que invalida esta query manualmente.
+ */
 export function useAdminMonitorSummary() {
   return useQuery({
     queryKey: ['admin', 'monitor-summary'],
     queryFn: fetchAdminMonitorSummary,
     staleTime: 60_000,
-    retry: false, // fetchAdminMonitorSummary já faz retry com backoff.
+    refetchInterval: 60_000,
+    refetchOnMount: 'always',
+    // fetchAdminMonitorSummary usa withRetry, mas withRetry só reage a erros de
+    // rede/HTTP reconhecíveis (ver isRecoverableError em networkRetry.ts) — os
+    // fetchers daqui convertem tudo em `new Error(message)` sem `status`, então
+    // erros de RPC (ex.: permissão) não são re-tentados. O refetchInterval acima
+    // é quem garante uma nova tentativa periódica de fato.
+    retry: false,
   });
 }
 
-/** Lista de simulados para o seletor do bloco "Questões com maior taxa de erro" — ativos primeiro. */
+/**
+ * Lista de simulados para o seletor do bloco "Questões com maior taxa de erro"
+ * — ativos primeiro. Mesmo gatilho de atualização de `useAdminMonitorSummary`
+ * (ver comentário acima) — sem isso a lista também ficava parada.
+ */
 export function useSimuladosParaSelecao() {
   return useQuery({
     queryKey: ['admin', 'monitor-simulados-selecao'],
     queryFn: fetchSimuladosParaSelecao,
     staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchOnMount: 'always',
   });
 }
 
-/** Taxas de erro por questão de um simulado (`admin_question_error_rates`) — staleTime 60s. */
+/**
+ * Taxas de erro por questão de um simulado (`admin_question_error_rates`) —
+ * staleTime 60s + mesmo gatilho de atualização periódica das demais queries
+ * de monitoramento.
+ */
 export function useAdminQuestionErrorRates(simuladoId: string | null) {
   return useQuery({
     queryKey: ['admin', 'monitor-question-error-rates', simuladoId],
     queryFn: () => fetchAdminQuestionErrorRates(simuladoId as string),
     enabled: Boolean(simuladoId),
     staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchOnMount: 'always',
+    // Ver comentário em useAdminMonitorSummary: withRetry não cobre erros de
+    // RPC sem `status`, então o retry real vem do refetchInterval.
     retry: false,
-    meta: { onError: (err: unknown) => Logger.warn('[Monitor] admin_question_error_rates falhou:', err) },
   });
 }

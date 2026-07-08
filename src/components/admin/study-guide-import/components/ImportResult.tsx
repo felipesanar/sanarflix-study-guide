@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle, Download, RefreshCw, ExternalLink, AlertTriangle
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { downloadAsFile } from '../utils/parseFile';
 import type { ImportResponse, ImportResultRow } from '../types';
@@ -135,6 +136,20 @@ export const ImportResult: React.FC<ImportResultProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Verification Mismatch Alert (item 8 da auditoria) */}
+      {result.verification && !result.verification.match && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Divergência na verificação pós-importação</AlertTitle>
+          <AlertDescription>
+            Esperado <strong>{result.verification.expected.toLocaleString('pt-BR')}</strong> registro(s) no escopo importado,
+            mas o banco ficou com <strong>{result.verification.actual.toLocaleString('pt-BR')}</strong>. Isso pode indicar linhas
+            perdidas ou duplicadas entre lotes — confira manualmente o guia de estudos para os escopos afetados antes de confiar
+            nos números acima.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Error List */}
       {result.errors.length > 0 && (

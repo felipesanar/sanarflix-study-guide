@@ -21,7 +21,7 @@ export interface PreviewStats {
   detalhes: PreviewDetalhe[];
 }
 
-export type RunItemStatus = 'ok' | 'erro' | 'cancelada';
+export type RunItemStatus = 'ok' | 'erro';
 
 export interface RunResultItem {
   linha: number;

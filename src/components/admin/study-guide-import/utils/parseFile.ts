@@ -430,7 +430,20 @@ export async function parseXLSX(
             const normalized = normalizeColumnName(String(h || '').trim());
             return resolveColumnAlias(normalized);
           });
-          
+
+          // Valida colunas obrigatórias por aba (item 7 da auditoria): sem isso, uma aba com
+          // cabeçalho errado/desalinhado gera dezenas de erros INVALID_SEMESTRE/MISSING_MATERIA
+          // linha a linha em vez de um erro estrutural único e claro apontando a aba e as colunas
+          // faltantes. id_ies NÃO entra na checagem porque pode ser resolvido via fuzzy match pelo
+          // nome da aba (ver findBestIesMatch abaixo), então nem toda aba precisa ter essa coluna.
+          const rawHeadersForSheet = headerRow.map(h => String(h || '').trim());
+          try {
+            validateRequiredHeaders(headers, rawHeadersForSheet, ['semestre', 'materia']);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(`Aba "${sheetName}": ${msg}`);
+          }
+
           // Parse data rows
           const rows: Record<string, string>[] = [];
           for (let i = 1; i < jsonData.length; i++) {

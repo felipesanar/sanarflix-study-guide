@@ -39,8 +39,42 @@ serve(async (req) => {
       }
     });
 
+    // Verificação de role — mesmo padrão de delete-user/index.ts: extrai o
+    // usuário a partir do JWT e confirma role admin via RPC com service
+    // client. Sem essa checagem, qualquer usuário autenticado poderia usar
+    // esta função para sequestrar o public.users.id de outra conta (bastando
+    // saber um e-mail já cadastrado) ou criar uma conta arbitrária em
+    // auth.users e disparar o e-mail de recovery para si mesmo.
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { data: roles } = await supabaseAdmin.rpc('get_user_roles', { _user_id: caller.id });
+    if (!roles?.includes('admin')) {
+      return new Response(JSON.stringify({ error: 'Permissão negada' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const callerId = caller.id;
+
     const { email } = await req.json();
-    
+
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email é obrigatório' }), {
         status: 400,
@@ -51,15 +85,6 @@ serve(async (req) => {
     const normalizedEmail = email.trim().toLowerCase();
     console.log(`[sync-user-auth] Attempting to sync user: ${maskEmail(normalizedEmail)}`);
 
-    // Best-effort: extract caller id from Authorization header for audit trail.
-    const authHeader = req.headers.get('Authorization') ?? '';
-    let callerId: string | null = null;
-    if (authHeader.startsWith('Bearer ')) {
-      try {
-        const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice('Bearer '.length));
-        callerId = user?.id ?? null;
-      } catch { /* ignore */ }
-    }
     const xff = req.headers.get('x-forwarded-for');
     const clientIp = xff ? (xff.split(',')[0]?.trim() || null) : null;
 

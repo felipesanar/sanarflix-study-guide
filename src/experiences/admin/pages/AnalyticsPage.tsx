@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AdminSectionHeader } from '@/experiences/admin/ui';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -57,19 +57,43 @@ const AnalyticsPage: React.FC = () => {
   };
 
   const data = useAnalyticsData(analyticsFilters);
-  const { overview, engagement, progress, demographics, simulados, isLoading, refetch } = data;
+  const { overview, engagement, progress, demographics, simulados, isLoading } = data;
   const { count: onlineUsersCount, isConnected } = useOnlineUsersCount();
 
   const handleFilterChange = (newFilters: Partial<AnalyticsFiltersState>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
-  const handleRefresh = async () => {
-    await refetch();
-    toast({
-      title: 'Dados atualizados',
-      description: 'Analytics atualizado com sucesso',
-      duration: 2000,
+  // P2 (auditoria): `dateRange.end` era calculado uma única vez no mount e
+  // nunca mudava — clicar em "Atualizar" reexecutava as queries, mas com o
+  // MESMO endDate, então nenhuma atividade nova (desde o carregamento da
+  // página) entrava nas métricas do período. Fix: "Atualizar" recalcula o
+  // fim do range para agora (`getBrazilDate()` — sem depender do fuso do
+  // navegador) deslizando a janela inteira (mantém a mesma duração
+  // start→end, só desloca para frente); a troca de `dateRange` já dispara o
+  // refetch automático dentro de `useAnalyticsData` (efeito ligado a
+  // `filterParams`), sem precisar chamar `refetch()` com filtros obsoletos.
+  const refreshRequestedRef = useRef(false);
+  const wasLoadingRef = useRef(isLoading);
+
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading && refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      toast({
+        title: 'Dados atualizados',
+        description: 'Analytics atualizado com sucesso',
+        duration: 2000,
+      });
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading]);
+
+  const handleRefresh = () => {
+    refreshRequestedRef.current = true;
+    setFilters((prev) => {
+      const now = getBrazilDate();
+      const durationMs = prev.dateRange.end.getTime() - prev.dateRange.start.getTime();
+      return { ...prev, dateRange: { start: new Date(now.getTime() - durationMs), end: now } };
     });
   };
 

@@ -53,14 +53,20 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Verify admin role
+    // Verify role: admin OU atendimento. Esta página é reusada pelo portal de
+    // atendimento (capability users.support) para as seções read-only —
+    // impersonação continua estritamente admin-only, checada abaixo por seção.
     const { data: isAdmin } = await admin.rpc("has_role", {
       _user_id: adminId,
       _role: "admin",
     });
+    const { data: isAtendimento } = await admin.rpc("has_role", {
+      _user_id: adminId,
+      _role: "atendimento",
+    });
 
-    if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
+    if (!isAdmin && !isAtendimento) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin or atendimento role required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -72,6 +78,16 @@ Deno.serve(async (req) => {
     if (!userId || !section) {
       return new Response(JSON.stringify({ error: "userId and section required" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Seções read-only ficam disponíveis para admin OU atendimento. Todo o
+    // resto (impersonate, progress_hub) exige admin estrito.
+    const READ_ONLY_SECTIONS = new Set(["profile", "progress", "simulados", "sessions", "activity"]);
+    if (!READ_ONLY_SECTIONS.has(section) && !isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin role required for this section" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

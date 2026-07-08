@@ -1,8 +1,8 @@
 /** Fatia C2 — sub-aba Liberações (finalizações, saídas de aba/tela, liberar tentativa). */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminEmpty, AdminError, AdminLoading, AdminSectionHeader } from '@/experiences/admin/ui';
@@ -13,16 +13,21 @@ import type { FinalizacaoRow, SimuladoOption } from './liberacoes-types';
 
 const SIMULADO_FILTER_ALL = '__all__';
 
+/** Limite de finalizações trazidas — evita trazer o histórico inteiro para a tela. */
+const FINALIZACOES_LIMIT = 500;
+
 /**
  * Busca finalizações + nomes/e-mails de aluno em lotes (NÃO um `.in()` gigante — a lista de
  * `user_id` pode ter centenas de itens e uma única URL estouraria; ver lição em
  * `LiberacoesTab.tsx` (raiz, tab antigo) e `useSimuladosAnalytics`) + nomes de simulado.
+ * Limitado às `FINALIZACOES_LIMIT` mais recentes (ordenado por `finalizado_em desc`).
  */
 async function fetchFinalizacoes(): Promise<FinalizacaoRow[]> {
   const { data: finalizacoesData, error: finalizacoesError } = await supabase
     .from('simulados_finalizados')
     .select('*')
-    .order('finalizado_em', { ascending: false });
+    .order('finalizado_em', { ascending: false })
+    .limit(FINALIZACOES_LIMIT);
   if (finalizacoesError) throw finalizacoesError;
 
   const rows = finalizacoesData ?? [];
@@ -38,7 +43,9 @@ async function fetchFinalizacoes(): Promise<FinalizacaoRow[]> {
   );
   const usersError = usersResults.find((r) => r.error)?.error;
   if (usersError) throw usersError;
-  const usersData = usersResults.flatMap((r) => r.data ?? []);
+  // Map em vez de `.find()` dentro do `.map()` abaixo — evita O(n·m) quando há
+  // centenas de finalizações e centenas de alunos distintos.
+  const usersById = new Map(usersResults.flatMap((r) => r.data ?? []).map((u) => [u.id, u]));
 
   const simuladoIds = [...new Set(rows.map((f) => f.simulado_id))];
   const { data: simuladosData, error: simuladosError } = await supabase
@@ -46,10 +53,11 @@ async function fetchFinalizacoes(): Promise<FinalizacaoRow[]> {
     .select('id, nome')
     .in('id', simuladoIds.length > 0 ? simuladoIds : ['00000000-0000-0000-0000-000000000000']);
   if (simuladosError) throw simuladosError;
+  const simuladosById = new Map((simuladosData ?? []).map((s) => [s.id, s]));
 
   return rows.map((f) => {
-    const user = usersData.find((u) => u.id === f.user_id);
-    const simulado = simuladosData?.find((s) => s.id === f.simulado_id);
+    const user = usersById.get(f.user_id);
+    const simulado = simuladosById.get(f.simulado_id);
     return {
       ...f,
       user_email: user?.email,
@@ -60,7 +68,6 @@ async function fetchFinalizacoes(): Promise<FinalizacaoRow[]> {
 }
 
 export default function LiberacoesTab() {
-  const { toast } = useToast();
   const [finalizacoes, setFinalizacoes] = useState<FinalizacaoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,14 +124,10 @@ export default function LiberacoesTab() {
             : f,
         ),
       );
-      toast({ title: 'Tentativa liberada', description: 'O aluno poderá realizar o simulado novamente.' });
+      toast.success('Tentativa liberada', { description: 'O aluno poderá realizar o simulado novamente.' });
       setDialogRow(null);
     } catch (err) {
-      toast({
-        title: 'Erro ao liberar tentativa',
-        description: err instanceof Error ? err.message : 'Falha desconhecida.',
-        variant: 'destructive',
-      });
+      toast.error('Erro ao liberar tentativa', { description: err instanceof Error ? err.message : 'Falha desconhecida.' });
     }
   };
 
@@ -132,7 +135,7 @@ export default function LiberacoesTab() {
     <div className="space-y-6">
       <AdminSectionHeader
         title="Liberações"
-        subtitle="Finalizações com detecção de saídas de aba/tela cheia. Libere uma nova tentativa para alunos que tiveram problemas."
+        subtitle={`Finalizações com detecção de saídas de aba/tela cheia. Libere uma nova tentativa para alunos que tiveram problemas. Mostrando as ${FINALIZACOES_LIMIT} mais recentes.`}
       />
 
       {loading ? (

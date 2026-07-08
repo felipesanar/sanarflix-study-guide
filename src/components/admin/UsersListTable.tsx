@@ -152,7 +152,7 @@ const BATCH_CHUNK_SIZE = 3; // Deve casar com MAX_BATCH_SIZE da edge function
 
 const EMPTY_DELETE_PROGRESS: DeleteProgress = { total: 0, done: 0, ok: 0, failed: [], active: false };
 
-export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, refreshKey, onOpenBulkEmail }) => {
+export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canSupport, refreshKey, onOpenBulkEmail }) => {
   const { startImpersonation, access } = useAuth();
   const navigate = useNavigate();
   const canImpersonate = can(access, 'impersonate');
@@ -290,6 +290,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
         roles: rolesMap.get(u.id) || [],
       }));
 
+      // Repete a checagem: a query de roles acima é assíncrona, então uma
+      // busca mais nova pode ter chegado enquanto ela estava em voo.
+      if (currentFetchId !== fetchIdRef.current) return;
+
       setUsers(mappedUsers);
       setTotalCount(count || 0);
     } catch (err) {
@@ -308,10 +312,24 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     setPage(0);
   }, [searchTerm, filterIes, filterSemestre]);
 
+  // Se o total encolher (ex.: exclusão em massa zera a última página), a
+  // página atual não pode ficar além do total — sem isso a lista mostraria
+  // "página vazia" até o usuário voltar manualmente.
+  useEffect(() => {
+    setPage((prev) => {
+      const maxPage = Math.max(0, Math.ceil(totalCount / ITEMS_PER_PAGE) - 1);
+      return prev > maxPage ? maxPage : prev;
+    });
+  }, [totalCount]);
+
+  // Lista de falhas da exclusão em massa (toggle do AdminPartial abaixo).
+  const [showDeleteFailures, setShowDeleteFailures] = useState(false);
+
   // ──── Exclusão em chunks (single = batch de 1) ────
   const executeChunkedDelete = async (targets: UserRow[]) => {
     cancelDeleteRef.current = false;
     const total = targets.length;
+    setShowDeleteFailures(false);
     setDeleteProgress({ total, done: 0, ok: 0, failed: [], active: true });
 
     let totalOk = 0;
@@ -486,8 +504,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
   const resendInvite = async (user: UserRow) => {
     setActionLoading(user.id);
     try {
+      // `semestre: user.semestre ?? null` (não força 1): a edge não sobrescreve
+      // mais o semestre quando ele vier ausente/null (contrato com b2b-create-user).
       const { data, error } = await supabase.functions.invoke('b2b-create-user', {
-        body: { nome: user.nome, email: user.email, id_ies: user.id_ies, semestre: user.semestre || 1, resend_email: true },
+        body: { nome: user.nome, email: user.email, id_ies: user.id_ies, semestre: user.semestre ?? null, resend_email: true },
       });
       if (error) throw error;
       if (data?.success) toast.success('Email de convite reenviado');
@@ -542,6 +562,52 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
     );
   })();
 
+  // Extraída para fora de renderContent: antes vivia só no ramo "com dados",
+  // então um input em digitação desmontava a cada troca loading↔dados
+  // (perdia foco a cada busca) e sumia por completo no estado vazio — mesmo
+  // a mensagem de "ajuste a busca" sugerindo usá-la (padrão de referência:
+  // AuditoriaSection.tsx, onde os filtros ficam fora do branch condicional).
+  const toolbar = (
+    <>
+      <div className="relative flex-1 min-w-[220px]">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome ou email..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+      <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }}>
+        <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectValue placeholder="Filtrar por IES" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas as IES</SelectItem>
+          {iesList.map((ies) => (
+            <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {filterIes !== 'all' && (
+        <Select value={filterSemestre} onValueChange={setFilterSemestre}>
+          <SelectTrigger className="w-full sm:w-[160px]">
+            <SelectValue placeholder="Semestre" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os semestres</SelectItem>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
+              <SelectItem key={s} value={s.toString()}>{s}º semestre</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+      <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading} aria-label="Atualizar lista">
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+      </Button>
+    </>
+  );
+
   const renderContent = () => {
     if (loading) return <AdminLoading rows={6} />;
     if (fetchError) return <AdminError message={fetchError} onRetry={fetchUsers} />;
@@ -556,56 +622,16 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
     return (
       <AdminTable
-        toolbar={
-          <>
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou email..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Select value={filterIes} onValueChange={(v) => { setFilterIes(v); if (v === 'all') setFilterSemestre('all'); }}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtrar por IES" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as IES</SelectItem>
-                {iesList.map((ies) => (
-                  <SelectItem key={ies.id} value={ies.id}>{ies.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filterIes !== 'all' && (
-              <Select value={filterSemestre} onValueChange={setFilterSemestre}>
-                <SelectTrigger className="w-full sm:w-[160px]">
-                  <SelectValue placeholder="Semestre" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os semestres</SelectItem>
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map((s) => (
-                    <SelectItem key={s} value={s.toString()}>{s}º semestre</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button variant="outline" size="icon" onClick={fetchUsers} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </>
-        }
         footer={
           totalCount > ITEMS_PER_PAGE ? (
             <>
               <p>Mostrando {showingFrom}-{showingTo} de {totalCount} usuários</p>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0} aria-label="Página anterior">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 <span className="min-w-[100px] text-center">Página {page + 1} de {totalPages}</span>
-                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} aria-label="Próxima página">
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -733,65 +759,80 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                     </div>
                   ) : (
                     <div className="flex justify-end gap-1">
-                      <Button
-                        size="sm" variant="ghost"
-                        onClick={() => { setSupportUserId(user.id); setSupportUserName(user.nome); setSupportOpen(true); }}
-                        className="h-8 w-8 p-0" title="Ver detalhes"
-                      >
-                        <Eye className="h-4 w-4 text-primary" />
-                      </Button>
+                      {(canManage || canSupport) && (
+                        <Button
+                          size="sm" variant="ghost"
+                          onClick={() => { setSupportUserId(user.id); setSupportUserName(user.nome); setSupportOpen(true); }}
+                          className="h-8 w-8 p-0" title="Ver detalhes"
+                        >
+                          <Eye className="h-4 w-4 text-primary" />
+                        </Button>
+                      )}
                       {canManage && (
                         <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading} aria-label="Mais ações">
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {canImpersonate && !isAdmin && (
-                            <DropdownMenuItem onClick={() => accessAsAluno(user)}>
-                              <UserCheck className="h-4 w-4 mr-2" /> Acessar como Aluno
-                            </DropdownMenuItem>
-                          )}
-                          {canImpersonate && !isAdmin && isGestorRole && (
-                            <DropdownMenuItem onClick={() => accessAsGestor(user)}>
-                              <UserCheck className="h-4 w-4 mr-2" /> Acessar como Gestor
-                            </DropdownMenuItem>
-                          )}
-                          {canImpersonate && <DropdownMenuSeparator />}
-                          <DropdownMenuItem onClick={() => resendInvite(user)}>
-                            <Mail className="h-4 w-4 mr-2" /> Reenviar Convite
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
-                            <Link className="h-4 w-4 mr-2" /> Copiar link de primeiro acesso
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
-                            <KeyRound className="h-4 w-4 mr-2" /> Copiar link de redefinição
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
-                            <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar Auth
-                          </DropdownMenuItem>
-                          {canManage && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => toggleAdminRole(user)}>
-                                {isAdmin ? (
-                                  <><ShieldOff className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Admin</span></>
-                                ) : (
-                                  <><Shield className="h-4 w-4 mr-2" />Promover a Admin</>
+                      {/* Sem canManage nem impersonate (ex.: Atendimento puro) não sobra
+                          nenhum item de gestão — a UI não renderiza um menu vazio; o botão
+                          "Ver detalhes" acima já cobre o fluxo de suporte. */}
+                      {(canManage || canImpersonate) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading} aria-label="Mais ações">
+                              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {canImpersonate && !isAdmin && (
+                              <DropdownMenuItem onClick={() => accessAsAluno(user)}>
+                                <UserCheck className="h-4 w-4 mr-2" /> Acessar como Aluno
+                              </DropdownMenuItem>
+                            )}
+                            {canImpersonate && !isAdmin && isGestorRole && (
+                              <DropdownMenuItem onClick={() => accessAsGestor(user)}>
+                                <UserCheck className="h-4 w-4 mr-2" /> Acessar como Gestor
+                              </DropdownMenuItem>
+                            )}
+                            {canManage && (
+                              <>
+                                {canImpersonate && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                  onClick={() => resendInvite(user)}
+                                  disabled={!user.id_ies}
+                                  title={!user.id_ies ? 'Usuário sem IES definida — não é possível reenviar convite' : undefined}
+                                >
+                                  <Mail className="h-4 w-4 mr-2" /> Reenviar Convite
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'welcome')}>
+                                  <Link className="h-4 w-4 mr-2" /> Copiar link de primeiro acesso
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyUserLink(user.email, 'reset')}>
+                                  <KeyRound className="h-4 w-4 mr-2" /> Copiar link de redefinição
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
+                                  <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar Auth
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => toggleAdminRole(user)}>
+                                  {isAdmin ? (
+                                    <><ShieldOff className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Admin</span></>
+                                  ) : (
+                                    <><Shield className="h-4 w-4 mr-2" />Promover a Admin</>
+                                  )}
+                                </DropdownMenuItem>
+                                {/* A edge recusa exclusão de admin server-side, mas a UI já
+                                    oculta a opção para não sugerir uma ação que vai falhar. */}
+                                {!isAdmin && (
+                                  <DropdownMenuItem onClick={() => setDeleteTargets([user])}>
+                                    <Trash2 className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Usuário</span>
+                                  </DropdownMenuItem>
                                 )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setDeleteTargets([user])}>
-                                <Trash2 className="h-4 w-4 mr-2 text-red-600" /><span className="text-red-600">Remover Usuário</span>
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   )}
                 </TableCell>
@@ -834,10 +875,30 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
           </div>
           <Progress value={deleteProgressPct} />
           {!isDeleteBusy && deleteProgress.failed.length > 0 && (
-            <AdminPartial ok={deleteProgress.ok} falhas={deleteProgress.failed.length} />
+            <>
+              <AdminPartial
+                ok={deleteProgress.ok}
+                falhas={deleteProgress.failed.length}
+                viewFailuresLabel={showDeleteFailures ? 'Ocultar falhas' : 'Ver falhas'}
+                onViewFailures={() => setShowDeleteFailures((v) => !v)}
+              />
+              {showDeleteFailures && (
+                <ul className="space-y-1 rounded-lg border bg-muted/30 p-3 text-sm">
+                  {deleteProgress.failed.map((f) => (
+                    <li key={f.id} className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-medium">{f.nome || '—'}</span>
+                      <span className="text-muted-foreground">{f.email}</span>
+                      <span className="text-red-600 dark:text-red-400">— {f.error}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">{toolbar}</div>
 
       {renderContent()}
 

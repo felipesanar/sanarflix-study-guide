@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import {
   AlertDialog,
@@ -56,6 +56,8 @@ export function DangerZone({
 }: DangerZoneProps) {
   const [confirmText, setConfirmText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Único por instância — evita colisão de id quando duas DangerZones estão montadas ao mesmo tempo.
+  const confirmWordId = useId();
 
   // Zera o texto digitado sempre que o diálogo fecha.
   useEffect(() => {
@@ -93,13 +95,14 @@ export function DangerZone({
               <div className="text-sm text-foreground">{impact}</div>
               {level === 'high' && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="danger-zone-confirm-word" className="text-xs text-muted-foreground">
+                  <Label htmlFor={confirmWordId} className="text-xs text-muted-foreground">
                     Digite <span className="font-mono font-semibold text-foreground">{confirmWord}</span> para confirmar
                   </Label>
                   <Input
-                    id="danger-zone-confirm-word"
+                    id={confirmWordId}
                     value={confirmText}
                     onChange={(e) => setConfirmText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
                     placeholder={confirmWord}
                     className="font-mono"
                     autoComplete="off"

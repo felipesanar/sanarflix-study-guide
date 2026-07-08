@@ -221,23 +221,31 @@ const defaultMetrics: AnalyticsData = {
   lastUpdated: null,
 };
 
-// Helper para obter data de hoje em formato ISO (Brazil timezone)
-const getTodayBrazilISO = (): string => {
-  const brazilDate = getBrazilDate();
-  const year = brazilDate.getFullYear();
-  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
-  const day = String(brazilDate.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// P2 (auditoria): estas duas funções devolviam só "YYYY-MM-DD" (data sem
+// horário/offset). Usado em `.gte(coluna_timestamptz, hoje)`, o Postgres
+// interpreta essa string como meia-noite UTC — não meia-noite BRT — então
+// "hoje" na prática começava 21h ANTES do esperado (BRT = UTC-3), incluindo
+// atividade de ontem à noite nas métricas de "hoje" e divergindo do
+// Monitoramento (que calcula o dia BRT corretamente no servidor via
+// `AT TIME ZONE 'America/Sao_Paulo'`). Fix: gerar o ISO já com o horário exato
+// de meia-noite BRT convertido para UTC (offset fixo -03:00 — Brasil não usa
+// horário de verão desde 2019; se isso mudar, ajustar aqui).
+const brazilMidnightISO = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  // Meia-noite BRT (00:00 -03:00) == 03:00 UTC do mesmo dia.
+  return `${year}-${month}-${day}T03:00:00.000Z`;
 };
 
-// Helper para obter data de N dias atrás em formato ISO (Brazil timezone)
+// Helper para obter o início do dia de hoje em ISO (meia-noite BRT, já em UTC)
+const getTodayBrazilISO = (): string => brazilMidnightISO(getBrazilDate());
+
+// Helper para obter o início do dia de N dias atrás em ISO (meia-noite BRT, já em UTC)
 const getDaysAgoBrazilISO = (days: number): string => {
   const brazilDate = getBrazilDate();
   brazilDate.setDate(brazilDate.getDate() - days);
-  const year = brazilDate.getFullYear();
-  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
-  const day = String(brazilDate.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return brazilMidnightISO(brazilDate);
 };
 
 // Helper para determinar status de saúde
@@ -325,6 +333,53 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       const rows = (page || []).filter(r => r.user_id && !adminIds.has(r.user_id));
       all.push(...rows);
       
+      if ((page || []).length < PAGE_SIZE) {
+        hasMore = false;
+      } else {
+        from += PAGE_SIZE;
+      }
+    }
+
+    return all;
+  }, []);
+
+  // Helper para buscar TODAS as linhas de `simulados_iniciados` /
+  // `simulados_finalizados` com paginação (sem limite de 1000) — mesmo
+  // padrão de `fetchAllAnswerProgress` acima. P2 (auditoria): o cálculo de
+  // taxa de abandono usava `.select('user_id, simulado_id')` sem paginação;
+  // o PostgREST corta em 1000 linhas por default, então em períodos grandes
+  // a taxa saía de uma amostra arbitrária (regressão vs. o count exato
+  // anterior). Fix: paginar em páginas de PAGE_SIZE até esgotar.
+  const fetchAllSimuladoRows = useCallback(async (
+    table: 'simulados_iniciados' | 'simulados_finalizados',
+    dateColumn: 'started_at' | 'finalizado_em',
+    startDate: string,
+    endDate: string,
+    userFilter: string[] | null
+  ): Promise<{ user_id: string; simulado_id: string }[]> => {
+    const PAGE_SIZE = 1000;
+    const all: { user_id: string; simulado_id: string }[] = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase
+        .from(table)
+        .select('user_id, simulado_id')
+        .gte(dateColumn, startDate)
+        .lte(dateColumn, endDate)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (userFilter && userFilter.length > 0) {
+        query = query.in('user_id', userFilter);
+      }
+
+      const { data: page, error } = await query;
+      if (error) throw error;
+
+      all.push(...(page || []));
+
       if ((page || []).length < PAGE_SIZE) {
         hasMore = false;
       } else {
@@ -460,18 +515,16 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
           ? supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje).in('user_id', userIdsFromIES)
           : supabase.from('sanarclass_views').select('*', { count: 'exact', head: true }).gte('created_at', hoje),
 
-      // 10. Taxa de abandono (no dateRange)
+      // 10. Taxa de abandono (no dateRange) — precisa das linhas (user_id +
+      // simulado_id), não só da contagem, para parear início↔fim abaixo
+      // (mesma lógica de `iniciosValidos` em fetchSimuladoMetrics).
+      // P2 (auditoria): paginado via `fetchAllSimuladoRows` (sem cap de 1000
+      // linhas do PostgREST) — ver JSDoc do helper. `userIdsFromIES` já é
+      // `null` quando nem `iesFilter` nem `hasExclusions` se aplicam, então
+      // basta repassar direto (mesma condição das outras queries acima).
       Promise.all([
-        iesFilter && userIdsFromIES
-          ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
-          : hasExclusions && userIdsFromIES
-            ? supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
-            : supabase.from('simulados_iniciados').select('*', { count: 'exact', head: true }).gte('started_at', startDate).lte('started_at', endDate),
-        iesFilter && userIdsFromIES
-          ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
-          : hasExclusions && userIdsFromIES
-            ? supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
-            : supabase.from('simulados_finalizados').select('*', { count: 'exact', head: true }).gte('finalizado_em', startDate).lte('finalizado_em', endDate)
+        fetchAllSimuladoRows('simulados_iniciados', 'started_at', startDate, endDate, userIdsFromIES),
+        fetchAllSimuladoRows('simulados_finalizados', 'finalizado_em', startDate, endDate, userIdsFromIES),
       ])
     ]);
 
@@ -491,11 +544,24 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     const simuladosFinalizadosHoje = simuladosFinalizadosHojeResult.count || 0;
     const sanarclassViewsHoje = sanarclassViewsHojeResult.count || 0;
 
-    const [iniciadosRangeResult, finalizadosRangeResult] = taxaAbandonoResult;
-    const totalIniciados = iniciadosRangeResult.count || 0;
-    const totalFinalizados = finalizadosRangeResult.count || 0;
+    const [iniciadosRangeRows, finalizadosRangeRows] = taxaAbandonoResult;
+
+    // P2 (auditoria): antes comparava contagens brutas de iniciados vs.
+    // finalizados sem pareamento — finalizações importadas manualmente pelo
+    // admin (sem `simulados_iniciados` correspondente) inflavam o
+    // "finalizados" e podiam deixar `taxaAbandonoSimulados` NEGATIVO. Fix:
+    // só conta uma finalização se existir um início do MESMO usuário no
+    // MESMO simulado (mesma lógica de `iniciosValidos` em
+    // fetchSimuladoMetrics) + clamp em ≥0 como rede de segurança adicional.
+    const iniciosValidosRange = new Set(iniciadosRangeRows.map((i) => `${i.user_id}-${i.simulado_id}`));
+    const finalizadosValidosRange = finalizadosRangeRows.filter((f) =>
+      iniciosValidosRange.has(`${f.user_id}-${f.simulado_id}`),
+    );
+
+    const totalIniciados = iniciadosRangeRows.length;
+    const totalFinalizadosValidos = finalizadosValidosRange.length;
     const taxaAbandonoSimulados = totalIniciados > 0
-      ? Math.round(((totalIniciados - totalFinalizados) / totalIniciados) * 100)
+      ? Math.max(0, Math.round(((totalIniciados - totalFinalizadosValidos) / totalIniciados) * 100))
       : 0;
 
     return {
@@ -510,7 +576,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       sanarclassViewsHoje,
       taxaAbandonoSimulados,
     };
-  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchUserIdsByIES, fetchUserIdsExcludingIES, fetchAllSimuladoRows]);
 
   const fetchEngagementMetrics = useCallback(async (): Promise<EngagementMetrics> => {
     const { iesFilter, excludedIESIds, startDate, endDate } = filterParams;
@@ -1147,17 +1213,15 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     const useUserFilter = (iesFilter && userIdsFromIES && userIdsFromIES.length > 0) || (hasExclusions && userIdsFromIES && userIdsFromIES.length > 0);
 
-    // MUDANÇA: Usar paginação para respostas (via fetchAllAnswerProgress) em vez de query simples
-    const [simuladosResult, iniciadosResult, finalizadosResult] = await Promise.all([
+    // Iniciados/finalizados via fetchAllSimuladoRows (paginado): as queries
+    // inline anteriores ficavam sujeitas ao corte de 1000 linhas do PostgREST,
+    // distorcendo as métricas por simulado em períodos grandes (mesma classe
+    // do bug corrigido na taxa de abandono do overview).
+    const rowsUserFilter = useUserFilter && userIdsFromIES ? userIdsFromIES : null;
+    const [simuladosResult, iniciadosRows, finalizadosRows] = await Promise.all([
       simuladosQuery,
-      // Iniciados no dateRange - agora inclui user_id para contagem DISTINCT
-      useUserFilter && userIdsFromIES
-        ? supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_iniciados').select('simulado_id, user_id').gte('started_at', startDate).lte('started_at', endDate),
-      // Finalizados no dateRange - agora inclui user_id para contagem DISTINCT
-      useUserFilter && userIdsFromIES
-        ? supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate).in('user_id', userIdsFromIES)
-        : supabase.from('simulados_finalizados').select('simulado_id, user_id').gte('finalizado_em', startDate).lte('finalizado_em', endDate),
+      fetchAllSimuladoRows('simulados_iniciados', 'started_at', startDate, endDate, rowsUserFilter),
+      fetchAllSimuladoRows('simulados_finalizados', 'finalizado_em', startDate, endDate, rowsUserFilter),
     ]);
 
     // PAGINAÇÃO COMPLETA: Buscar TODAS as respostas (22.000+) sem limite de 1000
@@ -1183,7 +1247,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
     // CORREÇÃO: Usar Set para contar pares únicos (user_id + simulado_id)
     // Isso evita que múltiplas tentativas/duplicatas distorçam as métricas
     const iniciadosPorSimulado = new Map<string, Set<string>>();
-    iniciadosResult.data?.forEach((i) => {
+    iniciadosRows.forEach((i) => {
       if (!iniciadosPorSimulado.has(i.simulado_id)) {
         iniciadosPorSimulado.set(i.simulado_id, new Set());
       }
@@ -1192,13 +1256,13 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
 
     // Criar um Set de todas as chaves (user_id-simulado_id) que têm início válido
     const iniciosValidos = new Set<string>();
-    iniciadosResult.data?.forEach((i) => {
+    iniciadosRows.forEach((i) => {
       iniciosValidos.add(`${i.user_id}-${i.simulado_id}`);
     });
 
     // CORREÇÃO: Finalizações só contam se existir início correspondente
     const finalizadosPorSimulado = new Map<string, Set<string>>();
-    finalizadosResult.data?.forEach((f) => {
+    finalizadosRows.forEach((f) => {
       const chave = `${f.user_id}-${f.simulado_id}`;
       // Só conta se tiver início correspondente
       if (iniciosValidos.has(chave)) {
@@ -1281,7 +1345,7 @@ export function useAnalyticsData(filters: AnalyticsFiltersState) {
       },
       questoesProblematicas,
     };
-  }, [filterParams, fetchAdminUserIds, fetchAllAnswerProgress, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
+  }, [filterParams, fetchAdminUserIds, fetchAllAnswerProgress, fetchAllSimuladoRows, fetchUserIdsByIES, fetchUserIdsExcludingIES]);
 
   const fetchTrackingHealth = useCallback(async (): Promise<TrackingHealth[]> => {
     const { seteDiasAtras, iesFilter, excludedIESIds } = filterParams;

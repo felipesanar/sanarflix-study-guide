@@ -257,6 +257,16 @@ Deno.serve(async (req) => {
         (userDetails || []).map(u => [u.id, { nome: u.nome, email: u.email }])
       );
 
+      // Bloqueia exclusão de admins no lote — resolve_only já filtra admins
+      // ao listar, mas o modo de exclusão real aceitava qualquer id vindo
+      // do client, então a checagem precisa acontecer de novo aqui.
+      const { data: adminRoleRows } = await supabaseAdmin
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .in('user_id', batch);
+      const adminIdsInBatch = new Set((adminRoleRows || []).map(r => r.user_id));
+
       const deleted: string[] = [];
       const failed: { id: string; nome: string; email: string; error: string }[] = [];
 
@@ -264,6 +274,11 @@ Deno.serve(async (req) => {
         if (id === caller.id) {
           const info = detailsMap.get(id);
           failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: 'Não pode remover a si mesmo' });
+          continue;
+        }
+        if (adminIdsInBatch.has(id)) {
+          const info = detailsMap.get(id);
+          failed.push({ id, nome: info?.nome || '', email: info?.email || '', error: 'Não é possível remover um usuário admin' });
           continue;
         }
         const result = await deleteSingleUser(supabaseAdmin, id);
@@ -301,6 +316,22 @@ Deno.serve(async (req) => {
 
     if (user_id === caller.id) {
       return new Response(JSON.stringify({ error: 'Você não pode remover a si mesmo' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Bloqueia exclusão de admins também no modo single — mesma defesa do
+    // modo lote, para não depender apenas do filtro de resolve_only.
+    const { data: targetAdminRole } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id')
+      .eq('user_id', user_id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (targetAdminRole) {
+      return new Response(JSON.stringify({ error: 'Não é possível remover um usuário admin' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

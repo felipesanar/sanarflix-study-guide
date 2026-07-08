@@ -77,17 +77,21 @@ describe('UsersListTable', () => {
     expect(screen.getByLabelText('Selecionar todos')).toBeInTheDocument();
   });
 
-  it('esconde seleção em massa e ações de gestão para o Atendimento (canManage=false)', async () => {
+  it('esconde seleção em massa e ações de gestão para o Atendimento (canManage=false), mas permite abrir o painel de suporte', async () => {
     mockUseAuth.mockReturnValue({ startImpersonation: vi.fn(), access: SUPPORT_ACCESS });
     render(<UsersListTable iesList={IES_LIST} canManage={false} canSupport onOpenBulkEmail={vi.fn()} />);
 
     await screen.findByText('Ana Aluna');
     expect(screen.queryByLabelText('Selecionar todos')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Mais ações' })[0]);
-    expect(screen.getByText('Reenviar Convite')).toBeInTheDocument();
-    expect(screen.queryByText('Remover Usuário')).not.toBeInTheDocument();
-    expect(screen.queryByText('Promover a Admin')).not.toBeInTheDocument();
+    // Sem canManage nem impersonate, não sobra nenhum item de gestão — o menu
+    // "Mais ações" nem é renderizado (evita menu vazio); o botão "Ver
+    // detalhes" (painel de suporte) continua disponível via canSupport.
+    expect(screen.queryByRole('button', { name: 'Mais ações' })).not.toBeInTheDocument();
+
+    const supportButtons = screen.getAllByTitle('Ver detalhes');
+    expect(supportButtons.length).toBeGreaterThan(0);
+    await userEvent.click(supportButtons[0]);
   });
 
   it('exige a palavra EXCLUIR para habilitar a exclusão de um usuário', async () => {

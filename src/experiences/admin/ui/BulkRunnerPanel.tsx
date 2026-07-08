@@ -4,6 +4,7 @@ import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AdminError } from './AdminError';
+import { AdminLoading } from './AdminLoading';
 import { AdminPartial } from './AdminPartial';
 import { StatCard } from './StatCard';
 import { DangerZone } from './DangerZone';
@@ -70,6 +71,11 @@ export function BulkRunnerPanel<TRow>({
 
   if (phase === 'error') {
     return <AdminError message={error ?? 'Erro desconhecido.'} onRetry={onReset} />;
+  }
+
+  if (phase === 'preview' && !previewStats) {
+    // Dry-run em voo: sem isso a área ficava em branco até o preview chegar.
+    return <AdminLoading rows={2} />;
   }
 
   if (phase === 'preview' && previewStats) {

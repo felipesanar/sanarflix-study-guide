@@ -8,6 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AdminError } from '@/experiences/admin/ui';
 import { cn } from '@/lib/utils';
+import { brazilISOToDatetimeLocal, datetimeLocalToBrazilISO } from '@/utils/timezone';
 import type { SimuladoOpt } from './importar-respostas-types';
 
 export interface ImportarSimuladoStepProps {
@@ -150,8 +151,12 @@ export function ImportarSimuladoStep({
         <Label>Data de finalização padrão (opcional)</Label>
         <Input
           type="datetime-local"
-          value={defaultDate ? new Date(defaultDate).toISOString().slice(0, 16) : ''}
-          onChange={(e) => onDefaultDateChange(e.target.value ? new Date(e.target.value).toISOString() : '')}
+          // Exibe/interpreta sempre em horário de Brasília — antes usava
+          // toISOString().slice(0,16) (hora UTC "de parede"), então o admin via
+          // um horário diferente do que tinha digitado e "corrigir" mudava o
+          // valor real salvo.
+          value={defaultDate ? brazilISOToDatetimeLocal(defaultDate) : ''}
+          onChange={(e) => onDefaultDateChange(e.target.value ? datetimeLocalToBrazilISO(e.target.value) : '')}
           disabled={disabled}
           className="max-w-xs"
         />

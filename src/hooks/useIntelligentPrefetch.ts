@@ -21,16 +21,10 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
   '/desempenho-simulado': {
     '/guia-estudos': 0.6,
     '/home': 0.4,
-    '/analytics': 0.3,
   },
   '/dashboard': {
     '/guia-estudos': 0.5,
-    '/analytics': 0.4,
     '/home': 0.3,
-  },
-  '/analytics': {
-    '/dashboard': 0.6,
-    '/home': 0.4,
   },
   '/simulados': {
     '/home': 0.4,
@@ -38,13 +32,16 @@ const NAVIGATION_PROBABILITIES: Record<string, Record<string, number>> = {
   },
 };
 
-// Mapa de rotas para imports dinâmicos
+// P3 (auditoria): '/analytics' foi removido deste mapa — a rota real vive em
+// '/admin/analytics' (`AnalyticsPage.tsx`, lazy-loaded pelo próprio
+// react-router em `adminRoutes.tsx`); `pages/Analytics.tsx` era código morto
+// (nunca roteado) e virou só um export de tipo. Prefetchar aquele chunk
+// nunca ajudava ninguém a navegar mais rápido.
 const ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/home': () => import('../pages/Home'),
   '/guia-estudos': () => import('../pages/StudyGuide'),
   '/desempenho-simulado': () => import('../pages/SimuladoDesempenho'),
   '/dashboard': () => import('../pages/Dashboard'),
-  '/analytics': () => import('../pages/Analytics'),
   '/simulados': () => import('../pages/Simulados'),
   '/sanarclass': () => import('../pages/SanarClass'),
 };

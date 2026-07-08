@@ -46,44 +46,43 @@ export const toBrazilDate = (input: string | Date): Date => {
  * Converts a local datetime-local input value to Brazil timezone ISO string
  * @param datetimeLocalValue - Value from datetime-local input (YYYY-MM-DDTHH:mm)
  * @returns ISO string in Brazil timezone
+ *
+ * NOTA: o Brasil não observa mais horário de verão desde 2019 — o offset de
+ * Brasília é sempre fixo em -03:00. Anexar esse offset explicitamente ao
+ * valor do input (que já vem como "YYYY-MM-DDTHH:mm") faz o `Date` nativo
+ * interpretar o horário corretamente como Brasília, INDEPENDENTE do fuso
+ * horário do browser. A implementação anterior fazia uma dupla conversão via
+ * `toLocaleString` que só dava o resultado certo se o browser já estivesse
+ * em America/Sao_Paulo — em qualquer outro fuso o erro dobrava o offset
+ * (ex.: em UTC, o valor salvo saía 6h errado em vez de 3h).
  */
 export const datetimeLocalToBrazilISO = (datetimeLocalValue: string): string => {
   if (!datetimeLocalValue) return '';
-  
-  // Parse the datetime-local value
-  const [date, time] = datetimeLocalValue.split('T');
-  const [year, month, day] = date.split('-');
-  const [hour, minute] = time.split(':');
-  
-  // Create date string in format that toLocaleString accepts
-  const dateStr = `${month}/${day}/${year} ${hour}:${minute}:00`;
-  
-  // Convert to Brazil timezone and then to ISO
-  const brazilDate = new Date(new Date(dateStr).toLocaleString('en-US', { 
-    timeZone: 'America/Sao_Paulo' 
-  }));
-  
-  return brazilDate.toISOString();
+
+  return new Date(`${datetimeLocalValue}:00-03:00`).toISOString();
 };
 
 /**
  * Converts a Brazil timezone ISO string to datetime-local input format
  * @param isoString - ISO string
  * @returns datetime-local format (YYYY-MM-DDTHH:mm)
+ *
+ * Mesmo racional do offset fixo -03:00 de `datetimeLocalToBrazilISO`: desloca
+ * o instante UTC em 3h e lê os componentes em UTC, o que evita qualquer
+ * dependência do fuso horário do browser (correto em qualquer fuso, não só
+ * quando o browser está em America/Sao_Paulo).
  */
 export const brazilISOToDatetimeLocal = (isoString: string): string => {
   if (!isoString) return '';
-  
+
   const date = new Date(isoString);
-  const brazilDate = new Date(date.toLocaleString('en-US', { 
-    timeZone: 'America/Sao_Paulo' 
-  }));
-  
-  const year = brazilDate.getFullYear();
-  const month = String(brazilDate.getMonth() + 1).padStart(2, '0');
-  const day = String(brazilDate.getDate()).padStart(2, '0');
-  const hour = String(brazilDate.getHours()).padStart(2, '0');
-  const minute = String(brazilDate.getMinutes()).padStart(2, '0');
-  
+  const brazilShifted = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+
+  const year = brazilShifted.getUTCFullYear();
+  const month = String(brazilShifted.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(brazilShifted.getUTCDate()).padStart(2, '0');
+  const hour = String(brazilShifted.getUTCHours()).padStart(2, '0');
+  const minute = String(brazilShifted.getUTCMinutes()).padStart(2, '0');
+
   return `${year}-${month}-${day}T${hour}:${minute}`;
 };

@@ -32,9 +32,9 @@ export interface AuditLogRow {
 }
 
 /**
- * Payload da RPC `admin_get_audit_log` (contrato §Backend·2). A RPC ainda NÃO
- * está nos tipos gerados do Supabase — mesmo padrão de cast documentado usado
- * em {@link ../logAction.logAdminAction} e `useAdminAttention.ts`.
+ * Payload da RPC `admin_get_audit_log` (contrato §Backend·2). A RPC devolve
+ * `Json` (ver `src/integrations/supabase/types.ts`); fazemos apenas o cast do
+ * `Json` genérico para este shape — sem cast do `supabase.rpc` em si.
  */
 export interface AuditLogPayload {
   total: number;
@@ -52,18 +52,25 @@ export interface AuditLogFilters {
   offset?: number;
 }
 
-type AuditRpcResult = { data: unknown; error: { message: string } | null };
+/**
+ * Escapa `%`, `_` e `\` antes de mandar o termo para uma cláusula `ilike` no
+ * banco — sem isso, `%` casaria qualquer linha e `_` casaria qualquer caractere.
+ */
+function escapeIlikeTerm(term: string): string {
+  return term.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
 
 async function fetchAuditLog(filters: AuditLogFilters): Promise<AuditLogPayload> {
   return withRetry(async () => {
+    const search = filters.search?.trim();
+    // supabase.rpc(...) devolve um PostgrestBuilder (PromiseLike, não Promise) —
+    // Promise.resolve(...) normaliza para o Promise<T> que withTimeout espera.
     const rpcPromise = Promise.resolve(
-      (
-        supabase.rpc as (fn: string, params: Record<string, unknown>) => PromiseLike<AuditRpcResult>
-      )('admin_get_audit_log', {
-        p_search: filters.search?.trim() || null,
-        p_action: filters.action || null,
-        p_from: filters.from ?? null,
-        p_to: null,
+      supabase.rpc('admin_get_audit_log', {
+        // Args da RPC são todos opcionais (sem `| null`) — omitimos com `undefined`.
+        p_search: search ? escapeIlikeTerm(search) : undefined,
+        p_action: filters.action || undefined,
+        p_from: filters.from ?? undefined,
         p_limit: filters.limit ?? 50,
         p_offset: filters.offset ?? 0,
       }),

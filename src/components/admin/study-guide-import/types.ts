@@ -116,8 +116,6 @@ export interface ChangePlan {
 export interface ImportConfig {
   mode: ImportMode;
   scope: 'ies_semestre' | 'ies_full';
-  emptyBehavior: 'ignore' | 'null';
-  strictMode: boolean;
   dryRun: boolean;
   duplicateStrategy: DuplicateStrategy;
 }
@@ -153,6 +151,8 @@ export interface ImportResponse {
   };
   errors: ImportResultRow[];
   durationMs: number;
+  /** Verificação pós-importação agregada de todos os lotes (item 8 da auditoria). */
+  verification?: { expected: number; actual: number; match: boolean } | null;
 }
 
 export interface ImportProgress {
@@ -202,8 +202,6 @@ export const OPTIONAL_COLUMNS = [
 export const DEFAULT_CONFIG: ImportConfig = {
   mode: 'MERGE',
   scope: 'ies_semestre',
-  emptyBehavior: 'ignore',
-  strictMode: false,
   dryRun: false,
   duplicateStrategy: 'keep_first',
 };
