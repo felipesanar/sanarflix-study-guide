@@ -90,11 +90,10 @@ const AppContent = () => {
     <StudyProvider>
       <FeedbackProvider>
         <FeedbackShortcutBridge />
+        <FeedbackResponseToastBridge />
         <ImpersonationBanner />
         <DynamicRoutes />
-        <div className="fixed right-4 md:right-6 bottom-4 md:bottom-6 z-30">
-          <FeedbackFab />
-        </div>
+        <FeedbackDock />
       </FeedbackProvider>
     </StudyProvider>
   );
@@ -102,6 +101,11 @@ const AppContent = () => {
 
 function FeedbackShortcutBridge() {
   useFeedbackShortcut();
+  return null;
+}
+
+function FeedbackResponseToastBridge() {
+  useFeedbackResponseToast();
   return null;
 }
 
