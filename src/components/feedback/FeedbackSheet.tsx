@@ -1,7 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
-import { Bug, Lightbulb, Sparkles, Heart, X, Image as ImageIcon, ChevronDown, Loader2, Check } from 'lucide-react';
+import {
+  Bug,
+  Lightbulb,
+  Sparkles,
+  Heart,
+  X,
+  Image as ImageIcon,
+  ChevronDown,
+  Loader2,
+  BarChart3,
+  MessagesSquare,
+  ArrowUpRight,
+} from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,53 +24,92 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import type { FeedbackCategory } from './FeedbackProvider';
+import type { FeedbackCategory, FeedbackAudience } from './FeedbackProvider';
+import { FeedbackTimeline } from './FeedbackTimeline';
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   initialCategory: FeedbackCategory | null;
+  audience: FeedbackAudience;
 }
 
-const CATEGORIES: Array<{
+type CatMeta = {
   id: FeedbackCategory;
   label: string;
-  description: string;
+  hint: string;
   icon: React.ComponentType<{ className?: string }>;
-  accent: string;
+  tone: string;
   placeholder: string;
-}> = [
+};
+
+const ALUNO_CATEGORIES: CatMeta[] = [
   {
     id: 'bug',
-    label: 'Reportar problema',
-    description: 'Algo travou ou está estranho',
+    label: 'Problema',
+    hint: 'Algo travou ou está estranho',
     icon: Bug,
-    accent: 'from-destructive/20 to-destructive/5 border-destructive/40 text-destructive',
-    placeholder: 'Conta o que aconteceu, em que tela e o que você estava tentando fazer…',
+    tone: 'text-destructive bg-destructive/10',
+    placeholder: 'O que aconteceu, em que tela e o que você estava tentando fazer?',
   },
   {
     id: 'suggestion',
-    label: 'Sugerir melhoria',
-    description: 'Uma ideia para deixar tudo melhor',
+    label: 'Sugestão',
+    hint: 'Uma ideia para melhorar',
     icon: Lightbulb,
-    accent: 'from-primary/20 to-primary/5 border-primary/40 text-primary',
-    placeholder: 'Qual parte da plataforma poderia ser melhor — e como você imagina?',
+    tone: 'text-primary bg-primary/10',
+    placeholder: 'Qual parte poderia ser melhor — e como você imagina?',
   },
   {
     id: 'feature_request',
-    label: 'Pedir funcionalidade',
-    description: 'Algo novo que faria diferença',
+    label: 'Funcionalidade',
+    hint: 'Algo novo que faria diferença',
     icon: Sparkles,
-    accent: 'from-accent/40 to-accent/5 border-accent text-accent-foreground',
-    placeholder: 'Descreve a funcionalidade que você gostaria de ter — e por que ela ajudaria…',
+    tone: 'text-accent-foreground bg-accent/40',
+    placeholder: 'Descreve a funcionalidade que você gostaria de ter — e por que ela ajudaria.',
   },
   {
     id: 'praise',
-    label: 'Mandar um elogio',
-    description: 'Conta o que você curtiu',
+    label: 'Elogio',
+    hint: 'Conta o que você curtiu',
     icon: Heart,
-    accent: 'from-rose-500/20 to-rose-500/5 border-rose-500/40 text-rose-500',
-    placeholder: 'O que tem funcionado bem pra você? A gente adora ouvir 💚',
+    tone: 'text-rose-500 bg-rose-500/10',
+    placeholder: 'O que tem funcionado bem pra você? 💚',
+  },
+];
+
+const GESTOR_CATEGORIES: CatMeta[] = [
+  {
+    id: 'bug',
+    label: 'Bug',
+    hint: 'Erro na plataforma',
+    icon: Bug,
+    tone: 'text-destructive bg-destructive/10',
+    placeholder: 'Em qual módulo aconteceu? O que você esperava ver vs. o que apareceu?',
+  },
+  {
+    id: 'suggestion',
+    label: 'Dúvida sobre dado',
+    hint: 'Um número parece estranho',
+    icon: MessagesSquare,
+    tone: 'text-primary bg-primary/10',
+    placeholder: 'Qual dado, em qual filtro, e o que ficou confuso?',
+  },
+  {
+    id: 'feature_request',
+    label: 'Indicador',
+    hint: 'Sugerir novo corte/métrica',
+    icon: BarChart3,
+    tone: 'text-accent-foreground bg-accent/40',
+    placeholder: 'Que decisão você quer tomar com esse indicador? Como ele seria calculado?',
+  },
+  {
+    id: 'praise',
+    label: 'Elogio',
+    hint: 'Conta o que funcionou',
+    icon: Heart,
+    tone: 'text-rose-500 bg-rose-500/10',
+    placeholder: 'O que ajudou você no dia a dia?',
   },
 ];
 
@@ -68,11 +119,13 @@ const messageSchema = z
   .min(10, 'Conta um pouquinho mais (mín. 10 caracteres)')
   .max(2000, 'Texto muito longo (máx. 2000 caracteres)');
 
-export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCategory }) => {
+export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCategory, audience }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState<'pick' | 'form' | 'success'>('pick');
-  const [category, setCategory] = useState<FeedbackCategory | null>(null);
+  const isGestor = audience === 'gestor';
+  const CATEGORIES = isGestor ? GESTOR_CATEGORIES : ALUNO_CATEGORIES;
+
+  const [category, setCategory] = useState<FeedbackCategory>(initialCategory ?? CATEGORIES[0].id);
   const [message, setMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
@@ -81,26 +134,26 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pasteFlash, setPasteFlash] = useState(false);
+  const [sentAt, setSentAt] = useState<Date | null>(null);
 
   useEffect(() => {
     if (open) {
-      if (initialCategory) {
-        setCategory(initialCategory);
-        setStep('form');
-      } else {
-        setStep('pick');
-        setCategory(null);
-      }
+      setCategory(initialCategory ?? CATEGORIES[0].id);
       setMessage('');
       setFile(null);
       setFilePreview(null);
       setIncludeMetadata(true);
       setShowContext(false);
       setError(null);
+      setSentAt(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialCategory]);
 
-  const selected = useMemo(() => CATEGORIES.find((c) => c.id === category) ?? null, [category]);
+  const selected = useMemo(
+    () => CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0],
+    [category, CATEGORIES],
+  );
 
   const firstName = user?.nome?.split(' ')[0] || 'oi';
   const viewport = typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight}` : '';
@@ -126,9 +179,9 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
     reader.readAsDataURL(f);
   };
 
-  // Paste image support (Ctrl/Cmd + V) while sheet is open
+  // Cola imagem com Ctrl/Cmd+V
   useEffect(() => {
-    if (!open || step !== 'form') return;
+    if (!open || sentAt) return;
     const onPaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -150,10 +203,24 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
     };
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [open, step]);
+  }, [open, sentAt]);
+
+  // Ctrl/Cmd + Enter envia
+  useEffect(() => {
+    if (!open || sentAt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        void handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sentAt, message, file, includeMetadata, category]);
 
   const handleSubmit = async () => {
-    if (!user?.id || !category) return;
+    if (!user?.id) return;
     const parsed = messageSchema.safeParse(message);
     if (!parsed.success) {
       setError(parsed.error.issues[0].message);
@@ -188,7 +255,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
       });
       if (insErr) throw insErr;
 
-      setStep('success');
+      setSentAt(new Date());
     } catch (e: any) {
       console.error('[feedback] submit error', e);
       toast.error('Não consegui enviar agora. Tenta de novo em alguns segundos?');
@@ -197,89 +264,80 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
     }
   };
 
+  const kbd = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘' : 'Ctrl';
+  const slaLabel = isGestor ? 'até 1 dia útil' : 'até 3 dias úteis';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden"
       >
+        {/* Header */}
         <div className="relative px-6 pt-6 pb-4 border-b border-border/60">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Fala com a gente</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            {isGestor ? 'Suporte Sanar' : 'Fala com a gente'}
+          </div>
           <h2 className="text-2xl font-semibold tracking-tight mt-1">
-            {step === 'success' ? 'Recebido 💚' : `Oi, ${firstName} — o que você quer contar?`}
+            {sentAt
+              ? 'Recebido 💚'
+              : isGestor
+                ? 'Abrir chamado'
+                : `Oi, ${firstName} — o que rolou?`}
           </h2>
+          {!sentAt && (
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {isGestor
+                ? 'Nossa equipe responde em até 1 dia útil.'
+                : 'Cada mensagem é lida — respondemos em até 3 dias úteis.'}
+            </p>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <AnimatePresence mode="wait">
-            {step === 'pick' && (
-              <motion.div
-                key="pick"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-              >
-                {CATEGORIES.map((c) => {
-                  const Icon = c.icon;
-                  return (
-                    <motion.button
-                      key={c.id}
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setCategory(c.id);
-                        setStep('form');
-                      }}
-                      className={cn(
-                        'group relative text-left p-4 rounded-2xl border bg-gradient-to-br transition-all',
-                        'hover:shadow-lg hover:border-primary/60',
-                        c.accent
-                      )}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="h-9 w-9 rounded-xl bg-background/80 flex items-center justify-center">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                      </div>
-                      <div className="font-semibold text-foreground">{c.label}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{c.description}</div>
-                    </motion.button>
-                  );
-                })}
-              </motion.div>
-            )}
-
-            {step === 'form' && selected && (
+            {!sentAt ? (
               <motion.div
                 key="form"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="space-y-4"
+                className="space-y-5"
               >
-                <button
-                  onClick={() => setStep('pick')}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  ← Trocar categoria
-                </button>
-
-                <div
-                  className={cn(
-                    'rounded-2xl border bg-gradient-to-br p-3 flex items-center gap-3',
-                    selected.accent
-                  )}
-                >
-                  <div className="h-9 w-9 rounded-xl bg-background/80 flex items-center justify-center">
-                    <selected.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm text-foreground">{selected.label}</div>
-                    <div className="text-xs text-muted-foreground">{selected.description}</div>
+                {/* Categoria — toggles pequenos, tudo à vista */}
+                <div>
+                  <Label className="text-xs uppercase tracking-widest text-muted-foreground">Categoria</Label>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {CATEGORIES.map((c) => {
+                      const Icon = c.icon;
+                      const active = c.id === category;
+                      return (
+                        <motion.button
+                          key={c.id}
+                          type="button"
+                          whileTap={{ scale: 0.96 }}
+                          onClick={() => setCategory(c.id)}
+                          className={cn(
+                            'flex flex-col items-center gap-1 rounded-xl border p-2.5 transition-all',
+                            active
+                              ? 'border-primary bg-primary/5 shadow-sm'
+                              : 'border-border bg-card hover:border-primary/40',
+                          )}
+                          aria-pressed={active}
+                        >
+                          <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center', c.tone)}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className={cn('text-[11px] font-medium', active ? 'text-foreground' : 'text-muted-foreground')}>
+                            {c.label}
+                          </span>
+                        </motion.button>
+                      );
+                    })}
                   </div>
                 </div>
 
+                {/* Mensagem */}
                 <div className="space-y-1.5">
                   <Label htmlFor="fb-message" className="text-sm">Sua mensagem</Label>
                   <Textarea
@@ -287,7 +345,8 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={selected.placeholder}
-                    rows={6}
+                    rows={5}
+                    autoFocus
                     className="resize-none rounded-xl"
                     maxLength={2000}
                   />
@@ -297,6 +356,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                   </div>
                 </div>
 
+                {/* Print */}
                 <div className="space-y-2">
                   <Label className="text-sm">Anexar print (opcional)</Label>
                   {filePreview ? (
@@ -308,6 +368,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                       <button
                         onClick={() => handlePickFile(null)}
                         className="absolute top-2 right-2 h-7 w-7 rounded-full bg-background/90 backdrop-blur flex items-center justify-center hover:bg-background"
+                        aria-label="Remover print"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -321,7 +382,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                       <span className="text-xs">
                         ou cole com{' '}
                         <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono text-foreground">
-                          {typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘V' : 'Ctrl+V'}
+                          {kbd}V
                         </kbd>
                       </span>
                       <input
@@ -334,12 +395,16 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                   )}
                 </div>
 
+                {/* Metadata (transparência) */}
                 <div className="rounded-xl border border-border bg-card/50">
                   <button
+                    type="button"
                     onClick={() => setShowContext((v) => !v)}
                     className="w-full flex items-center justify-between px-3 py-2.5 text-sm"
                   >
-                    <span className="text-muted-foreground">O que enviamos junto</span>
+                    <span className="text-muted-foreground">
+                      O que enviamos junto ({includeMetadata ? 'incluído' : 'omitido'})
+                    </span>
                     <ChevronDown
                       className={cn('h-4 w-4 text-muted-foreground transition-transform', showContext && 'rotate-180')}
                     />
@@ -349,7 +414,9 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                       <div><span className="font-medium text-foreground">Página:</span> {pageUrl}</div>
                       <div><span className="font-medium text-foreground">Tela:</span> {viewport}</div>
                       <div><span className="font-medium text-foreground">IES:</span> {user?.ies_nome || '—'}</div>
-                      <div><span className="font-medium text-foreground">Semestre:</span> {user?.semestre ?? '—'}</div>
+                      {!isGestor && (
+                        <div><span className="font-medium text-foreground">Semestre:</span> {user?.semestre ?? '—'}</div>
+                      )}
                       <div className="flex items-center justify-between pt-1.5 border-t border-border">
                         <Label htmlFor="meta-toggle" className="text-xs">Enviar esses dados</Label>
                         <Switch
@@ -362,77 +429,67 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
                   )}
                 </div>
               </motion.div>
-            )}
-
-            {step === 'success' && (
+            ) : (
               <motion.div
-                key="success"
+                key="sent"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col items-center text-center py-8"
+                className="space-y-6"
               >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 14 }}
-                  className="relative h-24 w-24 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center mb-6"
-                >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                  >
-                    <Check className="h-7 w-7" strokeWidth={3} />
-                  </motion.div>
-                  {[...Array(6)].map((_, i) => (
-                    <motion.span
-                      key={i}
-                      initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
-                      animate={{
-                        scale: 1,
-                        x: Math.cos((i / 6) * Math.PI * 2) * 60,
-                        y: Math.sin((i / 6) * Math.PI * 2) * 60,
-                        opacity: 0,
-                      }}
-                      transition={{ duration: 0.9, delay: 0.25 }}
-                      className="absolute h-2 w-2 rounded-full bg-primary"
-                    />
-                  ))}
-                </motion.div>
-                <h3 className="text-xl font-semibold tracking-tight mb-1">
-                  Valeu por contar, {firstName}!
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                  Cada feedback é lido pela nossa equipe. Você pode acompanhar o status na sua página de feedbacks.
-                </p>
-                <div className="flex gap-2 w-full">
-                  <Button
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => onOpenChange(false)}
-                  >
-                    Fechar
-                  </Button>
-                  <Button
-                    className="flex-1 rounded-xl"
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate('/meus-feedbacks');
-                    }}
-                  >
-                    Ver meus feedbacks
-                  </Button>
+                <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-primary/0 p-5">
+                  <div className="text-sm font-medium text-foreground mb-1">
+                    Valeu por contar, {firstName}!
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isGestor
+                      ? 'Seu chamado entrou na fila do time Sanar. Você recebe um e-mail e um aviso aqui quando a gente responder.'
+                      : 'Sua mensagem já chegou pra equipe. Você recebe um aviso aqui quando tivermos novidade — e no seu e-mail também.'}
+                  </p>
                 </div>
+
+                <div>
+                  <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+                    O que acontece agora
+                  </Label>
+                  <div className="mt-3">
+                    <FeedbackTimeline status="received" createdAt={sentAt} slaLabel={slaLabel} />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/meus-feedbacks');
+                  }}
+                  className="w-full group flex items-center justify-between rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-accent/30 transition-all p-3.5"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="text-sm font-medium text-foreground">
+                      {isGestor ? 'Ver meus chamados' : 'Ver meus feedbacks'}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Acompanhe todo o histórico e respostas
+                    </span>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {step === 'form' && (
+        {/* Footer com submit */}
+        {!sentAt && (
           <div className="px-6 py-4 border-t border-border/60 bg-background/80 backdrop-blur flex items-center justify-between gap-3">
             <span className="text-xs text-muted-foreground hidden sm:inline">
-              Shift + F a qualquer momento
+              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">
+                {kbd}
+              </kbd>
+              {' + '}
+              <kbd className="px-1.5 py-0.5 rounded border border-border bg-muted text-[10px] font-mono">
+                Enter
+              </kbd>
+              {' envia'}
             </span>
             <Button
               onClick={handleSubmit}
@@ -442,7 +499,7 @@ export const FeedbackSheet: React.FC<Props> = ({ open, onOpenChange, initialCate
               {submitting ? (
                 <><Loader2 className="h-4 w-4 animate-spin" /> Enviando…</>
               ) : (
-                'Enviar feedback'
+                isGestor ? 'Enviar chamado' : 'Enviar feedback'
               )}
             </Button>
           </div>
