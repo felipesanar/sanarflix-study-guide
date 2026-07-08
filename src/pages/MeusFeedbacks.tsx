@@ -174,6 +174,16 @@ const MeusFeedbacks: React.FC = () => {
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{selected.message}</p>
                 </div>
 
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Status</div>
+                  <FeedbackTimeline
+                    status={selected.status}
+                    createdAt={selected.created_at}
+                    respondedAt={selected.responded_at}
+                    slaLabel={isGestor ? 'até 1 dia útil' : 'até 3 dias úteis'}
+                  />
+                </div>
+
                 {screenshotUrl && (
                   <div>
                     <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Print anexado</div>
