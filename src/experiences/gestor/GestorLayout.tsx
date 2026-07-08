@@ -84,6 +84,7 @@ const GestorLayoutContent: React.FC = () => {
               >
                 <Sparkles className="h-3.5 w-3.5" /> IA
               </Button>
+              <FeedbackHeaderButton />
             </div>
           </div>
 
