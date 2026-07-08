@@ -113,12 +113,30 @@ const MeusFeedbacks: React.FC = () => {
             className="rounded-3xl border border-dashed border-border bg-card/40 p-12 text-center"
           >
             <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Nenhum feedback ainda</h3>
+            <h3 className="text-lg font-semibold">
+              {isGestor ? 'Nenhum chamado ainda' : 'Nenhum feedback ainda'}
+            </h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1 mb-5">
-              Sua opinião molda a plataforma. Conta o que está bom, o que poderia melhorar ou algo que travou.
+              {isGestor
+                ? 'Abra um chamado sempre que tiver dúvida sobre um dado, encontrar um bug ou quiser sugerir um novo indicador. Respondemos em até 1 dia útil.'
+                : 'Sua opinião molda a plataforma. Conta o que está bom, o que poderia melhorar ou algo que travou.'}
             </p>
+            {!isGestor && (
+              <div className="max-w-md mx-auto mb-6 text-left space-y-2">
+                {[
+                  { t: 'A galera pediu', d: 'filtro por tema no Guia — entregue em 4 dias.' },
+                  { t: 'Bug reportado', d: 'PDF do simulado sem imagens — corrigido em 24h.' },
+                ].map((ex, i) => (
+                  <div key={i} className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs">
+                    <span className="font-medium text-foreground">{ex.t}:</span>{' '}
+                    <span className="text-muted-foreground">{ex.d}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <Button onClick={() => openFeedback()} className="rounded-xl">
-              <MessageSquarePlus className="h-4 w-4" /> Enviar primeiro feedback
+              <MessageSquarePlus className="h-4 w-4" />{' '}
+              {isGestor ? 'Abrir primeiro chamado' : 'Enviar primeiro feedback'}
             </Button>
           </motion.div>
         ) : (
