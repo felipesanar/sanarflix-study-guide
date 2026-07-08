@@ -38,7 +38,8 @@ const STATUS_META: Record<Row['status'], { label: string; cls: string }> = {
 
 const MeusFeedbacks: React.FC = () => {
   const { user } = useAuth();
-  const { openFeedback } = useFeedback();
+  const { openFeedback, audience } = useFeedback();
+  const isGestor = audience === 'gestor';
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Row | null>(null);
