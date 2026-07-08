@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useFeedback } from '@/components/feedback/FeedbackProvider';
+import { FeedbackTimeline } from '@/components/feedback/FeedbackTimeline';
 import { cn } from '@/lib/utils';
 
 type Row = {
