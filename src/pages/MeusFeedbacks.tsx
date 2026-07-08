@@ -85,14 +85,20 @@ const MeusFeedbacks: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
           <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Você falou, a gente ouviu</div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">Meus feedbacks</h1>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">
+              {isGestor ? 'Seus chamados abertos' : 'Você falou, a gente ouviu'}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">
+              {isGestor ? 'Meus chamados' : 'Meus feedbacks'}
+            </h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-              Acompanhe o status de cada feedback que você enviou. Recebido, em análise ou resolvido — você sempre sabe onde está.
+              {isGestor
+                ? 'Acompanhe cada chamado enviado ao time Sanar — recebido, em análise ou resolvido.'
+                : 'Acompanhe o status de cada feedback que você enviou. Recebido, em análise ou resolvido — você sempre sabe onde está.'}
             </p>
           </div>
           <Button onClick={() => openFeedback()} className="rounded-xl">
-            <MessageSquarePlus className="h-4 w-4" /> Novo feedback
+            <MessageSquarePlus className="h-4 w-4" /> {isGestor ? 'Novo chamado' : 'Novo feedback'}
           </Button>
         </div>
 
