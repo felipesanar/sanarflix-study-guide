@@ -17,8 +17,9 @@ import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 import { DynamicRoutes } from '@/components/DynamicRoutes';
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
-import { FeedbackFab } from '@/components/feedback/FeedbackFab';
+import { FeedbackDock } from '@/components/feedback/FeedbackDock';
 import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
+import { useFeedbackResponseToast } from '@/components/feedback/useFeedbackResponseToast';
 
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
