@@ -17,8 +17,9 @@ import { useIntelligentPrefetch } from '@/hooks/useIntelligentPrefetch';
 import { DynamicRoutes } from '@/components/DynamicRoutes';
 import { ImpersonationBanner } from '@/components/admin/ImpersonationBanner';
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider';
-import { FeedbackFab } from '@/components/feedback/FeedbackFab';
+import { FeedbackDock } from '@/components/feedback/FeedbackDock';
 import { useFeedbackShortcut } from '@/hooks/useFeedbackShortcut';
+import { useFeedbackResponseToast } from '@/components/feedback/useFeedbackResponseToast';
 
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
@@ -89,11 +90,10 @@ const AppContent = () => {
     <StudyProvider>
       <FeedbackProvider>
         <FeedbackShortcutBridge />
+        <FeedbackResponseToastBridge />
         <ImpersonationBanner />
         <DynamicRoutes />
-        <div className="fixed right-4 md:right-6 bottom-4 md:bottom-6 z-30">
-          <FeedbackFab />
-        </div>
+        <FeedbackDock />
       </FeedbackProvider>
     </StudyProvider>
   );
@@ -101,6 +101,11 @@ const AppContent = () => {
 
 function FeedbackShortcutBridge() {
   useFeedbackShortcut();
+  return null;
+}
+
+function FeedbackResponseToastBridge() {
+  useFeedbackResponseToast();
   return null;
 }
 

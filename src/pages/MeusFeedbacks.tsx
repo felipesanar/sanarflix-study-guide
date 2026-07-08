@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useFeedback } from '@/components/feedback/FeedbackProvider';
+import { FeedbackTimeline } from '@/components/feedback/FeedbackTimeline';
 import { cn } from '@/lib/utils';
 
 type Row = {
@@ -37,7 +38,8 @@ const STATUS_META: Record<Row['status'], { label: string; cls: string }> = {
 
 const MeusFeedbacks: React.FC = () => {
   const { user } = useAuth();
-  const { openFeedback } = useFeedback();
+  const { openFeedback, audience } = useFeedback();
+  const isGestor = audience === 'gestor';
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Row | null>(null);
@@ -83,14 +85,20 @@ const MeusFeedbacks: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
           <div>
-            <div className="text-xs uppercase tracking-widest text-muted-foreground">Você falou, a gente ouviu</div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">Meus feedbacks</h1>
+            <div className="text-xs uppercase tracking-widest text-muted-foreground">
+              {isGestor ? 'Seus chamados abertos' : 'Você falou, a gente ouviu'}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-1">
+              {isGestor ? 'Meus chamados' : 'Meus feedbacks'}
+            </h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-              Acompanhe o status de cada feedback que você enviou. Recebido, em análise ou resolvido — você sempre sabe onde está.
+              {isGestor
+                ? 'Acompanhe cada chamado enviado ao time Sanar — recebido, em análise ou resolvido.'
+                : 'Acompanhe o status de cada feedback que você enviou. Recebido, em análise ou resolvido — você sempre sabe onde está.'}
             </p>
           </div>
           <Button onClick={() => openFeedback()} className="rounded-xl">
-            <MessageSquarePlus className="h-4 w-4" /> Novo feedback
+            <MessageSquarePlus className="h-4 w-4" /> {isGestor ? 'Novo chamado' : 'Novo feedback'}
           </Button>
         </div>
 
@@ -105,12 +113,30 @@ const MeusFeedbacks: React.FC = () => {
             className="rounded-3xl border border-dashed border-border bg-card/40 p-12 text-center"
           >
             <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Nenhum feedback ainda</h3>
+            <h3 className="text-lg font-semibold">
+              {isGestor ? 'Nenhum chamado ainda' : 'Nenhum feedback ainda'}
+            </h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1 mb-5">
-              Sua opinião molda a plataforma. Conta o que está bom, o que poderia melhorar ou algo que travou.
+              {isGestor
+                ? 'Abra um chamado sempre que tiver dúvida sobre um dado, encontrar um bug ou quiser sugerir um novo indicador. Respondemos em até 1 dia útil.'
+                : 'Sua opinião molda a plataforma. Conta o que está bom, o que poderia melhorar ou algo que travou.'}
             </p>
+            {!isGestor && (
+              <div className="max-w-md mx-auto mb-6 text-left space-y-2">
+                {[
+                  { t: 'A galera pediu', d: 'filtro por tema no Guia — entregue em 4 dias.' },
+                  { t: 'Bug reportado', d: 'PDF do simulado sem imagens — corrigido em 24h.' },
+                ].map((ex, i) => (
+                  <div key={i} className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs">
+                    <span className="font-medium text-foreground">{ex.t}:</span>{' '}
+                    <span className="text-muted-foreground">{ex.d}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <Button onClick={() => openFeedback()} className="rounded-xl">
-              <MessageSquarePlus className="h-4 w-4" /> Enviar primeiro feedback
+              <MessageSquarePlus className="h-4 w-4" />{' '}
+              {isGestor ? 'Abrir primeiro chamado' : 'Enviar primeiro feedback'}
             </Button>
           </motion.div>
         ) : (
@@ -146,6 +172,16 @@ const MeusFeedbacks: React.FC = () => {
                 <div>
                   <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1.5">Sua mensagem</div>
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">{selected.message}</p>
+                </div>
+
+                <div>
+                  <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Status</div>
+                  <FeedbackTimeline
+                    status={selected.status}
+                    createdAt={selected.created_at}
+                    respondedAt={selected.responded_at}
+                    slaLabel={isGestor ? 'até 1 dia útil' : 'até 3 dias úteis'}
+                  />
                 </div>
 
                 {screenshotUrl && (

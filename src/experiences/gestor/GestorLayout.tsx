@@ -17,6 +17,7 @@ import {
 } from '@/experiences/gestor/GestorFiltersProvider';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { getPortalEntries } from '@/experiences/shared/globalNav';
+import { FeedbackHeaderButton } from '@/components/feedback/FeedbackHeaderButton';
 
 /**
  * Conteúdo do layout do gestor: consome os filtros globais do contexto e
@@ -83,6 +84,7 @@ const GestorLayoutContent: React.FC = () => {
               >
                 <Sparkles className="h-3.5 w-3.5" /> IA
               </Button>
+              <FeedbackHeaderButton />
             </div>
           </div>
 
