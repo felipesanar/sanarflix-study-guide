@@ -87,25 +87,20 @@ export const FeedbackDock: React.FC = () => {
     </motion.button>
   ) : (
     <motion.button
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.95 }}
       aria-label="Falar com a equipe (Shift+F)"
-      className="relative inline-flex items-center gap-2.5 pl-3 pr-4 py-2.5 rounded-2xl bg-card border border-border hover:border-primary/50 hover:bg-accent/30 shadow-lg shadow-black/5 transition-all"
+      title="Falar com a equipe (Shift+F)"
+      className="relative inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 border border-primary/40 hover:shadow-xl transition-all"
     >
-      <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <MessageSquarePlus className="h-4 w-4" />
-        {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center border-2 border-card">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </span>
-      <span className="flex flex-col items-start leading-tight">
-        <span className="text-sm font-semibold text-foreground">Falar com a equipe</span>
-        <span className="text-[10px] text-muted-foreground">Shift + F</span>
-      </span>
+      <MessageSquarePlus className="h-5 w-5" />
+      {unread > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center border-2 border-background">
+          {unread > 9 ? '9+' : unread}
+        </span>
+      )}
     </motion.button>
   );
 
