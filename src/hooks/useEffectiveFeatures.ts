@@ -99,6 +99,10 @@ export const useEffectiveFeatures = () => {
     bypass: query.data?.bypass ?? false,
     iesId: query.data?.ies_id ?? null,
     loading: !!user && query.isLoading,
+    // Retry pós-erro (react-query v5): `isLoading` só cobre o fetch inicial —
+    // um refetch() disparado da tela de erro fica com `isFetching` true e
+    // `isLoading` false. Exposto para dar feedback visual no botão de retry.
+    refetching: query.isFetching,
     error: query.isError ? 'Erro ao carregar permissões' : null,
     hasFeature: (key: string): boolean => features[key] ?? false,
     refetch: query.refetch,

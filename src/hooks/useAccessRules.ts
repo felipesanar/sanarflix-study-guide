@@ -5,7 +5,7 @@ import { AccessRules } from '@/types';
 
 const NO_ACCESS: AccessRules = {
   home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
-  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  userManagement: false, sanarclass: false, simulados: false,
   desempenhoInstitucional: false, errorNotebook: false,
 };
 
@@ -16,12 +16,11 @@ const NO_ACCESS: AccessRules = {
  * Nenhum role é interpretado aqui — o bypass (admin/atendimento) é decidido
  * no servidor. Semânticas:
  * - `desempenhoInstitucional` == `gestao.enabled` (gate do portal do gestor);
- * - `analytics` é flag morto (sempre false; sai da interface no cleanup);
  * - `userManagement` == bypass (equipe interna Sanar).
  */
 export const useAccessRules = () => {
   const { user } = useAuth();
-  const { features, bypass, loading, error, hasFeature, refetch } = useEffectiveFeatures();
+  const { features, bypass, loading, refetching, error, hasFeature, refetch } = useEffectiveFeatures();
 
   const accessRules = useMemo<AccessRules>(() => {
     if (!user) return NO_ACCESS;
@@ -34,11 +33,10 @@ export const useAccessRules = () => {
       sanarclass: hasFeature('aluno.sanarclass'),
       errorNotebook: hasFeature('aluno.caderno_erros'),
       desempenhoInstitucional: hasFeature('gestao.enabled'),
-      analytics: false,
       userManagement: bypass,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hasFeature deriva de features
   }, [user, features, bypass]);
 
-  return { accessRules, loading, error, hasFeature, refetch };
+  return { accessRules, loading, refetching, error, hasFeature, refetch };
 };

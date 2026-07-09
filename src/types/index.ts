@@ -39,7 +39,6 @@ export interface AccessRules {
   userManagement: boolean;
   sanarclass: boolean;
   simulados: boolean;
-  analytics: boolean;
   desempenhoInstitucional: boolean;
   errorNotebook: boolean;
 }

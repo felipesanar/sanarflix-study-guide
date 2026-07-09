@@ -23,7 +23,7 @@ const makeUser = (roles: string[]): User => ({
  */
 const NO_ACCESS: AccessRules = {
   home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
-  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  userManagement: false, sanarclass: false, simulados: false,
   desempenhoInstitucional: false, errorNotebook: false,
 };
 
@@ -32,11 +32,11 @@ const alunoRules: AccessRules = { ...NO_ACCESS, simulados: true };
 
 const adminRulesFixture: AccessRules = {
   home: true, studyGuide: true, dashboard: true, SimuladoDesempenho: true,
-  userManagement: true, sanarclass: true, simulados: true, analytics: true,
+  userManagement: true, sanarclass: true, simulados: true,
   desempenhoInstitucional: true, errorNotebook: true,
 };
 
-const cxRulesFixture: AccessRules = { ...adminRulesFixture, desempenhoInstitucional: false, analytics: false };
+const cxRulesFixture: AccessRules = { ...adminRulesFixture, desempenhoInstitucional: false };
 
 const gestorRulesFixture: AccessRules = {
   ...alunoRules,
@@ -252,10 +252,6 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
       c.index ? 'index' : c.path,
     );
     expect(childPaths).toEqual(['index', 'usuarios', 'feedbacks']);
-  });
-
-  it('CX não tem analytics liberado no accessRules (fora do escopo v0)', () => {
-    expect(cxRules.analytics).toBe(false);
   });
 
   it('a index de /atendimento redireciona para /atendimento/usuarios', () => {

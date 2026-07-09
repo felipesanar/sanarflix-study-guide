@@ -210,20 +210,6 @@ export async function fetchStudentTriScores(
 
 
 
-export interface InstitutionalLongitudinalEntry {
-  simulado_id: string;
-  simulado_nome: string;
-  data_liberacao: string | null;
-  mean_score: number | null;
-  pcp: number | null;
-  concept: number | null;
-  sanctions: string | null;
-  num_students: number | null;
-  delta_mean_score: number | null;
-  delta_pcp: number | null;
-  delta_concept: number | null;
-}
-
 export interface StudentGrowthEntry {
   student_id: string;
   num_simulados: number;
@@ -233,29 +219,6 @@ export interface StudentGrowthEntry {
   first_score_enamed: number | null;
   last_score_enamed: number | null;
   delta_score_enamed: number | null;
-}
-
-export async function fetchInstitutionalLongitudinalTri(
-  iesId: string,
-): Promise<InstitutionalLongitudinalEntry[]> {
-  try {
-    const result = await withTimeout(
-      Promise.resolve(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (supabase.rpc as any)('get_institutional_longitudinal_tri', { p_ies_id: iesId }),
-      ),
-      RPC_TIMEOUT,
-      'get_institutional_longitudinal_tri',
-    );
-    if (result.error) {
-      Logger.warn('[TRI] get_institutional_longitudinal_tri failed:', result.error.message);
-      return [];
-    }
-    return (result.data ?? []) as InstitutionalLongitudinalEntry[];
-  } catch (err) {
-    Logger.warn('[TRI] get_institutional_longitudinal_tri error:', err);
-    return [];
-  }
 }
 
 export async function fetchStudentGrowthTri(

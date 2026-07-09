@@ -43,6 +43,7 @@ describe('DynamicRoutes — estado de erro no boot', () => {
     mockUseAccessRules.mockReturnValue({
       accessRules: {},
       loading: false,
+      refetching: false,
       error: 'Erro ao carregar permissões',
       refetch,
     });
@@ -54,8 +55,27 @@ describe('DynamicRoutes — estado de erro no boot', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Erro ao carregar permissões')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    const retryButton = screen.getByRole('button', { name: 'Tentar novamente' });
+    expect(retryButton).not.toBeDisabled();
+    fireEvent.click(retryButton);
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('desabilita o botão e troca o label enquanto o retry está em voo (refetching)', () => {
+    const refetch = vi.fn();
+    mockUseAccessRules.mockReturnValue({
+      accessRules: {},
+      loading: false,
+      refetching: true,
+      error: 'Erro ao carregar permissões',
+      refetch,
+    });
+
+    renderDynamicRoutes();
+
+    const retryButton = screen.getByRole('button', { name: 'Tentando novamente…' });
+    expect(retryButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
   });
 
   it('prioriza o skeleton de loading quando error e loading estão ambos ativos (retry em voo)', () => {
