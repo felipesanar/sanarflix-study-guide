@@ -168,6 +168,15 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
     expect(routes[routes.length - 1].path).toBe('*');
   });
 
+  it('usuário sem NENHUMA tela liberada: /home renderiza a NoAccessPage (não Navigate) — evita loop', () => {
+    // Regressão: com NO_ACCESS, getDefaultRouteForUser cai no fallback '/home'.
+    // Um <Navigate to="/home"> aqui se auto-redirecionaria (loop infinito).
+    const routes = byPath(buildAppRoutes(aluno, NO_ACCESS, alunoAccess));
+    expect(routes.has('/home')).toBe(true);
+    expect(redirectTarget(routes.get('/home'))).toBeUndefined();
+    expect((routes.get('/home')?.element as ReactElement).type).not.toBe(Navigate);
+  });
+
   it('/home é compartilhada e devolve admin/gestor/CX ao entrypoint da sua experiência (não NotFound)', () => {
     // Regressão: o LoginForm navega TODA experiência para /home no pós-login.
     // Como cada usuário monta só as árvores das suas experiências, /home

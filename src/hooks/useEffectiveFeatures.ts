@@ -70,5 +70,6 @@ export const useEffectiveFeatures = () => {
     loading: !!user && query.isLoading,
     error: query.isError ? 'Erro ao carregar permissões' : null,
     hasFeature: (key: string): boolean => features[key] ?? false,
+    refetch: query.refetch,
   };
 };
