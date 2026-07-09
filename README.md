@@ -1,5 +1,7 @@
 # 📚 SanarFlix – Guia de Estudos
 
+<!-- Última auditoria completa do console admin: 08-09/07/2026 (ver supabase/migrations/20260708*) -->
+
 Este repositório abriga o projeto **Guia de Estudos da SanarFlix**, uma aplicação desenvolvida para oferecer uma experiência personalizada de estudos para alunos de instituições de ensino superior parceiras da Sanar.
 
 A proposta é simples: ajudar o aluno a navegar pelos conteúdos da SanarFlix de acordo com o semestre em que ele está, destacando os materiais mais relevantes e organizando-os de forma clara e didática.
