@@ -683,6 +683,39 @@ export type Database = {
           },
         ]
       }
+      feature_catalog: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          experience: string
+          is_master: boolean
+          key: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          experience: string
+          is_master?: boolean
+          key: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          experience?: string
+          is_master?: boolean
+          key?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       flashcards: {
         Row: {
           back_md: string
@@ -2130,6 +2163,7 @@ export type Database = {
           semestre: string
         }[]
       }
+      get_effective_features: { Args: never; Returns: Json }
       get_ies_features: {
         Args: { p_ies_id: string }
         Returns: {
