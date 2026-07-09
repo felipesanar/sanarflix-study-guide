@@ -286,10 +286,11 @@ describe('experiences/buildAppRoutes — gestão', () => {
     ]);
   });
 
-  it('a index de /gestor redireciona para /gestor/visao-institucional', () => {
+  it('a index de /gestor resolve dinamicamente a primeira tela ligada (GestorIndexRedirect) — não é mais um redirect estático', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const indexChild = (routes.get('/gestor')?.children ?? []).find((c) => c.index);
-    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
+    expect(indexChild).toBeDefined();
+    expect(redirectTarget(indexChild)).toBeUndefined();
   });
 
   it('inclui os redirects de compatibilidade do Desempenho Institucional', () => {
@@ -362,6 +363,6 @@ describe('experiences/buildAppRoutes — admin', () => {
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
     const indexChild = (gestorRoute?.children ?? []).find((c) => c.index);
-    expect(redirectTarget(indexChild)).toBe('/gestor/visao-institucional');
+    expect(indexChild).toBeDefined();
   });
 });

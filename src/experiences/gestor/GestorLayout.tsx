@@ -5,6 +5,7 @@ import { FileDown, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
 import { InstitutionalHeader } from '@/components/analytics/v2/shell/InstitutionalHeader';
 import { InstitutionalAlertBanner } from '@/components/analytics/v2/shell/InstitutionalAlertBanner';
 import { GlobalFilterBar } from '@/components/analytics/v2/shell/GlobalFilterBar';
@@ -45,7 +46,10 @@ const GestorLayoutContent: React.FC = () => {
   const [exportOpen, setExportOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
-  const navItems = filterGestorNav(GESTOR_NAV, access);
+  const { hasFeature } = useEffectiveFeatures();
+  const navItems = filterGestorNav(GESTOR_NAV, access, hasFeature);
+  const canExport = hasFeature('gestao.exportar');
+  const canChat = hasFeature('gestao.ia');
   // Outros portais do usuário, exceto a Gestão (já estamos nela).
   const otherPortals = getPortalEntries(access).filter((entry) => entry.url !== '/gestor');
 
@@ -68,22 +72,26 @@ const GestorLayoutContent: React.FC = () => {
                 </NavLink>
               ))}
               <GoToStudentButton className="h-8" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-muted-foreground"
-                onClick={() => setExportOpen(true)}
-              >
-                <FileDown className="h-3.5 w-3.5" /> Exportar
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 text-xs gap-1.5 text-muted-foreground"
-                onClick={() => setChatOpen(true)}
-              >
-                <Sparkles className="h-3.5 w-3.5" /> IA
-              </Button>
+              {canExport && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 text-muted-foreground"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <FileDown className="h-3.5 w-3.5" /> Exportar
+                </Button>
+              )}
+              {canChat && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs gap-1.5 text-muted-foreground"
+                  onClick={() => setChatOpen(true)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> IA
+                </Button>
+              )}
               <FeedbackHeaderButton />
             </div>
           </div>
@@ -141,19 +149,23 @@ const GestorLayoutContent: React.FC = () => {
         </Suspense>
 
         {/* Drawers */}
-        <ExportReportDrawer
-          open={exportOpen}
-          onClose={() => setExportOpen(false)}
-          data={filteredData}
-          filters={filters}
-          simuladoNome={simuladoNome}
-        />
-        <AiChatDrawer
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          data={filteredData}
-          activeTab={activeTab}
-        />
+        {canExport && (
+          <ExportReportDrawer
+            open={exportOpen}
+            onClose={() => setExportOpen(false)}
+            data={filteredData}
+            filters={filters}
+            simuladoNome={simuladoNome}
+          />
+        )}
+        {canChat && (
+          <AiChatDrawer
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            data={filteredData}
+            activeTab={activeTab}
+          />
+        )}
       </div>
     </div>
   );
