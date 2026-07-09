@@ -20,7 +20,7 @@ const NO_ACCESS: AccessRules = {
  */
 export const useAccessRules = () => {
   const { user } = useAuth();
-  const { features, bypass, loading, error, hasFeature, refetch } = useEffectiveFeatures();
+  const { features, bypass, loading, refetching, error, hasFeature, refetch } = useEffectiveFeatures();
 
   const accessRules = useMemo<AccessRules>(() => {
     if (!user) return NO_ACCESS;
@@ -38,5 +38,5 @@ export const useAccessRules = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hasFeature deriva de features
   }, [user, features, bypass]);
 
-  return { accessRules, loading, error, hasFeature, refetch };
+  return { accessRules, loading, refetching, error, hasFeature, refetch };
 };

@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
  */
 export const DynamicRoutes: React.FC = () => {
   const { user, access, needsPasswordChange } = useAuth();
-  const { accessRules, loading, error, refetch } = useAccessRules();
+  const { accessRules, loading, refetching, error, refetch } = useAccessRules();
 
   // useRoutes é um hook: deve ser chamado incondicionalmente, antes de
   // qualquer retorno antecipado (o gate de loading abaixo).
@@ -46,7 +46,9 @@ export const DynamicRoutes: React.FC = () => {
             Não foi possível carregar suas permissões
           </h1>
           <p className="text-muted-foreground">{error}</p>
-          <Button onClick={() => refetch()}>Tentar novamente</Button>
+          <Button onClick={() => refetch()} disabled={refetching}>
+            {refetching ? 'Tentando novamente…' : 'Tentar novamente'}
+          </Button>
         </div>
       </div>
     );
