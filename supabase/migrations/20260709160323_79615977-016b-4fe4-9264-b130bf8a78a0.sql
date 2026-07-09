@@ -1,0 +1,1 @@
+DELETE FROM public.kv_store WHERE key IN ('__test_gef_gestor','__test_gef_aluno');
