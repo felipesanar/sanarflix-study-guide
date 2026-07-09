@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,6 +28,46 @@ async function fetchEffectiveFeatures(): Promise<EffectiveFeaturesPayload> {
 }
 
 /**
+ * Subscription realtime ÚNICA por IES, com refcount fora do React.
+ *
+ * `supabase.channel(topic)` devolve a MESMA instância para um tópico já
+ * existente — se cada consumidor do hook criasse "seu" canal, o segundo
+ * mount chamaria `.on()` num canal já inscrito e o supabase-js lança
+ * "cannot add postgres_changes callbacks after subscribe()". Vários
+ * componentes montam este hook simultaneamente (rotas, sidebar, guards),
+ * então a subscription vive aqui: o primeiro consumidor cria e inscreve,
+ * os demais só incrementam; o último a desmontar remove o canal.
+ */
+const channelRegistry = new Map<string, { channel: RealtimeChannel; count: number }>();
+
+function acquireIesFeaturesChannel(iesId: string, queryClient: QueryClient): () => void {
+  let entry = channelRegistry.get(iesId);
+  if (!entry) {
+    const channel = supabase
+      .channel(`ies-features-${iesId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'ies_features', filter: `ies_id=eq.${iesId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['effective-features'] }),
+      )
+      .subscribe();
+    entry = { channel, count: 0 };
+    channelRegistry.set(iesId, entry);
+  }
+  entry.count += 1;
+
+  return () => {
+    const current = channelRegistry.get(iesId);
+    if (!current) return;
+    current.count -= 1;
+    if (current.count <= 0) {
+      channelRegistry.delete(iesId);
+      supabase.removeChannel(current.channel);
+    }
+  };
+}
+
+/**
  * Fonte única de features efetivas do usuário. O servidor decide bypass
  * (admin/atendimento) e a semântica do master `gestao.enabled` — o front
  * nunca interpreta role para decidir feature. Realtime em `ies_features`
@@ -48,17 +89,7 @@ export const useEffectiveFeatures = () => {
 
   useEffect(() => {
     if (!user?.id_ies) return;
-    const channel = supabase
-      .channel(`ies-features-${user.id_ies}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'ies_features', filter: `ies_id=eq.${user.id_ies}` },
-        () => queryClient.invalidateQueries({ queryKey: ['effective-features'] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return acquireIesFeaturesChannel(user.id_ies, queryClient);
   }, [user?.id_ies, queryClient]);
 
   const features = query.data?.features ?? {};
