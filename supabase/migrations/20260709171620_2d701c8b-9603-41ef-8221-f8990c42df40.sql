@@ -1,0 +1,1 @@
+DELETE FROM public.kv_store WHERE key LIKE 'test_guard_%';
