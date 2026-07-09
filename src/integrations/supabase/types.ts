@@ -2164,13 +2164,6 @@ export type Database = {
         }[]
       }
       get_effective_features: { Args: never; Returns: Json }
-      get_ies_features: {
-        Args: { p_ies_id: string }
-        Returns: {
-          enabled: boolean
-          feature_key: string
-        }[]
-      }
       get_ies_student_count: {
         Args: { p_ies_id: string; p_semestres?: number[] }
         Returns: number
@@ -2191,34 +2184,8 @@ export type Database = {
           simulado_nome: string
         }[]
       }
-      get_institutional_longitudinal_tri: {
-        Args: { p_ies_id?: string }
-        Returns: {
-          concept: number
-          data_liberacao: string
-          delta_concept: number
-          delta_mean_score: number
-          delta_pcp: number
-          mean_score: number
-          num_students: number
-          pcp: number
-          sanctions: string
-          simulado_id: string
-          simulado_nome: string
-        }[]
-      }
       get_institutional_performance: {
         Args: { p_ies_id?: string; p_simulado_id: string }
-        Returns: Json
-      }
-      get_institutional_question_details: {
-        Args: {
-          p_area?: string
-          p_ies_id?: string
-          p_simulado_id: string
-          p_specialty?: string
-          p_tema: string
-        }
         Returns: Json
       }
       get_institutional_simulados: {
@@ -2377,10 +2344,6 @@ export type Database = {
         }
         Returns: boolean
       }
-      ies_has_feature: {
-        Args: { p_feature: string; p_ies_id: string }
-        Returns: boolean
-      }
       is_admin: { Args: never; Returns: boolean }
       is_authenticated: { Args: never; Returns: boolean }
       kv_cleanup: { Args: never; Returns: number }
@@ -2400,10 +2363,6 @@ export type Database = {
       }
       refresh_mv_evolucao_institucional_tri: { Args: never; Returns: undefined }
       reset_leech_guarded: { Args: { p_entry_id: string }; Returns: undefined }
-      schedule_flashcard_review_guarded: {
-        Args: { p_flashcard_id: string; p_outcome: string }
-        Returns: Json
-      }
       schedule_next_review_guarded: {
         Args: { p_confidence: string; p_entry_id: string; p_outcome: string }
         Returns: Json
