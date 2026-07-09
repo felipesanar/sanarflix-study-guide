@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { ReactElement } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { buildAppRoutes } from '@/experiences/buildAppRoutes';
-import { getAccessRules } from '@/utils/accessRules';
 import { deriveAccessFromRoles } from '@/experiences/access';
 import { AccessRules, User } from '@/types';
 
@@ -15,8 +14,42 @@ const makeUser = (roles: string[]): User => ({
   roles,
 });
 
+/**
+ * Fixtures de AccessRules usadas apenas nestes testes (não vêm mais de
+ * `getAccessRules`, removido — a fonte única agora é `useAccessRules`,
+ * que lê `get_effective_features`). Os valores espelham o que cada perfil
+ * recebia antes, para exercitar `buildAppRoutes` isoladamente.
+ */
+const NO_ACCESS: AccessRules = {
+  home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
+  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  desempenhoInstitucional: false, errorNotebook: false,
+};
+
 /** AccessRules base de aluno (DEFAULT: só simulados liberado). */
-const alunoRules: AccessRules = getAccessRules(makeUser([]));
+const alunoRules: AccessRules = { ...NO_ACCESS, simulados: true };
+
+const adminRulesFixture: AccessRules = {
+  home: true, studyGuide: true, dashboard: true, SimuladoDesempenho: true,
+  userManagement: true, sanarclass: true, simulados: true, analytics: true,
+  desempenhoInstitucional: true, errorNotebook: true,
+};
+
+const cxRulesFixture: AccessRules = { ...adminRulesFixture, desempenhoInstitucional: false, analytics: false };
+
+const gestorRulesFixture: AccessRules = {
+  ...alunoRules,
+  home: true, studyGuide: true, dashboard: true, sanarclass: true,
+  errorNotebook: true, SimuladoDesempenho: true, desempenhoInstitucional: true,
+};
+
+/** Espelha a resolução por role usada antes por `getAccessRules`, só para fixtures de teste. */
+const rulesForRoles = (roles: string[]): AccessRules => {
+  if (roles.includes('admin')) return adminRulesFixture;
+  if (roles.includes('atendimento')) return cxRulesFixture;
+  if (roles.includes('gestor') || roles.includes('gestor_grupo')) return gestorRulesFixture;
+  return alunoRules;
+};
 
 /** Indexa as rotas por path para asserções diretas. */
 const byPath = (routes: RouteObject[]) =>
@@ -32,7 +65,7 @@ const alunoAccess = deriveAccessFromRoles(aluno.roles);
 /** Monta as rotas para um usuário a partir das suas roles (access derivado). */
 const routesForRoles = (roles: string[], rulesOverride?: AccessRules) => {
   const user = makeUser(roles);
-  const rules = rulesOverride ?? getAccessRules(user);
+  const rules = rulesOverride ?? rulesForRoles(roles);
   const access = deriveAccessFromRoles(roles);
   return byPath(buildAppRoutes(user, rules, access));
 };
@@ -189,7 +222,7 @@ describe('experiences/buildAppRoutes — compartilhadas', () => {
 });
 
 describe('experiences/buildAppRoutes — atendimento (CX)', () => {
-  const cxRules = getAccessRules(makeUser(['atendimento']));
+  const cxRules = cxRulesFixture;
 
   it('expõe a rota-layout /atendimento com as seções Usuários e Feedbacks', () => {
     const routes = routesForRoles(['atendimento'], cxRules);
@@ -223,7 +256,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 });
 
 describe('experiences/buildAppRoutes — gestão', () => {
-  const gestorRules = getAccessRules(makeUser(['gestor']));
+  const gestorRules = gestorRulesFixture;
 
   it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
@@ -262,7 +295,7 @@ describe('experiences/buildAppRoutes — gestão', () => {
 });
 
 describe('experiences/buildAppRoutes — admin', () => {
-  const adminRules = getAccessRules(makeUser(['admin']));
+  const adminRules = adminRulesFixture;
 
   it('expõe a rota-layout /admin com as 11 seções como filhas (index = Command Center)', () => {
     const routes = routesForRoles(['admin'], adminRules);

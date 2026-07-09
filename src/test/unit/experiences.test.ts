@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getDefaultRouteForUser, EXPERIENCE_ENTRYPOINTS } from '@/utils/experiences';
 import { deriveAccessFromRoles, hasExperience } from '@/experiences/access';
-import { getAccessRules } from '@/utils/accessRules';
 import { AccessRules, User } from '@/types';
 
 /** Cria um User mínimo com as roles informadas. */
@@ -14,8 +13,40 @@ const makeUser = (roles: string[]): User => ({
   roles,
 });
 
-/** AccessRules base de aluno (apenas simulados liberado, como DEFAULT_RULES). */
-const alunoRules: AccessRules = getAccessRules(makeUser([]));
+/**
+ * Fixtures de AccessRules usadas apenas nestes testes (não vêm mais de
+ * `getAccessRules`, removido — a fonte única agora é `useAccessRules`,
+ * que lê `get_effective_features`). Os valores espelham o que cada perfil
+ * recebia antes, para exercitar `getDefaultRouteForUser` isoladamente.
+ */
+const NO_ACCESS: AccessRules = {
+  home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
+  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  desempenhoInstitucional: false, errorNotebook: false,
+};
+
+/** AccessRules base de aluno (apenas simulados liberado). */
+const alunoRules: AccessRules = { ...NO_ACCESS, simulados: true };
+
+const adminRules: AccessRules = {
+  home: true, studyGuide: true, dashboard: true, SimuladoDesempenho: true,
+  userManagement: true, sanarclass: true, simulados: true, analytics: true,
+  desempenhoInstitucional: true, errorNotebook: true,
+};
+
+const cxRules: AccessRules = { ...adminRules, desempenhoInstitucional: false, analytics: false };
+
+const gestorRules: AccessRules = {
+  ...alunoRules,
+  home: true, studyGuide: true, dashboard: true, sanarclass: true,
+  errorNotebook: true, SimuladoDesempenho: true, desempenhoInstitucional: true,
+};
+
+const professorRules: AccessRules = {
+  ...alunoRules,
+  home: true, studyGuide: true, dashboard: true, sanarclass: true,
+  desempenhoInstitucional: true, errorNotebook: true,
+};
 
 describe('experiences/access — deriveAccessFromRoles (experiências por role)', () => {
   it('admin ganha as experiências admin + gestao', () => {
@@ -87,66 +118,66 @@ describe('utils/experiences — getDefaultRouteForUser', () => {
   it('admin entra na experiência admin (/admin — Command Center)', () => {
     const user = makeUser(['admin']);
     const access = deriveAccessFromRoles(user.roles);
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
+    expect(getDefaultRouteForUser(user, adminRules, access)).toBe(
       EXPERIENCE_ENTRYPOINTS.admin,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
-      '/admin',
-    );
+    expect(getDefaultRouteForUser(user, adminRules, access)).toBe('/admin');
   });
 
   it('atendimento entra na experiência de atendimento (/atendimento/usuarios)', () => {
     const user = makeUser(['atendimento']);
     const access = deriveAccessFromRoles(user.roles);
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
+    expect(getDefaultRouteForUser(user, cxRules, access)).toBe(
       EXPERIENCE_ENTRYPOINTS.atendimento,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
+    expect(getDefaultRouteForUser(user, cxRules, access)).toBe(
       '/atendimento/usuarios',
     );
   });
 
-  it('gestão entra na experiência do gestor (/gestor)', () => {
+  it('gestão entra na experiência do gestor (/gestor) quando desempenhoInstitucional está liberado', () => {
     const user = makeUser(['gestor']);
     const access = deriveAccessFromRoles(user.roles);
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
+    expect(getDefaultRouteForUser(user, gestorRules, access)).toBe(
       EXPERIENCE_ENTRYPOINTS.gestao,
     );
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe('/gestor');
+    expect(getDefaultRouteForUser(user, gestorRules, access)).toBe('/gestor');
 
     const grupo = makeUser(['gestor_grupo']);
     const grupoAccess = deriveAccessFromRoles(grupo.roles);
-    expect(getDefaultRouteForUser(grupo, getAccessRules(grupo), grupoAccess)).toBe('/gestor');
+    expect(getDefaultRouteForUser(grupo, gestorRules, grupoAccess)).toBe('/gestor');
+  });
+
+  it('gestão SEM gestao.enabled (desempenhoInstitucional: false) pula para a experiência de aluno — evita loop de redirect', () => {
+    const user = makeUser(['gestor']);
+    const access = deriveAccessFromRoles(user.roles);
+    const rulesSemPortal: AccessRules = { ...gestorRules, desempenhoInstitucional: false };
+    // Sem o portal contratado pela IES, a precedência pula 'gestao' e cai no
+    // comportamento de aluno (home liberada nesta fixture).
+    expect(getDefaultRouteForUser(user, rulesSemPortal, access)).toBe('/');
   });
 
   it('professor entra na raiz (home na nova rota /)', () => {
     const user = makeUser(['professor']);
     const access = deriveAccessFromRoles(user.roles);
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe('/');
+    expect(getDefaultRouteForUser(user, professorRules, access)).toBe('/');
   });
 
   it('admin com múltiplas experiências segue a precedência admin > atendimento > gestao', () => {
     const user = makeUser(['admin']);
     // access sintético só para testar a precedência isoladamente.
     const access = deriveAccessFromRoles(['admin', 'atendimento', 'gestor']);
-    expect(getDefaultRouteForUser(user, getAccessRules(user), access)).toBe(
-      '/admin',
-    );
+    expect(getDefaultRouteForUser(user, adminRules, access)).toBe('/admin');
   });
 
   it('sem access explícito (undefined), cai no comportamento de aluno (compat)', () => {
     expect(getDefaultRouteForUser(makeUser([]), alunoRules)).toBe('/simulados');
   });
 
-  it('o entrypoint de cada experiência é sempre uma tela liberada (sem loop de redirect)', () => {
-    const admin = makeUser(['admin']);
-    expect(getAccessRules(admin).userManagement).toBe(true);
-
-    const cx = makeUser(['atendimento']);
-    expect(getAccessRules(cx).userManagement).toBe(true);
-
-    const gestor = makeUser(['gestor']);
-    expect(getAccessRules(gestor).desempenhoInstitucional).toBe(true);
+  it('o entrypoint de cada experiência dedicada é sempre uma tela liberada (sem loop de redirect)', () => {
+    expect(adminRules.userManagement).toBe(true);
+    expect(cxRules.userManagement).toBe(true);
+    expect(gestorRules.desempenhoInstitucional).toBe(true);
   });
 
   describe('aluno: home dinâmica por telas liberadas', () => {

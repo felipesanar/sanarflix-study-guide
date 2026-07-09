@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { MeuDiaItem } from '@/hooks/useHomeData';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useIesFeatures } from '@/hooks/useIesFeatures';
+import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
 import { UpcomingExamBanner } from './UpcomingExamBanner';
 import type { ExamInsight } from '@/types/progressHub';
 
@@ -54,10 +54,10 @@ const resolveIcon = (path?: string, icon?: string) => {
 // Empty state component
 const EmptyState = ({ hasStudyGuide }: { hasStudyGuide: boolean }) => {
   const navigate = useNavigate();
-  const { hasFeature, loading: featuresLoading } = useIesFeatures();
-  
+  const { hasFeature, loading: featuresLoading } = useEffectiveFeatures();
+
   // Verificar se a IES tem acesso ao guia de estudos
-  const hasGuideAccess = hasFeature('studyGuide');
+  const hasGuideAccess = hasFeature('aluno.guia_estudos');
   
   // Só exibir botão se IES tem acesso ao guia E existe conteúdo do guia
   const showCalendarButton = hasGuideAccess && hasStudyGuide;

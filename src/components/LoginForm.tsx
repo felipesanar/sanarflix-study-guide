@@ -9,7 +9,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { getAccessRules } from "@/utils/accessRules";
 import Logger from "@/utils/logger";
 export const LoginForm: React.FC = () => {
   const [email, setEmail] = useState("");
