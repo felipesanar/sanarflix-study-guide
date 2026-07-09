@@ -58,7 +58,7 @@ const makeUser = (roles: string[]): User => ({
 
 const NO_ACCESS: AccessRules = {
   home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
-  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  userManagement: false, sanarclass: false, simulados: false,
   desempenhoInstitucional: false, errorNotebook: false,
 };
 

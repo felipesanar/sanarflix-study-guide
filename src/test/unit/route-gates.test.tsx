@@ -7,7 +7,7 @@ import type { AccessRules, User } from '@/types';
 
 const ALL_OFF: AccessRules = {
   home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
-  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  userManagement: false, sanarclass: false, simulados: false,
   desempenhoInstitucional: false, errorNotebook: false,
 };
 

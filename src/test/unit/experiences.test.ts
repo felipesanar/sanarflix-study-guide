@@ -21,7 +21,7 @@ const makeUser = (roles: string[]): User => ({
  */
 const NO_ACCESS: AccessRules = {
   home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
-  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  userManagement: false, sanarclass: false, simulados: false,
   desempenhoInstitucional: false, errorNotebook: false,
 };
 
@@ -30,11 +30,11 @@ const alunoRules: AccessRules = { ...NO_ACCESS, simulados: true };
 
 const adminRules: AccessRules = {
   home: true, studyGuide: true, dashboard: true, SimuladoDesempenho: true,
-  userManagement: true, sanarclass: true, simulados: true, analytics: true,
+  userManagement: true, sanarclass: true, simulados: true,
   desempenhoInstitucional: true, errorNotebook: true,
 };
 
-const cxRules: AccessRules = { ...adminRules, desempenhoInstitucional: false, analytics: false };
+const cxRules: AccessRules = { ...adminRules, desempenhoInstitucional: false };
 
 const gestorRules: AccessRules = {
   ...alunoRules,

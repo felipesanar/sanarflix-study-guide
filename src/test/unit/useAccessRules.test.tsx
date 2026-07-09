@@ -51,7 +51,6 @@ describe('useAccessRules (fonte única get_effective_features)', () => {
     expect(result.current.accessRules.errorNotebook).toBe(true);
     // gestor NÃO tem mais bypass hardcoded: portal segue o contrato da IES
     expect(result.current.accessRules.desempenhoInstitucional).toBe(false);
-    expect(result.current.accessRules.analytics).toBe(false);
     expect(result.current.accessRules.userManagement).toBe(false);
     expect(result.current.hasFeature('gestao.visao_institucional')).toBe(false);
   });

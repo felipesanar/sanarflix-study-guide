@@ -11,7 +11,6 @@ const rules = (overrides: Partial<AccessRules> = {}): AccessRules => ({
   userManagement: false,
   sanarclass: false,
   simulados: false,
-  analytics: false,
   desempenhoInstitucional: false,
   errorNotebook: false,
   ...overrides,
