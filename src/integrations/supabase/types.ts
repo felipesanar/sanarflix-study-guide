@@ -2416,6 +2416,7 @@ export type Database = {
         Args: { _ies: string; _user: string }
         Returns: boolean
       }
+      user_has_feature: { Args: { p_feature: string }; Returns: boolean }
     }
     Enums: {
       app_role:
