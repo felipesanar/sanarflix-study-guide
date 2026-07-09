@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { ReactElement } from 'react';
-import type { RouteObject } from 'react-router-dom';
+import { Navigate, type RouteObject } from 'react-router-dom';
 import { buildAppRoutes } from '@/experiences/buildAppRoutes';
+import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { deriveAccessFromRoles } from '@/experiences/access';
 import { AccessRules, User } from '@/types';
 
@@ -129,6 +130,15 @@ describe('experiences/buildAppRoutes — aluno', () => {
   it('mantém a sub-rota do modo prova', () => {
     const routes = byPath(buildAppRoutes(aluno, alunoRules, alunoAccess));
     expect(routes.has('/simulados/:id/prova')).toBe(true);
+  });
+
+  it('modo prova é bloqueado quando a IES não tem simulados', () => {
+    const rules = { ...NO_ACCESS, simulados: false };
+    const routes = alunoRoutes(aluno, rules, alunoAccess);
+    const prova = routes.find((r) => r.path === '/simulados/:id/prova');
+    expect(prova).toBeDefined();
+    // elemento deve ser um <Navigate>, não a página da prova
+    expect((prova!.element as ReactElement).type).toBe(Navigate);
   });
 
   it('é pura: mesma entrada → mesmos paths', () => {
