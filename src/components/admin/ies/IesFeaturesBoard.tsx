@@ -1,45 +1,42 @@
 import * as React from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import { Building2, Loader2, Save } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { AdminLoading, AdminError, AdminEmpty, MonoValue } from '@/experiences/admin/ui';
-import { cn } from '@/lib/utils';
-import { AccessRules } from '@/types';
+import { Input } from '@/components/ui/input';
+import { AdminLoading, AdminError, AdminEmpty } from '@/experiences/admin/ui';
 import { Logger } from '@/utils/logger';
 import { setIesFeatures } from '@/services/admin/iesFeatures';
+import {
+  fetchFeatureCatalog,
+  groupCatalogByExperience,
+  type FeatureCatalogEntry,
+} from '@/services/admin/featureCatalog';
+import { IesFeatureCard } from '@/components/admin/ies/IesFeatureCard';
 
-interface IesData {
+export interface IesData {
   id: string;
   nome: string;
-  features: Record<keyof AccessRules, boolean>;
+  /** Chave → valor, indexado pelas chaves do `feature_catalog` (`aluno.*` / `gestao.*`). */
+  features: Record<string, boolean>;
 }
 
-/** Features configuráveis por IES (9 — `userManagement` fica fora, é controle interno). */
-const AVAILABLE_FEATURES: { key: keyof AccessRules; label: string; description: string }[] = [
-  { key: 'home', label: 'Home', description: 'Página inicial com resumo' },
-  { key: 'studyGuide', label: 'Guia de Estudos', description: 'Conteúdos organizados por matéria' },
-  { key: 'dashboard', label: 'Dashboard', description: 'Métricas e progresso do aluno' },
-  { key: 'SimuladoDesempenho', label: 'Desempenho Simulados', description: 'Análise detalhada de simulados' },
-  { key: 'sanarclass', label: 'SanarClass', description: 'Aulas e materiais complementares' },
-  { key: 'simulados', label: 'Simulados', description: 'Acesso aos simulados' },
-  { key: 'analytics', label: 'Analytics', description: 'Estatísticas avançadas' },
-  { key: 'desempenhoInstitucional', label: 'Desempenho Institucional', description: 'Painel institucional (v2) com KPIs e evolução' },
-  { key: 'errorNotebook', label: 'Caderno de Erros', description: 'Registro de erros para revisão' },
-];
+/** Remove acentos e normaliza para minúsculas — busca "case/acento-insensitive". */
+function normalizeSearchTerm(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+}
 
-const TOTAL_FEATURES = AVAILABLE_FEATURES.length;
-
-async function loadIesData(): Promise<IesData[]> {
-  const { data: iesRows, error: iesError } = await supabase.from('ies').select('id, nome').order('nome');
+async function loadAll(): Promise<{ catalog: FeatureCatalogEntry[]; iesList: IesData[] }> {
+  // As três fontes são independentes entre si — carregadas em paralelo.
+  const [catalog, { data: iesRows, error: iesError }, { data: featuresRows, error: featuresError }] = await Promise.all([
+    fetchFeatureCatalog(),
+    supabase.from('ies').select('id, nome').order('nome'),
+    supabase.from('ies_features').select('ies_id, feature_key, enabled'),
+  ]);
   if (iesError) throw iesError;
-
-  const { data: featuresRows, error: featuresError } = await supabase
-    .from('ies_features')
-    .select('ies_id, feature_key, enabled');
   if (featuresError) throw featuresError;
 
   const featuresMap: Record<string, Record<string, boolean>> = {};
@@ -48,19 +45,23 @@ async function loadIesData(): Promise<IesData[]> {
     featuresMap[f.ies_id][f.feature_key] = f.enabled;
   });
 
-  return (iesRows || []).map((ies) => {
+  const iesList = (iesRows || []).map((ies) => {
     const features: Record<string, boolean> = {};
-    AVAILABLE_FEATURES.forEach((f) => {
-      features[f.key] = featuresMap[ies.id]?.[f.key] ?? false;
+    catalog.forEach((entry) => {
+      features[entry.key] = featuresMap[ies.id]?.[entry.key] ?? false;
     });
-    return { id: ies.id, nome: ies.nome, features: features as Record<keyof AccessRules, boolean> };
+    return { id: ies.id, nome: ies.nome, features };
   });
+
+  return { catalog, iesList };
 }
 
 /**
- * Cards por IES com switches das 9 features configuráveis. Diff local +
- * "Salvar" por IES via RPC `admin_set_ies_features` (transacional, com
- * auditoria) — substitui o antigo loop client-side de upserts.
+ * Orquestrador de `/admin/ies`: busca + lista de `IesFeatureCard`, um por IES.
+ * Cards renderizam a partir do catálogo do banco (`feature_catalog`, Task 0) —
+ * não há mais lista hardcoded de features. Diff local + "Salvar" por IES via
+ * RPC `admin_set_ies_features` (transacional, com auditoria) é preservado
+ * integralmente (snapshot `sentKeys`, patch otimista) — ver `saveChanges`.
  *
  * Contagem de alunos por IES foi deliberadamente omitida: `get_ies_student_count`
  * é uma RPC por IES (sem versão em lote) — chamá-la uma vez por card viraria
@@ -68,16 +69,19 @@ async function loadIesData(): Promise<IesData[]> {
  */
 export const IesFeaturesBoard: React.FC = () => {
   const [iesList, setIesList] = useState<IesData[] | null>(null);
+  const [catalog, setCatalog] = useState<FeatureCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Record<string, boolean>>>({});
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await loadIesData();
+      const { catalog: catalogData, iesList: data } = await loadAll();
+      setCatalog(catalogData);
       setIesList(data);
       setPendingChanges({});
     } catch (err) {
@@ -99,10 +103,11 @@ export const IesFeaturesBoard: React.FC = () => {
     }));
   };
 
-  const getFeatureValue = (iesId: string, featureKey: string, originalValue: boolean): boolean =>
-    pendingChanges[iesId]?.[featureKey] ?? originalValue;
-
-  const hasChanges = (iesId: string): boolean => Object.keys(pendingChanges[iesId] || {}).length > 0;
+  const getFeatureValue = useCallback(
+    (iesId: string, featureKey: string, originalValue: boolean): boolean =>
+      pendingChanges[iesId]?.[featureKey] ?? originalValue,
+    [pendingChanges],
+  );
 
   const saveChanges = async (iesId: string) => {
     const changes = pendingChanges[iesId];
@@ -123,7 +128,7 @@ export const IesFeaturesBoard: React.FC = () => {
           if (ies.id !== iesId) return ies;
           const updatedFeatures = { ...ies.features };
           Object.entries(changes).forEach(([key, value]) => {
-            updatedFeatures[key as keyof AccessRules] = value;
+            updatedFeatures[key] = value;
           });
           return { ...ies, features: updatedFeatures };
         }),
@@ -153,8 +158,46 @@ export const IesFeaturesBoard: React.FC = () => {
     }
   };
 
-  const countEnabledFeatures = (ies: IesData): number =>
-    AVAILABLE_FEATURES.filter((f) => getFeatureValue(ies.id, f.key, ies.features[f.key])).length;
+  /**
+   * Copiar-de: pega o estado efetivo (original + pending) da IES fonte e
+   * grava como pendingChanges da IES destino APENAS as chaves que diferem do
+   * estado atual (também efetivo) do destino — nada é salvo direto, vira diff
+   * pendente igual a qualquer outro toggle manual.
+   */
+  const handleCopyFrom = (destIesId: string, sourceIesId: string) => {
+    const source = (iesList ?? []).find((ies) => ies.id === sourceIesId);
+    const dest = (iesList ?? []).find((ies) => ies.id === destIesId);
+    if (!source || !dest) return;
+
+    const diff: Record<string, boolean> = {};
+    catalog.forEach((entry) => {
+      const sourceEffective = getFeatureValue(sourceIesId, entry.key, source.features[entry.key] ?? false);
+      const destEffective = getFeatureValue(destIesId, entry.key, dest.features[entry.key] ?? false);
+      if (sourceEffective !== destEffective) {
+        diff[entry.key] = sourceEffective;
+      }
+    });
+
+    if (Object.keys(diff).length === 0) {
+      toast.info('Nenhuma diferença entre as IES.');
+      return;
+    }
+
+    setPendingChanges((prev) => ({
+      ...prev,
+      [destIesId]: { ...prev[destIesId], ...diff },
+    }));
+    toast.success(`${Object.keys(diff).length} feature(s) marcada(s) como pendente(s).`);
+  };
+
+  const groupedCatalog = useMemo(() => groupCatalogByExperience(catalog), [catalog]);
+
+  const filteredIesList = useMemo(() => {
+    if (!iesList) return [];
+    const term = normalizeSearchTerm(search.trim());
+    if (!term) return iesList;
+    return iesList.filter((ies) => normalizeSearchTerm(ies.nome).includes(term));
+  }, [iesList, search]);
 
   if (loading) return <AdminLoading rows={3} rowHeight="h-40" />;
   if (error) return <AdminError message={error} onRetry={load} />;
@@ -163,62 +206,36 @@ export const IesFeaturesBoard: React.FC = () => {
   }
 
   return (
-    <div className="grid gap-4">
-      {iesList.map((ies) => {
-        const pending = hasChanges(ies.id);
-        return (
-          <div
-            key={ies.id}
-            className={cn(
-              'space-y-4 rounded-xl border p-4 transition-colors',
-              pending && 'border-primary',
-            )}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                <span className="font-semibold">{ies.nome}</span>
-                <MonoValue muted className="text-xs">
-                  {countEnabledFeatures(ies)}/{TOTAL_FEATURES} features
-                </MonoValue>
-              </div>
-              <Button size="sm" onClick={() => saveChanges(ies.id)} disabled={!pending || saving === ies.id}>
-                {saving === ies.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                Salvar
-              </Button>
-            </div>
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar IES..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {AVAILABLE_FEATURES.map((feature) => {
-                const isEnabled = getFeatureValue(ies.id, feature.key, ies.features[feature.key]);
-                const changed = pendingChanges[ies.id]?.[feature.key] !== undefined;
-                return (
-                  <div
-                    key={feature.key}
-                    className={cn(
-                      'flex items-start justify-between gap-3 rounded-lg border p-3',
-                      changed ? 'border-primary/40 bg-primary/5' : 'bg-muted/30',
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <Label htmlFor={`${ies.id}-${feature.key}`} className="cursor-pointer text-sm font-medium">
-                        {feature.label}
-                      </Label>
-                      <p className="truncate text-xs text-muted-foreground">{feature.description}</p>
-                    </div>
-                    <Switch
-                      id={`${ies.id}-${feature.key}`}
-                      checked={isEnabled}
-                      disabled={saving === ies.id}
-                      onCheckedChange={(checked) => handleFeatureToggle(ies.id, feature.key, checked)}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      {filteredIesList.length === 0 ? (
+        <AdminEmpty title="Nenhuma IES encontrada" description="Ajuste o termo de busca." />
+      ) : (
+        <div className="grid gap-4">
+          {filteredIesList.map((ies) => (
+            <IesFeatureCard
+              key={ies.id}
+              ies={ies}
+              catalog={groupedCatalog}
+              pending={pendingChanges[ies.id]}
+              saving={saving === ies.id}
+              iesList={iesList}
+              onToggle={(featureKey, enabled) => handleFeatureToggle(ies.id, featureKey, enabled)}
+              onSave={() => saveChanges(ies.id)}
+              onCopyFrom={(sourceIesId) => handleCopyFrom(ies.id, sourceIesId)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

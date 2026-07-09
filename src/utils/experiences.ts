@@ -23,7 +23,7 @@ export type { ExperienceId };
  * {@link getDefaultRouteForUser}.
  *
  * Cada entrypoint abaixo é sempre uma tela liberada para a respectiva
- * experiência (ver getAccessRules), o que evita loop de redirecionamento.
+ * experiência (ver useAccessRules), o que evita loop de redirecionamento.
  */
 export const EXPERIENCE_ENTRYPOINTS: Record<Exclude<ExperienceId, 'aluno'>, string> = {
   admin: '/admin',
@@ -60,7 +60,15 @@ export const getDefaultRouteForUser = (
   access?: Access,
 ): string => {
   const experiences = access?.experiences ?? ['aluno'];
-  const dedicated = ENTRYPOINT_PRECEDENCE.find((exp) => experiences.includes(exp));
+  const dedicated = ENTRYPOINT_PRECEDENCE.find(
+    (exp) =>
+      experiences.includes(exp) &&
+      // Portal do gestor é contratado por IES: sem `gestao.enabled`
+      // (espelhado em accessRules.desempenhoInstitucional), a precedência
+      // pula para a experiência seguinte — evita loop de redirect com o
+      // ExperienceGuard.
+      (exp !== 'gestao' || accessRules.desempenhoInstitucional),
+  );
   if (dedicated) return EXPERIENCE_ENTRYPOINTS[dedicated];
 
   if (accessRules.home) return '/';

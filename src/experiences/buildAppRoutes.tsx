@@ -4,6 +4,7 @@ import type { AccessRules, User } from '@/types';
 import { getDefaultRouteForUser } from '@/utils/experiences';
 import { hasExperience, type Access } from '@/experiences/access';
 import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
+import { NoAccessPage } from '@/experiences/shared/NoAccessPage';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { adminRoutes } from '@/experiences/admin/adminRoutes';
 import { gestorRoutes } from '@/experiences/gestor/gestorRoutes';
@@ -47,7 +48,20 @@ export const buildAppRoutes = (
     { path: '/login', element: <Navigate to={defaultRoute} replace /> },
     // Compat: /home é o destino pós-login do LoginForm para TODA experiência.
     // Devolve cada usuário ao entrypoint da sua experiência (portal p/ privilegiado).
-    { path: '/home', element: <Navigate to={defaultRoute} replace /> },
+    // Exceção: quando o próprio defaultRoute é '/home' (usuário sem NENHUMA
+    // tela liberada), um <Navigate to="/home"> se auto-redirecionaria — loop
+    // infinito. Renderiza a NoAccessPage em vez de redirecionar.
+    {
+      path: '/home',
+      element:
+        defaultRoute === '/home' ? (
+          <ExperiencePage waitForData={false}>
+            <NoAccessPage />
+          </ExperiencePage>
+        ) : (
+          <Navigate to={defaultRoute} replace />
+        ),
+    },
     {
       path: '/auth/callback',
       element: (

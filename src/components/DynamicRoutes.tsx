@@ -7,6 +7,7 @@ import { buildAppRoutes } from '@/experiences/buildAppRoutes';
 import { PasswordChangeModal } from '@/components/PasswordChangeModal';
 import { HomePageSkeleton } from '@/components/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 /**
  * Roteador da área autenticada.
@@ -24,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export const DynamicRoutes: React.FC = () => {
   const { user, access, needsPasswordChange } = useAuth();
-  const { accessRules, loading } = useAccessRules();
+  const { accessRules, loading, error, refetch } = useAccessRules();
 
   // useRoutes é um hook: deve ser chamado incondicionalmente, antes de
   // qualquer retorno antecipado (o gate de loading abaixo).
@@ -33,6 +34,23 @@ export const DynamicRoutes: React.FC = () => {
     [user, accessRules, access],
   );
   const element = useRoutes(routeObjects);
+
+  // Erro ao carregar as permissões (RPC falhou após os retries do React
+  // Query): sem isso, accessRules cairia todo em `false` e o usuário entraria
+  // num loop de redirecionamento silencioso em /home — sem UI de erro.
+  if (error && !loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center space-y-4 max-w-md">
+          <h1 className="text-xl font-semibold">
+            Não foi possível carregar suas permissões
+          </h1>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => refetch()}>Tentar novamente</Button>
+        </div>
+      </div>
+    );
+  }
 
   // Mostrar skeleton enquanto carrega as features do banco.
   // Isso evita "flash" de redirecionamento incorreto.

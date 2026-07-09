@@ -131,17 +131,18 @@ export const alunoRoutes = (
       fallback,
     ),
 
-    // Modo Prova roda em tela cheia (sem aguardar dados de página). Ainda
-    // passa pelo Layout — que esconde sidebar/bottom-nav internamente
-    // (isModoProva) — para preservar ImpersonationBanner/FeedbackFab do App.
-    {
-      path: '/simulados/:id/prova',
-      element: withAlunoLayout(
-        <ExperiencePage waitForData={false}>
-          <ModoProva />
-        </ExperiencePage>,
-      ),
-    },
+    // Modo Prova segue o gate de simulados da IES. Roda em tela cheia (sem
+    // aguardar dados de página); ainda passa pelo Layout — que esconde
+    // sidebar/bottom-nav internamente (isModoProva) — para preservar
+    // ImpersonationBanner/FeedbackFab do App.
+    gated(
+      accessRules.simulados,
+      '/simulados/:id/prova',
+      <ExperiencePage waitForData={false}>
+        <ModoProva />
+      </ExperiencePage>,
+      fallback,
+    ),
 
     gated(
       accessRules.SimuladoDesempenho,

@@ -2,6 +2,7 @@ import { lazy } from 'react';
 import { Navigate, type RouteObject } from 'react-router-dom';
 import { GestorLayout } from '@/experiences/gestor/GestorLayout';
 import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
+import { GestorFeatureGate, GestorIndexRedirect } from '@/experiences/gestor/GestorFeatureGate';
 
 // Páginas-módulo do gestor (carregadas sob demanda — ver gestor/pages/).
 const VisaoInstitucionalPage = lazy(() => import('@/experiences/gestor/pages/VisaoInstitucionalPage'));
@@ -28,12 +29,12 @@ export const gestorRoutes = (): RouteObject[] => [
       </ExperienceGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/gestor/visao-institucional" replace /> },
-      { path: 'visao-institucional', element: <VisaoInstitucionalPage /> },
-      { path: 'diagnostico-curricular', element: <DiagnosticoCurricularPage /> },
-      { path: 'alunos', element: <AlunosPage /> },
-      { path: 'insights-pedagogicos', element: <InsightsPedagogicosPage /> },
-      { path: 'inteligencia-decisoria', element: <InteligenciaDecisoriaPage /> },
+      { index: true, element: <GestorIndexRedirect /> },
+      { path: 'visao-institucional', element: <GestorFeatureGate featureKey="gestao.visao_institucional"><VisaoInstitucionalPage /></GestorFeatureGate> },
+      { path: 'diagnostico-curricular', element: <GestorFeatureGate featureKey="gestao.diagnostico_curricular"><DiagnosticoCurricularPage /></GestorFeatureGate> },
+      { path: 'alunos', element: <GestorFeatureGate featureKey="gestao.alunos"><AlunosPage /></GestorFeatureGate> },
+      { path: 'insights-pedagogicos', element: <GestorFeatureGate featureKey="gestao.insights_pedagogicos"><InsightsPedagogicosPage /></GestorFeatureGate> },
+      { path: 'inteligencia-decisoria', element: <GestorFeatureGate featureKey="gestao.inteligencia_decisoria"><InteligenciaDecisoriaPage /></GestorFeatureGate> },
     ],
   },
 

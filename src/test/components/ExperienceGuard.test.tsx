@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
-import { getAccessRules } from '@/utils/accessRules';
 import { deriveAccessFromRoles } from '@/experiences/access';
-import { User } from '@/types';
+import { AccessRules, User } from '@/types';
 
 // useAuth e useAccessRules são mockados; getDefaultRouteForUser/hasExperience
 // são exercitados de verdade (é o que o guard reusa).
@@ -41,12 +40,47 @@ const makeUser = (roles: string[]): User => ({
   roles,
 });
 
+/**
+ * Fixtures de AccessRules usadas apenas nestes testes (não vêm mais de
+ * `getAccessRules`, removido — a fonte única agora é `useAccessRules`,
+ * que lê `get_effective_features`).
+ */
+const NO_ACCESS: AccessRules = {
+  home: false, studyGuide: false, dashboard: false, SimuladoDesempenho: false,
+  userManagement: false, sanarclass: false, simulados: false, analytics: false,
+  desempenhoInstitucional: false, errorNotebook: false,
+};
+
+const alunoRules: AccessRules = { ...NO_ACCESS, simulados: true };
+
+const adminRules: AccessRules = {
+  home: true, studyGuide: true, dashboard: true, SimuladoDesempenho: true,
+  userManagement: true, sanarclass: true, simulados: true, analytics: true,
+  desempenhoInstitucional: true, errorNotebook: true,
+};
+
+const cxRules: AccessRules = { ...adminRules, desempenhoInstitucional: false, analytics: false };
+
+const gestorRules: AccessRules = {
+  ...alunoRules,
+  home: true, studyGuide: true, dashboard: true, sanarclass: true,
+  errorNotebook: true, SimuladoDesempenho: true, desempenhoInstitucional: true,
+};
+
+const rulesByRoles = (roles: string[]): AccessRules => {
+  if (roles.includes('admin')) return adminRules;
+  if (roles.includes('atendimento')) return cxRules;
+  if (roles.includes('gestor') || roles.includes('gestor_grupo')) return gestorRules;
+  return alunoRules;
+};
+
 /** Aponta os mocks para um usuário e o `access` derivado das suas roles. */
-const setUser = (user: User | null) => {
+const setUser = (user: User | null, rulesOverride?: AccessRules) => {
   const access = deriveAccessFromRoles(user?.roles);
   mockUseAuth.mockReturnValue({ user, access });
   mockUseAccessRules.mockReturnValue({
-    accessRules: getAccessRules(user),
+    // Sem usuário, a fonte única nega tudo (NO_ACCESS) — não é o default de aluno.
+    accessRules: rulesOverride ?? (user ? rulesByRoles(user.roles ?? []) : NO_ACCESS),
     loading: false,
   });
 };
@@ -78,7 +112,7 @@ describe('ExperienceGuard', () => {
     const user = makeUser([]);
     mockUseAuth.mockReturnValue({ user, access: deriveAccessFromRoles([]) });
     mockUseAccessRules.mockReturnValue({
-      accessRules: { ...getAccessRules(user), home: true },
+      accessRules: { ...alunoRules, home: true },
       loading: false,
     });
 
@@ -113,7 +147,16 @@ describe('ExperienceGuard', () => {
     setUser(null);
     renderGuard('admin');
     expect(screen.queryByText('conteúdo protegido')).not.toBeInTheDocument();
-    // Sem usuário, getAccessRules nega tudo → fallback final do aluno (/home).
+    // Sem usuário, accessRules nega tudo → fallback final do aluno (/home).
     expect(redirectedTo()).toBe('/home');
+  });
+
+  it('bloqueia o gestor cuja IES não tem gestao.enabled (desempenhoInstitucional: false), mesmo tendo a experiência gestao', () => {
+    const user = makeUser(['gestor']);
+    setUser(user, { ...gestorRules, desempenhoInstitucional: false });
+    renderGuard('gestao');
+    expect(screen.queryByText('conteúdo protegido')).not.toBeInTheDocument();
+    // Sem o portal contratado, cai no comportamento de aluno (home liberada nesta fixture).
+    expect(redirectedTo()).toBe('/');
   });
 });

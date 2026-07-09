@@ -30,7 +30,10 @@ export const ExperienceGuard: React.FC<ExperienceGuardProps> = ({
   const { user, access } = useAuth();
   const { accessRules } = useAccessRules();
 
-  if (!hasExperience(access, experience)) {
+  const featureGateOk =
+    experience !== 'gestao' || accessRules.desempenhoInstitucional;
+
+  if (!hasExperience(access, experience) || !featureGateOk) {
     return <Navigate to={getDefaultRouteForUser(user, accessRules, access)} replace />;
   }
 
