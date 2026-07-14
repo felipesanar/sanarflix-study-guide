@@ -32,6 +32,7 @@ interface Stats {
 const UsuariosPage: React.FC = () => {
   const { access } = useAuth();
   const canManage = can(access, 'users.manage');
+  const canEdit = can(access, 'users.edit');
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [iesList, setIesList] = useState<Ies[]>([]);
@@ -70,10 +71,10 @@ const UsuariosPage: React.FC = () => {
   // efeito só rodava no mount e um deep-link chegando depois — ex.: troca de
   // rota sem remount — nunca abria o diálogo).
   useEffect(() => {
-    if (canManage && searchParams.get('new') === '1') {
+    if (canEdit && searchParams.get('new') === '1') {
       setCreateOpen(true);
     }
-  }, [canManage, searchParams]);
+  }, [canEdit, searchParams]);
 
   const clearNewParam = useCallback(() => {
     if (searchParams.get('new')) {
@@ -94,7 +95,7 @@ const UsuariosPage: React.FC = () => {
         title="Usuários"
         subtitle="Gestão de contas por IES, roles, convites e operações em massa."
         actions={
-          canManage && (
+          canEdit && (
             <>
               <Button variant="outline" onClick={() => setBulkCreateOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" /> Cadastro em lote
@@ -115,6 +116,7 @@ const UsuariosPage: React.FC = () => {
       <UsersListTable
         iesList={iesList}
         canManage={canManage}
+        canEdit={canEdit}
         canSupport={can(access, 'users.support')}
         refreshKey={refreshKey}
         onOpenBulkEmail={() => setBulkEmailOpen(true)}

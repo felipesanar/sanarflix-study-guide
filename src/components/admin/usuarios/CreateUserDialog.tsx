@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usersService } from '@/services/usersService';
 import type { Ies } from '@/services/iesService';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
@@ -38,6 +40,9 @@ export interface CreateUserDialogProps {
 
 /** Diálogo de criação individual — form migrado de `UsersTab` (lógica intacta). */
 export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: CreateUserDialogProps) {
+  const { access } = useAuth();
+  const canManageRoles = can(access, 'users.manage');
+  const roleOptions = canManageRoles ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'aluno');
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -157,21 +162,23 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
               disabled={isCreating}
             />
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" /> Papel
-            </Label>
-            <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })} disabled={isCreating}>
-              <SelectTrigger>
-                <SelectValue placeholder="Aluno (padrão)" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {canManageRoles && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" /> Papel
+              </Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })} disabled={isCreating}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Aluno (padrão)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

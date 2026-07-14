@@ -14,6 +14,7 @@ export type ExperienceId = 'aluno' | 'gestao' | 'admin' | 'atendimento';
 
 export type Capability =
   | 'users.manage'
+  | 'users.edit'
   | 'avisos.manage'
   | 'ies.manage'
   | 'guia.manage'
@@ -42,6 +43,7 @@ export const EMPTY_ACCESS: Access = {
 
 const ADMIN_CAPABILITIES: Capability[] = [
   'users.manage',
+  'users.edit',
   'avisos.manage',
   'ies.manage',
   'guia.manage',
@@ -57,7 +59,7 @@ const ADMIN_CAPABILITIES: Capability[] = [
 
 const GESTOR_CAPABILITIES: Capability[] = ['institutional.view', 'alunos.view'];
 
-const ATENDIMENTO_CAPABILITIES: Capability[] = ['users.support', 'feedbacks.support'];
+const ATENDIMENTO_CAPABILITIES: Capability[] = ['users.support', 'users.edit', 'feedbacks.support'];
 
 /** Espelho client-side do mapeamento da RPC get_access (fallback e impersonação). */
 export const deriveAccessFromRoles = (roles: string[] | undefined | null): Access => {

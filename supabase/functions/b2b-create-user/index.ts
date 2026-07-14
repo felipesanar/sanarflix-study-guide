@@ -355,13 +355,16 @@ Deno.serve(async (req) => {
 
     const callerUserId = callerUser.id;
 
-    // Verify admin role
-    const { data: hasAdminRole, error: roleErr } = await supabaseAdmin.rpc('has_role', {
-      _user_id: callerUserId,
-      _role: 'admin'
-    });
+    // Verify admin or atendimento role
+    const [{ data: hasAdminRole, error: roleErr }, { data: hasAtendimentoRole }] = await Promise.all([
+      supabaseAdmin.rpc('has_role', { _user_id: callerUserId, _role: 'admin' }),
+      supabaseAdmin.rpc('has_role', { _user_id: callerUserId, _role: 'atendimento' }),
+    ]);
 
-    if (roleErr || !hasAdminRole) {
+    const isAdmin = !!hasAdminRole;
+    const isAtendimento = !!hasAtendimentoRole;
+
+    if (roleErr || (!isAdmin && !isAtendimento)) {
       // Aplica rate limit apenas para chamadas não-admin para mitigar abuso/enumeração.
       const rl = await checkRateLimit(req, { key: 'b2b-create-user', limitPerMin: 30 });
       if (!rl.allowed) {
@@ -370,9 +373,9 @@ Deno.serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      console.error('[Security] Admin check failed:', roleErr);
+      console.error('[Security] Role check failed:', roleErr);
       return new Response(
-        JSON.stringify({ success: false, error: "Acesso negado: privilégios de admin necessários", code: "FORBIDDEN" }),
+        JSON.stringify({ success: false, error: "Acesso negado: privilégios insuficientes", code: "FORBIDDEN" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -396,6 +399,16 @@ Deno.serve(async (req) => {
     // `gestor_grupo` segue o mesmo padrão dos demais gestores: mantém `semestre`
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
+
+    // Atendimento não pode criar admins nem usuários na IES B2B (staff Sanar).
+    if (!isAdmin && isAtendimento) {
+      if (role === 'admin') {
+        return errorResponse('FORBIDDEN', 'Atendimento não pode criar administradores');
+      }
+      if (id_ies === B2B_IES_ID) {
+        return errorResponse('FORBIDDEN', 'Atendimento não pode criar usuários na IES interna Sanar');
+      }
+    }
 
     // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
