@@ -718,18 +718,22 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
 
                 <TableCell className={adminTableCellClass}>
                   {isEditing ? (
-                    <div className="flex flex-col gap-1 min-w-[160px]">
-                      {EDITABLE_ROLES.map((r) => (
-                        <label key={r.value} className="flex items-center gap-2 text-xs cursor-pointer">
-                          <Checkbox
-                            checked={editing.roles.includes(r.value)}
-                            onCheckedChange={(checked) => toggleEditingRole(r.value, checked === true)}
-                            aria-label={r.label}
-                          />
-                          {r.label}
-                        </label>
-                      ))}
-                    </div>
+                    canManage ? (
+                      <div className="flex flex-col gap-1 min-w-[160px]">
+                        {EDITABLE_ROLES.map((r) => (
+                          <label key={r.value} className="flex items-center gap-2 text-xs cursor-pointer">
+                            <Checkbox
+                              checked={editing.roles.includes(r.value)}
+                              onCheckedChange={(checked) => toggleEditingRole(r.value, checked === true)}
+                              aria-label={r.label}
+                            />
+                            {r.label}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Roles são gerenciadas por admins.</span>
+                    )
                   ) : (
                     <div className="flex flex-wrap gap-1">
                       {user.roles.length > 0 ? (
