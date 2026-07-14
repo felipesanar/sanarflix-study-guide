@@ -122,8 +122,10 @@ const deriveEditableRoles = (roles: string[] | undefined): AppRole[] =>
 
 export interface UsersListTableProps {
   iesList: IES[];
-  /** Ações administrativas plenas (criar/lote/excluir/trocar e-mail/selecionar em massa/editar roles). */
+  /** Ações administrativas plenas (roles, exclusão, promover admin, bulk e-mail). Admin apenas. */
   canManage: boolean;
+  /** Criar / editar campos básicos (nome, IES, semestre). Admin e Atendimento. */
+  canEdit: boolean;
   /** Busca, visualização e painel de suporte — disponível também para Atendimento (CX). */
   canSupport: boolean;
   /** Incrementar para forçar um refetch (ex.: após criar usuário em outro diálogo). */
