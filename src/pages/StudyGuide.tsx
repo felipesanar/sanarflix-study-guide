@@ -15,6 +15,7 @@ import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
 import { usePageTimeTracking } from '@/hooks/usePageTimeTracking';
 import { useWebVitals } from '@/hooks/useWebVitals';
 import { getBrazilDayOfWeek } from '@/utils/timezone';
+import { resolveDefaultSemestre } from '@/lib/resolveDefaultSemestre';
 
 // Premium Components
 import {
@@ -678,6 +679,22 @@ export const StudyGuide: React.FC = () => {
     setSelectedMateria('');
     fetchSemestreData(sem);
   }, [fetchSemestreData]);
+
+  // Garante que sempre haja um semestre selecionado assim que a lista de semestres
+  // disponíveis é conhecida. Corrige o guia vindo vazio quando o aluno não tem
+  // `semestre` definido, ou quando o semestre dele não possui guia: cai para o
+  // semestre do aluno → INTERNATO (9º-12º) → primeiro disponível. Só age quando o
+  // valor atual é inválido, então não interfere na escolha manual do usuário.
+  useEffect(() => {
+    if (semestres.length === 0) return;
+    if (selectedSemestre && semestres.includes(selectedSemestre)) return;
+
+    const target = resolveDefaultSemestre(semestres, user?.semestre);
+    if (target && target !== selectedSemestre) {
+      setSelectedSemestre(target);
+      fetchSemestreData(target);
+    }
+  }, [semestres, selectedSemestre, user?.semestre, fetchSemestreData]);
 
   // Subject helpers
   const getMateriaProgress = (materia: Materia) => {
