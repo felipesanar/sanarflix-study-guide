@@ -71,10 +71,10 @@ const UsuariosPage: React.FC = () => {
   // efeito só rodava no mount e um deep-link chegando depois — ex.: troca de
   // rota sem remount — nunca abria o diálogo).
   useEffect(() => {
-    if (canManage && searchParams.get('new') === '1') {
+    if (canEdit && searchParams.get('new') === '1') {
       setCreateOpen(true);
     }
-  }, [canManage, searchParams]);
+  }, [canEdit, searchParams]);
 
   const clearNewParam = useCallback(() => {
     if (searchParams.get('new')) {
