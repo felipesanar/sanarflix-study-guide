@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usersService } from '@/services/usersService';
 import type { Ies } from '@/services/iesService';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/experiences/access';
 import { Logger } from '@/utils/logger';
 
 const ROLE_OPTIONS: { value: string; label: string }[] = [
