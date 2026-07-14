@@ -79,7 +79,7 @@ describe('UsersListTable', () => {
 
   it('esconde seleção em massa e ações de gestão para o Atendimento (canManage=false), mas permite abrir o painel de suporte', async () => {
     mockUseAuth.mockReturnValue({ startImpersonation: vi.fn(), access: SUPPORT_ACCESS });
-    render(<UsersListTable iesList={IES_LIST} canManage={false} canSupport onOpenBulkEmail={vi.fn()} />);
+    render(<UsersListTable iesList={IES_LIST} canManage={false} canEdit={false} canSupport onOpenBulkEmail={vi.fn()} />);
 
     await screen.findByText('Ana Aluna');
     expect(screen.queryByLabelText('Selecionar todos')).not.toBeInTheDocument();
