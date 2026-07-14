@@ -774,15 +774,15 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                           <Eye className="h-4 w-4 text-primary" />
                         </Button>
                       )}
-                      {canManage && (
+                      {canEdit && !isAdmin && (
                         <Button size="sm" variant="ghost" onClick={() => startEditing(user)} className="h-8 w-8 p-0" title="Editar">
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
-                      {/* Sem canManage nem impersonate (ex.: Atendimento puro) não sobra
+                      {/* Sem canEdit nem impersonate (ex.: sem privilégios) não sobra
                           nenhum item de gestão — a UI não renderiza um menu vazio; o botão
                           "Ver detalhes" acima já cobre o fluxo de suporte. */}
-                      {(canManage || canImpersonate) && (
+                      {(canEdit || canImpersonate) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading} aria-label="Mais ações">
@@ -800,7 +800,7 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                                 <UserCheck className="h-4 w-4 mr-2" /> Acessar como Gestor
                               </DropdownMenuItem>
                             )}
-                            {canManage && (
+                            {canEdit && !isAdmin && (
                               <>
                                 {canImpersonate && <DropdownMenuSeparator />}
                                 <DropdownMenuItem
@@ -819,6 +819,10 @@ export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canMana
                                 <DropdownMenuItem onClick={() => syncUserAuth(user.email)}>
                                   <RefreshCw className="h-4 w-4 mr-2" /> Sincronizar Auth
                                 </DropdownMenuItem>
+                              </>
+                            )}
+                            {canManage && (
+                              <>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => toggleAdminRole(user)}>
                                   {isAdmin ? (
