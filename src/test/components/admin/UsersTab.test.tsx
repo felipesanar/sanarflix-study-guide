@@ -70,7 +70,7 @@ describe('UsersListTable', () => {
   });
 
   it('carrega e exibe os usuários com a coluna de seleção quando pode gerenciar', async () => {
-    render(<UsersListTable iesList={IES_LIST} canManage canSupport={false} onOpenBulkEmail={vi.fn()} />);
+    render(<UsersListTable iesList={IES_LIST} canManage canEdit canSupport={false} onOpenBulkEmail={vi.fn()} />);
 
     expect(await screen.findByText('Ana Aluna')).toBeInTheDocument();
     expect(screen.getByText('Gustavo Gestor')).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe('UsersListTable', () => {
   });
 
   it('exige a palavra EXCLUIR para habilitar a exclusão de um usuário', async () => {
-    render(<UsersListTable iesList={IES_LIST} canManage canSupport={false} onOpenBulkEmail={vi.fn()} />);
+    render(<UsersListTable iesList={IES_LIST} canManage canEdit canSupport={false} onOpenBulkEmail={vi.fn()} />);
 
     await screen.findByText('Ana Aluna');
     await userEvent.click(screen.getAllByRole('button', { name: 'Mais ações' })[0]);
@@ -109,7 +109,7 @@ describe('UsersListTable', () => {
   });
 
   it('mostra "Acessar como Gestor" para usuário com role gestor quando pode impersonar', async () => {
-    render(<UsersListTable iesList={IES_LIST} canManage canSupport={false} onOpenBulkEmail={vi.fn()} />);
+    render(<UsersListTable iesList={IES_LIST} canManage canEdit canSupport={false} onOpenBulkEmail={vi.fn()} />);
 
     await screen.findByText('Gustavo Gestor');
     await userEvent.click(screen.getAllByRole('button', { name: 'Mais ações' })[1]);
@@ -117,7 +117,7 @@ describe('UsersListTable', () => {
   });
 
   it('não mostra "Acessar como Gestor" para aluno sem essa role', async () => {
-    render(<UsersListTable iesList={IES_LIST} canManage canSupport={false} onOpenBulkEmail={vi.fn()} />);
+    render(<UsersListTable iesList={IES_LIST} canManage canEdit canSupport={false} onOpenBulkEmail={vi.fn()} />);
 
     await screen.findByText('Ana Aluna');
     await userEvent.click(screen.getAllByRole('button', { name: 'Mais ações' })[0]);
