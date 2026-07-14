@@ -154,7 +154,7 @@ const BATCH_CHUNK_SIZE = 3; // Deve casar com MAX_BATCH_SIZE da edge function
 
 const EMPTY_DELETE_PROGRESS: DeleteProgress = { total: 0, done: 0, ok: 0, failed: [], active: false };
 
-export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canSupport, refreshKey, onOpenBulkEmail }) => {
+export const UsersListTable: React.FC<UsersListTableProps> = ({ iesList, canManage, canEdit, canSupport, refreshKey, onOpenBulkEmail }) => {
   const { startImpersonation, access } = useAuth();
   const navigate = useNavigate();
   const canImpersonate = can(access, 'impersonate');
