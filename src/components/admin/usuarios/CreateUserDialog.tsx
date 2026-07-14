@@ -40,6 +40,9 @@ export interface CreateUserDialogProps {
 
 /** Diálogo de criação individual — form migrado de `UsersTab` (lógica intacta). */
 export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: CreateUserDialogProps) {
+  const { access } = useAuth();
+  const canManageRoles = can(access, 'users.manage');
+  const roleOptions = canManageRoles ? ROLE_OPTIONS : ROLE_OPTIONS.filter(r => r.value === 'aluno');
   const [form, setForm] = useState(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
 
