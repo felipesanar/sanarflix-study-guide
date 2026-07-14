@@ -400,6 +400,16 @@ Deno.serve(async (req) => {
     // e `id_ies` (IES âncora). O acesso multi-IES é resolvido por user_roles +
     // get_accessible_ies(), não pelo campo semestre.
 
+    // Atendimento não pode criar admins nem usuários na IES B2B (staff Sanar).
+    if (!isAdmin && isAtendimento) {
+      if (role === 'admin') {
+        return errorResponse('FORBIDDEN', 'Atendimento não pode criar administradores');
+      }
+      if (id_ies === B2B_IES_ID) {
+        return errorResponse('FORBIDDEN', 'Atendimento não pode criar usuários na IES interna Sanar');
+      }
+    }
+
     // Validate IES exists
     const { data: iesData, error: iesError } = await supabaseAdmin
       .from('ies')
