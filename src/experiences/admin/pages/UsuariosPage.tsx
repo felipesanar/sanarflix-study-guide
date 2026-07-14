@@ -32,6 +32,7 @@ interface Stats {
 const UsuariosPage: React.FC = () => {
   const { access } = useAuth();
   const canManage = can(access, 'users.manage');
+  const canEdit = can(access, 'users.edit');
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [iesList, setIesList] = useState<Ies[]>([]);
