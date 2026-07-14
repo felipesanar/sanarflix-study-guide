@@ -14,6 +14,7 @@ export type ExperienceId = 'aluno' | 'gestao' | 'admin' | 'atendimento';
 
 export type Capability =
   | 'users.manage'
+  | 'users.edit'
   | 'avisos.manage'
   | 'ies.manage'
   | 'guia.manage'
