@@ -162,21 +162,23 @@ export function CreateUserDialog({ open, onOpenChange, iesList, onCreated }: Cre
               disabled={isCreating}
             />
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" /> Papel
-            </Label>
-            <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })} disabled={isCreating}>
-              <SelectTrigger>
-                <SelectValue placeholder="Aluno (padrão)" />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {canManageRoles && (
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5" /> Papel
+              </Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })} disabled={isCreating}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Aluno (padrão)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
