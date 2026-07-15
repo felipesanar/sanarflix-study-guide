@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
     await admin.from("admin_audit_log").insert({
       admin_id: adminId,
       action: `generate_link_${type}`,
-      target_user_id: null,
+      target_user_id: targetUserId,
       metadata: { email, type },
     });
 
