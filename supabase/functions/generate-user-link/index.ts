@@ -54,14 +54,22 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // Verify admin role
+    // Verify caller role (admin OR atendimento)
     const { data: isAdmin } = await admin.rpc("has_role", {
       _user_id: adminId,
       _role: "admin",
     });
-
+    let isAtendimento = false;
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
+      const { data: atn } = await admin.rpc("has_role", {
+        _user_id: adminId,
+        _role: "atendimento",
+      });
+      isAtendimento = !!atn;
+    }
+
+    if (!isAdmin && !isAtendimento) {
+      return new Response(JSON.stringify({ error: "Forbidden: admin or atendimento role required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -74,6 +82,30 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Guardrail: atendimento não pode gerar link para contas admin
+    let targetUserId: string | null = null;
+    const normalizedEmail = String(email).trim().toLowerCase();
+    {
+      const { data: targetUser } = await admin
+        .from("users")
+        .select("id")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      targetUserId = targetUser?.id ?? null;
+      if (!isAdmin && isAtendimento && targetUserId) {
+        const { data: targetIsAdmin } = await admin.rpc("has_role", {
+          _user_id: targetUserId,
+          _role: "admin",
+        });
+        if (targetIsAdmin) {
+          return new Response(
+            JSON.stringify({ error: "Atendimento não pode gerar link para conta administradora" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
     }
 
     const redirectPath = type === "welcome" ? "/auth/update-password" : "/reset-password";
@@ -105,7 +137,7 @@ Deno.serve(async (req) => {
     await admin.from("admin_audit_log").insert({
       admin_id: adminId,
       action: `generate_link_${type}`,
-      target_user_id: null,
+      target_user_id: targetUserId,
       metadata: { email, type },
     });
 

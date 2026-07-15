@@ -64,7 +64,9 @@ serve(async (req) => {
     }
 
     const { data: roles } = await supabaseAdmin.rpc('get_user_roles', { _user_id: caller.id });
-    if (!roles?.includes('admin')) {
+    const callerIsAdmin = !!roles?.includes('admin');
+    const callerIsAtendimento = !!roles?.includes('atendimento');
+    if (!callerIsAdmin && !callerIsAtendimento) {
       return new Response(JSON.stringify({ error: 'Permissão negada' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -126,6 +128,17 @@ serve(async (req) => {
     }
 
     console.log(`[sync-user-auth] Found public user (ID: ${publicUser.id})`);
+
+    // Guardrail: atendimento não pode sincronizar contas admin
+    if (!callerIsAdmin && callerIsAtendimento) {
+      const { data: targetRoles } = await supabaseAdmin.rpc('get_user_roles', { _user_id: publicUser.id });
+      if (targetRoles?.includes('admin')) {
+        return new Response(JSON.stringify({ error: 'Atendimento não pode sincronizar uma conta administradora' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
 
     // 2. Check if user already exists in auth.users
     const { data: authUsersList, error: listError } = await supabaseAdmin.auth.admin.listUsers();
