@@ -124,7 +124,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
-      list = list.filter(s => computeProficiencyStatus(getScoreFor(s)) === segmentFilter);
+      list = list.filter(s => {
+        const hasTri = s.triScore !== null && s.triScore !== undefined;
+        if (!hasTri) return false;
+        return computeProficiencyStatus(s.triScore as number) === segmentFilter;
+      });
     }
     list.sort((a, b) => {
       let cmp = 0;
