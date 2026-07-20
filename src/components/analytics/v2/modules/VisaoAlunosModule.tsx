@@ -190,14 +190,19 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     );
   }
 
-  // Summary stats
+  // Summary stats — proficiency classification applies ONLY to students with a computed TRI score,
+  // to stay consistent with Visão Institucional. Students without TRI are not bucketed.
   const totalStudents = data.allStudents.length;
-  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proficiente').length;
-  const proximos = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proximo').length;
-  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'abaixo').length;
+  const studentsWithTri = data.allStudents.filter(s => s.triScore !== null && s.triScore !== undefined);
+  const withTriCount = studentsWithTri.length;
+  const proficientes = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'proficiente').length;
+  const proximos = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'proximo').length;
+  const abaixo = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'abaixo').length;
+  const totalHint = withTriCount !== totalStudents ? `${withTriCount} com TRI` : undefined;
 
   Logger.info('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
+    withTriCount,
     proficientes,
     proximos,
     abaixo,
@@ -209,7 +214,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" />
+        <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" hint={totalHint} />
         <SummaryCard icon={TrendingUp} label="Proficientes" value={proficientes} color="text-emerald-600 dark:text-emerald-400" />
         <SummaryCard icon={Zap} label="Próximos da proficiência" value={proximos} color="text-amber-600 dark:text-amber-400" />
         <SummaryCard icon={TrendingDown} label="Abaixo da proficiência" value={abaixo} color="text-destructive" />
