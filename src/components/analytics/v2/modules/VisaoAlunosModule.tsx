@@ -415,13 +415,16 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 };
 
 // ── Summary card ──
-const SummaryCard: React.FC<{ icon: React.ElementType; label: string; value: number; color: string }> = ({ icon: Icon, label, value, color }) => (
+const SummaryCard: React.FC<{ icon: React.ElementType; label: string; value: number; color: string; hint?: string }> = ({ icon: Icon, label, value, color, hint }) => (
   <Card>
     <CardContent className="py-3 px-4 flex items-center gap-3">
       <Icon className={`h-5 w-5 ${color} shrink-0`} />
       <div>
         <p className={`text-xl font-bold ${color}`}>{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">
+          {label}
+          {hint && <span className="ml-1 text-muted-foreground/70">· {hint}</span>}
+        </p>
       </div>
     </CardContent>
   </Card>
