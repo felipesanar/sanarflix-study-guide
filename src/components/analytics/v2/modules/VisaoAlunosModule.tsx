@@ -124,7 +124,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     let list = [...data.allStudents];
     if (q) list = list.filter(s => s.nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
     if (segmentFilter !== 'todos') {
-      list = list.filter(s => computeProficiencyStatus(getScoreFor(s)) === segmentFilter);
+      list = list.filter(s => {
+        const hasTri = s.triScore !== null && s.triScore !== undefined;
+        if (!hasTri) return false;
+        return computeProficiencyStatus(s.triScore as number) === segmentFilter;
+      });
     }
     list.sort((a, b) => {
       let cmp = 0;
@@ -190,14 +194,19 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     );
   }
 
-  // Summary stats
+  // Summary stats — proficiency classification applies ONLY to students with a computed TRI score,
+  // to stay consistent with Visão Institucional. Students without TRI are not bucketed.
   const totalStudents = data.allStudents.length;
-  const proficientes = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proficiente').length;
-  const proximos = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'proximo').length;
-  const abaixo = data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === 'abaixo').length;
+  const studentsWithTri = data.allStudents.filter(s => s.triScore !== null && s.triScore !== undefined);
+  const withTriCount = studentsWithTri.length;
+  const proficientes = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'proficiente').length;
+  const proximos = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'proximo').length;
+  const abaixo = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === 'abaixo').length;
+  const totalHint = withTriCount !== totalStudents ? `${withTriCount} com TRI` : undefined;
 
   Logger.info('[VisaoAlunos]', 'Render do módulo', {
     totalStudents,
+    withTriCount,
     proficientes,
     proximos,
     abaixo,
@@ -209,7 +218,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
     <motion.div className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" />
+        <SummaryCard icon={Users} label="Total Alunos" value={totalStudents} color="text-foreground" hint={totalHint} />
         <SummaryCard icon={TrendingUp} label="Proficientes" value={proficientes} color="text-emerald-600 dark:text-emerald-400" />
         <SummaryCard icon={Zap} label="Próximos da proficiência" value={proximos} color="text-amber-600 dark:text-amber-400" />
         <SummaryCard icon={TrendingDown} label="Abaixo da proficiência" value={abaixo} color="text-destructive" />
@@ -251,7 +260,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
             const Icon = seg.icon;
             const isActive = segmentFilter === seg.value;
             const count = seg.value === 'todos' ? data.allStudents.length
-              : data.allStudents.filter(s => computeProficiencyStatus(getScoreFor(s)) === seg.value).length;
+              : studentsWithTri.filter(s => computeProficiencyStatus(s.triScore as number) === seg.value).length;
             return (
               <Button
                 key={seg.value}
@@ -410,13 +419,16 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
 };
 
 // ── Summary card ──
-const SummaryCard: React.FC<{ icon: React.ElementType; label: string; value: number; color: string }> = ({ icon: Icon, label, value, color }) => (
+const SummaryCard: React.FC<{ icon: React.ElementType; label: string; value: number; color: string; hint?: string }> = ({ icon: Icon, label, value, color, hint }) => (
   <Card>
     <CardContent className="py-3 px-4 flex items-center gap-3">
       <Icon className={`h-5 w-5 ${color} shrink-0`} />
       <div>
         <p className={`text-xl font-bold ${color}`}>{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">
+          {label}
+          {hint && <span className="ml-1 text-muted-foreground/70">· {hint}</span>}
+        </p>
       </div>
     </CardContent>
   </Card>
