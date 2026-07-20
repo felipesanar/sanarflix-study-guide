@@ -1,75 +1,38 @@
+## Contexto
 
-## Objetivo
+Na aba **Visão de Alunos** (`/gestor/alunos`), a lista mistura alunos com `triScore` calculado e alunos sem TRI (que caem no fallback `s.percentual`) sem distinção visual. Hoje o valor à direita usa sempre a cor de status de proficiência, o que induz o usuário a interpretar o `%` de acertos como se fosse um Score TRI.
 
-1. Os 5 usuários listados ficam apenas com role `atendimento` (Guilherme, Ketlyn, Rita, Samuel perdem `admin`; Glenda já está OK).
-2. Habilitar Atendimento (CX) a **criar** e **editar** usuários não-admin no painel `/atendimento/usuarios`. Ações críticas (promover/rebaixar admin, excluir, trocar e-mail em massa, edição de roles) continuam exclusivas do admin.
+O sinal de "IES já teve TRI calculado" já existe no ViewModel: `data.headerSummary.triPending` (true = nenhuma nota TRI da IES ainda; conceito indisponível) e `data.headerSummary.conceitoScoped` (null quando não há conceito).
 
-## Mudanças
+## Escopo (apenas front-end, item 1 de 2)
 
-### 1. Banco — dados (`insert` tool, DELETE)
-Remover o role `admin` dos 4 usuários (mantendo `atendimento`):
-- `gdguilherme968@gmail.com`
-- `ketlynivanoski@gmail.com`
-- `ritaolivmoura@gmail.com`
-- `samuel.laila2904@gmail.com`
+Arquivo único: `src/components/analytics/v2/modules/VisaoAlunosModule.tsx` — bloco de renderização de cada aluno (a partir da linha ~295, dentro do map de `sortedStudents`).
 
-### 2. Banco — capability (migration)
-Nova capability `users.edit` (criar + editar campos básicos: nome/IES/semestre). Adicionar na RPC `public.get_access()`:
-- `admin` recebe `users.edit` (já tem `users.manage`, é aditivo).
-- `atendimento` recebe `users.edit` além de `users.support` e `feedbacks.support`.
+## Regras de UI a aplicar
 
-`users.manage` continua sendo exclusivo do admin — cobre roles, exclusão, promover admin, troca de e-mail em massa.
+Para cada aluno na lista, quando `hasTri === false` (isto é, `s.triScore` é `null`/`undefined`):
 
-### 3. Frontend — modelo de acesso
-`src/experiences/access.ts`:
-- Adicionar `'users.edit'` no union `Capability`.
-- Incluir `'users.edit'` em `ADMIN_CAPABILITIES` e `ATENDIMENTO_CAPABILITIES`.
+1. **Substituir o badge de status** ("Abaixo da proficiência", "Próximo…", "Proficiente") por um badge cinza claro (neutro, pouco chamativo), com texto:
+   - `"TRI em Calibração — Mostrando % de Acertos"` quando a IES ainda não teve conceito calculado, sinalizado por `data.headerSummary.triPending === true` (ou `conceitoScoped == null`).
+   - `"Amostra Insuficiente — Mostrando % de Acertos"` caso contrário (a IES já tem conceito, mas este aluno específico não tem `triScore`).
+2. **Esconder o badge auxiliar "X p/ virar"** quando `hasTri` é falso (esse gap não faz sentido sem TRI).
+3. **Cor do valor à direita** (`scoreLabel`) passa a ser cinza neutro (`text-muted-foreground`) para alunos sem TRI. Alunos com TRI mantêm exatamente as cores atuais via `cfg.color`.
 
-### 4. Frontend — `UsuariosPage`
-- Derivar `canEdit = can(access, 'users.edit')`.
-- Renderizar os botões **"Novo usuário"** e **"Cadastro em lote"** quando `canEdit` (hoje só se `canManage`).
-- Card final ("Trocar e-mail em massa") e `BulkEmailUpdateTab` permanecem gated por `canManage`.
-- Passar `canEdit` para `UsersListTable`.
+Alunos com `hasTri === true` permanecem inalterados (badge de status colorido + score colorido).
 
-### 5. Frontend — `UsersListTable`
-Nova prop `canEdit: boolean`. Semântica:
-- Ícone lápis (editar linha): visível se `canEdit`.
-- No modo edição: quando `!canManage`, esconder a coluna de checkboxes de roles (Atendimento edita só nome/IES/semestre).
-- Menu de ações — para atendimento (sem `canManage`) manter apenas: **Reenviar Convite**, **Copiar link de primeiro acesso**, **Copiar link de redefinição**, **Sincronizar Auth**. Ocultar Promover/Remover Admin e Remover Usuário.
-- Checkbox de seleção em massa, barra de bulk (excluir/trocar e-mail em massa), DangerZone de delete: continuam gated por `canManage`.
+### Estilização do badge cinza
 
-### 6. Frontend — `CreateUserDialog`
-- Quando o caller não tem `users.manage` (ou seja, Atendimento): remover as opções `Admin` do select de role (também remover `Gestor`, `Gestor de Grupo`, `Professor` por segurança — Atendimento cria só `aluno` ou `atendimento`), e travar o campo em `aluno` quando o role select estiver oculto.
-- `BulkCreateUsersDialog`: verificar se aceita role no CSV; se aceitar, restringir para Atendimento no client (e a edge rejeita `admin` no servidor mesmo assim).
-
-### 7. Edge Function — `b2b-create-user`
-Hoje exige role `admin` (linha 358–376). Passar a aceitar também `atendimento`:
-- Verificar `has_role(caller, 'admin')` OU `has_role(caller, 'atendimento')`.
-- Se caller é `atendimento` (e não admin): rejeitar (`FORBIDDEN`) quando `body.role === 'admin'` ou `id_ies === B2B_IES_ID` (essa IES concede admin implicitamente).
-- Manter rate limit e audit log; registrar `caller_role` no audit para rastreabilidade.
-
-Demais edge functions administrativas (`delete-user`, `sync-user-auth`, `generate-user-link`, `bulk-email-update`) continuam admin-only — mas Atendimento **precisa** invocar `sync-user-auth` e `generate-user-link` para os itens de menu descritos em §5. Alternativas:
-- Permitir `atendimento` nessas duas funções também (rejeitando quando o alvo tem role `admin`). Recomendado — mantém a UX útil pro CX sem expor exclusão nem troca de e-mail em massa.
-
-## Detalhes técnicos
-
-- SQL da limpeza de roles (via `insert` tool):
-  ```sql
-  DELETE FROM public.user_roles
-  WHERE role = 'admin'
-    AND user_id IN (
-      SELECT id FROM public.users
-      WHERE lower(email) IN (
-        'gdguilherme968@gmail.com','ketlynivanoski@gmail.com',
-        'ritaolivmoura@gmail.com','samuel.laila2904@gmail.com'
-      )
-    );
-  ```
-- Migration em `get_access()`: substituir o bloco de capabilities do `admin` e do `atendimento` acrescentando `'users.edit'`.
-- Depois de aplicar, os 4 usuários precisam relogar para o novo `get_access` refletir no cliente (o AuthContext refaz a chamada no boot; um refresh basta).
+Usar tokens semânticos, sem hardcode: variante `outline` com `bg-muted/40 text-muted-foreground border-border` (mesmo peso visual de `text-[10px] px-1.5 py-0 h-5`). Sem ícone para reforçar o tom informativo/neutro.
 
 ## Fora de escopo
 
-- Não altero RLS de `public.user_roles` — Atendimento não vai editar roles pelo frontend.
-- Não mexo em `delete-user` nem no fluxo de exclusão (continua admin-only, como pedido: "criar novos usuários... e editar também").
-- Não mudo o portal do `/admin` — Atendimento não entra nele; usa `/atendimento/usuarios`.
+- Nenhuma mudança em RPC, mapper (`mapInstitutionalData.ts`) ou tipos.
+- Nenhuma mudança nos cards de resumo do topo, filtros, ordenação, drawer de detalhes ou aba **Temas**.
+- Item 2 do usuário será tratado em etapa separada, após aprovação deste.
+
+## Verificação
+
+Após a edição, checar visualmente em `/gestor/alunos` (com simulado sem TRI e com TRI parcial) que:
+- Alunos sem TRI mostram badge cinza com o texto correto conforme `triPending`.
+- Score `%` desses alunos aparece em cinza neutro.
+- Alunos com TRI seguem idênticos ao comportamento atual.
