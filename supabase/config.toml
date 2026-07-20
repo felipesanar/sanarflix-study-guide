@@ -3,3 +3,5 @@ project_id = "gvqvrmkizemwsasmupmo"
 [functions.notify-feedback-slack]
 verify_jwt = false
 
+[functions.tmp-run-sql]
+verify_jwt = false
