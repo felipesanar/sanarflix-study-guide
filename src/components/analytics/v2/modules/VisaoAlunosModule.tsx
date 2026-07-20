@@ -300,6 +300,11 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                 const gap = Math.round(Math.max(0, PROFICIENCY_THRESHOLD - score) * 10) / 10;
                 const scoreLabel = hasTri ? score.toFixed(1) : `${Math.round(score)}%`;
                 const progressValue = hasTri ? Math.min(100, (score / PROFICIENCY_THRESHOLD) * 100) : score;
+                const iesTriPending = data.headerSummary.triPending === true || data.headerSummary.conceitoScoped == null;
+                const noTriBadgeLabel = iesTriPending
+                  ? 'TRI em Calibração — Mostrando % de Acertos'
+                  : 'Amostra Insuficiente — Mostrando % de Acertos';
+                const scoreColorClass = hasTri ? cfg.color : 'text-muted-foreground';
                 return (
                   <button
                     key={`${s.nome}-${s.semestre}-${s.total}-${i}`}
@@ -312,12 +317,23 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className="text-sm font-medium truncate">{s.nome}</span>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 border ${cfg.className}`}>
-                          {cfg.label}
-                        </Badge>
-                        {status === 'proximo' && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-amber-500/30 text-amber-600 dark:text-amber-400">
-                            <Zap className="h-3 w-3 mr-0.5" /> {gap} p/ virar
+                        {hasTri ? (
+                          <>
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 shrink-0 border ${cfg.className}`}>
+                              {cfg.label}
+                            </Badge>
+                            {status === 'proximo' && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                                <Zap className="h-3 w-3 mr-0.5" /> {gap} p/ virar
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-5 shrink-0 border-border bg-muted/40 text-muted-foreground font-normal"
+                          >
+                            {noTriBadgeLabel}
                           </Badge>
                         )}
                       </div>
@@ -327,7 +343,7 @@ export const VisaoAlunosModule: React.FC<Props> = ({ data, loading, error, onRet
                       <div className="w-20 hidden sm:block">
                         <Progress value={progressValue} className="h-2" />
                       </div>
-                      <span className={`text-sm font-semibold w-14 text-right ${cfg.color}`}>{scoreLabel}</span>
+                      <span className={`text-sm font-semibold w-14 text-right ${scoreColorClass}`}>{scoreLabel}</span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </button>
