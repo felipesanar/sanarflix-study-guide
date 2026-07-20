@@ -1,38 +1,41 @@
-## Contexto
+## Problema
 
-Na aba **Visão de Alunos** (`/gestor/alunos`), a lista mistura alunos com `triScore` calculado e alunos sem TRI (que caem no fallback `s.percentual`) sem distinção visual. Hoje o valor à direita usa sempre a cor de status de proficiência, o que induz o usuário a interpretar o `%` de acertos como se fosse um Score TRI.
+Na aba **Visão de Alunos**, os cards de resumo (Proficientes / Próximos / Abaixo) estão contando **todos os alunos** — inclusive os que não têm nota TRI calculada — usando o percentual de acertos como fallback para classificar proficiência. Isso gera divergência com a **Visão Institucional**, que só classifica alunos com TRI.
 
-O sinal de "IES já teve TRI calculado" já existe no ViewModel: `data.headerSummary.triPending` (true = nenhuma nota TRI da IES ainda; conceito indisponível) e `data.headerSummary.conceitoScoped` (null quando não há conceito).
+Exemplo real observado:
+- Visão Institucional: 8 proficientes / 20 alunos (6º ano).
+- Visão de Alunos: 23 proficientes (contando alunos sem TRI via %).
 
-## Escopo (apenas front-end, item 1 de 2)
+## Causa
 
-Arquivo único: `src/components/analytics/v2/modules/VisaoAlunosModule.tsx` — bloco de renderização de cada aluno (a partir da linha ~295, dentro do map de `sortedStudents`).
+Em `src/components/analytics/v2/modules/VisaoAlunosModule.tsx`:
 
-## Regras de UI a aplicar
+- `getScoreFor(s)` retorna `triScore` quando existe, senão `percentual` (fallback).
+- Os contadores `proficientes / proximos / abaixo` (linhas 195–197) e o `count` dos chips de segmento (linha 254) aplicam `computeProficiencyStatus(getScoreFor(s))` sobre **todos** os alunos, incluindo os sem TRI.
 
-Para cada aluno na lista, quando `hasTri === false` (isto é, `s.triScore` é `null`/`undefined`):
+Regra correta (confirmada pelo usuário): **classificação de proficiência só se aplica a alunos com `triScore` calculado**. Alunos sem TRI não entram em nenhum bucket de proficiência.
 
-1. **Substituir o badge de status** ("Abaixo da proficiência", "Próximo…", "Proficiente") por um badge cinza claro (neutro, pouco chamativo), com texto:
-   - `"TRI em Calibração — Mostrando % de Acertos"` quando a IES ainda não teve conceito calculado, sinalizado por `data.headerSummary.triPending === true` (ou `conceitoScoped == null`).
-   - `"Amostra Insuficiente — Mostrando % de Acertos"` caso contrário (a IES já tem conceito, mas este aluno específico não tem `triScore`).
-2. **Esconder o badge auxiliar "X p/ virar"** quando `hasTri` é falso (esse gap não faz sentido sem TRI).
-3. **Cor do valor à direita** (`scoreLabel`) passa a ser cinza neutro (`text-muted-foreground`) para alunos sem TRI. Alunos com TRI mantêm exatamente as cores atuais via `cfg.color`.
+## Mudanças (somente front, escopo restrito ao módulo)
 
-Alunos com `hasTri === true` permanecem inalterados (badge de status colorido + score colorido).
+Arquivo único: `src/components/analytics/v2/modules/VisaoAlunosModule.tsx`.
 
-### Estilização do badge cinza
+1. Criar um subconjunto `studentsWithTri = data.allStudents.filter(s => s.triScore != null)` uma única vez (via `useMemo`).
+2. Recalcular os cards de resumo sobre esse subconjunto:
+   - `proficientes = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore) === 'proficiente').length`
+   - idem para `proximos` e `abaixo`.
+   - `Total Alunos` continua `data.allStudents.length` (mantém a leitura de "quantos alunos participaram"), mas adicionar um subtítulo/hint discreto no card indicando quantos têm TRI calculado quando houver diferença — ex.: `"41 · 20 com TRI"`. Isso mantém coerência visual com a Institucional (que trabalha sobre a base com TRI) sem esconder a base total de participantes.
+3. Ajustar os chips de segmento (`SEGMENT_OPTIONS`) na linha ~254:
+   - `count` dos chips `proficiente / proximo / abaixo` passa a considerar somente `studentsWithTri`.
+   - `count` do chip `todos` continua `data.allStudents.length`.
+   - Ao aplicar um filtro de segmento de proficiência, a lista filtrada (`sortedStudents`, linha 127) também exclui alunos sem TRI. O chip `todos` mantém o comportamento atual (mostra todos, incluindo os sem TRI, que já ficam em cinza pela alteração anterior).
+4. Log `[VisaoAlunos] Render do módulo` passa a incluir `studentsWithTri.length` para facilitar auditoria futura.
 
-Usar tokens semânticos, sem hardcode: variante `outline` com `bg-muted/40 text-muted-foreground border-border` (mesmo peso visual de `text-[10px] px-1.5 py-0 h-5`). Sem ícone para reforçar o tom informativo/neutro.
+Nenhuma alteração em RPC, tipos, `computeProficiencyStatus`, `VisaoInstitucionalModule`, badges dos alunos individuais (o comportamento neutro em cinza para alunos sem TRI, adicionado no item anterior, permanece inalterado) ou lógica de "TRI em Calibração / Amostra Insuficiente".
 
-## Fora de escopo
+## Validação
 
-- Nenhuma mudança em RPC, mapper (`mapInstitutionalData.ts`) ou tipos.
-- Nenhuma mudança nos cards de resumo do topo, filtros, ordenação, drawer de detalhes ou aba **Temas**.
-- Item 2 do usuário será tratado em etapa separada, após aprovação deste.
-
-## Verificação
-
-Após a edição, checar visualmente em `/gestor/alunos` (com simulado sem TRI e com TRI parcial) que:
-- Alunos sem TRI mostram badge cinza com o texto correto conforme `triPending`.
-- Score `%` desses alunos aparece em cinza neutro.
-- Alunos com TRI seguem idênticos ao comportamento atual.
+Após aplicar, com o simulado atual (Funepe / Simulado FUNEPE / 6º ano):
+- Card **Proficientes** da Visão de Alunos deve bater com o número da Visão Institucional (ex.: 8).
+- Soma `Proficientes + Próximos + Abaixo` = total de alunos com TRI (nunca inclui alunos sem TRI).
+- Chips de segmento de proficiência refletem os mesmos números dos cards.
+- Filtro `todos` continua listando todos os alunos, com os sem TRI em cinza.
