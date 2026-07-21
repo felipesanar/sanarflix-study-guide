@@ -1,41 +1,20 @@
-## Problema
+Ao entrar em `/gestor`, redirecionar para `/gestor/visao-institucional` preservando a querystring, para que a aba "Visão Institucional" já apareça selecionada e com os dados carregados sem o usuário precisar clicar.
 
-Na aba **Visão de Alunos**, os cards de resumo (Proficientes / Próximos / Abaixo) estão contando **todos os alunos** — inclusive os que não têm nota TRI calculada — usando o percentual de acertos como fallback para classificar proficiência. Isso gera divergência com a **Visão Institucional**, que só classifica alunos com TRI.
+## Diagnóstico
+- `/gestor` (index) renderiza `GestorIndexRedirect` (`src/experiences/gestor/GestorFeatureGate.tsx`).
+- Hoje ele espera `useEffectiveFeatures().loading` terminar; enquanto isso retorna `null`. O layout pai (`GestorLayout`) já pintou header, filtros e abas — daí a tela do print: abas visíveis, conteúdo vazio.
+- O `<Navigate>` atual também descarta `location.search`, então links legados `/gestor?modulo=…&iesId=…&simuladoId=…` perdem os filtros.
 
-Exemplo real observado:
-- Visão Institucional: 8 proficientes / 20 alunos (6º ano).
-- Visão de Alunos: 23 proficientes (contando alunos sem TRI via %).
+## Mudança (apenas frontend, escopo mínimo)
+Arquivo único: `src/experiences/gestor/GestorFeatureGate.tsx`, apenas em `GestorIndexRedirect`:
 
-## Causa
+1. Redirecionar imediatamente para `/gestor/visao-institucional` (a rota filha já é protegida por `GestorFeatureGate` com a feature `gestao.visao_institucional`, então a verificação de feature continua acontecendo lá — não precisa duplicar aqui).
+2. Preservar `location.search` no destino do `<Navigate>` (via `useLocation`), para manter `iesId`, `simuladoId` e demais filtros da URL.
+3. Manter o fallback atual (primeiro item disponível do `filterGestorNav`, senão `getDefaultRouteForUser`) para o caso — raro — de a feature `gestao.visao_institucional` estar desligada para a IES: nesse cenário, o gate da rota filha manda de volta a `/gestor`, e aí aguardamos `loading` e caímos no próximo módulo liberado.
 
-Em `src/components/analytics/v2/modules/VisaoAlunosModule.tsx`:
-
-- `getScoreFor(s)` retorna `triScore` quando existe, senão `percentual` (fallback).
-- Os contadores `proficientes / proximos / abaixo` (linhas 195–197) e o `count` dos chips de segmento (linha 254) aplicam `computeProficiencyStatus(getScoreFor(s))` sobre **todos** os alunos, incluindo os sem TRI.
-
-Regra correta (confirmada pelo usuário): **classificação de proficiência só se aplica a alunos com `triScore` calculado**. Alunos sem TRI não entram em nenhum bucket de proficiência.
-
-## Mudanças (somente front, escopo restrito ao módulo)
-
-Arquivo único: `src/components/analytics/v2/modules/VisaoAlunosModule.tsx`.
-
-1. Criar um subconjunto `studentsWithTri = data.allStudents.filter(s => s.triScore != null)` uma única vez (via `useMemo`).
-2. Recalcular os cards de resumo sobre esse subconjunto:
-   - `proficientes = studentsWithTri.filter(s => computeProficiencyStatus(s.triScore) === 'proficiente').length`
-   - idem para `proximos` e `abaixo`.
-   - `Total Alunos` continua `data.allStudents.length` (mantém a leitura de "quantos alunos participaram"), mas adicionar um subtítulo/hint discreto no card indicando quantos têm TRI calculado quando houver diferença — ex.: `"41 · 20 com TRI"`. Isso mantém coerência visual com a Institucional (que trabalha sobre a base com TRI) sem esconder a base total de participantes.
-3. Ajustar os chips de segmento (`SEGMENT_OPTIONS`) na linha ~254:
-   - `count` dos chips `proficiente / proximo / abaixo` passa a considerar somente `studentsWithTri`.
-   - `count` do chip `todos` continua `data.allStudents.length`.
-   - Ao aplicar um filtro de segmento de proficiência, a lista filtrada (`sortedStudents`, linha 127) também exclui alunos sem TRI. O chip `todos` mantém o comportamento atual (mostra todos, incluindo os sem TRI, que já ficam em cinza pela alteração anterior).
-4. Log `[VisaoAlunos] Render do módulo` passa a incluir `studentsWithTri.length` para facilitar auditoria futura.
-
-Nenhuma alteração em RPC, tipos, `computeProficiencyStatus`, `VisaoInstitucionalModule`, badges dos alunos individuais (o comportamento neutro em cinza para alunos sem TRI, adicionado no item anterior, permanece inalterado) ou lógica de "TRI em Calibração / Amostra Insuficiente".
+Nenhuma alteração em rotas, providers, hooks de dados, layout ou lógica de negócio.
 
 ## Validação
-
-Após aplicar, com o simulado atual (Funepe / Simulado FUNEPE / 6º ano):
-- Card **Proficientes** da Visão de Alunos deve bater com o número da Visão Institucional (ex.: 8).
-- Soma `Proficientes + Próximos + Abaixo` = total de alunos com TRI (nunca inclui alunos sem TRI).
-- Chips de segmento de proficiência refletem os mesmos números dos cards.
-- Filtro `todos` continua listando todos os alunos, com os sem TRI em cinza.
+- Abrir `/gestor` → URL passa a `/gestor/visao-institucional`, aba destacada, dados renderizados.
+- Abrir `/gestor?iesId=…&simuladoId=…` → URL passa a `/gestor/visao-institucional?iesId=…&simuladoId=…`, filtros preservados.
+- IES com `gestao.visao_institucional` desligada mas outros módulos ligados → cai no primeiro módulo disponível (comportamento atual).

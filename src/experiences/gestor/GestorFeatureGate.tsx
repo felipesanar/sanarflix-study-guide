@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
 import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
@@ -28,18 +28,31 @@ export const GestorFeatureGate: React.FC<GestorFeatureGateProps> = ({
 };
 
 /**
- * Index de `/gestor`: redireciona para a primeira tela ligada (nav já
- * filtrada por capability+feature). Sem nenhuma tela ligada, sai do portal
- * para a experiência base do usuário (sem considerar gestao, para não
- * voltar aqui).
+ * Index de `/gestor`: por padrão vai direto para "Visão Institucional"
+ * (preservando querystring), sem esperar o carregamento das features — a
+ * própria rota filha é gated por `GestorFeatureGate`. Se essa feature estiver
+ * desligada para a IES, o gate devolve para `/gestor` e aí caímos no fallback:
+ * primeiro módulo liberado, senão a rota default do usuário.
  */
 export const GestorIndexRedirect: React.FC = () => {
+  const location = useLocation();
   const { user, access } = useAuth();
   const { accessRules } = useAccessRules();
   const { hasFeature, loading } = useEffectiveFeatures();
-  if (loading) return null;
+
+  // Caminho feliz: manda direto para Visão Institucional, mantendo os
+  // parâmetros de URL (iesId, simuladoId, etc).
+  if (loading || hasFeature('gestao.visao_institucional')) {
+    return <Navigate to={{ pathname: '/gestor/visao-institucional', search: location.search }} replace />;
+  }
+
+  // Fallback: primeiro módulo do gestor liberado para a IES/usuário.
   const first = filterGestorNav(GESTOR_NAV, access, hasFeature)[0];
-  if (first) return <Navigate to={first.url} replace />;
+  if (first) {
+    return <Navigate to={{ pathname: first.url, search: location.search }} replace />;
+  }
+
+  // Sem nenhum módulo do gestor liberado: sai do portal.
   return (
     <Navigate
       to={getDefaultRouteForUser(user, { ...accessRules, desempenhoInstitucional: false }, access)}
@@ -47,3 +60,4 @@ export const GestorIndexRedirect: React.FC = () => {
     />
   );
 };
+
