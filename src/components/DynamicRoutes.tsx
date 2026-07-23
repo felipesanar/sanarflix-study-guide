@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
 import { buildAppRoutes } from '@/experiences/buildAppRoutes';
 import { PasswordChangeModal } from '@/components/PasswordChangeModal';
+import { PhoneCollectionModal } from '@/components/PhoneCollectionModal';
 import { HomePageSkeleton } from '@/components/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
