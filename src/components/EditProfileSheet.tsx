@@ -38,6 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { maskPhone, onlyDigits, isValidBrPhone } from "@/utils/phone";
 
 interface EditProfileSheetProps {
   open: boolean;
@@ -62,6 +63,9 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingSemestre, setPendingSemestre] = useState<number | null>(null);
   const [nameSuccess, setNameSuccess] = useState(false);
+  const [telefone, setTelefone] = useState(maskPhone(user?.telefone ?? ""));
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneSuccess, setPhoneSuccess] = useState(false);
 
   // Track mounted state
   useEffect(() => {
@@ -75,6 +79,8 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
     setNome(user.nome ?? "");
     setSemestre(user.semestre);
     setNameSuccess(false);
+    setTelefone(maskPhone(user.telefone ?? ""));
+    setPhoneSuccess(false);
 
     supabase
       .from("users")
@@ -86,7 +92,7 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
           setSemestreUpdatedAt((data as any)?.semestre_updated_at ?? null);
         }
       });
-  }, [open, user?.id, user?.nome, user?.semestre]);
+  }, [open, user?.id, user?.nome, user?.semestre, user?.telefone]);
 
   const cooldownEnd = semestreUpdatedAt
     ? new Date(new Date(semestreUpdatedAt).getTime() + COOLDOWN_DAYS * 86400000)
@@ -119,6 +125,46 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
       toast.error(e?.message || "Erro ao atualizar nome.");
     } finally {
       if (mountedRef.current) setSavingName(false);
+    }
+  };
+
+  const telefoneDigits = onlyDigits(telefone);
+  const savedTelefoneDigits = onlyDigits(user?.telefone ?? "");
+  const telefoneValid = isValidBrPhone(telefoneDigits);
+  const telefoneChanged = telefoneDigits !== savedTelefoneDigits;
+  const telefoneError =
+    telefoneDigits.length === 0 && savedTelefoneDigits.length > 0
+      ? "O telefone não pode ficar vazio."
+      : telefoneDigits.length > 0 && !telefoneValid
+      ? "Informe DDD + número (10 ou 11 dígitos)."
+      : "";
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTelefone(maskPhone(e.target.value));
+  };
+
+  const handleSavePhone = async () => {
+    if (!user || !telefoneValid || !telefoneChanged || savingPhone) return;
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase.rpc("set_my_phone", {
+        p_telefone: telefoneDigits,
+      });
+
+      if (error) throw error;
+
+      await forceRefreshProfile();
+      if (mountedRef.current) {
+        setPhoneSuccess(true);
+        setTimeout(() => {
+          if (mountedRef.current) setPhoneSuccess(false);
+        }, 2000);
+      }
+      toast.success("Telefone atualizado com sucesso!");
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao atualizar telefone.");
+    } finally {
+      if (mountedRef.current) setSavingPhone(false);
     }
   };
 
@@ -243,6 +289,53 @@ export function EditProfileSheet({ open, onOpenChange, source = 'profile_edit' }
         >
           {savingName && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
           Salvar nome
+        </Button>
+      </div>
+
+      {/* Phone Section */}
+      <div className="space-y-2">
+        <Label htmlFor="edit-telefone" className="text-sm font-medium">
+          Telefone
+        </Label>
+        <div className="relative">
+          <Input
+            id="edit-telefone"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            value={telefone}
+            onChange={handlePhoneChange}
+            placeholder="(11) 91234-5678"
+            maxLength={16}
+            className="pr-10"
+            aria-describedby="telefone-error"
+          />
+          <AnimatePresence>
+            {phoneSuccess && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <Check className="h-4 w-4 text-emerald-500" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        {telefoneError && (
+          <p id="telefone-error" className="text-xs text-destructive" role="alert">
+            {telefoneError}
+          </p>
+        )}
+        <Button
+          size="sm"
+          onClick={handleSavePhone}
+          disabled={!telefoneValid || !telefoneChanged || savingPhone}
+          className="w-full"
+        >
+          {savingPhone && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          Salvar telefone
         </Button>
       </div>
 

@@ -1,0 +1,34 @@
+/**
+ * Utilitários para manipulação de telefone brasileiro, extraídos de
+ * PhoneCollectionModal para reuso (ex.: EditProfileSheet).
+ */
+
+/** Remove tudo que não for dígito. */
+export function onlyDigits(raw: string): string {
+  return raw.replace(/\D/g, '');
+}
+
+/**
+ * Aplica máscara brasileira progressiva: (XX) XXXX-XXXX (fixo) ou
+ * (XX) XXXXX-XXXX (celular). Recebe qualquer entrada e devolve o
+ * texto formatado com base apenas nos dígitos.
+ */
+export function maskPhone(raw: string): string {
+  const digits = onlyDigits(raw).slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length < 3) return `(${digits}`;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  if (rest.length <= 8) {
+    // fixo: 4 + 4
+    return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  }
+  // celular: 5 + 4
+  return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+}
+
+/** Verdadeiro se os dígitos formam um telefone BR válido (DDD + 8 ou 9 dígitos). */
+export function isValidBrPhone(digits: string): boolean {
+  return digits.length === 10 || digits.length === 11;
+}

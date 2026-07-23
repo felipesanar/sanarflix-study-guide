@@ -437,7 +437,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       Logger.info('login_success', { user_id: userData.id, needsPasswordChange: data.needsPasswordChange || false, roles_count: Array.isArray(userData.roles) ? userData.roles.length : 0 });
       
       broadcast({ type: 'LOGIN', data: userData });
-      
+
+      // Refresh imediato em background: a edge auth-login não devolve `telefone`
+      // (fica undefined) e, num login sem cache prévio, o handler de SIGNED_IN
+      // não refresca — sem isto o gate de telefone (telefone === null explícito)
+      // só abriria na próxima sessão/visibilitychange.
+      refreshUserProfile(userData.id, true).catch(() => {});
+
       import('../utils/performanceCache').then(({ performanceCache }) => {
         performanceCache.setUserData(userData);
       });

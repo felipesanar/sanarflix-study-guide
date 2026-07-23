@@ -13,29 +13,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Phone } from 'lucide-react';
+import { maskPhone, onlyDigits, isValidBrPhone } from '@/utils/phone';
 
 interface PhoneCollectionModalProps {
   isOpen: boolean;
-}
-
-/**
- * Aplica máscara brasileira progressiva: (XX) XXXX-XXXX (fixo) ou
- * (XX) XXXXX-XXXX (celular). Recebe qualquer entrada e devolve o
- * texto formatado com base apenas nos dígitos.
- */
-function maskPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 11);
-  if (digits.length === 0) return '';
-  if (digits.length < 3) return `(${digits}`;
-  const ddd = digits.slice(0, 2);
-  const rest = digits.slice(2);
-  if (rest.length <= 4) return `(${ddd}) ${rest}`;
-  if (rest.length <= 8) {
-    // fixo: 4 + 4
-    return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
-  }
-  // celular: 5 + 4
-  return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
 }
 
 export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOpen }) => {
@@ -53,8 +34,8 @@ export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOp
     e.preventDefault();
     setError('');
 
-    const digits = value.replace(/\D/g, '');
-    if (digits.length !== 10 && digits.length !== 11) {
+    const digits = onlyDigits(value);
+    if (!isValidBrPhone(digits)) {
       setError('Informe DDD + número (10 ou 11 dígitos).');
       return;
     }
