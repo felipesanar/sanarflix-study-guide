@@ -1946,6 +1946,8 @@ export type Database = {
           nome: string
           semestre: number | null
           semestre_updated_at: string | null
+          telefone: string | null
+          telefone_updated_at: string | null
         }
         Insert: {
           email: string
@@ -1954,6 +1956,8 @@ export type Database = {
           nome: string
           semestre?: number | null
           semestre_updated_at?: string | null
+          telefone?: string | null
+          telefone_updated_at?: string | null
         }
         Update: {
           email?: string
@@ -1962,6 +1966,8 @@ export type Database = {
           nome?: string
           semestre?: number | null
           semestre_updated_at?: string | null
+          telefone?: string | null
+          telefone_updated_at?: string | null
         }
         Relationships: [
           {
@@ -2367,6 +2373,7 @@ export type Database = {
         Args: { p_confidence: string; p_entry_id: string; p_outcome: string }
         Returns: Json
       }
+      set_my_phone: { Args: { p_telefone: string }; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
