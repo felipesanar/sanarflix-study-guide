@@ -71,9 +71,28 @@ export const DynamicRoutes: React.FC = () => {
     );
   }
 
+  // Gate de coleta de telefone: obrigatório para alunos puros (sem roles) e
+  // professores. Equipe interna (admin/gestor/gestor_grupo/atendimento) fica
+  // fora. Só reage a telefone === null explícito (undefined = desconhecido,
+  // evita flash de modal para quem já preencheu). Prioridade do gate de senha
+  // é respeitada; durante impersonação, admin não pode preencher por outrem.
+  const rolesArr = user?.roles ?? [];
+  const isStaff = rolesArr.some((r) =>
+    ['admin', 'gestor', 'gestor_grupo', 'atendimento'].includes(r),
+  );
+  const isGatedProfile =
+    !isStaff && (rolesArr.length === 0 || rolesArr.includes('professor'));
+  const showPhoneGate =
+    !!user &&
+    user.telefone === null &&
+    !needsPasswordChange &&
+    !isImpersonating &&
+    isGatedProfile;
+
   return (
     <>
       <PasswordChangeModal isOpen={needsPasswordChange} />
+      <PhoneCollectionModal isOpen={showPhoneGate} />
       <Suspense fallback={<HomePageSkeleton />}>{element}</Suspense>
     </>
   );
