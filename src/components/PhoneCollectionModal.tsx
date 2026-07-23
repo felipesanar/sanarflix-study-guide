@@ -1,0 +1,135 @@
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { Phone } from 'lucide-react';
+
+interface PhoneCollectionModalProps {
+  isOpen: boolean;
+}
+
+/**
+ * Aplica máscara brasileira progressiva: (XX) XXXX-XXXX (fixo) ou
+ * (XX) XXXXX-XXXX (celular). Recebe qualquer entrada e devolve o
+ * texto formatado com base apenas nos dígitos.
+ */
+function maskPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if (digits.length === 0) return '';
+  if (digits.length < 3) return `(${digits}`;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  if (rest.length <= 8) {
+    // fixo: 4 + 4
+    return `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
+  }
+  // celular: 5 + 4
+  return `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`;
+}
+
+export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOpen }) => {
+  const { forceRefreshProfile } = useAuth();
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(maskPhone(e.target.value));
+    if (error) setError('');
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const digits = value.replace(/\D/g, '');
+    if (digits.length !== 10 && digits.length !== 11) {
+      setError('Informe DDD + número (10 ou 11 dígitos).');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error: rpcError } = await supabase.rpc('set_my_phone', {
+        p_telefone: digits,
+      });
+      if (rpcError) throw rpcError;
+
+      // Atualiza user no contexto e no localStorage relendo public.users.
+      await forceRefreshProfile();
+
+      toast({
+        title: 'Telefone atualizado',
+        description: 'Obrigado! Seu cadastro está completo.',
+        duration: 3000,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Erro ao salvar telefone';
+      toast({
+        title: 'Não foi possível salvar',
+        description: message,
+        variant: 'destructive',
+        duration: 4000,
+      });
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen}>
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Atualize seu cadastro
+          </DialogTitle>
+          <DialogDescription>
+            Precisamos do seu telefone para contato. Informe um número com DDD
+            (fixo ou celular).
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="telefone">Telefone</Label>
+            <Input
+              id="telefone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              value={value}
+              onChange={handleChange}
+              placeholder="(11) 91234-5678"
+              maxLength={16}
+              required
+            />
+          </div>
+
+          {error && <div className="text-sm text-destructive">{error}</div>}
+
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? 'Salvando...' : 'Salvar telefone'}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};

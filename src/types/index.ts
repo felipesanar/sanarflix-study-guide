@@ -18,6 +18,12 @@ export interface User {
   id_ies: string;       // UUID da instituição "principal" do usuário (pode ser vazio para gestor_grupo puro)
   ies_nome: string;     // nome da IES (obtido via JOIN)
   semestre?: number;
+  /**
+   * Telefone do usuário (apenas dígitos, DDD + número). `null` explícito
+   * quando o cadastro ainda não foi preenchido — o gate de coleta reage
+   * exclusivamente a `null` (undefined = desconhecido, não abre modal).
+   */
+  telefone?: string | null;
   roles?: string[];     // User roles from user_roles table
   /**
    * Lista de IES acessíveis pelo usuário: união entre `id_ies` próprio e

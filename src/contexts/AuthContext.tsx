@@ -80,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const [profileResult, rolesResult, accessibleIdsResult, groupsResult, accessResult] = await Promise.all([
         supabase
           .from('users')
-          .select('id, email, nome, id_ies, semestre, ies:id_ies(nome)')
+          .select('id, email, nome, id_ies, semestre, telefone, ies:id_ies(nome)')
           .eq('id', userId)
           .maybeSingle(),
         supabase.rpc('get_user_roles', { _user_id: userId }),
@@ -142,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id_ies: row.id_ies ?? '',
         ies_nome: iesNome,
         semestre: row.semestre ?? undefined,
+        telefone: row.telefone ?? null,
         roles,
         accessible_ies: accessibleIes,
         groups,

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAccessRules } from '@/hooks/useAccessRules';
 import { buildAppRoutes } from '@/experiences/buildAppRoutes';
 import { PasswordChangeModal } from '@/components/PasswordChangeModal';
+import { PhoneCollectionModal } from '@/components/PhoneCollectionModal';
 import { HomePageSkeleton } from '@/components/skeletons';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ import { Button } from '@/components/ui/button';
  * `ies_features` ainda estão sendo carregadas.
  */
 export const DynamicRoutes: React.FC = () => {
-  const { user, access, needsPasswordChange } = useAuth();
+  const { user, access, needsPasswordChange, isImpersonating } = useAuth();
   const { accessRules, loading, refetching, error, refetch } = useAccessRules();
 
   // useRoutes é um hook: deve ser chamado incondicionalmente, antes de
@@ -70,9 +71,28 @@ export const DynamicRoutes: React.FC = () => {
     );
   }
 
+  // Gate de coleta de telefone: obrigatório para alunos puros (sem roles) e
+  // professores. Equipe interna (admin/gestor/gestor_grupo/atendimento) fica
+  // fora. Só reage a telefone === null explícito (undefined = desconhecido,
+  // evita flash de modal para quem já preencheu). Prioridade do gate de senha
+  // é respeitada; durante impersonação, admin não pode preencher por outrem.
+  const rolesArr = user?.roles ?? [];
+  const isStaff = rolesArr.some((r) =>
+    ['admin', 'gestor', 'gestor_grupo', 'atendimento'].includes(r),
+  );
+  const isGatedProfile =
+    !isStaff && (rolesArr.length === 0 || rolesArr.includes('professor'));
+  const showPhoneGate =
+    !!user &&
+    user.telefone === null &&
+    !needsPasswordChange &&
+    !isImpersonating &&
+    isGatedProfile;
+
   return (
     <>
       <PasswordChangeModal isOpen={needsPasswordChange} />
+      <PhoneCollectionModal isOpen={showPhoneGate} />
       <Suspense fallback={<HomePageSkeleton />}>{element}</Suspense>
     </>
   );
