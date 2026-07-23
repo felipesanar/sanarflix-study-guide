@@ -142,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id_ies: row.id_ies ?? '',
         ies_nome: iesNome,
         semestre: row.semestre ?? undefined,
+        telefone: row.telefone ?? null,
         roles,
         accessible_ies: accessibleIes,
         groups,
