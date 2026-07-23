@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
  * `ies_features` ainda estão sendo carregadas.
  */
 export const DynamicRoutes: React.FC = () => {
-  const { user, access, needsPasswordChange } = useAuth();
+  const { user, access, needsPasswordChange, isImpersonating } = useAuth();
   const { accessRules, loading, refetching, error, refetch } = useAccessRules();
 
   // useRoutes é um hook: deve ser chamado incondicionalmente, antes de
