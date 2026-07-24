@@ -39,6 +39,7 @@ interface UseInstitutionalPerformanceResult {
   loading: boolean;
   error: string | null;
   usingMock: boolean;
+  availableSemestres: number[];
   refetch: () => void;
 }
 
