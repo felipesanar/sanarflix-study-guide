@@ -392,5 +392,46 @@ export function useInstitutionalPerformanceData(
     fetchPerformance();
   }, [fetchPerformance]);
 
-  return { data, simulados, iesList, loading, error, usingMock, refetch: fetchPerformance };
+  // Fetch da lista de semestres disponíveis para o simulado/IES atual,
+  // independente do baseMode ativo (para que "Por semestre" mostre todos
+  // os semestres que aplicaram o simulado, mesmo saindo direto do 6º ano).
+  useEffect(() => {
+    const simuladoId = filters.simuladoId;
+    if (!simuladoId) {
+      setAvailableSemestres([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session?.session) return;
+        const requestedIesId = canSeeAllIes
+          ? (filters.iesId || undefined)
+          : isGroupManager
+            ? (filters.iesId || defaultGroupIesId || user?.id_ies || undefined)
+            : (user?.id_ies || undefined);
+        const targetIesId = await resolveIesId(requestedIesId);
+        const cacheKey = `${simuladoId}:${targetIesId}`;
+        const cached = semestresCacheRef.current.get(cacheKey);
+        if (cached) {
+          if (!cancelled) setAvailableSemestres(cached);
+          return;
+        }
+        const scoresData = await fetchStudentScores(simuladoId, targetIesId);
+        const set = new Set<number>();
+        (scoresData?.students ?? []).forEach((s: { semestre?: number | null }) => {
+          if (typeof s.semestre === 'number' && Number.isFinite(s.semestre)) set.add(s.semestre);
+        });
+        const list = Array.from(set).sort((a, b) => a - b);
+        semestresCacheRef.current.set(cacheKey, list);
+        if (!cancelled) setAvailableSemestres(list);
+      } catch (err) {
+        Logger.warn('[DesempenhoInstitucional]', 'Falha ao carregar semestres disponíveis:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [filters.simuladoId, filters.iesId, canSeeAllIes, isGroupManager, defaultGroupIesId, user?.id_ies]);
+
+  return { data, simulados, iesList, loading, error, usingMock, availableSemestres, refetch: fetchPerformance };
 }
