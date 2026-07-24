@@ -16,12 +16,11 @@ import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
-function extractSemestresFromData(data: InstitutionalViewModel) {
-  const sems = new Set<string>();
-  data.allStudents.forEach((s) => {
-    if (s.semestre) sems.add(String(s.semestre));
-  });
-  return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
+function toSemestreOptions(semestres: number[]) {
+  return semestres
+    .slice()
+    .sort((a, b) => a - b)
+    .map((s) => ({ id: String(s), label: `${s}º Semestre` }));
 }
 
 const DebugPanel: React.FC<{ data: InstitutionalViewModel | null; filteredData: InstitutionalViewModel | null }> = ({ data, filteredData }) => {
@@ -69,7 +68,7 @@ const DesempenhoInstitucionalV2: React.FC = () => {
   const [searchParams] = useSearchParams();
   const isDebug = searchParams.get('debug') === 'true';
   const { activeTab, setActiveTab, filters, updateFilter, clearFilters, autoSelectSimulado } = useDesempenhoV2State();
-  const { data, simulados, iesList, loading, error, usingMock, refetch } = useInstitutionalPerformanceData(filters);
+  const { data, simulados, iesList, loading, error, usingMock, availableSemestres: hookAvailableSemestres, refetch } = useInstitutionalPerformanceData(filters);
   const [exportOpen, setExportOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -79,27 +78,19 @@ const DesempenhoInstitucionalV2: React.FC = () => {
 
   const simuladoNome = simulados.find(s => s.id === filters.simuladoId)?.nome;
 
-  // Mantém a lista de semestres disponíveis mesmo quando `data` é null
-  // (caso do modo "Por semestre" antes de qualquer seleção).
-  const [lastSemestresOptions, setLastSemestresOptions] = useState<{ id: string; label: string }[]>([]);
-  useEffect(() => {
-    if (!data) return;
-    const opts = extractSemestresFromData(data);
-    if (opts.length > 0) setLastSemestresOptions(opts);
-  }, [data]);
-
   const FALLBACK_SEMESTRES = useMemo(
     () => Array.from({ length: 12 }, (_, i) => ({ id: String(i + 1), label: `${i + 1}º Semestre` })),
     [],
   );
 
+  // Lista de semestres do dropdown: vem do hook (independente do baseMode ativo),
+  // com fallback 1–12 apenas enquanto o fetch não respondeu no modo "Por semestre".
   const availableSemestres = useMemo(() => {
-    const fromData = data ? extractSemestresFromData(data) : [];
-    if (fromData.length > 0) return fromData;
-    if (lastSemestresOptions.length > 0) return lastSemestresOptions;
+    const fromHook = toSemestreOptions(hookAvailableSemestres);
+    if (fromHook.length > 0) return fromHook;
     if (filters.baseMode === 'semestres') return FALLBACK_SEMESTRES;
     return [];
-  }, [data, lastSemestresOptions, filters.baseMode, FALLBACK_SEMESTRES]);
+  }, [hookAvailableSemestres, filters.baseMode, FALLBACK_SEMESTRES]);
 
   useEffect(() => {
     autoSelectSimulado(simulados);
