@@ -16,12 +16,11 @@ import { AiChatDrawer } from '@/components/analytics/v2/shared/AiChatDrawer';
 import type { InstitutionalViewModel } from '@/types/desempenhoV2';
 import { applyDesempenhoV2Filters } from '@/utils/desempenhoV2Filters';
 
-function extractSemestresFromData(data: InstitutionalViewModel) {
-  const sems = new Set<string>();
-  data.allStudents.forEach((s) => {
-    if (s.semestre) sems.add(String(s.semestre));
-  });
-  return Array.from(sems).sort((a, b) => Number(a) - Number(b)).map((s) => ({ id: s, label: `${s}º Semestre` }));
+function toSemestreOptions(semestres: number[]) {
+  return semestres
+    .slice()
+    .sort((a, b) => a - b)
+    .map((s) => ({ id: String(s), label: `${s}º Semestre` }));
 }
 
 const DebugPanel: React.FC<{ data: InstitutionalViewModel | null; filteredData: InstitutionalViewModel | null }> = ({ data, filteredData }) => {
