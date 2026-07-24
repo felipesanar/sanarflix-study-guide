@@ -73,7 +73,7 @@ export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOp
   return (
     <Dialog open={isOpen}>
       <DialogContent
-        className="sm:max-w-md"
+        className="sm:max-w-md [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
