@@ -73,16 +73,18 @@ export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOp
   return (
     <Dialog open={isOpen}>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="w-[calc(100%-1.5rem)] max-w-md rounded-2xl p-5 sm:p-6 [&>button]:hidden gap-3 sm:gap-4"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
+        <DialogHeader className="space-y-2 text-left">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <Phone className="h-5 w-5 text-primary" />
+          </div>
+          <DialogTitle className="text-lg sm:text-xl">
             Atualize seu cadastro
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Precisamos do seu telefone para contato. Informe um número com DDD
             (fixo ou celular).
           </DialogDescription>
@@ -101,15 +103,21 @@ export const PhoneCollectionModal: React.FC<PhoneCollectionModalProps> = ({ isOp
               placeholder="(11) 91234-5678"
               maxLength={16}
               required
+              className="h-12 text-base"
             />
           </div>
 
           {error && <div className="text-sm text-destructive">{error}</div>}
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="w-full h-12 text-base"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? 'Salvando...' : 'Salvar telefone'}
           </Button>
         </form>
+
       </DialogContent>
     </Dialog>
   );
