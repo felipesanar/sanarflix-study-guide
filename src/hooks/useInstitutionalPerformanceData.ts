@@ -159,6 +159,8 @@ export function useInstitutionalPerformanceData(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [usingMock, setUsingMock] = useState(false);
+  const [availableSemestres, setAvailableSemestres] = useState<number[]>([]);
+  const semestresCacheRef = useRef<Map<string, number[]>>(new Map());
 
   // Determina se o usuário pode ver todas as IES (capability de gestão de IES).
   // Gestores (gestor) e demais perfis ficam restritos à própria IES,
