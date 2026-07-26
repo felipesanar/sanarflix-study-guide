@@ -111,9 +111,35 @@ O handoff diz "proficiente = proficiência **> 60**" e seu caso de teste nº1 af
 
 **Decisão: `>= 60`.** O handoff está errado neste ponto. Mudar o corte alteraria contagem de aluno que o gestor já viu, e a coluna `is_proficient_proprio` do banco já materializa essa semântica. O caso de teste nº1 do handoff deve ser reescrito para "60 **é** proficiente; 59,9 não é".
 
-### 4.4 Níveis de desempenho — pendência de entrada
+### 4.4 Níveis de desempenho — resolvido
 
-O Diagnóstico Curricular classifica em **excelente / mediano / crítico** (3 níveis). A decisão de 24/07 é **não criar régua nova e reusar as réguas do Flix**.
+O Diagnóstico Curricular classifica em **excelente / mediano / crítico** (3 níveis). A decisão de 24/07 é **não criar régua nova e reusar as réguas do Flix**; Felipe confirmou em 25/07: **vale a régua canônica do projeto**.
+
+**Régua canônica em vigor** (`src/utils/mapInstitutionalData.ts:33-39`, `src/utils/desempenhoV2Filters.ts:97-103`), sobre **% de acerto**:
+
+| Faixa | Intervalo |
+|---|---|
+| Insuficiente | 0–30 |
+| Regular | 30–50 |
+| Intermediário | 50–60 |
+| Bom | 60–80 |
+| Excelente | 80–100 |
+
+**Mapeamento 5 faixas → 3 níveis** (decisão desta spec):
+
+| Nível | Corte | Faixas canônicas que absorve |
+|---|---|---|
+| **Crítico** | `acertoPct < 30` | Insuficiente |
+| **Mediano** | `30 <= acertoPct < 80` | Regular · Intermediário · Bom |
+| **Excelente** | `acertoPct >= 80` | Excelente |
+
+Critério: preserva as bordas da régua canônica e coincide com o exemplo dado na reunião de 24/07 (*"abaixo de 30% crítico, acima de 80% excelente"*). Nenhum corte novo é inventado.
+
+> **RISCO A VERIFICAR COM DADO REAL (Fase 0):** "mediano" absorve uma faixa de 50 pontos, e 30% de acerto é um piso muito baixo — na prática o grupo "crítico" pode nascer quase sempre vazio, esvaziando o valor diagnóstico da tela. A Fase 0 roda uma query de distribuição real de % de acerto por grande área nas IES com simulado, e se "crítico" ficar vazio na maioria dos recortes, a alternativa é subir o corte para `< 50` (Insuficiente + Regular). **Decisão baseada em evidência, não em preferência** — e é ajuste de uma constante em `regras.ts`, sem impacto de arquitetura.
+
+Este mapeamento vale para **grande área, especialidade e tema** (as três usam % de acerto). Ele **não** substitui o corte de proficiente do aluno (§4.3), que é `>= 60` sobre proficiência — são métricas e propósitos diferentes.
+
+#### Réguas divergentes a consolidar
 
 O projeto hoje tem cinco réguas incompatíveis:
 
@@ -125,9 +151,7 @@ O projeto hoje tem cinco réguas incompatíveis:
 | Status de KPI | good 60 / warning 40 | % proficientes | `mapInstitutionalData.ts:82-86` |
 | AiChatDrawer (divergente) | conceito 80/60/40/20; risco 45/55/60 | misto | `AiChatDrawer.tsx:68-71,82-88` |
 
-> **PENDÊNCIA BLOQUEANTE — entrada do Felipe.** Felipe fornecerá as réguas oficiais do Flix. Até então, o mapeamento 5 faixas → 3 níveis fica **indefinido** e a implementação do Diagnóstico Curricular não começa. Nada é assumido aqui.
-
-Quando as réguas chegarem, elas entram em **um único módulo** `src/features/gestor/lib/regras.ts` e os 10 pontos de `PROFICIENCY_THRESHOLD` duplicado passam a importar dele. O `AiChatDrawer` é corrigido no mesmo ciclo ou tem seus números removidos.
+A régua canônica e o mapeamento acima entram em **um único módulo** `src/features/gestor/lib/regras.ts`, fonte da verdade do portal novo. Os 10 pontos de `PROFICIENCY_THRESHOLD` duplicado passam a importar dele. O `AiChatDrawer` — que hoje usa conceito 80/60/40/20 e risco 45/55/60, incompatíveis com tudo — é corrigido no mesmo ciclo ou tem seus números removidos.
 
 ### 4.5 Filtro global de semestre
 
@@ -513,7 +537,7 @@ Sem PII em nome de evento ou propriedade.
 
 | # | Pendência | Bloqueia | Responsável |
 |---|---|---|---|
-| 1 | **Réguas oficiais de desempenho do Flix** e mapeamento 5 faixas → 3 níveis (§4.4) | Diagnóstico Curricular | Felipe |
+| 1 | ~~Réguas de desempenho~~ — **RESOLVIDA em 25/07**: régua canônica, mapeada em crítico `<30` / mediano `30–80` / excelente `>=80` (§4.4). Resta validar a distribuição com dado real na Fase 0 | Nada | — |
 | 2 | Superfície de admin para contrato e datas de simulado (§6.3) | Fase 1 (Início) | a definir |
 | 3 | Auditoria de hierarquia nos simulados já cadastrados (§4.9, §7.6) | Piloto | João |
 | 4 | Spike de viabilidade do ponto projetado (§4.11) | Nada — degrada para tendência sem projeção | João |
@@ -530,7 +554,7 @@ Sem PII em nome de evento ou propriedade.
 |---|---|---|---|
 Gráfico protagonista | toggle "Grande área \| Aluno", sem "Geral" | **3 modos: Geral \| Grande área \| Aluno** | 24/07 |
 Nomenclatura na visão por área | "% de acerto" | **"desempenho"** (a validar com o Léo) | 24/07 |
-Níveis de desempenho | proficiente > 60 como base | **réguas do Flix** (pendência nº1) | 24/07 |
+Níveis de desempenho | proficiente > 60 como base | **régua canônica do projeto**: crítico `<30` / mediano `30–80` / excelente `>=80` | 24/07 + Felipe 25/07 |
 Linha de tendência | regressão no cliente | **backend, armazenada** + ponto projetado ponderado | 24/07 |
 Semestre na dispersão | seleção única | **seleção única** (multi descartado) | Felipe, 25/07 |
 Corte de proficiente | `> 60`, "60 não é proficiente" | **`>= 60`** — handoff está errado | banco + front
