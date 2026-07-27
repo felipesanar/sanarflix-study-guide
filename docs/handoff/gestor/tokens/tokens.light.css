@@ -1,0 +1,88 @@
+/* Portal do Gestor · SanarFlix Academy — tokens do tema CLARO
+   Use como camada de compatibilidade sobre o Dendê: onde existir token Dendê
+   equivalente, aponte para ele em vez de repetir o hex. */
+
+:root,
+[data-theme="light"] {
+  /* Marca (SanarFlix) */
+  --gp-brand: #B81414;
+  --gp-brand-strong: #660000;
+  --gp-brand-surface: #FCE3E3;
+  --gp-brand-surface-soft: #FFF7F7;
+  --gp-brand-border: #F3C9C9;
+  --gp-on-brand: #FFFFFF;
+
+  /* Superfícies */
+  --gp-bg-app: #EDEEF0;
+  --gp-surface-1: #FFFFFF;
+  --gp-surface-2: #F9FAFB;
+  --gp-surface-3: #F4F5F6;
+
+  /* Linhas */
+  --gp-border-strong: #E9EBED;
+  --gp-border-subtle: #F1F2F4;
+  --gp-border-input: #C3C6C6;
+
+  /* Texto */
+  --gp-text-1: #111212;
+  --gp-text-2: #414141;
+  --gp-text-3: #899090;
+  --gp-text-inverse: #FFFFFF;
+
+  /* Semânticos */
+  --gp-success: #149142;
+  --gp-success-on: #0C5728;
+  --gp-success-surface: #E7F4EC;
+  --gp-warning: #D38808;
+  --gp-warning-on: #7F5205;
+  --gp-warning-surface: #FBF3E6;
+  --gp-danger: #C61D1D;
+  --gp-danger-on: #771111;
+  --gp-danger-surface: #F9E8E8;
+  --gp-info: #0374AE;
+  --gp-info-on: #024668;
+  --gp-info-surface: #E6F1F7;
+
+  /* Séries de gráfico (ordem fixa) */
+  --gp-serie-1: #111212; /* Clínica Médica */
+  --gp-serie-2: #0374AE; /* Cirurgia */
+  --gp-serie-3: #11A694; /* Gineco. e Obstetrícia */
+  --gp-serie-4: #6632DC; /* Medicina Preventiva */
+  --gp-serie-5: #D38808; /* Pediatria (crítica) */
+  --gp-grid: #F1F2F4;
+  --gp-axis: #899090;
+
+  /* Forma */
+  --gp-radius-sm: 8px;
+  --gp-radius-md: 12px;
+  --gp-radius-lg: 16px;
+  --gp-radius-pill: 10em;
+
+  /* Elevação */
+  --gp-shadow-card: 0 1px 2px rgba(17,18,18,0.03), 0 14px 34px -22px rgba(17,18,18,0.16);
+  --gp-shadow-panel: -12px 0 28px -20px rgba(17,18,18,0.25);
+  --gp-shadow-drawer: -28px 0 64px -30px rgba(0,0,0,0.42);
+  --gp-scrim: rgba(8,9,10,0.42);
+
+  /* Foco */
+  --gp-focus-ring: 0 0 0 3px rgba(184,20,20,0.16);
+
+  /* Espaço (grade de 4px) */
+  --gp-space-1: 4px;  --gp-space-2: 8px;  --gp-space-3: 12px;
+  --gp-space-4: 16px; --gp-space-5: 20px; --gp-space-6: 24px;
+  --gp-space-8: 32px; --gp-space-10: 40px;
+
+  /* Tipografia */
+  --gp-font-sans: 'Inter', system-ui, sans-serif;
+  --gp-font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* Motion */
+  --gp-motion-1: 80ms;
+  --gp-motion-2: 140ms;
+  --gp-motion-3: 200ms;
+  --gp-motion-4: 320ms;
+  --gp-motion-5: 560ms;
+  --gp-ease: cubic-bezier(0.2, 0, 0, 1);
+  --gp-ease-in: cubic-bezier(0, 0, 0, 1);
+  --gp-ease-out: cubic-bezier(0.4, 0, 1, 1);
+}

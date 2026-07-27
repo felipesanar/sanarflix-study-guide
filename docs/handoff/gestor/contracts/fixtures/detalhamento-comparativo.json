@@ -1,0 +1,31 @@
+{
+  "data": {
+    "metricas": [
+      { "simuladoId": "SN1", "nome": "Simulado Nacional 1", "data": "2026-03-15", "participantes": 96, "acertoMedioPct": 59, "enamedProjetado": 3, "proficienciaMedia": 57 },
+      { "simuladoId": "SN2", "nome": "Simulado Nacional 2", "data": "2026-05-10", "participantes": 98, "acertoMedioPct": 61, "enamedProjetado": 4, "proficienciaMedia": 63 }
+    ],
+    "acertoPorAreaESemestre": {
+      "areas": [
+        { "id": "cm", "nome": "Clínica Médica", "acertoPct": 71, "critica": false },
+        { "id": "ped", "nome": "Pediatria", "acertoPct": 48, "critica": true }
+      ],
+      "semestres": [
+        { "semestre": 11, "acertoPct": 62, "emEvidencia": true },
+        { "semestre": 12, "acertoPct": 65, "emEvidencia": true }
+      ]
+    },
+    "dispersao": [],
+    "comparativoTemas": [
+      { "tema": "Icterícia neonatal precoce", "porSimulado": [ { "simuladoId": "SN1", "acertoPct": 21 }, { "simuladoId": "SN2", "acertoPct": 24 } ] },
+      { "tema": "Hemorragia pós-parto", "porSimulado": [ { "simuladoId": "SN1", "acertoPct": 35 }, { "simuladoId": "SN2", "acertoPct": 31 } ] }
+    ]
+  },
+  "meta": {
+    "periodo": "6º ano · 2 simulados",
+    "fonte": "Simulados Academy · gabarito oficial",
+    "atualizadoEm": "2026-05-12T09:30:00-03:00",
+    "criterio": "Comparativo por simulado. Não há média entre simulados; variação só para alunos presentes em ambos.",
+    "partial": false,
+    "lowSample": false
+  }
+}

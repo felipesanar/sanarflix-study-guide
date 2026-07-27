@@ -1,0 +1,165 @@
+openapi: 3.0.3
+info:
+  title: Portal do Gestor — SanarFlix Academy
+  version: 1.0.0
+  description: >
+    Contrato dos endpoints do Portal do Gestor. O escopo de IES é derivado do token
+    de autenticação — o parâmetro iesId é apenas hint de UI e é validado no servidor.
+    Regras de negócio: docs/02-regras-de-negocio.md
+servers:
+  - url: https://api.sanarflix.com.br/academy/v1
+
+security:
+  - bearerAuth: []
+
+paths:
+  /gestor/contexto:
+    get:
+      summary: Usuário, papel, IES acessíveis e contrato vigente
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/NaoAutenticado' }
+
+  /gestor/cronograma:
+    get:
+      summary: Simulados contratados, com status e datas
+      responses:
+        '200': { description: OK }
+
+  /gestor/avisos:
+    get:
+      summary: Avisos da Sanar
+      responses:
+        '200': { description: OK }
+  /gestor/avisos/{id}:
+    patch:
+      summary: Marca aviso como lido
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '204': { description: Sem conteúdo }
+
+  /gestor/visao-geral:
+    get:
+      summary: KPIs, evolução, resumo do diagnóstico e distribuição de alunos
+      parameters:
+        - $ref: '#/components/parameters/Semestre'
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/SemPermissao' }
+
+  /gestor/diagnostico:
+    get:
+      summary: Um nível da cascata (grande área → especialidade)
+      parameters:
+        - $ref: '#/components/parameters/Semestre'
+        - { name: node, in: query, schema: { type: string }, description: id do nó pai; ausente = raiz }
+      responses:
+        '200': { description: OK }
+
+  /gestor/diagnostico/temas:
+    get:
+      summary: Temas de uma especialidade (conteúdo do drawer)
+      parameters:
+        - $ref: '#/components/parameters/Semestre'
+        - { name: especialidade, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+
+  /gestor/alunos:
+    get:
+      summary: Tabela de alunos (paginada)
+      parameters:
+        - $ref: '#/components/parameters/Semestre'
+        - { name: q, in: query, schema: { type: string } }
+        - { name: grupo, in: query, schema: { type: string, enum: [consistentemente_proficiente, em_variacao, consistentemente_nao_proficiente] } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - { name: sort, in: query, schema: { type: string } }
+      responses:
+        '200': { description: OK }
+
+  /gestor/alunos/{id}:
+    get:
+      summary: Visão detalhada do aluno
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/Simulados'
+      responses:
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/SemPermissao' }
+        '404': { description: Não encontrado (também usado quando fora do escopo) }
+
+  /gestor/detalhamento:
+    get:
+      summary: Métricas, exploração e alunos por simulado(s)
+      description: >
+        simulados é obrigatório e aceita 1+ ids. O valor "todos" é inválido.
+        Com 2 ou mais ids a resposta traz uma entrada de métricas POR SIMULADO
+        (nunca média única) e omite o bloco de questões.
+      parameters:
+        - $ref: '#/components/parameters/Semestre'
+        - $ref: '#/components/parameters/Simulados'
+      responses:
+        '200': { description: OK }
+        '400':
+          description: Seleção de simulados obrigatória / inválida
+          content:
+            application/problem+json:
+              example:
+                type: https://api.sanarflix.com.br/errors/selecao-invalida
+                title: Seleção de simulados obrigatória
+                status: 400
+                detail: Informe ao menos um simulado. "todos" não é aceito.
+
+  /gestor/detalhamento/questoes:
+    get:
+      summary: Questões de UM simulado (paginada)
+      parameters:
+        - { name: simulado, in: query, required: true, schema: { type: string } }
+        - { name: area, in: query, schema: { type: string }, description: filtro por grande área }
+        - { name: sort, in: query, schema: { type: string, enum: [ordem, mais_erradas, mais_acertadas], default: ordem } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { description: OK }
+        '409': { description: Gabarito em processamento }
+
+  /gestor/exportacoes:
+    post:
+      summary: Solicita export de um recorte (assíncrono, auditado)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [escopo, filtros, formato]
+              properties:
+                escopo: { type: string, enum: [diagnostico, alunos, questoes, comparativo] }
+                filtros: { type: object }
+                formato: { type: string, enum: [csv, xlsx] }
+      responses:
+        '202': { description: Aceito }
+        '403': { $ref: '#/components/responses/SemPermissao' }
+
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Semestre:
+      name: semestre
+      in: query
+      schema: { type: string, enum: ['6ano','geral','1','2','3','4','5','6','7','8','9','10','11','12'], default: '6ano' }
+      description: Semestre = período do aluno. Nunca semestre-calendário.
+    Simulados:
+      name: simulados
+      in: query
+      required: true
+      schema: { type: array, items: { type: string }, minItems: 1 }
+      style: form
+      explode: false
+    Page:     { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    PageSize: { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+  responses:
+    NaoAutenticado: { description: Não autenticado }
+    SemPermissao:   { description: Sem permissão para o recorte solicitado }

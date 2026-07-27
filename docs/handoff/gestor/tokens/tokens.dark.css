@@ -1,0 +1,67 @@
+/* Portal do Gestor · SanarFlix Academy — tokens do tema ESCURO
+   Camada de tema: mesmos nomes do claro, valores recalibrados.
+   Regras: elevação vem da COR da superfície (não de sombra); nunca preto puro
+   em card; nunca #B81414 como cor de TEXTO (use --gp-brand-on-dark). */
+
+[data-theme="dark"] {
+  /* Marca */
+  --gp-brand: #B81414;
+  --gp-brand-strong: #8F1414;
+  --gp-brand-on-dark: #F0817D;   /* texto/eyebrow de marca sobre escuro (AA) */
+  --gp-brand-surface: #2C1517;
+  --gp-brand-surface-soft: #221417;
+  --gp-brand-border: #5A2426;
+  --gp-on-brand: #FFFFFF;
+
+  /* Superfícies (degraus perceptíveis) */
+  --gp-bg-app: #0B0C0D;
+  --gp-surface-1: #17191A;
+  --gp-surface-2: #1E2223;
+  --gp-surface-3: #23282A;
+
+  /* Linhas */
+  --gp-border-strong: #282C2D;
+  --gp-border-subtle: #1F2323;
+  --gp-border-input: #535959;
+
+  /* Texto */
+  --gp-text-1: #ECEFEF;   /* nunca #FFF em bloco longo */
+  --gp-text-2: #B4B9B9;
+  --gp-text-3: #929999;
+  --gp-text-inverse: #111212;
+
+  /* Semânticos */
+  --gp-success: #33BB6A;
+  --gp-success-on: #63D08D;
+  --gp-success-surface: #123326;
+  --gp-warning: #E7A63F;
+  --gp-warning-on: #E6A94F;
+  --gp-warning-surface: #332811;
+  --gp-danger: #EE4E4A;
+  --gp-danger-on: #F2857F;
+  --gp-danger-surface: #331719;
+  --gp-info: #40A9E0;
+  --gp-info-on: #6FBBE3;
+  --gp-info-surface: #0F2A3A;
+
+  /* Séries */
+  --gp-serie-1: #E6E9E9;
+  --gp-serie-2: #40A9E0;
+  --gp-serie-3: #2ED4BC;
+  --gp-serie-4: #AC8FF6;
+  --gp-serie-5: #E7A63F;
+  --gp-grid: #1F2323;
+  --gp-axis: #929999;
+
+  /* Elevação */
+  --gp-shadow-card: 0 1px 2px rgba(0,0,0,0.30), 0 14px 34px -22px rgba(0,0,0,0.60);
+  --gp-shadow-panel: -12px 0 28px -20px rgba(0,0,0,0.55);
+  --gp-shadow-drawer: -28px 0 64px -30px rgba(0,0,0,0.75);
+  --gp-scrim: rgba(0,0,0,0.60);
+
+  /* Foco (mais luminoso para vencer o fundo) */
+  --gp-focus-ring: 0 0 0 3px rgba(240,129,125,0.28);
+}
+
+/* Hover no escuro CLAREIA — nunca escurece */
+[data-theme="dark"] .gp-hover-surface:hover { background: #23282A; }
