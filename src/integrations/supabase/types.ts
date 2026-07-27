@@ -856,6 +856,47 @@ export type Database = {
           },
         ]
       }
+      ies_contrato_simulados: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          ies_id: string
+          nome_contrato: string
+          simulados_contratados: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ies_id: string
+          nome_contrato: string
+          simulados_contratados: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ies_id?: string
+          nome_contrato?: string
+          simulados_contratados?: number
+          vigencia_fim?: string
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ies_contrato_simulados_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ies_features: {
         Row: {
           created_at: string
@@ -887,6 +928,58 @@ export type Database = {
             columns: ["ies_id"]
             isOneToOne: false
             referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ies_simulado_previsto: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          id: string
+          ies_id: string
+          nome_previsto: string | null
+          ordem: number
+          simulado_id: string | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          id?: string
+          ies_id: string
+          nome_previsto?: string | null
+          ordem: number
+          simulado_id?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          id?: string
+          ies_id?: string
+          nome_previsto?: string | null
+          ordem?: number
+          simulado_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ies_simulado_previsto_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "ies_contrato_simulados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ies_simulado_previsto_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ies_simulado_previsto_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
             referencedColumns: ["id"]
           },
         ]
