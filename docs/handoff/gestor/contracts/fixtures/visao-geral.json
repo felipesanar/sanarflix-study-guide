@@ -1,0 +1,72 @@
+{
+  "data": {
+    "kpis": {
+      "enamedProjetado": {
+        "valor": 4,
+        "delta": 1,
+        "serie": [
+          { "rotulo": "1º simulado", "valor": 3 },
+          { "rotulo": "anterior", "valor": 3 },
+          { "rotulo": "atual", "valor": 4 }
+        ],
+        "criterio": "Projeção institucional a partir dos simulados Academy. Não é o conceito oficial do MEC."
+      },
+      "proficientesPct": {
+        "valor": 54,
+        "delta": 3,
+        "serie": [
+          { "rotulo": "1º simulado", "valor": 46 },
+          { "rotulo": "anterior", "valor": 51 },
+          { "rotulo": "atual", "valor": 54 }
+        ],
+        "criterio": "Proficiente = proficiência acima de 60. 56 de 104 alunos."
+      },
+      "acertoPct": {
+        "valor": 61,
+        "delta": 2,
+        "serie": [
+          { "rotulo": "1º simulado", "valor": 56 },
+          { "rotulo": "anterior", "valor": 59 },
+          { "rotulo": "atual", "valor": 61 }
+        ],
+        "criterio": "Questões certas sobre questões respondidas no recorte."
+      },
+      "simulados": { "realizados": 3, "contratados": 7 }
+    },
+    "evolucao": [
+      { "simuladoId": "SN1", "nome": "Simulado Nacional 1", "data": "2026-03-15", "valor": 57, "participantes": 96 },
+      { "simuladoId": "SN2", "nome": "Simulado Nacional 2", "data": "2026-05-10", "valor": 63, "participantes": 98 }
+    ],
+    "evolucaoPorArea": [
+      { "area": "Clínica Médica", "critica": false, "pontos": [{ "rotulo": "SN1", "valor": 68 }, { "rotulo": "SN2", "valor": 71 }] },
+      { "area": "Cirurgia", "critica": false, "pontos": [{ "rotulo": "SN1", "valor": 63 }, { "rotulo": "SN2", "valor": 66 }] },
+      { "area": "Gineco. e Obstetrícia", "critica": false, "pontos": [{ "rotulo": "SN1", "valor": 59 }, { "rotulo": "SN2", "valor": 62 }] },
+      { "area": "Medicina Preventiva", "critica": false, "pontos": [{ "rotulo": "SN1", "valor": 55 }, { "rotulo": "SN2", "valor": 58 }] },
+      { "area": "Pediatria", "critica": true, "pontos": [{ "rotulo": "SN1", "valor": 44 }, { "rotulo": "SN2", "valor": 48 }] }
+    ],
+    "diagnosticoResumo": [
+      { "nivel": "excelente", "areas": [{ "id": "cm", "nome": "Clínica Médica", "acertoPct": 71 }] },
+      { "nivel": "mediano", "areas": [{ "id": "cir", "nome": "Cirurgia", "acertoPct": 66 }, { "id": "go", "nome": "Gineco. e Obstetrícia", "acertoPct": 62 }, { "id": "prev", "nome": "Medicina Preventiva", "acertoPct": 58 }] },
+      { "nivel": "critico", "areas": [{ "id": "ped", "nome": "Pediatria", "acertoPct": 48 }] }
+    ],
+    "distribuicaoAlunos": [
+      { "grupo": "consistentemente_proficiente", "quantidade": 42, "percentual": 40 },
+      { "grupo": "em_variacao", "quantidade": 38, "percentual": 37 },
+      { "grupo": "consistentemente_nao_proficiente", "quantidade": 24, "percentual": 23 }
+    ],
+    "dispersao": [
+      { "alunoId": "a1", "semestre": 11, "nota": 75 },
+      { "alunoId": "a2", "semestre": 11, "nota": 58 },
+      { "alunoId": "a3", "semestre": 12, "nota": 81 },
+      { "alunoId": "a4", "semestre": 12, "nota": 66 }
+    ]
+  },
+  "meta": {
+    "periodo": "6º ano · 3 simulados",
+    "fonte": "Simulados Academy · gabarito oficial",
+    "atualizadoEm": "2026-05-12T09:30:00-03:00",
+    "criterio": "Proficiente = proficiência acima de 60",
+    "partial": false,
+    "lowSample": false
+  }
+}

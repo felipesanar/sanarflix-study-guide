@@ -1,0 +1,65 @@
+{
+  "data": [
+    {
+      "id": "3f2b1c7a-0000-4000-8000-000000000001",
+      "nome": "Ana Beatriz Souza",
+      "semestre": 11,
+      "participou": true,
+      "acertos": 82,
+      "notaTri": 69,
+      "proficiencia": 75,
+      "situacao": "proficiente",
+      "posicao": { "lugar": 12, "total": 98, "percentil": 88 },
+      "acertoPorArea": [
+        { "area": "Clínica Médica", "acertoPct": 78, "critica": false },
+        { "area": "Pediatria", "acertoPct": 61, "critica": false }
+      ],
+      "variacao": 4
+    },
+    {
+      "id": "3f2b1c7a-0000-4000-8000-000000000002",
+      "nome": "Bruno Carvalho",
+      "semestre": 11,
+      "participou": true,
+      "acertos": 64,
+      "notaTri": 60,
+      "proficiencia": 58,
+      "situacao": "abaixo_do_limiar",
+      "posicao": { "lugar": 62, "total": 98, "percentil": 37 },
+      "acertoPorArea": [
+        { "area": "Clínica Médica", "acertoPct": 64, "critica": false },
+        { "area": "Cirurgia", "acertoPct": 60, "critica": false },
+        { "area": "Gineco. e Obstetrícia", "acertoPct": 55, "critica": false },
+        { "area": "Pediatria", "acertoPct": 39, "critica": true }
+      ],
+      "variacao": -2
+    },
+    {
+      "id": "3f2b1c7a-0000-4000-8000-000000000003",
+      "nome": "Felipe Ramos",
+      "semestre": 11,
+      "participou": false,
+      "acertos": null,
+      "notaTri": null,
+      "proficiencia": null,
+      "situacao": "nao_participou",
+      "variacao": null
+    },
+    {
+      "id": "3f2b1c7a-0000-4000-8000-000000000004",
+      "nome": "Gabriela Lima",
+      "semestre": 12,
+      "participou": true,
+      "acertos": 76,
+      "notaTri": 66,
+      "proficiencia": 71,
+      "situacao": "proficiente",
+      "posicao": { "lugar": 24, "total": 98, "percentil": 76 },
+      "variacao": 3
+    }
+  ],
+  "page": 1,
+  "pageSize": 25,
+  "total": 104,
+  "totalPages": 5
+}

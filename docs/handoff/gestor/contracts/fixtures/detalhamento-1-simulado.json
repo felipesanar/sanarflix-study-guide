@@ -1,0 +1,67 @@
+{
+  "data": {
+    "metricas": [
+      {
+        "simuladoId": "SN2",
+        "nome": "Simulado Nacional 2",
+        "data": "2026-05-10",
+        "participantes": 98,
+        "acertoMedioPct": 61,
+        "enamedProjetado": 4,
+        "proficienciaMedia": 63
+      }
+    ],
+    "acertoPorAreaESemestre": {
+      "areas": [
+        { "id": "cm", "nome": "Clínica Médica", "acertoPct": 71, "critica": false },
+        { "id": "cir", "nome": "Cirurgia", "acertoPct": 66, "critica": false },
+        { "id": "go", "nome": "Gineco. e Obstetrícia", "acertoPct": 62, "critica": false },
+        { "id": "prev", "nome": "Medicina Preventiva", "acertoPct": 58, "critica": false },
+        { "id": "ped", "nome": "Pediatria", "acertoPct": 48, "critica": true }
+      ],
+      "semestres": [
+        { "semestre": 9, "acertoPct": 56, "emEvidencia": false },
+        { "semestre": 10, "acertoPct": 58, "emEvidencia": false },
+        { "semestre": 11, "acertoPct": 62, "emEvidencia": true },
+        { "semestre": 12, "acertoPct": 65, "emEvidencia": true }
+      ]
+    },
+    "dispersao": [
+      { "alunoId": "a1", "semestre": 11, "nota": 69 },
+      { "alunoId": "a2", "semestre": 11, "nota": 60 },
+      { "alunoId": "a3", "semestre": 12, "nota": 76 },
+      { "alunoId": "a4", "semestre": 12, "nota": 66 }
+    ],
+    "questoes": {
+      "data": [
+        {
+          "numero": 37,
+          "grandeArea": "Pediatria",
+          "especialidade": "Neonatologia",
+          "tema": "Icterícia neonatal precoce",
+          "acertoPct": 24,
+          "enunciado": "Recém-nascido a termo, 36 horas de vida, em aleitamento materno exclusivo, apresenta icterícia com progressão até a zona III de Kramer. Sem sinais de encefalopatia; bilirrubina total 15,2 mg/dL. Qual a conduta inicial mais apropriada quanto à investigação e ao manejo?",
+          "alternativas": [
+            { "letra": "A", "texto": "Iniciar fototerapia e reavaliar clinicamente em 24 horas", "correta": false, "marcadaPct": 19 },
+            { "letra": "B", "texto": "Dosar bilirrubina total e frações e traçar a curva por zona de risco", "correta": true, "marcadaPct": 24 },
+            { "letra": "C", "texto": "Indicar exsanguineotransfusão de imediato", "correta": false, "marcadaPct": 41 },
+            { "letra": "D", "texto": "Suspender o aleitamento materno em definitivo", "correta": false, "marcadaPct": 16 }
+          ],
+          "distratorDominante": "C"
+        }
+      ],
+      "page": 1,
+      "pageSize": 25,
+      "total": 100,
+      "totalPages": 4
+    }
+  },
+  "meta": {
+    "periodo": "6º ano · Simulado Nacional 2",
+    "fonte": "Gabarito oficial · processado em 12/05/2026",
+    "atualizadoEm": "2026-05-12T09:30:00-03:00",
+    "criterio": "Índice de acerto = participantes que acertaram / participantes que responderam",
+    "partial": false,
+    "lowSample": false
+  }
+}
