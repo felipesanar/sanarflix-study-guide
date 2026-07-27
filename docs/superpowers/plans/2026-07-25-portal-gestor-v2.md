@@ -10452,20 +10452,6 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
-## Fase 3 — Tela 1: Início do Gestor
-
-> Escopo desta fase: spec §2.1 (rota `/gestor`), §6.4 (derivação de status do cronograma), §8.2 (estado e prefetch), §8.4 (estados obrigatórios por bloco), §7.7 (sem PII em `localStorage`), handoff `docs/05-telas.md` tela 1 e `docs/04-componentes.md` §6.
->
-> **Propósito da tela: ORIENTAR. Nenhum indicador de desempenho vive aqui** — sem proficiência, sem % de acerto, sem conceito ENAMED, sem TRI. A Task 35 tem um teste que falha se qualquer um desses aparecer.
->
-> **Armadilhas confirmadas no repo, válidas para todas as tarefas desta fase:**
-> 1. `src/test/setup.ts:29-38` mocka `react-router-dom` globalmente com `useNavigate: () => vi.fn()` e `useLocation: () => ({ pathname: '/' })`. **Qualquer teste que observe navegação real precisa sobrescrever esse mock com o módulo de verdade** (convenção já usada em `src/test/components/ExperienceGuard.test.tsx:22-32`).
-> 2. `src/test/utils.tsx` usa `BrowserRouter` e cria o `QueryClient` internamente — **inservível** para os testes desta fase (precisamos de `MemoryRouter` e de acesso ao `queryClient`). Cada teste monta seu próprio wrapper; a duplicação de ~10 linhas é deliberada, para não criar acoplamento com as fatias paralelas.
-> 3. Toda referência a variável de topo de arquivo dentro de uma factory de `vi.mock` usa `vi.hoisted` (a factory é içada acima das declarações e cair em TDZ é erro silencioso e confuso).
-> 4. Não existe `EstadoVazio`/`EstadoErro` compartilhado no repo. Cada componente desta fase implementa seus estados inline com `Card` + `Button` + `Skeleton` de `src/components/ui/`.
-
----
-
 ### Task 30b: Glossário "Entenda as métricas"
 
 > **Pertence à Fase 2.** É primitiva transversal consumida pela Visão Geral e pelo Detalhamento; precisa existir antes das telas para o link "Entenda as métricas" não nascer quebrado. Fecha a lacuna do handoff `docs/04-componentes.md` §7 e do spec §4.1 (a entrada "Nota TRI" some do glossário).
@@ -10650,6 +10636,20 @@ teste de regressao garante que a string nao volte ao glossario.
 Proficiente e definido com corte inclusivo importado de regras.ts, nao
 hardcoded."
 ```
+
+---
+
+## Fase 3 — Tela 1: Início do Gestor
+
+> Escopo desta fase: spec §2.1 (rota `/gestor`), §6.4 (derivação de status do cronograma), §8.2 (estado e prefetch), §8.4 (estados obrigatórios por bloco), §7.7 (sem PII em `localStorage`), handoff `docs/05-telas.md` tela 1 e `docs/04-componentes.md` §6.
+>
+> **Propósito da tela: ORIENTAR. Nenhum indicador de desempenho vive aqui** — sem proficiência, sem % de acerto, sem conceito ENAMED, sem TRI. A Task 35 tem um teste que falha se qualquer um desses aparecer.
+>
+> **Armadilhas confirmadas no repo, válidas para todas as tarefas desta fase:**
+> 1. `src/test/setup.ts:29-38` mocka `react-router-dom` globalmente com `useNavigate: () => vi.fn()` e `useLocation: () => ({ pathname: '/' })`. **Qualquer teste que observe navegação real precisa sobrescrever esse mock com o módulo de verdade** (convenção já usada em `src/test/components/ExperienceGuard.test.tsx:22-32`).
+> 2. `src/test/utils.tsx` usa `BrowserRouter` e cria o `QueryClient` internamente — **inservível** para os testes desta fase (precisamos de `MemoryRouter` e de acesso ao `queryClient`). Cada teste monta seu próprio wrapper; a duplicação de ~10 linhas é deliberada, para não criar acoplamento com as fatias paralelas.
+> 3. Toda referência a variável de topo de arquivo dentro de uma factory de `vi.mock` usa `vi.hoisted` (a factory é içada acima das declarações e cair em TDZ é erro silencioso e confuso).
+> 4. Não existe `EstadoVazio`/`EstadoErro` compartilhado no repo. Cada componente desta fase implementa seus estados inline com `Card` + `Button` + `Skeleton` de `src/components/ui/`.
 
 ---
 
