@@ -179,6 +179,7 @@ export type Database = {
           link_botao: string | null
           paleta_cores: string
           prioridade: string
+          publico_alvo: string[]
           semestre_destino: number | null
           texto_botao: string
           titulo: string
@@ -197,6 +198,7 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          publico_alvo?: string[]
           semestre_destino?: number | null
           texto_botao?: string
           titulo: string
@@ -215,6 +217,7 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          publico_alvo?: string[]
           semestre_destino?: number | null
           texto_botao?: string
           titulo?: string
