@@ -1413,14 +1413,17 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          data_agendada_original: string | null
           data_encerramento: string | null
           data_liberacao: string | null
           data_liberacao_desempenho: string | null
+          data_realizacao: string | null
           descricao: string | null
           duracao_minutos: number
           id: string
           ies_ids: string[]
           liberacao_desempenho: string
+          modalidade: string | null
           nome: string
           simulado_pai_id: string | null
           status: string
@@ -1429,14 +1432,17 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          data_agendada_original?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
           data_liberacao_desempenho?: string | null
+          data_realizacao?: string | null
           descricao?: string | null
           duracao_minutos: number
           id?: string
           ies_ids?: string[]
           liberacao_desempenho?: string
+          modalidade?: string | null
           nome: string
           simulado_pai_id?: string | null
           status?: string
@@ -1445,14 +1451,17 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          data_agendada_original?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
           data_liberacao_desempenho?: string | null
+          data_realizacao?: string | null
           descricao?: string | null
           duracao_minutos?: number
           id?: string
           ies_ids?: string[]
           liberacao_desempenho?: string
+          modalidade?: string | null
           nome?: string
           simulado_pai_id?: string | null
           status?: string
