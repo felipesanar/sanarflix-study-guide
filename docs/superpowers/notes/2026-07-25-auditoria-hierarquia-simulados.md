@@ -147,7 +147,41 @@ Achados de normalização (não bloqueantes): **1 achado** — duplicata de graf
 
 Por que passou pela AUDITORIA 1: `btrim(col)` sem segundo argumento remove **só espaços**, não `\n`/`\t`/`\r`. Então `"Cirurgia\n"` não é nulo nem vazio — a questão conta como completa (corretamente, ela **está** classificada), mas na cascata do Diagnóstico ela viraria um **segundo nó "Cirurgia"** separado do nó com 808 questões, e o mesmo para "Trauma" dentro dele. Impacto: 2 questões de 4402 (0.05%), ambas em simulados com 1 e 2 IES.
 
-Encaminhamento: pedir ao CX a normalização de whitespace nessas duas questões (é `update` de dado, não migration). Não bloqueia o piloto, conforme a linha "duplicata de grafia" do critério. Recomendação adicional para a Fase 2: usar `btrim(col, E' \t\n\r')` — não o `btrim(col)` de um argumento — em qualquer agregação por `grande_area`/`especialidade`/`tema` nas RPCs de diagnóstico, para que um whitespace novo cadastrado depois não abra nó duplicado na cascata.
+Recomendação para a Fase 2: usar `btrim(col, E' \t\n\r')` — não o `btrim(col)` de um argumento — em qualquer agregação por `grande_area`/`especialidade`/`tema` nas RPCs de diagnóstico, para que um whitespace novo cadastrado depois não abra nó duplicado na cascata.
+
+#### 1.5.1 RESOLVIDO em 28/07/2026 — e o escopo real era maior
+
+As duas questões acima foram normalizadas em produção (`update` de dado, não migration):
+
+```sql
+update public.questoes_simulado
+set grande_area   = btrim(grande_area,   E' \t\n\r'),
+    especialidade = btrim(especialidade, E' \t\n\r'),
+    updated_at    = now()
+where id in ('6dafd2de-3b92-4d24-955e-08b5da24b481',   -- 1º simulado - UNIVILLE, ordem 16
+             'c768b768-ac56-42af-8654-1257172049a2');  -- 1º simulado UEA, ordem 16
+```
+
+Verificado depois: `grande_area` distintas caiu de 9 para **8**, zero linhas com whitespace em `grande_area`, e `Cirurgia` passou de 808 para 810 questões — absorveu as duas sem perder nenhuma.
+
+**Porém**, ao medir o escopo antes de aplicar, o problema se mostrou bem maior que as 2 linhas relatadas acima. Contagem por coluna, antes da correção:
+
+| Coluna | Linhas com whitespace | Valores distintos hoje | Após normalizar | Nós duplicados |
+|---|---|---|---|---|
+| `grande_area` | 2 | 9 | 8 | 1 ✅ corrigido |
+| `especialidade` | **136** | 252 | 244 | **8** ⏳ aberto |
+| `tema` | 6 | 731 | 730 | 1 ⏳ aberto |
+| `competencia` | 13 | 138 | 137 | 1 ⏳ fora de escopo |
+
+A seção 1.4 não pegou isso porque a AUDITORIA 3 do plano agrupa **só** `grande_area` — o vocabulário de `especialidade` e `tema` nunca foi auditado contra whitespace.
+
+Por que importa para a Fase 2: `especialidade` é o **2º nível da cascata** do Diagnóstico Curricular. Com 8 nós duplicados, a gestora veria a mesma especialidade duas vezes dentro de uma grande área, com o % de acerto dividido entre as duas.
+
+Verificação de segurança feita antes de qualquer `update`: `grande_area`, `especialidade` e `tema` têm **zero** valores compostos só de whitespace, então `btrim` nunca transforma um valor em string vazia (o que desclassificaria a questão). E todos os 8 valores sujos de `especialidade` duplicam um valor limpo que já existe — normalizar mescla, não cria valor novo nem perde informação.
+
+`competencia` fica fora: tem 1.300 linhas que `btrim` transformaria em vazio (já são whitespace puro), e a coluna não faz parte da hierarquia de 3 níveis da §4.9.
+
+Pendente de decisão: normalizar as 134 linhas restantes de `especialidade` e as 6 de `tema`. É a mesma operação, já validada nas 2 primeiras.
 
 Consequência para a Fase 2: a cascata de `get_gestor_diagnostico` agrupa questões
 sem `grande_area` sob o rótulo literal "Sem classificação" e **não** as descarta
