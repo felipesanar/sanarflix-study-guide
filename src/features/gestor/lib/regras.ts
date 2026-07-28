@@ -21,18 +21,19 @@ export const PROFICIENCIA_MINIMA = 60;
 /**
  * Teto exclusivo do nível crítico, sobre **% de acerto** (nunca proficiência).
  *
- * 30 é a decisão vigente da spec §4.4, registrada como RESOLVIDA em 25/07:
- * crítico `<30` / mediano `30–80` / excelente `>=80`, mapeada sobre a régua
- * canônica do projeto sem inventar corte novo.
+ * 50, decidido com dado real na Task 2 (Fase 0) e registrado na seção 2.4 de
+ * `docs/superpowers/notes/2026-07-25-auditoria-hierarquia-simulados.md`.
  *
- * A spec §4.4 mantém um risco aberto: "mediano" absorve 50 pontos e 30% é um
- * piso baixo, então o grupo crítico pode nascer quase sempre vazio. A Task 2 do
- * plano valida a distribuição real e pode subir o corte para 50 — quando isso
- * acontecer, trocar esta constante e os dois casos de fronteira do teste
- * (`29.9`/`30` → `49.9`/`50`) é o custo total da revisão. Nada de arquitetura
- * depende do valor.
+ * A spec §4.4 propunha `<30` e marcava o risco de o grupo crítico nascer vazio.
+ * A medição confirmou o risco: em 87,9% dos recortes (IES × simulado) o corte de
+ * 30 não classificaria nenhuma grande área como crítica — 100% se descontado o
+ * dado de teste. O critério fixado antes da medição (>70% sem área crítica ⇒
+ * sobe para 50) foi acionado.
+ *
+ * Revisar este valor de novo custa esta linha mais os dois casos de fronteira do
+ * teste. Nada de arquitetura depende dele.
  */
-export const NIVEL_CRITICO_MAX = 30;
+export const NIVEL_CRITICO_MAX = 50;
 
 /** Piso inclusivo do nível excelente, sobre % de acerto (spec §4.4). */
 export const NIVEL_EXCELENTE_MIN = 80;
