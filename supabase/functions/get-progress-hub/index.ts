@@ -292,10 +292,12 @@ Deno.serve(async (req) => {
       
       // First check explicit semester field
       // For INTERNATO fallback, accept progress from semesters 9-12 as well as INTERNATO composite IDs
+      // Intensivo ENAMED progress rows always carry the user's numeric semester, so we
+      // additionally accept them whenever the content_id is recognized as Intensivão.
       const numericSemestre = typeof effectiveSemestre === 'number' ? effectiveSemestre : userSemestre;
       if (numericSemestre && p.semestre && p.semestre !== numericSemestre) {
-        // If using INTERNATO fallback, also accept progress from the user's original numeric semester
-        if (effectiveSemestre !== 'INTERNATO' || !INTERNATO_FALLBACK_SEMESTERS.includes(p.semestre)) {
+        const isIntensivo = extractSemestreFromContentId(p.content_id) === 'Intensivo ENAMED';
+        if (!isIntensivo && (effectiveSemestre !== 'INTERNATO' || !INTERNATO_FALLBACK_SEMESTERS.includes(p.semestre))) {
           continue; // Skip progress from other semesters
         }
       }
