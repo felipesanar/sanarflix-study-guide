@@ -179,6 +179,7 @@ export type Database = {
           link_botao: string | null
           paleta_cores: string
           prioridade: string
+          publico_alvo: string[]
           semestre_destino: number | null
           texto_botao: string
           titulo: string
@@ -197,6 +198,7 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          publico_alvo?: string[]
           semestre_destino?: number | null
           texto_botao?: string
           titulo: string
@@ -215,6 +217,7 @@ export type Database = {
           link_botao?: string | null
           paleta_cores?: string
           prioridade?: string
+          publico_alvo?: string[]
           semestre_destino?: number | null
           texto_botao?: string
           titulo?: string
@@ -856,6 +859,47 @@ export type Database = {
           },
         ]
       }
+      ies_contrato_simulados: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          ies_id: string
+          nome_contrato: string
+          simulados_contratados: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ies_id: string
+          nome_contrato: string
+          simulados_contratados: number
+          vigencia_fim: string
+          vigencia_inicio: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ies_id?: string
+          nome_contrato?: string
+          simulados_contratados?: number
+          vigencia_fim?: string
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ies_contrato_simulados_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ies_features: {
         Row: {
           created_at: string
@@ -887,6 +931,58 @@ export type Database = {
             columns: ["ies_id"]
             isOneToOne: false
             referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ies_simulado_previsto: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          id: string
+          ies_id: string
+          nome_previsto: string | null
+          ordem: number
+          simulado_id: string | null
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          id?: string
+          ies_id: string
+          nome_previsto?: string | null
+          ordem: number
+          simulado_id?: string | null
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          id?: string
+          ies_id?: string
+          nome_previsto?: string | null
+          ordem?: number
+          simulado_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ies_simulado_previsto_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "ies_contrato_simulados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ies_simulado_previsto_ies_id_fkey"
+            columns: ["ies_id"]
+            isOneToOne: false
+            referencedRelation: "ies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ies_simulado_previsto_simulado_id_fkey"
+            columns: ["simulado_id"]
+            isOneToOne: false
+            referencedRelation: "simulados_admin"
             referencedColumns: ["id"]
           },
         ]
@@ -1413,14 +1509,17 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          data_agendada_original: string | null
           data_encerramento: string | null
           data_liberacao: string | null
           data_liberacao_desempenho: string | null
+          data_realizacao: string | null
           descricao: string | null
           duracao_minutos: number
           id: string
           ies_ids: string[]
           liberacao_desempenho: string
+          modalidade: string | null
           nome: string
           simulado_pai_id: string | null
           status: string
@@ -1429,14 +1528,17 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          data_agendada_original?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
           data_liberacao_desempenho?: string | null
+          data_realizacao?: string | null
           descricao?: string | null
           duracao_minutos: number
           id?: string
           ies_ids?: string[]
           liberacao_desempenho?: string
+          modalidade?: string | null
           nome: string
           simulado_pai_id?: string | null
           status?: string
@@ -1445,14 +1547,17 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          data_agendada_original?: string | null
           data_encerramento?: string | null
           data_liberacao?: string | null
           data_liberacao_desempenho?: string | null
+          data_realizacao?: string | null
           descricao?: string | null
           duracao_minutos?: number
           id?: string
           ies_ids?: string[]
           liberacao_desempenho?: string
+          modalidade?: string | null
           nome?: string
           simulado_pai_id?: string | null
           status?: string
