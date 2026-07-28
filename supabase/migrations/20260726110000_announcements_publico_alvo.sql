@@ -55,4 +55,4 @@ create index if not exists announcements_publico_alvo_gin
   on public.announcements using gin (publico_alvo);
 
 comment on column public.announcements.publico_alvo is
-  'Personas que veem o aviso: aluno | gestor | professor. Default {aluno}. Backfill de 26/07/2026 marcou todo o histórico como {aluno} (spec §6.2).';
+  'Personas que veem o aviso: aluno | gestor | professor. Default {aluno}. Backfill de 28/07/2026 marcou todo o histórico como {aluno} (spec §6.2).';

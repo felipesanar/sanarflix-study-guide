@@ -1,6 +1,6 @@
 # Auditoria de dado — Fase 0 do Portal do Gestor v2
 
-**Data de execução:** 2026-07-27
+**Data de execução:** 2026-07-28
 **Projeto:** gvqv (gvqvrmkizemwsasmupmo) — confirmado via get_project_url (`https://gvqvrmkizemwsasmupmo.supabase.co`)
 **Spec:** docs/superpowers/specs/2026-07-25-portal-gestor-v2-design.md
 **Pendências atacadas:** nº3 (hierarquia, §4.9/§7.6) e nº1 (distribuição das réguas, §4.4)
