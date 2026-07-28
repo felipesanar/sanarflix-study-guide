@@ -764,9 +764,7 @@ where experience = 'gestao'
 order by sort_order;
 ```
 
-Expected: 8 linhas — `gestao.enabled` (100, master), `gestao.visao_institucional` (110), `gestao.diagnostico_curricular` (120), `gestao.alunos` (130), `gestao.insights_pedagogicos` (140), `gestao.inteligencia_decisoria` (150), `gestao.exportar` (160), `gestao.ia` (170). **Nenhuma** linha `gestao.portal_v2`. Logo `sort_order = 180`.
-
-> **Correção de 28/07 (execução da Task 4).** A versão original deste passo dizia "6 linhas" e `sort_order = 160`. Estava errado: a migration `20260709154234` já semeou `gestao.exportar` em 160 e `gestao.ia` em 170. Como `sort_order` não tem unique constraint, seguir o texto antigo não daria erro — só empataria com `gestao.exportar` e deixaria a ordem do board de features do admin indefinida. O valor aplicado em produção foi **180**, o próximo livre.
+Expected: 6 linhas — `gestao.enabled` (100, master), `gestao.visao_institucional` (110), `gestao.diagnostico_curricular` (120), `gestao.alunos` (130), `gestao.insights_pedagogicos` (140), `gestao.inteligencia_decisoria` (150). **Nenhuma** linha `gestao.portal_v2`. Logo `sort_order = 160`.
 
 - [ ] **Step 2: Escrever o SQL da migration**
 
@@ -785,7 +783,7 @@ values (
   'gestao',
   'Portal do Gestor v2',
   'Nova experiência do gestor: Início, Visão Geral e Detalhamento por Simulados. Com a chave desligada, a IES continua nas 5 telas antigas.',
-  180, -- 160 e 170 já eram gestao.exportar e gestao.ia (migration 20260709154234)
+  160,
   false,
   true
 )
@@ -814,7 +812,7 @@ from public.feature_catalog
 where key = 'gestao.portal_v2';
 ```
 
-Expected: exatamente 1 linha, `experience = 'gestao'`, `sort_order = 180`, `is_master = false`, `active = true`.
+Expected: exatamente 1 linha, `experience = 'gestao'`, `sort_order = 160`, `is_master = false`, `active = true`.
 
 - [ ] **Step 5: Verificar que `get_effective_features` passa a devolver a chave**
 
@@ -2291,11 +2289,6 @@ git commit -m "Gestor v2: types, regras e formatters com teste (spec §4.3, §4.
 > 7. **DIVERGÊNCIA que assumo explicitamente (2):** os nomes canônicos do handoff listam só 3 RPCs de admin nesta fase. `admin_set_simulado_agenda` é um **quarto nome que estou introduzindo**, porque a Task 13 pede "modalidade e datas" e nenhuma das 3 escreve em `simulados_admin`. Quem revisar o plano deve adicionar esse nome à lista canônica.
 > 8. **DIVERGÊNCIA que assumo explicitamente (3):** os testes não são colocados no repo — vivem em `src/test/unit/` e `src/test/components/admin/`. O contexto compartilhado manda `src/features/gestor/__tests__/` para o **portal novo do gestor**; esta fatia é admin, então **sigo o repo** e uso `src/test/unit/` e `src/test/components/admin/`.
 > 9. **DIVERGÊNCIA que assumo explicitamente (4):** os `<select>` da tela nova são **nativos**, não `@/components/ui/select` (Radix). Motivo concreto: `src/test/components/admin/IesFeaturesBoard.test.tsx:170-184` precisa stubar `Element.prototype.hasPointerCapture` e `scrollIntoView` e caçar a opção portalizada no body para testar UM Radix Select. Numa tabela com N selects por linha isso fica intratável. Estilizo o `<select>` nativo com as classes do trigger shadcn para o visual não destoar.
-> **DECISÃO DO FELIPE (28/07) sobre as 4 divergências acima — as quatro estão aceitas:**
-> - **Divergências 1 e 2 (RPC `admin_set_simulado_agenda`):** aceitas. A derivação de `data_agendada_original` é regra de negócio e precisa de auditoria — não pode viver no client. `admin_set_simulado_agenda` **entra na lista canônica** de RPCs de admin desta fase (passa a ser 4 de escrita + 1 de leitura). **Escopo adicional para a Task 10:** migrar os dois call sites existentes (`SimuladoConfigDialog.tsx:514` e `ProvasTab.tsx:264`) para a RPC nova. Não é opcional — deixar `.from().update()` convivendo criaria dois caminhos de escrita, um deles sem auditoria e sem derivar a tag "Reagendado".
-> - **Divergência 3 (testes em `src/test/unit/` e `src/test/components/admin/`):** aceita, sem ressalva. Esta fatia é admin, não portal do gestor; o repo manda.
-> - **Divergência 4 (`<select>` nativo):** aceita. O motivo é concreto e o custo de testar N Radix Selects por linha não se paga aqui. Obrigatório estilizar com as classes do trigger shadcn e manter `<label>` associado a cada `<select>` para não perder acessibilidade.
->
 > 10. **Pré-requisito da Fase 0a:** as Tasks 9–13 assumem que as tabelas `public.ies_contrato_simulados` / `public.ies_simulado_previsto` e as colunas `simulados_admin.modalidade` / `simulados_admin.data_realizacao` / `simulados_admin.data_agendada_original` **já existem em produção** (criadas na Fase 0a). Se `\d public.ies_contrato_simulados` falhar, PARE e volte para a Fase 0a.
 
 ---
