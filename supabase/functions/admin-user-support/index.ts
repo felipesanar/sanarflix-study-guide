@@ -365,7 +365,10 @@ Deno.serve(async (req) => {
         })).sort((a, b) => a.materia.localeCompare(b.materia) || a.tema.localeCompare(b.tema));
 
         // Simple streak calc
-        const completionDates = (progressRes.data || [])
+        const completionDates = [
+          ...(progressRes.data || []),
+          ...(studyProgressRes.data || []),
+        ]
           .map((p: any) => p.completed_at ? new Date(p.completed_at).toISOString().split("T")[0] : null)
           .filter(Boolean);
         const uniqueDays = [...new Set(completionDates)].sort().reverse();
