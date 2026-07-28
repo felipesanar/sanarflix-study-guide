@@ -106,8 +106,8 @@ GRANT EXECUTE ON FUNCTION public.get_gestor_<nome>(...) TO authenticated;
 | Regra | Valor |
 |---|---|
 | Proficiente | `proficiencia >= 60` — **`>=`, não `>`**. 60 **é** proficiente (§4.3) |
-| Nível crítico | `acertoPct < 30` (§4.4) |
-| Nível mediano | `30 <= acertoPct < 80` (§4.4) |
+| Nível crítico | `acertoPct < 50` (§4.4 — corte medido na Task 2 em 28/07; era 30) |
+| Nível mediano | `50 <= acertoPct < 80` (§4.4) |
 | Nível excelente | `acertoPct >= 80` (§4.4) |
 | Conceito ENAMED | 1–5 inteiro, **nunca média**; com 2+ simulados vira comparativo (§4.1) |
 | Área, especialidade, tema | **sempre % de acerto**, nunca proficiência (§4.1) |
@@ -460,7 +460,7 @@ git commit -m "Fase 0: auditoria de hierarquia dos simulados (pendencia nº3)"
 
 ### Task 2: Validacao da distribuicao das reguas de desempenho
 
-Spec §4.4, o bloco "RISCO A VERIFICAR COM DADO REAL (Fase 0)" e pendência nº1. A régua mapeada é crítico `<30` / mediano `30–80` / excelente `>=80` sobre **% de acerto**. "Mediano" absorve 50 pontos de faixa; se "crítico" nascer quase sempre vazio, a tela perde valor diagnóstico. A decisão é por evidência, não por preferência, e o ajuste é de **uma constante** em `regras.ts` (`NIVEL_CRITICO_MAX`) — sem impacto de arquitetura.
+Spec §4.4, o bloco "RISCO A VERIFICAR COM DADO REAL (Fase 0)" e pendência nº1. A régua **proposta** era crítico `<30` / mediano `30–80` / excelente `>=80` sobre **% de acerto**. **EXECUTADA em 28/07: o corte subiu para `<50`** — ver Step 3. "Mediano" absorve 50 pontos de faixa; se "crítico" nascer quase sempre vazio, a tela perde valor diagnóstico. A decisão é por evidência, não por preferência, e o ajuste é de **uma constante** em `regras.ts` (`NIVEL_CRITICO_MAX`) — sem impacto de arquitetura.
 
 **Files:**
 - Modify: `docs/superpowers/notes/2026-07-25-auditoria-hierarquia-simulados.md`
@@ -595,6 +595,8 @@ Expected: `pct_sem_critico_corte30` como número único — é ele que decide.
 |---|---|
 | `pct_sem_critico_corte30 > 70` | **Recomendação registrada: subir o corte para `< 50`** (absorve Insuficiente + Regular da régua canônica). `NIVEL_CRITICO_MAX = 50` na Task 8 |
 | `pct_sem_critico_corte30 <= 70` | **Mantém `< 30`** conforme §4.4. `NIVEL_CRITICO_MAX = 30` na Task 8 |
+
+**Resultado real (28/07): `pct_sem_critico_corte30 = 87,9%` — primeiro galho acionado, `NIVEL_CRITICO_MAX = 50`.** Verificação de robustez: excluindo a IES de teste `B2B` e simulados com "teste" no nome, o número vai a 100% em 47 recortes reais. Sem ambiguidade de fronteira.
 | `recortes_total = 0` (nenhuma IES com resposta) | **Mantém `< 30`** por não haver evidência; registrar "sem dado suficiente para revisar o corte" e reavaliar no fim do piloto |
 
 Registrar também, se `recortes_sem_excelente` for alto, que o topo da régua não está sendo exercitado — achado informativo, **não** muda corte nesta fase.
@@ -764,7 +766,9 @@ where experience = 'gestao'
 order by sort_order;
 ```
 
-Expected: 6 linhas — `gestao.enabled` (100, master), `gestao.visao_institucional` (110), `gestao.diagnostico_curricular` (120), `gestao.alunos` (130), `gestao.insights_pedagogicos` (140), `gestao.inteligencia_decisoria` (150). **Nenhuma** linha `gestao.portal_v2`. Logo `sort_order = 160`.
+Expected: **8 linhas** — `gestao.enabled` (100, master), `gestao.visao_institucional` (110), `gestao.diagnostico_curricular` (120), `gestao.alunos` (130), `gestao.insights_pedagogicos` (140), `gestao.inteligencia_decisoria` (150), `gestao.exportar` (160), `gestao.ia` (170). **Nenhuma** linha `gestao.portal_v2`. Logo `sort_order = 180`.
+
+> **Corrigido em 28/07 na execução:** este passo dizia "6 linhas" e "logo `sort_order = 160`". A produção tem 8 — `gestao.exportar` (160) e `gestao.ia` (170) já foram semeados na migration `20260709154234`. Como `sort_order` não tem unique constraint (a PK é só `key`), usar 160 não daria erro: empataria com `gestao.exportar` e deixaria a ordem do board de features do admin indefinida. O valor aplicado foi **180**.
 
 - [ ] **Step 2: Escrever o SQL da migration**
 
@@ -783,7 +787,7 @@ values (
   'gestao',
   'Portal do Gestor v2',
   'Nova experiência do gestor: Início, Visão Geral e Detalhamento por Simulados. Com a chave desligada, a IES continua nas 5 telas antigas.',
-  160,
+  180,
   false,
   true
 )
@@ -1118,8 +1122,12 @@ alter table public.ies_contrato_simulados enable row level security;
 alter table public.ies_simulado_previsto  enable row level security;
 
 -- Grants: authenticated só lê. Escrita fica com service_role e com a política de admin.
-revoke all on table public.ies_contrato_simulados from public, anon;
-revoke all on table public.ies_simulado_previsto  from public, anon;
+-- CORRIGIDO em 28/07: o revoke tem que citar authenticated. O pg_default_acl do
+-- schema public concede arwdDxtm (tudo) a anon, authenticated e service_role em
+-- TODA tabela nova; revogando so de public+anon, authenticated mantem
+-- INSERT/UPDATE/DELETE e o grant select abaixo fica redundante.
+revoke all on table public.ies_contrato_simulados from public, anon, authenticated;
+revoke all on table public.ies_simulado_previsto  from public, anon, authenticated;
 grant select on public.ies_contrato_simulados to authenticated;
 grant select on public.ies_simulado_previsto  to authenticated;
 grant all    on public.ies_contrato_simulados to service_role;
@@ -1428,7 +1436,7 @@ begin
     alter table public.announcements
       add constraint announcements_publico_alvo_check
       check (
-        array_length(publico_alvo, 1) >= 1
+        cardinality(publico_alvo) >= 1  -- CORRIGIDO: array_length(a,1) devolve NULL para array vazio,
         and publico_alvo <@ array['aluno','gestor','professor']::text[]
       );
   end if;
@@ -1549,7 +1557,7 @@ Primeira task de código. Spec §4.3 (`>= 60`), §4.4 (régua de 3 níveis), §4
 - Test: `src/features/gestor/__tests__/formatters.test.ts`
 
 **Interfaces:**
-- Consumes: `NIVEL_CRITICO_MAX` decidido na Task 2 (30 ou 50). Os passos abaixo assumem **30** (§4.4); se a Task 2 decidiu 50, trocar a constante **e** os dois casos de fronteira no teste (`29.9`/`30` → `49.9`/`50`) — nada mais muda.
+- Consumes: `NIVEL_CRITICO_MAX` decidido na Task 2. **DECIDIDO em 28/07: 50** (`pct_sem_critico_corte30 = 87,9%`, acima do limiar de 70%). Os trechos abaixo já refletem 50; o histórico da revisão está na §2 do arquivo de notes.
 - Produces:
   - `src/features/gestor/api/types.ts`: `FiltroSemestre`, `NivelDesempenho`, `GrupoEvolucao`, `StatusSimulado`, `Tendencia`, `ModoGrafico`, `Meta`, `Envelope<T>`, `Paginado<T>`, `ContextoGestor`, `ItemCronograma`, `Aviso`, `PontoSerie`, `Kpi`, `VisaoGeral`, `NoDiagnostico`, `TemaCritico`, `LinhaAluno`, `AlunoNoSimulado`, `MetricasSimulado`, `Alternativa`, `Questao`, `AcertoPorAreaESemestre`, `Detalhamento`.
   - `src/features/gestor/lib/regras.ts`: `PROFICIENCIA_MINIMA`, `NIVEL_CRITICO_MAX`, `NIVEL_EXCELENTE_MIN`, `ehProficiente`, `nivelDesempenho`, `grupoEvolucao`, `calcularVariacao`, `tendencia`.
@@ -1791,7 +1799,7 @@ import {
 describe('constantes da régua canônica (spec §4.3, §4.4)', () => {
   it('fixa os três cortes oficiais', () => {
     expect(PROFICIENCIA_MINIMA).toBe(60);
-    expect(NIVEL_CRITICO_MAX).toBe(30);
+    expect(NIVEL_CRITICO_MAX).toBe(50);
     expect(NIVEL_EXCELENTE_MIN).toBe(80);
   });
 });
@@ -1824,12 +1832,16 @@ describe('nivelDesempenho — 3 níveis sobre % de acerto (spec §4.4)', () => {
     expect(nivelDesempenho(null)).toBeNull();
   });
 
-  it('29.9 é crítico', () => {
-    expect(nivelDesempenho(29.9)).toBe('critico');
+  it('49.9 é crítico', () => {
+    expect(nivelDesempenho(49.9)).toBe('critico');
   });
 
-  it('30 é mediano — a borda pertence ao mediano', () => {
-    expect(nivelDesempenho(30)).toBe('mediano');
+  it('50 é mediano — a borda pertence ao mediano', () => {
+    expect(nivelDesempenho(50)).toBe('mediano');
+  });
+
+  it('30 é crítico com o corte decidido na Task 2 — não mais mediano', () => {
+    expect(nivelDesempenho(30)).toBe('critico');
   });
 
   it('79.9 é mediano', () => {
@@ -1966,10 +1978,11 @@ export const PROFICIENCIA_MINIMA = 60;
 
 /**
  * Teto exclusivo do nível crítico, sobre **% de acerto** (nunca proficiência).
- * Valor validado com dado real na Fase 0 (Task 2 do plano): trocar aqui e no
- * teste correspondente é o único custo de revisar o corte (spec §4.4).
+ * 50, medido com dado real na Task 2: em 87,9% dos recortes o corte de 30 não
+ * classificaria nenhuma área como crítica (100% sem dado de teste). Trocar aqui
+ * e no teste correspondente é o único custo de revisar o corte (spec §4.4).
  */
-export const NIVEL_CRITICO_MAX = 30;
+export const NIVEL_CRITICO_MAX = 50;
 
 /** Piso inclusivo do nível excelente, sobre % de acerto (spec §4.4). */
 export const NIVEL_EXCELENTE_MIN = 80;
@@ -2046,7 +2059,7 @@ export function tendencia(proficiencias: (number | null)[]): Tendencia {
 - [ ] **Step 5: Rodar o teste para confirmar que passa**
 
 Run: `npx vitest run src/features/gestor/__tests__/regras.test.ts`
-Expected: **PASS** — `Test Files 1 passed (1)`, `Tests 27 passed (27)`.
+Expected: **PASS** — `Test Files 1 passed (1)`, `Tests 31 passed (31)`.
 
 - [ ] **Step 6: Escrever o teste que falha — `formatters.test.ts`**
 
@@ -2258,7 +2271,7 @@ npm run type-check
 npm run test:run
 ```
 
-Expected: `lint` sem erro (warnings pré-existentes de outros arquivos podem continuar; **nenhum** novo em `src/features/gestor/`); `type-check` exit 0; `test:run` com os 47 testes novos somados ao total anterior, zero falhas.
+Expected: `lint` sem erro (warnings pré-existentes de outros arquivos podem continuar; **nenhum** novo em `src/features/gestor/`); `type-check` exit 0; `test:run` com os 51 testes novos somados ao total anterior (30 em regras + 1 acrescentado na revisão do corte + 20 em formatters). Atenção: a suíte já vinha com 2 falhas pré-existentes em `src/test/unit/access.test.ts` — comparar contra o total anotado antes da task, não contra zero.
 
 Se o `lint` reclamar de `import type` ou de ordem de import nos arquivos novos, corrigir com `npx eslint src/features/gestor --fix` e rodar `npm run lint` de novo — não silenciar com `eslint-disable`.
 
@@ -20531,8 +20544,8 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
   });
 
   it('caso 14 — tema/especialidade usam SÓ % de acerto: nunca TRI, ENAMED ou proficiência (§4.1)', () => {
-    expect(nivelDesempenho(29.9)).toBe('critico');
-    expect(nivelDesempenho(30)).toBe('mediano');
+    expect(nivelDesempenho(49.9)).toBe('critico');
+    expect(nivelDesempenho(50)).toBe('mediano');
     expect(nivelDesempenho(79.9)).toBe('mediano');
     expect(nivelDesempenho(80)).toBe('excelente');
     expect(nivelDesempenho(null)).toBeNull();
