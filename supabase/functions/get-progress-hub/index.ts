@@ -146,6 +146,22 @@ Deno.serve(async (req) => {
         console.log(`get-progress-hub: INTERNATO fallback found ${internatoConteudos.length} contents`);
       }
     }
+
+    // INTENSIVO ENAMED: sempre agregar (quando existir para a IES) — é um cronograma
+    // paralelo que a IES habilita para todos os semestres. As aulas são gravadas em
+    // conteudos com semestre='Intensivo ENAMED' e content_id no formato composto
+    // "Intensivo ENAMED-<materia>-<tema>-<subtema>-<aula>" em study_progress.
+    if (!conteudosError) {
+      const { data: intensivoConteudos, error: intensivoError } = await supabaseAdmin
+        .from('conteudos')
+        .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
+        .eq('id_ies', userData.id_ies)
+        .eq('semestre', 'Intensivo ENAMED');
+      if (!intensivoError && intensivoConteudos && intensivoConteudos.length > 0) {
+        conteudos = [...(conteudos || []), ...intensivoConteudos];
+        console.log(`get-progress-hub: merged ${intensivoConteudos.length} Intensivo ENAMED contents`);
+      }
+    }
     
     console.log(`get-progress-hub: Fetched ${conteudos?.length || 0} contents for semester ${effectiveSemestre || 'ALL'}`);
     
@@ -212,11 +228,13 @@ Deno.serve(async (req) => {
     // Build a Set of valid content IDs from the semester (for cross-referencing)
     const validContentIds = new Set(conteudos.map(c => c.id));
     
-    // Helper function to generate composite ID matching the Study Guide format
-    // Defined early so it can be used in progress filtering
-    const getCompositeId = (content: { materia?: string; tema?: string | null; subtema?: string | null; aula?: string | null }, semestre: number | string): string => {
+    // Helper function to generate composite ID matching the Study Guide format.
+    // IMPORTANT: use the content's own `semestre` field (not a global effectiveSemestre),
+    // so aulas do Intensivão ENAMED gerem prefixo "Intensivo ENAMED-" e as do 11º "11-".
+    const getCompositeId = (content: { materia?: string; tema?: string | null; subtema?: string | null; aula?: string | null; semestre?: string | number | null }, fallbackSemestre?: number | string | null): string => {
+      const sem = content.semestre ?? fallbackSemestre ?? '';
       const parts = [
-        String(semestre),
+        String(sem),
         content.materia || '',
         content.tema || '',
         content.subtema || '',
@@ -226,10 +244,8 @@ Deno.serve(async (req) => {
     };
     const extractSemestreFromContentId = (contentId: string): string | null => {
       if (!contentId) return null;
-      // Check for INTERNATO prefix
-      if (contentId.startsWith('INTERNATO-')) {
-        return 'INTERNATO';
-      }
+      if (contentId.startsWith('INTERNATO-')) return 'INTERNATO';
+      if (contentId.startsWith('Intensivo ENAMED-')) return 'Intensivo ENAMED';
       const parts = contentId.split('-');
       if (parts.length >= 1) {
         const firstPart = parseInt(parts[0], 10);
@@ -239,28 +255,26 @@ Deno.serve(async (req) => {
       }
       return null;
     };
-    
-    // Filter function to check if progress belongs to active semester
+
+    // Precompute composite IDs for all loaded contents (own semester + Intensivo ENAMED).
+    const validCompositeIds = new Set(conteudos.map(c => getCompositeId(c)));
+    const acceptedSemestres = new Set<string>();
+    acceptedSemestres.add(String(effectiveSemestre ?? userSemestre ?? ''));
+    if (conteudos.some(c => c.semestre === 'Intensivo ENAMED')) acceptedSemestres.add('Intensivo ENAMED');
+    if (effectiveSemestre === 'INTERNATO') acceptedSemestres.add('INTERNATO');
+
+    // Filter function to check if progress belongs to loaded content set
     const isProgressFromSemester = (contentId: string): boolean => {
-      // Method 1: Check if content_id is a valid UUID from the semester contents
+      // Method 1: UUID from loaded contents
       if (validContentIds.has(contentId)) return true;
-      
-      // Method 2: Extract semester from composite content_id
-      if (effectiveSemestre) {
-        const extractedSemestre = extractSemestreFromContentId(contentId);
-        if (extractedSemestre !== null) {
-          return extractedSemestre === String(effectiveSemestre);
-        }
-      }
-      
-      // Method 3: If content_id matches composite format for any semester content
-      for (const content of conteudos) {
-        const compositeId = getCompositeId(content, effectiveSemestre || 1);
-        if (compositeId === contentId) return true;
-      }
-      
+      // Method 2: composite match against any loaded content
+      if (validCompositeIds.has(contentId)) return true;
+      // Method 3: extracted semester matches an accepted scope
+      const extracted = extractSemestreFromContentId(contentId);
+      if (extracted !== null && acceptedSemestres.has(extracted)) return true;
       return false;
     };
+
     
     // Build a map of content_id to completed_at from both sources - FILTERED BY SEMESTER
     const progressMap = new Map<string, string>();
@@ -278,10 +292,12 @@ Deno.serve(async (req) => {
       
       // First check explicit semester field
       // For INTERNATO fallback, accept progress from semesters 9-12 as well as INTERNATO composite IDs
+      // Intensivo ENAMED progress rows always carry the user's numeric semester, so we
+      // additionally accept them whenever the content_id is recognized as Intensivão.
       const numericSemestre = typeof effectiveSemestre === 'number' ? effectiveSemestre : userSemestre;
       if (numericSemestre && p.semestre && p.semestre !== numericSemestre) {
-        // If using INTERNATO fallback, also accept progress from the user's original numeric semester
-        if (effectiveSemestre !== 'INTERNATO' || !INTERNATO_FALLBACK_SEMESTERS.includes(p.semestre)) {
+        const isIntensivo = extractSemestreFromContentId(p.content_id) === 'Intensivo ENAMED';
+        if (!isIntensivo && (effectiveSemestre !== 'INTERNATO' || !INTERNATO_FALLBACK_SEMESTERS.includes(p.semestre))) {
           continue; // Skip progress from other semesters
         }
       }
@@ -326,27 +342,19 @@ Deno.serve(async (req) => {
     
     // Helper to check if content is completed (by UUID or composite ID)
     const isContentCompleted = (content: typeof allContents[0]): boolean => {
-      // Check by UUID (legacy user_progress)
       if (completedIdsSet.has(content.id)) return true;
-      
-      // Check by composite ID (study_progress format)
       const compositeId = getCompositeId(content, effectiveSemestre || 1);
       if (completedIdsSet.has(compositeId)) return true;
-      
       return false;
     };
-    
+
     // Get completed_at for a content (checking both formats)
     const getCompletedAt = (content: typeof allContents[0]): string | null => {
-      // Check by UUID first
       const byUUID = progressData.find(p => p.content_id === content.id);
       if (byUUID) return byUUID.completed_at;
-      
-      // Check by composite ID
       const compositeId = getCompositeId(content, effectiveSemestre || 1);
       const byComposite = progressData.find(p => p.content_id === compositeId);
       if (byComposite) return byComposite.completed_at;
-      
       return null;
     };
     
