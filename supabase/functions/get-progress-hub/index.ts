@@ -146,6 +146,22 @@ Deno.serve(async (req) => {
         console.log(`get-progress-hub: INTERNATO fallback found ${internatoConteudos.length} contents`);
       }
     }
+
+    // INTENSIVO ENAMED: sempre agregar (quando existir para a IES) — é um cronograma
+    // paralelo que a IES habilita para todos os semestres. As aulas são gravadas em
+    // conteudos com semestre='Intensivo ENAMED' e content_id no formato composto
+    // "Intensivo ENAMED-<materia>-<tema>-<subtema>-<aula>" em study_progress.
+    if (!conteudosError) {
+      const { data: intensivoConteudos, error: intensivoError } = await supabaseAdmin
+        .from('conteudos')
+        .select('id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz')
+        .eq('id_ies', userData.id_ies)
+        .eq('semestre', 'Intensivo ENAMED');
+      if (!intensivoError && intensivoConteudos && intensivoConteudos.length > 0) {
+        conteudos = [...(conteudos || []), ...intensivoConteudos];
+        console.log(`get-progress-hub: merged ${intensivoConteudos.length} Intensivo ENAMED contents`);
+      }
+    }
     
     console.log(`get-progress-hub: Fetched ${conteudos?.length || 0} contents for semester ${effectiveSemestre || 'ALL'}`);
     
