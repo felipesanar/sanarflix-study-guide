@@ -342,27 +342,19 @@ Deno.serve(async (req) => {
     
     // Helper to check if content is completed (by UUID or composite ID)
     const isContentCompleted = (content: typeof allContents[0]): boolean => {
-      // Check by UUID (legacy user_progress)
       if (completedIdsSet.has(content.id)) return true;
-      
-      // Check by composite ID (study_progress format)
       const compositeId = getCompositeId(content, effectiveSemestre || 1);
       if (completedIdsSet.has(compositeId)) return true;
-      
       return false;
     };
-    
+
     // Get completed_at for a content (checking both formats)
     const getCompletedAt = (content: typeof allContents[0]): string | null => {
-      // Check by UUID first
       const byUUID = progressData.find(p => p.content_id === content.id);
       if (byUUID) return byUUID.completed_at;
-      
-      // Check by composite ID
       const compositeId = getCompositeId(content, effectiveSemestre || 1);
       const byComposite = progressData.find(p => p.content_id === compositeId);
       if (byComposite) return byComposite.completed_at;
-      
       return null;
     };
     
