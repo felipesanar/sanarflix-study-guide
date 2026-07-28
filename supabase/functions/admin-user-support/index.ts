@@ -283,51 +283,72 @@ Deno.serve(async (req) => {
         // We replicate the core logic: contents, progress, streak
         const userSemestre = targetUser.semestre;
         
-        // Get contents for user's IES/semester
-        let conteudosQuery = admin
-          .from("conteudos")
-          .select("id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz")
-          .eq("id_ies", targetUser.id_ies);
-        
-        if (userSemestre) {
-          conteudosQuery = conteudosQuery.eq("semestre", String(userSemestre));
-        }
+        // Get contents for user's IES/semester + Intensivo ENAMED cronograma paralelo
+        const [semQ, intensivoQ] = await Promise.all([
+          userSemestre
+            ? admin.from("conteudos")
+                .select("id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz")
+                .eq("id_ies", targetUser.id_ies)
+                .eq("semestre", String(userSemestre))
+            : admin.from("conteudos")
+                .select("id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz")
+                .eq("id_ies", targetUser.id_ies),
+          admin.from("conteudos")
+            .select("id, materia, tema, subtema, aula, semestre, link_aula, link_pdf, link_quiz")
+            .eq("id_ies", targetUser.id_ies)
+            .eq("semestre", "Intensivo ENAMED"),
+        ]);
 
-        const [conteudosRes, progressRes, nodesRes] = await Promise.all([
-          conteudosQuery,
+        const conteudos = [...(semQ.data || []), ...(intensivoQ.data || [])];
+
+        const [progressRes, studyProgressRes, nodesRes] = await Promise.all([
           admin
             .from("user_progress")
             .select("content_id, completed_at")
             .eq("user_id", userId),
+          admin
+            .from("study_progress")
+            .select("content_id, completed_at, semestre")
+            .eq("user_id", userId)
+            .eq("completed", true),
           admin
             .from("user_progress_nodes")
             .select("node_type, node_id, source, completed_at, metadata")
             .eq("user_id", userId),
         ]);
 
-        const conteudos = conteudosRes.data || [];
-        const progressSet = new Set((progressRes.data || []).map((p: any) => p.content_id));
+        // Build composite ID from a content row using its OWN semestre field.
+        const getCompositeId = (c: any): string =>
+          [String(c.semestre ?? ""), c.materia || "", c.tema || "", c.subtema || "", c.aula || ""].join("-");
+
+        // A completion counts if it matches either the UUID or the composite ID of a loaded content row.
+        const completedByUUID = new Set(
+          (progressRes.data || []).map((p: any) => p.content_id),
+        );
+        const completedByComposite = new Set(
+          (studyProgressRes.data || []).map((p: any) => p.content_id),
+        );
+        const isDone = (c: any) =>
+          completedByUUID.has(c.id) || completedByComposite.has(getCompositeId(c));
 
         // Build overview
         const total = conteudos.length;
-        const completed = conteudos.filter((c: any) => progressSet.has(c.id)).length;
+        const completed = conteudos.filter(isDone).length;
 
         // Build by_materia
         const materiaMap: Record<string, { total: number; completed: number }> = {};
         const temaMap: Record<string, { materia: string; tema: string; total: number; completed: number }> = {};
 
         for (const c of conteudos) {
-          // By materia
           if (!materiaMap[c.materia]) materiaMap[c.materia] = { total: 0, completed: 0 };
           materiaMap[c.materia].total++;
-          if (progressSet.has(c.id)) materiaMap[c.materia].completed++;
+          if (isDone(c)) materiaMap[c.materia].completed++;
 
-          // By tema
           if (c.tema) {
             const key = `${c.materia}::${c.tema}`;
             if (!temaMap[key]) temaMap[key] = { materia: c.materia, tema: c.tema, total: 0, completed: 0 };
             temaMap[key].total++;
-            if (progressSet.has(c.id)) temaMap[key].completed++;
+            if (isDone(c)) temaMap[key].completed++;
           }
         }
 
