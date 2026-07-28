@@ -154,3 +154,146 @@ sem `grande_area` sob o rótulo literal "Sem classificação" e **não** as desc
 (descartar mudaria o denominador do % de acerto silenciosamente).
 
 Hoje esse nó nasce **vazio** em produção (0 questões sem `grande_area`), e isso é o resultado esperado — ele existe como salvaguarda para questão cadastrada sem classificação no futuro, não como caminho ativo.
+
+## 2. Distribuição das réguas de desempenho (§4.4, pendência nº1)
+
+**Data de execução:** 2026-07-28
+**Executada por:** João Vitor (task atribuída ao Felipe no Notion; antecipada para não travar a Task 8, que consome esta decisão)
+
+### 2.1 Query executada
+
+```sql
+-- Distribuição real de % de acerto por (IES, simulado, grande área)
+-- Atenção: em answer_progress a coluna do simulado é `simulado`, não `simulado_id`.
+with base as (
+  select
+    u.id_ies                                             as ies_id,
+    ap.simulado                                          as simulado_id,
+    coalesce(nullif(btrim(q.grande_area),''), 'Sem classificação') as grande_area,
+    ap.correct
+  from public.answer_progress ap
+  join public.questoes_simulado q on q.id = ap.question_id
+  join public.users u             on u.id = ap.user_id
+  where q.anulada = false and u.id_ies is not null
+),
+recorte as (
+  select ies_id, simulado_id, grande_area,
+         count(*) as respostas,
+         round(100.0 * count(*) filter (where correct) / nullif(count(*),0), 2) as acerto_pct
+  from base group by 1,2,3
+)
+select i.nome as ies, s.nome as simulado, r.grande_area, r.respostas, r.acerto_pct,
+  case when r.acerto_pct < 30 then 'critico' when r.acerto_pct >= 80 then 'excelente' else 'mediano' end as nivel_corte_30,
+  case when r.acerto_pct < 50 then 'critico' when r.acerto_pct >= 80 then 'excelente' else 'mediano' end as nivel_corte_50
+from recorte r
+join public.ies i             on i.id = r.ies_id
+join public.simulados_admin s on s.id = r.simulado_id
+order by i.nome, s.nome, r.acerto_pct asc;
+```
+
+```sql
+-- Contagem agregada: quantos recortes (IES × simulado) têm ao menos uma área crítica
+with base as ( /* idem acima */ ),
+recorte as ( /* idem acima */ ),
+por_recorte as (
+  select ies_id, simulado_id,
+         count(*)                                 as areas,
+         count(*) filter (where acerto_pct <  30) as areas_criticas_30,
+         count(*) filter (where acerto_pct <  50) as areas_criticas_50,
+         count(*) filter (where acerto_pct >= 80) as areas_excelentes
+  from recorte group by 1,2
+)
+select
+  count(*)                                      as recortes_total,
+  count(*) filter (where areas_criticas_30 = 0) as recortes_sem_critico_corte30,
+  round(100.0 * count(*) filter (where areas_criticas_30 = 0) / nullif(count(*),0), 1) as pct_sem_critico_corte30,
+  count(*) filter (where areas_criticas_50 = 0) as recortes_sem_critico_corte50,
+  round(100.0 * count(*) filter (where areas_criticas_50 = 0) / nullif(count(*),0), 1) as pct_sem_critico_corte50,
+  count(*) filter (where areas_excelentes = 0)  as recortes_sem_excelente,
+  round(avg(areas), 1)                          as media_areas_por_recorte
+from por_recorte;
+```
+
+Os percentis usam a mesma CTE `recorte`, com `percentile_cont` sobre `acerto_pct`.
+
+### 2.2 Resultado por recorte (IES × simulado × grande área)
+
+São **320 linhas** no total. Abaixo as **20 menores** e as **10 maiores**, conforme o plano.
+
+| ies | simulado | grande área | respostas | % acerto | nível (corte 30) | nível (corte 50) |
+|---|---|---|---|---|---|---|
+| B2B | 1º simulado UEA | Preventiva | 20 | 0.00 | critico | critico |
+| B2B | 2º simulado FAI | Pediatria | 19 | 0.00 | critico | critico |
+| B2B | 2º simulado FAI | Preventiva | 20 | 0.00 | critico | critico |
+| B2B | 1º simulado UEA | Ginecologia e Obstetrícia | 18 | 0.00 | critico | critico |
+| B2B | 1º simulado UEA | Clínica Médica | 25 | 0.00 | critico | critico |
+| B2B | 1º simulado UEA | Pediatria | 18 | 0.00 | critico | critico |
+| B2B | Teste FAI | Preventiva | 40 | 0.00 | critico | critico |
+| B2B | Teste FAI | Cirurgia | 38 | 0.00 | critico | critico |
+| B2B | 2º simulado FAI | Clínica Médica | 26 | 0.00 | critico | critico |
+| B2B | 1º simulado UEA | Cirurgia | 18 | 0.00 | critico | critico |
+| B2B | TESTE B2B | Pediatria | 38 | 0.00 | critico | critico |
+| B2B | TESTE B2B | Cirurgia | 34 | 0.00 | critico | critico |
+| B2B | 2º simulado FAI | Ginecologia e Obstetrícia | 18 | 0.00 | critico | critico |
+| B2B | Teste FAI | Ginecologia e Obstetrícia | 36 | 0.00 | critico | critico |
+| B2B | Teste FAI | Clínica Médica | 50 | 0.00 | critico | critico |
+| B2B | TESTE B2B | Preventiva | 40 | 0.00 | critico | critico |
+| B2B | 2º Simulado Claretiano | Ginecologia e Obstetrícia | 20 | 0.00 | critico | critico |
+| B2B | TESTE B2B | Ginecologia e Obstetrícia | 36 | 0.00 | critico | critico |
+| B2B | 1º simulado UEA | `Cirurgia\n` | 1 | 0.00 | critico | critico |
+| B2B | 2º simulado FAI | Cirurgia | 17 | 0.00 | critico | critico |
+| FAI | 3º Simulado FAI (2ª Repescagem) | Cirurgia | 19 | 94.74 | excelente | excelente |
+| FAI | 3º Simulado FAI (2ª Repescagem) | Preventiva | 20 | 95.00 | excelente | excelente |
+| FAI | 3º Simulado FAI (2ª Repescagem) | Clínica Médica | 25 | 96.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Ginecologia e Obstetrícia | 18 | 100.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Preventiva | 21 | 100.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Saúde Mental | 6 | 100.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Cirurgia | 18 | 100.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Pediatria | 16 | 100.00 | excelente | excelente |
+| FAI | 3º Simulado FAI (2ª Repescagem) | Pediatria | 18 | 100.00 | excelente | excelente |
+| B2B | Teste Gabarito 2 | Clínica Médica | 21 | 100.00 | excelente | excelente |
+
+Por linha de área (as 320, não por recorte): 34 críticas no corte 30, 100 críticas no corte 50, 14 excelentes.
+
+Nota: a linha `Cirurgia\n` com 1 resposta é o mesmo achado de normalização de whitespace registrado na seção 1.5. Ela aparece aqui como uma **grande área separada**, o que é a materialização do problema previsto: na cascata, viraria um segundo nó "Cirurgia".
+
+### 2.3 Agregado
+
+- Recortes (IES × simulado) analisados: **58**
+- Recortes SEM nenhuma área crítica no corte <30: **51 (87,9%)**
+- Recortes SEM nenhuma área crítica no corte <50: **21 (36,2%)**
+- Recortes SEM nenhuma área excelente: **53**
+- Média de grandes áreas por recorte: **5,5**
+- Percentis do % de acerto por área: min **0,0** · p05 **0,0** · p25 **45,8** · mediana **56,3** · p75 **65,0** · max **100,0**
+
+### 2.4 DECISÃO
+
+**NIVEL_CRITICO_MAX = 50**
+
+Critério aplicado: se mais de 70% dos recortes ficarem sem nenhuma área crítica
+no corte <30, sobe o corte para <50 (§4.4).
+
+Justificativa com o número medido: `pct_sem_critico_corte30 = 87,9%`, bem acima do limiar de 70% — em 51 dos 58 recortes o corte de 30 não classificaria **nenhuma** grande área como crítica, esvaziando o valor diagnóstico da tela. No corte de 50 esse número cai para 36,2%, ou seja, 63,8% dos recortes passam a ter ao menos uma área sinalizada.
+
+Este valor é consumido literalmente por `src/features/gestor/lib/regras.ts`
+(constante `NIVEL_CRITICO_MAX`). Mudá-lo depois é alterar uma constante e o teste
+correspondente — não há impacto de arquitetura.
+
+### 2.5 Verificação de robustez (não altera o critério)
+
+O critério foi aplicado sobre o dado bruto, como fixado. Mas os 20 recortes de menor acerto são **todos 0,00% e todos da IES `B2B`**, em simulados chamados `TESTE B2B`, `Teste FAI`, `Teste Gabarito 2` — dado de teste, não uso real. Como esse dado é justamente o que **produz** área crítica no corte de 30, ele empurra o resultado na direção conservadora (contra subir o corte). Refiz o agregado excluindo a IES `B2B` e todo simulado com "teste" no nome:
+
+| Recorte | Bruto (fixado) | Sem dado de teste |
+|---|---|---|
+| Recortes analisados | 58 | 47 |
+| Sem área crítica no corte <30 | 51 (**87,9%**) | 47 (**100,0%**) |
+| Sem área crítica no corte <50 | 21 (36,2%) | 20 (42,6%) |
+| Sem área excelente | 53 | 44 |
+
+Sem o dado de teste, **nenhum** recorte real teria área crítica no corte de 30. A decisão por 50 é robusta: a exclusão do dado de teste a reforça em vez de contradizê-la. Não houve ambiguidade de fronteira — 87,9% e 100% estão ambos longe dos 70%.
+
+### 2.6 Achado informativo (não muda corte nesta fase)
+
+`recortes_sem_excelente = 53` de 58 (**91,4%**), e 44 de 47 excluindo dado de teste. O topo da régua praticamente não é exercitado: só 14 das 320 linhas de área chegam a 80%+, e as que chegam concentram-se em `Teste Gabarito 2` (gabarito de teste, 100% em tudo) e no `3º Simulado FAI (2ª Repescagem)`. A mediana de 56,3% e o p75 de 65,0% confirmam que a massa vive na faixa mediana.
+
+Isso é consistente com a decisão de subir o corte inferior e **não** é motivo para baixar o corte de excelente nesta fase — a §4.4 fixa `>=80` a partir da régua canônica, e mexer nisso seria redesenhar a régua, fora do escopo desta task. Vale reavaliar no fim do piloto, com dado de uso real e volume maior.
