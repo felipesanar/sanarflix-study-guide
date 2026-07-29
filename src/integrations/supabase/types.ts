@@ -2127,6 +2127,10 @@ export type Database = {
         Returns: Json
       }
       admin_command_center: { Args: never; Returns: Json }
+      admin_delete_ies_contrato: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
       admin_get_audit_log: {
         Args: {
           p_action?: string
@@ -2149,6 +2153,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_get_ies_contratos: { Args: { p_ies_id: string }; Returns: Json }
       admin_import_one_response: {
         Args: {
           p_answers: Json
@@ -2217,6 +2222,21 @@ export type Database = {
         Args: { p_changes: Json; p_ies_id: string }
         Returns: Json
       }
+      admin_set_ies_simulados_previstos: {
+        Args: { p_contrato_id: string; p_slots: Json }
+        Returns: Json
+      }
+      admin_set_simulado_agenda: {
+        Args: {
+          p_data_encerramento?: string
+          p_data_liberacao?: string
+          p_data_realizacao?: string
+          p_definitiva?: boolean
+          p_modalidade?: string
+          p_simulado_id: string
+        }
+        Returns: Json
+      }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }
         Returns: {
@@ -2226,6 +2246,16 @@ export type Database = {
           ordem: number
           question_id: string
         }[]
+      }
+      admin_upsert_ies_contrato: {
+        Args: {
+          p_ies_id: string
+          p_nome: string
+          p_simulados_contratados: number
+          p_vigencia_fim: string
+          p_vigencia_inicio: string
+        }
+        Returns: Json
       }
       complete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
