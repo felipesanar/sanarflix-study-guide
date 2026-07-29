@@ -21,19 +21,21 @@ export const PROFICIENCIA_MINIMA = 60;
 /**
  * Teto exclusivo do nível crítico, sobre **% de acerto** (nunca proficiência).
  *
- * 50, decidido com dado real na Task 2 (Fase 0) e registrado na seção 2.4 de
+ * **30**, conforme a spec §4.4. Valor fixo por determinação de produto (28/07) —
+ * o texto da Task 2 que abria a possibilidade de subir para 50 estava errado.
+ *
+ * Contexto que vale conhecer antes de mexer aqui: a medição da Task 2 mostrou que
+ * em 87,9% dos recortes (IES × simulado) este corte não classifica **nenhuma**
+ * grande área como crítica — 100% se descontado o dado de teste, com mediana de
+ * acerto em 56,3%. Ou seja, o grupo "crítico" nasce quase sempre vazio na prática.
+ * Isso é conhecido e aceito: o corte é 30 porque é o corte da régua canônica do
+ * projeto, não porque a distribuição o recomende. Números completos na seção 2 de
  * `docs/superpowers/notes/2026-07-25-auditoria-hierarquia-simulados.md`.
  *
- * A spec §4.4 propunha `<30` e marcava o risco de o grupo crítico nascer vazio.
- * A medição confirmou o risco: em 87,9% dos recortes (IES × simulado) o corte de
- * 30 não classificaria nenhuma grande área como crítica — 100% se descontado o
- * dado de teste. O critério fixado antes da medição (>70% sem área crítica ⇒
- * sobe para 50) foi acionado.
- *
- * Revisar este valor de novo custa esta linha mais os dois casos de fronteira do
- * teste. Nada de arquitetura depende dele.
+ * Se algum dia se decidir revisar, o custo é esta linha mais os dois casos de
+ * fronteira do teste. Nada de arquitetura depende do valor.
  */
-export const NIVEL_CRITICO_MAX = 50;
+export const NIVEL_CRITICO_MAX = 30;
 
 /** Piso inclusivo do nível excelente, sobre % de acerto (spec §4.4). */
 export const NIVEL_EXCELENTE_MIN = 80;

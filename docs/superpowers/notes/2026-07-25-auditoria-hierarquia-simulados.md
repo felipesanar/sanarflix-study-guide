@@ -302,16 +302,15 @@ Nota: a linha `Cirurgia\n` com 1 resposta é o mesmo achado de normalização de
 
 ### 2.4 DECISÃO
 
-**NIVEL_CRITICO_MAX = 50**
+**NIVEL_CRITICO_MAX = 30**
 
-Critério aplicado: se mais de 70% dos recortes ficarem sem nenhuma área crítica
-no corte <30, sobe o corte para <50 (§4.4).
+Determinação de produto, 28/07: o corte é **30**, conforme a régua canônica da spec §4.4. O texto da Task 2 que abria a possibilidade de subir para 50 estava errado, e o critério de decisão que ele descrevia não vale.
 
-Justificativa com o número medido: `pct_sem_critico_corte30 = 87,9%`, bem acima do limiar de 70% — em 51 dos 58 recortes o corte de 30 não classificaria **nenhuma** grande área como crítica, esvaziando o valor diagnóstico da tela. No corte de 50 esse número cai para 36,2%, ou seja, 63,8% dos recortes passam a ter ao menos uma área sinalizada.
+**O que a medição mostrou, e que segue valendo como fato:** `pct_sem_critico_corte30 = 87,9%` — em 51 dos 58 recortes o corte de 30 não classifica **nenhuma** grande área como crítica. Descontado o dado de teste, o número vai a **100%** em 47 recortes reais. A mediana de acerto por área é 56,3% e o p25 é 45,8%, então a massa vive bem acima de 30.
 
-Este valor é consumido literalmente por `src/features/gestor/lib/regras.ts`
-(constante `NIVEL_CRITICO_MAX`). Mudá-lo depois é alterar uma constante e o teste
-correspondente — não há impacto de arquitetura.
+**Consequência aceita:** o grupo "crítico" do Diagnóstico Curricular nasce quase sempre vazio. Isso é conhecido, não é bug, e não deve ser tratado como defeito de implementação quando a tela da Fase 4 aparecer sem áreas críticas. O corte é 30 porque é o corte da régua canônica do projeto — não porque a distribuição o recomende.
+
+Se em algum momento se decidir revisitar, o número medido acima é o insumo, e o custo é uma constante mais dois casos de fronteira no teste. Este valor é consumido literalmente por `src/features/gestor/lib/regras.ts` (constante `NIVEL_CRITICO_MAX`); não há impacto de arquitetura.
 
 ### 2.5 Verificação de robustez (não altera o critério)
 

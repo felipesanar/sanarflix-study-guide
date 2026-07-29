@@ -106,8 +106,8 @@ GRANT EXECUTE ON FUNCTION public.get_gestor_<nome>(...) TO authenticated;
 | Regra | Valor |
 |---|---|
 | Proficiente | `proficiencia >= 60` — **`>=`, não `>`**. 60 **é** proficiente (§4.3) |
-| Nível crítico | `acertoPct < 50` (§4.4 — corte medido na Task 2 em 28/07; era 30) |
-| Nível mediano | `50 <= acertoPct < 80` (§4.4) |
+| Nível crítico | `acertoPct < 30` (§4.4 — medido na Task 2 e mantido em 30 por produto) |
+| Nível mediano | `30 <= acertoPct < 80` (§4.4) |
 | Nível excelente | `acertoPct >= 80` (§4.4) |
 | Conceito ENAMED | 1–5 inteiro, **nunca média**; com 2+ simulados vira comparativo (§4.1) |
 | Área, especialidade, tema | **sempre % de acerto**, nunca proficiência (§4.1) |
@@ -460,7 +460,7 @@ git commit -m "Fase 0: auditoria de hierarquia dos simulados (pendencia nº3)"
 
 ### Task 2: Validacao da distribuicao das reguas de desempenho
 
-Spec §4.4, o bloco "RISCO A VERIFICAR COM DADO REAL (Fase 0)" e pendência nº1. A régua **proposta** era crítico `<30` / mediano `30–80` / excelente `>=80` sobre **% de acerto**. **EXECUTADA em 28/07: o corte subiu para `<50`** — ver Step 3. "Mediano" absorve 50 pontos de faixa; se "crítico" nascer quase sempre vazio, a tela perde valor diagnóstico. A decisão é por evidência, não por preferência, e o ajuste é de **uma constante** em `regras.ts` (`NIVEL_CRITICO_MAX`) — sem impacto de arquitetura.
+Spec §4.4, o bloco "RISCO A VERIFICAR COM DADO REAL (Fase 0)" e pendência nº1. A régua é crítico `<30` / mediano `30–80` / excelente `>=80` sobre **% de acerto**. **EXECUTADA em 28/07: o corte foi MANTIDO em `<30` por determinação de produto** — ver Step 3. "Mediano" absorve 50 pontos de faixa; se "crítico" nascer quase sempre vazio, a tela perde valor diagnóstico. A decisão é por evidência, não por preferência, e o ajuste é de **uma constante** em `regras.ts` (`NIVEL_CRITICO_MAX`) — sem impacto de arquitetura.
 
 **Files:**
 - Modify: `docs/superpowers/notes/2026-07-25-auditoria-hierarquia-simulados.md`
@@ -593,10 +593,10 @@ Expected: `pct_sem_critico_corte30` como número único — é ele que decide.
 
 | Resultado | Decisão |
 |---|---|
-| `pct_sem_critico_corte30 > 70` | **Recomendação registrada: subir o corte para `< 50`** (absorve Insuficiente + Regular da régua canônica). `NIVEL_CRITICO_MAX = 50` na Task 8 |
+| ~~`pct_sem_critico_corte30 > 70`~~ | ~~Subir o corte para `< 50`~~ — **ANULADO em 28/07: este galho do critério estava errado no enunciado da task. O corte é 30 fixo, qualquer que seja o número medido.** |
 | `pct_sem_critico_corte30 <= 70` | **Mantém `< 30`** conforme §4.4. `NIVEL_CRITICO_MAX = 30` na Task 8 |
 
-**Resultado real (28/07): `pct_sem_critico_corte30 = 87,9%` — primeiro galho acionado, `NIVEL_CRITICO_MAX = 50`.** Verificação de robustez: excluindo a IES de teste `B2B` e simulados com "teste" no nome, o número vai a 100% em 47 recortes reais. Sem ambiguidade de fronteira.
+**Resultado real (28/07): `pct_sem_critico_corte30 = 87,9%`** (100% excluindo a IES de teste `B2B` e simulados com "teste" no nome, em 47 recortes reais). **A tabela de decisão acima NÃO se aplica: por determinação de produto de 28/07, `NIVEL_CRITICO_MAX = 30` fixo**, e o texto que abria a possibilidade de subir para 50 estava errado. A medição fica registrada porque descreve uma consequência real e aceita — o grupo crítico nasce quase sempre vazio, e isso não é defeito de implementação.
 | `recortes_total = 0` (nenhuma IES com resposta) | **Mantém `< 30`** por não haver evidência; registrar "sem dado suficiente para revisar o corte" e reavaliar no fim do piloto |
 
 Registrar também, se `recortes_sem_excelente` for alto, que o topo da régua não está sendo exercitado — achado informativo, **não** muda corte nesta fase.
@@ -1557,7 +1557,7 @@ Primeira task de código. Spec §4.3 (`>= 60`), §4.4 (régua de 3 níveis), §4
 - Test: `src/features/gestor/__tests__/formatters.test.ts`
 
 **Interfaces:**
-- Consumes: `NIVEL_CRITICO_MAX` decidido na Task 2. **DECIDIDO em 28/07: 50** (`pct_sem_critico_corte30 = 87,9%`, acima do limiar de 70%). Os trechos abaixo já refletem 50; o histórico da revisão está na §2 do arquivo de notes.
+- Consumes: `NIVEL_CRITICO_MAX`. **Fixo em 30** por determinação de produto (28/07); a Task 2 mediu a distribuição mas não altera o valor. Os trechos abaixo refletem 30.
 - Produces:
   - `src/features/gestor/api/types.ts`: `FiltroSemestre`, `NivelDesempenho`, `GrupoEvolucao`, `StatusSimulado`, `Tendencia`, `ModoGrafico`, `Meta`, `Envelope<T>`, `Paginado<T>`, `ContextoGestor`, `ItemCronograma`, `Aviso`, `PontoSerie`, `Kpi`, `VisaoGeral`, `NoDiagnostico`, `TemaCritico`, `LinhaAluno`, `AlunoNoSimulado`, `MetricasSimulado`, `Alternativa`, `Questao`, `AcertoPorAreaESemestre`, `Detalhamento`.
   - `src/features/gestor/lib/regras.ts`: `PROFICIENCIA_MINIMA`, `NIVEL_CRITICO_MAX`, `NIVEL_EXCELENTE_MIN`, `ehProficiente`, `nivelDesempenho`, `grupoEvolucao`, `calcularVariacao`, `tendencia`.
@@ -1799,7 +1799,7 @@ import {
 describe('constantes da régua canônica (spec §4.3, §4.4)', () => {
   it('fixa os três cortes oficiais', () => {
     expect(PROFICIENCIA_MINIMA).toBe(60);
-    expect(NIVEL_CRITICO_MAX).toBe(50);
+    expect(NIVEL_CRITICO_MAX).toBe(30);
     expect(NIVEL_EXCELENTE_MIN).toBe(80);
   });
 });
@@ -1832,16 +1832,16 @@ describe('nivelDesempenho — 3 níveis sobre % de acerto (spec §4.4)', () => {
     expect(nivelDesempenho(null)).toBeNull();
   });
 
-  it('49.9 é crítico', () => {
-    expect(nivelDesempenho(49.9)).toBe('critico');
+  it('29.9 é crítico', () => {
+    expect(nivelDesempenho(29.9)).toBe('critico');
   });
 
-  it('50 é mediano — a borda pertence ao mediano', () => {
+  it('30 é mediano — a borda pertence ao mediano', () => {
+    expect(nivelDesempenho(30)).toBe('mediano');
+  });
+
+  it('50 é mediano — o corte é 30, não 50 (determinação de produto de 28/07)', () => {
     expect(nivelDesempenho(50)).toBe('mediano');
-  });
-
-  it('30 é crítico com o corte decidido na Task 2 — não mais mediano', () => {
-    expect(nivelDesempenho(30)).toBe('critico');
   });
 
   it('79.9 é mediano', () => {
@@ -1978,11 +1978,12 @@ export const PROFICIENCIA_MINIMA = 60;
 
 /**
  * Teto exclusivo do nível crítico, sobre **% de acerto** (nunca proficiência).
- * 50, medido com dado real na Task 2: em 87,9% dos recortes o corte de 30 não
- * classificaria nenhuma área como crítica (100% sem dado de teste). Trocar aqui
- * e no teste correspondente é o único custo de revisar o corte (spec §4.4).
+ * 30, fixo por determinação de produto (28/07). A Task 2 mediu que em 87,9% dos
+ * recortes este corte não classifica nenhuma área como crítica (100% sem dado de
+ * teste) — consequência conhecida e aceita, não defeito. Trocar aqui e no teste
+ * correspondente é o único custo de revisar o corte (spec §4.4).
  */
-export const NIVEL_CRITICO_MAX = 50;
+export const NIVEL_CRITICO_MAX = 30;
 
 /** Piso inclusivo do nível excelente, sobre % de acerto (spec §4.4). */
 export const NIVEL_EXCELENTE_MIN = 80;
@@ -20551,8 +20552,8 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
   });
 
   it('caso 14 — tema/especialidade usam SÓ % de acerto: nunca TRI, ENAMED ou proficiência (§4.1)', () => {
-    expect(nivelDesempenho(49.9)).toBe('critico');
-    expect(nivelDesempenho(50)).toBe('mediano');
+    expect(nivelDesempenho(29.9)).toBe('critico');
+    expect(nivelDesempenho(30)).toBe('mediano');
     expect(nivelDesempenho(79.9)).toBe('mediano');
     expect(nivelDesempenho(80)).toBe('excelente');
     expect(nivelDesempenho(null)).toBeNull();
