@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { MonoValue } from '@/experiences/admin/ui';
 import { logAdminAction } from '@/services/admin/logAction';
+import { updateSimulado } from '@/services/admin/simulados';
 import { cn } from '@/lib/utils';
 import type { IES, Simulado } from './ProvasTab';
 
@@ -511,23 +512,33 @@ export default function SimuladoConfigDialog({
           : null;
 
       if (mode === 'edit' && simulado) {
-        const { error: updateError } = await supabase
-          .from('simulados_admin')
-          .update({
-            nome: form.nome,
-            descricao: form.descricao || null,
-            data_liberacao: dataLiberacaoISO,
-            data_encerramento: dataEncerramentoISO,
-            duracao_minutos: duracaoMinutos,
-            status: statusCalculado,
-            ies_ids: selectedIES,
-            liberacao_desempenho: form.liberacaoDesempenho,
-            data_liberacao_desempenho: dataLiberacaoDesempenhoISO,
-          })
-          .eq('id', simulado.id);
-        if (updateError) throw updateError;
+        // Escrita via RPC `admin_update_simulado`, não mais `.from().update()`
+        // direto (decisão do Felipe em 28/07, escopo extra da Task 10 da Fase
+        // 0b): a RPC audita no mesmo commit e deriva `data_agendada_original`
+        // (§6.4), que é o que faz a tag "Reagendado" sumir sozinha. Dois
+        // caminhos de escrita convivendo deixavam metade das mudanças sem
+        // auditoria e sem a derivação.
+        //
+        // `atualizarAgenda` fica em `false` de propósito: este dialog não
+        // conhece `modalidade` nem `data_realizacao` (não estão no tipo
+        // `Simulado` nem no form), e é esse flag que faz a RPC PRESERVAR os
+        // valores do banco em vez de zerá-los a cada save.
+        await updateSimulado({
+          simuladoId: simulado.id,
+          nome: form.nome,
+          descricao: form.descricao || null,
+          dataLiberacao: dataLiberacaoISO,
+          dataEncerramento: dataEncerramentoISO,
+          duracaoMinutos,
+          status: statusCalculado,
+          iesIds: selectedIES,
+          liberacaoDesempenho: form.liberacaoDesempenho,
+          dataLiberacaoDesempenho: dataLiberacaoDesempenhoISO,
+        });
 
-        await logAdminAction('editar_simulado', null, { simulado_id: simulado.id, nome: form.nome });
+        // Sem `logAdminAction` aqui: a RPC já grava `editar_simulado` em
+        // `admin_audit_log` no mesmo commit. Chamar os dois daria duas linhas
+        // de auditoria por save.
 
         toast.success('Simulado atualizado!', { description: 'As configurações foram salvas com sucesso.' });
       } else {

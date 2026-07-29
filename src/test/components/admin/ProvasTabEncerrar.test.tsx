@@ -21,7 +21,7 @@ import ProvasTab from '@/components/admin/simulados/ProvasTab';
 const mockFrom = vi.fn();
 const mockRpc = vi.fn();
 const mockUpdate = vi.fn();
-const mockEq = vi.fn();
+const mockEncerrarSimulado = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -29,6 +29,10 @@ vi.mock('@/integrations/supabase/client', () => ({
     rpc: (...args: unknown[]) => mockRpc(...args),
     functions: { invoke: vi.fn() },
   },
+}));
+
+vi.mock('@/services/admin/simulados', () => ({
+  encerrarSimulado: (...args: unknown[]) => mockEncerrarSimulado(...args),
 }));
 
 vi.mock('sonner', () => ({
@@ -85,64 +89,49 @@ describe('ProvasTab — caracterização do encerrar simulado', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     armarSupabase();
-    mockEq.mockResolvedValue({ error: null });
-    mockUpdate.mockReturnValue({ eq: (...a: unknown[]) => mockEq(...a) });
+    mockUpdate.mockReturnValue({ eq: () => Promise.resolve({ error: null }) });
+    mockEncerrarSimulado.mockResolvedValue({
+      simulado_id: 'sim-1',
+      nome: 'Simulado Ativo',
+      status_antes: 'ativo',
+      status: 'encerrado',
+    });
     mockLogAdminAction.mockResolvedValue(undefined);
   });
 
-  it('escreve SOMENTE a coluna status, com o valor encerrado', async () => {
+  it('encerra pela RPC, passando só o id do simulado alvo', async () => {
     render(<ProvasTab />);
     await encerrar();
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    await waitFor(() => expect(mockEncerrarSimulado).toHaveBeenCalled());
 
-    const payload = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
-    expect(payload).toEqual({ status: 'encerrado' });
-    expect(Object.keys(payload)).toHaveLength(1);
+    expect(mockEncerrarSimulado).toHaveBeenCalledWith('sim-1');
+    expect(mockEncerrarSimulado).toHaveBeenCalledTimes(1);
   });
 
-  it('não toca em modalidade nem em nenhuma das datas', async () => {
+  it('NÃO escreve mais direto em simulados_admin', async () => {
     render(<ProvasTab />);
     await encerrar();
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    await waitFor(() => expect(mockEncerrarSimulado).toHaveBeenCalled());
 
-    const payload = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
-    for (const col of [
-      'modalidade',
-      'data_realizacao',
-      'data_liberacao',
-      'data_encerramento',
-      'data_agendada_original',
-    ]) {
-      expect(payload).not.toHaveProperty(col);
-    }
+    // O update direto era o segundo caminho de escrita que a migração eliminou.
+    // A leitura (`select`) continua indo por `from`, então não dá para afirmar
+    // que `from` nunca é chamado — só que nada mais escreve.
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it('filtra pelo id do simulado alvo', async () => {
+  it('NÃO chama logAdminAction — a RPC já audita como encerrar_simulado', async () => {
     render(<ProvasTab />);
     await encerrar();
-    await waitFor(() => expect(mockEq).toHaveBeenCalled());
+    await waitFor(() => expect(mockEncerrarSimulado).toHaveBeenCalled());
 
-    expect(mockEq).toHaveBeenCalledWith('id', 'sim-1');
-  });
-
-  it('audita como encerrar_simulado e avisa o sucesso', async () => {
-    render(<ProvasTab />);
-    await encerrar();
-    await waitFor(() => expect(mockLogAdminAction).toHaveBeenCalled());
-
-    expect(mockLogAdminAction).toHaveBeenCalledWith('encerrar_simulado', null, {
-      simulado_id: 'sim-1',
-      nome: 'Simulado Ativo',
-    });
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it('erro no update avisa e NÃO audita', async () => {
-    mockEq.mockResolvedValue({ error: { message: 'permission denied' } });
+  it('erro da RPC avisa o usuário', async () => {
+    mockEncerrarSimulado.mockRejectedValue(new Error('admin role required'));
     render(<ProvasTab />);
     await encerrar();
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
-
-    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 });

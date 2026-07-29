@@ -31,7 +31,7 @@ import {
   adminTableHeadClass,
   type StatusPillVariant,
 } from '@/experiences/admin/ui';
-import { logAdminAction } from '@/services/admin/logAction';
+import { encerrarSimulado } from '@/services/admin/simulados';
 import SimuladoConfigDialog from './SimuladoConfigDialog';
 import QuestoesDialog from './QuestoesDialog';
 
@@ -261,13 +261,11 @@ export default function ProvasTab() {
     if (!encerrarTarget) return;
     try {
       setEncerrando(true);
-      const { error: updateError } = await supabase
-        .from('simulados_admin')
-        .update({ status: 'encerrado' })
-        .eq('id', encerrarTarget.id);
-      if (updateError) throw updateError;
-
-      await logAdminAction('encerrar_simulado', null, { simulado_id: encerrarTarget.id, nome: encerrarTarget.nome });
+      // Via RPC `admin_encerrar_simulado` em vez de `.from().update()` direto
+      // (escopo extra da Task 10 da Fase 0b). A RPC escreve só `status` e audita
+      // como `encerrar_simulado` no mesmo commit — daí não haver mais
+      // `logAdminAction` aqui, que daria auditoria dobrada.
+      await encerrarSimulado(encerrarTarget.id);
 
       toast.success('Simulado encerrado', { description: 'Os alunos perderam acesso imediatamente.' });
       fetchSimulados();

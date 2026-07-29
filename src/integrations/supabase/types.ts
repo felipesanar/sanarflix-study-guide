@@ -2131,6 +2131,10 @@ export type Database = {
         Args: { p_contrato_id: string }
         Returns: Json
       }
+      admin_encerrar_simulado: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
       admin_get_audit_log: {
         Args: {
           p_action?: string
@@ -2226,17 +2230,6 @@ export type Database = {
         Args: { p_contrato_id: string; p_slots: Json }
         Returns: Json
       }
-      admin_set_simulado_agenda: {
-        Args: {
-          p_data_encerramento?: string
-          p_data_liberacao?: string
-          p_data_realizacao?: string
-          p_definitiva?: boolean
-          p_modalidade?: string
-          p_simulado_id: string
-        }
-        Returns: Json
-      }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }
         Returns: {
@@ -2246,6 +2239,25 @@ export type Database = {
           ordem: number
           question_id: string
         }[]
+      }
+      admin_update_simulado: {
+        Args: {
+          p_atualizar_agenda?: boolean
+          p_data_encerramento: string
+          p_data_liberacao: string
+          p_data_liberacao_desempenho: string
+          p_data_realizacao?: string
+          p_definitiva?: boolean
+          p_descricao: string
+          p_duracao_minutos: number
+          p_ies_ids: string[]
+          p_liberacao_desempenho: string
+          p_modalidade?: string
+          p_nome: string
+          p_simulado_id: string
+          p_status: string
+        }
+        Returns: Json
       }
       admin_upsert_ies_contrato: {
         Args: {
