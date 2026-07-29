@@ -99,7 +99,12 @@ export interface VisaoGeral {
     enamedProjetado: Kpi;
     proficientesPct: Kpi;
     acertoPct: Kpi;
-    simulados: { realizados: number; contratados: number };
+    /**
+     * `contratados` é `null` quando a IES não tem linha em
+     * `ies_contrato_simulados` — nunca `0` (spec §4.10, "nunca zero onde não há
+     * dado"). O front renderiza TRACO nesse caso.
+     */
+    simulados: { realizados: number; contratados: number | null };
   };
   evolucao: {
     simuladoId: string;
