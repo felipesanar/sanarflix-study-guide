@@ -51,24 +51,43 @@ BEGIN
   END IF;
 
   -- Normaliza o payload uma única vez.
-  CREATE TEMP TABLE _slots_in ON COMMIT DROP AS
-  SELECT (s->>'ordem')::int          AS ordem,
-         NULLIF(btrim(COALESCE(s->>'nome_previsto', '')), '') AS nome_previsto,
-         NULLIF(s->>'simulado_id', '')::uuid                  AS simulado_id
+  --
+  -- Tabela DECLARADA + TRUNCATE, em vez de `CREATE TEMP TABLE ... AS`: se esta
+  -- função for chamada duas vezes na MESMA transação, o `CREATE ... AS` morreria
+  -- com 'relation "_slots_in" already exists'. Cada RPC do Supabase é a sua
+  -- própria transação, então no uso normal não acontecia — mas a função fica
+  -- reentrante de graça, e a verificação de idempotência do plano (mesma chamada
+  -- duas vezes) deixa de depender de como o cliente agrupa as transações.
+  --
+  -- As referências são qualificadas com `pg_temp.` de propósito: o
+  -- `search_path = public, pg_temp` desta função busca `public` PRIMEIRO, então
+  -- sem a qualificação uma futura tabela `public._slots_in` sombrearia a
+  -- temporária e a função passaria a ler dado de outra pessoa.
+  CREATE TEMP TABLE IF NOT EXISTS _slots_in (
+    ordem         int,
+    nome_previsto text,
+    simulado_id   uuid
+  ) ON COMMIT DROP;
+  TRUNCATE pg_temp._slots_in;
+
+  INSERT INTO pg_temp._slots_in (ordem, nome_previsto, simulado_id)
+  SELECT (s->>'ordem')::int,
+         NULLIF(btrim(COALESCE(s->>'nome_previsto', '')), ''),
+         NULLIF(s->>'simulado_id', '')::uuid
   FROM jsonb_array_elements(COALESCE(p_slots, '[]'::jsonb)) s;
 
-  IF EXISTS (SELECT 1 FROM _slots_in WHERE ordem IS NULL OR ordem < 1) THEN
+  IF EXISTS (SELECT 1 FROM pg_temp._slots_in WHERE ordem IS NULL OR ordem < 1) THEN
     RAISE EXCEPTION 'cada slot precisa de "ordem" inteira maior ou igual a 1';
   END IF;
 
-  SELECT array_agg(ordem ORDER BY ordem) INTO v_ordens FROM _slots_in;
-  IF (SELECT count(DISTINCT ordem) FROM _slots_in) <> v_qtd THEN
+  SELECT array_agg(ordem ORDER BY ordem) INTO v_ordens FROM pg_temp._slots_in;
+  IF (SELECT count(DISTINCT ordem) FROM pg_temp._slots_in) <> v_qtd THEN
     RAISE EXCEPTION '"ordem" duplicada em p_slots: %', v_ordens;
   END IF;
 
   -- Um slot só pode apontar para simulado que existe E pertence à IES do contrato.
   SELECT si.simulado_id INTO v_simulado_invalido
-  FROM _slots_in si
+  FROM pg_temp._slots_in si
   WHERE si.simulado_id IS NOT NULL
     AND NOT EXISTS (
       SELECT 1 FROM public.simulados_admin sa
@@ -83,8 +102,8 @@ BEGIN
       v_simulado_invalido, v_contrato.ies_id;
   END IF;
 
-  IF (SELECT count(DISTINCT simulado_id) FROM _slots_in WHERE simulado_id IS NOT NULL)
-     <> (SELECT count(simulado_id) FROM _slots_in) THEN
+  IF (SELECT count(DISTINCT simulado_id) FROM pg_temp._slots_in WHERE simulado_id IS NOT NULL)
+     <> (SELECT count(simulado_id) FROM pg_temp._slots_in) THEN
     RAISE EXCEPTION 'o mesmo simulado foi vinculado a mais de um slot do contrato';
   END IF;
 
@@ -92,7 +111,7 @@ BEGIN
   WITH del AS (
     DELETE FROM public.ies_simulado_previsto p
     WHERE p.contrato_id = p_contrato_id
-      AND NOT EXISTS (SELECT 1 FROM _slots_in si WHERE si.ordem = p.ordem)
+      AND NOT EXISTS (SELECT 1 FROM pg_temp._slots_in si WHERE si.ordem = p.ordem)
     RETURNING 1
   )
   SELECT count(*) INTO v_removidos FROM del;
@@ -101,7 +120,7 @@ BEGIN
   WITH ups AS (
     INSERT INTO public.ies_simulado_previsto (contrato_id, ies_id, ordem, nome_previsto, simulado_id)
     SELECT p_contrato_id, v_contrato.ies_id, si.ordem, si.nome_previsto, si.simulado_id
-    FROM _slots_in si
+    FROM pg_temp._slots_in si
     ON CONFLICT (contrato_id, ordem) DO UPDATE
       SET nome_previsto = EXCLUDED.nome_previsto,
           simulado_id   = EXCLUDED.simulado_id
