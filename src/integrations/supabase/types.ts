@@ -2317,6 +2317,52 @@ export type Database = {
         }[]
       }
       get_effective_features: { Args: never; Returns: Json }
+      get_gestor_aluno: {
+        Args: { p_aluno_id: string; p_ies_id: string; p_simulados: string[] }
+        Returns: Json
+      }
+      get_gestor_alunos: {
+        Args: {
+          p_ies_id: string
+          p_order: string
+          p_page: number
+          p_page_size: number
+          p_q: string
+          p_semestre: string
+          p_sort: string
+        }
+        Returns: Json
+      }
+      get_gestor_avisos: { Args: { p_ies_id: string }; Returns: Json }
+      get_gestor_contexto: { Args: never; Returns: Json }
+      get_gestor_cronograma: { Args: { p_ies_id: string }; Returns: Json }
+      get_gestor_detalhamento: {
+        Args: { p_ies_id: string; p_semestre: string; p_simulados: string[] }
+        Returns: Json
+      }
+      get_gestor_diagnostico: {
+        Args: { p_ies_id: string; p_node: string; p_semestre: string }
+        Returns: Json
+      }
+      get_gestor_diagnostico_temas: {
+        Args: { p_especialidade: string; p_ies_id: string; p_semestre: string }
+        Returns: Json
+      }
+      get_gestor_questoes: {
+        Args: {
+          p_area: string
+          p_ies_id: string
+          p_page: number
+          p_page_size: number
+          p_simulado_id: string
+          p_sort: string
+        }
+        Returns: Json
+      }
+      get_gestor_visao_geral: {
+        Args: { p_ies_id: string; p_semestre: string }
+        Returns: Json
+      }
       get_ies_student_count: {
         Args: { p_ies_id: string; p_semestres?: number[] }
         Returns: number
