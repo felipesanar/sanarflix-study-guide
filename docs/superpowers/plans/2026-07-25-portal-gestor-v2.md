@@ -4536,6 +4536,46 @@ Ao longo da fase, `<GESTOR_ID>` = `users.id` do gestor de teste, `<IES_ID>` = `u
 
 ---
 
+> ## Correções de 29/07 (execução da Fase 1)
+>
+> Registradas na execução, seguindo o precedente da Fase 0b. Onde o texto abaixo divergir do corpo das tasks, **vale o texto abaixo** — ele descreve o que foi aplicado em produção.
+>
+> **1. Pré-condição da fase: a feature NÃO fica ligada.** A abertura acima diz que `gestao.portal_v2` deve estar "ligada para a IES de teste via `admin_set_ies_features`" e que as duas linhas devem vir `enabled = true`. Isso foi **revertido por decisão de produto**: os testes são para todas as IES, mas nenhuma pode ver as alterações ainda. A chave existe em `feature_catalog` e fica **desligada** em `ies_features`. Todas as verificações desta fase ligam a chave **dentro de uma transação revertida** e nunca commitam:
+>
+> ```sql
+> begin;
+> insert into public.ies_features (ies_id, feature_key, enabled)
+> values ('<IES_ID>','gestao.portal_v2', true)
+> on conflict (ies_id, feature_key) do update set enabled = true;  -- constraint UNIQUE (ies_id, feature_key) existe
+> select set_config('request.jwt.claims','{"sub":"<GESTOR_ID>","role":"authenticated"}', true);
+> -- exercite a RPC aqui
+> rollback;  -- producao nunca ve a chave ligada
+> ```
+>
+> `set local role authenticated` só é necessário para exercitar a **postura de GRANT** (o teste de `anon`). Para o caminho felizes basta trocar as claims, porque `auth.uid()` lê o GUC — e ficar como `postgres` evita RLS atrapalhar as conferências cruzadas. `reset role` volta para `postgres` porque `set local role` troca `current_user`, não `session_user`.
+>
+> **2. `user_has_feature` libera `admin` e `atendimento` sem olhar `ies_features`.** Confirmado no corpo dela em produção. Consequências: o teste com **admin** passa **sem ligar feature nenhuma**; o teste com **gestor** exige `gestao.portal_v2` **e** o master `gestao.enabled`, porque ela barra qualquer `gestao.*` se o master estiver desligado. Ela também é `VOLATILE` (default de plpgsql, o corpo só faz `SELECT`) — chamá-la de dentro de uma função `STABLE` é legal no Postgres e não muda nada no SQL.
+>
+> **3. Nomes das migrations renumerados** de `20260726100000`–`20260726100900` para **`20260729210000`–`20260729210900`**, preservando os sufixos. Os nomes originais ordenariam **antes** dos da Fase 0/0b já em disco (`20260726103000`+), invertendo a ordem local num `supabase db reset`. No remoto não muda nada: a versão é atribuída pelo relógio no `apply_migration`.
+>
+> **4. `apply_migration` é barrada pelo classificador do auto mode como *Production Deploy*.** Não passa em retry idêntico e `autoMode.allow` não cobre esse caminho. A fase foi aplicada com o modo de permissão trocado para o que pede aprovação por ação.
+>
+> **5. Sujeitos de teste usados** (os 26 gestores têm **só** o papel `gestor` — a coincidência 26 gestor / 26 gestor_grupo / 26 admin é de conjuntos diferentes de usuários; sem checar isso, `papel = "gestor"` e `podeTrocarIes = false` falhariam de forma confusa):
+>
+> | Papel | Valor |
+> |---|---|
+> | `<GESTOR_ID>` | `a296f57b-6134-4c52-b56c-f9e6a8bc5e10` (PARACATU) |
+> | `<IES_ID>` | `d86c32ba-2d09-4c7e-a426-1d981ec7b595` (PARACATU) — 894 TRI, 5 sims elegíveis, 530 alunos, master já ligado |
+> | `<GESTOR_OUTRA_IES>` | `4031edd3-e110-406a-9bc4-d46c9607b8db` (PASSOS, `9baa1401-bf54-4451-b96c-49e4823564fb`) |
+>
+> **6. `REVOKE ... FROM public, anon` funciona para funções.** ACL final: `postgres=X, authenticated=X, service_role=X`, sem entrada PUBLIC → `anon_pode = false`. A ressalva de que revogar de `public, anon` não restringe vale para **tabelas**, não para funções.
+>
+> **7. `api/types.ts` corrigido:** `kpis.simulados.contratados` passou de `number` para `number | null`. Com 0 contratos em produção, o campo vem `null` em 100% das chamadas. **Quatro divergências da mesma classe ficam pendentes** (documentadas, sem código): `ItemCronograma.participantes`, `Alternativa.marcadaPct`, `Questao.acertoPct` e `VisaoGeral.distribuicaoAlunos[].percentual` — todas tipadas como não-anuláveis, mas as RPCs devolvem `null` quando não há dado.
+>
+> **8. `apply_migration` dar `success` NÃO prova que o SQL está correto.** Corpo de função plpgsql não é validado na criação — nome de coluna ou tabela errado só aparece em runtime. A verificação funcional de cada Step 3 é a única prova. Foi assim que o defeito de `participantes` da Task 15 apareceu.
+
+---
+
 ### Task 14: RPC `get_gestor_contexto`
 
 **Files:**
@@ -4837,12 +4877,21 @@ BEGIN
     FROM public.simulados_admin sa
     WHERE COALESCE(sa.simulado_pai_id, sa.id) IN (SELECT id FROM sims)
   ),
+  -- CORRIGIDO em 29/07: era só simulados_finalizados. Ver nota após o Step 1.
   participacao AS (
-    SELECT g.pai_id, count(DISTINCT sf.user_id) AS n
-    FROM public.simulados_finalizados sf
-    JOIN grupo g ON g.simulado_id = sf.simulado_id
-    WHERE sf.user_id IN (SELECT id FROM alunos)
-    GROUP BY g.pai_id
+    SELECT p.pai_id, count(DISTINCT p.user_id) AS n
+    FROM (
+      SELECT g.pai_id, sf.user_id
+      FROM public.simulados_finalizados sf
+      JOIN grupo g ON g.simulado_id = sf.simulado_id
+      WHERE sf.user_id IN (SELECT id FROM alunos)
+      UNION
+      SELECT g.pai_id, ap.user_id
+      FROM public.answer_progress ap
+      JOIN grupo g ON g.simulado_id = ap.simulado
+      WHERE ap.user_id IN (SELECT id FROM alunos)
+    ) p
+    GROUP BY p.pai_id
   ),
   com_tri AS (
     SELECT DISTINCT COALESCE(sa.simulado_pai_id, sa.id) AS pai_id
@@ -4884,14 +4933,16 @@ BEGIN
            ss.data_efetiva                                   AS data,
            COALESCE(ss.status, 'previsto')                   AS status,
            ss.modalidade                                     AS modalidade,
-           CASE WHEN COALESCE(ss.status,'previsto') = 'realizado' THEN ss.participantes END AS participantes,
+           CASE WHEN COALESCE(ss.status,'previsto') = 'realizado' AND ss.participantes > 0
+                THEN ss.participantes END                    AS participantes,
            sl.ordem                                          AS ordem
     FROM slots sl
     LEFT JOIN sim_status ss ON ss.id = sl.simulado_id
     UNION ALL
     -- simulados reais da IES que não estão em nenhum slot
     SELECT ss.id, ss.nome, ss.data_efetiva, ss.status, ss.modalidade,
-           CASE WHEN ss.status = 'realizado' THEN ss.participantes END,
+           CASE WHEN ss.status = 'realizado' AND ss.participantes > 0
+                THEN ss.participantes END,
            NULL::int
     FROM sim_status ss
     WHERE NOT EXISTS (SELECT 1 FROM slots sl WHERE sl.simulado_id = ss.id)
@@ -4922,9 +4973,9 @@ BEGIN
                         ORDER BY (current_date BETWEEN c.vigencia_inicio AND c.vigencia_fim) DESC, c.vigencia_fim DESC
                         LIMIT 1
                       ), 'sem contrato cadastrado'),
-      'fonte',        'ies_contrato_simulados · ies_simulado_previsto · simulados_admin · simulados_finalizados · resultados_ies_tri',
+      'fonte',        'ies_contrato_simulados · ies_simulado_previsto · simulados_admin · simulados_finalizados · answer_progress · resultados_ies_tri',
       'atualizadoEm', to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
-      'criterio',     'realizado = tem participação/encerrado E tem linha em resultados_ies_tri; processing = realizado sem TRI; reagendado = data_agendada_original difere da data efetiva; agendado = data futura sem reagendamento; previsto = slot sem simulado ou simulado sem data. Data efetiva = data_realizacao (presencial) ou data_liberacao (online). Participantes contam apenas alunos da IES sem role em user_roles.',
+      'criterio',     'realizado = tem participação/encerrado E tem linha em resultados_ies_tri; processing = realizado sem TRI; reagendado = data_agendada_original difere da data efetiva; agendado = data futura sem reagendamento; previsto = slot sem simulado ou simulado sem data. Data efetiva = data_realizacao (presencial) ou data_liberacao (online). Participantes = alunos distintos da IES (sem role em user_roles) com registro em simulados_finalizados ou em answer_progress; null quando não há registro, nunca 0.',
       'partial',      (SELECT count(*) FROM itens WHERE status IN ('previsto','processing')) > 0,
       'lowSample',    false
     )
@@ -4937,6 +4988,12 @@ $fn$;
 REVOKE ALL ON FUNCTION public.get_gestor_cronograma(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.get_gestor_cronograma(uuid) TO authenticated;
 ```
+
+> **Correção de 29/07 — `participantes` reportava 0 onde havia centenas.** A versão original da CTE `participacao` contava apenas `simulados_finalizados`. Essa tabela está populada para apenas **20 simulados e 9 das 24 IES**: tem 1503 linhas contra 536 mil de `answer_progress`. Para PARACATU ela está **vazia**, então o "Simulado Global PARACATU" — 276 alunos respondendo e 276 com nota TRI — devolvia `participantes: 0`.
+>
+> Isso violava "nunca zero onde não há dado" (§4.10) no exato ponto que o card da Task 15 destaca, e divergia do número que a **Task 17** devolve para o mesmo simulado, porque ela já conta com fallback para `answer_progress` via `ultima_fb`. Duas RPCs discordando sobre "participantes" é precisamente o que o card diz que a RPC existe para evitar.
+>
+> Aplicado: `participacao` conta `simulados_finalizados` **UNIÃO** `answer_progress` (o `UNION` deduplica o par `(pai_id, user_id)`, então a contagem é de alunos distintos), e `participantes` devolve **`null` em vez de 0**. Depois da correção, PARACATU reporta 164 / 292 / 170 / 276 — batendo com a contagem de `answer_progress`.
 
 - [ ] **Step 2: Aplicar em produção (project ref gvqv CONFIRMADO)**
 
@@ -5128,28 +5185,58 @@ Expected: `true`.
 
 - [ ] **Step 3: Verificar como gestor real**
 
-Semear um aviso de gestor (como postgres, dentro de transação descartável) e conferir que ele aparece e que um aviso de aluno **não** aparece:
+> **Correção de 29/07 — a verificação original gravava em produção.** O texto pedia `INSERT` dos avisos de teste **fora de transação** e depois um `DELETE` de limpeza. Isso persiste dado em produção e depende de a limpeza rodar. Substituído por: semear, impersonar, ler e `ROLLBACK` num **único** `execute_sql`. Nenhum `DELETE` é necessário porque nada é commitado.
+
+Semear os avisos **dentro** da transação revertida e conferir a segmentação:
 
 ```sql
--- como postgres
-INSERT INTO public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo)
-VALUES ('Teste gestor v2', 'Aviso de verificacao da Task 16.', 'todas', ARRAY['gestor']::text[], true);
-INSERT INTO public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo)
-VALUES ('Teste aluno v2', 'Nao deve aparecer para gestor.', 'todas', ARRAY['aluno']::text[], true);
-```
-```sql
-BEGIN;
-SET LOCAL ROLE authenticated;
-SET LOCAL request.jwt.claims = '{"sub":"<GESTOR_ID>","role":"authenticated"}';
-SELECT jsonb_pretty(public.get_gestor_avisos('<IES_ID>'));
-ROLLBACK;
-```
-Expected: `data` contém o item com `titulo = 'Teste gestor v2'` e `lido = false`; **não** contém `'Teste aluno v2'`.
+begin;
 
-Limpeza:
-```sql
-DELETE FROM public.announcements WHERE titulo IN ('Teste gestor v2','Teste aluno v2');
+insert into public.ies_features (ies_id, feature_key, enabled)
+values ('<IES_ID>','gestao.portal_v2', true)
+on conflict (ies_id, feature_key) do update set enabled = true;
+
+-- 1) gestor, curto, NAO lido            -> deve aparecer
+insert into public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo)
+values ('Teste gestor curto v2','Aviso curto de verificacao da Task 16.','todas', ARRAY['gestor']::text[], true);
+
+-- 2) gestor, longo (>180 chars), LIDO   -> deve aparecer, truncado e lido=true
+with a as (
+  insert into public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo)
+  values ('Teste gestor longo v2', repeat('X', 250), 'todas', ARRAY['gestor']::text[], true)
+  returning id
+)
+insert into public.announcements_viewed (user_id, announcement_id)
+select '<GESTOR_ID>', a.id from a;
+
+-- 3) aluno                              -> NAO deve aparecer
+insert into public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo)
+values ('Teste aluno v2','Nao deve aparecer para gestor.','todas', ARRAY['aluno']::text[], true);
+
+-- 4) gestor, expirado                   -> NAO deve aparecer
+insert into public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo, data_expiracao)
+values ('Teste gestor expirado v2','Expirado.','todas', ARRAY['gestor']::text[], true, now() - interval '1 day');
+
+-- 5) gestor, seletivo para OUTRA IES     -> NAO deve aparecer
+insert into public.announcements (titulo, descricao, visibilidade, publico_alvo, ativo, ies_selecionadas)
+values ('Teste gestor outra ies v2','Seletivo para outra IES.','seletivo', ARRAY['gestor']::text[], true,
+        ARRAY['<IES_OUTRA>']::uuid[]);
+
+select set_config('request.jwt.claims','{"sub":"<GESTOR_ID>","role":"authenticated"}', true);
+
+select jsonb_pretty((
+  select jsonb_agg(jsonb_build_object(
+           'titulo', x->>'titulo', 'lido', x->'lido',
+           'resumo_len', length(x->>'resumo'),
+           'termina_com_ellipsis', (x->>'resumo') like '%…') order by ord)
+  from jsonb_array_elements(public.get_gestor_avisos('<IES_ID>') -> 'data') with ordinality t(x, ord)
+));
+
+rollback;
 ```
+Expected: exatamente **2** itens. O não lido primeiro (`Teste gestor curto v2`, `lido = false`), depois o lido (`Teste gestor longo v2`, `lido = true`, `resumo_len = 181` e terminando em `…`, porque a descrição tem 250 caracteres). Os avisos 3, 4 e 5 **não** aparecem.
+
+> **Nota de 29/07 — o `COALESCE(publico_alvo, ARRAY['aluno'])` é código inalcançável.** O card trata esse `COALESCE` como "segunda linha de defesa" contra backfill incompleto e pede para confirmar que ele segura o caso. Ele não segura porque o caso não pode ocorrer: a coluna é **`NOT NULL`** e tem `CHECK (cardinality(publico_alvo) >= 1 AND publico_alvo <@ ARRAY['aluno','gestor','professor'])`, aplicados pela Task 7. A garantia contra vazar aviso de aluno para o gestor é **estrutural**, do schema — não do `COALESCE`. Mantido por ser inofensivo.
 
 - [ ] **Step 4: Verificar anon e IES alheia**
 
@@ -6626,8 +6713,7 @@ BEGIN
       'periodo',      COALESCE((SELECT to_char(min(s.data_ref),'DD/MM/YYYY') || ' — ' || to_char(max(s.data_ref),'DD/MM/YYYY')
                                 FROM sims_ord s), 'sem simulado na seleção'),
       'fonte',        'resultados_alunos_tri · answer_progress · questoes_simulado · simulados_admin · users',
-      'atualizadoEm', to_char(now() AT TIME ZONE 'UT
-C',"YYYY-MM-DD\"T\"HH24:MI:SS\"Z\""),
+      'atualizadoEm', to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
       'criterio',    'Proficiência = score_proprio (0–100); proficiente >= 60. Aluno que não participou: participou=false e todas as métricas null, nunca 0. Posição calculada só entre alunos com proficiência no mesmo simulado. Variação = diferença de proficiência em relação ao simulado imediatamente anterior da seleção; null quando falta um dos dois valores. acertoPorArea em % de acerto, questão anulada ignorada.',
       'partial',     (SELECT count(*) FROM linha_var WHERE participou AND proficiencia IS NULL) > 0,
       'lowSample',   COALESCE((SELECT max(lv.n_total) FROM linha_var lv), 0) < 10
@@ -6641,6 +6727,15 @@ $fn$;
 REVOKE ALL ON FUNCTION public.get_gestor_aluno(uuid, uuid, uuid[]) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.get_gestor_aluno(uuid, uuid, uuid[]) TO authenticated;
 ```
+
+> **Correção de 29/07 — este SQL não compilava.** A linha de `atualizadoEm` estava assim, com o literal `'UTC'` partido por um newline e o formato em **aspas duplas** (que em Postgres são quoting de identificador, não de string):
+>
+> ```
+> 'atualizadoEm', to_char(now() AT TIME ZONE 'UT
+> C',"YYYY-MM-DD\"T\"HH24:MI:SS\"Z\""),
+> ```
+>
+> Corrigido para a forma que as outras 9 RPCs da fase usam: `to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"')`. Sem isso o `apply_migration` falha com erro de sintaxe.
 
 - [ ] **Step 2: Aplicar em produção (project ref gvqv CONFIRMADO)**
 
@@ -7436,17 +7531,37 @@ ORDER BY p.proname;
 ```
 Expected: **10 linhas** (`get_gestor_aluno`, `get_gestor_alunos`, `get_gestor_avisos`, `get_gestor_contexto`, `get_gestor_cronograma`, `get_gestor_detalhamento`, `get_gestor_diagnostico`, `get_gestor_diagnostico_temas`, `get_gestor_questoes`, `get_gestor_visao_geral`); todas com `prosecdef = true`, `provolatile = 's'`, `tem_guard_feature = true`, `anon_pode = false`, `auth_pode = true`. `tem_escopo_ies = true` em todas menos `get_gestor_contexto` (que não recebe `p_ies_id`).
 
-Confirmar que nenhuma das 19 RPCs com guard injetado foi tocada:
+Confirmar que nenhuma das RPCs com guard injetado foi tocada.
+
+> **Correção de 29/07 — a lista fixa cobria 9 de 21.** O texto original falava em "19 RPCs" e a query listava **9 nomes hardcoded**. Produção tem **21** funções com `feature_not_enabled` no corpo, incluindo `complete_theme`, `get_user_rankings`, `get_user_simulados`, `get_all_user_performance_by_area`, `get_cohort_consumo_ranking`, `get_questions_by_subspecialty`, `get_user_performance_aggregates`, `add_to_notebook_bulk_guarded`, `record_review_attempt_guarded`, `reset_leech_guarded`, `schedule_next_review_guarded` e `uncomplete_theme` — nenhuma delas na lista dos 9. Substituído por inventário por padrão, com baseline nominal capturada **antes** da primeira migration da fase e comparada no fim.
+
+Baseline das 21 (capturada em 29/07, antes da Task 14):
+
 ```sql
-SELECT p.proname, position('feature_not_enabled' IN pg_get_functiondef(p.oid)) > 0 AS guard_intacto
-FROM pg_proc p
-WHERE p.pronamespace = 'public'::regnamespace
-  AND p.proname IN ('get_institutional_tri','get_institutional_evolution_tri','get_institutional_performance',
-                    'get_institutional_student_scores','get_institutional_evolution','get_institutional_simulados',
-                    'get_theme_evolution','get_ies_student_count','get_simulado_tem_tri')
-ORDER BY p.proname;
+WITH baseline(nome) AS (
+  VALUES ('add_to_notebook_bulk_guarded'),('complete_theme'),('get_all_user_performance_by_area'),
+         ('get_cohort_consumo_ranking'),('get_ies_student_count'),('get_institutional_evolution'),
+         ('get_institutional_evolution_tri'),('get_institutional_performance'),('get_institutional_simulados'),
+         ('get_institutional_student_scores'),('get_institutional_tri'),('get_questions_by_subspecialty'),
+         ('get_simulado_tem_tri'),('get_theme_evolution'),('get_user_performance_aggregates'),
+         ('get_user_rankings'),('get_user_simulados'),('record_review_attempt_guarded'),
+         ('reset_leech_guarded'),('schedule_next_review_guarded'),('uncomplete_theme')
+)
+SELECT count(*) AS baseline_esperada,
+       count(*) FILTER (WHERE guard_ok) AS guard_intacto,
+       COALESCE(string_agg(b.nome, ', ') FILTER (WHERE NOT guard_ok), 'NENHUMA PERDA') AS perdeu_guard
+FROM baseline b
+CROSS JOIN LATERAL (
+  SELECT EXISTS (
+    SELECT 1 FROM pg_proc p
+    WHERE p.pronamespace='public'::regnamespace AND p.proname = b.nome
+      AND pg_get_functiondef(p.oid) LIKE '%feature_not_enabled%'
+  ) AS guard_ok
+) g;
 ```
-Expected: todas com `guard_intacto = true`.
+Expected: `baseline_esperada = 21`, `guard_intacto = 21`, `perdeu_guard = 'NENHUMA PERDA'`. Se qualquer uma sumir, **PARE** — é incidente de produção: o guard injetado dinamicamente foi apagado.
+
+Contagem total ao fim da fase: **31** funções com o guard (21 da baseline + 10 novas).
 
 - [ ] **Step 3: Verificar como gestor real**
 
