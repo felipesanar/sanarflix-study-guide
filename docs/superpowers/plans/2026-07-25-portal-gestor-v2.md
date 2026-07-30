@@ -2304,11 +2304,16 @@ git commit -m "Gestor v2: types, regras e formatters com teste (spec §4.3, §4.
 > 8. **DIVERGÊNCIA que assumo explicitamente (3):** os testes não são colocados no repo — vivem em `src/test/unit/` e `src/test/components/admin/`. O contexto compartilhado manda `src/features/gestor/__tests__/` para o **portal novo do gestor**; esta fatia é admin, então **sigo o repo** e uso `src/test/unit/` e `src/test/components/admin/`.
 > 9. **DIVERGÊNCIA que assumo explicitamente (4):** os `<select>` da tela nova são **nativos**, não `@/components/ui/select` (Radix). Motivo concreto: `src/test/components/admin/IesFeaturesBoard.test.tsx:170-184` precisa stubar `Element.prototype.hasPointerCapture` e `scrollIntoView` e caçar a opção portalizada no body para testar UM Radix Select. Numa tabela com N selects por linha isso fica intratável. Estilizo o `<select>` nativo com as classes do trigger shadcn para o visual não destoar.
 > **DECISÃO DO FELIPE (28/07) sobre as 4 divergências acima — as quatro estão aceitas:**
-> - **Divergências 1 e 2 (RPC `admin_set_simulado_agenda`):** aceitas. A derivação de `data_agendada_original` é regra de negócio e precisa de auditoria — não pode viver no client. `admin_set_simulado_agenda` **entra na lista canônica** de RPCs de admin desta fase (passa a ser 4 de escrita + 1 de leitura). **Escopo adicional para a Task 10:** migrar os dois call sites existentes (`SimuladoConfigDialog.tsx:514` e `ProvasTab.tsx:264`) para a RPC nova. Não é opcional — deixar `.from().update()` convivendo criaria dois caminhos de escrita, um deles sem auditoria e sem derivar a tag "Reagendado".
+> - **Divergências 1 e 2 (escrita em `simulados_admin` por RPC):** aceitas. A derivação de `data_agendada_original` é regra de negócio e precisa de auditoria — não pode viver no client. **Escopo adicional para a Task 10:** migrar os dois call sites existentes (`SimuladoConfigDialog.tsx:514` e `ProvasTab.tsx:264`) para RPC. Não é opcional — deixar `.from().update()` convivendo criaria dois caminhos de escrita, um deles sem auditoria e sem derivar a tag "Reagendado".
+>   **Atualizado em 30/07 pelo que a execução mostrou:** o nome canônico **não** é `admin_set_simulado_agenda` — essa foi dropada. A lista canônica desta fase é `admin_upsert_ies_contrato`, `admin_delete_ies_contrato`, `admin_set_ies_simulados_previstos`, **`admin_update_simulado`**, **`admin_encerrar_simulado`** e a de leitura `admin_get_ies_contratos`. Ver o aviso no topo da Task 10.
 > - **Divergência 3 (testes em `src/test/unit/` e `src/test/components/admin/`):** aceita, sem ressalva. Esta fatia é admin, não portal do gestor; o repo manda.
 > - **Divergência 4 (`<select>` nativo):** aceita. O motivo é concreto e o custo de testar N Radix Selects por linha não se paga aqui. Obrigatório estilizar com as classes do trigger shadcn e manter `<label>` associado a cada `<select>` para não perder acessibilidade.
 >
 > **REGRA DE INTEGRAÇÃO (28/07, decisão do Felipe): nada da implementação do Portal do Gestor v2 vai para a `main` até a entrega.** Toda a implementação, todos os testes e todo o acompanhamento acontecem **nesta branch única** (`feat/portal-gestor-v2`). Só assets e documentação, que não afetam o código do gestor em produção, podem estar na `main`. O PR #17 fica como **draft** — superfície de revisão por fase, não caminho de merge. Consequência prática: a branch precisa **absorver a `main` periodicamente** (`git merge origin/main`), porque o Lovable continua empurrando código para produção; e `src/integrations/supabase/types.ts` deve ser **regenerado** depois de cada absorção, nunca resolvido à mão.
+>
+> **CONVENÇÃO DE VERSIONAMENTO (30/07):** **um PR só, tags por fase.** Não se abre PR por fase — os commits vão direto na `feat/portal-gestor-v2` e o diff do #17 acumula. A fronteira de cada fase é uma **tag anotada** (`fase-0`, `fase-0b`, `fase-1`, …), criada ao fechar a fase (`git tag -a fase-N -m "..." && git push origin fase-N`), e a revisão acontece por range (`git diff fase-0b..fase-1`). O #17 só sai de draft quando a Fase 6 fechar.
+>
+> **PILOTO (30/07): a IES é a `FAI`** — 6 simulados no histórico, a única que exercita cronograma, comparativo e detalhamento com dado real. A chave `gestao.portal_v2` é ligada para ela via `admin_set_ies_features`, depois de confirmar que o master `gestao.enabled` está ligado. É inócuo enquanto o v2 não está na `main`, **mas na Fase 6, antes do merge final, é obrigatório decidir explicitamente se a chave continua ligada e avisar o CX se continuar** — no instante do merge os gestores da FAI passam a ver o portal novo sem aviso.
 >
 > 10. **Pré-requisito da Fase 0a:** as Tasks 9–13 assumem que as tabelas `public.ies_contrato_simulados` / `public.ies_simulado_previsto` e as colunas `simulados_admin.modalidade` / `simulados_admin.data_realizacao` / `simulados_admin.data_agendada_original` **já existem em produção** (criadas na Fase 0a). Se `\d public.ies_contrato_simulados` falhar, PARE e volte para a Fase 0a.
 
@@ -2588,6 +2593,17 @@ git commit -m "Fase 0b: RPCs admin_upsert_ies_contrato e admin_delete_ies_contra
 ---
 
 ### Task 10: RPCs de escrita dos slots e da agenda do simulado
+
+> ⚠️ **SUPERADA NA EXECUÇÃO (29/07) — leia antes de usar o SQL desta task como referência.** A `admin_set_simulado_agenda` descrita e escrita abaixo **foi dropada em produção** e não existe mais. Ela não era implementável contra os call sites reais: `ProvasTab.tsx:264` só escreve `status`, e `SimuladoConfigDialog.tsx:514` escreve 9 colunas enquanto a RPC recebia 2 — todo save do dialog apagaria `modalidade`, `data_realizacao` e `data_agendada_original`.
+>
+> **O contrato que de fato está em produção** (commit `2d4cc314`, migrations aplicadas no `gvqv`):
+> - `public.admin_update_simulado(...)` — as 9 colunas do dialog + `p_status` + a derivação de `data_agendada_original`, com o flag **`p_atualizar_agenda` (default `false`)** que **preserva** `modalidade`/`data_realizacao` quando o chamador não conhece essas colunas.
+> - `public.admin_encerrar_simulado(...)` — só `status`, que era o que o `ProvasTab` realmente escrevia.
+> - `public.admin_set_ies_simulados_previstos(uuid, jsonb)` — esta segue valendo, com a correção do `f2c23c13` (tabela temporária declarada + `TRUNCATE` + referências qualificadas com `pg_temp.`, porque `CREATE TEMP TABLE ... AS` estourava na segunda chamada dentro da mesma transação).
+>
+> Decisões deliberadas que acompanham isso: as validações `data_encerramento >= data_liberacao` e "online exige `data_liberacao`" **ficaram fora** — 2 e 25 das 44 linhas de produção as violam, e validar tornaria provas reais ineditáveis; e `status` **segue derivado no client** por `calcularStatusSalvar`, coberto pelos 14 testes de caracterização do commit `b3449b17`.
+>
+> **NÃO recrie `admin_set_simulado_agenda` a partir do SQL abaixo.** Ele está preservado como histórico da decisão, não como instrução.
 
 **Files:**
 - Create: `supabase/migrations/20260726121000_admin_slots_e_agenda_write.sql`
