@@ -53,6 +53,33 @@ export async function fetchStudentScores(
   });
 }
 
+/**
+ * Contato nominal de UM aluno (telefone), sob demanda ao abrir o drawer.
+ *
+ * RPC dedicada (`get_gestor_aluno_contato`, migration
+ * 20260731143924_b020effc-…) em vez de somar `telefone` a
+ * get_institutional_student_scores por dois motivos:
+ *   1. aquela RPC devolve a turma inteira -> despejaria o telefone de todos os
+ *      alunos da IES em cada carregamento da tela;
+ *   2. o corpo real dela em produção tem o guard de feature injetado pelo patch
+ *      de 20260709171344 — recriá-la a partir do .sql apagaria o guard.
+ *
+ * Erro `aluno_nao_encontrado` é a MESMA mensagem para ID inexistente e para
+ * aluno de outra IES (mensagens distintas permitiriam enumerar UUIDs).
+ * A RPC é STABLE, logo não grava trilha de auditoria de acesso a dado nominal.
+ */
+export async function fetchAlunoContato(
+  alunoId: string,
+): Promise<{ telefone: string | null }> {
+  const rpcPromise = Promise.resolve(
+    supabase.rpc('get_gestor_aluno_contato', { p_aluno_id: alunoId }),
+  );
+  const result = await withTimeout(rpcPromise, RPC_TIMEOUT, 'get_gestor_aluno_contato');
+  if (result.error) throw new Error(`Contato: ${result.error.message}`);
+  const data = (result.data ?? {}) as { telefone?: string | null };
+  return { telefone: data.telefone ?? null };
+}
+
 export async function fetchInstitutionalEvolution(
   iesId: string,
 ): Promise<RpcEvolutionEntry[]> {
