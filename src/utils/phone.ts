@@ -32,3 +32,18 @@ export function maskPhone(raw: string): string {
 export function isValidBrPhone(digits: string): boolean {
   return digits.length === 10 || digits.length === 11;
 }
+
+/**
+ * Link wa.me a partir de um telefone em qualquer formato. Assume BR (+55) quando
+ * vêm só DDD + número; se já vier com o 55 na frente (12–13 dígitos), respeita.
+ * Devolve null quando não há dígitos suficientes para um número discável.
+ */
+export function whatsappLink(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = onlyDigits(raw);
+  if (isValidBrPhone(digits)) return `https://wa.me/55${digits}`;
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    return `https://wa.me/${digits}`;
+  }
+  return null;
+}

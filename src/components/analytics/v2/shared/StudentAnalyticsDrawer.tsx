@@ -1,9 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   User, TrendingDown, TrendingUp, Zap, BarChart3, Shield,
+  Phone, Copy, Check, MessageCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
@@ -14,6 +17,8 @@ import type {
   CurricularAreaNode,
   InstitutionalViewModel,
 } from '@/types/desempenhoV2';
+import { fetchAlunoContato } from '@/services/institutional';
+import { maskPhone, onlyDigits, whatsappLink } from '@/utils/phone';
 import { Logger } from '@/utils/logger';
 
 const PROFICIENCY_THRESHOLD = 60;
@@ -141,6 +146,33 @@ interface StudentAnalyticsDrawerProps {
 export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
   student, data, open, onClose,
 }) => {
+  // Telefone é buscado por aluno, só quando o drawer abre — a lista de alunos
+  // nunca carrega contato em massa.
+  const studentId = student?.studentId;
+  const [contato, setContato] = useState<{
+    status: 'idle' | 'loading' | 'ok' | 'error';
+    telefone: string | null;
+  }>({ status: 'idle', telefone: null });
+
+  useEffect(() => {
+    if (!open || !studentId) {
+      setContato({ status: 'idle', telefone: null });
+      return;
+    }
+    let cancelled = false;
+    setContato({ status: 'loading', telefone: null });
+    fetchAlunoContato(studentId)
+      .then(({ telefone }) => {
+        if (!cancelled) setContato({ status: 'ok', telefone });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        Logger.warn('[StudentAnalyticsDrawer]', 'Falha ao carregar contato do aluno:', err);
+        setContato({ status: 'error', telefone: null });
+      });
+    return () => { cancelled = true; };
+  }, [open, studentId]);
+
   useEffect(() => {
     if (open && student) {
       const status = computeProficiencyStatus(student.percentual);
@@ -209,6 +241,13 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
               {statusBadge.label}
             </Badge>
           </SheetTitle>
+          {studentId && (
+            <ContactRow
+              nome={student.nome}
+              status={contato.status}
+              telefone={contato.telefone}
+            />
+          )}
         </SheetHeader>
 
         <div className="space-y-5 mt-4 pb-4">
@@ -330,6 +369,81 @@ export const StudentAnalyticsDrawer: React.FC<StudentAnalyticsDrawerProps> = ({
         </div>
       </SheetContent>
     </Sheet>
+  );
+};
+
+// ── Contato do aluno (copiar número / abrir WhatsApp) ──
+const ContactRow: React.FC<{
+  nome: string;
+  status: 'idle' | 'loading' | 'ok' | 'error';
+  telefone: string | null;
+}> = ({ nome, status, telefone }) => {
+  const [copied, setCopied] = useState(false);
+
+  if (status === 'loading' || status === 'idle') {
+    return <p className="text-xs text-muted-foreground">Carregando contato…</p>;
+  }
+  if (status === 'error') {
+    return <p className="text-xs text-muted-foreground">Contato indisponível</p>;
+  }
+
+  const digits = onlyDigits(telefone ?? '');
+  if (!digits) {
+    return (
+      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+        <Phone className="h-3.5 w-3.5 shrink-0" /> Telefone não cadastrado
+      </p>
+    );
+  }
+
+  const formatted = maskPhone(digits);
+  const wa = whatsappLink(digits);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formatted);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Telefone copiado', { description: `${nome} · ${formatted}` });
+    } catch {
+      toast.error('Não foi possível copiar o telefone');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <span className="text-sm tabular-nums select-all">{formatted}</span>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 px-2 text-xs gap-1"
+        onClick={handleCopy}
+        aria-label={`Copiar telefone de ${nome}`}
+      >
+        {copied
+          ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          : <Copy className="h-3.5 w-3.5" />}
+        {copied ? 'Copiado' : 'Copiar'}
+      </Button>
+      {wa && (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs gap-1 text-emerald-700 border-emerald-200 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-900 dark:hover:bg-emerald-950/40"
+        >
+          <a
+            href={wa}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Abrir WhatsApp de ${nome}`}
+          >
+            <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+          </a>
+        </Button>
+      )}
+    </div>
   );
 };
 
