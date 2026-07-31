@@ -2127,6 +2127,14 @@ export type Database = {
         Returns: Json
       }
       admin_command_center: { Args: never; Returns: Json }
+      admin_delete_ies_contrato: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
+      admin_encerrar_simulado: {
+        Args: { p_simulado_id: string }
+        Returns: Json
+      }
       admin_get_audit_log: {
         Args: {
           p_action?: string
@@ -2149,6 +2157,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_get_ies_contratos: { Args: { p_ies_id: string }; Returns: Json }
       admin_import_one_response: {
         Args: {
           p_answers: Json
@@ -2217,6 +2226,10 @@ export type Database = {
         Args: { p_changes: Json; p_ies_id: string }
         Returns: Json
       }
+      admin_set_ies_simulados_previstos: {
+        Args: { p_contrato_id: string; p_slots: Json }
+        Returns: Json
+      }
       admin_simulado_question_map: {
         Args: { p_simulado_id: string }
         Returns: {
@@ -2226,6 +2239,35 @@ export type Database = {
           ordem: number
           question_id: string
         }[]
+      }
+      admin_update_simulado: {
+        Args: {
+          p_atualizar_agenda?: boolean
+          p_data_encerramento: string
+          p_data_liberacao: string
+          p_data_liberacao_desempenho: string
+          p_data_realizacao?: string
+          p_definitiva?: boolean
+          p_descricao: string
+          p_duracao_minutos: number
+          p_ies_ids: string[]
+          p_liberacao_desempenho: string
+          p_modalidade?: string
+          p_nome: string
+          p_simulado_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      admin_upsert_ies_contrato: {
+        Args: {
+          p_ies_id: string
+          p_nome: string
+          p_simulados_contratados: number
+          p_vigencia_fim: string
+          p_vigencia_inicio: string
+        }
+        Returns: Json
       }
       complete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
@@ -2275,6 +2317,52 @@ export type Database = {
         }[]
       }
       get_effective_features: { Args: never; Returns: Json }
+      get_gestor_aluno: {
+        Args: { p_aluno_id: string; p_ies_id: string; p_simulados: string[] }
+        Returns: Json
+      }
+      get_gestor_alunos: {
+        Args: {
+          p_ies_id: string
+          p_order: string
+          p_page: number
+          p_page_size: number
+          p_q: string
+          p_semestre: string
+          p_sort: string
+        }
+        Returns: Json
+      }
+      get_gestor_avisos: { Args: { p_ies_id: string }; Returns: Json }
+      get_gestor_contexto: { Args: never; Returns: Json }
+      get_gestor_cronograma: { Args: { p_ies_id: string }; Returns: Json }
+      get_gestor_detalhamento: {
+        Args: { p_ies_id: string; p_semestre: string; p_simulados: string[] }
+        Returns: Json
+      }
+      get_gestor_diagnostico: {
+        Args: { p_ies_id: string; p_node: string; p_semestre: string }
+        Returns: Json
+      }
+      get_gestor_diagnostico_temas: {
+        Args: { p_especialidade: string; p_ies_id: string; p_semestre: string }
+        Returns: Json
+      }
+      get_gestor_questoes: {
+        Args: {
+          p_area: string
+          p_ies_id: string
+          p_page: number
+          p_page_size: number
+          p_simulado_id: string
+          p_sort: string
+        }
+        Returns: Json
+      }
+      get_gestor_visao_geral: {
+        Args: { p_ies_id: string; p_semestre: string }
+        Returns: Json
+      }
       get_ies_student_count: {
         Args: { p_ies_id: string; p_semestres?: number[] }
         Returns: number
