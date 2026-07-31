@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -8,6 +7,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useGestorContexto } from '@/features/gestor/api/queries';
+import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 
 const Rotulo: React.FC = () => (
   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
@@ -26,7 +26,7 @@ const Rotulo: React.FC = () => (
  */
 export const SidebarIes: React.FC = () => {
   const { data: contexto, isLoading } = useGestorContexto();
-  const [, setSearchParams] = useSearchParams();
+  const { setIesId } = useFiltrosGestor();
 
   if (isLoading) {
     return (
@@ -58,18 +58,10 @@ export const SidebarIes: React.FC = () => {
     );
   }
 
-  // A Task 27 troca esta escrita direta pelo `setIesId` de useFiltrosGestor.
-  const trocarIes = (id: string) =>
-    setSearchParams((anteriores) => {
-      const proximos = new URLSearchParams(anteriores);
-      proximos.set('ies', id);
-      return proximos;
-    });
-
   return (
     <div className="space-y-1 px-1">
       <Rotulo />
-      <Select value={contexto.iesAtual.id} onValueChange={trocarIes}>
+      <Select value={contexto.iesAtual.id} onValueChange={setIesId}>
         <SelectTrigger aria-label="Instituição em foco" className="h-9 w-full text-sm">
           <SelectValue />
         </SelectTrigger>
