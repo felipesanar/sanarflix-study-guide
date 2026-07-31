@@ -218,3 +218,20 @@ export interface Detalhamento {
     porSimulado: { simuladoId: string; acertoPct: number }[];
   }[];
 }
+
+/** Recorte global da tela — o que `useFiltrosGestor` devolve, na forma que as RPCs consomem. */
+export interface FiltrosGestor {
+  iesId: string | null;
+  semestre: FiltroSemestre;
+  simulados: string[];
+}
+
+/** Paginação/ordenação das listas paginadas no servidor (alunos, questões). */
+export interface PaginacaoGestor {
+  page: number;
+  pageSize: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+  q?: string;
+  area?: string;
+}

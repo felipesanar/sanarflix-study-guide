@@ -7,7 +7,7 @@ import { ExperiencePage } from '@/experiences/shared/ExperiencePage';
 import { NoAccessPage } from '@/experiences/shared/NoAccessPage';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { adminRoutes } from '@/experiences/admin/adminRoutes';
-import { gestorRoutes } from '@/experiences/gestor/gestorRoutes';
+import { gestorV2Routes } from '@/features/gestor/gestorV2Routes';
 import { atendimentoRoutes } from '@/experiences/atendimento/atendimentoRoutes';
 
 const NotFound = lazy(() => import('@/pages/NotFound'));
@@ -77,7 +77,7 @@ export const buildAppRoutes = (
     // POR CIMA: árvores IRMÃS dos portais dedicados, montadas conforme
     // `access.experiences` (aditivo — um usuário pode ter várias).
     ...(hasExperience(access, 'admin') ? adminRoutes() : deniedPortal('/admin')),
-    ...(hasExperience(access, 'gestao') ? gestorRoutes() : deniedPortal('/gestor')),
+    ...(hasExperience(access, 'gestao') ? gestorV2Routes() : deniedPortal('/gestor')),
     ...(hasExperience(access, 'atendimento')
       ? atendimentoRoutes()
       : deniedPortal('/atendimento')),
