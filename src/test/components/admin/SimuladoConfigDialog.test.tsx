@@ -8,13 +8,23 @@
  * equivalente em vez de apenas parecer. Até esta suíte existir, os dois call
  * sites de `simulados_admin` tinham ZERO cobertura.
  *
+ * ATUALIZAÇÃO 03/08 (decisão do Felipe): quem marca modalidade e data de
+ * realização do simulado é o ADMIN (equipe B2B) nesta mesma tela — não o CX.
+ * O dialog passou a conhecer `modalidade`/`data_realizacao` e agora ENVIA
+ * `atualizarAgenda: true` em todo save de edição (antes ficava em `false` de
+ * propósito, porque o form não conhecia esses campos). Os dois primeiros
+ * testes abaixo foram ajustados para o novo contrato — a intenção que eles
+ * protegem virou o oposto: antes provavam que a agenda NUNCA era tocada;
+ * agora provam que ela é SEMPRE enviada, e com os valores certos (ver também
+ * os testes de modalidade/data de realização mais abaixo).
+ *
  * O que está travado aqui, e por quê:
- * - As 9 colunas do save, campo a campo. A RPC anterior
- *   (`admin_set_simulado_agenda`) recebia só 4 delas e nenhum `status` — foi
- *   exatamente isso que travou a migração e motivou o alargamento.
- * - `atualizarAgenda` NÃO é enviado como true: é o que faz a RPC preservar
- *   `modalidade`/`data_realizacao`, que este dialog não conhece. Se isso
- *   regredir, todo save apaga a agenda do simulado.
+ * - As 12 colunas do save, campo a campo (9 + modalidade + dataRealizacao +
+ *   atualizarAgenda). A RPC anterior (`admin_set_simulado_agenda`) recebia só
+ *   4 delas e nenhum `status` — foi exatamente isso que travou a primeira
+ *   migração e motivou o alargamento.
+ * - `atualizarAgenda: true` é enviado sempre — é o que faz a RPC GRAVAR
+ *   `modalidade`/`data_realizacao` que este dialog agora edita.
  * - Achado P2: editar sem tocar no agendamento NÃO reescreve `data_liberacao`
  *   para "agora" — mantém o valor que veio do banco.
  * - Achado P1: `statusDb === 'encerrado'` é preservado mesmo alterando datas;
@@ -74,6 +84,8 @@ function makeSimulado(overrides: Partial<Simulado> = {}): Simulado {
     questoes_count: 40,
     liberacao_desempenho: 'imediato',
     data_liberacao_desempenho: null,
+    modalidade: null,
+    data_realizacao: null,
     ...overrides,
   };
 }
@@ -112,20 +124,23 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     mockLogAdminAction.mockResolvedValue(undefined);
   });
 
-  it('manda EXATAMENTE os 10 campos do save (9 colunas + o id), e nenhum a mais', async () => {
+  it('manda EXATAMENTE os 13 campos do save (10 anteriores + atualizarAgenda + modalidade + dataRealizacao), e nenhum a mais', async () => {
     renderDialog(makeSimulado());
     await clicarAtualizar();
     await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
 
     expect(Object.keys(payloadDoUpdate()).sort()).toEqual(
       [
+        'atualizarAgenda',
         'dataEncerramento',
         'dataLiberacao',
         'dataLiberacaoDesempenho',
+        'dataRealizacao',
         'descricao',
         'duracaoMinutos',
         'iesIds',
         'liberacaoDesempenho',
+        'modalidade',
         'nome',
         'simuladoId',
         'status',
@@ -133,18 +148,19 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     );
   });
 
-  it('NÃO manda agenda: sem atualizarAgenda, modalidade nem data_realizacao', async () => {
-    renderDialog(makeSimulado());
+  it('SEMPRE manda atualizarAgenda: true — esta tela agora é a dona da escrita de modalidade/data de realização', async () => {
+    renderDialog(makeSimulado({ modalidade: null, data_realizacao: null }));
     await clicarAtualizar();
     await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
 
     const payload = payloadDoUpdate();
-    // Omitir estes campos é o que faz a RPC PRESERVAR a agenda no banco.
-    // Se algum deles aparecer com atualizarAgenda=true, todo save apaga
-    // modalidade e data_realizacao do simulado.
-    expect(payload.atualizarAgenda).toBeUndefined();
-    expect(payload).not.toHaveProperty('modalidade');
-    expect(payload).not.toHaveProperty('dataRealizacao');
+    expect(payload.atualizarAgenda).toBe(true);
+    // As chaves existem no payload mesmo quando o valor é null — é isso que
+    // permite o admin LIMPAR uma modalidade definida incorretamente.
+    expect(payload).toHaveProperty('modalidade');
+    expect(payload).toHaveProperty('dataRealizacao');
+    expect(payload.modalidade).toBeNull();
+    expect(payload.dataRealizacao).toBeNull();
   });
 
   it('identifica a linha pelo id do simulado', async () => {
@@ -226,5 +242,85 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
 
     // O ponto da migração: um só caminho de escrita, auditado.
     expect(mockFrom).not.toHaveBeenCalledWith('simulados_admin');
+  });
+
+  describe('modalidade e data de realização (decisão do Felipe, 03/08)', () => {
+    it('inicializa modalidade e data de realização a partir do registro ao abrir para editar', () => {
+      renderDialog(
+        makeSimulado({ modalidade: 'presencial', data_realizacao: '2026-09-10T13:00:00.000Z' }),
+      );
+
+      // -3h em relação ao ISO salvo — mesmo padrão de brazilISOToDatetimeLocal
+      // usado pelos outros campos de data desta tela.
+      expect(screen.getByLabelText(/data de realização/i)).toHaveValue('2026-09-10T10:00');
+      expect(screen.getByRole('combobox', { name: 'Modalidade' })).toHaveTextContent('Presencial');
+    });
+
+    it('P2-equivalente: salvar sem tocar na agenda preserva modalidade e data_realizacao do banco (não apaga)', async () => {
+      const dataOriginal = '2026-09-10T13:00:00.000Z';
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: dataOriginal }));
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      const payload = payloadDoUpdate();
+      expect(payload.modalidade).toBe('presencial');
+      expect(payload.dataRealizacao).toBe(dataOriginal);
+    });
+
+    it('modalidade escolhida pelo admin no select é enviada no save', async () => {
+      // Radix Select precisa de scrollIntoView/hasPointerCapture, ausentes no jsdom.
+      Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+      Element.prototype.scrollIntoView = vi.fn();
+
+      renderDialog(makeSimulado({ modalidade: null }));
+
+      fireEvent.click(screen.getByRole('combobox', { name: 'Modalidade' }));
+      const option = await screen.findByText('Online', { selector: '[role="option"], [role="option"] *' });
+      fireEvent.click(option);
+
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().modalidade).toBe('online');
+    });
+
+    it('data de realização digitada pelo admin é convertida para ISO de Brasília e enviada', async () => {
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
+
+      fireEvent.change(screen.getByLabelText(/data de realização/i), {
+        target: { value: '2026-10-05T09:00' },
+      });
+
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().dataRealizacao).toBe('2026-10-05T12:00:00.000Z');
+    });
+
+    it('avisa (sem bloquear) quando é online e não tem data de início', () => {
+      renderDialog(makeSimulado({ modalidade: 'online', data_liberacao: null }));
+
+      expect(screen.getByText(/sem data de início/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+    });
+
+    it('avisa (sem bloquear) quando é presencial e não tem data de realização', () => {
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
+
+      expect(screen.getByText(/sem data de realização/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+    });
+
+    it('avisa (sem bloquear) quando o término é anterior ao início', () => {
+      renderDialog(
+        makeSimulado({
+          data_liberacao: '2027-06-10T13:00:00.000Z',
+          data_encerramento: '2027-06-01T13:00:00.000Z',
+        }),
+      );
+
+      expect(screen.getByText(/anterior ao início/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+    });
   });
 });
