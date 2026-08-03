@@ -76,7 +76,16 @@ export interface ItemCronograma {
    * traz `null`, que não é `undefined`, então um teste por `undefined` não pega.
    */
   participantes: number | null;
-  indisponivelPorque?: string;
+  /**
+   * Quinto campo da classe de nulabilidades da Fase 1 — os outros quatro
+   * (`participantes`, `Alternativa.marcadaPct`, `Questao.acertoPct`,
+   * `VisaoGeral.distribuicaoAlunos[].percentual`) saíram no commit 778dee7f;
+   * este ficou pendente por decisão explícita ali ("vale decidir junto com o
+   * Felipe"). A RPC devolve `null` fora de `previsto`/`processing` — não
+   * `undefined` — então o mesmo motivo dos outros quatro se aplica: um teste
+   * por `undefined` não pega o caso.
+   */
+  indisponivelPorque?: string | null;
 }
 
 export interface Aviso {
@@ -166,7 +175,25 @@ export interface AlunoNoSimulado {
   participou: boolean;
   acertos: number | null;
   proficiencia: number | null;
-  situacao: 'proficiente' | 'abaixo_do_limiar' | 'nao_participou';
+  /**
+   * Quarto estado (03/08): `aguardando_resultado` é o aluno que PARTICIPOU do
+   * simulado mas ainda não tem nota TRI — `proficiencia: null` com
+   * `participou: true`. Não é o mesmo caso que `abaixo_do_limiar`, que exige
+   * nota conhecida e abaixo do corte.
+   *
+   * Por quê precisa existir: a nota TRI sobe depois, num pipeline Python que
+   * roda sobre as respostas — então "participou mas sem nota" não é borda, é o
+   * estado normal de todo simulado recém-encerrado, justo quando a
+   * coordenadora mais olha a tela. Antes deste estado, o servidor devolvia
+   * `abaixo_do_limiar` para esse caso, o que afirmava que a nota da turma
+   * inteira estava abaixo do corte — falso.
+   *
+   * Por quê este nome: `aguardando_resultado` descreve o estado do PIPELINE
+   * ("o resultado ainda não foi processado"), não o comportamento do aluno —
+   * ao contrário de `nao_participou`, que é sobre o aluno. Evita nomes como
+   * `sem_nota` ou `pendente`, que não deixam claro que o aluno já fez a prova.
+   */
+  situacao: 'proficiente' | 'abaixo_do_limiar' | 'aguardando_resultado' | 'nao_participou';
   posicao?: { lugar: number; total: number; percentil: number };
   acertoPorArea?: { area: string; acertoPct: number; critica: boolean }[];
   variacao?: number | null;

@@ -5,6 +5,8 @@
  * lacuna com zero, média do grupo ou estimativa (spec §4.10).
  */
 
+import type { AlunoNoSimulado } from '../api/types';
+
 /** Em-dash. Único símbolo de ausência da interface do gestor. */
 export const TRACO = '—';
 
@@ -63,4 +65,31 @@ export function formatDelta(valor: number | null): string {
   const numero = formatNumero(valor);
   if (valor > 0) return `+${numero}`;
   return numero;
+}
+
+/**
+ * Rótulo pt-BR de `AlunoNoSimulado.situacao` — nenhum componente reimplementa
+ * este mapeamento (mesmo princípio de `regras.ts`, §4.4).
+ *
+ * `aguardando_resultado` (03/08) é deliberadamente diferente de
+ * `abaixo_do_limiar`: o aluno participou e ainda não tem nota TRI, e dizer
+ * "abaixo do limiar" afirmaria uma nota baixa que não existe. Quando
+ * `situacao` é `aguardando_resultado`, `proficiencia` é sempre `null` — a UI
+ * mostra `TRACO` ali via `formatNumero`/`formatPct`, não um rótulo próprio.
+ */
+export function rotuloSituacao(situacao: AlunoNoSimulado['situacao']): string {
+  switch (situacao) {
+    case 'proficiente':
+      return 'Proficiente';
+    case 'abaixo_do_limiar':
+      return 'Abaixo do limiar';
+    case 'aguardando_resultado':
+      return 'Aguardando resultado';
+    case 'nao_participou':
+      return 'Não participou';
+    default: {
+      const exaustivo: never = situacao;
+      return exaustivo;
+    }
+  }
 }

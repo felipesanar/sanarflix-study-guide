@@ -6,7 +6,9 @@ import {
   formatConceito,
   formatData,
   formatDelta,
+  rotuloSituacao,
 } from '@/features/gestor/lib/formatters';
+import type { AlunoNoSimulado } from '@/features/gestor/api/types';
 
 describe('TRACO', () => {
   it('é o em-dash, não hífen nem "N/A"', () => {
@@ -109,5 +111,32 @@ describe('formatDelta (régua 1º · anterior · atual, spec §4.8)', () => {
 
   it('zero é "0", sem sinal', () => {
     expect(formatDelta(0)).toBe('0');
+  });
+});
+
+describe('rotuloSituacao — quarto estado aguardando_resultado (decisão de 03/08)', () => {
+  it('mapeia os quatro estados para rótulo pt-BR', () => {
+    expect(rotuloSituacao('proficiente')).toBe('Proficiente');
+    expect(rotuloSituacao('abaixo_do_limiar')).toBe('Abaixo do limiar');
+    expect(rotuloSituacao('aguardando_resultado')).toBe('Aguardando resultado');
+    expect(rotuloSituacao('nao_participou')).toBe('Não participou');
+  });
+
+  it('aguardando_resultado é distinto de abaixo_do_limiar — não afirma nota baixa', () => {
+    expect(rotuloSituacao('aguardando_resultado')).not.toBe(rotuloSituacao('abaixo_do_limiar'));
+  });
+
+  it('um aluno em aguardando_resultado tem proficiência null, que formata como TRACO', () => {
+    const aluno: AlunoNoSimulado = {
+      id: 'a1',
+      nome: 'Aluno Teste',
+      semestre: 4,
+      participou: true,
+      acertos: 32,
+      proficiencia: null,
+      situacao: 'aguardando_resultado',
+    };
+    expect(rotuloSituacao(aluno.situacao)).toBe('Aguardando resultado');
+    expect(formatNumero(aluno.proficiencia)).toBe(TRACO);
   });
 });
