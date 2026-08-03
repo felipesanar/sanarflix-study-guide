@@ -5,6 +5,7 @@ import { LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
+import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
 import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
 
@@ -22,7 +23,12 @@ const iniciaisDe = (nome: string | undefined): string =>
  *
  * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. De cima para
  * baixo: lockup SanarFlix Academy (48px) → instituição → nav de 3 itens →
- * rodapé com tema, perfil e sair. A área de conteúdo é a única que rola.
+ * rodapé com tema, perfil, "Ir para versão aluno" e sair. A área de conteúdo
+ * é a única que rola.
+ *
+ * "Ir para versão aluno" reusa {@link GoToStudentButton} (mesmo componente do
+ * portal legado e do Admin) — apenas com `variant="ghost"` para caber no
+ * rodapé compacto (Task 25, decisão do Felipe de 03/08).
  *
  * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
  * `filter: invert()`, nunca redesenho, nunca sombra colorida.
@@ -69,6 +75,11 @@ export const GestorShell: React.FC = () => {
             </div>
             <ThemeToggle />
           </div>
+          <GoToStudentButton
+            variant="ghost"
+            size="sm"
+            className="h-8 w-full justify-start gap-2 text-xs text-muted-foreground"
+          />
           <Button
             variant="ghost"
             size="sm"

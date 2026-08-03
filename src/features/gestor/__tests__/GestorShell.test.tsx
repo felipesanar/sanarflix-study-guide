@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
 
@@ -98,5 +98,35 @@ describe('GestorShell (spec §8.3)', () => {
     renderizar('/gestor');
     expect(screen.getByText('Ana Gestora')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sair/i })).toBeInTheDocument();
+  });
+
+  it('rodapé traz o botão "Ir para versão aluno", fora da nav de 3 itens (Task 25)', () => {
+    renderizar('/gestor');
+
+    const botao = screen.getByRole('button', { name: 'Ir para versão aluno' });
+    expect(botao).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    expect(
+      within(nav).queryByRole('button', { name: 'Ir para versão aluno' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('clicar em "Ir para versão aluno" navega para a home do aluno', () => {
+    render(
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+        <MemoryRouter initialEntries={['/gestor']}>
+          <Routes>
+            <Route path="/" element={<div>experiência do aluno</div>} />
+            <Route path="/gestor" element={<GestorShell />}>
+              <Route index element={<div>conteúdo do início</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ir para versão aluno' }));
+    expect(screen.getByText('experiência do aluno')).toBeInTheDocument();
   });
 });
