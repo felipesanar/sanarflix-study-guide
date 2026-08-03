@@ -2321,10 +2321,7 @@ export type Database = {
         Args: { p_aluno_id: string; p_ies_id: string; p_simulados: string[] }
         Returns: Json
       }
-      get_gestor_aluno_contato: {
-        Args: { p_aluno_id: string }
-        Returns: Json
-      }
+      get_gestor_aluno_contato: { Args: { p_aluno_id: string }; Returns: Json }
       get_gestor_alunos: {
         Args: {
           p_ies_id: string

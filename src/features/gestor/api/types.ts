@@ -70,7 +70,12 @@ export interface ItemCronograma {
   data: string | null;
   status: StatusSimulado;
   modalidade: 'online' | 'presencial' | null;
-  participantes?: number;
+  /**
+   * `null` fora do status `realizado`, e também em `realizado` sem registro de
+   * participação — nunca `0`. Note que é `| null` e não apenas opcional: o JSON
+   * traz `null`, que não é `undefined`, então um teste por `undefined` não pega.
+   */
+  participantes: number | null;
   indisponivelPorque?: string;
 }
 
@@ -118,7 +123,10 @@ export interface VisaoGeral {
     nivel: NivelDesempenho;
     areas: { id: string; nome: string; acertoPct: number }[];
   }[];
-  distribuicaoAlunos: { grupo: GrupoEvolucao; quantidade: number; percentual: number }[];
+  /** `percentual` é `null` quando nenhum aluno tem resultado de TRI no recorte
+   *  (denominador zero) — nunca `0`. `quantidade` continua `0` legitimamente,
+   *  porque contagem de grupo vazio é zero de verdade. */
+  distribuicaoAlunos: { grupo: GrupoEvolucao; quantidade: number; percentual: number | null }[];
   dispersao: { alunoId: string; semestre: number; nota: number }[];
   insights: { escopo: 'area' | 'aluno'; texto: string }[];
 }
@@ -178,7 +186,8 @@ export interface Alternativa {
   letra: 'A' | 'B' | 'C' | 'D' | 'E';
   texto: string;
   correta: boolean;
-  marcadaPct: number;
+  /** `null` quando ninguém marcou alternativa nesta questão — nunca `0`. */
+  marcadaPct: number | null;
 }
 
 export interface Questao {
@@ -186,7 +195,8 @@ export interface Questao {
   grandeArea: string;
   especialidade: string;
   tema: string;
-  acertoPct: number;
+  /** `null` quando ninguém respondeu esta questão — nunca `0`. */
+  acertoPct: number | null;
   enunciado: string;
   alternativas: Alternativa[];
   distratorDominante?: Alternativa['letra'];
@@ -207,4 +217,21 @@ export interface Detalhamento {
     tema: string;
     porSimulado: { simuladoId: string; acertoPct: number }[];
   }[];
+}
+
+/** Recorte global da tela — o que `useFiltrosGestor` devolve, na forma que as RPCs consomem. */
+export interface FiltrosGestor {
+  iesId: string | null;
+  semestre: FiltroSemestre;
+  simulados: string[];
+}
+
+/** Paginação/ordenação das listas paginadas no servidor (alunos, questões). */
+export interface PaginacaoGestor {
+  page: number;
+  pageSize: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+  q?: string;
+  area?: string;
 }

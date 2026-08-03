@@ -273,7 +273,7 @@ describe('experiences/buildAppRoutes — atendimento (CX)', () => {
 describe('experiences/buildAppRoutes — gestão', () => {
   const gestorRules = gestorRulesFixture;
 
-  it('expõe a rota-layout /gestor com os 5 módulos como filhas', () => {
+  it('expõe a rota-layout /gestor com as 3 telas novas + os 5 módulos legados como filhas', () => {
     const routes = routesForRoles(['gestor'], gestorRules);
     const gestorRoute = routes.get('/gestor');
     expect(gestorRoute).toBeDefined();
@@ -283,6 +283,8 @@ describe('experiences/buildAppRoutes — gestão', () => {
     );
     expect(childPaths).toEqual([
       'index',
+      'visao-geral',
+      'detalhamento',
       'visao-institucional',
       'diagnostico-curricular',
       'alunos',

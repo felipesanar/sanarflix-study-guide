@@ -3,6 +3,8 @@ import * as React from 'react';
 import { Navigate } from 'react-router-dom';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
 import { GESTOR_NAV } from '@/experiences/gestor/GestorNav';
+import { gestorV2Routes } from '@/features/gestor/gestorV2Routes';
+import { PortalV2Gate, LegacyGestorGate } from '@/features/gestor/portalV2Gates';
 import type { AccessRules, User } from '@/types';
 
 const ALL_OFF: AccessRules = {
@@ -35,6 +37,37 @@ describe('guarda de regressão: toda rota nova precisa declarar gate', () => {
   it('todo item da nav do gestor declara featureKey gestao.*', () => {
     for (const item of GESTOR_NAV) {
       expect(item.featureKey, `item ${item.url} sem featureKey`).toMatch(/^gestao\./);
+    }
+  });
+});
+
+describe('guarda de regressão: rotas do portal do gestor v2', () => {
+  const filhasDeGestor = () =>
+    gestorV2Routes().find((rota) => rota.path === '/gestor')?.children ?? [];
+
+  it('as 3 rotas do portal v2 existem e declaram gate de feature', () => {
+    const filhas = filhasDeGestor();
+    const novas = ['visao-geral', 'detalhamento'];
+    for (const path of novas) {
+      const rota = filhas.find((f) => f.path === path);
+      expect(rota, `rota /gestor/${path} não montada`).toBeDefined();
+      expect(
+        (rota!.element as React.ReactElement).type,
+        `rota /gestor/${path} sem PortalV2Gate`,
+      ).toBe(PortalV2Gate);
+    }
+    // A index (/gestor) é gated pelo próprio switch de árvore.
+    expect(filhas.some((f) => f.index)).toBe(true);
+  });
+
+  it('nenhuma filha de /gestor fica sem gate (nova ou legada)', () => {
+    for (const filha of filhasDeGestor()) {
+      if (filha.index) continue;
+      const tipo = (filha.element as React.ReactElement).type;
+      expect(
+        [PortalV2Gate, LegacyGestorGate].includes(tipo as never),
+        `rota /gestor/${filha.path} montada sem gate — adicione o gate`,
+      ).toBe(true);
     }
   });
 });
