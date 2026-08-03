@@ -6,7 +6,6 @@ import { Input } from '@/components/ui/input';
 import { AdminTable, adminTableCellClass, adminTableHeadClass } from '@/experiences/admin/ui';
 import type {
   IesContrato,
-  Modalidade,
   SimuladoAgenda,
   SlotPrevistoInput,
 } from '@/services/admin/contratoSimulados';
@@ -26,7 +25,6 @@ export interface SlotsEditorProps {
   simuladosDisponiveis: SimuladoAgenda[];
   saving: boolean;
   onSalvarSlots: (slots: SlotPrevistoInput[]) => void;
-  onSalvarAgenda: (simuladoId: string, modalidade: Modalidade | null, dataRealizacao: string | null, dataLiberacao: string | null, definitiva: boolean) => void;
 }
 
 interface SlotDraft extends SlotPrevistoInput {
@@ -41,13 +39,18 @@ const toDraft = (contrato: IesContrato): SlotDraft[] =>
     simulado: s.simulado,
   }));
 
-/** ISO → valor de `<input type="datetime-local">` (`yyyy-MM-ddTHH:mm`), em hora local. */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return '';
+/** ISO → `dd/mm/aaaa hh:mm` em pt-BR, hora local. Ausente vira "—" (nunca zero/vazio). */
+function formatDataHora(iso: string | null): string {
+  if (!iso) return '—';
   const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 }
+
+const ROTULO_MODALIDADE: Record<'online' | 'presencial', string> = {
+  online: 'Online',
+  presencial: 'Presencial',
+};
 
 /**
  * Editor dos slots de um contrato (spec §6.2): cada linha é um slot; slot sem
@@ -60,7 +63,6 @@ export const SlotsEditor: React.FC<SlotsEditorProps> = ({
   simuladosDisponiveis,
   saving,
   onSalvarSlots,
-  onSalvarAgenda,
 }) => {
   const [slots, setSlots] = useState<SlotDraft[]>(() => toDraft(contrato));
 
@@ -186,15 +188,10 @@ export const SlotsEditor: React.FC<SlotsEditorProps> = ({
               <TableCell className={adminTableCellClass}>
                 {slot.simulado_id == null ? (
                   <span className="text-xs text-muted-foreground">
-                    Vincule um simulado para definir modalidade e datas.
+                    Vincule um simulado para ver modalidade e datas.
                   </span>
                 ) : (
-                  <AgendaFields
-                    simulado={slot.simulado}
-                    simuladoId={slot.simulado_id}
-                    saving={saving}
-                    onSalvar={onSalvarAgenda}
-                  />
+                  <AgendaLeitura simulado={slot.simulado} />
                 )}
               </TableCell>
               <TableCell className={adminTableCellClass}>
@@ -215,85 +212,54 @@ export const SlotsEditor: React.FC<SlotsEditorProps> = ({
   );
 };
 
-interface AgendaFieldsProps {
+interface AgendaLeituraProps {
   simulado: SimuladoAgenda | null;
-  simuladoId: string;
-  saving: boolean;
-  onSalvar: SlotsEditorProps['onSalvarAgenda'];
 }
 
 /**
- * Modalidade + datas do simulado do slot (spec §6.4): ONLINE tem data de
- * início (quando aparece pro aluno); PRESENCIAL tem só data de realização.
- * "Data definitiva" sincroniza `data_agendada_original` e faz a tag
- * "Reagendado" sumir — sem marcar, remarcar mantém a tag.
+ * Modalidade + datas do simulado do slot, em modo SOMENTE LEITURA (spec §6.4):
+ * ONLINE usa `data_liberacao` (quando aparece pro aluno); PRESENCIAL usa
+ * `data_realizacao`. A escrita desses campos não é desta tela — ver
+ * `admin_update_simulado` na tela de configuração do simulado.
+ *
+ * NÃO exibe a tag "Reagendado" de propósito. Quem deriva isso é o banco, em
+ * `admin_update_simulado`: `data_agendada_original IS NOT NULL AND
+ * data_agendada_original <> COALESCE(data_realizacao, data_liberacao)`.
+ * Recalcular aqui divergiria em dois pontos — a base do COALESCE não olha a
+ * modalidade, e comparar as datas como string ISO daria falso positivo entre
+ * fusos que representam o mesmo instante. Este projeto já tem 5 réguas de
+ * desempenho incompatíveis por reimplementar regra do servidor no cliente.
+ * Para mostrar a tag aqui, `admin_get_ies_contratos` precisa devolver o
+ * booleano já calculado.
  */
-const AgendaFields: React.FC<AgendaFieldsProps> = ({ simulado, simuladoId, saving, onSalvar }) => {
-  const [modalidade, setModalidade] = useState<Modalidade | ''>(simulado?.modalidade ?? '');
-  const [data, setData] = useState(
-    toLocalInput(simulado?.data_realizacao ?? simulado?.data_liberacao ?? null),
-  );
-  const [definitiva, setDefinitiva] = useState(false);
-
-  useEffect(() => {
-    setModalidade(simulado?.modalidade ?? '');
-    setData(toLocalInput(simulado?.data_realizacao ?? simulado?.data_liberacao ?? null));
-    setDefinitiva(false);
-  }, [simulado]);
-
-  const iso = data === '' ? null : new Date(data).toISOString();
-  const invalido = modalidade === '' || iso === null;
+const AgendaLeitura: React.FC<AgendaLeituraProps> = ({ simulado }) => {
+  const modalidade = simulado?.modalidade ?? null;
+  const dataPrincipal =
+    modalidade === 'online'
+      ? (simulado?.data_liberacao ?? null)
+      : modalidade === 'presencial'
+        ? (simulado?.data_realizacao ?? null)
+        : null;
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          aria-label={`Modalidade do simulado ${simulado?.nome ?? simuladoId}`}
-          className={`${selectClass} max-w-[9rem]`}
-          value={modalidade}
-          onChange={(e) => setModalidade(e.target.value as Modalidade | '')}
-        >
-          <option value="">Sem modalidade</option>
-          <option value="online">Online</option>
-          <option value="presencial">Presencial</option>
-        </select>
-        <Input
-          aria-label={
-            modalidade === 'online'
-              ? `Data de início do simulado ${simulado?.nome ?? simuladoId}`
-              : `Data de realização do simulado ${simulado?.nome ?? simuladoId}`
-          }
-          type="datetime-local"
-          className="max-w-[13rem]"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-        />
-      </div>
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={definitiva}
-          onChange={(e) => setDefinitiva(e.target.checked)}
-          aria-label={`Data definitiva do simulado ${simulado?.nome ?? simuladoId}`}
-        />
-        Data definitiva (remove a tag “Reagendado”)
-      </label>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={saving || invalido}
-        onClick={() =>
-          onSalvar(
-            simuladoId,
-            modalidade === '' ? null : modalidade,
-            modalidade === 'presencial' ? iso : null,
-            modalidade === 'online' ? iso : null,
-            definitiva,
-          )
-        }
-      >
-        Salvar agenda
-      </Button>
+    <div className="space-y-1 text-xs">
+      <p>
+        <span className="text-muted-foreground">Modalidade: </span>
+        {modalidade ? ROTULO_MODALIDADE[modalidade] : '—'}
+      </p>
+      <p>
+        <span className="text-muted-foreground">
+          {modalidade === 'online' ? 'Início: ' : 'Realização: '}
+        </span>
+        {formatDataHora(dataPrincipal)}
+      </p>
+      <p>
+        <span className="text-muted-foreground">Encerramento: </span>
+        {formatDataHora(simulado?.data_encerramento ?? null)}
+      </p>
+      <p className="text-muted-foreground">
+        Modalidade e datas se editam na tela de configuração do simulado.
+      </p>
     </div>
   );
 };

@@ -2,10 +2,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { Logger } from '@/utils/logger';
 
 /**
- * Wrappers das 5 RPCs da superfície de admin do cronograma (spec §6.3):
+ * Wrappers das 4 RPCs da superfície de admin do cronograma (spec §6.3):
  * `admin_get_ies_contratos`, `admin_upsert_ies_contrato`,
- * `admin_delete_ies_contrato`, `admin_set_ies_simulados_previstos` e
- * `admin_set_simulado_agenda`.
+ * `admin_delete_ies_contrato` e `admin_set_ies_simulados_previstos`.
+ *
+ * A escrita de modalidade e datas do simulado (agenda) NÃO vive aqui: é
+ * `admin_update_simulado` (ver `src/services/admin/simulados.ts`) — a
+ * `admin_set_simulado_agenda` foi dropada em
+ * `20260726123000_admin_update_simulado.sql` para não manter dois caminhos
+ * de escrita.
  *
  * Assim como `src/services/admin/simulados.ts`, estas RPCs podem ainda não
  * estar nos tipos gerados (`src/integrations/supabase/types.ts`) — daí o cast
@@ -89,20 +94,6 @@ export interface SetSlotsResult {
   removidos: number;
 }
 
-export interface SetSimuladoAgendaInput {
-  simuladoId: string;
-  modalidade: Modalidade | null;
-  /** ISO 8601. */
-  dataRealizacao: string | null;
-  dataLiberacao: string | null;
-  dataEncerramento: string | null;
-  /**
-   * `true` = a data nova é definitiva → a RPC sincroniza
-   * `data_agendada_original` e a tag "Reagendado" some (§6.4). Default `false`.
-   */
-  definitiva?: boolean;
-}
-
 async function callRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await (supabase.rpc as CallableFunction)(fn, args);
   if (error) {
@@ -145,30 +136,4 @@ export async function setIesSimuladosPrevistos(
     p_contrato_id: contratoId,
     p_slots: slots,
   });
-}
-
-/** Modalidade + datas do simulado, com a derivação de "reagendado" — `admin_set_simulado_agenda`. */
-export async function setSimuladoAgenda(
-  input: SetSimuladoAgendaInput,
-): Promise<SimuladoAgenda & { reagendado: boolean }> {
-  const raw = await callRpc<Record<string, unknown>>('admin_set_simulado_agenda', {
-    p_simulado_id: input.simuladoId,
-    p_modalidade: input.modalidade,
-    p_data_realizacao: input.dataRealizacao,
-    p_data_liberacao: input.dataLiberacao,
-    p_data_encerramento: input.dataEncerramento,
-    p_definitiva: input.definitiva ?? false,
-  });
-
-  // A RPC devolve `simulado_id`; o tipo do front usa `id` (igual aos slots).
-  return {
-    id: raw.simulado_id as string,
-    nome: raw.nome as string,
-    modalidade: (raw.modalidade ?? null) as Modalidade | null,
-    data_realizacao: (raw.data_realizacao ?? null) as string | null,
-    data_liberacao: (raw.data_liberacao ?? null) as string | null,
-    data_encerramento: (raw.data_encerramento ?? null) as string | null,
-    data_agendada_original: (raw.data_agendada_original ?? null) as string | null,
-    reagendado: Boolean(raw.reagendado),
-  };
 }

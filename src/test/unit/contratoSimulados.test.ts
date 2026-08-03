@@ -8,12 +8,12 @@ vi.mock('@/utils/logger', () => ({
   Logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
+import * as contratoSimuladosModule from '@/services/admin/contratoSimulados';
 import {
   fetchIesContratos,
   upsertIesContrato,
   deleteIesContrato,
   setIesSimuladosPrevistos,
-  setSimuladoAgenda,
 } from '@/services/admin/contratoSimulados';
 
 const ok = (data: unknown) => Promise.resolve({ data, error: null });
@@ -81,57 +81,30 @@ describe('services/admin/contratoSimulados', () => {
     });
   });
 
-  it('setSimuladoAgenda chama admin_set_simulado_agenda e default de p_definitiva é false', async () => {
-    mockRpc.mockReturnValue(
-      ok({
-        simulado_id: 'sim-1',
-        nome: 'Simulado 1',
-        modalidade: 'presencial',
-        data_realizacao: '2026-08-10T13:00:00.000Z',
-        data_liberacao: null,
-        data_encerramento: null,
-        data_agendada_original: '2026-08-01T13:00:00.000Z',
-        reagendado: true,
-      }),
-    );
+  it(
+    'nenhum wrapper deste arquivo chama a RPC admin_set_simulado_agenda (ela foi ' +
+      'DROPADA em 20260726123000_admin_update_simulado.sql — a escrita de agenda ' +
+      'passou a ser só admin_update_simulado, pra não manter dois caminhos de ' +
+      'escrita; reintroduzir a chamada quebra em produção, onde a função não existe)',
+    async () => {
+      expect('setSimuladoAgenda' in contratoSimuladosModule).toBe(false);
 
-    const result = await setSimuladoAgenda({
-      simuladoId: 'sim-1',
-      modalidade: 'presencial',
-      dataRealizacao: '2026-08-10T13:00:00.000Z',
-      dataLiberacao: null,
-      dataEncerramento: null,
-    });
+      mockRpc.mockReturnValue(ok({}));
+      await fetchIesContratos('ies-1');
+      await upsertIesContrato({
+        iesId: 'ies-1',
+        nome: 'Contrato 2026',
+        simuladosContratados: 1,
+        vigenciaInicio: '2026-01-01',
+        vigenciaFim: '2026-12-31',
+      });
+      await deleteIesContrato('ct-1');
+      await setIesSimuladosPrevistos('ct-1', []);
 
-    expect(result.reagendado).toBe(true);
-    expect(result.id).toBe('sim-1');
-    expect(mockRpc).toHaveBeenCalledWith('admin_set_simulado_agenda', {
-      p_simulado_id: 'sim-1',
-      p_modalidade: 'presencial',
-      p_data_realizacao: '2026-08-10T13:00:00.000Z',
-      p_data_liberacao: null,
-      p_data_encerramento: null,
-      p_definitiva: false,
-    });
-  });
-
-  it('propaga p_definitiva=true quando a data nova é definitiva', async () => {
-    mockRpc.mockReturnValue(ok({ simulado_id: 'sim-1', nome: 'Simulado 1', modalidade: 'online', data_realizacao: null, data_liberacao: '2026-09-01T12:00:00.000Z', data_encerramento: null, data_agendada_original: '2026-09-01T12:00:00.000Z', reagendado: false }));
-
-    await setSimuladoAgenda({
-      simuladoId: 'sim-1',
-      modalidade: 'online',
-      dataRealizacao: null,
-      dataLiberacao: '2026-09-01T12:00:00.000Z',
-      dataEncerramento: null,
-      definitiva: true,
-    });
-
-    expect(mockRpc).toHaveBeenCalledWith(
-      'admin_set_simulado_agenda',
-      expect.objectContaining({ p_definitiva: true }),
-    );
-  });
+      const nomesChamados = mockRpc.mock.calls.map(([fn]) => fn);
+      expect(nomesChamados).not.toContain('admin_set_simulado_agenda');
+    },
+  );
 
   it('erro da RPC vira Error com a mensagem do banco', async () => {
     mockRpc.mockReturnValue(fail('3 slot(s) excedem os 2 simulado(s) contratado(s)'));

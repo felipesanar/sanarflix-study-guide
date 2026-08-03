@@ -20,7 +20,6 @@ vi.mock('@/services/admin/contratoSimulados', () => ({
   setIesSimuladosPrevistos: vi.fn().mockResolvedValue({
     contrato_id: 'ct-1', slots: 2, criados: 0, atualizados: 2, removidos: 0,
   }),
-  setSimuladoAgenda: vi.fn(),
 }));
 
 const IES_ROWS = [
@@ -155,6 +154,22 @@ describe('ContratoSimuladosBoard', () => {
     // Cada <select> nativo tem sua própria option "A definir" no DOM (mesmo
     // quando não é a selecionada) — por isso getAllByText, não getByText.
     expect(screen.getAllByText('A definir').length).toBeGreaterThan(0);
+  });
+
+  it('modalidade e datas do simulado vinculado aparecem em leitura, sem botão de salvar agenda', async () => {
+    vi.mocked(fetchIesContratos).mockResolvedValue(PAYLOAD_COM_SLOTS as any);
+    render(<ContratoSimuladosBoard />);
+    await waitFor(() => screen.getByText('Contrato 2026'));
+
+    // Slot 1 está vinculado ao SIMULADO_1 (presencial, com data_realizacao) —
+    // a tela só lê esses campos: a escrita foi removida porque a RPC
+    // `admin_set_simulado_agenda` que ela chamava foi dropada do banco.
+    expect(screen.getByText('Presencial')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Modalidade e datas se editam na tela de configuração do simulado/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Salvar agenda/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Modalidade do simulado/i)).not.toBeInTheDocument();
   });
 
   it('contrato lotado: "Adicionar slot" fica desabilitado e explica o limite', async () => {

@@ -9,10 +9,8 @@ import {
   deleteIesContrato,
   fetchIesContratos,
   setIesSimuladosPrevistos,
-  setSimuladoAgenda,
   upsertIesContrato,
   type IesContratosPayload,
-  type Modalidade,
   type SlotPrevistoInput,
   type UpsertIesContratoInput,
 } from '@/services/admin/contratoSimulados';
@@ -102,24 +100,6 @@ export const ContratoSimuladosBoard: React.FC = () => {
   const handleSlots = (contratoId: string, slots: SlotPrevistoInput[]) =>
     runSave('Slots', () => setIesSimuladosPrevistos(contratoId, slots));
 
-  const handleAgenda = (
-    simuladoId: string,
-    modalidade: Modalidade | null,
-    dataRealizacao: string | null,
-    dataLiberacao: string | null,
-    definitiva: boolean,
-  ) =>
-    runSave('Agenda do simulado', () =>
-      setSimuladoAgenda({
-        simuladoId,
-        modalidade,
-        dataRealizacao,
-        dataLiberacao,
-        dataEncerramento: null,
-        definitiva,
-      }),
-    );
-
   const seletorIes = (
     <div className="max-w-sm space-y-1.5">
       <Label htmlFor="contratos-ies">IES</Label>
@@ -176,7 +156,6 @@ export const ContratoSimuladosBoard: React.FC = () => {
               simuladosDisponiveis={payload.simulados_disponiveis}
               saving={saving}
               onSalvarSlots={(slots) => handleSlots(contrato.id, slots)}
-              onSalvarAgenda={handleAgenda}
             />
           </div>
         ))}
