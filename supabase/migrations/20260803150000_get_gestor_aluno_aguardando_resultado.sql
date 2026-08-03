@@ -1,74 +1,9 @@
--- 20260803150000_get_gestor_aluno_aguardando_resultado.sql
--- Portal do Gestor v2 — quarto estado de `situacao` (decisão do Felipe, 03/08).
---
--- ============================================================================
--- EXIGÊNCIA OBRIGATÓRIA ANTES DE APLICAR EM PRODUÇÃO (gvqv)
--- ============================================================================
--- Esta migration faz CREATE OR REPLACE de `public.get_gestor_aluno`. O corpo
--- abaixo parte INTEGRALMENTE da migration `20260729210700_get_gestor_aluno.sql`
--- (única versão no histórico do repo para esta função — `git log --all` nela
--- mostra um commit só, d9335f1f). Mas o repo NÃO é garantia do que está rodando
--- em prod: ver a nota "ARMADILHA guard de feature em 19 RPCs" — 19 funções mais
--- antigas tiveram o guard injetado dinamicamente fora de qualquer .sql, e
--- recriar a partir da migration apagou o guard em silêncio.
---
--- `get_gestor_aluno` NÃO está nessa lista (é uma das 10 `get_gestor_*` que
--- nasceram com o guard escrito no próprio corpo, não injetado) — mas quem
--- aplicar esta migration DEVE, mesmo assim, confirmar isso contra o estado real
--- antes de rodar:
---
---   1. Rodar em produção:
---        SELECT pg_get_functiondef('public.get_gestor_aluno(uuid,uuid,uuid[])'::regprocedure);
---   2. Comparar o resultado com o corpo da migration 20260729210700 (git blame/show).
---   3. Se houver QUALQUER divergência não explicada por esta migration (guard
---      diferente, checagem de role diferente, coluna nova, etc.) — ABORTAR e
---      levar a divergência para o Felipe antes de aplicar. Não aplicar "por
---      cima" de um corpo que não foi conferido.
---
--- Esta migration NÃO deve ser aplicada por este agente/sessão — apenas
--- escrita. Aplicação é ação humana, feita fora deste fluxo.
--- ============================================================================
---
--- O QUE MUDA E POR QUÊ
--- ---------------------
--- `situacao` ganha um quarto valor: `aguardando_resultado`. Motivo (spec do
--- Felipe, 03/08): a nota TRI é processada DEPOIS, por um pipeline Python que
--- roda sobre as respostas — "participou mas ainda sem nota" é o estado NORMAL
--- de todo simulado recém-encerrado, não uma borda. O corpo anterior devolvia
--- `abaixo_do_limiar` nesse caso (linha `WHEN lv.proficiencia IS NULL THEN
--- 'abaixo_do_limiar'`), o que afirmava — falsamente — que a nota da turma
--- inteira estava abaixo do corte de 60 (`PROFICIENCIA_MINIMA` em
--- `src/features/gestor/lib/regras.ts`; o `60` abaixo é o MESMO corte, já
--- hardcoded no corpo original desta função, não um valor novo).
---
--- Nova regra de derivação de `situacao` (spec §4.3 + decisão de 03/08):
---   NOT participou                              => 'nao_participou'
---   participou E proficiencia IS NULL           => 'aguardando_resultado'  (NOVO)
---   participou E proficiencia >= 60              => 'proficiente'
---   participou E proficiencia < 60 (e não null)  => 'abaixo_do_limiar'
---
--- `get_gestor_alunos` (20260729210600) e `get_gestor_detalhamento`
--- (20260729210800) foram auditadas e NÃO derivam `situacao` — não têm esse
--- campo na saída (a primeira devolve `grupo`/`proficiencias`/`tendencia`, a
--- segunda devolve `metricas` sem por-aluno). Confirmado por
--- `grep -rn "'situacao'" supabase/migrations/` — só esta função aparece.
--- Nenhuma outra RPC precisa de alteração para esta frente.
---
--- Único bloco alterado no corpo: a expressão CASE de `situacao` (branch do
--- `proficiencia IS NULL`) e o texto de `meta.criterio`. Todo o resto —
--- guard de feature, checagem de role, `user_can_access_ies`, CTEs de dado,
--- `posicao`, `acertoPorArea`, `variacao`, `partial`, `lowSample` — é cópia
--- literal do corpo de 20260729210700. Note que `meta.partial` já testava
--- exatamente esta condição (`participou AND proficiencia IS NULL`) mesmo
--- antes desta migration — o flag estava certo, só o rótulo da situação é que
--- mentia.
 CREATE OR REPLACE FUNCTION public.get_gestor_aluno(p_ies_id uuid, p_aluno_id uuid, p_simulados uuid[])
-RETURNS jsonb
-LANGUAGE plpgsql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $fn$
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   v_uid    uuid := auth.uid();
   v_ies    uuid;
@@ -105,7 +40,6 @@ BEGIN
     RAISE EXCEPTION 'aluno_obrigatorio' USING ERRCODE = '22023';
   END IF;
 
-  -- não revela existência de aluno fora da IES do gestor
   IF NOT EXISTS (
     SELECT 1 FROM public.users u
     WHERE u.id = p_aluno_id
@@ -171,7 +105,7 @@ BEGIN
     WHERE r.college_id = v_ies
       AND COALESCE(sa.simulado_pai_id, sa.id) IN (SELECT id FROM sims)
   ),
-  areas_ies AS (   -- áreas críticas da instituição na janela (para o flag `critica`)
+  areas_ies AS (
     SELECT q.grande_area AS area,
            count(*) AS total, count(*) FILTER (WHERE ap.correct) AS acertos
     FROM tentativas t
@@ -212,11 +146,6 @@ BEGIN
                'acertos',      CASE WHEN lv.participou THEN lv.acertos_calc END,
                'proficiencia', CASE WHEN lv.proficiencia IS NULL THEN NULL
                                     ELSE round(lv.proficiencia::numeric, 1) END,
-               -- Quarto estado (03/08): participou E ainda sem nota TRI => 'aguardando_resultado',
-               -- NUNCA 'abaixo_do_limiar' -- a nota chega depois, via pipeline Python, e "sem nota"
-               -- não pode afirmar "nota baixa". Ordem das branches é significativa: a checagem de
-               -- NULL tem que vir ANTES da comparação numérica (NULL >= 60 é NULL, não false, mas
-               -- não dependemos disso -- fica explícito para não reintroduzir o bug por engano).
                'situacao',     CASE WHEN NOT lv.participou           THEN 'nao_participou'
                                     WHEN lv.proficiencia IS NULL     THEN 'aguardando_resultado'
                                     WHEN lv.proficiencia >= 60       THEN 'proficiente'
@@ -253,7 +182,7 @@ BEGIN
                                 FROM sims_ord s), 'sem simulado na seleção'),
       'fonte',        'resultados_alunos_tri · answer_progress · questoes_simulado · simulados_admin · users',
       'atualizadoEm', to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
-      'criterio',    'Proficiência = score_proprio (0–100); proficiente >= 60. Aluno que não participou: participou=false e todas as métricas null, nunca 0. Aluno que participou mas ainda não tem nota TRI processada (pipeline roda depois, sobre as respostas): situacao=aguardando_resultado, proficiencia=null — não é abaixo do limiar. Posição calculada só entre alunos com proficiência no mesmo simulado. Variação = diferença de proficiência em relação ao simulado imediatamente anterior da seleção; null quando falta um dos dois valores. acertoPorArea em % de acerto, questão anulada ignorada.',
+      'criterio',    'Proficiência = score_proprio (0–100); proficiente >= 60. Aluno que não participou: participou=false e todas as métricas null, nunca 0. Aluno que participou e ainda não tem nota TRI processada: situacao=aguardando_resultado e proficiencia null (não é abaixo do limiar). Posição calculada só entre alunos com proficiência no mesmo simulado. Variação = diferença de proficiência em relação ao simulado imediatamente anterior da seleção; null quando falta um dos dois valores. acertoPorArea em % de acerto, questão anulada ignorada.',
       'partial',     (SELECT count(*) FROM linha_var WHERE participou AND proficiencia IS NULL) > 0,
       'lowSample',   COALESCE((SELECT max(lv.n_total) FROM linha_var lv), 0) < 10
     )
@@ -261,67 +190,4 @@ BEGIN
 
   RETURN v_result;
 END;
-$fn$;
-
-REVOKE ALL ON FUNCTION public.get_gestor_aluno(uuid, uuid, uuid[]) FROM public, anon;
-GRANT EXECUTE ON FUNCTION public.get_gestor_aluno(uuid, uuid, uuid[]) TO authenticated;
-
--- ============================================================================
--- VERIFICAÇÃO — rodar em produção ANTES e DEPOIS de aplicar
--- ============================================================================
---
--- (1) ANTES de aplicar — capturar o corpo real e comparar com o bloco acima
---     (ver EXIGÊNCIA no topo do arquivo):
---
---   SELECT pg_get_functiondef('public.get_gestor_aluno(uuid,uuid,uuid[])'::regprocedure);
---
--- (2) DEPOIS de aplicar — readback de pg_proc: confirma STABLE, SECURITY
---     DEFINER e o search_path continuam exatamente como antes:
---
---   SELECT p.proname,
---          p.provolatile = 's'                       AS is_stable,       -- esperado: true
---          p.prosecdef                               AS is_security_definer, -- esperado: true
---          p.proconfig                                AS config          -- esperado: contém 'search_path=public'
---     FROM pg_proc p
---     JOIN pg_namespace n ON n.oid = p.pronamespace
---    WHERE n.nspname = 'public' AND p.proname = 'get_gestor_aluno';
---
---   -- guard de feature ainda presente no corpo (não foi apagado por engano):
---   SELECT pg_get_functiondef('public.get_gestor_aluno(uuid,uuid,uuid[])'::regprocedure)
---          LIKE '%feature_not_enabled%' AS guard_presente;               -- esperado: true
---
--- (3) DEPOIS de aplicar — readback de proacl: confirma que o REVOKE/GRANT
---     desta migration manteve o mesmo padrão de acesso (só `authenticated`
---     executa; nem `public`, nem `anon`):
---
---   SELECT p.proname, p.proacl
---     FROM pg_proc p
---     JOIN pg_namespace n ON n.oid = p.pronamespace
---    WHERE n.nspname = 'public' AND p.proname = 'get_gestor_aluno';
---
--- (4) Caso funcional, em transação SEMPRE revertida (não deixar dado de teste
---     em produção). Requer um `p_aluno_id` real de uma IES com a feature
---     'gestao.portal_v2' ligada, um `simulado_id` real dessa IES, e uma linha
---     em `resultados_alunos_tri` para ESSE aluno E ESSE simulado com
---     `score_proprio IS NULL` (ou a ausência completa da linha) — o cenário
---     "participou, sem nota ainda". Ajustar os IDs antes de rodar:
---
---   BEGIN;
---     -- opcional: forçar o cenário se não existir dado real assim no momento
---     -- do teste (comentar se já existir uma linha adequada):
---     -- DELETE FROM public.resultados_alunos_tri
---     --   WHERE student_id = '<aluno_id>' AND simulado_id = '<simulado_id>';
---
---     SELECT jsonb_path_query(
---              public.get_gestor_aluno('<ies_id>'::uuid, '<aluno_id>'::uuid, ARRAY['<simulado_id>'::uuid]),
---              '$.data[*] ? (@.simuladoId == "<simulado_id>")'
---            ) AS linha_do_simulado;
---     -- esperado na linha acima: "participou": true, "proficiencia": null,
---     -- "situacao": "aguardando_resultado" — NUNCA "abaixo_do_limiar".
---
---     -- meta.partial deve continuar true nesse cenário (já testava esta
---     -- condição antes desta migration; não deveria ter mudado):
---     SELECT (public.get_gestor_aluno('<ies_id>'::uuid, '<aluno_id>'::uuid, ARRAY['<simulado_id>'::uuid])
---              -> 'meta' ->> 'partial')::boolean AS partial_flag;   -- esperado: true
---   ROLLBACK;
--- ============================================================================
+$function$;
