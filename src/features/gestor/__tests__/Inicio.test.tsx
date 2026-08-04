@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Inicio from '@/features/gestor/routes/Inicio';
@@ -159,11 +160,31 @@ describe('Inicio — estados (spec §8.4)', () => {
     mocks.useGestorContexto.mockReturnValue(carregando());
     montar();
 
-    expect(screen.getByTestId('inicio-skeleton-cronograma')).toBeInTheDocument();
-    expect(screen.getByTestId('inicio-skeleton-avisos')).toBeInTheDocument();
+    const skeletonCronograma = screen.getByTestId('inicio-skeleton-cronograma');
+    const skeletonAvisos = screen.getByTestId('inicio-skeleton-avisos');
+    expect(skeletonCronograma).toBeInTheDocument();
+    expect(skeletonAvisos).toBeInTheDocument();
     expect(screen.queryByTestId('cronograma')).not.toBeInTheDocument();
     expect(screen.queryByTestId('avisos')).not.toBeInTheDocument();
     expect(screen.getByTestId('saudacao-skeleton')).toBeInTheDocument();
+  });
+
+  it('loading: os skeletons são acessíveis (role="status"), não um <Skeleton> cru sem rótulo (achado 19)', () => {
+    mocks.useGestorContexto.mockReturnValue(carregando());
+    montar();
+
+    expect(
+      within(screen.getByTestId('inicio-skeleton-cronograma')).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId('inicio-skeleton-avisos')).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId('inicio-skeleton-direcionadores')).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(screen.getByTestId('saudacao-skeleton')).getAllByRole('status').length,
+    ).toBeGreaterThan(0);
   });
 
   it('empty: nenhum simulado contratado, e os avisos continuam de pé', () => {
@@ -228,5 +249,104 @@ describe('Inicio — nenhum indicador de desempenho na tela (spec §2.1)', () =>
     for (const proibido of PROIBIDOS) {
       expect(texto).not.toMatch(proibido);
     }
+  });
+});
+
+describe('Inicio — estado de erro do contexto, com caminho de recuperação (achado 5)', () => {
+  it('contexto com erro: mostra estado de erro em vez de skeleton permanente', () => {
+    mocks.useGestorContexto.mockReturnValue(comErro());
+    montar();
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByTestId('saudacao')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('direcionadores')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cronograma')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('avisos')).not.toBeInTheDocument();
+    // Nenhum skeleton fica preso para sempre — o erro substitui o loading.
+    expect(screen.queryByTestId('inicio-skeleton-cronograma')).not.toBeInTheDocument();
+  });
+
+  it('o retry do estado de erro refaz a query do contexto', async () => {
+    const refetch = vi.fn();
+    mocks.useGestorContexto.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      meta: undefined,
+      refetch,
+    });
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole('button', { name: /tentar novamente/i }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Inicio — proveniência escopada à IES em foco na troca de IES (achados 1, 3, 4 e 7)', () => {
+  const CONTEXTO_MULTI_IES: ContextoGestor = {
+    ...CONTEXTO,
+    iesDisponiveis: [
+      { id: 'ies-1', nome: 'UEA' },
+      { id: 'ies-9', nome: 'Universidade Federal Fluminense' },
+    ],
+  };
+
+  beforeEach(() => {
+    mocks.useGestorContexto.mockReturnValue(pronto(CONTEXTO_MULTI_IES));
+    mocks.useFiltrosGestor.mockReturnValue({
+      semestre: '6ano',
+      setSemestre: vi.fn(),
+      simulados: [],
+      setSimulados: vi.fn(),
+      iesId: 'ies-9',
+      setIesId: vi.fn(),
+    });
+  });
+
+  it('a saudação mostra o nome da IES em foco (da URL), não o da IES padrão do usuário', () => {
+    montar();
+
+    expect(screen.getByTestId('saudacao')).toHaveTextContent('Universidade Federal Fluminense');
+    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('UEA');
+  });
+
+  it('a saudação omite o contrato — ele é da IES padrão (ies-1), não da IES em foco (ies-9)', () => {
+    montar();
+    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
+  });
+
+  it('o rodapé do cronograma usa a vigência devolvida pela query da IES em foco, não o contrato do contexto', () => {
+    mocks.useCronograma.mockReturnValue(
+      pronto(ITENS, { ...META, periodo: '01/06/2026 — 31/05/2027' }),
+    );
+    montar();
+
+    expect(screen.getByTestId('cronograma-proveniencia')).toHaveTextContent(
+      '01/06/2026 — 31/05/2027',
+    );
+    // Formato do contrato mis-escopado (contexto.contrato.vigencia) não aparece.
+    expect(screen.getByTestId('cronograma-proveniencia')).not.toHaveTextContent(
+      '01/01/2026 a 31/12/2026',
+    );
+  });
+
+  it('os botões de WhatsApp do cronograma usam o nome da IES em foco, não o da IES padrão do usuário', async () => {
+    mocks.useCronograma.mockReturnValue(
+      pronto([
+        { id: 's5', nome: 'Simulado 5', data: null, status: 'previsto', modalidade: null, participantes: null },
+      ]),
+    );
+    const abrir = vi.fn();
+    vi.stubGlobal('open', abrir);
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByRole('button', { name: /falar com consultor/i }));
+
+    expect(abrir).toHaveBeenCalledTimes(1);
+    const [url] = abrir.mock.calls[0] as [string];
+    expect(decodeURIComponent(url)).toContain('Sou gestor(a) da Universidade Federal Fluminense');
+    expect(decodeURIComponent(url)).not.toContain('Sou gestor(a) da UEA');
   });
 });

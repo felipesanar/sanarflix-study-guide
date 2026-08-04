@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BarChart3, FileSearch } from 'lucide-react';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
@@ -22,12 +22,21 @@ const CARTAO =
  */
 export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorProps) {
   const queryClient = useQueryClient();
+  const location = useLocation();
   const aquecer = () => void prefetchVisaoGeral(queryClient, iesId, semestre);
+
+  /**
+   * Preserva o recorte global (IES + semestre) ao trocar de tela (achados 6
+   * e 16 da revisão de 03/08): sem a `search` atual, o destino nasce sem
+   * `?ies=`/`?semestre=` e `useFiltrosGestor` degrada pro padrão, ignorando
+   * o que a gestora tinha selecionado.
+   */
+  const comFiltroAtual = (pathname: string) => ({ pathname, search: location.search });
 
   return (
     <div className="grid gap-4 md:grid-cols-2" data-testid="direcionadores">
       <Link
-        to="/gestor/visao-geral"
+        to={comFiltroAtual('/gestor/visao-geral')}
         data-testid="direcionador-visao-geral"
         className={CARTAO}
         onMouseEnter={aquecer}
@@ -44,7 +53,11 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
         </span>
       </Link>
 
-      <Link to="/gestor/detalhamento" data-testid="direcionador-detalhamento" className={CARTAO}>
+      <Link
+        to={comFiltroAtual('/gestor/detalhamento')}
+        data-testid="direcionador-detalhamento"
+        className={CARTAO}
+      >
         <FileSearch className="h-5 w-5 text-primary" aria-hidden="true" />
         <span className="text-base font-semibold text-foreground">Detalhamento por Simulados</span>
         <span className="text-sm text-muted-foreground">

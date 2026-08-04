@@ -10,7 +10,7 @@ import { BadgeStatus } from '@/features/gestor/components/BadgeStatus';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import type { ContextoGestor, ItemCronograma } from '@/features/gestor/api/types';
+import type { ItemCronograma } from '@/features/gestor/api/types';
 
 /** Mesmo número já usado nos fluxos de suporte do app (QuickActionsDock, SanarClass). */
 export const WHATSAPP_SANAR = '5571993120049';
@@ -35,17 +35,46 @@ const ROTULO_DATA: Record<'online' | 'presencial', string> = {
   presencial: 'Realização',
 };
 
-/** Próximo simulado = agendado/reagendado com a data mais próxima (§6.4). */
-export function proximoSimulado(itens: ItemCronograma[]): string | null {
+/**
+ * Próximo simulado = agendado/reagendado com a data mais próxima, **ainda no
+ * futuro** em relação a `agora` (achados 11 e 18, revisão de 03/08).
+ *
+ * A derivação de status no servidor não compara com `now()` (§6.4 deriva só a
+ * partir de encerramento/participação/reagendamento) — então um simulado
+ * liberado há dias, com data já passada mas que a Sanar ainda não marcou como
+ * encerrado, continua chegando como `agendado`. Chamá-lo de "próximo" seria
+ * destacar algo que já passou. Sem nenhum item no futuro, não há próximo —
+ * estado legítimo (nenhum destaque), não um erro.
+ */
+export function proximoSimulado(
+  itens: ItemCronograma[],
+  agora: Date = new Date(),
+): string | null {
   const candidatos = itens
     .filter(
       (item) =>
         (item.status === 'agendado' || item.status === 'reagendado') &&
-        item.data !== null,
+        item.data !== null &&
+        new Date(item.data) >= agora,
     )
     .sort((a, b) => (a.data as string).localeCompare(b.data as string));
 
   return candidatos[0]?.id ?? null;
+}
+
+/**
+ * Texto do rodapé de proveniência, a partir de `meta.periodo` de
+ * `useCronograma(iesId)` — nunca do `contrato` do contexto do usuário, que é
+ * da IES padrão dele e não acompanha a troca de IES no dropdown (achados 1,
+ * 3, 4 e 7 da revisão de 03/08; mesma armadilha documentada em
+ * `SidebarIes.tsx:71-75`). `meta.periodo` já vem escopado à IES que a query
+ * de fato consultou (`p_ies_id`), incluindo o texto de fallback do servidor
+ * quando a IES não tem contrato cadastrado — usado como veio, sem inventar
+ * campo (spec §4.10).
+ */
+export function rotuloVigenciaContrato(periodo: string): string {
+  if (periodo.toLowerCase().startsWith('sem contrato')) return periodo;
+  return `Vigência do contrato ${periodo}`;
 }
 
 function abrirWhatsApp(texto: string): void {
@@ -59,7 +88,6 @@ function abrirWhatsApp(texto: string): void {
 export interface CronogramaSimuladosProps {
   iesId: string;
   iesNome: string;
-  contrato: ContextoGestor['contrato'];
 }
 
 function Moldura({ children }: { children: React.ReactNode }) {
@@ -93,6 +121,19 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
     navigate({ pathname: '/gestor/detalhamento', search: params.toString() });
   };
 
+  /**
+   * `realizado` sem data (achado 20, revisão de 03/08): simulado presencial
+   * legado com `data_realizacao`/`data_liberacao` nulas — mas que já tem
+   * participação e resultado de TRI, então a RPC deriva `realizado` mesmo
+   * assim. Isso NÃO é "contratado sem data" (`previsto`, ainda pendente de
+   * agendamento pela Sanar): já aconteceu, só falta a data no banco. A RPC só
+   * seta `indisponivelPorque` para `previsto`/`processing` — sem este aviso,
+   * o item mostraria "Realização: —" ao lado de itens com data real, sem
+   * explicação nenhuma.
+   */
+  const semDataRegistrada =
+    !item.indisponivelPorque && item.status === 'realizado' && item.data === null;
+
   return (
     <button
       type="button"
@@ -123,6 +164,9 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
         {item.indisponivelPorque && (
           <p className="text-xs text-muted-foreground">{item.indisponivelPorque}</p>
         )}
+        {semDataRegistrada && (
+          <p className="text-xs text-muted-foreground">Data de realização não registrada</p>
+        )}
       </div>
       <BadgeStatus status={item.status} />
     </button>
@@ -133,8 +177,8 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
  * Cronograma de simulados contratados — âncora da home (spec §2.2, §6.4).
  * O servidor já manda o `status` derivado; este componente só traduz.
  */
-export function CronogramaSimulados({ iesId, iesNome, contrato }: CronogramaSimuladosProps) {
-  const { data, isLoading, isError, refetch } = useCronograma(iesId);
+export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps) {
+  const { data, meta, isLoading, isError, refetch } = useCronograma(iesId);
 
   if (isLoading) {
     return (
@@ -230,12 +274,12 @@ export function CronogramaSimulados({ iesId, iesNome, contrato }: CronogramaSimu
         </div>
       )}
 
-      {contrato && (
+      {meta && (
         <p
           data-testid="cronograma-proveniencia"
           className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground"
         >
-          {`${contrato.nome} · vigência ${contrato.vigencia}`}
+          {rotuloVigenciaContrato(meta.periodo)}
         </p>
       )}
     </Moldura>

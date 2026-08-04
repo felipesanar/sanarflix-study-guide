@@ -149,4 +149,57 @@ describe('SidebarIes (spec §3)', () => {
     });
     expect(screen.queryByText('IES Alfa')).not.toBeInTheDocument();
   });
+
+  it('?ies= fora do escopo (não está em iesDisponiveis) cai para a IES do contexto, em vez de deixar o seletor em branco (achado 17)', async () => {
+    // Link colável de um admin apontando para uma IES que este destinatário
+    // não acessa, ou bookmark de um gestor_grupo cuja IES saiu do grupo.
+    comContexto(contexto('admin', true, TRES_IES));
+    render(
+      <MemoryRouter initialEntries={['/gestor?ies=ies-fora-do-escopo']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+
+    // Nunca em branco: cai para contexto.iesAtual ('IES Alfa'), que É uma das
+    // opções do dropdown — a pessoa sempre tem um caminho de saída.
+    await waitFor(() => {
+      expect(screen.getByText('IES Alfa')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('ies-fora-do-escopo')).not.toBeInTheDocument();
+
+    // E a URL é corrigida — sem isso os hooks de dado (useCronograma etc.)
+    // continuariam mandando o id inválido pra RPC.
+    await waitFor(() => {
+      expect(screen.getByTestId('search').textContent).toBe('?ies=ies-1');
+    });
+  });
+
+  it('?ies= inválido não deixa o seletor sem nenhuma opção correspondente (o value do Select sempre casa com um SelectItem)', async () => {
+    comContexto(contexto('gestor_grupo', true, TRES_IES.slice(0, 2)));
+    render(
+      <MemoryRouter initialEntries={['/gestor?ies=ies-que-saiu-do-grupo']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+
+    const combobox = await screen.findByRole('combobox', { name: /instituição/i });
+    // Radix expõe o rótulo da opção selecionada dentro do trigger — nunca vazio.
+    await waitFor(() => {
+      expect(combobox.textContent).not.toBe('');
+    });
+    expect(screen.getByText('IES Alfa')).toBeInTheDocument();
+  });
+
+  it('gestor com rótulo estático: ?ies= inválido não quebra a tela e mantém o nome da IES do contexto (achado 17, cenário sem dropdown)', () => {
+    comContexto(contexto('gestor', false, [{ id: 'ies-1', nome: 'IES Alfa' }]));
+    render(
+      <MemoryRouter initialEntries={['/gestor?ies=ies-inexistente']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('IES Alfa')).toBeInTheDocument();
+  });
 });

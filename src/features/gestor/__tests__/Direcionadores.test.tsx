@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -155,7 +155,7 @@ describe('SaudacaoGestor (spec §2.1)', () => {
     expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
   });
 
-  it('loading: skeleton no lugar do texto', () => {
+  it('loading: skeleton acessível (role="status") no lugar do texto (achado 19)', () => {
     mocks.useGestorContexto.mockReturnValue({
       data: undefined,
       meta: undefined,
@@ -165,8 +165,63 @@ describe('SaudacaoGestor (spec §2.1)', () => {
     });
     montar(<SaudacaoGestor />);
 
-    expect(screen.getByTestId('saudacao-skeleton')).toBeInTheDocument();
+    const skeleton = screen.getByTestId('saudacao-skeleton');
+    expect(skeleton).toBeInTheDocument();
     expect(screen.queryByTestId('saudacao')).not.toBeInTheDocument();
+    expect(within(skeleton).getAllByRole('status').length).toBeGreaterThan(0);
+  });
+
+  describe('IES em foco divergente da IES padrão do usuário (achados 1, 3, 4 e 7)', () => {
+    const CONTEXTO_MULTI_IES = {
+      ...CONTEXTO.data,
+      iesDisponiveis: [
+        { id: 'ies-1', nome: 'Universidade do Estado do Amazonas' },
+        { id: 'ies-2', nome: 'Universidade Federal Fluminense' },
+      ],
+    };
+
+    beforeEach(() => {
+      mocks.useGestorContexto.mockReturnValue({
+        data: CONTEXTO_MULTI_IES,
+        meta: CONTEXTO.meta,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+    });
+
+    it('usa o nome da IES em foco (prop iesId), não o da IES padrão do usuário', () => {
+      montar(<SaudacaoGestor iesId="ies-2" />);
+
+      expect(screen.getByTestId('saudacao')).toHaveTextContent(
+        'Universidade Federal Fluminense',
+      );
+      expect(screen.getByTestId('saudacao')).not.toHaveTextContent(
+        'Universidade do Estado do Amazonas',
+      );
+    });
+
+    it('omite o contrato quando ele pertence à IES padrão do usuário, não à IES em foco', () => {
+      montar(<SaudacaoGestor iesId="ies-2" />);
+
+      expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
+      expect(screen.getByTestId('saudacao')).not.toHaveTextContent('simulados contratados');
+    });
+
+    it('sem iesId (uso isolado, sem recorte), cai na IES padrão do usuário — comportamento inalterado', () => {
+      montar(<SaudacaoGestor />);
+
+      expect(screen.getByTestId('saudacao')).toHaveTextContent(
+        'Universidade do Estado do Amazonas',
+      );
+      expect(screen.getByTestId('saudacao')).toHaveTextContent('Academy 2026');
+    });
+
+    it('quando iesId aponta para a própria IES padrão, o contrato continua aparecendo', () => {
+      montar(<SaudacaoGestor iesId="ies-1" />);
+
+      expect(screen.getByTestId('saudacao')).toHaveTextContent('Academy 2026');
+    });
   });
 });
 
@@ -242,6 +297,97 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
     await user.hover(screen.getByTestId('direcionador-detalhamento'));
 
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Achados 6 e 16 da revisão de 03/08: os direcionadores navegavam sem a
+ * query string, então o recorte global (IES + semestre) morria ao clicar e
+ * a chave aquecida no hover (props) divergia da chave que a tela de destino
+ * pediria (URL). A correção preserva a `search` vigente nos dois `<Link>`.
+ */
+describe('DirecionadoresGestor preserva a query string ao navegar (achados 6 e 16)', () => {
+  function montarComSearch(ui: React.ReactNode, entrada: string) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const utils = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[entrada]}>
+          <SondaDeRota />
+          {ui}
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    return { ...utils, queryClient };
+  }
+
+  it('o card da Visão Geral carrega a query string vigente no href', () => {
+    montarComSearch(
+      <DirecionadoresGestor iesId="ies-1" semestre="3" />,
+      '/gestor?ies=ies-1&semestre=3',
+    );
+
+    expect(screen.getByTestId('direcionador-visao-geral')).toHaveAttribute(
+      'href',
+      '/gestor/visao-geral?ies=ies-1&semestre=3',
+    );
+  });
+
+  it('o card do Detalhamento carrega a query string vigente no href', () => {
+    montarComSearch(
+      <DirecionadoresGestor iesId="ies-1" semestre="3" />,
+      '/gestor?ies=ies-1&semestre=3',
+    );
+
+    expect(screen.getByTestId('direcionador-detalhamento')).toHaveAttribute(
+      'href',
+      '/gestor/detalhamento?ies=ies-1&semestre=3',
+    );
+  });
+
+  it('sem query string na URL de origem, o href não ganha "?" pendurado', () => {
+    montarComSearch(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />, '/gestor');
+
+    expect(screen.getByTestId('direcionador-visao-geral')).toHaveAttribute(
+      'href',
+      '/gestor/visao-geral',
+    );
+    expect(screen.getByTestId('direcionador-detalhamento')).toHaveAttribute(
+      'href',
+      '/gestor/detalhamento',
+    );
+  });
+
+  it('o clique na Visão Geral navega mantendo a query string', async () => {
+    const user = userEvent.setup();
+    montarComSearch(
+      <DirecionadoresGestor iesId="ies-1" semestre="3" />,
+      '/gestor?ies=ies-1&semestre=3',
+    );
+
+    await user.click(screen.getByTestId('direcionador-visao-geral'));
+
+    expect(screen.getByTestId('rota')).toHaveTextContent('/gestor/visao-geral');
+    expect(window.location.search).toBe('');
+  });
+
+  it('a chave aquecida no hover casa com a chave que a Visão Geral pediria para a mesma URL', async () => {
+    const user = userEvent.setup();
+    const { queryClient } = montarComSearch(
+      <DirecionadoresGestor iesId="ies-2" semestre="5" />,
+      '/gestor?ies=ies-2&semestre=5',
+    );
+
+    await user.hover(screen.getByTestId('direcionador-visao-geral'));
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(visaoGeralQueryKey('ies-2', '5'))).toBeDefined();
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith('get_gestor_visao_geral', {
+      p_ies_id: 'ies-2',
+      p_semestre: '5',
+    });
   });
 });
 

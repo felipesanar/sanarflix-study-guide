@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { CronogramaSimulados } from '@/features/gestor/components/CronogramaSimulados';
-import type { ContextoGestor, ItemCronograma } from '@/features/gestor/api/types';
+import type { ItemCronograma } from '@/features/gestor/api/types';
 
 const mocks = vi.hoisted(() => ({ useCronograma: vi.fn() }));
 
@@ -24,12 +24,6 @@ vi.mock('react-router-dom', async () => {
   return actual;
 });
 
-const CONTRATO: ContextoGestor['contrato'] = {
-  nome: 'Academy 2026',
-  simuladosContratados: 7,
-  vigencia: '01/01/2026 a 31/12/2026',
-};
-
 const ITENS: ItemCronograma[] = [
   { id: 's1', nome: 'Simulado 1', data: '2026-03-10T12:00:00Z', status: 'realizado', modalidade: 'online', participantes: 88 },
   { id: 's2', nome: 'Simulado 2', data: '2026-05-12T12:00:00Z', status: 'processing', modalidade: 'presencial', participantes: null, indisponivelPorque: 'Gabarito em fechamento' },
@@ -46,7 +40,7 @@ const montar = (initialEntries: string[] = ['/gestor']) =>
   render(
     <MemoryRouter initialEntries={initialEntries}>
       <SondaDeRota />
-      <CronogramaSimulados iesId="ies-1" iesNome="UEA" contrato={CONTRATO} />
+      <CronogramaSimulados iesId="ies-1" iesNome="UEA" />
     </MemoryRouter>,
   );
 

@@ -28,15 +28,28 @@ export const SidebarIes: React.FC = () => {
   const { data: contexto, isLoading } = useGestorContexto();
   const { iesId, setIesId } = useFiltrosGestor();
 
-  // Semeia o recorte global com a IES do contexto assim que ele chega, se a
-  // URL ainda não tem uma seleção. Sem isso `iesId` fica `null` no primeiro
-  // acesso e nenhum hook de dado (useCronograma, useVisaoGeral, ...) dispara,
-  // porque todos são `enabled: iesId !== null` (achado do Felipe, item 3a).
+  // `?ies=` só é aceito se apontar para uma IES que a pessoa de fato acessa.
+  // Sem essa validação, um link colável para uma IES fora do escopo (ou um
+  // bookmark de um gestor_grupo cuja IES saiu do grupo) deixaria o `<Select>`
+  // com um `value` sem `SelectItem` correspondente — seletor em branco, sem
+  // caminho de saída (achado 17). A autorização de fato é da RPC; isto é só
+  // para a UI nunca ficar num estado sem saída.
+  const iesValida = contexto ? contexto.iesDisponiveis.some((ies) => ies.id === iesId) : false;
+
+  // Semeia (ou corrige) o recorte global com a IES do contexto assim que ele
+  // chega, sempre que a URL não tiver uma seleção válida — seja porque `iesId`
+  // ainda é `null` no primeiro acesso (achado do Felipe, item 3a: sem isso
+  // nenhum hook de dado como useCronograma/useVisaoGeral dispara, porque todos
+  // são `enabled: iesId !== null`), seja porque aponta para uma IES fora do
+  // escopo (achado 17). Cai para `contexto.iesAtual.id`, que é sempre uma das
+  // opções do dropdown — nunca deixa a pessoa sem seletor utilizável. Termina
+  // em uma escrita: depois da correção `iesValida` passa a `true` e o efeito
+  // não corre de novo, sem risco de loop.
   React.useEffect(() => {
-    if (contexto && iesId === null) {
+    if (contexto && !iesValida) {
       setIesId(contexto.iesAtual.id);
     }
-  }, [contexto, iesId, setIesId]);
+  }, [contexto, iesValida, setIesId]);
 
   if (isLoading) {
     return (
@@ -72,8 +85,10 @@ export const SidebarIes: React.FC = () => {
   // acompanha a troca — `get_gestor_contexto()` não recebe `p_ies_id` e não é
   // reconsultado quando o usuário muda de IES — então usá-lo aqui prenderia o
   // rótulo do dropdown na primeira IES para sempre (achado do Felipe, item
-  // 3b). Cai em `iesAtual` só no instante antes do efeito de seed rodar.
-  const iesSelecionada = iesId ?? contexto.iesAtual.id;
+  // 3b). Cai em `iesAtual` quando não há seleção válida ainda: `iesId` nulo no
+  // primeiro acesso, ou fora de `iesDisponiveis` (achado 17) — em ambos os
+  // casos só até o efeito de correção rodar.
+  const iesSelecionada = iesValida ? iesId ?? contexto.iesAtual.id : contexto.iesAtual.id;
 
   return (
     <div className="space-y-1 px-1">

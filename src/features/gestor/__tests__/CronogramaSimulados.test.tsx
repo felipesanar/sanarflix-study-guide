@@ -5,11 +5,12 @@ import userEvent from '@testing-library/user-event';
 import {
   CronogramaSimulados,
   proximoSimulado,
+  rotuloVigenciaContrato,
   MSG_AGENDAR,
   MSG_CONSULTOR,
   WHATSAPP_SANAR,
 } from '@/features/gestor/components/CronogramaSimulados';
-import type { ContextoGestor, ItemCronograma } from '@/features/gestor/api/types';
+import type { ItemCronograma, Meta } from '@/features/gestor/api/types';
 
 const mocks = vi.hoisted(() => ({ useCronograma: vi.fn() }));
 
@@ -17,10 +18,13 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: mocks.useCronograma,
 }));
 
-const CONTRATO: ContextoGestor['contrato'] = {
-  nome: 'Academy 2026',
-  simuladosContratados: 7,
-  vigencia: '01/01/2026 a 31/12/2026',
+const META: Meta = {
+  periodo: '01/01/2026 — 31/12/2026',
+  fonte: 'ies_contrato_simulados · ies_simulado_previsto · simulados_admin',
+  atualizadoEm: '2026-07-26T10:00:00Z',
+  criterio: 'realizado = ...',
+  partial: false,
+  lowSample: false,
 };
 
 /** Um item por status. s4 (18/08) é o próximo: vence s3 (20/09) na ordenação. */
@@ -32,35 +36,69 @@ const ITENS: ItemCronograma[] = [
   { id: 's5', nome: 'Simulado 5', data: null, status: 'previsto', modalidade: null, participantes: null, indisponivelPorque: 'Data ainda não definida' },
 ];
 
+/** Achado 20 (revisão de 03/08): presencial legado sem data_realizacao/data_liberacao, já com TRI. */
+const S6_REALIZADO_SEM_DATA: ItemCronograma = {
+  id: 's6',
+  nome: 'Simulado Legado Presencial',
+  data: null,
+  status: 'realizado',
+  modalidade: 'presencial',
+  participantes: 40,
+};
+
 const resultado = (over: Record<string, unknown> = {}) => ({
   isLoading: false,
   isError: false,
   data: undefined,
+  meta: META,
   refetch: vi.fn(),
   ...over,
 });
 
 const montar = (props?: Partial<React.ComponentProps<typeof CronogramaSimulados>>) =>
-  render(
-    <CronogramaSimulados iesId="ies-1" iesNome="UEA" contrato={CONTRATO} {...props} />,
-  );
+  render(<CronogramaSimulados iesId="ies-1" iesNome="UEA" {...props} />);
 
 beforeEach(() => {
   mocks.useCronograma.mockReturnValue(resultado({ data: ITENS }));
 });
 
 describe('proximoSimulado', () => {
+  const AGORA = new Date('2026-01-01T00:00:00Z');
+
   it('devolve o agendado/reagendado com a data mais próxima', () => {
-    expect(proximoSimulado(ITENS)).toBe('s4');
+    expect(proximoSimulado(ITENS, AGORA)).toBe('s4');
   });
 
   it('ignora realizado, em processamento e previsto', () => {
     const soPassado: ItemCronograma[] = [ITENS[0], ITENS[1], ITENS[4]];
-    expect(proximoSimulado(soPassado)).toBeNull();
+    expect(proximoSimulado(soPassado, AGORA)).toBeNull();
   });
 
   it('devolve null com lista vazia', () => {
-    expect(proximoSimulado([])).toBeNull();
+    expect(proximoSimulado([], AGORA)).toBeNull();
+  });
+
+  it('ignora agendado/reagendado com data no passado (achados 11 e 18) — não é "próximo" algo que já passou', () => {
+    // s4 (reagendado, 18/08) já passou; s3 (agendado, 20/09) ainda está no futuro.
+    const agora = new Date('2026-08-20T00:00:00Z');
+    expect(proximoSimulado(ITENS, agora)).toBe('s3');
+  });
+
+  it('sem nenhum agendado/reagendado no futuro, não destaca nada — estado legítimo, não um erro', () => {
+    const agora = new Date('2026-10-01T00:00:00Z');
+    expect(proximoSimulado(ITENS, agora)).toBeNull();
+  });
+});
+
+describe('rotuloVigenciaContrato', () => {
+  it('prefixa a vigência devolvida pelo servidor', () => {
+    expect(rotuloVigenciaContrato('01/01/2026 — 31/12/2026')).toBe(
+      'Vigência do contrato 01/01/2026 — 31/12/2026',
+    );
+  });
+
+  it('devolve o texto de fallback do servidor sem inventar prefixo, quando não há contrato', () => {
+    expect(rotuloVigenciaContrato('sem contrato cadastrado')).toBe('sem contrato cadastrado');
   });
 });
 
@@ -137,19 +175,76 @@ describe('CronogramaSimulados — bloco de contratados sem data', () => {
   });
 });
 
-describe('CronogramaSimulados — proveniência e estados (§8.4)', () => {
-  it('mostra o contrato e a vigência no rodapé', () => {
+describe('CronogramaSimulados — "realizado" sem data não é "contratado sem data" (achado 20)', () => {
+  it('aparece na lista de datados, mesmo sem data — não desaparece das duas agrupações', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: [...ITENS, S6_REALIZADO_SEM_DATA] }));
+    montar();
+    expect(screen.getByTestId('cronograma-item-s6')).toBeInTheDocument();
+  });
+
+  it('não entra na contagem "Contratados sem data" — já aconteceu, não está pendente de agendamento', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: [...ITENS, S6_REALIZADO_SEM_DATA] }));
+    montar();
+    const bloco = screen.getByTestId('cronograma-sem-data');
+    expect(bloco).toHaveTextContent('Contratados sem data (1)');
+    expect(bloco).not.toContainElement(screen.getByTestId('cronograma-item-s6'));
+  });
+
+  it('não renderiza data falsa e explica por que a data não aparece', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: [S6_REALIZADO_SEM_DATA] }));
+    montar();
+    const item = screen.getByTestId('cronograma-item-s6');
+    expect(item.textContent).not.toMatch(/\d{2}\/\d{2}\/\d{4}/);
+    expect(item).toHaveTextContent('Data de realização não registrada');
+  });
+
+  it('continua navegável — realizado sempre é navegável, com ou sem data', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: [S6_REALIZADO_SEM_DATA] }));
+    montar();
+    expect(screen.getByTestId('cronograma-item-s6')).toBeEnabled();
+  });
+});
+
+describe('CronogramaSimulados — proveniência escopada à IES consultada (achados 1, 3, 4 e 7)', () => {
+  it('mostra a vigência devolvida pelo meta desta consulta (useCronograma), não um dado externo', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: ITENS, meta: META }));
     montar();
     expect(screen.getByTestId('cronograma-proveniencia')).toHaveTextContent(
-      'Academy 2026 · vigência 01/01/2026 a 31/12/2026',
+      'Vigência do contrato 01/01/2026 — 31/12/2026',
     );
   });
 
-  it('omite o rodapé quando não há contrato', () => {
-    montar({ contrato: null });
-    expect(screen.queryByTestId('cronograma-proveniencia')).not.toBeInTheDocument();
+  it('ao trocar de IES (outro iesId, outro meta) o rodapé muda de acordo — nunca fica presa na primeira consulta', () => {
+    mocks.useCronograma.mockReturnValue(
+      resultado({ data: ITENS, meta: { ...META, periodo: '01/06/2026 — 31/05/2027' } }),
+    );
+    montar({ iesId: 'ies-2', iesNome: 'Outra IES' });
+    expect(screen.getByTestId('cronograma-proveniencia')).toHaveTextContent(
+      'Vigência do contrato 01/06/2026 — 31/05/2027',
+    );
+    expect(screen.getByTestId('cronograma-proveniencia')).not.toHaveTextContent(
+      '01/01/2026 — 31/12/2026',
+    );
   });
 
+  it('quando a IES consultada não tem contrato cadastrado, mostra o texto do servidor — não some, não inventa vigência', () => {
+    mocks.useCronograma.mockReturnValue(
+      resultado({ data: ITENS, meta: { ...META, periodo: 'sem contrato cadastrado' } }),
+    );
+    montar();
+    expect(screen.getByTestId('cronograma-proveniencia')).toHaveTextContent(
+      'sem contrato cadastrado',
+    );
+  });
+
+  it('omite o rodapé quando a consulta não trouxe meta', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: ITENS, meta: undefined }));
+    montar();
+    expect(screen.queryByTestId('cronograma-proveniencia')).not.toBeInTheDocument();
+  });
+});
+
+describe('CronogramaSimulados — estados (§8.4)', () => {
   it('loading: skeleton que reserva altura, sem itens', () => {
     mocks.useCronograma.mockReturnValue(resultado({ isLoading: true }));
     montar();

@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   from: vi.fn(),
   useAuth: vi.fn(),
+  avisosQueryFn: vi.fn(),
+  toastError: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 vi.mock('@/integrations/supabase/client', () => ({
@@ -24,11 +27,29 @@ vi.mock('@/integrations/supabase/client', () => ({
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => mocks.useAuth() }));
 
+vi.mock('sonner', () => ({
+  toast: {
+    error: mocks.toastError,
+    success: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+  },
+}));
+
+vi.mock('@/utils/logger', () => {
+  const Logger = { error: mocks.loggerError, warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
+  return { Logger, default: Logger };
+});
+
 /**
- * useAvisos real leria a RPC. Aqui ele é um useQuery na queryKey canônica com
- * staleTime infinito: o teste semeia o cache e o hook devolve o dado semeado
- * sem chamar queryFn. Assim o update otimista da mutation aparece na UI de
- * verdade, em vez de ser observado só no cache.
+ * useAvisos real (`useEnvelope` em api/queries.ts) usa `useQuery` de verdade,
+ * com `placeholderData: (anterior) => anterior` e a queryKey
+ * `['gestor', user?.id, 'avisos', iesId]` — o id do usuário logado entra
+ * DEPOIS do namespace (ver comentário de `useEnvelope`). Este mock espelha
+ * exatamente essa forma: por padrão `avisosQueryFn` lança (o cache já vem
+ * semeado pelo teste, staleTime infinito, então a queryFn nunca deveria
+ * rodar); os testes que precisam de um fetch "em voo" de verdade (achado 2)
+ * sobrescrevem `avisosQueryFn` com uma implementação controlável.
  */
 vi.mock('@/features/gestor/api/queries', async () => {
   const rq = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -36,13 +57,13 @@ vi.mock('@/features/gestor/api/queries', async () => {
   );
   return {
     useAvisos: (iesId: string) => {
+      const auth = mocks.useAuth();
       const query = rq.useQuery<Envelope<Aviso[]>>({
-        queryKey: ['gestor', 'avisos', iesId],
-        queryFn: () => {
-          throw new Error('queryFn não deve ser chamada: o cache é semeado no teste');
-        },
+        queryKey: avisosQueryKey(auth.user?.id, iesId),
+        queryFn: mocks.avisosQueryFn,
         staleTime: Infinity,
         retry: false,
+        placeholderData: (anterior: Envelope<Aviso[]> | undefined) => anterior,
       });
       return {
         data: query.data?.data,
@@ -71,16 +92,25 @@ const AVISOS: Aviso[] = [
   { id: 'a4', titulo: 'Webinar para gestores', resumo: 'Inscricoes abertas.', data: '2026-07-10T12:00:00Z', lido: false },
 ];
 
+const AVISOS_IES2: Aviso[] = [
+  { id: 'b1', titulo: 'Aviso exclusivo da segunda IES', resumo: 'Resumo do b1.', data: '2026-07-22T12:00:00Z', lido: false },
+];
+
 const envelope = (avisos: Aviso[]): Envelope<Aviso[]> => ({ data: avisos, meta: META });
 
-function montar(avisos: Aviso[] = AVISOS) {
-  const queryClient = new QueryClient({
+function novoQueryClient() {
+  return new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
   });
-  queryClient.setQueryData(avisosQueryKey('ies-1'), envelope(avisos));
+}
+
+function montar(avisos: Aviso[] = AVISOS) {
+  const userId = mocks.useAuth().user?.id as string | undefined;
+  const queryClient = novoQueryClient();
+  queryClient.setQueryData(avisosQueryKey(userId, 'ies-1'), envelope(avisos));
 
   const utils = render(
     <QueryClientProvider client={queryClient}>
@@ -88,12 +118,15 @@ function montar(avisos: Aviso[] = AVISOS) {
     </QueryClientProvider>,
   );
 
-  return { ...utils, queryClient };
+  return { ...utils, queryClient, userId };
 }
 
 beforeEach(() => {
   mocks.useAuth.mockReturnValue({ user: { id: 'user-1' }, logout: vi.fn() });
   mocks.insert.mockResolvedValue({ error: null });
+  mocks.avisosQueryFn.mockImplementation(() => {
+    throw new Error('queryFn não deve ser chamada: o cache é semeado no teste');
+  });
 });
 
 describe('AvisosSanar — lido e não-lido', () => {
@@ -189,6 +222,132 @@ describe('AvisosSanar — marcar como lido (otimista)', () => {
       expect(screen.getByTestId('aviso-a1')).toHaveAttribute('data-lido', 'false');
     });
     expect(mocks.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('AvisosSanar — achados da revisão de 04/08 (frente 3)', () => {
+  it('achado 2: trocar de IES com o fetch novo em voo não congela nos avisos da IES anterior', async () => {
+    let resolverIes2: ((valor: Envelope<Aviso[]>) => void) | undefined;
+    mocks.avisosQueryFn.mockImplementation(({ queryKey }: { queryKey: readonly unknown[] }) => {
+      const iesDoFetch = queryKey[queryKey.length - 1];
+      if (iesDoFetch === 'ies-2') {
+        return new Promise<Envelope<Aviso[]>>((resolve) => {
+          resolverIes2 = resolve;
+        });
+      }
+      throw new Error('queryFn não deveria rodar para outra IES neste teste');
+    });
+
+    const userId = mocks.useAuth().user?.id as string | undefined;
+    const queryClient = novoQueryClient();
+    queryClient.setQueryData(avisosQueryKey(userId, 'ies-1'), envelope(AVISOS));
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <AvisosSanar iesId="ies-1" />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByTestId('aviso-a1')).toBeInTheDocument();
+
+    // Troca de IES: a query de ies-2 nunca foi buscada e fica em voo;
+    // `placeholderData` (igual ao `useEnvelope` real) segue mostrando os
+    // avisos da IES anterior enquanto isso — sem spinner.
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <AvisosSanar iesId="ies-2" />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-a1')).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('aviso-a1'));
+
+    // O fetch da IES nova finalmente resolve — se o `onMutate` tiver
+    // cancelado esse fetch (bug), esta resolução não tem mais efeito e o
+    // teste trava mostrando pra sempre os avisos da IES antiga.
+    resolverIes2?.(envelope(AVISOS_IES2));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-b1')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('aviso-a1')).not.toBeInTheDocument();
+  });
+
+  it('achado 12: rollback de uma mutação não desfaz o otimismo de outra em voo', async () => {
+    mocks.insert.mockImplementation((payload: { announcement_id: string }) => {
+      if (payload.announcement_id === 'a1') {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ error: { message: 'rls_violation' } }), 40);
+        });
+      }
+      return new Promise((resolve) => {
+        setTimeout(() => resolve({ error: null }), 10);
+      });
+    });
+
+    const user = userEvent.setup();
+    montar();
+    // a4 é o 4º aviso — só aparece depois de expandir a lista.
+    await user.click(screen.getByRole('button', { name: 'Ver todos' }));
+
+    await user.click(screen.getByTestId('aviso-a1'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await user.click(screen.getByTestId('aviso-a4'));
+
+    // a4 grava com sucesso primeiro
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-a4')).toHaveAttribute('data-lido', 'true');
+    });
+
+    // a1 falha depois — mas isso não pode desfazer o sucesso de a4
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-a1')).toHaveAttribute('data-lido', 'false');
+    });
+    expect(screen.getByTestId('aviso-a4')).toHaveAttribute('data-lido', 'true');
+  });
+
+  it('achado 13: falha na escrita avisa com toast e loga o erro', async () => {
+    mocks.insert.mockResolvedValue({ error: { message: 'rls_violation' } });
+    const user = userEvent.setup();
+    montar();
+
+    await user.click(screen.getByTestId('aviso-a1'));
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalled();
+    });
+    expect(mocks.loggerError).toHaveBeenCalled();
+  });
+
+  it('achado 14: marcar como lido propaga para o cache de outras IES do mesmo usuário', async () => {
+    const userId = mocks.useAuth().user?.id as string | undefined;
+    const queryClient = novoQueryClient();
+    queryClient.setQueryData(avisosQueryKey(userId, 'ies-1'), envelope(AVISOS));
+    // Mesmo aviso "a1" (visibilidade "todas") também cacheado, ainda não
+    // lido, na segunda IES deste mesmo gestor de grupo.
+    queryClient.setQueryData(avisosQueryKey(userId, 'ies-2'), envelope(AVISOS));
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AvisosSanar iesId="ies-1" />
+      </QueryClientProvider>,
+    );
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId('aviso-a1'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('aviso-a1')).toHaveAttribute('data-lido', 'true');
+    });
+
+    const cacheIes2 = queryClient.getQueryData<Envelope<Aviso[]>>(
+      avisosQueryKey(userId, 'ies-2'),
+    );
+    expect(cacheIes2?.data.find((aviso) => aviso.id === 'a1')?.lido).toBe(true);
   });
 });
 
