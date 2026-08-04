@@ -111,4 +111,42 @@ describe('SidebarIes (spec §3)', () => {
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByRole('combobox')).toBeNull();
   });
+
+  it('semeia o iesId na URL com a IES do contexto quando ainda não há seleção (achado do Felipe, item 3a — sem isso nenhum hook de dado dispara no primeiro acesso)', async () => {
+    comContexto(contexto('gestor', false, [{ id: 'ies-1', nome: 'IES Alfa' }]));
+    renderizar();
+    await waitFor(() => {
+      expect(screen.getByTestId('search').textContent).toBe('?ies=ies-1');
+    });
+  });
+
+  it('não sobrescreve um iesId já presente na URL (link colável com IES explícita)', async () => {
+    comContexto(contexto('admin', true, TRES_IES));
+    render(
+      <MemoryRouter initialEntries={['/gestor?ies=ies-2']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText('IES Beta')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('search').textContent).toBe('?ies=ies-2');
+  });
+
+  it('o rótulo do dropdown segue o iesId da URL, não o iesAtual do servidor (achado do Felipe, item 3b — get_gestor_contexto não recebe p_ies_id e não é reconsultado ao trocar)', async () => {
+    // contexto.iesAtual fica travado em "IES Alfa" propositalmente — simula o
+    // servidor não tendo recomputado nada após a troca de IES no cliente.
+    comContexto(contexto('admin', true, TRES_IES));
+    render(
+      <MemoryRouter initialEntries={['/gestor?ies=ies-2']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(screen.getByText('IES Beta')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('IES Alfa')).not.toBeInTheDocument();
+  });
 });

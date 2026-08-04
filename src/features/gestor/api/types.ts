@@ -174,10 +174,22 @@ export interface LinhaAluno {
    */
   semestre: number | null;
   /**
-   * `null` quando o aluno não tem NENHUM resultado de TRI na janela (grupo
-   * indefinido, não "em variação" — mesma família de decisão de
-   * `AlunoNoSimulado.situacao === 'aguardando_resultado'`; achado 4 da
-   * revisão de 03/08). Renderiza como `TRACO` via `rotuloGrupo`.
+   * `null` quando o aluno não tem NENHUM resultado de TRI na janela — grupo
+   * indefinido, não "em variação". Mesma família de decisão de
+   * `AlunoNoSimulado.situacao === 'aguardando_resultado'`: a nota TRI sobe
+   * depois, por pipeline externo, então "sem nota ainda" é o estado normal de
+   * um simulado recém-encerrado, não uma borda. Mesmo princípio de
+   * `grupoEvolucao()` em `lib/regras.ts`, que devolve `null` para "sem ponto
+   * utilizável" em vez de inventar um grupo. Renderiza como `TRACO` via
+   * `rotuloGrupo`.
+   *
+   * Achado 4 da revisão de 03/08. O tipo passou a aceitar `null` em
+   * `873abc7a`, mas ali a SQL ainda devolvia `'em_variacao'` — ou seja, o
+   * servidor nunca enviava `null` e o valor errado continuava chegando. A
+   * causa raiz foi corrigida na migration
+   * `20260804140000_get_gestor_alunos_guard_grupo_tendencia.sql`, que **não
+   * está aplicada em produção ainda**: até alguém aplicar, o front recebe
+   * `'em_variacao'` de um aluno sem nenhuma nota.
    */
   grupo: GrupoEvolucao | null;
   proficiencias: (number | null)[];

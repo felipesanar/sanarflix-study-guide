@@ -26,7 +26,17 @@ const Rotulo: React.FC = () => (
  */
 export const SidebarIes: React.FC = () => {
   const { data: contexto, isLoading } = useGestorContexto();
-  const { setIesId } = useFiltrosGestor();
+  const { iesId, setIesId } = useFiltrosGestor();
+
+  // Semeia o recorte global com a IES do contexto assim que ele chega, se a
+  // URL ainda não tem uma seleção. Sem isso `iesId` fica `null` no primeiro
+  // acesso e nenhum hook de dado (useCronograma, useVisaoGeral, ...) dispara,
+  // porque todos são `enabled: iesId !== null` (achado do Felipe, item 3a).
+  React.useEffect(() => {
+    if (contexto && iesId === null) {
+      setIesId(contexto.iesAtual.id);
+    }
+  }, [contexto, iesId, setIesId]);
 
   if (isLoading) {
     return (
@@ -58,10 +68,17 @@ export const SidebarIes: React.FC = () => {
     );
   }
 
+  // `iesId` (URL) é a fonte de verdade da seleção. `contexto.iesAtual` NÃO
+  // acompanha a troca — `get_gestor_contexto()` não recebe `p_ies_id` e não é
+  // reconsultado quando o usuário muda de IES — então usá-lo aqui prenderia o
+  // rótulo do dropdown na primeira IES para sempre (achado do Felipe, item
+  // 3b). Cai em `iesAtual` só no instante antes do efeito de seed rodar.
+  const iesSelecionada = iesId ?? contexto.iesAtual.id;
+
   return (
     <div className="space-y-1 px-1">
       <Rotulo />
-      <Select value={contexto.iesAtual.id} onValueChange={setIesId}>
+      <Select value={iesSelecionada} onValueChange={setIesId}>
         <SelectTrigger aria-label="Instituição em foco" className="h-9 w-full text-sm">
           <SelectValue />
         </SelectTrigger>
