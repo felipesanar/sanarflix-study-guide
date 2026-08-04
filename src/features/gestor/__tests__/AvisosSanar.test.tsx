@@ -36,7 +36,7 @@ vi.mock('@/features/gestor/api/queries', async () => {
   );
   return {
     useAvisos: (iesId: string) => {
-      const query = rq.useQuery({
+      const query = rq.useQuery<Envelope<Aviso[]>>({
         queryKey: ['gestor', 'avisos', iesId],
         queryFn: () => {
           throw new Error('queryFn não deve ser chamada: o cache é semeado no teste');
