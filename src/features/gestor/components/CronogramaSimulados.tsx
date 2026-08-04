@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CalendarPlus, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +80,18 @@ function Moldura({ children }: { children: React.ReactNode }) {
  */
 function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const navegavel = item.status === 'realizado';
+
+  const abrirNoDetalhamento = () => {
+    // Preserva o recorte global (ies, semestre) já na URL — só a chave
+    // `simulados` é sobrescrita pelo clique. Sem isso, o Detalhamento perde a
+    // IES selecionada e a home reseeda com `contexto.iesAtual`, que nem
+    // sempre é a IES em foco (ex.: admin impersonando um gestor).
+    const params = new URLSearchParams(location.search);
+    params.set('simulados', item.id);
+    navigate({ pathname: '/gestor/detalhamento', search: params.toString() });
+  };
 
   return (
     <button
@@ -88,7 +99,7 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
       disabled={!navegavel}
       data-testid={`cronograma-item-${item.id}`}
       data-destaque={destaque ? 'true' : 'false'}
-      onClick={() => navigate(`/gestor/detalhamento?simulados=${item.id}`)}
+      onClick={abrirNoDetalhamento}
       className={cn(
         'flex w-full items-center justify-between gap-3 rounded-md px-3 py-3 text-left transition-colors',
         navegavel &&

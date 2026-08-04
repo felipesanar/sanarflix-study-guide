@@ -42,9 +42,9 @@ function SondaDeRota() {
   return <div data-testid="rota">{`${location.pathname}${location.search}`}</div>;
 }
 
-const montar = () =>
+const montar = (initialEntries: string[] = ['/gestor']) =>
   render(
-    <MemoryRouter initialEntries={['/gestor']}>
+    <MemoryRouter initialEntries={initialEntries}>
       <SondaDeRota />
       <CronogramaSimulados iesId="ies-1" iesNome="UEA" contrato={CONTRATO} />
     </MemoryRouter>,
@@ -118,5 +118,18 @@ describe('CronogramaSimulados — navegação para o Detalhamento (spec §2.1, �
     for (const id of ['s2', 's3', 's5']) {
       expect(screen.getByTestId(`cronograma-item-${id}`)).toBeDisabled();
     }
+  });
+
+  it('preserva ies e semestre já na URL — só troca/adiciona simulados (achado de QA 04/08)', async () => {
+    const user = userEvent.setup();
+    montar(['/gestor?ies=fai-id&semestre=6ano']);
+
+    await user.click(screen.getByTestId('cronograma-item-s1'));
+
+    const rota = screen.getByTestId('rota').textContent ?? '';
+    expect(rota).toContain('/gestor/detalhamento');
+    expect(rota).toContain('ies=fai-id');
+    expect(rota).toContain('semestre=6ano');
+    expect(rota).toContain('simulados=s1');
   });
 });
