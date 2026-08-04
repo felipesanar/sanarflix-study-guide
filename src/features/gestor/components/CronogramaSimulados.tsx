@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CalendarPlus, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,13 +73,27 @@ function Moldura({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Só `realizado` tem `resultados_ies_tri` no banco — os outros quatro status
+ * abririam o Detalhamento vazio, então navegam desabilitados (§4.7.1, estendido
+ * de "previsto/processing" para também cobrir "agendado/reagendado").
+ */
 function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean }) {
+  const navigate = useNavigate();
+  const navegavel = item.status === 'realizado';
+
   return (
-    <div
+    <button
+      type="button"
+      disabled={!navegavel}
       data-testid={`cronograma-item-${item.id}`}
       data-destaque={destaque ? 'true' : 'false'}
+      onClick={() => navigate(`/gestor/detalhamento?simulados=${item.id}`)}
       className={cn(
-        'flex items-center justify-between gap-3 rounded-md px-3 py-3',
+        'flex w-full items-center justify-between gap-3 rounded-md px-3 py-3 text-left transition-colors',
+        navegavel &&
+          'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        !navegavel && 'cursor-default',
         destaque && 'border border-primary bg-primary/5',
       )}
     >
@@ -99,7 +114,7 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
         )}
       </div>
       <BadgeStatus status={item.status} />
-    </div>
+    </button>
   );
 }
 
