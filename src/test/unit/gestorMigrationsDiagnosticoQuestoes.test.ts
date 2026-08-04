@@ -41,7 +41,7 @@ function codigo(sqlComComentarios: string): string {
 }
 
 describe('migration get_gestor_diagnostico (achados 2 e 18)', () => {
-  const FILE = '20260804131000_get_gestor_diagnostico_nivel_e_feature_por_ies.sql';
+  const FILE = '20260804131500_get_gestor_diagnostico_nivel_e_feature_por_ies.sql';
   const sql = () => codigo(readMigration(FILE));
 
   it('troca o guard de feature por user_has_feature_for_ies com v_ies (achado 2)', () => {

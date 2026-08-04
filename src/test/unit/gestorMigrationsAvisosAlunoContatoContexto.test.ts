@@ -37,7 +37,7 @@ function codeOnly(body: string): string {
 }
 
 describe('migration get_gestor_avisos (achado 2)', () => {
-  const FILE = '20260804130000_get_gestor_avisos_feature_por_ies.sql';
+  const FILE = '20260804130400_get_gestor_avisos_feature_por_ies.sql';
   const sql = () => readMigration(FILE);
 
   it('troca o guard de feature por user_has_feature_for_ies com v_ies', () => {
