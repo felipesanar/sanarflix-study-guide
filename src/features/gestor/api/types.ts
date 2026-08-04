@@ -163,7 +163,17 @@ export interface LinhaAluno {
   id: string;
   nome: string;
   semestre: number;
-  grupo: GrupoEvolucao;
+  /**
+   * `null` quando nenhum simulado do recorte tem TRI para o aluno (achado do
+   * Felipe, item 3c, 04/08) — mesmo princípio de `grupoEvolucao()` em
+   * `lib/regras.ts`, que já devolve `null` para "sem ponto utilizável" em vez
+   * de inventar um grupo. `get_gestor_alunos` (20260729210600, linha ~164)
+   * ainda devolve `'em_variacao'` nesse caso em produção — a SQL NÃO foi
+   * corrigida (exige migration em RPC de produção; fora do escopo desta
+   * correção de front). Até lá, o tipo documenta a intenção; o servidor real
+   * nunca envia `null` para este campo.
+   */
+  grupo: GrupoEvolucao | null;
   proficiencias: (number | null)[];
   tendencia: Tendencia;
 }
