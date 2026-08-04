@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 
@@ -35,6 +35,18 @@ export interface FiltrosGestorControl {
 export function useFiltrosGestor(): FiltrosGestorControl {
   const [searchParams, setSearchParams] = useSearchParams();
 
+  /**
+   * O `setSearchParams` do react-router-dom resolve a forma funcional
+   * `(prev) => next` contra o `searchParams` capturado no useMemo do ÚLTIMO
+   * render — não contra a escrita anterior. Duas chamadas de `escrever` no
+   * mesmo tick (antes de qualquer re-render) recebem o mesmo `prev` e a
+   * segunda `navigate()` sobrescreve a primeira (card 121, ponto latente).
+   * Este ref é a nossa própria cadeia de "anterior", atualizada de forma
+   * síncrona a cada escrita, para não depender do encadeamento interno deles.
+   */
+  const paramsRef = useRef(searchParams);
+  paramsRef.current = searchParams;
+
   const bruto = searchParams.get(CHAVE.semestre);
   const semestre: FiltroSemestre = ehSemestreValido(bruto) ? bruto : SEMESTRE_PADRAO;
 
@@ -45,13 +57,18 @@ export function useFiltrosGestor(): FiltrosGestorControl {
 
   const iesId = searchParams.get(CHAVE.ies);
 
+  /**
+   * Toda escrita de filtro usa `replace`: filtro não é uma "página" nova, e
+   * sem isso 3 cliques no mesmo segmento empilham 3 entradas de histórico
+   * (card 121). O "próximo" parte do `paramsRef`, não do `searchParams` do
+   * closure — ver comentário acima.
+   */
   const escrever = useCallback(
     (mudanca: (params: URLSearchParams) => void) => {
-      setSearchParams((anteriores) => {
-        const proximos = new URLSearchParams(anteriores);
-        mudanca(proximos);
-        return proximos;
-      });
+      const proximos = new URLSearchParams(paramsRef.current);
+      mudanca(proximos);
+      paramsRef.current = proximos;
+      setSearchParams(proximos, { replace: true });
     },
     [setSearchParams],
   );

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import type {
   AlunoNoSimulado,
@@ -56,6 +57,20 @@ export interface ResultadoGestor<T> {
  *
  * `placeholderData: (anterior) => anterior` — `keepPreviousData` não existe
  * mais no React Query v5.
+ *
+ * A queryKey leva o id do usuário logado, inserido logo após o namespace
+ * `'gestor'` (card 107 da revisão de 03/08): o QueryClient é module-scoped
+ * (`App.tsx`), o logout não o limpa e o `gcTime` é 1h — sem o id do usuário
+ * na chave, um logout→login na mesma aba serviria o cache do usuário
+ * ANTERIOR (ex.: a lista completa de IES, se o anterior era admin). Preferido
+ * a limpar o QueryClient inteiro no logout, que afetaria toda query do app;
+ * aqui o raio da mudança é só o das queries do gestor.
+ *
+ * `refetchOnMount`/`refetchOnWindowFocus` ligados (card 110): o QueryClient
+ * global (`App.tsx`) desliga os três `refetchOnX` para o app inteiro, então
+ * o `staleTime` de 5min sozinho nunca dispara um refetch — mesmo padrão de
+ * `useEffectiveFeatures.ts`, aqui escopado só às queries do gestor em vez de
+ * mudar a configuração global.
  */
 function useEnvelope<T>(
   queryKey: readonly unknown[],
@@ -63,12 +78,16 @@ function useEnvelope<T>(
   args?: ArgsRpc,
   habilitado = true,
 ): ResultadoGestor<T> {
+  const { user } = useAuth();
+  const [namespace, ...resto] = queryKey;
   const query = useQuery({
-    queryKey,
+    queryKey: [namespace, user?.id, ...resto],
     queryFn: () => chamarRpcGestor<T>(fn, args),
     staleTime: GESTOR_STALE_TIME,
     placeholderData: (anterior) => anterior,
     enabled: habilitado,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -180,14 +199,19 @@ export function useAlunos(
  * Drawer do aluno. A IES em foco vem do recorte global (URL) — assinatura
  * canônica do handoff é `(alunoId, simulados)`, então não a recebe por
  * parâmetro. Lembrar: `iesId` é hint de UI; a RPC escopa pelo token.
+ *
+ * `get_gestor_aluno` devolve UMA ENTRADA POR SIMULADO (`jsonb_agg` na
+ * migration `20260803150000_get_gestor_aluno_aguardando_resultado.sql`) — o
+ * `data` do envelope é `AlunoNoSimulado[]`, nunca um objeto singular (card 106
+ * da revisão de 03/08).
  */
 export function useAluno(
   alunoId: string | null,
   simulados: string[],
-): ResultadoGestor<AlunoNoSimulado> {
+): ResultadoGestor<AlunoNoSimulado[]> {
   const { iesId } = useFiltrosGestor();
   const lista = ordenados(simulados);
-  return useEnvelope<AlunoNoSimulado>(
+  return useEnvelope<AlunoNoSimulado[]>(
     ['gestor', 'aluno', iesId, alunoId, lista],
     'get_gestor_aluno',
     { p_ies_id: iesId, p_aluno_id: alunoId, p_simulados: lista },

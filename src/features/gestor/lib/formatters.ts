@@ -5,7 +5,7 @@
  * lacuna com zero, média do grupo ou estimativa (spec §4.10).
  */
 
-import type { AlunoNoSimulado } from '../api/types';
+import type { AlunoNoSimulado, GrupoEvolucao } from '../api/types';
 
 /** Em-dash. Único símbolo de ausência da interface do gestor. */
 export const TRACO = '—';
@@ -89,6 +89,32 @@ export function rotuloSituacao(situacao: AlunoNoSimulado['situacao']): string {
       return 'Não participou';
     default: {
       const exaustivo: never = situacao;
+      return exaustivo;
+    }
+  }
+}
+
+/**
+ * Rótulo pt-BR de `LinhaAluno.grupo` (achado 4 da revisão de 03/08).
+ *
+ * `grupo` é anulável: `null` é o aluno que ainda não tem NENHUM resultado de
+ * TRI na janela (a nota chega depois, por pipeline Python — mesma família de
+ * decisão que originou `aguardando_resultado` em `rotuloSituacao`). Isso não é
+ * "em variação" — em_variacao pressupõe pelo menos um resultado. A UI mostra
+ * `TRACO`, nunca a tag de um grupo, seguindo o precedente do handoff
+ * ("cada aluno traz a tag do grupo; ausência = '—'", docs/handoff/gestor).
+ */
+export function rotuloGrupo(grupo: GrupoEvolucao | null): string {
+  if (grupo === null) return TRACO;
+  switch (grupo) {
+    case 'consistentemente_proficiente':
+      return 'Consistentemente proficiente';
+    case 'em_variacao':
+      return 'Em variação';
+    case 'consistentemente_nao_proficiente':
+      return 'Consistentemente não proficiente';
+    default: {
+      const exaustivo: never = grupo;
       return exaustivo;
     }
   }

@@ -162,8 +162,24 @@ export interface TemaCritico {
 export interface LinhaAluno {
   id: string;
   nome: string;
-  semestre: number;
-  grupo: GrupoEvolucao;
+  /**
+   * `null` quando o aluno foi provisionado (ex.: pelo CX) e ainda não
+   * preencheu o semestre — `public.users.semestre` é nullable no banco
+   * (achado 20, card 118 da revisão de 03/08). Os recortes `geral` e `6ano`
+   * de `get_gestor_alunos` NÃO filtram `semestre IS NOT NULL`, ao contrário
+   * de `get_gestor_visao_geral`/`get_gestor_detalhamento`, que filtram — esta
+   * linha chega à UI. Exibir `TRACO` (via `formatNumero`), nunca `0`: zero
+   * afirmaria "o aluno está no semestre zero", que é falso (spec §4.10) —
+   * mesma classe das nulabilidades do commit 778dee7f.
+   */
+  semestre: number | null;
+  /**
+   * `null` quando o aluno não tem NENHUM resultado de TRI na janela (grupo
+   * indefinido, não "em variação" — mesma família de decisão de
+   * `AlunoNoSimulado.situacao === 'aguardando_resultado'`; achado 4 da
+   * revisão de 03/08). Renderiza como `TRACO` via `rotuloGrupo`.
+   */
+  grupo: GrupoEvolucao | null;
   proficiencias: (number | null)[];
   tendencia: Tendencia;
 }
@@ -171,7 +187,8 @@ export interface LinhaAluno {
 export interface AlunoNoSimulado {
   id: string;
   nome: string;
-  semestre: number;
+  /** Nullable pelo mesmo motivo de `LinhaAluno.semestre` acima (achado 20, card 118). */
+  semestre: number | null;
   participou: boolean;
   acertos: number | null;
   proficiencia: number | null;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as React from 'react';
 import { render, renderHook, act, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
@@ -10,10 +10,12 @@ import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
 
 const Sonda = () => {
   const { pathname, search } = useLocation();
+  const tipoNavegacao = useNavigationType();
   return (
     <>
       <span data-testid="path">{pathname}</span>
       <span data-testid="search">{search}</span>
+      <span data-testid="navtype">{tipoNavegacao}</span>
     </>
   );
 };
@@ -73,6 +75,36 @@ describe('useFiltrosGestor (spec §4.5, §8.2)', () => {
     act(() => result.current.setIesId('ies-2'));
     expect(result.current.semestre).toBe('geral');
     expect(result.current.iesId).toBe('ies-2');
+  });
+
+  it('escrita de filtro usa replace, sem empilhar histórico (card 121)', () => {
+    const { result } = comUrl('/gestor/visao-geral');
+    expect(screen.getByTestId('navtype').textContent).toBe('POP'); // entrada inicial
+
+    act(() => result.current.setSemestre('7'));
+    expect(screen.getByTestId('navtype').textContent).toBe('REPLACE');
+
+    act(() => result.current.setSemestre('8'));
+    expect(screen.getByTestId('navtype').textContent).toBe('REPLACE');
+
+    act(() => result.current.setIesId('ies-2'));
+    expect(screen.getByTestId('navtype').textContent).toBe('REPLACE');
+
+    act(() => result.current.setSimulados(['s1']));
+    expect(screen.getByTestId('navtype').textContent).toBe('REPLACE');
+  });
+
+  it('duas escritas no mesmo tick não se perdem (card 121, ponto latente)', () => {
+    const { result } = comUrl('/gestor/visao-geral');
+
+    act(() => {
+      result.current.setSemestre('7');
+      result.current.setIesId('ies-9');
+    });
+
+    expect(result.current.semestre).toBe('7');
+    expect(result.current.iesId).toBe('ies-9');
+    expect(screen.getByTestId('search').textContent).toBe('?semestre=7&ies=ies-9');
   });
 
   it('trocar de rota pela nav preserva os filtros (caso de teste 12 da spec §12)', () => {

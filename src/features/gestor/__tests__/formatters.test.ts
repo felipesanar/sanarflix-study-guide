@@ -7,8 +7,9 @@ import {
   formatData,
   formatDelta,
   rotuloSituacao,
+  rotuloGrupo,
 } from '@/features/gestor/lib/formatters';
-import type { AlunoNoSimulado } from '@/features/gestor/api/types';
+import type { AlunoNoSimulado, LinhaAluno } from '@/features/gestor/api/types';
 
 describe('TRACO', () => {
   it('é o em-dash, não hífen nem "N/A"', () => {
@@ -138,5 +139,67 @@ describe('rotuloSituacao — quarto estado aguardando_resultado (decisão de 03/
     };
     expect(rotuloSituacao(aluno.situacao)).toBe('Aguardando resultado');
     expect(formatNumero(aluno.proficiencia)).toBe(TRACO);
+  });
+});
+
+describe('rotuloGrupo — grupo de evolução anulável (achado 4 da revisão de 03/08)', () => {
+  it('mapeia os três grupos conhecidos para rótulo pt-BR', () => {
+    expect(rotuloGrupo('consistentemente_proficiente')).toBe('Consistentemente proficiente');
+    expect(rotuloGrupo('em_variacao')).toBe('Em variação');
+    expect(rotuloGrupo('consistentemente_nao_proficiente')).toBe('Consistentemente não proficiente');
+  });
+
+  it('null devolve TRACO — aluno sem nenhum resultado de TRI ainda não é "em variação"', () => {
+    expect(rotuloGrupo(null)).toBe(TRACO);
+  });
+});
+
+describe('LinhaAluno/AlunoNoSimulado.semestre — nullable (achado 20, card 118 da revisão de 03/08)', () => {
+  // `public.users.semestre` é nullable (aluno provisionado pelo CX que ainda
+  // não preencheu). Os recortes `geral`/`6ano` de `get_gestor_alunos` não
+  // filtram `semestre IS NOT NULL`, então essa linha chega à UI: exibir
+  // TRACO via `formatNumero`, nunca `0` (spec §4.10).
+  //
+  // Nota: `tsconfig.app.json` tem `strict: false` (sem `strictNullChecks`) e
+  // o vitest não faz type-check — então este teste, como os das 4
+  // nulabilidades do commit 778dee7f, não "quebra" por si só antes da
+  // correção do tipo em api/types.ts. O valor aqui é documentar e fixar o
+  // contrato de exibição para quem vier a montar a tabela/drawer de alunos.
+
+  it('LinhaAluno com semestre null formata como TRACO, nunca 0', () => {
+    const aluno: LinhaAluno = {
+      id: 'a2',
+      nome: 'Aluno Sem Semestre',
+      semestre: null,
+      grupo: null,
+      proficiencias: [],
+      tendencia: 'estavel',
+    };
+    expect(formatNumero(aluno.semestre)).toBe(TRACO);
+  });
+
+  it('AlunoNoSimulado com semestre null formata como TRACO, nunca 0', () => {
+    const aluno: AlunoNoSimulado = {
+      id: 'a3',
+      nome: 'Aluno Sem Semestre',
+      semestre: null,
+      participou: false,
+      acertos: null,
+      proficiencia: null,
+      situacao: 'nao_participou',
+    };
+    expect(formatNumero(aluno.semestre)).toBe(TRACO);
+  });
+
+  it('semestre válido formata como número puro, sem separador de milhar', () => {
+    const aluno: LinhaAluno = {
+      id: 'a4',
+      nome: 'Aluno Com Semestre',
+      semestre: 4,
+      grupo: 'em_variacao',
+      proficiencias: [],
+      tendencia: 'estavel',
+    };
+    expect(formatNumero(aluno.semestre)).toBe('4');
   });
 });
