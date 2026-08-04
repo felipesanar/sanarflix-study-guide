@@ -15,6 +15,13 @@
 -- divergir de qualquer forma -- mesmo um espaço --, ABORTAR esta migration e investigar antes de
 -- prosseguir: o pressuposto "nasceu com o guard no corpo" deixaria de valer.
 --
+-- RECONCILIAÇÃO (04/08, antes de aplicar): a verificação acima ACHOU divergência. Produção tinha
+-- uma migration aplicada sem .sql correspondente no repo (version 20260729203514, nome
+-- "get_gestor_cronograma_participantes_fallback") que já havia adicionado `answer_progress` ao
+-- `meta.fonte` -- só isso, nenhuma outra diferença de lógica encontrada. Reconciliado manualmente:
+-- o `fonte` abaixo inclui `answer_progress` (não estava no ponto de partida 20260729210100 puro),
+-- preservando esse patch anterior junto com a correção dos achados 2 e 10 desta migration.
+--
 -- ACHADO 2 -- guard de feature por IES, não por usuário (card 101)
 -- ------------------------------------------------------------------
 -- Trocado public.user_has_feature('gestao.portal_v2') por
@@ -229,7 +236,7 @@ BEGIN
                         ORDER BY (current_date BETWEEN c.vigencia_inicio AND c.vigencia_fim) DESC, c.vigencia_fim DESC
                         LIMIT 1
                       ), 'sem contrato cadastrado'),
-      'fonte',        'ies_contrato_simulados · ies_simulado_previsto · simulados_admin · simulados_finalizados · resultados_ies_tri',
+      'fonte',        'ies_contrato_simulados · ies_simulado_previsto · simulados_admin · simulados_finalizados · answer_progress · resultados_ies_tri',
       'atualizadoEm', to_char(now() AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"'),
       'criterio',     'Encerramento decidido só por status=encerrado ou data_encerramento passada (nunca por participação: uma prova aberta sendo respondida não é uma prova encerrada). realizado = encerrado E tem linha em resultados_ies_tri; processing = encerrado sem TRI ainda; reagendado = data futura cuja data_agendada_original difere da data efetiva; agendado = data futura sem reagendamento (ou dentro da janela, sem sinal de encerramento); previsto = slot sem simulado ou simulado sem data. Data efetiva = data_realizacao (presencial) ou data_liberacao (online). Participantes = alunos distintos da IES (sem role em user_roles) com registro em simulados_finalizados ou em answer_progress, exibido só quando realizado; null quando não há registro, nunca 0.',
       'partial',      (SELECT count(*) FROM itens WHERE status IN ('previsto','processing')) > 0,
@@ -245,7 +252,7 @@ REVOKE ALL ON FUNCTION public.get_gestor_cronograma(uuid) FROM public, anon;
 GRANT EXECUTE ON FUNCTION public.get_gestor_cronograma(uuid) TO authenticated;
 
 COMMENT ON FUNCTION public.get_gestor_cronograma(uuid) IS
-'Cronograma de simulados contratados do Portal do Gestor v2. Guard de feature por IES via user_has_feature_for_ies (achado 2). Encerramento (que decide entre realizado/processing e os ramos de data) depende só de status/data, nunca de participação -- uma prova aberta sendo respondida não conta como encerrada (achado 10). Revisão de 03/08.';
+'Cronograma de simulados contratados do Portal do Gestor v2. Guard de feature por IES via user_has_feature_for_ies (achado 2). Encerramento (que decide entre realizado/processing e os ramos de data) depende só de status/data, nunca de participação -- uma prova aberta sendo respondida não conta como encerrada (achado 10). meta.fonte inclui answer_progress, reconciliado manualmente em 04/08 contra um patch de produção fora do repo (migration get_gestor_cronograma_participantes_fallback, sem .sql correspondente) que já havia adicionado essa fonte ao string antes desta correção -- ver nota no topo do arquivo. Revisão de 03/08.';
 
 -- ---------------------------------------------------------------------------
 -- VERIFICACAO -- rodar manualmente em gvqv, autenticado como o gestor/gestor_grupo
