@@ -10801,9 +10801,35 @@ hardcoded."
 > 1. `src/test/setup.ts:29-38` mocka `react-router-dom` globalmente com `useNavigate: () => vi.fn()` e `useLocation: () => ({ pathname: '/' })`. **Qualquer teste que observe navegação real precisa sobrescrever esse mock com o módulo de verdade** (convenção já usada em `src/test/components/ExperienceGuard.test.tsx:22-32`).
 > 2. `src/test/utils.tsx` usa `BrowserRouter` e cria o `QueryClient` internamente — **inservível** para os testes desta fase (precisamos de `MemoryRouter` e de acesso ao `queryClient`). Cada teste monta seu próprio wrapper; a duplicação de ~10 linhas é deliberada, para não criar acoplamento com as fatias paralelas.
 > 3. Toda referência a variável de topo de arquivo dentro de uma factory de `vi.mock` usa `vi.hoisted` (a factory é içada acima das declarações e cair em TDZ é erro silencioso e confuso).
-> 4. Não existe `EstadoVazio`/`EstadoErro` compartilhado no repo. Cada componente desta fase implementa seus estados inline com `Card` + `Button` + `Skeleton` de `src/components/ui/`.
+> 4. ~~Não existe `EstadoVazio`/`EstadoErro` compartilhado no repo.~~ **Desatualizado — ver Correções de 04/08, item 2.**
 
 ---
+
+> ## Correções de 04/08 (antes de começar a Fase 3)
+>
+> Registradas ao fechar a Fase 2 e revisar 4 achados do Felipe, seguindo o precedente da Fase 1. Onde o texto abaixo divergir do corpo das tasks, **vale o texto abaixo**.
+>
+> **1. Os hooks de `queries.ts` NÃO devolvem `UseQueryResult<Envelope<T>, Error>` cru.** Toda "Interfaces → Consumes" desta fase (Tasks 31, 33, 34, 35) descreve `useCronograma`, `useAvisos`, `useGestorContexto`, `useVisaoGeral` como devolvendo o resultado bruto do `useQuery`, lido como `query.data?.data` e `query.data?.meta`. Isso nunca existiu: desde a Task 26 (Fase 2), todo hook de `queries.ts` passa pelo helper `useEnvelope<T>` e devolve `ResultadoGestor<T>` já desembrulhado:
+> ```ts
+> interface ResultadoGestor<T> {
+>   data: T | undefined;
+>   meta: Meta | undefined;
+>   isLoading: boolean;
+>   isError: boolean;
+>   refetch: () => void;
+> }
+> ```
+> Onde o plano escreve `const query = useCronograma(iesId); const itens = query.data?.data ?? [];`, o código real é `const { data, isLoading, isError, refetch } = useCronograma(iesId); const itens = data ?? [];` — `meta` é campo de primeiro nível (`resultado.meta`), não `query.data?.meta`. `isLoading`/`isError` são iguais em nome, só não aninhados sob `.data`. Vale para as quatro tasks desta fase que consomem hooks de `queries.ts`.
+>
+> **2. `EstadoVazio`, `EstadoErro`, `GestorSkeleton`, `BadgeStatus`, `ChipNivel`, `TooltipRastreabilidade` e `BlocoErrorBoundary` já existem** em `src/features/gestor/components/` (Fase 2, Task 30) — a armadilha 4 acima é de antes dessas primitivas existirem. Use-as; não reimplemente estado inline com `Card`+`Skeleton` por componente.
+>
+> **3. `iesId` chega preenchido por padrão.** Achado do Felipe (revisão de 04/08, item 3a): nada semeava `?ies=` na URL, e todo hook com `enabled: iesId !== null` ficava mudo no primeiro acesso. Corrigido em `SidebarIes.tsx` — assim que `useGestorContexto()` resolve, `useFiltrosGestor().iesId` é preenchido com `contexto.iesAtual.id` automaticamente. As tasks desta fase podem assumir `iesId` não-nulo pouco depois do `GestorShell` montar; não é preciso tratar esse caso como estado permanente.
+>
+> **4. `ItemCronograma.indisponivelPorque` e `LinhaAluno.grupo` são `| null`**, não opcionais nem sempre-presentes — já refletido em `api/types.ts`. `LinhaAluno.grupo` não é consumido nesta fase (só na tabela de alunos, Fase 4/5); é registrado aqui só para não haver surpresa depois.
+>
+> **5. Task 13 (`/admin/contratos`) foi concluída pelo Felipe** (commit `9b015887`, fora desta fase) — a pré-condição "a home nasce sem âncora, `contrato: null`" da Fase 1 pode não valer mais. **Confirme o estado atual do contrato da FAI antes de assumir `null`** (query em `ies_contrato_simulados` ou chamando `get_gestor_contexto()` impersonando o gestor da FAI) — a Task 31 usa `ContextoGestor['contrato']` como prop e os dois estados (com/sem contrato) precisam de teste.
+>
+> **6. Guard de feature por usuário, não por IES, permanece sem correção** (achado do Felipe, item 3d — explicitamente fora do escopo do dev de front). `gestor_grupo` com qualquer IES-irmã na flag lê o dataset completo do grupo. Não é bug desta fase, mas informa por que a FAI segue como único piloto seguro.
 
 ### Task 31: CronogramaSimulados — componente e os 5 status
 
