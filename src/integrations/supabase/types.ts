@@ -2273,6 +2273,7 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      gestor_pode_acessar_ies: { Args: { p_ies_id: string }; Returns: boolean }
       get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
       get_all_user_performance_by_area: {
@@ -2346,7 +2347,12 @@ export type Database = {
         Returns: Json
       }
       get_gestor_diagnostico_temas: {
-        Args: { p_especialidade: string; p_ies_id: string; p_semestre: string }
+        Args: {
+          p_especialidade: string
+          p_grande_area?: string
+          p_ies_id: string
+          p_semestre: string
+        }
         Returns: Json
       }
       get_gestor_questoes: {
@@ -2577,6 +2583,10 @@ export type Database = {
         Returns: boolean
       }
       user_has_feature: { Args: { p_feature: string }; Returns: boolean }
+      user_has_feature_for_ies: {
+        Args: { p_feature: string; p_ies_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
