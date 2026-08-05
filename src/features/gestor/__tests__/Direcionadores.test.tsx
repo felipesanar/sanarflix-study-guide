@@ -16,6 +16,19 @@ import type { ContextoGestor, Envelope, Meta } from '@/features/gestor/api/types
 const mocks = vi.hoisted(() => ({
   useGestorContexto: vi.fn(),
   rpc: vi.fn(),
+  /**
+   * `DirecionadoresGestor` lê `useAuth().user?.id` para montar a queryKey do
+   * prefetch — `useEnvelope` insere esse id logo após o namespace `'gestor'`
+   * (card 107), então a chave aquecida no hover só casa com a que a Visão Geral
+   * observa se o id entrar nela. O valor é o MESMO `usuario.id` do contexto
+   * abaixo, como em produção.
+   */
+  userId: 'user-1',
+}));
+
+/** `useAuth` real explode fora de um `<AuthProvider>`; aqui só o `user.id` importa. */
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: mocks.userId } }),
 }));
 
 /**
@@ -263,12 +276,16 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
       <DirecionadoresGestor iesId="ies-1" semestre="6ano" />,
     );
 
-    expect(queryClient.getQueryData(visaoGeralQueryKey('ies-1', '6ano'))).toBeUndefined();
+    expect(
+      queryClient.getQueryData(visaoGeralQueryKey(mocks.userId, 'ies-1', '6ano')),
+    ).toBeUndefined();
 
     await user.hover(screen.getByTestId('direcionador-visao-geral'));
 
     await waitFor(() => {
-      expect(queryClient.getQueryData(visaoGeralQueryKey('ies-1', '6ano'))).toBeDefined();
+      expect(
+        queryClient.getQueryData(visaoGeralQueryKey(mocks.userId, 'ies-1', '6ano')),
+      ).toBeDefined();
     });
     expect(mocks.rpc).toHaveBeenCalledWith('get_gestor_visao_geral', {
       p_ies_id: 'ies-1',
@@ -285,9 +302,13 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
     await user.hover(screen.getByTestId('direcionador-visao-geral'));
 
     await waitFor(() => {
-      expect(queryClient.getQueryData(visaoGeralQueryKey('ies-1', '11'))).toBeDefined();
+      expect(
+        queryClient.getQueryData(visaoGeralQueryKey(mocks.userId, 'ies-1', '11')),
+      ).toBeDefined();
     });
-    expect(queryClient.getQueryData(visaoGeralQueryKey('ies-1', '6ano'))).toBeUndefined();
+    expect(
+      queryClient.getQueryData(visaoGeralQueryKey(mocks.userId, 'ies-1', '6ano')),
+    ).toBeUndefined();
   });
 
   it('hover no card do Detalhamento não faz prefetch da Visão Geral', async () => {
@@ -382,7 +403,9 @@ describe('DirecionadoresGestor preserva a query string ao navegar (achados 6 e 1
     await user.hover(screen.getByTestId('direcionador-visao-geral'));
 
     await waitFor(() => {
-      expect(queryClient.getQueryData(visaoGeralQueryKey('ies-2', '5'))).toBeDefined();
+      expect(
+        queryClient.getQueryData(visaoGeralQueryKey(mocks.userId, 'ies-2', '5')),
+      ).toBeDefined();
     });
     expect(mocks.rpc).toHaveBeenCalledWith('get_gestor_visao_geral', {
       p_ies_id: 'ies-2',
@@ -392,12 +415,41 @@ describe('DirecionadoresGestor preserva a query string ao navegar (achados 6 e 1
 });
 
 describe('visaoGeralQueryKey', () => {
-  it('é a tupla canônica ["gestor","visao-geral",iesId,semestre]', () => {
-    expect(visaoGeralQueryKey('ies-1', '6ano')).toEqual([
+  it('é a tupla canônica ["gestor",userId,"visao-geral",iesId,semestre]', () => {
+    expect(visaoGeralQueryKey('user-1', 'ies-1', '6ano')).toEqual([
       'gestor',
+      'user-1',
       'visao-geral',
       'ies-1',
       '6ano',
     ]);
+  });
+
+  /**
+   * As asserções de hover acima passam pelo próprio `visaoGeralQueryKey`, então
+   * não provariam nada se `DirecionadoresGestor` deixasse de repassar o
+   * `user.id` (a chave errada seria consultada com o mesmo erro). Aqui a chave
+   * é lida CRUA do cache, sem o helper: é o que pega o componente passando
+   * `(queryClient, iesId, semestre)` na assinatura antiga de 3 argumentos, que
+   * deslocava tudo e mandava `p_semestre: undefined` para a RPC.
+   */
+  it('o hover grava no cache a chave com o user.id na posição 1, não uma chave deslocada', async () => {
+    const user = userEvent.setup();
+    const { queryClient } = montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
+
+    await user.hover(screen.getByTestId('direcionador-visao-geral'));
+
+    await waitFor(() => expect(queryClient.getQueryCache().getAll()).toHaveLength(1));
+    expect(queryClient.getQueryCache().getAll()[0].queryKey).toEqual([
+      'gestor',
+      'user-1',
+      'visao-geral',
+      'ies-1',
+      '6ano',
+    ]);
+    expect(mocks.rpc).toHaveBeenCalledWith('get_gestor_visao_geral', {
+      p_ies_id: 'ies-1',
+      p_semestre: '6ano',
+    });
   });
 });

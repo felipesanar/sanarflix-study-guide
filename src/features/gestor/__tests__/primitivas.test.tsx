@@ -117,6 +117,69 @@ describe('TooltipRastreabilidade (spec §4.1)', () => {
     expect(tooltip).toHaveTextContent('Critério');
     expect(tooltip).toHaveTextContent('proficiência >= 60');
   });
+
+  it('converte o instante para o fuso de Brasília, não a data-calendário UTC (achado 05/08)', async () => {
+    // atualizadoEm é timestamptz UTC (RPCs emitem `now() AT TIME ZONE 'UTC'`).
+    // 2026-08-06T01:10:00Z é 05/08/2026 22:10 em Brasília (UTC-3) — ainda o
+    // dia 05, embora a data-calendário UTC já seja 06. Ler os dígitos do ISO
+    // sem converter fuso (o que `formatData` de lib/formatters.ts faz de
+    // propósito para datas de cronograma) mostraria "06/08/2026", uma data no
+    // futuro para quem está em Brasília.
+    const metaTardeDaNoite: Meta = {
+      ...META,
+      atualizadoEm: '2026-08-06T01:10:00Z',
+    };
+
+    render(
+      <TooltipProvider>
+        <TooltipRastreabilidade meta={metaTardeDaNoite} />
+      </TooltipProvider>,
+    );
+
+    // O span sr-only renderiza sempre, sem depender de hover/focus.
+    expect(screen.getByTestId('rastreabilidade-texto')).toHaveTextContent('05/08/2026');
+    expect(screen.getByTestId('rastreabilidade-texto')).not.toHaveTextContent('06/08/2026');
+
+    const gatilho = screen.getByRole('button', { name: /rastreabilidade/i });
+    fireEvent.focus(gatilho);
+
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent('05/08/2026');
+    expect(tooltip).not.toHaveTextContent('06/08/2026');
+  });
+
+  /**
+   * `meta.lowSample` é parte de "de onde vem este número". `KpiCard` já tem o
+   * selo visível "cobertura parcial", mas `ContextoDoRecorte` — o outro
+   * consumidor deste tooltip — não tinha canal nenhum para o aviso e afirmava
+   * procedência como se a cobertura fosse completa.
+   */
+  it('com meta.lowSample, declara cobertura parcial no tooltip e no texto sr-only', async () => {
+    render(
+      <TooltipProvider>
+        <TooltipRastreabilidade meta={{ ...META, lowSample: true }} />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByTestId('rastreabilidade-texto')).toHaveTextContent(
+      'Cobertura: parcial (amostra pequena)',
+    );
+
+    fireEvent.focus(screen.getByRole('button', { name: /rastreabilidade/i }));
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip).toHaveTextContent('Cobertura');
+    expect(tooltip).toHaveTextContent('parcial (amostra pequena)');
+  });
+
+  it('sem lowSample, nenhuma linha de cobertura é inventada', () => {
+    render(
+      <TooltipProvider>
+        <TooltipRastreabilidade meta={META} />
+      </TooltipProvider>,
+    );
+
+    expect(screen.getByTestId('rastreabilidade-texto')).not.toHaveTextContent('Cobertura');
+  });
 });
 
 describe('BlocoErrorBoundary (spec §8.4 — boundary POR BLOCO)', () => {

@@ -48,15 +48,40 @@ export interface ResultadoGestor<T> {
   meta: Meta | undefined;
   isLoading: boolean;
   isError: boolean;
+  /**
+   * `true` quando `data`/`meta` são o dado do recorte ANTERIOR, servido pelo
+   * `placeholderData` de `useEnvelope` enquanto o recorte novo ainda está em
+   * voo (achado alto, revisão 03/08: sem este sinal, nenhum consumidor da
+   * tela tem como saber que está olhando dado velho sob um seletor já
+   * trocado). Componentes que exibem `meta`/`data` devem tratar
+   * `isPlaceholderData === true` como estado de transição, nunca como 'ok'.
+   */
+  isPlaceholderData: boolean;
+  /** Em voo AGORA — inclui background refetch, quando `isLoading` já é `false`. */
+  isFetching: boolean;
   refetch: () => void;
 }
 
 /**
  * Base de todo hook do portal: uma RPC agregadora por tela, envelope
- * desembrulhado, cache de 5min e o dado anterior preservado na troca de filtro.
+ * desembrulhado, cache de 5min e — quando `manterDadoAnterior` (default) —
+ * o dado anterior preservado na troca de filtro.
  *
  * `placeholderData: (anterior) => anterior` — `keepPreviousData` não existe
- * mais no React Query v5.
+ * mais no React Query v5. O flag correspondente (`query.isPlaceholderData`)
+ * é sempre devolvido em `ResultadoGestor`, mesmo quando `manterDadoAnterior`
+ * é `false` (nesse caso ele nunca fica `true`, mas o campo continua presente
+ * e o consumidor não precisa distinguir os dois casos).
+ *
+ * `manterDadoAnterior = false` é para hooks cujo parâmetro IDENTIFICA o
+ * objeto exibido — ex.: `especialidade` em `useDiagnosticoTemas`, `alunoId`
+ * em `useAluno`. Para esses, "manter o anterior" nunca é o comportamento
+ * desejado: o placeholder serviria os temas/dados de UM objeto sob o
+ * título/nome de OUTRO (achado alto, revisão 03/08 — o drawer de temas e o
+ * drawer do aluno). Para os demais hooks (recorte de IES/semestre/página,
+ * não um objeto individual), o placeholder continua o padrão: a tela mostra
+ * o recorte anterior, marcado por `isPlaceholderData`, em vez de piscar para
+ * vazio a cada troca de filtro.
  *
  * A queryKey leva o id do usuário logado, inserido logo após o namespace
  * `'gestor'` (card 107 da revisão de 03/08): o QueryClient é module-scoped
@@ -77,6 +102,7 @@ function useEnvelope<T>(
   fn: string,
   args?: ArgsRpc,
   habilitado = true,
+  manterDadoAnterior = true,
 ): ResultadoGestor<T> {
   const { user } = useAuth();
   const [namespace, ...resto] = queryKey;
@@ -84,7 +110,7 @@ function useEnvelope<T>(
     queryKey: [namespace, user?.id, ...resto],
     queryFn: () => chamarRpcGestor<T>(fn, args),
     staleTime: GESTOR_STALE_TIME,
-    placeholderData: (anterior) => anterior,
+    placeholderData: manterDadoAnterior ? (anterior) => anterior : undefined,
     enabled: habilitado,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
@@ -95,6 +121,8 @@ function useEnvelope<T>(
     meta: query.data?.meta,
     isLoading: query.isLoading,
     isError: query.isError,
+    isPlaceholderData: query.isPlaceholderData,
+    isFetching: query.isFetching,
     refetch: () => void query.refetch(),
   };
 }
@@ -172,6 +200,14 @@ export function useDiagnostico(
  * Por isso `grandeArea` entra na queryKey junto com `especialidade`: sem
  * isso, dois nós de especialidade homônima em grandes áreas diferentes
  * compartilhariam cache indevidamente.
+ *
+ * `manterDadoAnterior = false`: `especialidade` IDENTIFICA o objeto exibido
+ * no `DrawerTemas` — ao trocar de especialidade (fechar A, abrir B) o
+ * placeholder serviria os temas de A sob o título "Temas de B", e um clique
+ * em "Copiar resumo" nesse instante colaria percentuais de A atribuídos a B
+ * (achado alto, revisão 03/08). "Manter o anterior" nunca é o comportamento
+ * desejado aqui — ao contrário do recorte de IES/semestre, onde o "anterior"
+ * ainda É o mesmo objeto (a mesma tela), só com um filtro diferente.
  */
 export function useDiagnosticoTemas(
   filtros: FiltrosGestor,
@@ -188,6 +224,7 @@ export function useDiagnosticoTemas(
       p_grande_area: grandeArea,
     },
     filtros.iesId !== null && especialidade !== null,
+    false,
   );
 }
 
@@ -226,6 +263,12 @@ export function useAlunos(
  * `simuladoId`/`simuladoNome`/`simuladoData`, ver `api/types.ts`), nunca um
  * objeto singular e nunca `AlunoNoSimulado[]` puro (card 106 da revisão de
  * 03/08: o tipo de entrada com os três campos de simulado não existia).
+ *
+ * `manterDadoAnterior = false`: `alunoId` IDENTIFICA o objeto exibido no
+ * drawer do aluno — trocar de aluno com o placeholder ligado serviria a
+ * ficha do aluno ANTERIOR sob o nome/cabeçalho do novo, mesma classe do
+ * achado alto do `DrawerTemas` (revisão 03/08). "Manter o anterior" nunca é
+ * o comportamento desejado aqui.
  */
 export function useAluno(
   alunoId: string | null,
@@ -238,6 +281,7 @@ export function useAluno(
     'get_gestor_aluno',
     { p_ies_id: iesId, p_aluno_id: alunoId, p_simulados: lista },
     iesId !== null && alunoId !== null,
+    false,
   );
 }
 
