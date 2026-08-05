@@ -2346,7 +2346,12 @@ export type Database = {
         Returns: Json
       }
       get_gestor_diagnostico_temas: {
-        Args: { p_especialidade: string; p_ies_id: string; p_semestre: string }
+        Args: {
+          p_especialidade: string
+          p_grande_area?: string
+          p_ies_id: string
+          p_semestre: string
+        }
         Returns: Json
       }
       get_gestor_questoes: {
@@ -2577,6 +2582,10 @@ export type Database = {
         Returns: boolean
       }
       user_has_feature: { Args: { p_feature: string }; Returns: boolean }
+      user_has_feature_for_ies: {
+        Args: { p_feature: string; p_ies_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
