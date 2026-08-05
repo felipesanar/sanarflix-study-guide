@@ -3,7 +3,7 @@ import * as React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import type { FiltrosGestor, PaginacaoGestor } from '@/features/gestor/api/types';
+import type { AlunoSimuladoEntry, FiltrosGestor, PaginacaoGestor } from '@/features/gestor/api/types';
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
@@ -105,10 +105,13 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
         ['gestor', 'u1', 'diagnostico', 'ies-1', '6ano', 'cirurgia'],
       ],
       [
-        () => useDiagnosticoTemas(FILTROS, 'cardiologia'),
+        () => useDiagnosticoTemas(FILTROS, 'cardiologia', 'clinica-medica'),
         'get_gestor_diagnostico_temas',
-        { p_ies_id: 'ies-1', p_semestre: '6ano', p_especialidade: 'cardiologia' },
-        ['gestor', 'u1', 'diagnostico-temas', 'ies-1', '6ano', 'cardiologia'],
+        {
+          p_ies_id: 'ies-1', p_semestre: '6ano',
+          p_especialidade: 'cardiologia', p_grande_area: 'clinica-medica',
+        },
+        ['gestor', 'u1', 'diagnostico-temas', 'ies-1', '6ano', 'cardiologia', 'clinica-medica'],
       ],
       [
         () => useAlunos(FILTROS, PAGINACAO),
@@ -150,6 +153,44 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
       expect(mockRpc, `RPC de ${fn}`).toHaveBeenCalledWith(fn, args);
       expect(chaves(), `queryKey de ${fn}`).toEqual([chave]);
     }
+  });
+
+  it('useDiagnosticoTemas sempre envia p_grande_area — nunca omite a chave (achado 11, card 115)', async () => {
+    // Sem p_grande_area, q.especialidade não é único entre grandes áreas e o
+    // SQL soma temas de duas especialidades homônimas em áreas diferentes
+    // (20260804132000_get_gestor_diagnostico_temas_escopo_grande_area.sql).
+    // O parâmetro é ADITIVO com DEFAULT NULL no servidor hoje, mas outro
+    // agente pode torná-lo obrigatório — o front sempre envia a chave, com o
+    // valor vindo do nó pai que originou o clique, nunca omitida.
+    mockRpc.mockResolvedValue(envelope([]));
+    const { result } = renderHook(
+      () => useDiagnosticoTemas(FILTROS, 'cardiologia', 'clinica-medica'),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const args = mockRpc.mock.calls[0][1] as Record<string, unknown>;
+    expect(Object.keys(args)).toContain('p_grande_area');
+    expect(args.p_grande_area).toBe('clinica-medica');
+  });
+
+  it('useDiagnosticoTemas: mesma especialidade em grandes áreas diferentes NÃO compartilha cache (card 115)', async () => {
+    // `grandeArea` faz parte do recorte e precisa estar na queryKey — do
+    // contrário, o nó "cardiologia" de "clínica médica" e o nó homônimo
+    // "cardiologia" de "cirurgia" (nomenclatura de especialidade não é única
+    // entre grandes áreas) compartilhariam a mesma entrada de cache.
+    mockRpc.mockResolvedValue(envelope([]));
+    renderHook(() => useDiagnosticoTemas(FILTROS, 'cardiologia', 'clinica-medica'), { wrapper });
+    renderHook(() => useDiagnosticoTemas(FILTROS, 'cardiologia', 'cirurgia'), { wrapper });
+    await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(2));
+
+    const chavesFinais = chaves();
+    expect(chavesFinais).toContainEqual(
+      ['gestor', 'u1', 'diagnostico-temas', 'ies-1', '6ano', 'cardiologia', 'clinica-medica'],
+    );
+    expect(chavesFinais).toContainEqual(
+      ['gestor', 'u1', 'diagnostico-temas', 'ies-1', '6ano', 'cardiologia', 'cirurgia'],
+    );
   });
 
   it('detalhamento com 0 simulados NÃO faz requisição (caso de teste 4 da spec §12)', async () => {
@@ -203,10 +244,13 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
     await waitFor(() => expect(result.current.data).toEqual({ kpis: 'segundo' }));
   });
 
-  it('useAluno devolve um array — a RPC materializa UMA ENTRADA POR SIMULADO (card 106)', async () => {
+  it('useAluno devolve um array tipado — a RPC materializa UMA ENTRADA POR SIMULADO (card 106)', async () => {
     // Forma real de `get_gestor_aluno` (migration 20260803150000): jsonb_agg
-    // de uma linha por simulado do recorte, nunca um objeto singular.
-    const entradas = [
+    // de uma linha por simulado do recorte, nunca um objeto singular. Tipado
+    // DIRETO como `AlunoSimuladoEntry[]`, sem nenhum cast — a prova de que o
+    // tipo de entrada (o gap do card 106: `simuladoId`/`simuladoNome`/
+    // `simuladoData` presentes no tipo) agora existe em api/types.ts.
+    const entradas: AlunoSimuladoEntry[] = [
       {
         id: 'aluno-7', nome: 'Ana', semestre: 6,
         simuladoId: 's1', simuladoNome: 'Simulado 1', simuladoData: '2026-01-01T00:00:00Z',
@@ -224,18 +268,17 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
 
     expect(Array.isArray(result.current.data)).toBe(true);
     expect(result.current.data).toHaveLength(2);
-    // `simuladoId`/`simuladoNome`/`simuladoData` existem no JSON real da RPC mas
-    // não estão em `AlunoNoSimulado` (contrato de outro agente, api/types.ts) —
-    // cast local só para o teste, sem alterar a interface.
-    const porSimulado = result.current.data as unknown as Array<{ simuladoId: string; situacao: string }>;
-    expect(porSimulado[0].simuladoId).toBe('s1');
-    expect(porSimulado[1].situacao).toBe('aguardando_resultado');
+    // Acesso direto a `.simuladoId`/`.situacao` sem cast — só compila porque
+    // `result.current.data` já é `AlunoSimuladoEntry[] | undefined`.
+    expect(result.current.data?.[0].simuladoId).toBe('s1');
+    expect(result.current.data?.[0].simuladoNome).toBe('Simulado 1');
+    expect(result.current.data?.[1].situacao).toBe('aguardando_resultado');
 
     // Prova de tipo (checada por `tsc`, não pelo runtime do vitest): se
-    // `useAluno` voltasse a tipar `data` como `AlunoNoSimulado` singular, esta
-    // atribuição deixaria de compilar.
+    // `useAluno` voltasse a tipar `data` como `AlunoNoSimulado[]` (sem os
+    // três campos de simulado), esta atribuição deixaria de compilar.
     type DadoDeAluno = ReturnType<typeof useAluno>['data'];
-    const provaDeTipo: DadoDeAluno = entradas as DadoDeAluno;
+    const provaDeTipo: DadoDeAluno = entradas;
     void provaDeTipo;
   });
 

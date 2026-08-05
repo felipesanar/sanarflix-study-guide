@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { LogOut, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
+import { useGestorContexto } from '@/features/gestor/api/queries';
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
 import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
 
@@ -23,18 +24,37 @@ const iniciaisDe = (nome: string | undefined): string =>
  *
  * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. De cima para
  * baixo: lockup SanarFlix Academy (48px) → instituição → nav de 3 itens →
- * rodapé com tema, perfil, "Ir para versão aluno" e sair. A área de conteúdo
- * é a única que rola.
+ * rodapé com tema, perfil, "Portal do Admin" (só para quem é admin — ver
+ * abaixo), "Ir para versão aluno" e sair. A área de conteúdo é a única que
+ * rola.
  *
  * "Ir para versão aluno" reusa {@link GoToStudentButton} (mesmo componente do
  * portal legado e do Admin) — apenas com `variant="ghost"` para caber no
  * rodapé compacto (Task 25, decisão do Felipe de 03/08).
+ *
+ * "Portal do Admin" (achado 108 da revisão de 03/08): sem ele, uma conta
+ * `admin` que entra no portal v2 — o que SEMPRE acontece, porque
+ * `get_effective_features` devolve todas as features como `true` para quem
+ * tem bypass de papel (admin/atendimento) — não tinha nenhum caminho de UI de
+ * volta ao `/admin`; precisava digitar a URL ou colar `?legado=1`, exatamente
+ * a edição manual de URL que o rollback da spec §9 devia evitar. Visível
+ * SÓ para quem `get_gestor_contexto()` (a MESMA RPC que resolve
+ * `podeTrocarIes` em {@link SidebarIes}) devolve `usuario.papel === 'admin'`
+ * — decisão de papel vinda do servidor, nunca de role lida no cliente
+ * (`useAuth().access`/`user.roles` são espelho client-side, não a fonte).
+ * Reusa o padrão de encaixe do {@link GoToStudentButton} no rodapé (mesmo
+ * `Button` ghost/sm, `onClick` + `navigate`) e o rótulo/ícone (`UserCog`) já
+ * estabelecidos em `getPortalEntries` (`globalNav.ts`) para "Portal do
+ * Admin" nos outros pontos do app — mesmo destino, mesma copy.
  *
  * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
  * `filter: invert()`, nunca redesenho, nunca sombra colorida.
  */
 export const GestorShell: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const { data: contexto } = useGestorContexto();
+  const ehAdmin = contexto?.usuario.papel === 'admin';
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -75,6 +95,17 @@ export const GestorShell: React.FC = () => {
             </div>
             <ThemeToggle />
           </div>
+          {ehAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-full justify-start gap-2 text-xs text-muted-foreground"
+              onClick={() => navigate('/admin')}
+            >
+              <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
+              Portal do Admin
+            </Button>
+          )}
           <GoToStudentButton
             variant="ghost"
             size="sm"

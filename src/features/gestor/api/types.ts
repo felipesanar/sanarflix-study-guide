@@ -228,6 +228,38 @@ export interface AlunoNoSimulado {
   variacao?: number | null;
 }
 
+/**
+ * Uma entrada do array devolvido por `get_gestor_aluno` — a RPC materializa
+ * UMA LINHA POR SIMULADO da janela consultada via `jsonb_agg`
+ * (`20260803150000_get_gestor_aluno_aguardando_resultado.sql`), nunca um
+ * objeto singular. É `AlunoNoSimulado` acrescido dos três campos que
+ * identificam A QUAL simulado aquela linha pertence — sem eles, as N
+ * entradas do array seriam indistinguíveis entre si (mesmo `id`/`nome`/
+ * `semestre` do aluno repetidos, uma vez por simulado).
+ *
+ * Este é o "tipo de entrada" que faltava no card 106 da revisão de 03/08: o
+ * 1º critério do card não estava cumprido porque `useAluno` tipava sua saída
+ * como `AlunoNoSimulado[]` puro, sem estes três campos — apesar de a RPC já
+ * devolvê-los desde 03/08.
+ *
+ * Nulabilidade real, lida do `jsonb_build_object` da migration (não a do
+ * card nem a do handoff original, que assumiam `string` sem verificar):
+ * - `simuladoId` = `sims_ord.id`, chave primária de `simulados_admin` — NOT
+ *   NULL.
+ * - `simuladoNome` = `simulados_admin.nome` da mesma linha — NOT NULL.
+ * - `simuladoData` = `to_char(COALESCE(data_realizacao, data_encerramento,
+ *   data_liberacao, created_at) AT TIME ZONE 'UTC', ...)` — `created_at` é
+ *   sempre preenchido, então a cadeia de `COALESCE` nunca chega a `NULL` e
+ *   `to_char` nunca devolve `NULL`.
+ *
+ * As três, portanto, são `string`, nunca `string | null`.
+ */
+export interface AlunoSimuladoEntry extends AlunoNoSimulado {
+  simuladoId: string;
+  simuladoNome: string;
+  simuladoData: string;
+}
+
 export interface MetricasSimulado {
   simuladoId: string;
   nome: string;

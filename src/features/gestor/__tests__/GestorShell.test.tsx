@@ -3,6 +3,7 @@ import * as React from 'react';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from 'next-themes';
+import type { ContextoGestor } from '@/features/gestor/api/types';
 
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
 
@@ -14,8 +15,25 @@ vi.mock('@/features/gestor/shell/SidebarIes', () => ({
   SidebarIes: () => <div>IES Alfa</div>,
 }));
 
+// O papel (achado 108: link "Portal do Admin" no rodapé) vem de
+// get_gestor_contexto — mesma RPC/hook que o SidebarIes usa para
+// `podeTrocarIes`. Mockado aqui para controlar o papel por teste.
+const mockUseGestorContexto = vi.fn();
+vi.mock('@/features/gestor/api/queries', () => ({
+  useGestorContexto: () => mockUseGestorContexto(),
+}));
+
 import { GestorShell } from '@/features/gestor/shell/GestorShell';
 import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
+
+const contextoComPapel = (papel: ContextoGestor['usuario']['papel']): ContextoGestor => ({
+  usuario: { id: 'u1', nome: 'Ana Gestora', papel },
+  iesDisponiveis: [{ id: 'ies-1', nome: 'IES Alfa' }],
+  iesAtual: { id: 'ies-1', nome: 'IES Alfa' },
+  contrato: null,
+  podeTrocarIes: papel !== 'gestor',
+  podeExportar: true,
+});
 
 const renderizar = (rota: string) =>
   render(
@@ -38,6 +56,14 @@ describe('GestorShell (spec §8.3)', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 'u1', nome: 'Ana Gestora', email: 'ana@ies.edu.br', ies_nome: 'IES Alfa' },
       logout: vi.fn(),
+    });
+    // Papel padrão dos testes existentes: gestor comum — sem o link de admin.
+    mockUseGestorContexto.mockReturnValue({
+      data: contextoComPapel('gestor'),
+      meta: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
     });
   });
 
@@ -128,5 +154,83 @@ describe('GestorShell (spec §8.3)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ir para versão aluno' }));
     expect(screen.getByText('experiência do aluno')).toBeInTheDocument();
+  });
+
+  describe('"Portal do Admin" no rodapé (achado 108)', () => {
+    it('NÃO aparece para gestor puro nem gestor_grupo — só decisão do servidor, nunca role do cliente', () => {
+      mockUseGestorContexto.mockReturnValue({
+        data: contextoComPapel('gestor'),
+        meta: undefined,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderizar('/gestor');
+      expect(screen.queryByRole('button', { name: 'Portal do Admin' })).not.toBeInTheDocument();
+
+      mockUseGestorContexto.mockReturnValue({
+        data: contextoComPapel('gestor_grupo'),
+        meta: undefined,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderizar('/gestor');
+      expect(screen.queryByRole('button', { name: 'Portal do Admin' })).not.toBeInTheDocument();
+    });
+
+    it('NÃO aparece enquanto o contexto ainda não resolveu (sem sinal do servidor, sem link)', () => {
+      mockUseGestorContexto.mockReturnValue({
+        data: undefined,
+        meta: undefined,
+        isLoading: true,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderizar('/gestor');
+      expect(screen.queryByRole('button', { name: 'Portal do Admin' })).not.toBeInTheDocument();
+    });
+
+    it('aparece SOMENTE quando get_gestor_contexto() devolve usuario.papel === "admin", fora da nav de 3 itens, com nome acessível em pt-BR', () => {
+      mockUseGestorContexto.mockReturnValue({
+        data: contextoComPapel('admin'),
+        meta: undefined,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      renderizar('/gestor');
+
+      const botao = screen.getByRole('button', { name: 'Portal do Admin' });
+      expect(botao).toBeInTheDocument();
+
+      const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+      expect(within(nav).queryByRole('button', { name: 'Portal do Admin' })).not.toBeInTheDocument();
+    });
+
+    it('clicar em "Portal do Admin" navega para /admin', () => {
+      mockUseGestorContexto.mockReturnValue({
+        data: contextoComPapel('admin'),
+        meta: undefined,
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn(),
+      });
+      render(
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <MemoryRouter initialEntries={['/gestor']}>
+            <Routes>
+              <Route path="/admin" element={<div>portal do admin</div>} />
+              <Route path="/gestor" element={<GestorShell />}>
+                <Route index element={<div>conteúdo do início</div>} />
+              </Route>
+            </Routes>
+          </MemoryRouter>
+        </ThemeProvider>,
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Portal do Admin' }));
+      expect(screen.getByText('portal do admin')).toBeInTheDocument();
+    });
   });
 });

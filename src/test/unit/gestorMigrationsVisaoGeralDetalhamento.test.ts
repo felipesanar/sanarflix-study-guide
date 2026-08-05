@@ -169,6 +169,88 @@ describe('migration get_gestor_detalhamento (achados 2, 8 e 14)', () => {
   });
 });
 
+describe('migration get_gestor_visao_geral (2ª rodada — achado 15/119, gaps 109, 112 e 117)', () => {
+  const FILE = '20260804174000_get_gestor_visao_geral_multicontrato_dedup_nivel.sql';
+  const sql = () => readMigration(FILE);
+
+  it('troca user_can_access_ies por gestor_pode_acessar_ies(v_ies), autorizando DEPOIS da resolução de v_ies (achado 15 / card 119)', () => {
+    const code = codeOnly(sql());
+    expect(code).toMatch(/IF NOT public\.gestor_pode_acessar_ies\(v_ies\) THEN/);
+    expect(code).not.toMatch(/user_can_access_ies/);
+
+    const idxIesNotResolved = code.indexOf('IES not resolved');
+    const idxAutorizacao = code.indexOf('gestor_pode_acessar_ies(v_ies)');
+    const idxFeature = code.indexOf('user_has_feature_for_ies');
+    expect(idxIesNotResolved).toBeGreaterThan(-1);
+    expect(idxAutorizacao).toBeGreaterThan(idxIesNotResolved);
+    expect(idxFeature).toBeGreaterThan(idxAutorizacao);
+  });
+
+  it('resolve v_ies para os dois ramos (p_ies_id explícito e fallback) ANTES de autorizar, cobrindo o vazamento do fallback (achado 15/119)', () => {
+    const code = codeOnly(sql());
+    // a resolução (sem chamada de autorização dentro do IF) precisa vir antes do guard único
+    const idxResolucao = code.indexOf('IF p_ies_id IS NOT NULL THEN\n    v_ies := p_ies_id;');
+    const idxAutorizacao = code.indexOf('gestor_pode_acessar_ies(v_ies)');
+    expect(idxResolucao).toBeGreaterThan(-1);
+    expect(idxAutorizacao).toBeGreaterThan(idxResolucao);
+  });
+
+  it('KPI de contratados soma TODOS os contratos vigentes, não escolhe um só via LIMIT 1 (gap 109)', () => {
+    const code = codeOnly(sql());
+    expect(code).toMatch(/kpi_contratos_vigentes AS \(/);
+    expect(code).toMatch(/current_date BETWEEN c\.vigencia_inicio AND c\.vigencia_fim/);
+    expect(code).toMatch(/kpi_contrato_fallback AS \(/);
+    expect(code).toMatch(/'contratados',\s*\(SELECT sum\(kc\.simulados_contratados\) FROM kpi_contrato kc\)/);
+    // o bug original: um único contrato via LIMIT 1, sem união de vigentes
+    expect(code).not.toMatch(/'contratados',\s*\(SELECT kc\.simulados_contratados FROM kpi_contrato kc\)/);
+  });
+
+  it('deduplica tri em UMA linha por (student_id, pai_id) por maior score_proprio antes de qualquer contagem/média/dispersão (gap 112)', () => {
+    const code = codeOnly(sql());
+    expect(code).toMatch(/tri_raw AS \(/);
+    expect(code).toMatch(
+      /DISTINCT ON \(tr\.student_id, tr\.pai_id\)\s*\n\s*tr\.pai_id, tr\.student_id, tr\.semestre, tr\.score_proprio\s*\n\s*FROM tri_raw tr\s*\n\s*ORDER BY tr\.student_id, tr\.pai_id, tr\.score_proprio DESC/,
+    );
+    // por_sim, aluno_prof e dispersao continuam lendo de `tri` (agora já deduplicada), não de tri_raw
+    expect(code).toMatch(/FROM tri t WHERE t\.pai_id = s\.id/);
+    expect(code).not.toMatch(/FROM tri_raw t WHERE t\.pai_id = s\.id/);
+  });
+
+  it('classifica areas_nivel.nivel e evolucaoPorArea.critica sobre o MESMO acerto_pct já arredondado, via areas_pct (gap 117)', () => {
+    const code = codeOnly(sql());
+    expect(code).toMatch(/areas_pct AS \(/);
+    expect(code).toMatch(/areas_nivel AS \(\s*\n\s*SELECT p\.area, p\.amostra, p\.acerto_pct,/);
+    expect(code).toMatch(/WHEN p\.acerto_pct\s*<\s*30 THEN 'critico'/);
+    expect(code).toMatch(/WHEN p\.acerto_pct\s*>=\s*80 THEN 'excelente'/);
+    expect(code).toMatch(/'critica',\s*COALESCE\(t\.acerto_pct < 30, false\)/);
+    expect(code).toMatch(/FROM areas_pct t\), '\[\]'::jsonb\)/);
+    // o bug original: classificava sobre o percentual bruto, não o arredondado
+    expect(code).not.toMatch(/WHEN 100\.0 \* t\.acertos \/ t\.total\s*<\s*30 THEN 'critico'/);
+    expect(code).not.toMatch(/'critica',\s*COALESCE\(\(100\.0 \* t\.acertos \/ NULLIF\(t\.total,0\)\) < 30, false\)/);
+  });
+
+  it('preserva os achados 2, 5, 8 e 9 da rodada anterior (guard de feature, KPI vinculado ao contrato, n_prof distinto, lowSample no ponto atual)', () => {
+    const code = codeOnly(sql());
+    expect(code).toMatch(/user_has_feature_for_ies\(\s*'gestao\.portal_v2'\s*,\s*v_ies\s*\)/);
+    expect(code).toMatch(/kpi_slots AS \(/);
+    expect(code).toMatch(/JOIN kpi_contrato kc ON kc\.contrato_id = sp\.contrato_id/);
+    expect(code).toMatch(
+      /count\(DISTINCT t\.student_id\) FILTER \(WHERE t\.score_proprio >= 60\) FROM tri t WHERE t\.pai_id = s\.id\) AS n_prof/,
+    );
+    expect(code).toMatch(
+      /'lowSample',\s*COALESCE\(\(SELECT GREATEST\(p\.n_tri, p\.n_resp\) FROM pontos p WHERE p\.rotulo = 'atual'\), 0\) < 10/,
+    );
+  });
+
+  it('preserva SECURITY DEFINER, STABLE, search_path e o grant original', () => {
+    const body = sql();
+    expect(body).toMatch(/SECURITY DEFINER/);
+    expect(body).toMatch(/\bSTABLE\b/);
+    expect(body).toMatch(/SET search_path = public/);
+    expect(body).toMatch(/GRANT EXECUTE ON FUNCTION public\.get_gestor_visao_geral\(uuid, text\) TO authenticated;/);
+  });
+});
+
 describe('coerência entre get_gestor_detalhamento e get_gestor_questoes (achado 14, mesma prova)', () => {
   const DETALHAMENTO = readMigration('20260804131000_get_gestor_detalhamento_guard_prof_gabarito.sql');
   const QUESTOES = readMigration('20260804133000_get_gestor_questoes_gabarito_prova_aberta.sql');

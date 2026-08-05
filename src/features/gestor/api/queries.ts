@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import type {
-  AlunoNoSimulado,
+  AlunoSimuladoEntry,
   Aviso,
   ContextoGestor,
   Detalhamento,
@@ -154,18 +154,38 @@ export function useDiagnostico(
   );
 }
 
-/** Temas de uma especialidade — % de acerto, nunca proficiência (spec §4.1). */
+/**
+ * Temas de uma especialidade — % de acerto, nunca proficiência (spec §4.1).
+ *
+ * `grandeArea` é a `grande_area` do NÓ PAI da cascata que originou o clique
+ * no drawer (o mesmo dado já usado para montar a chamada de
+ * `get_gestor_diagnostico` com `p_node`) — nunca a grande área "atual" de
+ * outro contexto. É parte do recorte, não um detalhe de implementação:
+ * `q.especialidade` não é único entre grandes áreas, então sem este
+ * parâmetro os temas de duas especialidades homônimas em áreas diferentes se
+ * misturariam na soma (achado 11, card 115 da revisão de 03/08; correção de
+ * servidor em `20260804132000_get_gestor_diagnostico_temas_escopo_grande_area.sql`,
+ * que adicionou `p_grande_area text DEFAULT NULL` — ADITIVO, mas o SQL pode
+ * passar a EXIGIR o parâmetro depois, então o front sempre o envia, nunca
+ * omite a chave).
+ *
+ * Por isso `grandeArea` entra na queryKey junto com `especialidade`: sem
+ * isso, dois nós de especialidade homônima em grandes áreas diferentes
+ * compartilhariam cache indevidamente.
+ */
 export function useDiagnosticoTemas(
   filtros: FiltrosGestor,
   especialidade: string | null,
+  grandeArea: string | null,
 ): ResultadoGestor<TemaCritico[]> {
   return useEnvelope<TemaCritico[]>(
-    ['gestor', 'diagnostico-temas', filtros.iesId, filtros.semestre, especialidade],
+    ['gestor', 'diagnostico-temas', filtros.iesId, filtros.semestre, especialidade, grandeArea],
     'get_gestor_diagnostico_temas',
     {
       p_ies_id: filtros.iesId,
       p_semestre: filtros.semestre,
       p_especialidade: especialidade,
+      p_grande_area: grandeArea,
     },
     filtros.iesId !== null && especialidade !== null,
   );
@@ -202,16 +222,18 @@ export function useAlunos(
  *
  * `get_gestor_aluno` devolve UMA ENTRADA POR SIMULADO (`jsonb_agg` na
  * migration `20260803150000_get_gestor_aluno_aguardando_resultado.sql`) — o
- * `data` do envelope é `AlunoNoSimulado[]`, nunca um objeto singular (card 106
- * da revisão de 03/08).
+ * `data` do envelope é `AlunoSimuladoEntry[]` (`AlunoNoSimulado` acrescido de
+ * `simuladoId`/`simuladoNome`/`simuladoData`, ver `api/types.ts`), nunca um
+ * objeto singular e nunca `AlunoNoSimulado[]` puro (card 106 da revisão de
+ * 03/08: o tipo de entrada com os três campos de simulado não existia).
  */
 export function useAluno(
   alunoId: string | null,
   simulados: string[],
-): ResultadoGestor<AlunoNoSimulado[]> {
+): ResultadoGestor<AlunoSimuladoEntry[]> {
   const { iesId } = useFiltrosGestor();
   const lista = ordenados(simulados);
-  return useEnvelope<AlunoNoSimulado[]>(
+  return useEnvelope<AlunoSimuladoEntry[]>(
     ['gestor', 'aluno', iesId, alunoId, lista],
     'get_gestor_aluno',
     { p_ies_id: iesId, p_aluno_id: alunoId, p_simulados: lista },
