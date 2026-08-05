@@ -24,3 +24,31 @@ export function recalcularSemestres(
     return [{ ...s, acertoPct: celula.acertoPct }];
   });
 }
+
+/**
+ * Média das entradas ponderada pelo número de participantes de cada simulado.
+ * Entrada com `valor === null` ou sem participante fica **fora** da média (§4.10:
+ * nunca preencher lacuna com zero). Sem nenhuma entrada aproveitável, `null`.
+ */
+export function mediaPonderadaPorParticipantes(
+  entradas: { valor: number | null; participantes: number }[],
+): number | null {
+  let soma = 0;
+  let peso = 0;
+
+  for (const entrada of entradas) {
+    if (entrada.valor === null || entrada.participantes <= 0) continue;
+    soma += entrada.valor * entrada.participantes;
+    peso += entrada.participantes;
+  }
+
+  return peso === 0 ? null : soma / peso;
+}
+
+/** Mediana de uma lista de valores. Lista vazia devolve `null`. */
+export function mediana(valores: number[]): number | null {
+  if (valores.length === 0) return null;
+  const ordenados = [...valores].sort((a, b) => a - b);
+  const meio = Math.floor(ordenados.length / 2);
+  return ordenados.length % 2 === 1 ? ordenados[meio] : (ordenados[meio - 1] + ordenados[meio]) / 2;
+}
