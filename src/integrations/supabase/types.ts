@@ -2273,6 +2273,7 @@ export type Database = {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
       }
+      gestor_pode_acessar_ies: { Args: { p_ies_id: string }; Returns: boolean }
       get_access: { Args: never; Returns: Json }
       get_accessible_ies: { Args: { _user: string }; Returns: string[] }
       get_all_user_performance_by_area: {
