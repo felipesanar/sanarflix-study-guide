@@ -2574,6 +2574,7 @@ export type Database = {
         Returns: Json
       }
       set_my_phone: { Args: { p_telefone: string }; Returns: undefined }
+      tmp_exec_sql_l2: { Args: { p_sql: string }; Returns: undefined }
       uncomplete_theme: {
         Args: { p_materia: string; p_subtema?: string; p_tema: string }
         Returns: Json
