@@ -1,0 +1,303 @@
+import * as React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import Detalhamento from '@/features/gestor/routes/Detalhamento';
+import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '@/features/gestor/api/queries';
+import type { AlunoNoSimulado, ContextoGestor, ItemCronograma, Meta, MetricasSimulado, Questao } from '@/features/gestor/api/types';
+import type { DetalhamentoComExtras } from '@/features/gestor/api/detalhamentoExtras';
+
+vi.mock('@/features/gestor/api/queries', () => ({
+  useCronograma: vi.fn(),
+  useDetalhamento: vi.fn(),
+  useQuestoes: vi.fn(),
+  useGestorContexto: vi.fn(),
+}));
+
+vi.mock('@/features/gestor/components/FiltroSemestre', () => ({
+  FiltroSemestre: () => <div data-testid="filtro-semestre" />,
+}));
+vi.mock('@/features/gestor/components/CronogramaSimulados', () => ({
+  CronogramaSimulados: () => <div data-testid="cronograma-simulados" />,
+}));
+vi.mock('@/features/gestor/components/DrawerAluno', () => ({
+  DrawerAluno: ({ alunoId, nome }: { alunoId: string | null; nome: string }) =>
+    alunoId ? <div data-testid="drawer-aluno">{alunoId}:{nome}</div> : null,
+}));
+vi.mock('@/features/gestor/charts/DispersaoChart', () => ({
+  DispersaoChart: () => <div data-testid="dispersao-chart" />,
+}));
+vi.mock('@/features/gestor/charts/EvolucaoChart', () => ({
+  EvolucaoChart: () => <div data-testid="evolucao-chart" />,
+}));
+
+const META: Meta = {
+  periodo: '2026.1',
+  fonte: 'Simulados SanarFlix',
+  atualizadoEm: '2026-07-20T13:00:00Z',
+  criterio: 'Proficiente = proficiência maior ou igual a 60',
+  partial: false,
+  lowSample: false,
+};
+
+const CONTEXTO: ContextoGestor = {
+  usuario: { id: 'u1', nome: 'Ana', papel: 'gestor' },
+  iesDisponiveis: [{ id: 'ies-1', nome: 'IES Alfa' }],
+  iesAtual: { id: 'ies-1', nome: 'IES Alfa' },
+  contrato: null,
+  podeTrocarIes: false,
+  podeExportar: true,
+};
+
+const metrica = (i: number): MetricasSimulado => ({
+  simuladoId: `s${i}`,
+  nome: `Simulado ${i}`,
+  data: `2026-0${i}-10T13:00:00Z`,
+  participantes: 100,
+  acertoMedioPct: 60 + i,
+  enamedProjetado: 3,
+  proficienciaMedia: 55 + i,
+});
+
+const aluno: AlunoNoSimulado = {
+  id: 'a1',
+  nome: 'Ana',
+  semestre: 11,
+  participou: true,
+  acertos: 60,
+  proficiencia: 72,
+  situacao: 'proficiente',
+  variacao: 5,
+};
+
+const questao: Questao = {
+  numero: 1,
+  grandeArea: 'Clínica Médica',
+  especialidade: 'Cardiologia',
+  tema: 'Insuficiência cardíaca',
+  acertoPct: 42,
+  enunciado: 'Enunciado da questão 1',
+  alternativas: [
+    { letra: 'A', texto: 'a', correta: true, marcadaPct: 42 },
+    { letra: 'B', texto: 'b', correta: false, marcadaPct: 31 },
+    { letra: 'C', texto: 'c', correta: false, marcadaPct: 15 },
+    { letra: 'D', texto: 'd', correta: false, marcadaPct: 8 },
+    { letra: 'E', texto: 'e', correta: false, marcadaPct: 4 },
+  ],
+};
+
+const CRONOGRAMA: ItemCronograma[] = Array.from({ length: 7 }, (_, i) => ({
+  id: `s${i + 1}`,
+  nome: `Simulado ${i + 1}`,
+  data: '2026-03-10T13:00:00Z',
+  status: 'realizado',
+  modalidade: 'online',
+  participantes: 40,
+}));
+
+function dados(quantos: number): DetalhamentoComExtras {
+  return {
+    metricas: Array.from({ length: quantos }, (_, i) => metrica(i + 1)),
+    acertoPorAreaESemestre: {
+      areas: [{ id: 'clinica', nome: 'Clínica Médica', acertoPct: 72, critica: false }],
+      semestres: [{ semestre: 11, acertoPct: 63, emEvidencia: true }],
+      matriz: [{ areaId: 'clinica', semestre: 11, acertoPct: 66, amostra: 120 }],
+    },
+    dispersao: [{ alunoId: 'a1', semestre: 11, nota: 72 }],
+    alunos: [aluno],
+  };
+}
+
+const renderRota = (query: string) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/gestor/detalhamento${query}`]}>
+        <TooltipProvider>
+          <Detalhamento />
+        </TooltipProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
+const comSimulados = (quantos: number, over: Partial<ReturnType<typeof useDetalhamento>> = {}) => {
+  vi.mocked(useDetalhamento).mockReturnValue({
+    data: quantos === 0 ? undefined : dados(quantos),
+    meta: quantos === 0 ? undefined : META,
+    isLoading: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetching: false,
+    refetch: vi.fn(),
+    ...over,
+  } as unknown as ReturnType<typeof useDetalhamento>);
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(useGestorContexto).mockReturnValue({
+    data: CONTEXTO,
+    meta: META,
+    isLoading: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useGestorContexto>);
+  vi.mocked(useCronograma).mockReturnValue({
+    data: CRONOGRAMA,
+    meta: META,
+    isLoading: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useCronograma>);
+  vi.mocked(useQuestoes).mockReturnValue({
+    data: { data: [questao], page: 1, pageSize: 20, total: 1, totalPages: 1 },
+    meta: META,
+    isLoading: false,
+    isError: false,
+    isPlaceholderData: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useQuestoes>);
+});
+
+describe('Rota Detalhamento — sub-estado vazio (§12 caso 4)', () => {
+  it('sem simulado mostra o estado vazio e nenhum indicador', () => {
+    comSimulados(0);
+    renderRota('?ies=ies-1&semestre=6ano');
+
+    expect(screen.getByTestId('detalhamento-vazio')).toBeInTheDocument();
+    expect(screen.getByTestId('seletor-simulados')).toBeInTheDocument();
+    expect(screen.queryByTestId('kpi-acerto-medio')).toBeNull();
+    expect(screen.queryByTestId('comparativo-temas')).toBeNull();
+    expect(screen.queryByText('Detalhamento das questões')).toBeNull();
+    expect(vi.mocked(useDetalhamento)).toHaveBeenCalledWith({
+      iesId: 'ies-1',
+      semestre: '6ano',
+      simulados: [],
+    });
+  });
+});
+
+describe('Rota Detalhamento — 1 simulado (§4.7.3)', () => {
+  beforeEach(() => comSimulados(1));
+
+  it('faz a leitura completa e põe as questões como último componente da página', () => {
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.queryByTestId('detalhamento-vazio')).toBeNull();
+    expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
+    expect(screen.getByTestId('kpi-enamed')).toBeInTheDocument();
+    expect(screen.getByTestId('kpi-proficiencia-media')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Acerto por grande área e por semestre' })).toBeInTheDocument();
+    expect(screen.getByTestId('dispersao-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('linha-aluno-a1')).toBeInTheDocument();
+    expect(screen.getByTestId('linha-questao-1')).toBeInTheDocument();
+
+    const blocos = screen.getAllByTestId(/^bloco-/).map((b) => b.dataset.testid);
+    expect(blocos[blocos.length - 1]).toBe('bloco-questoes');
+  });
+
+  it('não mostra a coluna Variação com um único simulado', () => {
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+    expect(screen.queryByText('Variação')).toBeNull();
+  });
+
+  it('abre o drawer do aluno ao clicar no nome, com o nome do aluno (real DrawerAluno exige a prop)', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    await user.click(screen.getByRole('button', { name: 'Ana' }));
+    expect(screen.getByTestId('drawer-aluno')).toHaveTextContent('a1:Ana');
+  });
+
+  it('abre o cronograma pelo atalho, sem sair da tela', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.queryByTestId('cronograma-simulados')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Ver cronograma' }));
+    expect(await screen.findByTestId('cronograma-simulados')).toBeInTheDocument();
+    expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
+  });
+});
+
+describe('Rota Detalhamento — 2 simulados (§4.7.4, §12 casos 3, 6, 8)', () => {
+  beforeEach(() => comSimulados(2));
+
+  it('oculta o detalhamento das questões', () => {
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
+
+    expect(screen.queryByText('Detalhamento das questões')).toBeNull();
+    expect(screen.queryByTestId('linha-questao-1')).toBeNull();
+    expect(screen.queryByTestId('bloco-questoes')).toBeNull();
+  });
+
+  it('mostra a coluna Variação e o comparativo colapsado', () => {
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
+
+    expect(screen.getByRole('columnheader', { name: /Variação/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ver comparativo completo/i })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.getByTestId('card-simulado-s1')).toBeInTheDocument();
+    expect(screen.getByTestId('card-simulado-s2')).toBeInTheDocument();
+  });
+
+  it('o conceito ENAMED vira comparativo, sem média única', () => {
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2');
+
+    const enamed = screen.getByTestId('kpi-enamed');
+    expect(within(enamed).queryByTestId('kpi-valor')).toBeNull();
+    expect(within(enamed).getAllByTestId(/^enamed-/)).toHaveLength(2);
+  });
+});
+
+describe('Rota Detalhamento — 6 simulados (§4.7.2, §12 caso 5)', () => {
+  it('avisa sobre legibilidade sem bloquear a leitura', () => {
+    comSimulados(6);
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2,s3,s4,s5,s6');
+
+    expect(screen.getByTestId('aviso-legibilidade')).toHaveTextContent('6 simulados selecionados');
+    expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
+    expect(screen.getByTestId('linha-aluno-a1')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Acerto por grande área e por semestre' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('Rota Detalhamento — carregando e erro', () => {
+  it('sem IES resolvida mostra loading, nunca o vazio', () => {
+    vi.mocked(useGestorContexto).mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: true,
+      isError: false,
+      isPlaceholderData: false,
+      isFetching: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useGestorContexto>);
+    comSimulados(1, { isLoading: true, data: undefined, meta: undefined });
+    renderRota('?semestre=6ano&simulados=s1');
+
+    expect(screen.getByTestId('bloco-kpis-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('detalhamento-vazio')).toBeNull();
+  });
+
+  it('erro na query mostra EstadoErro com retry, tela continua utilizável', () => {
+    const refetch = vi.fn();
+    comSimulados(1, { isError: true, data: undefined, meta: undefined, refetch });
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('seletor-simulados')).toBeInTheDocument();
+  });
+});
