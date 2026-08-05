@@ -1,0 +1,118 @@
+/* src/features/gestor/gestor-theme.css
+   Camada de tema do Portal do Gestor v2. Escopada em `.gestor-portal` — não
+   redefine NENHUMA variável de src/index.css, logo não afeta aluno nem admin.
+   Regras (spec §Tema escuro): mesmos nomes nos dois temas, elevação vem da COR
+   da superfície, hover no escuro CLAREIA, nunca `filter: invert()`,
+   nunca `#B81414` como cor de TEXTO sobre fundo escuro (use --gp-brand-on-dark). */
+
+.gestor-portal {
+  /* Superfícies e linhas — mapeadas nas variáveis do repo */
+  --gp-bg-app: hsl(var(--background));
+  --gp-surface-1: hsl(var(--card));
+  --gp-surface-2: hsl(var(--muted));
+  --gp-surface-3: hsl(220 14% 93%);
+  --gp-border-strong: hsl(var(--border));
+  --gp-border-subtle: hsl(var(--border) / 0.5);
+  --gp-border-input: hsl(var(--input));
+
+  /* Texto */
+  --gp-text-1: hsl(var(--foreground));
+  --gp-text-2: hsl(var(--foreground) / 0.78);
+  --gp-text-3: hsl(var(--muted-foreground));
+  --gp-text-inverse: hsl(var(--primary-foreground));
+
+  /* Marca */
+  --gp-brand: hsl(var(--primary));
+  --gp-brand-strong: hsl(var(--primary-dark, var(--primary)));
+  --gp-brand-on-dark: hsl(var(--primary));   /* no claro, texto de marca = a própria marca */
+  --gp-brand-surface: hsl(var(--primary) / 0.08);
+  --gp-brand-border: hsl(var(--primary) / 0.24);
+  --gp-on-brand: hsl(var(--primary-foreground));
+
+  /* Semânticos (único bloco literal — o repo não tem status tokens) */
+  --gp-success: hsl(145 76% 32%);
+  --gp-success-on: hsl(145 76% 20%);
+  --gp-success-surface: hsl(145 45% 93%);
+  --gp-warning: hsl(38 92% 43%);
+  --gp-warning-on: hsl(38 92% 26%);
+  --gp-warning-surface: hsl(38 75% 94%);
+  --gp-danger: hsl(0 74% 44%);
+  --gp-danger-on: hsl(0 74% 27%);
+  --gp-danger-surface: hsl(0 60% 94%);
+  --gp-info: hsl(200 95% 35%);
+  --gp-info-on: hsl(200 95% 21%);
+  --gp-info-surface: hsl(200 60% 94%);
+
+  /* Séries de gráfico — a paleta do repo já é calibrada nos dois temas */
+  --gp-serie-1: hsl(var(--chart-1));
+  --gp-serie-2: hsl(var(--chart-2));
+  --gp-serie-3: hsl(var(--chart-3));
+  --gp-serie-4: hsl(var(--chart-4));
+  --gp-serie-5: hsl(var(--chart-5));
+  --gp-grid: hsl(var(--border));
+  --gp-axis: hsl(var(--muted-foreground));
+
+  /* Forma */
+  --gp-radius-sm: calc(var(--radius) - 4px);
+  --gp-radius-md: var(--radius);
+  --gp-radius-lg: calc(var(--radius) + 4px);
+  --gp-radius-pill: 10em;
+
+  /* Elevação e foco */
+  --gp-shadow-card: 0 1px 2px hsl(var(--foreground) / 0.03), 0 14px 34px -22px hsl(var(--foreground) / 0.16);
+  --gp-shadow-panel: -12px 0 28px -20px hsl(var(--foreground) / 0.25);
+  --gp-shadow-drawer: -28px 0 64px -30px hsl(var(--foreground) / 0.42);
+  --gp-scrim: hsl(220 13% 6% / 0.42);
+  --gp-focus-ring: 0 0 0 3px hsl(var(--ring) / 0.35);
+
+  /* Skeleton — no claro, um degrau acima do card */
+  --gp-skeleton: hsl(var(--muted));
+  --gp-skeleton-brilho: hsl(var(--background));
+}
+
+/* Camada escura. `.dark` é a classe do next-themes (attribute="class") —
+   NÃO usar [data-theme="dark"] do handoff: esse atributo não existe neste app. */
+.dark .gestor-portal {
+  --gp-surface-3: hsl(220 13% 16%);
+
+  /* Nunca #B81414 como texto sobre escuro (2,73:1 — reprova AA).
+     Este token dá 7,08:1 sobre a superfície de card do escuro. */
+  --gp-brand-on-dark: hsl(2 76% 72%);
+  --gp-brand-surface: hsl(var(--primary) / 0.16);
+  --gp-brand-border: hsl(var(--primary) / 0.38);
+
+  --gp-success: hsl(145 57% 47%);
+  --gp-success-on: hsl(145 55% 61%);
+  --gp-success-surface: hsl(150 48% 14%);
+  --gp-warning: hsl(38 76% 58%);
+  --gp-warning-on: hsl(38 74% 61%);
+  --gp-warning-surface: hsl(35 55% 13%);
+  --gp-danger: hsl(2 82% 62%);
+  --gp-danger-on: hsl(4 80% 72%);
+  --gp-danger-surface: hsl(356 52% 14%);
+  --gp-info: hsl(202 72% 56%);
+  --gp-info-on: hsl(202 68% 66%);
+  --gp-info-surface: hsl(203 59% 14%);
+
+  /* Elevação vem da COR da superfície: sombra quase desaparece no escuro */
+  --gp-shadow-card: 0 1px 2px hsl(0 0% 0% / 0.30), 0 14px 34px -22px hsl(0 0% 0% / 0.60);
+  --gp-shadow-panel: -12px 0 28px -20px hsl(0 0% 0% / 0.55);
+  --gp-shadow-drawer: -28px 0 64px -30px hsl(0 0% 0% / 0.75);
+  --gp-scrim: hsl(0 0% 0% / 0.60);
+  --gp-focus-ring: 0 0 0 3px hsl(2 76% 72% / 0.28);
+
+  /* Skeleton calibrado: 4 pontos de luz acima do card (220 13% 10%) — nunca clarão */
+  --gp-skeleton: hsl(220 13% 14%);
+  --gp-skeleton-brilho: hsl(220 13% 18%);
+}
+
+/* Hover: no claro ESCURECE de leve; no escuro CLAREIA — nunca o contrário. */
+.gestor-portal .gp-hover-surface { transition: background-color 140ms cubic-bezier(0.2, 0, 0, 1); }
+.gestor-portal .gp-hover-surface:hover { background-color: hsl(var(--accent)); }
+.dark .gestor-portal .gp-hover-surface:hover { background-color: hsl(220 13% 16%); }
+
+.gestor-portal .gp-skeleton {
+  background-color: var(--gp-skeleton);
+  border-radius: var(--gp-radius-sm);
+}
+.gestor-portal :focus-visible { outline: none; box-shadow: var(--gp-focus-ring); }

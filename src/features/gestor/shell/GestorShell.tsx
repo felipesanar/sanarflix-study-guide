@@ -9,6 +9,7 @@ import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
 import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
+import '@/features/gestor/gestor-theme.css';
 
 /** Iniciais do nome (até 2), para o avatar do rodapé. */
 const iniciaisDe = (nome: string | undefined): string =>
@@ -57,7 +58,7 @@ export const GestorShell: React.FC = () => {
   const ehAdmin = contexto?.usuario.papel === 'admin';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="gestor-portal flex h-screen overflow-hidden bg-background">
       <aside className="flex h-full w-60 shrink-0 flex-col gap-4 border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
         <div className="flex min-h-[3.5rem] items-center px-4">
           <img
