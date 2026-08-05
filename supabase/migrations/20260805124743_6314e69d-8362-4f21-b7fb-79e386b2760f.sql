@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.tmp_exec_sql_l2(text);
