@@ -173,21 +173,6 @@ export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
               </TableHeader>
               <TableBody>
                 {linhas.map((linha) => {
-                  /**
-                   * `proficiencias` (get_gestor_alunos, uma posição por
-                   * simulado COM TRI) e `colunasSimulados` (get_gestor_visao_geral,
-                   * via `visao.evolucao`, uma coluna por simulado com resposta
-                   * OU TRI) vêm de recortes de simulados DIFERENTES — a RPC de
-                   * alunos nem devolve `simuladoId` por posição para permitir
-                   * casar com segurança (achados 1-4 da revisão de 03/08).
-                   * Quando os tamanhos divergem, casar por índice desloca
-                   * valores: a nota real de um simulado apareceria sob o
-                   * cabeçalho de outro. Em vez disso, falha barulhenta: TRACO
-                   * em toda a linha de proficiências, nunca um número
-                   * deslocado. Correção de raiz pendente: `get_gestor_alunos`
-                   * devolver `proficiencias` como `{ simuladoId, valor }[]`.
-                   */
-                  const proficienciasAlinhadas = linha.proficiencias.length === colunasSimulados.length;
                   return (
                     <TableRow key={linha.id}>
                       <TableCell data-testid={`celula-nome-${linha.id}`}>
@@ -211,20 +196,34 @@ export function TabelaAlunos({ recorte, colunasSimulados }: TabelaAlunosProps) {
                       <TableCell data-testid={`semestre-${linha.id}`} className="tabular-nums">
                         {linha.semestre === null ? TRACO : `${linha.semestre}º`}
                       </TableCell>
-                      {colunasSimulados.map((coluna, indice) => (
-                        <TableCell
-                          key={coluna.id}
-                          data-testid={`prof-${linha.id}-${coluna.id}`}
-                          className="tabular-nums"
-                          title={
-                            proficienciasAlinhadas
-                              ? undefined
-                              : 'Dados de proficiência indisponíveis para este recorte'
-                          }
-                        >
-                          {proficienciasAlinhadas ? formatNumero(linha.proficiencias[indice] ?? null) : TRACO}
-                        </TableCell>
-                      ))}
+                      {colunasSimulados.map((coluna) => {
+                        /**
+                         * Casa por `simuladoId`, nunca por posição — a causa
+                         * raiz dos achados 1-4 da revisão de 03/08.
+                         * `proficiencias` (get_gestor_alunos) e
+                         * `colunasSimulados` (get_gestor_visao_geral, via
+                         * `visao.evolucao`) vêm de recortes de simulados
+                         * DIFERENTES: a visão geral filtra por semestre, esta
+                         * RPC não. Casar por posição podia deslocar a nota de
+                         * um simulado para a coluna de outro mesmo com os dois
+                         * arrays do MESMO tamanho — o mitigador antigo (TRAÇO
+                         * na linha inteira quando os TAMANHOS divergiam) nunca
+                         * cobria esse caso, e por isso saiu: uma coluna sem
+                         * entrada correspondente mostra TRAÇO só NAQUELA
+                         * célula, nunca a linha inteira (migration
+                         * 20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql).
+                         */
+                        const entrada = linha.proficiencias.find((p) => p.simuladoId === coluna.id);
+                        return (
+                          <TableCell
+                            key={coluna.id}
+                            data-testid={`prof-${linha.id}-${coluna.id}`}
+                            className="tabular-nums"
+                          >
+                            {formatNumero(entrada?.valor ?? null)}
+                          </TableCell>
+                        );
+                      })}
                       <TableCell data-testid={`tendencia-${linha.id}`}>
                         <span className="inline-flex items-center gap-1 text-xs">
                           <IconeTendencia tendencia={linha.tendencia} />

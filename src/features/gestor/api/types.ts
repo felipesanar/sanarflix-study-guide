@@ -159,6 +159,42 @@ export interface TemaCritico {
   lowSample: boolean;
 }
 
+/**
+ * Uma posição de `LinhaAluno.proficiencias`: a proficiência do aluno num
+ * simulado específico, identificado por `simuladoId` — nunca por posição no
+ * array. Contrato decidido por Felipe em 05/08 (decisão 1, "Decisões
+ * abertas", de `docs/superpowers/notes/2026-08-05-handoff-portal-gestor-v2.md`:
+ * "Contrato de proficiencias (o mais importante)").
+ *
+ * Antes desta mudança, `get_gestor_alunos` devolvia `proficiencias` como
+ * array anônimo `(number | null)[]`, e `TabelaAlunos` casava por ÍNDICE com
+ * `colunasSimulados` (que vem de `get_gestor_visao_geral`, outro recorte de
+ * simulados — a visão geral filtra por semestre, esta RPC não). Quando os
+ * dois recortes coincidem em TAMANHO mas não em CONTEÚDO, casar por índice
+ * desloca a nota de um simulado para a coluna de outro, silenciosamente — o
+ * mitigador antigo (TRAÇO na linha inteira quando os TAMANHOS divergiam)
+ * nunca cobria esse caso, e por isso saiu (migration
+ * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`).
+ *
+ * `simuladoId` é `simulados_admin.id` do simulado "pai" — o mesmo espaço de
+ * id que `VisaoGeral.evolucao[].simuladoId`/`colunasSimulados[].id`, o que
+ * permite casar as duas listas com segurança.
+ *
+ * `simuladoId: null` é só o artefato transitório da normalização de
+ * compatibilidade em `api/queries.ts` (`normalizarLinhaAluno`): enquanto a
+ * migration acima não estiver aplicada em produção — o ambiente de
+ * desenvolvimento aponta para o banco de produção —, a RPC ainda devolve o
+ * array legado de números soltos, sem identificar a qual simulado cada
+ * posição pertence, informação que não existe para recuperar no cliente.
+ * Nesse ramo a tabela não encontra correspondência em `colunasSimulados` e
+ * mostra TRAÇO. Sai quando a migration for aplicada em produção: a partir daí
+ * toda posição chega com o id real.
+ */
+export interface ProficienciaSimulado {
+  simuladoId: string | null;
+  valor: number | null;
+}
+
 export interface LinhaAluno {
   id: string;
   nome: string;
@@ -192,7 +228,17 @@ export interface LinhaAluno {
    * `'em_variacao'` de um aluno sem nenhuma nota.
    */
   grupo: GrupoEvolucao | null;
-  proficiencias: (number | null)[];
+  /**
+   * Uma posição por simulado do recorte que `get_gestor_alunos` considera, na
+   * ORDEM CRONOLÓGICA que a própria RPC já usa. Cada posição identifica o
+   * simulado por `simuladoId` — a tabela casa por ESTE id contra
+   * `colunasSimulados` (que vem de `get_gestor_visao_geral`, um recorte de
+   * simulados DIFERENTE: a visão geral filtra por semestre, esta RPC não).
+   * Coluna sem entrada correspondente = TRAÇO só naquela célula, nunca a
+   * linha inteira — ver `ProficienciaSimulado` para o porquê e para a
+   * nulabilidade transitória de compatibilidade com o array legado.
+   */
+  proficiencias: ProficienciaSimulado[];
   tendencia: Tendencia;
 }
 

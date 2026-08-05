@@ -3,10 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TabelaAlunos } from '@/features/gestor/components/TabelaAlunos';
-import { useAluno, useAlunos } from '@/features/gestor/api/queries';
+import { normalizarLinhaAluno, useAluno, useAlunos } from '@/features/gestor/api/queries';
 import type { AlunoSimuladoEntry, FiltrosGestor, LinhaAluno, Meta } from '@/features/gestor/api/types';
 
-vi.mock('@/features/gestor/api/queries', () => ({ useAlunos: vi.fn(), useAluno: vi.fn() }));
+// `useAlunos`/`useAluno` continuam mockados (todo o resto do arquivo depende
+// disso), mas `normalizarLinhaAluno` passa pelo módulo REAL — é a função que
+// os testes de compatibilidade legado/novo abaixo exercitam diretamente,
+// mesmo padrão de `queries.test.tsx` para espiar `useQuery` sem perder o
+// `@tanstack/react-query` de verdade.
+vi.mock('@/features/gestor/api/queries', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@/features/gestor/api/queries')>();
+  return { ...real, useAlunos: vi.fn(), useAluno: vi.fn() };
+});
 
 const mockUseAlunos = vi.mocked(useAlunos);
 const mockUseAluno = vi.mocked(useAluno);
@@ -33,7 +41,11 @@ const linhas: LinhaAluno[] = [
     nome: 'Ana Prado',
     semestre: 11,
     grupo: 'consistentemente_proficiente',
-    proficiencias: [64, 68, 71],
+    proficiencias: [
+      { simuladoId: 's1', valor: 64 },
+      { simuladoId: 's2', valor: 68 },
+      { simuladoId: 's3', valor: 71 },
+    ],
     tendencia: 'subindo',
   },
   {
@@ -41,7 +53,11 @@ const linhas: LinhaAluno[] = [
     nome: 'Bruno Lima',
     semestre: 12,
     grupo: 'em_variacao',
-    proficiencias: [58, null, 62],
+    proficiencias: [
+      { simuladoId: 's1', valor: 58 },
+      { simuladoId: 's2', valor: null },
+      { simuladoId: 's3', valor: 62 },
+    ],
     tendencia: 'alternando',
   },
   {
@@ -49,7 +65,11 @@ const linhas: LinhaAluno[] = [
     nome: 'Carla Souza',
     semestre: null,
     grupo: null,
-    proficiencias: [null, null, null],
+    proficiencias: [
+      { simuladoId: 's1', valor: null },
+      { simuladoId: 's2', valor: null },
+      { simuladoId: 's3', valor: null },
+    ],
     tendencia: 'estavel',
   },
 ];
@@ -146,38 +166,67 @@ describe('TabelaAlunos', () => {
   });
 
   /**
-   * Achados 1-4 da revisão de 03/08 (todos o mesmo defeito, mesma linha):
-   * `proficiencias` (get_gestor_alunos, uma posição por simulado COM TRI) e
-   * `colunasSimulados` (get_gestor_visao_geral, uma coluna por simulado com
-   * resposta OU TRI) vêm de recortes de simulados diferentes. Casar por
-   * ÍNDICE quando os tamanhos divergem desloca valores: a nota real de um
-   * simulado aparece sob o cabeçalho de outro. Sem guarda, este teste falha
-   * porque prof-a4-s1 mostraria "72" e prof-a4-s2 mostraria "65" (a nota real
-   * de um 3º simulado que não tem coluna própria neste array mais curto).
+   * Contrato novo (migration 20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql):
+   * `proficiencias` é `{ simuladoId, valor }[]`, e a tabela casa por ID
+   * contra `colunasSimulados`, nunca por posição. Os dois testes abaixo
+   * substituem o antigo "TRACO em toda a linha quando os tamanhos divergem"
+   * (achados 1-4 da revisão de 03/08): aquela mitigação saiu porque deixou de
+   * ser necessária, e porque nunca cobria o caso mais perigoso — mesmo
+   * TAMANHO, simulados DIFERENTES —, provado no segundo teste.
    */
-  it('proficiencias com tamanho diferente de colunasSimulados: TRACO em toda a linha, nunca desloca valores', () => {
-    const linhasDesalinhadas: LinhaAluno[] = [
+  it('coluna sem entrada correspondente: TRACO só NAQUELA célula — as outras do mesmo aluno continuam corretas', () => {
+    const linhaComRecorteMenor: LinhaAluno[] = [
+      {
+        id: 'a5',
+        nome: 'Diego Alves',
+        semestre: 8,
+        grupo: 'consistentemente_proficiente',
+        // Só 1 simulado no recorte de get_gestor_alunos para este aluno —
+        // menos posições do que colunas, ao contrário do teste seguinte.
+        proficiencias: [{ simuladoId: 's1', valor: 90 }],
+        tendencia: 'estavel',
+      },
+    ];
+    mockUseAlunos.mockReturnValue(
+      paginaResultado({ data: { data: linhaComRecorteMenor, page: 1, pageSize: 25, total: 1, totalPages: 1 } }),
+    );
+    render(<TabelaAlunos recorte={recorte} colunasSimulados={colunasSimulados} />);
+
+    expect(screen.getByTestId('prof-a5-s1')).toHaveTextContent('90');
+    expect(screen.getByTestId('prof-a5-s2')).toHaveTextContent('—');
+    expect(screen.getByTestId('prof-a5-s3')).toHaveTextContent('—');
+  });
+
+  it('MESMO tamanho, simulados DIFERENTES: casa por id e nunca desloca valor para a coluna vizinha (o caso que a mitigação antiga NUNCA cobria)', () => {
+    const linhaComSimuladoForaDoRecorte: LinhaAluno[] = [
       {
         id: 'a4',
         nome: 'Diego Alves',
         semestre: 8,
         grupo: 'consistentemente_proficiente',
-        proficiencias: [72, 65],
+        // 3 posições, mesmo tamanho de colunasSimulados — mas a posição do
+        // meio é de um simulado (s9) que NÃO é coluna nesta tabela. Um
+        // casamento por ÍNDICE mostraria 65 sob o cabeçalho de "Simulado 2"
+        // (s2); por id, a coluna s2 não acha entrada nenhuma e mostra TRAÇO.
+        proficiencias: [
+          { simuladoId: 's1', valor: 72 },
+          { simuladoId: 's9', valor: 65 },
+          { simuladoId: 's3', valor: 81 },
+        ],
         tendencia: 'estavel',
       },
     ];
     mockUseAlunos.mockReturnValue(
       paginaResultado({
-        data: { data: linhasDesalinhadas, page: 1, pageSize: 25, total: 1, totalPages: 1 },
+        data: { data: linhaComSimuladoForaDoRecorte, page: 1, pageSize: 25, total: 1, totalPages: 1 },
       }),
     );
     render(<TabelaAlunos recorte={recorte} colunasSimulados={colunasSimulados} />);
 
-    expect(screen.getByTestId('prof-a4-s1')).toHaveTextContent('—');
+    expect(screen.getByTestId('prof-a4-s1')).toHaveTextContent('72');
     expect(screen.getByTestId('prof-a4-s2')).toHaveTextContent('—');
-    expect(screen.getByTestId('prof-a4-s3')).toHaveTextContent('—');
     expect(screen.getByTestId('prof-a4-s2')).not.toHaveTextContent('65');
-    expect(screen.getByTestId('prof-a4-s1')).not.toHaveTextContent('72');
+    expect(screen.getByTestId('prof-a4-s3')).toHaveTextContent('81');
   });
 
   it('mostra a tendência por aluno', () => {
@@ -306,5 +355,96 @@ describe('TabelaAlunos', () => {
       expect(screen.getByTestId('bloco-tabela-alunos')).toHaveAttribute('aria-busy', 'false');
       expect(screen.queryByTestId('faixa-transicao-alunos')).not.toBeInTheDocument();
     });
+  });
+});
+
+/**
+ * `normalizarLinhaAluno` (api/queries.ts) é o único ponto de normalização do
+ * mapeamento de `get_gestor_alunos` — ele aceita as DUAS formas que a RPC
+ * pode devolver durante a transição de contrato (migration
+ * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`):
+ *  - legada: `(number | null)[]`, a forma que produção ainda devolve hoje (o
+ *    ambiente de desenvolvimento aponta para o banco de produção — a
+ *    migration não foi aplicada lá ainda);
+ *  - nova: `{ simuladoId, valor }[]`, a forma que a migration acima passa a
+ *    fazer a RPC devolver.
+ * O ramo legado sai de `normalizarLinhaAluno` quando a migration estiver
+ * aplicada em produção e o array anônimo parar de ser emitido.
+ */
+describe('normalizarLinhaAluno — compatibilidade com o array legado de proficiencias (migration 20260805160000)', () => {
+  it('forma nova ({simuladoId, valor}[]): preserva simuladoId e valor tal qual, e os demais campos da linha', () => {
+    const linha = normalizarLinhaAluno({
+      id: 'a1',
+      nome: 'Ana',
+      semestre: 6,
+      grupo: 'em_variacao',
+      tendencia: 'estavel',
+      proficiencias: [
+        { simuladoId: 's1', valor: 64 },
+        { simuladoId: 's2', valor: null },
+      ],
+    });
+    expect(linha).toEqual({
+      id: 'a1',
+      nome: 'Ana',
+      semestre: 6,
+      grupo: 'em_variacao',
+      tendencia: 'estavel',
+      proficiencias: [
+        { simuladoId: 's1', valor: 64 },
+        { simuladoId: 's2', valor: null },
+      ],
+    });
+  });
+
+  it('forma legada ((number|null)[]): simuladoId vira null — não há como recuperar a qual simulado a posição pertence', () => {
+    const linha = normalizarLinhaAluno({
+      id: 'a2',
+      nome: 'Bruno',
+      semestre: 8,
+      grupo: 'consistentemente_proficiente',
+      tendencia: 'subindo',
+      proficiencias: [64, null, 71],
+    });
+    expect(linha.proficiencias).toEqual([
+      { simuladoId: null, valor: 64 },
+      { simuladoId: null, valor: null },
+      { simuladoId: null, valor: 71 },
+    ]);
+  });
+
+  it('array vazio (nenhum simulado no recorte do aluno): devolve array vazio nas duas formas', () => {
+    expect(
+      normalizarLinhaAluno({
+        id: 'a3', nome: 'Carla', semestre: null, grupo: null, tendencia: 'estavel', proficiencias: [],
+      }).proficiencias,
+    ).toEqual([]);
+  });
+
+  /**
+   * Prova ao vivo: a forma legada nunca casa por id contra `colunasSimulados`
+   * (nenhuma coluna real tem `simuladoId === null`), então `TabelaAlunos`
+   * mostra TRAÇO em toda coluna para uma linha legada — mesmo quando a
+   * posição "coincidiria" com a coluna certa. É o comportamento mais
+   * conservador possível enquanto a migration não chega a produção: nunca um
+   * valor sob o cabeçalho errado.
+   */
+  it('renderizado ao vivo: forma legada nunca casa por id — TabelaAlunos mostra TRAÇO em toda coluna até a migration ser aplicada em produção', () => {
+    const linhaLegada = normalizarLinhaAluno({
+      id: 'a6',
+      nome: 'Legado',
+      semestre: 5,
+      grupo: 'em_variacao',
+      tendencia: 'estavel',
+      proficiencias: [64, 68, 71],
+    });
+    mockUseAlunos.mockReturnValue(
+      paginaResultado({ data: { data: [linhaLegada], page: 1, pageSize: 25, total: 1, totalPages: 1 } }),
+    );
+    render(<TabelaAlunos recorte={recorte} colunasSimulados={colunasSimulados} />);
+
+    expect(screen.getByTestId('prof-a6-s1')).toHaveTextContent('—');
+    expect(screen.getByTestId('prof-a6-s2')).toHaveTextContent('—');
+    expect(screen.getByTestId('prof-a6-s3')).toHaveTextContent('—');
   });
 });
