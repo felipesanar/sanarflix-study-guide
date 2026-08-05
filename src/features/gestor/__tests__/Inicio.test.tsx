@@ -31,10 +31,28 @@ vi.mock('@/features/gestor/hooks/useMarcarAvisoLido', () => ({
   avisosQueryKey: (iesId: string) => ['gestor', 'avisos', iesId],
 }));
 
+/**
+ * `DirecionadoresGestor` (renderizado por `Inicio`) lê `useAuth().user?.id`
+ * para montar a queryKey do prefetch da Visão Geral — `useEnvelope` insere esse
+ * id logo após o namespace `'gestor'` (card 107), então sem ele o hover
+ * aqueceria uma chave que a tela de destino nunca leria. `useAuth` real explode
+ * fora de um `<AuthProvider>`; aqui só o `user.id` importa.
+ */
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
+}));
+
+/**
+ * Assinatura espelhando a real (`api/prefetch.ts`): o `userId` vem PRIMEIRO,
+ * porque `useEnvelope` insere o id do usuário logo após o namespace `'gestor'`
+ * (card 107). Este arquivo mocka o módulo inteiro e não exercita a
+ * implementação, mas um mock com assinatura defasada engana quem lê depois.
+ */
 vi.mock('@/features/gestor/api/prefetch', () => ({
   prefetchVisaoGeral: mocks.prefetchVisaoGeral,
-  visaoGeralQueryKey: (iesId: string, semestre: string) => [
+  visaoGeralQueryKey: (userId: string | undefined, iesId: string, semestre: string) => [
     'gestor',
+    userId,
     'visao-geral',
     iesId,
     semestre,

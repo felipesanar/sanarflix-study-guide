@@ -225,7 +225,7 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
     expect(result.current.data).toBeUndefined();
   });
 
-  it('mantém o dado anterior na troca de filtro (placeholderData, React Query v5)', async () => {
+  it('mantém o dado anterior na troca de filtro (placeholderData, React Query v5) — e sinaliza via isPlaceholderData (achado alto, revisão 03/08)', async () => {
     mockRpc.mockResolvedValue(envelope({ kpis: 'primeiro' }));
     const { result, rerender } = renderHook(
       ({ semestre }: { semestre: FiltrosGestor['semestre'] }) =>
@@ -233,15 +233,79 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
       { wrapper, initialProps: { semestre: '6ano' as const } },
     );
     await waitFor(() => expect(result.current.data).toEqual({ kpis: 'primeiro' }));
+    expect(result.current.isPlaceholderData).toBe(false);
 
     let liberar: (v: unknown) => void = () => undefined;
     mockRpc.mockReturnValue(new Promise((resolve) => { liberar = resolve; }));
     rerender({ semestre: 'geral' as never });
 
-    // Durante o fetch do novo recorte, a tela continua com o dado anterior.
+    // Durante o fetch do novo recorte, a tela continua com o dado anterior —
+    // mas agora `ResultadoGestor` PRECISA expor que esse dado é velho: sem
+    // este sinal, o consumidor (VisaoGeral, ContextoDoRecorte) não tem como
+    // saber que está olhando o recorte ANTERIOR sob o seletor já trocado.
     expect(result.current.data).toEqual({ kpis: 'primeiro' });
+    expect(result.current.isPlaceholderData).toBe(true);
     liberar(envelope({ kpis: 'segundo' }));
     await waitFor(() => expect(result.current.data).toEqual({ kpis: 'segundo' }));
+    expect(result.current.isPlaceholderData).toBe(false);
+  });
+
+  it('useDiagnosticoTemas NÃO mantém o dado anterior ao trocar de especialidade — o parâmetro identifica o objeto exibido, "manter o anterior" nunca é o comportamento desejado (achado alto, revisão 03/08)', async () => {
+    // Cenário do drawer: gestora fecha o drawer de Cardiologia e abre o de
+    // Pneumologia. Se o hook mantivesse o dado anterior, `DrawerTemas`
+    // renderizaria "Temas de Pneumologia" com os percentuais de Cardiologia
+    // — e um clique em "Copiar resumo" nesse instante colaria essa mistura.
+    mockRpc.mockResolvedValue(envelope([{ id: 't1', nome: 'Arritmias', acertoPct: 40, amostra: 12, lowSample: false }]));
+    const { result, rerender } = renderHook(
+      ({ especialidade }: { especialidade: string }) =>
+        useDiagnosticoTemas(FILTROS, especialidade, 'clinica-medica'),
+      { wrapper, initialProps: { especialidade: 'cardiologia' } },
+    );
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+
+    let liberar: (v: unknown) => void = () => undefined;
+    mockRpc.mockReturnValue(new Promise((resolve) => { liberar = resolve; }));
+    rerender({ especialidade: 'pneumologia' });
+
+    // Enquanto os temas de Pneumologia carregam, NUNCA os de Cardiologia.
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(true);
+
+    liberar(envelope([{ id: 't2', nome: 'DPOC', acertoPct: 55, amostra: 9, lowSample: false }]));
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(result.current.data?.[0].nome).toBe('DPOC');
+  });
+
+  it('useAluno NÃO mantém o dado anterior ao trocar de aluno — alunoId identifica o objeto exibido, "manter o anterior" nunca é o comportamento desejado (achado alto, revisão 03/08)', async () => {
+    // Se o hook mantivesse o dado anterior, o `DrawerAluno` mostraria as
+    // notas/simulados de um aluno sob o nome/ficha de outro, transitoriamente.
+    const entradaAna: AlunoSimuladoEntry = {
+      id: 'aluno-7', nome: 'Ana', semestre: 6,
+      simuladoId: 's1', simuladoNome: 'Simulado 1', simuladoData: '2026-01-01T00:00:00Z',
+      participou: true, acertos: 40, proficiencia: 72, situacao: 'proficiente',
+    };
+    const entradaBia: AlunoSimuladoEntry = {
+      id: 'aluno-9', nome: 'Bia', semestre: 6,
+      simuladoId: 's1', simuladoNome: 'Simulado 1', simuladoData: '2026-01-01T00:00:00Z',
+      participou: true, acertos: 30, proficiencia: 58, situacao: 'proficiente',
+    };
+    mockRpc.mockResolvedValue(envelope([entradaAna]));
+    const { result, rerender } = renderHook(
+      ({ alunoId }: { alunoId: string }) => useAluno(alunoId, ['s1']),
+      { wrapper, initialProps: { alunoId: 'aluno-7' } },
+    );
+    await waitFor(() => expect(result.current.data?.[0]?.nome).toBe('Ana'));
+
+    let liberar: (v: unknown) => void = () => undefined;
+    mockRpc.mockReturnValue(new Promise((resolve) => { liberar = resolve; }));
+    rerender({ alunoId: 'aluno-9' });
+
+    // Enquanto a ficha de Bia carrega, NUNCA a de Ana.
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(true);
+
+    liberar(envelope([entradaBia]));
+    await waitFor(() => expect(result.current.data?.[0]?.nome).toBe('Bia'));
   });
 
   it('useAluno devolve um array tipado — a RPC materializa UMA ENTRADA POR SIMULADO (card 106)', async () => {

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BarChart3, FileSearch } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 
@@ -23,7 +24,15 @@ const CARTAO =
 export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorProps) {
   const queryClient = useQueryClient();
   const location = useLocation();
-  const aquecer = () => void prefetchVisaoGeral(queryClient, iesId, semestre);
+  /**
+   * `prefetchVisaoGeral` precisa do `user?.id` porque `useEnvelope` insere esse
+   * id na queryKey logo após o namespace `'gestor'` (card 107) — sem ele o
+   * hover aquece uma chave que a Visão Geral nunca lê. Este componente já roda
+   * dentro do `AuthContext` (é filho de `GestorShell`), então lê o id daqui em
+   * vez de recebê-lo por prop.
+   */
+  const { user } = useAuth();
+  const aquecer = () => void prefetchVisaoGeral(queryClient, user?.id, iesId, semestre);
 
   /**
    * Preserva o recorte global (IES + semestre) ao trocar de tela (achados 6
