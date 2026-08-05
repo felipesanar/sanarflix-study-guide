@@ -12,6 +12,14 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import type { InstitutionalViewModel, DesempenhoV2Tab } from '@/types/desempenhoV2';
+import {
+  nivelDesempenho,
+  ehProficiente,
+  PROFICIENCIA_MINIMA,
+  NIVEL_CRITICO_MAX,
+  NIVEL_EXCELENTE_MIN,
+} from '@/features/gestor/lib/regras';
+import { TRACO } from '@/features/gestor/lib/formatters';
 
 interface AiChatDrawerProps {
   open: boolean;
@@ -65,28 +73,42 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   const { headerSummary, curricular } = data;
 
   if (q.includes('conceito') || q.includes('situação') || q.includes('resuma')) {
-    const conceito = headerSummary.percentProficientes >= 80 ? '5' :
-      headerSummary.percentProficientes >= 60 ? '4' :
-      headerSummary.percentProficientes >= 40 ? '3' :
-      headerSummary.percentProficientes >= 20 ? '2' : '1';
+    // Task 64b (spec §4.4, §7.3): o conceito NÃO é recalculado aqui. Antes
+    // este bloco cravava uma escada local 80/60/40/20 sobre
+    // percentProficientes, incompatível com a régua canônica de
+    // `features/gestor/lib/regras.ts` — o mesmo aluno podia sair classificado
+    // de um jeito neste drawer e de outro no resto do produto (o AiChatDrawer
+    // continua com consumidor alcançável em produção via GestorLayout, então
+    // a Task 64b trocou os números pela régua única em vez de apagar o
+    // arquivo). O conceito já vem pronto do backend em
+    // `headerSummary.conceitoScoped` — o mesmo campo que
+    // VisaoInstitucionalModule exibe — nenhum componente reimplementa essa
+    // régua.
     return `**Situação atual da IES:**\n\n` +
       `- **Total de alunos:** ${headerSummary.totalAlunos}\n` +
       `- **Proficientes:** ${headerSummary.percentProficientes}%\n` +
-      `- **Conceito estimado:** ${conceito}\n` +
+      `- **Conceito estimado:** ${headerSummary.conceitoScoped ?? TRACO}\n` +
       `- **Alunos faltando para meta:** ${headerSummary.alunosFaltamMeta}\n` +
       (headerSummary.sancao ? `\n⚠️ **Alerta de sanção:** ${headerSummary.sancao}` : '') +
       `\n\n_Baseado nos dados do último simulado carregado._`;
   }
 
   if (q.includes('risco') || q.includes('crítico')) {
-    const criticos = data.allStudents.filter(s => s.percentual < 45).length;
-    const atencao = data.allStudents.filter(s => s.percentual >= 45 && s.percentual < 55).length;
+    // Task 64b (spec §4.4, §7.3): régua única. Antes este bloco cravava 4
+    // faixas locais (45/55/60), incompatíveis com a régua canônica de
+    // `features/gestor/lib/regras.ts` (crítico/mediano/excelente por % de
+    // acerto; proficiente por proficiência). "Atenção" e "Oportunidade" eram
+    // invenção local sem equivalente na régua canônica — por isso viram 3
+    // faixas, não 4 (o texto muda de propósito; ver regras.ts para a fonte
+    // única dos cortes).
+    const criticos = data.allStudents.filter((s) => nivelDesempenho(s.percentual) === 'critico').length;
+    const medianos = data.allStudents.filter((s) => nivelDesempenho(s.percentual) === 'mediano').length;
+    const proficientes = data.allStudents.filter((s) => ehProficiente(s.percentual)).length;
     return `**Distribuição de risco:**\n\n` +
-      `- 🔴 Crítico (< 45%): **${criticos}** alunos\n` +
-      `- 🟡 Atenção (45-55%): **${atencao}** alunos\n` +
-      `- 🔵 Oportunidade (55-60%): **${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length}** alunos\n` +
-      `- 🟢 Proficientes (≥60%): **${data.allStudents.filter(s => s.percentual >= 60).length}** alunos\n\n` +
-      `_Os alunos em "Oportunidade" são os com maior potencial de impacto com intervenções pontuais._`;
+      `- 🔴 Crítico (abaixo de ${NIVEL_CRITICO_MAX}%): **${criticos}** alunos\n` +
+      `- 🟡 Mediano (${NIVEL_CRITICO_MAX}% a ${NIVEL_EXCELENTE_MIN}%): **${medianos}** alunos\n` +
+      `- 🟢 Proficientes (${PROFICIENCIA_MINIMA}% ou mais): **${proficientes}** alunos\n\n` +
+      `_Classificação pela régua única do produto: crítico/mediano por % de acerto, proficientes por proficiência._`;
   }
 
   if (q.includes('tema') || q.includes('pior') || q.includes('fraco')) {
@@ -101,11 +123,17 @@ function generateMockResponse(question: string, data: InstitutionalViewModel | n
   }
 
   if (q.includes('ação') || q.includes('urgente') || q.includes('intervenção')) {
+    // Task 64b: mesma régua única do bloco de risco acima — este bloco
+    // duplicava os mesmos 45/55/60 com um recorte estreito ("55-60%") sem
+    // equivalente na régua canônica; agora usa a faixa mediana inteira
+    // (features/gestor/lib/regras.ts).
+    const criticos = data.allStudents.filter((s) => nivelDesempenho(s.percentual) === 'critico').length;
+    const medianos = data.allStudents.filter((s) => nivelDesempenho(s.percentual) === 'mediano').length;
     return `**3 ações mais urgentes:**\n\n` +
       `1. **Reforço em temas críticos** — Focar nos temas com <50% de acurácia com sessões intensivas.\n` +
-      `2. **Tutoria para alunos próximos** — Os ${data.allStudents.filter(s => s.percentual >= 55 && s.percentual < 60).length} alunos entre 55-60% podem virar proficientes com pouco esforço.\n` +
-      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${data.allStudents.filter(s => s.percentual < 45).length} alunos em risco crítico.\n\n` +
-      `_Estas recomendações são baseadas nos dados do simulado atual._`;
+      `2. **Tutoria para alunos medianos** — Os ${medianos} alunos entre ${NIVEL_CRITICO_MAX}% e ${NIVEL_EXCELENTE_MIN}% de acerto são o maior grupo de oportunidade de intervenção.\n` +
+      `3. **Monitoramento semanal** — Implementar acompanhamento dos ${criticos} alunos em risco crítico.\n\n` +
+      `_Estas recomendações seguem a régua única do produto (features/gestor/lib/regras.ts)._`;
   }
 
   return `Com base nos dados carregados, a IES tem **${headerSummary.totalAlunos} alunos** com **${headerSummary.percentProficientes}%** de proficiência. ` +
