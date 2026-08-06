@@ -1,15 +1,16 @@
 import * as React from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AcoesRecorte } from '@/features/gestor/components/AcoesRecorte';
 import type { RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import { TagCoberturaParcial } from '@/features/gestor/components/Tag';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
+import { nivelDesempenho } from '@/features/gestor/lib/regras';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
-import type { FiltrosGestor } from '@/features/gestor/api/types';
+import type { FiltrosGestor, TemaCritico } from '@/features/gestor/api/types';
 import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 /**
@@ -45,6 +46,26 @@ export interface DrawerTemasProps {
 }
 
 /**
+ * Cor de preenchimento da barra do tema. A cor é REFORÇO do número já
+ * impresso ao lado — nunca o único canal — e vem da mesma régua que
+ * classifica a cascata (`lib/regras.ts`), nunca de um corte reescrito aqui.
+ *
+ * Amostra pequena recua para o tom neutro de propósito: onde não se deve
+ * confiar no valor, a barra não deve gritar severidade.
+ */
+function corDaBarra(tema: TemaCritico): string {
+  if (tema.lowSample) return 'var(--gp-text-3)';
+  switch (nivelDesempenho(tema.acertoPct)) {
+    case 'critico':
+      return 'var(--gp-danger)';
+    case 'mediano':
+      return 'var(--gp-warning)';
+    default:
+      return 'var(--gp-success)';
+  }
+}
+
+/**
  * Último nível da hierarquia do Diagnóstico Curricular (spec §4.9): tema, em
  * % de acerto — tema e especialidade nunca usam a escala de proficiência
  * (§4.1, "Nota TRI" não existe como métrica).
@@ -66,10 +87,12 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
   const consulta = useDiagnosticoTemas(filtros, especialidade?.id ?? null, especialidade?.grandeArea ?? null);
   useDevolverFocoAoFechar(especialidade !== null);
   const container = useGestorPortalContainer();
+  const tituloRef = React.useRef<HTMLHeadingElement>(null);
 
   if (!especialidade) return null;
 
   const temas = consulta.data ?? [];
+  const meta = consulta.meta;
 
   /**
    * §7.7: o texto do "Copiar resumo" é AGREGADO por tema — nunca lista
@@ -89,9 +112,44 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
         if (!aberto) onFechar();
       }}
     >
-      <SheetContent container={container} side="right" className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md">
+      <SheetContent
+        container={container}
+        side="right"
+        className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md"
+        /*
+          Handoff §11: "o foco vai para o TÍTULO ao abrir". Sem isto o
+          FocusScope do Radix manda o foco ao primeiro tabulável do conteúdo —
+          o "Exportar recorte" do rodapé — e quem usa leitor de tela entra no
+          drawer já no fim dele, sem ouvir de que especialidade se trata.
+        */
+        onOpenAutoFocus={(evento) => {
+          evento.preventDefault();
+          tituloRef.current?.focus();
+        }}
+      >
         <SheetHeader>
-          <SheetTitle>Temas de {especialidade.nome}</SheetTitle>
+          {/*
+            Cabeçalho em dois níveis: sobrelinha com a GRANDE ÁREA e título com
+            a especialidade. Duas especialidades homônimas em grandes áreas
+            diferentes (o motivo de `grandeArea` ter virado obrigatório) abriam
+            drawers visualmente idênticos.
+
+            O nome acessível do diálogo continua sendo a frase inteira — o
+            fragmento visual é `aria-hidden` e o texto para leitor de tela vem
+            do `sr-only`, para que o par "Temas de X" não se perca na quebra
+            em duas linhas.
+          */}
+          <SheetTitle ref={tituloRef} tabIndex={-1} className="outline-none">
+            <span className="sr-only">
+              Temas de {especialidade.nome} em {especialidade.grandeArea}
+            </span>
+            <span aria-hidden="true" className="block" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+              {especialidade.grandeArea}
+            </span>
+            <span aria-hidden="true" className="block" style={{ fontSize: 15, fontWeight: 700 }}>
+              {especialidade.nome}
+            </span>
+          </SheetTitle>
           <SheetDescription>
             Percentual de acerto por tema. Tema e especialidade nunca usam a escala de proficiência.
           </SheetDescription>
@@ -111,35 +169,67 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
               <EstadoVazio titulo="Sem temas com resultado neste recorte" />
             </div>
           ) : (
-            <ul className="space-y-3">
-              {temas.map((tema) => (
-                <li key={tema.id} data-testid={`tema-${tema.id}`} className="space-y-1">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate">{tema.nome}</span>
-                      {tema.lowSample ? (
-                        <Badge variant="outline" className="shrink-0 gap-1 text-[10px] font-medium">
-                          cobertura parcial
-                          <span className="text-muted-foreground">n = {tema.amostra}</span>
-                        </Badge>
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 tabular-nums">{formatPct(tema.acertoPct)}</span>
-                  </div>
-                  <div
-                    data-testid={`barra-${tema.id}`}
-                    role="progressbar"
-                    aria-label={`Percentual de acerto em ${tema.nome}`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(tema.acertoPct)}
-                    className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+            <>
+              <p
+                className="mb-2 uppercase"
+                style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--gp-text-3)' }}
+              >
+                Temas · índice de acerto
+              </p>
+              <ul className="space-y-2.5">
+                {temas.map((tema) => (
+                  <li
+                    key={tema.id}
+                    data-testid={`tema-${tema.id}`}
+                    className="border border-border p-3"
+                    style={{ borderRadius: 'var(--gp-radius-md)' }}
                   >
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${tema.acertoPct}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate font-semibold">{tema.nome}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {formatPct(tema.acertoPct)} acerto
+                      </span>
+                    </div>
+                    <div
+                      data-testid={`barra-${tema.id}`}
+                      role="progressbar"
+                      aria-label={`Percentual de acerto em ${tema.nome}`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(tema.acertoPct)}
+                      className="mt-2 w-full overflow-hidden"
+                      style={{
+                        height: 6,
+                        borderRadius: 'var(--gp-radius-pill)',
+                        background: 'var(--gp-surface-3)',
+                      }}
+                    >
+                      <div
+                        className="h-full"
+                        style={{
+                          width: `${tema.acertoPct}%`,
+                          borderRadius: 'var(--gp-radius-pill)',
+                          background: corDaBarra(tema),
+                        }}
+                      />
+                    </div>
+                    {/* A amostra é metadado de TODO tema, não só do de baixa
+                        cobertura: sem ela o gestor não sabe sobre quantas
+                        respostas o percentual foi calculado. */}
+                    <div className="mt-2 flex items-center gap-2">
+                      {tema.lowSample ? <TagCoberturaParcial n={tema.amostra} /> : null}
+                      <span
+                        data-testid={`amostra-${tema.id}`}
+                        className="ml-auto whitespace-nowrap"
+                        style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
+                      >
+                        {tema.amostra} respostas
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
 
@@ -157,6 +247,18 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
             onExportar={() => onExportarRecorte(`especialidade:${especialidade.id}`)}
           />
         </div>
+
+        {/* Proveniência do recorte — vem do `meta` do envelope (mesma fonte do
+            TooltipRastreabilidade), nunca de texto fixo: quem exporta precisa
+            saber de que agregado o número saiu. A data fica de fora de
+            propósito: quem a apresenta (já convertida para Brasília) é o
+            TooltipRastreabilidade, e duas renderizações da mesma data se
+            contradiriam na virada do dia. */}
+        {meta ? (
+          <p data-testid="temas-proveniencia" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+            agregado de {meta.periodo} · fonte: {meta.fonte}
+          </p>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

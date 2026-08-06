@@ -68,6 +68,29 @@
   /* Skeleton — no claro, um degrau acima do card */
   --gp-skeleton: hsl(var(--muted));
   --gp-skeleton-brilho: hsl(var(--background));
+
+  /* Motion (handoff docs/07-motion.md e tokens/tokens.light.css).
+     Cinco degraus, e só eles: 80 para cor/tint, 140 para hover/foco/press,
+     200 para toggle e troca de valor, 320 para drawer e cascata, 560 para
+     desenho de gráfico e count-up. Não mudam entre os temas — tempo e curva
+     são a mesma física nos dois. */
+  --gp-motion-1: 80ms;
+  --gp-motion-2: 140ms;
+  --gp-motion-3: 200ms;
+  --gp-motion-4: 320ms;
+  --gp-motion-5: 560ms;
+  --gp-ease: cubic-bezier(0.2, 0, 0, 1);
+  --gp-ease-in: cubic-bezier(0, 0, 0, 1);
+  --gp-ease-out: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Tipografia. O mono é o do handoff: todo NÚMERO do portal é tabular. */
+  --gp-font-sans: 'Inter', system-ui, sans-serif;
+  --gp-font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* Superfície de marca mais suave — linha selecionada e card em foco.
+     Faltava, e o estado "selecionado" das tabelas (§6: fundo brand-surface-soft
+     + barra de 3px) não tinha token de origem. */
+  --gp-brand-surface-soft: hsl(var(--primary) / 0.04);
 }
 
 /* Camada escura. `.dark` é a classe do next-themes (attribute="class") —
@@ -80,6 +103,9 @@
   --gp-brand-on-dark: hsl(2 76% 72%);
   --gp-brand-surface: hsl(var(--primary) / 0.16);
   --gp-brand-border: hsl(var(--primary) / 0.38);
+  /* No escuro a seleção precisa de mais corpo que os 4% do claro: sobre uma
+     superfície escura, um tinte tão baixo simplesmente não aparece. */
+  --gp-brand-surface-soft: hsl(var(--primary) / 0.10);
 
   --gp-success: hsl(145 57% 47%);
   --gp-success-on: hsl(145 55% 61%);

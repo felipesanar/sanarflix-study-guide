@@ -78,34 +78,62 @@ const classesDe = (elemento: Element) => new Set(elemento.className.split(/\s+/)
 /* 1) Render: o nó certo troca de classe — DOM real via Testing Library.  */
 /* ---------------------------------------------------------------------- */
 
-describe('KpiCard — classe do delta troca (render real, jsdom confiável aqui)', () => {
-  it('delta negativo usa gp-text-danger e NUNCA text-destructive', () => {
+/**
+ * ATUALIZADO no passe de conformidade: o delta deixou de ser texto solto com
+ * classe Tailwind e passou a ser a **pílula `<TagDelta>`** da anatomia §5 do
+ * handoff (par `on`/`surface`, raio pill, seta Fontello). O achado original
+ * continua valendo e a matemática abaixo continua provando o mesmo — o que
+ * mudou é o VEÍCULO da cor: antes classe utilitária, agora token inline.
+ *
+ * A troca também resolveu, de lado, uma segunda divergência que este arquivo
+ * documentava sem tratar: o delta POSITIVO usava `text-emerald-600`, uma cor
+ * da paleta crua do Tailwind, fora do sistema de tokens do portal. Hoje é
+ * `--gp-success-on` sobre `--gp-success-surface`, e o bloco 3 mede o contraste
+ * dele também.
+ */
+const estiloDe = (elemento: Element) => (elemento as HTMLElement).getAttribute('style') ?? '';
+const pilulaDeltaDe = (raiz: HTMLElement) => raiz.querySelector('span[style]') as HTMLElement;
+
+describe('KpiCard — a pílula de delta usa o par semântico (render real, jsdom confiável aqui)', () => {
+  it('delta negativo usa --gp-danger-on sobre --gp-danger-surface, e NUNCA text-destructive', () => {
     render(<KpiCard titulo="Percentual de acerto" valor="57%" meta={meta} delta={-2} />);
-    const classes = classesDe(screen.getByTestId('kpi-delta'));
-    expect(classes.has('gp-text-danger')).toBe(true);
-    expect(classes.has('text-destructive')).toBe(false);
+    const estilo = estiloDe(pilulaDeltaDe(screen.getByTestId('kpi-delta')));
+    expect(estilo).toContain('--gp-danger-on');
+    expect(estilo).toContain('--gp-danger-surface');
+    expect(classesDe(screen.getByTestId('kpi-delta')).has('text-destructive')).toBe(false);
   });
 
-  it('delta positivo continua emerald (claro/escuro) — não regrediu por causa da correção', () => {
+  it('delta positivo usa --gp-success-on — nunca mais a paleta crua do Tailwind', () => {
     render(<KpiCard titulo="Percentual de acerto" valor="61%" meta={meta} delta={4} />);
-    const classes = classesDe(screen.getByTestId('kpi-delta'));
-    expect(classes.has('text-emerald-600')).toBe(true);
-    expect(classes.has('dark:text-emerald-400')).toBe(true);
-    expect(classes.has('gp-text-danger')).toBe(false);
-    expect(classes.has('text-destructive')).toBe(false);
+    const delta = screen.getByTestId('kpi-delta');
+    const estilo = estiloDe(pilulaDeltaDe(delta));
+    expect(estilo).toContain('--gp-success-on');
+    expect(estilo).toContain('--gp-success-surface');
+    expect(delta.innerHTML).not.toMatch(/emerald/);
   });
 
-  it('delta zero continua text-muted-foreground — não regrediu por causa da correção', () => {
+  it('delta zero é estabilidade medida: tom neutro, sem cor semântica e sem seta', () => {
     render(<KpiCard titulo="Percentual de acerto" valor="57%" meta={meta} delta={0} />);
-    const classes = classesDe(screen.getByTestId('kpi-delta'));
-    expect(classes.has('text-muted-foreground')).toBe(true);
-    expect(classes.has('gp-text-danger')).toBe(false);
-    expect(classes.has('text-destructive')).toBe(false);
+    const delta = screen.getByTestId('kpi-delta');
+    const estilo = estiloDe(pilulaDeltaDe(delta));
+    expect(estilo).toContain('--gp-text-2');
+    expect(estilo).not.toContain('--gp-danger');
+    expect(estilo).not.toContain('--gp-success');
+    expect(delta.querySelector('i')).toBeNull();
   });
 
-  it('o texto acessível "em relação ao simulado anterior" continua presente no delta negativo', () => {
+  it('o delta diz contra o que está comparando — agora em texto visível, como na referência', () => {
     render(<KpiCard titulo="Percentual de acerto" valor="57%" meta={meta} delta={-2} />);
-    expect(screen.getByTestId('kpi-delta')).toHaveTextContent('em relação ao simulado anterior');
+    // A referência imprime "+1 vs anterior" dentro da própria pílula. Texto
+    // visível serve a todo mundo; o `sr-only` de antes só servia a leitor de tela.
+    expect(screen.getByTestId('kpi-delta')).toHaveTextContent('vs anterior');
+  });
+
+  it('a seta é a do Fontello e é decorativa — o número já carrega a direção', () => {
+    render(<KpiCard titulo="Percentual de acerto" valor="57%" meta={meta} delta={-2} />);
+    const seta = screen.getByTestId('kpi-delta').querySelector('i');
+    expect(seta).toHaveClass('icon-dende-icons-arrow_downward-filled');
+    expect(seta).toHaveAttribute('aria-hidden', 'true');
   });
 });
 
@@ -118,6 +146,14 @@ const semComentarios = (texto: string) => texto.replace(/\/\*[\s\S]*?\*\//g, '')
 describe('fonte — a regra CSS existe e referencia o token, o componente não usa mais o literal', () => {
   it('KpiCard.tsx não usa mais "text-destructive" como classe ativa (só pode sobrar em comentário)', () => {
     expect(semComentarios(KPI_CARD_SRC)).not.toMatch(/text-destructive/);
+  });
+
+  it('KpiCard.tsx não usa nenhuma cor da paleta crua do Tailwind', () => {
+    // O `text-emerald-600` do delta positivo era o último resquício de cor
+    // fora do sistema de tokens neste arquivo.
+    expect(semComentarios(KPI_CARD_SRC)).not.toMatch(
+      /\b(?:text|bg|border)-(?:emerald|slate|amber|rose|sky|zinc|gray|red|green|blue|yellow)-\d{2,3}\b/,
+    );
   });
 
   it('gestor-theme.css declara .gestor-portal .gp-text-danger { color: var(--gp-danger-on) }', () => {
@@ -253,6 +289,27 @@ describe('matemática WCAG 2.1 — calculada a partir dos valores reais de gesto
     // Números do relatório (e confirmados manualmente no navegador real): 11,09:1 e 7,15:1.
     expect(Math.round(claro * 100) / 100).toBeCloseTo(11.09, 1);
     expect(Math.round(escuro * 100) / 100).toBeCloseTo(7.15, 1);
+  });
+
+  /**
+   * O delta positivo agora também é token. Aqui o fundo NÃO é o card: a pílula
+   * pinta `--gp-*-surface` por baixo do texto, então o par a medir é
+   * `on` sobre `surface` — que é justamente o que a anatomia §5 garante.
+   */
+  it('os pares on/surface das pílulas de delta passam AA nos dois temas', () => {
+    const pares: [string, string][] = [
+      ['--gp-success-on', '--gp-success-surface'],
+      ['--gp-danger-on', '--gp-danger-surface'],
+    ];
+    for (const [frente, fundo] of pares) {
+      for (const [nome, bloco] of [['claro', claroTema], ['escuro', escuroTema]] as const) {
+        const razao = razaoDeContraste(
+          parseHslTripla(valorTripla(bloco, frente)),
+          parseHslTripla(valorTripla(bloco, fundo)),
+        );
+        expect(razao, `${frente} sobre ${fundo} no tema ${nome}: ${razao.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it('a correção CLAREIA no escuro (nunca escureça) — regra do §Tema escuro, mesmo espírito do teste de hover/skeleton em tema.test.tsx', () => {

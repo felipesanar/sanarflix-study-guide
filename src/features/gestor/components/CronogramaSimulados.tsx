@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CalendarPlus, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -10,17 +9,34 @@ import { BadgeStatus } from '@/features/gestor/components/BadgeStatus';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import type { ItemCronograma } from '@/features/gestor/api/types';
+import { Icon } from '@/features/gestor/components/Icon';
+import { Tag } from '@/features/gestor/components/Tag';
+import { formatDataHora } from '@/features/gestor/components/TooltipRastreabilidade';
+import type { ItemCronograma, Meta } from '@/features/gestor/api/types';
 
 /** Mesmo número já usado nos fluxos de suporte do app (QuickActionsDock, SanarClass). */
 export const WHATSAPP_SANAR = '5571993120049';
 
 /**
+ * Altura do bloco no Início. O mesmo número é usado pelo skeleton, pelo vazio e
+ * pelo erro — e é o mesmo do fallback de `Inicio.tsx`, para que a sequência
+ * "contexto carregando → bloco carregando → erro" não mude a altura três vezes
+ * (spec §8.4: "cada card mantém a altura final, sem salto de layout").
+ */
+export const ALTURA_BLOCO = 288;
+
+/**
  * Textos placeholder distintos por ação (decisão 24/07): as duas ações são
  * redirects simples para o WhatsApp, sem fluxo de agendamento no produto.
+ *
+ * `simuladoNome` entra na mensagem quando a ação parte da linha de um simulado
+ * específico — com dois ou mais contratados sem data, um "quero definir a data
+ * de um simulado" genérico obriga o consultor a perguntar qual.
  */
-export const MSG_AGENDAR = (iesNome: string): string =>
-  `Olá! Sou gestor(a) da ${iesNome} no SanarFlix Academy e quero definir a data de um simulado já contratado.`;
+export const MSG_AGENDAR = (iesNome: string, simuladoNome?: string): string =>
+  simuladoNome
+    ? `Olá! Sou gestor(a) da ${iesNome} no SanarFlix Academy e quero definir a data do simulado "${simuladoNome}", já contratado.`
+    : `Olá! Sou gestor(a) da ${iesNome} no SanarFlix Academy e quero definir a data de um simulado já contratado.`;
 
 export const MSG_CONSULTOR = (iesNome: string): string =>
   `Olá! Sou gestor(a) da ${iesNome} no SanarFlix Academy e gostaria de falar com um consultor sobre o contrato de simulados.`;
@@ -34,6 +50,67 @@ const ROTULO_DATA: Record<'online' | 'presencial', string> = {
   online: 'Início',
   presencial: 'Realização',
 };
+
+/**
+ * Pílula de modalidade da referência (§10.12, anatomia §5 `modalidade`).
+ *
+ * A referência distingue "Online síncrono" de "Online assíncrono", mas
+ * `ItemCronograma.modalidade` só carrega `online | presencial` — afirmar
+ * síncrono/assíncrono aqui seria inventar dado que a RPC não devolve (§4.10).
+ * Fica "Online" até o contrato da API ganhar a granularidade.
+ */
+const ROTULO_MODALIDADE: Record<'online' | 'presencial', string> = {
+  online: 'Online',
+  presencial: 'Presencial',
+};
+
+/**
+ * Selo do próximo simulado — a ÚNICA pílula de marca sólida da referência
+ * inteira. A anatomia `selo` de `Tag` é a de fundo tintado ("atual"); esta
+ * densidade sólida ainda não existe em `Tag`, então vem por `style` sobre a
+ * mesma primitiva, sem raio nem cor solta.
+ */
+const SELO_PROXIMO: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: '0.06em',
+  color: 'var(--gp-on-brand)',
+  background: 'var(--gp-brand)',
+  padding: '2px 9px',
+};
+
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+const DIAS_DA_SEMANA = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
+
+/**
+ * Dia e mês abreviado do bloco de data do cartão do próximo simulado.
+ *
+ * Lê os dígitos do ISO, sem instanciar `Date` a partir da string — pelo mesmo
+ * motivo documentado em `formatData`: `new Date('2026-08-16')` é meia-noite
+ * UTC e, em UTC-3, viraria 15/08.
+ */
+export function blocoData(iso: string | null): { dia: string; mes: string } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  if (!match) return null;
+  const [, , mes, dia] = match;
+  return { dia, mes: MESES[Number(mes) - 1] };
+}
+
+/** Dia da semana por extenso, montado a partir dos dígitos (meia-noite LOCAL). */
+export function diaDaSemana(iso: string | null): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  if (!match) return null;
+  const [, ano, mes, dia] = match;
+  return DIAS_DA_SEMANA[new Date(Number(ano), Number(mes) - 1, Number(dia)).getDay()];
+}
 
 /**
  * Próximo simulado = agendado/reagendado com a data mais próxima, **ainda no
@@ -63,6 +140,29 @@ export function proximoSimulado(
 }
 
 /**
+ * Contador de resumo do cabeçalho (§10.12). Só entram as parcelas que existem:
+ * "0 agendados" seria ruído, e um resumo de lista vazia não é resumo nenhum —
+ * daí o `null`, que o chamador usa para não renderizar a pílula.
+ */
+export function resumoCronograma(itens: ItemCronograma[]): string | null {
+  const contar = (...status: ItemCronograma['status'][]) =>
+    itens.filter((item) => status.includes(item.status)).length;
+
+  const parcelas: string[] = [];
+  const realizados = contar('realizado');
+  const agendados = contar('agendado', 'reagendado');
+  const processando = contar('processing');
+  const semData = contar('previsto');
+
+  if (realizados > 0) parcelas.push(`${realizados} ${realizados === 1 ? 'realizado' : 'realizados'}`);
+  if (agendados > 0) parcelas.push(`${agendados} ${agendados === 1 ? 'agendado' : 'agendados'}`);
+  if (processando > 0) parcelas.push(`${processando} em processamento`);
+  if (semData > 0) parcelas.push(`${semData} sem data`);
+
+  return parcelas.length > 0 ? parcelas.join(' · ') : null;
+}
+
+/**
  * Texto do rodapé de proveniência, a partir de `meta.periodo` de
  * `useCronograma(iesId)` — nunca do `contrato` do contexto do usuário, que é
  * da IES padrão dele e não acompanha a troca de IES no dropdown (achados 1,
@@ -75,6 +175,19 @@ export function proximoSimulado(
 export function rotuloVigenciaContrato(periodo: string): string {
   if (periodo.toLowerCase().startsWith('sem contrato')) return periodo;
   return `Vigência do contrato ${periodo}`;
+}
+
+/**
+ * Rodapé de proveniência completo (§10.12). A referência lista contrato, nº de
+ * simulados, origem e frescor; `get_gestor_cronograma` só devolve vigência e
+ * `atualizadoEm` no `meta` — nome do contrato e nº contratado ficam de fora até
+ * a RPC devolvê-los escopados ao `p_ies_id` (afirmar o contrato do
+ * `ContextoGestor` aqui repetiria o achado 1 da revisão de 03/08).
+ */
+export function textoProveniencia(meta: Meta): string {
+  const partes = [rotuloVigenciaContrato(meta.periodo), 'publicado pela Sanar'];
+  if (meta.atualizadoEm) partes.push(`atualizado em ${formatDataHora(meta.atualizadoEm)}`);
+  return partes.join(' · ');
 }
 
 function abrirWhatsApp(texto: string): void {
@@ -90,28 +203,57 @@ export interface CronogramaSimuladosProps {
   iesNome: string;
 }
 
-function Moldura({ children }: { children: React.ReactNode }) {
+/** O "i" do cabeçalho (§10.12) — significado só no ícone, então carrega rótulo. */
+const AJUDA_CRONOGRAMA =
+  'O cronograma é publicado pela Sanar a partir do contrato da instituição. Datas e status vêm de lá.';
+
+function Moldura({
+  children,
+  contador,
+}: {
+  children: React.ReactNode;
+  contador?: React.ReactNode;
+}) {
   return (
     <Card data-testid="cronograma">
       <CardHeader>
-        {/* aria-level={2}: o CardTitle do shadcn renderiza <h3> e este card é
-            título de primeiro nível da rota, logo abaixo do h1 da saudação —
-            sem isso o axe acusa heading-order (§11). Corrigido por ARIA em vez
-            de mexer em components/ui/card.tsx, que é compartilhado com as
-            experiências de aluno e admin. */}
-        <CardTitle className="text-base" aria-level={2}>Cronograma de Simulados</CardTitle>
+        <div className="flex items-center gap-2">
+          <span className="flex flex-none items-center" style={{ color: 'var(--gp-text-2)' }}>
+            <Icon name="calendar_month" variant="filled" size={18} />
+          </span>
+          {/* aria-level={2}: o CardTitle do shadcn renderiza <h3> e este card é
+              título de primeiro nível da rota, logo abaixo do h1 da saudação —
+              sem isso o axe acusa heading-order (§11). Corrigido por ARIA em vez
+              de mexer em components/ui/card.tsx, que é compartilhado com as
+              experiências de aluno e admin. */}
+          <CardTitle className="text-base" aria-level={2}>Cronograma de Simulados</CardTitle>
+          <span
+            className="flex flex-none cursor-help items-center"
+            style={{ color: 'var(--gp-border-input)' }}
+            title={AJUDA_CRONOGRAMA}
+          >
+            <Icon name="info" size={15} label={AJUDA_CRONOGRAMA} />
+          </span>
+          {contador}
+        </div>
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
   );
 }
 
+/** Pílula de modalidade — só quando o dado existe; ausência não vira chute. */
+function PilulaModalidade({ item }: { item: ItemCronograma }) {
+  if (!item.modalidade) return null;
+  return <Tag variant="modalidade">{ROTULO_MODALIDADE[item.modalidade]}</Tag>;
+}
+
 /**
- * Só `realizado` tem `resultados_ies_tri` no banco — os outros quatro status
- * abririam o Detalhamento vazio, então navegam desabilitados (§4.7.1, estendido
- * de "previsto/processing" para também cobrir "agendado/reagendado").
+ * Linha padrão do cronograma. Só `realizado` tem `resultados_ies_tri` no banco
+ * — os outros status abririam o Detalhamento vazio, então a linha continua na
+ * lista mas desabilitada (§4.7.1).
  */
-function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean }) {
+function ItemLinha({ item }: { item: ItemCronograma }) {
   const navigate = useNavigate();
   const location = useLocation();
   const navegavel = item.status === 'realizado';
@@ -144,23 +286,22 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
       type="button"
       disabled={!navegavel}
       data-testid={`cronograma-item-${item.id}`}
-      data-destaque={destaque ? 'true' : 'false'}
+      data-destaque="false"
       onClick={abrirNoDetalhamento}
       className={cn(
-        'flex w-full items-center justify-between gap-3 rounded-md px-3 py-3 text-left transition-colors',
+        // rounded-sm = --gp-radius-sm (8px). `rounded-md` do Tailwind resolve
+        // para calc(--radius - 2px) = 10px, um raio intermediário que a escala
+        // do handoff não tem.
+        // 140ms = motion-2 do handoff; o default do Tailwind é 150ms, fora da
+        // régua de durações.
+        'flex w-full items-center justify-between gap-3 rounded-sm px-3 py-3 text-left transition-colors duration-[140ms]',
         navegavel &&
           'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         !navegavel && 'cursor-default',
-        destaque && 'border border-primary bg-primary/5',
       )}
     >
-      <div className="min-w-0">
-        {destaque && (
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Próximo simulado
-          </p>
-        )}
-        <p className="truncate text-sm font-medium text-foreground">{item.nome}</p>
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
         <p className="text-xs text-muted-foreground">
           {item.modalidade ? `${ROTULO_DATA[item.modalidade]}: ` : ''}
           {formatData(item.data)}
@@ -173,8 +314,121 @@ function ItemLinha({ item, destaque }: { item: ItemCronograma; destaque: boolean
           <p className="text-xs text-muted-foreground">Data de realização não registrada</p>
         )}
       </div>
+
+      <PilulaModalidade item={item} />
       <BadgeStatus status={item.status} />
+      {navegavel && (
+        // Afordância visual, não um segundo controle: a linha inteira já é o
+        // botão que navega. Um <a> aqui dentro seria interativo aninhado.
+        <span className="flex flex-none items-center gap-[3px] text-[11px] font-semibold text-primary">
+          Resultados
+          <Icon name="chevron_right" size={13} />
+        </span>
+      )}
     </button>
+  );
+}
+
+/**
+ * Cartão do próximo simulado (§10.12): sai da lista e vai para o topo do bloco.
+ * Não é um controle — agendado/reagendado não têm resultado para abrir, e um
+ * botão desabilitado do tamanho de um cartão promete um clique que não existe.
+ */
+function CartaoProximo({ item }: { item: ItemCronograma }) {
+  const bloco = blocoData(item.data);
+  const semana = diaDaSemana(item.data);
+
+  return (
+    <div
+      data-testid={`cronograma-item-${item.id}`}
+      data-destaque="true"
+      className="mb-3 flex items-center gap-4 border-[1.5px] border-primary p-4"
+      style={{ borderRadius: 'var(--gp-radius-md)', background: 'var(--gp-brand-surface)' }}
+    >
+      {bloco && (
+        <div className="flex-none text-center" style={{ width: 52 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: '24px', color: 'var(--gp-text-1)' }}>
+            {bloco.dia}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              color: 'var(--gp-text-3)',
+            }}
+          >
+            {bloco.mes}
+          </div>
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <Tag variant="selo" style={SELO_PROXIMO}>
+            Próximo
+          </Tag>
+          <span className="truncate text-sm font-semibold text-foreground">{item.nome}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {semana ? `${semana} · ` : ''}
+          {item.modalidade ? `${ROTULO_DATA[item.modalidade]}: ` : ''}
+          {formatData(item.data)}
+        </p>
+        {item.indisponivelPorque && (
+          <p className="text-xs text-muted-foreground">{item.indisponivelPorque}</p>
+        )}
+      </div>
+
+      <PilulaModalidade item={item} />
+      <BadgeStatus status={item.status} />
+    </div>
+  );
+}
+
+/**
+ * Contratado sem data (§10.12): moldura tracejada, tile de calendário e a ação
+ * de agendar NA PRÓPRIA LINHA — com dois ou mais previstos, um "Agendar" no
+ * rodapé do grupo não diz a qual simulado se refere.
+ */
+function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: () => void }) {
+  return (
+    <div
+      data-testid={`cronograma-item-${item.id}`}
+      data-destaque="false"
+      className="flex items-center gap-3 border border-dashed px-3 py-3"
+      style={{ borderRadius: 'var(--gp-radius-sm)', borderColor: 'var(--gp-border-input)' }}
+    >
+      <span
+        aria-hidden="true"
+        className="flex flex-none items-center justify-center"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 'var(--gp-radius-sm)',
+          background: 'var(--gp-surface-3)',
+          color: 'var(--gp-text-3)',
+        }}
+      >
+        <Icon name="edit_calendar" size={18} />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
+        <p className="text-xs text-muted-foreground">
+          Sem data · defina para publicar no calendário dos alunos
+        </p>
+        {item.indisponivelPorque && (
+          <p className="text-xs text-muted-foreground">{item.indisponivelPorque}</p>
+        )}
+      </div>
+
+      <BadgeStatus status={item.status} />
+      <Button variant="outline" size="sm" className="flex-none" onClick={onAgendar}>
+        Agendar data
+      </Button>
+    </div>
   );
 }
 
@@ -202,7 +456,11 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
   if (isError) {
     return (
       <Moldura>
-        <EstadoErro titulo="Não foi possível carregar o cronograma." onRetry={refetch} />
+        <EstadoErro
+          titulo="Não foi possível carregar o cronograma."
+          altura={ALTURA_BLOCO}
+          onRetry={refetch}
+        />
       </Moldura>
     );
   }
@@ -215,6 +473,9 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
         <EstadoVazio
           titulo="Nenhum simulado contratado"
           descricao="Quando a Sanar registrar o contrato da instituição, o cronograma aparece aqui."
+          glifo="calendar_month"
+          glifoVariante="filled"
+          altura={ALTURA_BLOCO}
         />
         <Button
           variant="outline"
@@ -222,57 +483,70 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
           className="mt-3"
           onClick={() => abrirWhatsApp(MSG_CONSULTOR(iesNome))}
         >
-          <MessageCircle aria-hidden="true" />
           Falar com consultor
         </Button>
       </Moldura>
     );
   }
 
-  const previstos = itens.filter((item) => item.status === 'previsto');
-  const comData = itens.filter((item) => item.status !== 'previsto');
   const destaqueId = proximoSimulado(itens);
+  const destaque = itens.find((item) => item.id === destaqueId) ?? null;
+  const previstos = itens.filter((item) => item.status === 'previsto');
+  // O destacado sai da lista: repetido, ele apareceria duas vezes no bloco.
+  const comData = itens.filter(
+    (item) => item.status !== 'previsto' && item.id !== destaqueId,
+  );
+  const resumo = resumoCronograma(itens);
 
   return (
-    <Moldura>
+    <Moldura
+      contador={
+        resumo ? (
+          <span className="ml-auto flex-none" data-testid="cronograma-resumo">
+            <Tag variant="contador">{resumo}</Tag>
+          </span>
+        ) : undefined
+      }
+    >
+      {destaque && <CartaoProximo item={destaque} />}
+
       <ul className="divide-y divide-border">
         {comData.map((item) => (
           <li key={item.id} className="py-1">
-            <ItemLinha item={item} destaque={item.id === destaqueId} />
+            <ItemLinha item={item} />
           </li>
         ))}
       </ul>
 
       {previstos.length > 0 && (
-        <div
-          data-testid="cronograma-sem-data"
-          className="mt-4 rounded-md border border-dashed border-border p-3"
-        >
-          <p className="text-sm font-medium text-foreground">
-            {`Contratados sem data (${previstos.length})`}
-          </p>
-          <ul className="mt-2 divide-y divide-border">
+        <div data-testid="cronograma-sem-data" className="mt-4 flex flex-col gap-2">
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--gp-text-3)',
+            }}
+          >
+            {`Contratados sem data definida · ${previstos.length}`}
+          </span>
+          <ul className="flex flex-col gap-2">
             {previstos.map((item) => (
-              <li key={item.id} className="py-1">
-                <ItemLinha item={item} destaque={false} />
+              <li key={item.id}>
+                <LinhaSemData
+                  item={item}
+                  onAgendar={() => abrirWhatsApp(MSG_AGENDAR(iesNome, item.nome))}
+                />
               </li>
             ))}
           </ul>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => abrirWhatsApp(MSG_AGENDAR(iesNome))}
-            >
-              <CalendarPlus aria-hidden="true" />
-              Agendar
-            </Button>
+          <div className="mt-1 flex flex-wrap gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => abrirWhatsApp(MSG_CONSULTOR(iesNome))}
             >
-              <MessageCircle aria-hidden="true" />
               Falar com consultor
             </Button>
           </div>
@@ -282,9 +556,12 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
       {meta && (
         <p
           data-testid="cronograma-proveniencia"
-          className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground"
+          className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground"
         >
-          {rotuloVigenciaContrato(meta.periodo)}
+          <span className="flex flex-none items-center" style={{ color: 'var(--gp-border-input)' }}>
+            <Icon name="info" size={14} />
+          </span>
+          {textoProveniencia(meta)}
         </p>
       )}
     </Moldura>

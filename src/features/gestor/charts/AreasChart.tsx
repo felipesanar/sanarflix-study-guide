@@ -1,8 +1,19 @@
 // src/features/gestor/charts/AreasChart.tsx
 import * as React from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { cn } from '@/lib/utils';
 import { formatPct } from '@/features/gestor/lib/formatters';
+import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
+import { MolduraVazia } from '@/features/gestor/charts/MolduraVazia';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
 export interface AreasChartProps {
@@ -11,7 +22,8 @@ export interface AreasChartProps {
   altura?: number;
 }
 
-const TICKS_Y = [0, 20, 40, 60, 80, 100];
+/** Sem o valor da meta: a linha tracejada já ocupa essa faixa (handoff §7). */
+const TICKS_Y = [0, 20, 40, 80, 100];
 
 /**
  * Título/nome acessível do gráfico. Deliberadamente "desempenho", nunca
@@ -21,22 +33,95 @@ const TICKS_Y = [0, 20, 40, 60, 80, 100];
 const TITULO = 'Desempenho por grande área, em percentual de acerto, por simulado';
 
 /**
- * Paleta por posição no array. A área crítica não ganha cor própria — ela se
- * destaca por espessura e opacidade (ver `CRITICA_*` abaixo), nunca por cor,
- * porque a marcação de "crítica" é dado do servidor (`evolucaoPorArea[].critica`,
- * spec §4.4/§4.10), não algo que este componente decida.
+ * Paleta de séries do handoff (`tokens/tokens.light.css`, ordem fixa). Cada
+ * grande área tem a MESMA cor em toda tela e em todo recorte: se a cor viesse
+ * da posição no array, a Cirurgia mudaria de cor sempre que outra área
+ * entrasse ou saísse do recorte, e a leitura de "aquela linha azul" morreria
+ * entre dois filtros.
+ *
+ * O casamento é por expressão, não por igualdade de string, porque a RPC
+ * devolve o nome da grande área como ele está cadastrado (com ou sem
+ * abreviação: "Gineco. e Obstetrícia", "Ginecologia e Obstetrícia").
  */
-const CORES = [
-  'hsl(var(--destructive))',
-  'hsl(var(--primary))',
-  'hsl(var(--chart-3, var(--primary)))',
-  'hsl(var(--chart-4, var(--muted-foreground)))',
-  'hsl(var(--chart-5, var(--foreground)))',
+const PALETA = [
+  'var(--gp-serie-1)',
+  'var(--gp-serie-2)',
+  'var(--gp-serie-3)',
+  'var(--gp-serie-4)',
+  'var(--gp-serie-5)',
 ];
+
+const SERIES_FIXAS: RegExp[] = [
+  /cl[ií]nica/i,                              // serie-1
+  /cirurgia/i,                                // serie-2
+  /ginec|gineco|obstet/i,                     // serie-3
+  /preventiva|coletiva|sa[uú]de p[uú]blica/i, // serie-4
+  /pediatria/i,                               // serie-5
+];
+
+/**
+ * Uma cor por área, estável entre recortes. Áreas conhecidas ficam com a cor
+ * fixa da paleta; qualquer área fora da lista recebe a primeira cor ainda
+ * livre — nunca uma cor já ocupada por outra série do mesmo gráfico.
+ */
+export function coresDasAreas(areas: VisaoGeral['evolucaoPorArea']): string[] {
+  const ocupadas = new Set<number>();
+  const fixadas = areas.map((area) => {
+    const indice = SERIES_FIXAS.findIndex((expressao) => expressao.test(area.area));
+    if (indice !== -1 && !ocupadas.has(indice)) {
+      ocupadas.add(indice);
+      return indice;
+    }
+    return null;
+  });
+
+  let livre = 0;
+  return fixadas.map((indice, posicao) => {
+    if (indice !== null) return PALETA[indice];
+    while (livre < PALETA.length && ocupadas.has(livre)) livre += 1;
+    if (livre < PALETA.length) {
+      ocupadas.add(livre);
+      return PALETA[livre];
+    }
+    // Mais áreas do que cores: repete a paleta em vez de deixar sem cor.
+    return PALETA[posicao % PALETA.length];
+  });
+}
 
 const CRITICA_STROKE_WIDTH = 3;
 const DEMAIS_STROKE_WIDTH = 1.5;
 const DEMAIS_STROKE_OPACITY = 0.7;
+/** Opacidade das séries que NÃO estão sob o cursor (docs/06, princípio 2.2). */
+const ESMAECIDA_STROKE_OPACITY = 0.18;
+
+/**
+ * Marcador por simulado. A série crítica ganha ponto maior e, no ÚLTIMO ponto
+ * com valor, o mesmo halo + anel do ponto corrente da evolução institucional —
+ * é ali que o gestor precisa parar de ler a linha e começar a agir.
+ */
+function PontoArea(props: {
+  cx?: number;
+  cy?: number;
+  index?: number;
+  cor: string;
+  critica: boolean;
+  ultimoIndice: number;
+}) {
+  const { cx, cy, index, cor, critica, ultimoIndice } = props;
+  if (cx === undefined || cy === undefined) return null;
+
+  if (critica && index === ultimoIndice) {
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={12} fill={cor} opacity={0.16} />
+        <circle cx={cx} cy={cy} r={5.5} fill="var(--gp-surface-1)" stroke={cor} strokeWidth={2} />
+        <circle cx={cx} cy={cy} r={3.2} fill={cor} />
+      </g>
+    );
+  }
+
+  return <circle cx={cx} cy={cy} r={critica ? 4 : 3.5} fill={cor} />;
+}
 
 /**
  * Achados 1 e 3 (revisão de 05/08): a RPC monta `evolucaoPorArea[].pontos`
@@ -108,30 +193,34 @@ function unirRotulosNaOrdemCorreta(areas: VisaoGeral['evolucaoPorArea']): string
 }
 
 /**
- * Modo "Por grande área" do gráfico protagonista (spec §4.8, Task 39).
+ * Modo "Grande área" do gráfico protagonista (spec §4.8, Task 39).
  *
  * Compara as grandes áreas entre si em % de acerto — nunca proficiência,
  * que só existe onde há TRI (aluno e simulado). A área crítica vem do
  * servidor via `critica` e ganha peso visual (3px vs 1.5px a 70% de
  * opacidade nas demais); nenhum corte de nota é decidido aqui.
  *
- * Legenda clicável isola uma área por vez (clicar de novo reativa todas) e
- * uma tabela colapsável oferece a mesma série em texto, para quem não lê o
- * gráfico visualmente.
+ * Hover em uma série a isola visualmente (as outras esmaecem) e a legenda
+ * clicável isola uma área por vez (clicar de novo reativa todas); uma tabela
+ * colapsável oferece a mesma série em texto, para quem não lê o gráfico
+ * visualmente.
  */
 export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
   const [isolada, setIsolada] = React.useState<string | null>(null);
+  const [emFoco, setEmFoco] = React.useState<string | null>(null);
 
   if (areas.length === 0) {
     return (
-      <div
-        data-testid="areas-vazio"
-        className="flex h-[300px] items-center justify-center text-sm text-muted-foreground"
-      >
-        Sem dados por grande área neste recorte.
-      </div>
+      <MolduraVazia
+        testId="areas-vazio"
+        altura={altura}
+        rotuloMeta={`meta de acerto · ${PROFICIENCIA_MINIMA}`}
+        mensagem="Sem dados por grande área neste recorte."
+      />
     );
   }
+
+  const cores = coresDasAreas(areas);
 
   // Eixo X = união ordenada dos rótulos de todas as áreas (nunca só
   // `areas[0]`); cada ponto casa pelo `rotulo`, nunca pelo índice — ver
@@ -147,12 +236,29 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
   });
 
   /**
+   * Último rótulo COM valor de cada área — não `rotulos.length - 1`: uma área
+   * pode terminar antes das outras (simulado sem questão daquela área), e o
+   * marcador de destaque tem que pousar no último ponto real dela.
+   */
+  const ultimoIndicePorArea = areas.map((_, indice) => {
+    for (let posicao = rotulos.length - 1; posicao !== -1; posicao -= 1) {
+      if ((mapasPorArea[indice].get(rotulos[posicao]) ?? null) !== null) return posicao;
+    }
+    return -1;
+  });
+
+  /**
    * `<title>`/`<desc>` do SVG, exigidos pelo checklist de acessibilidade da
    * fase nos três modos do gráfico protagonista (mesmo padrão de
    * `EvolucaoChart`/`DispersaoChart`). "Percentual de acerto", nunca
    * "proficiência": nesta visão a métrica não é TRI (spec §4.6).
    */
   const descricao = `${areas.length} grande(s) área(s), percentual de acerto de 0 a 100 por simulado.`;
+
+  const opacidadeDaSerie = (area: VisaoGeral['evolucaoPorArea'][number]) => {
+    if (emFoco !== null && emFoco !== area.area) return ESMAECIDA_STROKE_OPACITY;
+    return area.critica ? 1 : DEMAIS_STROKE_OPACITY;
+  };
 
   const grafico = (
     <LineChart
@@ -161,13 +267,14 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
       height={largura ? altura : undefined}
       title={TITULO}
       desc={descricao}
-      margin={{ top: 8, right: 16, bottom: 0, left: 0 }}
+      margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
     >
-      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" vertical={false} />
+      {/* Grade SÓLIDA, horizontal, 1px em divisor sutil (docs/06, princípio 1). */}
+      <CartesianGrid stroke="var(--gp-border-subtle)" strokeWidth={1} vertical={false} />
       <XAxis
         dataKey="rotulo"
-        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-        axisLine={false}
+        tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+        axisLine={{ stroke: 'var(--gp-border-strong)' }}
         tickLine={false}
       />
       <YAxis
@@ -175,16 +282,34 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
         ticks={TICKS_Y}
         width={40}
         tickFormatter={(valor: number) => `${valor}%`}
-        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+        tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
         axisLine={false}
         tickLine={false}
+      />
+      {/*
+       * Sem esta linha, o modo "Grande área" era o único do portal em que o
+       * gestor não conseguia ver, de relance, quais áreas estão abaixo da
+       * meta — tinha que ler o eixo Y de cada linha.
+       */}
+      <ReferenceLine
+        y={PROFICIENCIA_MINIMA}
+        stroke="var(--gp-border-input)"
+        strokeWidth={1.5}
+        strokeDasharray="6 5"
+        label={{
+          value: `meta de acerto · ${PROFICIENCIA_MINIMA}`,
+          position: 'insideTopRight',
+          fontSize: 11,
+          fill: 'var(--gp-text-3)',
+        }}
       />
       <Tooltip
         formatter={(valor: number, nome: string) => [formatPct(valor), nome]}
         contentStyle={{
-          backgroundColor: 'hsl(var(--card))',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: '8px',
+          background: 'var(--gp-surface-1)',
+          border: '1px solid var(--gp-border-strong)',
+          borderRadius: 'var(--gp-radius-md)',
+          boxShadow: 'var(--gp-shadow-card)',
           fontSize: '12px',
         }}
       />
@@ -193,13 +318,23 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
           key={area.area}
           type="monotone"
           dataKey={area.area}
-          stroke={CORES[indice % CORES.length]}
+          stroke={cores[indice]}
           strokeWidth={area.critica ? CRITICA_STROKE_WIDTH : DEMAIS_STROKE_WIDTH}
-          strokeOpacity={area.critica ? 1 : DEMAIS_STROKE_OPACITY}
-          dot={false}
+          strokeOpacity={opacidadeDaSerie(area)}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          dot={
+            <PontoArea
+              cor={cores[indice]}
+              critica={area.critica}
+              ultimoIndice={ultimoIndicePorArea[indice]}
+            />
+          }
           connectNulls={false}
           isAnimationActive={false}
           hide={isolada !== null && isolada !== area.area}
+          onMouseEnter={() => setEmFoco(area.area)}
+          onMouseLeave={() => setEmFoco(null)}
         />
       ))}
     </LineChart>
@@ -229,15 +364,24 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
           </ResponsiveContainer>
         </div>
       )}
-      <ul data-testid="areas-legenda" className="mt-2 flex flex-wrap gap-2">
+      <ul
+        data-testid="areas-legenda"
+        className="mt-3 flex flex-wrap gap-2 pt-3.5"
+        style={{ borderTop: '1px solid var(--gp-border-subtle)' }}
+      >
         {areas.map((area, indice) => (
           <li key={area.area}>
             <button
               type="button"
               aria-pressed={isolada === area.area}
               onClick={() => setIsolada((atual) => (atual === area.area ? null : area.area))}
+              /* O mesmo destaque do hover no gráfico, também por teclado. */
+              onMouseEnter={() => setEmFoco(area.area)}
+              onMouseLeave={() => setEmFoco(null)}
+              onFocus={() => setEmFoco(area.area)}
+              onBlur={() => setEmFoco(null)}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors duration-200',
                 isolada === area.area
                   ? 'border-foreground/40 bg-muted font-medium'
                   : 'border-border text-muted-foreground hover:text-foreground',
@@ -245,8 +389,8 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
             >
               <span
                 aria-hidden="true"
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: CORES[indice % CORES.length] }}
+                className="h-[3px] w-4 rounded-full"
+                style={{ background: cores[indice] }}
               />
               {area.area}
               {/* Task: contraste AA do rótulo "área crítica" (texto, 10px/medium — não é "bold"
@@ -255,9 +399,9 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
                   este <span> realmente aparece — card (padrão) e muted (botão isolado): 3,78:1/3,44:1
                   no claro, 3,48:1/3,30:1 no escuro. `gp-text-danger` (gestor-theme.css) resolve para
                   --gp-danger-on: 11,09:1/10,08:1 no claro e 7,15:1/6,78:1 no escuro — os quatro acima
-                  do mínimo. NÃO mexe em CORES[0] (var(--destructive) como cor de série, linhas 29-35):
-                  aquela cor é só a posição 0 da paleta, não o sinal de "crítica" (que vem de espessura/
-                  opacidade), então trocar o texto do badge não muda a leitura do gráfico. Ver
+                  do mínimo. NÃO mexe na cor da SÉRIE (paleta --gp-serie-*): aquela cor é a identidade
+                  da grande área, não o sinal de "crítica" (que vem de espessura/opacidade), então
+                  trocar o texto do badge não muda a leitura do gráfico. Ver
                   contrasteDestructive.test.tsx. */}
               {area.critica ? <span className="text-[10px] font-medium gp-text-danger">área crítica</span> : null}
             </button>

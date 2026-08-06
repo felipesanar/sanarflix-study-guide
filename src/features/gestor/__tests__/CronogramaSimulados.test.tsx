@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   CronogramaSimulados,
   proximoSimulado,
+  resumoCronograma,
   rotuloVigenciaContrato,
   MSG_AGENDAR,
   MSG_CONSULTOR,
@@ -27,12 +30,37 @@ const META: Meta = {
   lowSample: false,
 };
 
-/** Um item por status. s4 (18/08) é o próximo: vence s3 (20/09) na ordenação. */
+/**
+ * Datas dos agendados relativas a hoje. O componente chama `proximoSimulado`
+ * com o relógio real, e é o "próximo" que define qual anatomia cada item
+ * recebe (cartão de destaque × linha de lista): com data fixa, o destaque
+ * mudaria de item sozinho na virada daquele dia. Realizado e em processamento
+ * ficam com data fixa — não disputam o destaque e são conferidos por texto.
+ */
+const emDias = (dias: number): Date => {
+  const data = new Date();
+  data.setUTCHours(12, 0, 0, 0);
+  data.setUTCDate(data.getUTCDate() + dias);
+  return data;
+};
+
+/** `dd/MM/yyyy` dos MESMOS dígitos UTC do ISO que `formatData` lê. */
+const ddmmaaaa = (data: Date): string =>
+  [
+    String(data.getUTCDate()).padStart(2, '0'),
+    String(data.getUTCMonth() + 1).padStart(2, '0'),
+    String(data.getUTCFullYear()),
+  ].join('/');
+
+const DATA_S3 = emDias(45);
+const DATA_S4 = emDias(12);
+
+/** Um item por status. s4 é o próximo: vence s3 na ordenação. */
 const ITENS: ItemCronograma[] = [
   { id: 's1', nome: 'Simulado 1', data: '2026-03-10T12:00:00Z', status: 'realizado', modalidade: 'online', participantes: 88 },
   { id: 's2', nome: 'Simulado 2', data: '2026-05-12T12:00:00Z', status: 'processing', modalidade: 'presencial', participantes: null, indisponivelPorque: 'Gabarito em fechamento' },
-  { id: 's3', nome: 'Simulado 3', data: '2026-09-20T12:00:00Z', status: 'agendado', modalidade: 'online', participantes: null },
-  { id: 's4', nome: 'Simulado 4', data: '2026-08-18T12:00:00Z', status: 'reagendado', modalidade: 'presencial', participantes: null },
+  { id: 's3', nome: 'Simulado 3', data: DATA_S3.toISOString(), status: 'agendado', modalidade: 'online', participantes: null },
+  { id: 's4', nome: 'Simulado 4', data: DATA_S4.toISOString(), status: 'reagendado', modalidade: 'presencial', participantes: null },
   { id: 's5', nome: 'Simulado 5', data: null, status: 'previsto', modalidade: null, participantes: null, indisponivelPorque: 'Data ainda não definida' },
 ];
 
@@ -63,7 +91,7 @@ beforeEach(() => {
 });
 
 describe('proximoSimulado', () => {
-  const AGORA = new Date('2026-01-01T00:00:00Z');
+  const AGORA = emDias(-1);
 
   it('devolve o agendado/reagendado com a data mais próxima', () => {
     expect(proximoSimulado(ITENS, AGORA)).toBe('s4');
@@ -79,14 +107,12 @@ describe('proximoSimulado', () => {
   });
 
   it('ignora agendado/reagendado com data no passado (achados 11 e 18) — não é "próximo" algo que já passou', () => {
-    // s4 (reagendado, 18/08) já passou; s3 (agendado, 20/09) ainda está no futuro.
-    const agora = new Date('2026-08-20T00:00:00Z');
-    expect(proximoSimulado(ITENS, agora)).toBe('s3');
+    // s4 (+12d) já passou; s3 (+45d) ainda está no futuro.
+    expect(proximoSimulado(ITENS, emDias(20))).toBe('s3');
   });
 
   it('sem nenhum agendado/reagendado no futuro, não destaca nada — estado legítimo, não um erro', () => {
-    const agora = new Date('2026-10-01T00:00:00Z');
-    expect(proximoSimulado(ITENS, agora)).toBeNull();
+    expect(proximoSimulado(ITENS, emDias(60))).toBeNull();
   });
 });
 
@@ -122,7 +148,9 @@ describe('CronogramaSimulados — os 5 status (spec §6.4)', () => {
   it('rotula a data conforme a modalidade: online = Início, presencial = Realização', () => {
     montar();
     expect(screen.getByTestId('cronograma-item-s1')).toHaveTextContent('Início: 10/03/2026');
-    expect(screen.getByTestId('cronograma-item-s4')).toHaveTextContent('Realização: 18/08/2026');
+    expect(screen.getByTestId('cronograma-item-s4')).toHaveTextContent(
+      `Realização: ${ddmmaaaa(DATA_S4)}`,
+    );
   });
 
   it('mostra o motivo de indisponibilidade quando o servidor manda', () => {
@@ -134,7 +162,84 @@ describe('CronogramaSimulados — os 5 status (spec §6.4)', () => {
     montar();
     expect(screen.getByTestId('cronograma-item-s4')).toHaveAttribute('data-destaque', 'true');
     expect(screen.getByTestId('cronograma-item-s3')).toHaveAttribute('data-destaque', 'false');
-    expect(screen.getByText('Próximo simulado')).toBeInTheDocument();
+    expect(screen.getByText('Próximo')).toBeInTheDocument();
+  });
+});
+
+/**
+ * Anatomia da referência (handoff §10.12). Os testes acima cobrem a REGRA
+ * (quais status existem, o que navega); estes cobrem a FORMA que a referência
+ * fixa e que a implementação anterior não tinha.
+ */
+describe('CronogramaSimulados — anatomia da referência (§10.12)', () => {
+  it('o selo do próximo é a pílula sólida de marca, não uma linha de texto solta', () => {
+    montar();
+    const selo = screen.getByText('Próximo');
+    expect(selo.style.background).toBe('var(--gp-brand)');
+    expect(selo.style.color).toBe('var(--gp-on-brand)');
+    expect(selo.style.borderRadius).toBe('var(--gp-radius-pill)');
+    // A anatomia antiga era um parágrafo "Próximo simulado" acima do nome.
+    expect(screen.queryByText('Próximo simulado')).not.toBeInTheDocument();
+  });
+
+  it('toda linha com modalidade carrega a pílula de modalidade', () => {
+    montar();
+    // `ItemCronograma.modalidade` só distingue online|presencial — a
+    // granularidade síncrono/assíncrono da referência depende da API.
+    expect(screen.getByTestId('cronograma-item-s1')).toHaveTextContent('Online');
+    expect(screen.getByTestId('cronograma-item-s4')).toHaveTextContent('Presencial');
+    // Sem modalidade no dado, nenhuma pílula inventada.
+    expect(screen.getByTestId('cronograma-item-s5')).not.toHaveTextContent('Online');
+    expect(screen.getByTestId('cronograma-item-s5')).not.toHaveTextContent('Presencial');
+  });
+
+  it('só a linha navegável oferece a afordância "Resultados"', () => {
+    montar();
+    expect(screen.getByTestId('cronograma-item-s1')).toHaveTextContent('Resultados');
+    expect(screen.getByTestId('cronograma-item-s3')).not.toHaveTextContent('Resultados');
+    expect(screen.getByTestId('cronograma-item-s5')).not.toHaveTextContent('Resultados');
+  });
+
+  it('o cabeçalho traz a pílula-contador com o resumo do cronograma', () => {
+    montar();
+    expect(screen.getByTestId('cronograma-resumo')).toHaveTextContent(
+      '1 realizado · 2 agendados · 1 em processamento · 1 sem data',
+    );
+  });
+
+  it('os glifos vêm todos do Fontello do Dendê — zero lucide-react no arquivo', () => {
+    const fonte = readFileSync(
+      resolve(__dirname, '../components/CronogramaSimulados.tsx'),
+      'utf-8',
+    );
+    expect(fonte).not.toMatch(/lucide-react/);
+    expect(fonte).toMatch(/name="calendar_month"/);
+    expect(fonte).toMatch(/name="edit_calendar"/);
+    expect(fonte).toMatch(/name="chevron_right"/);
+    expect(fonte).toMatch(/name="info"/);
+  });
+
+  it('os botões de contato são só-texto — a referência não põe glifo neles', () => {
+    montar();
+    const agendar = screen.getByRole('button', { name: /agendar/i });
+    expect(agendar.querySelector('i')).toBeNull();
+    expect(agendar.querySelector('svg')).toBeNull();
+  });
+});
+
+describe('resumoCronograma', () => {
+  it('junta as parcelas existentes na ordem da referência', () => {
+    expect(resumoCronograma(ITENS)).toBe(
+      '1 realizado · 2 agendados · 1 em processamento · 1 sem data',
+    );
+  });
+
+  it('omite a parcela zerada — "0 agendados" é ruído, não informação', () => {
+    expect(resumoCronograma([ITENS[0]])).toBe('1 realizado');
+  });
+
+  it('sem itens não há resumo nenhum', () => {
+    expect(resumoCronograma([])).toBeNull();
   });
 });
 
@@ -142,7 +247,7 @@ describe('CronogramaSimulados — bloco de contratados sem data', () => {
   it('agrupa os previstos com a contagem', () => {
     montar();
     const bloco = screen.getByTestId('cronograma-sem-data');
-    expect(bloco).toHaveTextContent('Contratados sem data (1)');
+    expect(bloco).toHaveTextContent('Contratados sem data definida · 1');
     expect(bloco).toContainElement(screen.getByTestId('cronograma-item-s5'));
   });
 
@@ -159,9 +264,15 @@ describe('CronogramaSimulados — bloco de contratados sem data', () => {
     const [urlAgendar] = abrir.mock.calls[0] as [string];
     const [urlConsultor] = abrir.mock.calls[1] as [string];
 
+    // "Agendar" parte da LINHA de um simulado (§10.12), então a mensagem diz
+    // de qual: com dois ou mais contratados sem data, um pedido genérico
+    // obrigaria o consultor a perguntar a qual deles o gestor se refere.
     expect(urlAgendar).toBe(
-      `https://wa.me/${WHATSAPP_SANAR}?text=${encodeURIComponent(MSG_AGENDAR('UEA'))}`,
+      `https://wa.me/${WHATSAPP_SANAR}?text=${encodeURIComponent(
+        MSG_AGENDAR('UEA', 'Simulado 5'),
+      )}`,
     );
+    expect(decodeURIComponent(urlAgendar)).toContain('Simulado 5');
     expect(urlConsultor).toBe(
       `https://wa.me/${WHATSAPP_SANAR}?text=${encodeURIComponent(MSG_CONSULTOR('UEA'))}`,
     );
@@ -186,7 +297,7 @@ describe('CronogramaSimulados — "realizado" sem data não é "contratado sem d
     mocks.useCronograma.mockReturnValue(resultado({ data: [...ITENS, S6_REALIZADO_SEM_DATA] }));
     montar();
     const bloco = screen.getByTestId('cronograma-sem-data');
-    expect(bloco).toHaveTextContent('Contratados sem data (1)');
+    expect(bloco).toHaveTextContent('Contratados sem data definida · 1');
     expect(bloco).not.toContainElement(screen.getByTestId('cronograma-item-s6'));
   });
 

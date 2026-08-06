@@ -126,15 +126,22 @@ describe('rota VisaoGeral', () => {
     } as unknown as ReturnType<typeof useAluno>);
   });
 
-  it('monta os blocos na ordem vertical da §4.8, com Visão de Alunos ACIMA da visão por área', () => {
+  /**
+   * A referência PROMOVE o Diagnóstico Curricular para logo abaixo do gráfico
+   * protagonista (`<!-- Diagnóstico (promovido) -->`, LIGHT.html:3746), antes da
+   * Visão de Alunos (3772) e dos Insights (3792). Ordem é requisito, não
+   * preferência: "onde dói?" vem antes de "quem dói?". Este teste codificava a
+   * ordem anterior (alunos acima da área) e foi atualizado contra a referência.
+   */
+  it('monta os blocos na ordem vertical da referência, com o Diagnóstico ACIMA da Visão de Alunos', () => {
     render(<VisaoGeralRoute />);
     expect(
       ordemNoDom([
         'barra-filtros',
         'kpis-visao-geral',
         'grafico-protagonista',
-        'bloco-visao-alunos',
         'bloco-diagnostico',
+        'bloco-visao-alunos',
         'bloco-insights',
         'divisor-detalhe-micro',
         'bloco-tabela-alunos',
@@ -149,6 +156,32 @@ describe('rota VisaoGeral', () => {
     expect(screen.getByTestId('contexto-recorte')).toHaveTextContent('2026.1');
   });
 
+  /**
+   * O `Glossario` existia completo e testado, mas NENHUMA tela o montava: os
+   * únicos importadores eram arquivos de teste. Era código inalcançável em
+   * produção — a gestora não tinha caminho nenhum para "o que é proficiente?".
+   */
+  it('a barra de filtros traz o gatilho do glossário, ao lado do filtro de semestre', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    render(<VisaoGeralRoute />);
+
+    const gatilho = screen.getByRole('button', { name: 'Entenda as métricas' });
+    expect(screen.getByTestId('barra-filtros')).toContainElement(gatilho);
+
+    await user.click(gatilho);
+    expect(screen.getByRole('dialog')).toHaveTextContent('Percentual de acerto');
+  });
+
+  it('o overline "Panorama da instituição" nomeia o bloco dos 4 indicadores', () => {
+    render(<VisaoGeralRoute />);
+    const overline = screen.getByTestId('overline-panorama');
+    expect(overline).toHaveTextContent('Panorama da instituição');
+    expect(
+      overline.compareDocumentPosition(screen.getByTestId('kpis-visao-geral')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it('mostra os 2 insights autogerados, um por área e um por aluno', () => {
     render(<VisaoGeralRoute />);
     const insights = screen.getByTestId('bloco-insights').querySelectorAll('li');
@@ -160,6 +193,36 @@ describe('rota VisaoGeral', () => {
   it('não existe nenhuma coluna nem rótulo "Nota TRI" na tela (caso crítico nº2)', () => {
     render(<VisaoGeralRoute />);
     expect(screen.queryByText(/Nota TRI/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Invariante 8 do handoff: a Visão Geral fala com a GESTORA. A copy do CTA
+   * para o micro é fechada — "Ver visão detalhada", nunca "drill-down" — e a
+   * tela não empresta linguagem de aluno nem vira checklist de pendências.
+   * Nada disso tinha teste: o invariante já estava violado na copy (a string
+   * não existia em `src/`) e nenhuma suíte acusava.
+   */
+  it('o CTA para o micro usa a copy canônica "Ver visão detalhada"', () => {
+    render(<VisaoGeralRoute />);
+
+    const cta = screen.getByRole('link', { name: /Ver visão detalhada/ });
+    expect(screen.getByTestId('bloco-visao-alunos')).toContainElement(cta);
+    // Aponta para a tabela de alunos da própria tela, abaixo do divisor "Detalhe · micro".
+    expect(cta).toHaveAttribute('href', '#alunos-detalhe');
+    expect(screen.getByTestId('gestor-visao-geral').textContent).not.toMatch(/drill.?down/i);
+  });
+
+  it('não usa linguagem de aluno nem checklist de pendências em nenhum ponto da tela', () => {
+    render(<VisaoGeralRoute />);
+    const texto = screen.getByTestId('gestor-visao-geral').textContent ?? '';
+
+    for (const proibido of [/\bestude\b/i, /\brevise\b/i, /\bpratique\b/i, /seu ponto fraco/i]) {
+      expect(
+        texto,
+        `a Visão Geral fala com a gestora, não com o aluno — encontrado ${proibido}`,
+      ).not.toMatch(proibido);
+    }
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
   });
 
   it('área, especialidade e tema usam % de acerto e nunca proficiência (caso crítico nº14)', () => {

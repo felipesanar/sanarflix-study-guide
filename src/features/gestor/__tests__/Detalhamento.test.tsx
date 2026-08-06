@@ -10,6 +10,16 @@ import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '
 import type { AlunoNoSimulado, ContextoGestor, ItemCronograma, Meta, MetricasSimulado, Questao } from '@/features/gestor/api/types';
 import type { DetalhamentoComExtras } from '@/features/gestor/api/detalhamentoExtras';
 
+/**
+ * `src/test/setup.ts` troca `useLocation` por `() => ({ pathname: '/' })` e
+ * `useNavigate` por um `vi.fn()` inerte, para toda a suíte. Aqui isso apagaria
+ * justamente o que se quer exercitar: sem `useNavigate` de verdade o clique no
+ * simulado realizado não muda a URL, e o teste do drawer que fecha passaria (ou
+ * falharia) sem nunca ter havido navegação. Este `vi.mock` local devolve o
+ * módulo real — o `MemoryRouter` de `renderRota` continua sendo o sandbox.
+ */
+vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
+
 vi.mock('@/features/gestor/api/queries', () => ({
   useCronograma: vi.fn(),
   useDetalhamento: vi.fn(),
@@ -20,9 +30,35 @@ vi.mock('@/features/gestor/api/queries', () => ({
 vi.mock('@/features/gestor/components/FiltroSemestre', () => ({
   FiltroSemestre: () => <div data-testid="filtro-semestre" />,
 }));
-vi.mock('@/features/gestor/components/CronogramaSimulados', () => ({
-  CronogramaSimulados: () => <div data-testid="cronograma-simulados" />,
-}));
+/**
+ * O mock reproduz a única coisa do cronograma que importa para esta rota: o
+ * clique num simulado realizado navega para o MESMO pathname, trocando só
+ * `?simulados=` (`CronogramaSimulados.tsx:126`). É por isso que o React Router
+ * não desmonta a rota — e por isso o Sheet precisa fechar por conta própria.
+ */
+vi.mock('@/features/gestor/components/CronogramaSimulados', async () => {
+  const { useLocation, useNavigate } = await import('react-router-dom');
+  return {
+    CronogramaSimulados: () => {
+      const navigate = useNavigate();
+      const location = useLocation();
+      return (
+        <div data-testid="cronograma-simulados">
+          <button
+            type="button"
+            onClick={() => {
+              const params = new URLSearchParams(location.search);
+              params.set('simulados', 's2');
+              navigate({ pathname: '/gestor/detalhamento', search: params.toString() });
+            }}
+          >
+            Abrir simulado realizado
+          </button>
+        </div>
+      );
+    },
+  };
+});
 vi.mock('@/features/gestor/components/DrawerAluno', () => ({
   DrawerAluno: ({ alunoId, nome }: { alunoId: string | null; nome: string }) =>
     alunoId ? <div data-testid="drawer-aluno">{alunoId}:{nome}</div> : null,
@@ -227,6 +263,94 @@ describe('Rota Detalhamento — 1 simulado (§4.7.3)', () => {
     expect(await screen.findByTestId('cronograma-simulados')).toBeInTheDocument();
     expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
   });
+
+  /**
+   * O drawer é CONTROLADO e fecha quando o recorte da URL muda. Sem isso ele
+   * ficava na frente do Detalhamento que a gestora acabou de filtrar pelo
+   * clique num simulado realizado: `CronogramaSimulados` navega para o MESMO
+   * pathname, então o React Router não desmonta a rota nem o Sheet.
+   */
+  it('o drawer do cronograma fecha quando a navegação troca o recorte da URL', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    await user.click(screen.getByRole('button', { name: 'Ver cronograma' }));
+    expect(await screen.findByTestId('cronograma-simulados')).toBeInTheDocument();
+
+    // A navegação do cronograma reescreve `?simulados=` sem trocar de rota.
+    await user.click(screen.getByRole('button', { name: 'Abrir simulado realizado' }));
+    expect(screen.queryByTestId('cronograma-simulados')).toBeNull();
+  });
+
+  it('o atalho do cronograma não usa nenhum ícone fora do Fontello do Dendê', () => {
+    const { container } = renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+    const atalho = screen.getByRole('button', { name: 'Ver cronograma' });
+
+    expect(atalho.querySelector('i.icon-dende-icons-chevron_right-outlined')).not.toBeNull();
+    expect(atalho.querySelector('svg')).toBeNull();
+    expect(container.querySelector('svg.lucide')).toBeNull();
+  });
+});
+
+/**
+ * O bloco de questões era o ÚNICO da rota fora do `BlocoGestor`: em
+ * carregamento e em erro a gestora via a mesma tabela vazia com "Página 1 de
+ * 1", sem skeleton, mensagem nem retry — o que tornava qualquer falha da RPC
+ * silenciosa em produção.
+ */
+describe('Rota Detalhamento — bloco de questões tem a mesma régua de estados dos outros', () => {
+  beforeEach(() => comSimulados(1));
+
+  it('carregando: skeleton com altura reservada, nunca a tabela vazia', () => {
+    vi.mocked(useQuestoes).mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: true,
+      isError: false,
+      isPlaceholderData: false,
+      isFetching: true,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useQuestoes>);
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.getByTestId('bloco-questoes-loading')).toBeInTheDocument();
+    expect(screen.queryByTestId('linha-questao-1')).toBeNull();
+  });
+
+  it('erro: alerta com "Tentar novamente", que refaz a consulta de questões', async () => {
+    const refetch = vi.fn();
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    vi.mocked(useQuestoes).mockReturnValue({
+      data: undefined,
+      meta: undefined,
+      isLoading: false,
+      isError: true,
+      isPlaceholderData: false,
+      isFetching: false,
+      refetch,
+    } as unknown as ReturnType<typeof useQuestoes>);
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    const bloco = within(screen.getByTestId('bloco-questoes'));
+    await user.click(bloco.getByRole('button', { name: 'Tentar novamente' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('vazio: mensagem em vez de tabela sem linha com "Página 1 de 1"', () => {
+    vi.mocked(useQuestoes).mockReturnValue({
+      data: { data: [], page: 1, pageSize: 20, total: 0, totalPages: 0 },
+      meta: META,
+      isLoading: false,
+      isError: false,
+      isPlaceholderData: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useQuestoes>);
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.getByTestId('bloco-questoes')).toHaveTextContent('Sem questões para este recorte.');
+    expect(screen.queryByText(/Página 1 de 1/)).toBeNull();
+  });
 });
 
 describe('Rota Detalhamento — 2 simulados (§4.7.4, §12 casos 3, 6, 8)', () => {
@@ -266,7 +390,9 @@ describe('Rota Detalhamento — 6 simulados (§4.7.2, §12 caso 5)', () => {
     comSimulados(6);
     renderRota('?ies=ies-1&semestre=6ano&simulados=s1,s2,s3,s4,s5,s6');
 
-    expect(screen.getByTestId('aviso-legibilidade')).toHaveTextContent('6 simulados selecionados');
+    // A copy passou a imprimir a contagem entre parênteses: "…ficam difíceis
+    // de ler (6 selecionados)." O que importa é o aviso dizer QUANTOS são.
+    expect(screen.getByTestId('aviso-legibilidade')).toHaveTextContent(/\(6 selecionados\)/);
     expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
     expect(screen.getByTestId('linha-aluno-a1')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Acerto por grande área e por semestre' })).toBeInTheDocument();

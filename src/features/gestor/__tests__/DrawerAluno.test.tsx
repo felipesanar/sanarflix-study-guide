@@ -1,16 +1,30 @@
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+// `@/test/utils` e não o `render` cru: o rodapé do drawer é o `AcoesRecorte`,
+// que lê o recorte da URL (`useFiltrosGestor` → `useSearchParams`) e portanto
+// exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
+import { render, screen, userEvent, waitFor, within } from '@/test/utils';
 import { DrawerAluno } from '@/features/gestor/components/DrawerAluno';
-import { useAluno, useAlunoContato } from '@/features/gestor/api/queries';
+import { useAluno, useAlunoContato, useGestorContexto } from '@/features/gestor/api/queries';
 import { TRACO } from '@/features/gestor/lib/formatters';
 import type { AlunoContato, AlunoSimuladoEntry, Meta } from '@/features/gestor/api/types';
 
-vi.mock('@/features/gestor/api/queries', () => ({ useAluno: vi.fn(), useAlunoContato: vi.fn() }));
+// O `<Toaster />` não faz parte do wrapper de teste: sem interceptar o hook, o
+// aviso de "exportação indisponível" não teria onde aparecer para ser afirmado.
+const { mockToast } = vi.hoisted(() => ({ mockToast: vi.fn() }));
+vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
+
+vi.mock('@/features/gestor/api/queries', () => ({
+  useAluno: vi.fn(),
+  useAlunoContato: vi.fn(),
+  // O rodapé de ações é o `AcoesRecorte`, que lê `podeExportar` do contexto
+  // resolvido no SERVIDOR — o mock do módulo precisa expor este hook também.
+  useGestorContexto: vi.fn(),
+}));
 
 const mockUseAluno = vi.mocked(useAluno);
 const mockUseAlunoContato = vi.mocked(useAlunoContato);
+const mockUseContexto = vi.mocked(useGestorContexto);
 
 const META: Meta = {
   periodo: '2026',
@@ -78,11 +92,31 @@ function montar(props?: Partial<React.ComponentProps<typeof DrawerAluno>>) {
 /** Telefone default para os testes que não são sobre telefone — número plausível, sem relevância própria. */
 const CONTATO_PADRAO: AlunoContato = { id: 'a1', telefone: '11988887777' };
 
+/**
+ * Contexto do gestor com a capability de export JÁ RESOLVIDA pelo servidor
+ * (`get_gestor_contexto`) — nenhuma role é lida no cliente. `iesDisponiveis`
+ * é obrigatório: `AcoesRecorte` resolve o nome da IES do RECORTE contra essa
+ * lista, porque `iesAtual` é a IES de cadastro e não acompanha o dropdown.
+ */
+const contextoComExport = (podeExportar: boolean) =>
+  ({
+    data: {
+      iesAtual: { id: 'ies-1', nome: 'Universidade Teste' },
+      iesDisponiveis: [{ id: 'ies-1', nome: 'Universidade Teste' }],
+      podeExportar,
+    },
+    meta: META,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }) as unknown as ReturnType<typeof useGestorContexto>;
+
 beforeEach(() => {
   mockUseAluno.mockReturnValue(resultado({ data: [ENTRADA_S1] }) as unknown as ReturnType<typeof useAluno>);
   mockUseAlunoContato.mockReturnValue(
     resultado({ data: CONTATO_PADRAO }) as unknown as ReturnType<typeof useAlunoContato>,
   );
+  mockUseContexto.mockReturnValue(contextoComExport(true));
 });
 
 describe('DrawerAluno — fechado', () => {
@@ -176,9 +210,142 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
     expect(dialogo.textContent).not.toMatch(/Nota TRI/i);
   });
 
-  it('marca a área crítica', () => {
+  it('marca a área crítica no bloco dedicado e também no rótulo da barra', () => {
     montar();
-    expect(screen.getByText('área crítica')).toBeInTheDocument();
+
+    const bloco = screen.getByTestId('drawer-area-critica-s1');
+    expect(bloco).toHaveTextContent('Grande área crítica');
+    expect(bloco).toHaveTextContent('Clínica Médica · 42% de acerto');
+    // Cor nunca é canal único: a barra da área carrega a marca em texto.
+    expect(screen.getByText(/\(área crítica\)/)).toBeInTheDocument();
+  });
+
+  /**
+   * §4.5/§6: o comparativo por grande área é BARRA, não lista texto-a-texto —
+   * o canal visual é o que permite varrer as áreas de um aluno de relance.
+   */
+  it('desenha uma barra por grande área, com o percentual como valor acessível', () => {
+    montar();
+    const barra = screen.getByRole('progressbar', { name: /Clínica Médica/ });
+    expect(barra).toHaveAttribute('aria-valuenow', '42');
+    expect(barra).toHaveAttribute('aria-valuemin', '0');
+    expect(barra).toHaveAttribute('aria-valuemax', '100');
+  });
+});
+
+/**
+ * Cabeçalho do drawer (§4.5): avatar circular de iniciais, nome e uma linha de
+ * contexto com o período e a cobertura do recorte ("3 de 3 simulados").
+ */
+describe('DrawerAluno — cabeçalho', () => {
+  it('avatar de iniciais e linha de contexto com período e cobertura', () => {
+    montar();
+    const dialogo = screen.getByRole('dialog');
+
+    // Iniciais = primeira letra do primeiro e do último nome.
+    expect(within(dialogo).getByText('AP')).toBeInTheDocument();
+    expect(dialogo).toHaveTextContent('11º período · 1 de 2 simulados');
+  });
+
+  it('sem semestre no contrato, o período vira TRAÇO — nunca 0º', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [{ ...ENTRADA_S1, semestre: null }] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+    const dialogo = screen.getByRole('dialog');
+    expect(dialogo).toHaveTextContent(`${TRACO} período`);
+    expect(dialogo).not.toHaveTextContent('0º período');
+  });
+});
+
+/**
+ * Sparkline de evolução (docs/06 §6). Ela plota os MESMOS valores por simulado,
+ * um ponto cada — não produz número novo e por isso não fere a regra de
+ * agregação honesta. Só existe com 2+ pontos MEDIDOS.
+ */
+describe('DrawerAluno — sparkline de evolução', () => {
+  it('com 2+ simulados medidos, desenha a série com nome e valor de cada ponto', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+
+    expect(screen.getByTestId('drawer-evolucao')).toBeInTheDocument();
+    const grafico = screen.getByRole('img', { name: /Evolução de proficiência/ });
+    expect(grafico).toHaveAccessibleName(/Simulado 1: 71/);
+    expect(grafico).toHaveAccessibleName(/Simulado 2: 78/);
+  });
+
+  it('com um único ponto medido não há evolução para desenhar', () => {
+    montar();
+    expect(screen.queryByTestId('drawer-evolucao')).not.toBeInTheDocument();
+  });
+
+  it('simulado sem nota fica FORA da série — nunca vira zero nem interpolação', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({
+        data: [ENTRADA_S1, { ...ENTRADA_S2, proficiencia: null }],
+      }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+    // Um só ponto medido sobra: o bloco inteiro não é renderizado.
+    expect(screen.queryByTestId('drawer-evolucao')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Rodapé de ações (§4.5 e §7.7): `Exportar` + `Copiar resumo` pelo MESMO
+ * `AcoesRecorte` do DrawerTemas — o gate de `podeExportar` é ausência de
+ * render, nunca controle desabilitado.
+ */
+describe('DrawerAluno — rodapé de ações', () => {
+  it('com a capability, oferece Exportar e Copiar resumo', () => {
+    montar();
+    expect(screen.getByRole('button', { name: 'Exportar recorte' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copiar resumo' })).toBeInTheDocument();
+  });
+
+  it('sem a capability, as ações ficam AUSENTES — não desabilitadas', () => {
+    mockUseContexto.mockReturnValue(contextoComExport(false));
+    montar();
+    expect(screen.queryByRole('button', { name: 'Exportar recorte' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copiar resumo' })).not.toBeInTheDocument();
+  });
+
+  it('sem `onExportar`, o clique avisa em vez de ser engolido em silêncio', async () => {
+    const user = userEvent.setup();
+    montar();
+    await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: expect.stringMatching(/não está disponível/i) }),
+    );
+  });
+
+  it('com `onExportar`, entrega o escopo do aluno', async () => {
+    const user = userEvent.setup();
+    const onExportar = vi.fn();
+    montar({ onExportar });
+    await user.click(screen.getByRole('button', { name: 'Exportar recorte' }));
+    expect(onExportar).toHaveBeenCalledWith('aluno:a1');
+  });
+
+  /**
+   * §7.7: "Copiar resumo" copia o recorte DESTE aluno agregado por simulado —
+   * nunca uma lista nominal de terceiros.
+   */
+  it('Copiar resumo leva o agregado por simulado, e nenhum outro aluno', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+    montar();
+
+    await user.click(screen.getByRole('button', { name: 'Copiar resumo' }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    const texto = writeText.mock.calls[0][0] as string;
+    expect(texto).toContain('Ana Prado — proficiência por simulado');
+    expect(texto).toContain('Simulado 1');
+    expect(texto).toContain('proficiência 71');
   });
 });
 
@@ -257,4 +424,6 @@ describe('DrawerAluno — fechar', () => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  // O `navigator` stubado no teste de "Copiar resumo" não pode vazar.
+  vi.unstubAllGlobals();
 });

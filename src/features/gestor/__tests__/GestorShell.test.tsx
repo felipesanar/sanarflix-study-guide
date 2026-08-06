@@ -67,18 +67,48 @@ describe('GestorShell (spec §8.3)', () => {
     });
   });
 
-  it('a nav tem exatamente os 3 itens do portal v2', () => {
+  it('a nav tem exatamente os 3 itens do portal v2, com o rótulo completo do 3º (referência)', () => {
     renderizar('/gestor');
     expect(GESTOR_V2_NAV.map((i) => i.title)).toEqual([
       'Início',
       'Visão Geral',
-      'Detalhamento',
+      'Detalhamento por Simulados',
     ]);
     const nav = screen.getByRole('navigation', { name: /seções do portal/i });
     expect(nav.querySelectorAll('a')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Início' })).toHaveAttribute('href', '/gestor');
     expect(screen.getByRole('link', { name: 'Visão Geral' })).toHaveAttribute('href', '/gestor/visao-geral');
-    expect(screen.getByRole('link', { name: 'Detalhamento' })).toHaveAttribute('href', '/gestor/detalhamento');
+    expect(screen.getByRole('link', { name: 'Detalhamento por Simulados' })).toHaveAttribute(
+      'href',
+      '/gestor/detalhamento',
+    );
+  });
+
+  it('a nav agrupa as duas telas de análise sob o overline "Desempenho Institucional"', () => {
+    renderizar('/gestor');
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    const grupo = within(nav).getByText('Desempenho Institucional');
+
+    // Overline: 11px/600, 0.1em, uppercase, em --gp-text-3.
+    expect(grupo.style.fontSize).toBe('11px');
+    expect(grupo.style.fontWeight).toBe('600');
+    expect(grupo.style.letterSpacing).toBe('0.1em');
+    expect(grupo.style.textTransform).toBe('uppercase');
+
+    // Texto, não link — o grupo não é focável nem navegável.
+    expect(grupo.tagName).not.toBe('A');
+
+    // Início fica ACIMA do grupo; Visão Geral e Detalhamento, abaixo.
+    const filhos = Array.from(nav.children);
+    const posGrupo = filhos.findIndex((n) => n.contains(grupo));
+    const posInicio = filhos.findIndex((n) =>
+      n.contains(screen.getByRole('link', { name: 'Início' })),
+    );
+    const posVisao = filhos.findIndex((n) =>
+      n.contains(screen.getByRole('link', { name: 'Visão Geral' })),
+    );
+    expect(posInicio).toBeLessThan(posGrupo);
+    expect(posGrupo).toBeLessThanOrEqual(posVisao);
   });
 
   it('marca o item ativo pela rota — e /gestor só fica ativo em correspondência exata', () => {
@@ -89,6 +119,48 @@ describe('GestorShell (spec §8.3)', () => {
     renderizar('/gestor');
     const inicios = screen.getAllByRole('link', { name: 'Início' });
     expect(inicios[inicios.length - 1]).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('item ativo: superfície de marca, texto de marca e barra vertical de 3px à esquerda', () => {
+    renderizar('/gestor/visao-geral');
+    const ativo = screen.getByRole('link', { name: 'Visão Geral' });
+
+    // Tinta de marca por token, nos dois temas — nunca o cinza de sidebar.
+    expect(ativo.className).toContain('text-[color:var(--gp-brand-strong)]');
+    expect(ativo.className).toContain('dark:text-[color:var(--gp-brand-on-dark)]');
+    expect(ativo.className).toContain('font-semibold');
+    expect(ativo.style.borderRadius).toBe('var(--gp-radius-sm)');
+
+    // Barra de 3px absoluta, colada à esquerda, decorativa.
+    const barra = ativo.firstElementChild as HTMLElement;
+    expect(barra.getAttribute('aria-hidden')).toBe('true');
+    expect(barra.style.position).toBe('absolute');
+    expect(barra.style.left).toBe('0px');
+    expect(barra.style.width).toBe('3px');
+
+    // O item inativo não tem barra nem tinta de marca.
+    const inativo = screen.getByRole('link', { name: 'Início' });
+    expect(inativo.querySelector('[aria-hidden="true"][style*="absolute"]')).toBeNull();
+    expect(inativo.className).toContain('text-[color:var(--gp-text-2)]');
+  });
+
+  it('ícones da nav são glifos do Dendê, com filled no ativo e outlined em repouso', () => {
+    const { container } = renderizar('/gestor/visao-geral');
+
+    // Ativo = -filled na caixa óptica de 20px; inativos = -outlined.
+    expect(container.querySelector('.icon-dende-icons-equalizer-filled')).not.toBeNull();
+    expect(container.querySelector('.icon-dende-icons-home-outlined')).not.toBeNull();
+    expect(container.querySelector('.icon-dende-icons-insights-outlined')).not.toBeNull();
+    expect(container.querySelector('.icon-dende-icons-equalizer-outlined')).toBeNull();
+
+    const caixa = container.querySelector('.icon-dende-icons-equalizer-filled')
+      ?.parentElement as HTMLElement;
+    expect(caixa.style.width).toBe('20px');
+    expect((container.querySelector('.icon-dende-icons-equalizer-filled') as HTMLElement).style.fontSize).toBe('18px');
+
+    // Nenhum SVG na sidebar da nav — a família é uma só (Fontello do Dendê).
+    const nav = screen.getByRole('navigation', { name: /seções do portal/i });
+    expect(nav.querySelectorAll('svg')).toHaveLength(0);
   });
 
   it('NÃO tem header no topo do conteúdo', () => {
@@ -120,10 +192,86 @@ describe('GestorShell (spec §8.3)', () => {
     expect(main?.textContent).toContain('conteúdo do início');
   });
 
-  it('rodapé traz o perfil do usuário', () => {
+  it('o lockup vem acompanhado do overline "Portal do Gestor" (11px/600/0.1em uppercase)', () => {
     renderizar('/gestor');
-    expect(screen.getByText('Ana Gestora')).toBeInTheDocument();
+    const overline = screen.getByText('Portal do Gestor');
+    expect(overline.style.fontSize).toBe('11px');
+    expect(overline.style.fontWeight).toBe('600');
+    expect(overline.style.letterSpacing).toBe('0.1em');
+    expect(overline.style.textTransform).toBe('uppercase');
+    expect(overline.style.color).toBe('var(--gp-text-3)');
+
+    // Mesmo bloco do lockup, fechado por divisor.
+    const bloco = overline.parentElement as HTMLElement;
+    expect(bloco.querySelector('img[alt="SanarFlix Academy"]')).not.toBeNull();
+    expect(bloco.style.borderBottom).toContain('var(--gp-border-subtle)');
+  });
+
+  it('rodapé traz o perfil do usuário: avatar de 34px, nome 13px/600 e o PAPEL abaixo (nunca o e-mail)', () => {
+    renderizar('/gestor');
+
+    const nome = screen.getByText('Ana Gestora');
+    expect(nome.style.fontSize).toBe('13px');
+    expect(nome.style.fontWeight).toBe('600');
+
+    // Segunda linha = papel vindo do servidor, não o e-mail (que vai para o title).
+    expect(screen.getByText('Gestão acadêmica')).toBeInTheDocument();
+    expect(screen.queryByText('ana@ies.edu.br')).not.toBeInTheDocument();
+    expect((nome.parentElement as HTMLElement).title).toBe('ana@ies.edu.br');
+
+    const avatar = nome.parentElement?.previousElementSibling as HTMLElement;
+    expect(avatar.style.width).toBe('34px');
+    expect(avatar.style.height).toBe('34px');
+    expect(avatar.style.background).toBe('var(--gp-brand-surface)');
+    expect(avatar.textContent).toBe('AG');
+
     expect(screen.getByRole('button', { name: /sair/i })).toBeInTheDocument();
+  });
+
+  it('rodapé traz o sino de avisos: 32px, glifo do Dendê de 18px, com nome acessível', () => {
+    renderizar('/gestor');
+    const sino = screen.getByRole('button', { name: 'Avisos da Sanar' });
+    expect(sino.style.width).toBe('32px');
+    expect(sino.style.height).toBe('32px');
+    expect(sino.style.borderRadius).toBe('var(--gp-radius-sm)');
+
+    const glifo = sino.querySelector('.icon-dende-icons-notifications-outlined') as HTMLElement;
+    expect(glifo).not.toBeNull();
+    expect(glifo.style.fontSize).toBe('18px');
+  });
+
+  it('o papel exibido acompanha o que o servidor devolve', () => {
+    mockUseGestorContexto.mockReturnValue({
+      data: contextoComPapel('admin'),
+      meta: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderizar('/gestor');
+    expect(screen.getByText('Administração')).toBeInTheDocument();
+    expect(screen.queryByText('Gestão acadêmica')).not.toBeInTheDocument();
+  });
+
+  it('nenhum ícone da sidebar é SVG — 100% Fontello do Dendê nos glifos do próprio shell', () => {
+    mockUseGestorContexto.mockReturnValue({
+      data: contextoComPapel('admin'),
+      meta: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    renderizar('/gestor');
+
+    // Os três glifos que o shell desenha: sino, "Portal do Admin" e "Sair".
+    expect(document.querySelector('.icon-dende-icons-notifications-outlined')).not.toBeNull();
+    expect(document.querySelector('.icon-dende-icons-settings-outlined')).not.toBeNull();
+    expect(document.querySelector('.icon-dende-icons-logout-outlined')).not.toBeNull();
+
+    // `ThemeToggle` e `GoToStudentButton` são compartilhados com aluno/admin e
+    // seguem no Lucide — por isso o alvo aqui é o botão, não a sidebar inteira.
+    expect(screen.getByRole('button', { name: 'Portal do Admin' }).querySelectorAll('svg')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /sair/i }).querySelectorAll('svg')).toHaveLength(0);
   });
 
   it('rodapé traz o botão "Ir para versão aluno", fora da nav de 3 itens (Task 25)', () => {

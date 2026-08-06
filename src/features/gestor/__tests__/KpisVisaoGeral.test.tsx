@@ -21,18 +21,33 @@ describe('KpisVisaoGeral', () => {
 
   it('renderiza os 4 KPIs na ordem canônica da §4.8', () => {
     render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    // "projetado" saiu do título e virou tag qualificadora na mesma linha —
+    // o título duplicava a informação da tag (referência: LIGHT.html:3614).
     expect(titulos()).toEqual([
-      'Conceito ENAMED projetado',
+      'Conceito ENAMED',
       'Alunos proficientes',
       'Percentual de acerto',
       'Simulados realizados',
     ]);
   });
 
-  it('formata cada KPI na sua escala: conceito 1-5, percentuais e feitos/total', () => {
+  it('formata cada KPI na sua escala, com a escala em elemento próprio', () => {
     render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
     const valores = screen.getAllByTestId('kpi-valor').map((v) => v.textContent);
-    expect(valores).toEqual(['3/5', '62%', '57%', '3 de 7']);
+    expect(valores).toEqual(['3', '62%', '57%', '3']);
+    const sufixos = screen.getAllByTestId('kpi-sufixo').map((s) => s.textContent);
+    expect(sufixos).toEqual(['/ 5', '/ 7']);
+  });
+
+  it('cada cartão traz o seu critério VISÍVEL na linha de hint, sem exigir hover', () => {
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const hints = screen.getAllByTestId('kpi-hint').map((h) => h.textContent);
+    expect(hints).toEqual([
+      'projeção institucional · escala 1 a 5',
+      'acima de 60 de proficiência',
+      'questões certas no período',
+      'do contrato vigente da IES',
+    ]);
   });
 
   it('marca o conceito ENAMED com o badge "projetado" e só ele', () => {
@@ -65,6 +80,28 @@ describe('KpisVisaoGeral', () => {
     );
   });
 
+  it('o cartão do conceito avisa, no rodapé, que a projeção não é o conceito oficial do MEC', () => {
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cards = screen.getAllByTestId('kpi-card');
+    expect(cards[0].querySelector('[data-testid="kpi-rodape"]')).toHaveTextContent(
+      'não é o conceito oficial do MEC',
+    );
+  });
+
+  /**
+   * Invariante 2 do handoff: TRI só existe por aluno, no Detalhamento. A sigla
+   * vazava pelo `criterio` do KPI de simulados — visível no tooltip e no
+   * `sr-only` de rastreabilidade, dentro da Visão Geral. A asserção varre o
+   * texto INTEIRO do bloco (incluindo o sr-only), não só um rótulo específico.
+   */
+  it('nenhuma sigla TRI aparece na Visão Geral, nem dentro da rastreabilidade', () => {
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const bloco = screen.getByTestId('kpis-visao-geral');
+    expect(bloco.textContent ?? '').not.toMatch(/\bTRI\b/i);
+    // O conceito continua sendo dito, só sem a sigla.
+    expect(bloco).toHaveTextContent('nota de proficiência');
+  });
+
   it('com 1 simulado realizado nenhuma régua aparece', () => {
     render(<KpisVisaoGeral kpis={visaoComUmSimulado().kpis} meta={metaFake} />);
     expect(screen.queryAllByTestId('kpi-regua')).toHaveLength(0);
@@ -75,10 +112,12 @@ describe('KpisVisaoGeral', () => {
     expect(screen.queryAllByTestId('kpi-skeleton')).toHaveLength(4);
   });
 
-  it('com delta negativo, o card de Percentual de acerto mostra o sinal explícito', () => {
+  it('com delta negativo, o card de Percentual de acerto mostra o sinal explícito e a base de comparação', () => {
     render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
     const cards = screen.getAllByTestId('kpi-card');
-    expect(cards[2]).toHaveTextContent('-2');
+    // U+2212 (minus real) — a pílula de delta usa tipografia tabular, não hífen.
+    expect(cards[2]).toHaveTextContent('−2');
+    expect(cards[2]).toHaveTextContent('vs anterior');
   });
 
   it('com IES sem contrato (contratados nulo), mostra TRACO no total e nunca "0" nem trilha', () => {
@@ -86,10 +125,12 @@ describe('KpisVisaoGeral', () => {
     render(<KpisVisaoGeral kpis={casosDificeis.kpis} meta={metaFake} />);
     const cards = screen.getAllByTestId('kpi-card');
     const valorSimulados = cards[3].querySelector('[data-testid="kpi-valor"]');
+    const sufixoSimulados = cards[3].querySelector('[data-testid="kpi-sufixo"]');
     // `2`: a fixture tem 2 pontos de `evolucao` com nota real (s1, s2) e 1 com
     // `valor: null` (s3) — ver o comentário em `visaoComCasosDificeis`.
-    expect(valorSimulados?.textContent).toBe('2 de —');
-    expect(valorSimulados?.textContent).not.toContain('0');
+    expect(valorSimulados?.textContent).toBe('2');
+    expect(sufixoSimulados?.textContent).toBe('/ —');
+    expect(sufixoSimulados?.textContent).not.toContain('0');
     expect(cards[3].querySelector('[data-testid="kpi-trilha"]')).toBeNull();
   });
 
@@ -113,7 +154,8 @@ describe('KpisVisaoGeral', () => {
     render(<KpisVisaoGeral kpis={kpisComoFai} meta={metaFake} />);
     const cards = screen.getAllByTestId('kpi-card');
     const valorSimulados = cards[3].querySelector('[data-testid="kpi-valor"]');
-    expect(valorSimulados?.textContent).toBe('3 de —');
+    expect(valorSimulados?.textContent).toBe('3');
+    expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')?.textContent).toBe('/ —');
     expect(valorSimulados?.textContent).not.toContain('0');
   });
 

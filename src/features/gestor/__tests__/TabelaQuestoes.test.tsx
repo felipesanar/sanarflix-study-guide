@@ -1,12 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within, userEvent } from '@/test/utils';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, within, userEvent, fireEvent } from '@/test/utils';
 import {
   TabelaQuestoes,
   deveMostrarQuestoes,
+  formatNumeroQuestao,
   ORDENACOES_QUESTOES,
 } from '@/features/gestor/components/TabelaQuestoes';
 import { derivarDistratorDominante } from '@/features/gestor/charts/DistribuicaoAlternativas';
-import type { Alternativa, Questao } from '@/features/gestor/api/types';
+import type { Alternativa, Meta, Questao } from '@/features/gestor/api/types';
 
 const alternativas = (): Alternativa[] => [
   { letra: 'A', texto: 'Alternativa A', correta: true, marcadaPct: 42 },
@@ -54,6 +55,14 @@ describe('deveMostrarQuestoes (§4.7.3-4, §12 caso 6)', () => {
   });
 });
 
+describe('formatNumeroQuestao', () => {
+  it('prefixa Q e completa dois dígitos, como a referência imprime', () => {
+    expect(formatNumeroQuestao(4)).toBe('Q04');
+    expect(formatNumeroQuestao(37)).toBe('Q37');
+    expect(formatNumeroQuestao(112)).toBe('Q112');
+  });
+});
+
 describe('derivarDistratorDominante', () => {
   it('escolhe a incorreta mais marcada', () => {
     expect(derivarDistratorDominante(alternativas())).toBe('B');
@@ -79,11 +88,59 @@ describe('derivarDistratorDominante', () => {
 });
 
 describe('TabelaQuestoes', () => {
-  it('mostra as 5 colunas do detalhamento das questões', () => {
+  beforeEach(() => {
+    // O filtro de grande área é um Radix Select, que chama scrollIntoView e
+    // hasPointerCapture ao abrir — nenhum dos dois existe no jsdom.
+    Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('mostra as 6 colunas do detalhamento — a barra e o valor são colunas distintas', () => {
     render(<TabelaQuestoes {...props()} />);
 
+    // Anatomia única de tabela do gestor (`components/tabela`), não o primitivo
+    // `ui/table` compartilhado com aluno e admin.
+    expect(screen.getByRole('table', { name: 'Detalhamento das questões' })).toBeInTheDocument();
+
     const cabecalhos = screen.getAllByRole('columnheader').map((c) => c.textContent);
-    expect(cabecalhos).toEqual(['Nº', 'Grande área', 'Especialidade', 'Tema', 'Índice de acerto']);
+    expect(cabecalhos).toEqual([
+      'Nº',
+      'Grande área',
+      'Especialidade',
+      'Tema',
+      'Índice de acerto',
+      // Visualmente vazio na referência, mas nomeado para o leitor de tela.
+      'Percentual de acerto',
+    ]);
+  });
+
+  it('o Nº é Q + dois dígitos em fonte mono, não o inteiro cru', () => {
+    render(<TabelaQuestoes {...props({ questoes: [questao({ numero: 4 })], total: 1 })} />);
+
+    const gatilho = screen.getByRole('button', { name: /Ver detalhe da questão 4/i });
+    expect(gatilho).toHaveTextContent('Q04');
+    // Handoff §3: número em tabela é Roboto Mono, a mesma família (FONTE_MONO)
+    // que a régua de tabela do gestor aplica nas colunas numéricas.
+    expect(gatilho.style.fontFamily).toContain('Roboto Mono');
+  });
+
+  it('a coluna de índice de acerto tem barra colorida pela régua única, e o crítico marca o valor', () => {
+    render(<TabelaQuestoes {...props()} />);
+
+    // 42% = mediano, 28% = crítico (lib/regras.nivelDesempenho).
+    expect(screen.getByTestId('barra-acerto-1')).toBeInTheDocument();
+    const critica = screen.getByTestId('linha-questao-2');
+    expect(within(critica).getByText('28%').className).toMatch(/gp-text-danger/);
+    // O mediano não é pintado de vermelho.
+    const mediana = screen.getByTestId('linha-questao-1');
+    expect(within(mediana).getByText('42%').className).not.toMatch(/gp-text-danger/);
+  });
+
+  it('acertoPct null não desenha barra e mostra TRACO (§4.10)', () => {
+    render(<TabelaQuestoes {...props({ questoes: [questao({ numero: 9, acertoPct: null })], total: 1 })} />);
+
+    expect(screen.queryByTestId('barra-acerto-9')).toBeNull();
+    expect(screen.getByTestId('linha-questao-9')).toHaveTextContent('—');
   });
 
   it('oferece as 3 ordenações decididas em 24/07 e nenhum slider', async () => {
@@ -100,12 +157,29 @@ describe('TabelaQuestoes', () => {
     expect(onOrdenacaoChange).toHaveBeenCalledWith('mais_erradas');
   });
 
-  it('filtra por grande área pelo callback, sem filtrar no cliente', async () => {
-    const user = userEvent.setup();
+  it('"Mais acertadas" segue desabilitada com o motivo visível — a RPC só ordena por acerto ASC', () => {
+    render(<TabelaQuestoes {...props()} />);
+
+    const opcao = screen.getByRole('radio', { name: 'Mais acertadas' });
+    expect(opcao).toBeDisabled();
+    expect(opcao).toHaveAttribute('title', expect.stringContaining('Indisponível'));
+  });
+
+  it('a grande área é um dropdown (não um segmentado) e filtra pelo callback, sem filtrar no cliente', async () => {
     const onAreaChange = vi.fn();
     render(<TabelaQuestoes {...props({ onAreaChange })} />);
 
-    await user.click(screen.getByRole('radio', { name: 'Cirurgia' }));
+    // A referência reserva o segmentado para a ordenação; a área é um Select,
+    // porque a lista cresce com o recorte e estouraria a toolbar.
+    const combo = screen.getByRole('combobox', { name: /grande área/i });
+    expect(combo).toHaveTextContent('Todas');
+    expect(screen.queryByRole('radio', { name: 'Cirurgia' })).toBeNull();
+
+    fireEvent.click(combo);
+    fireEvent.click(
+      await screen.findByText('Cirurgia', { selector: '[role="option"] *, [role="option"]' }),
+    );
+
     expect(onAreaChange).toHaveBeenCalledWith('Cirurgia');
     expect(screen.getAllByTestId(/^linha-questao-/)).toHaveLength(2);
   });
@@ -123,10 +197,26 @@ describe('TabelaQuestoes', () => {
     const detalhe = screen.getByTestId('detalhe-questao-1');
     expect(within(detalhe).getByText(/dispneia progressiva/)).toBeInTheDocument();
     expect(within(detalhe).getAllByTestId(/^alternativa-/)).toHaveLength(5);
+    expect(within(detalhe).getAllByTestId(/^distribuicao-[A-E]$/)).toHaveLength(5);
     expect(within(detalhe).getByTestId('alternativa-A')).toHaveAttribute('data-correta', 'true');
-    expect(within(detalhe).getByTestId('alternativa-A')).toHaveTextContent('resposta correta');
+    expect(within(detalhe).getByTestId('alternativa-A')).toHaveTextContent('alternativa correta');
     expect(within(detalhe).getByTestId('alternativa-B')).toHaveTextContent('distrator dominante');
-    expect(within(detalhe).getByTestId('alternativa-B')).toHaveTextContent('31%');
+    expect(within(detalhe).getByTestId('distribuicao-B')).toHaveTextContent('31%');
+  });
+
+  it('a distribuição traz legenda por extenso e a frase de leitura do distrator', async () => {
+    const user = userEvent.setup();
+    render(<TabelaQuestoes {...props()} />);
+
+    await user.click(screen.getByRole('button', { name: /Ver detalhe da questão 1/i }));
+
+    const detalhe = screen.getByTestId('detalhe-questao-1');
+    // Cor nunca é o único canal: os dois papéis têm rótulo textual.
+    expect(within(detalhe).getByText('correta')).toBeInTheDocument();
+    expect(within(detalhe).getByText('distrator mais marcado')).toBeInTheDocument();
+    expect(within(detalhe).getByTestId('distribuicao-leitura')).toHaveTextContent(
+      'o distrator B domina',
+    );
   });
 
   it('respeita o distrator dominante vindo do servidor', async () => {
@@ -157,13 +247,53 @@ describe('TabelaQuestoes', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Ver detalhe da questão 1/i }));
-    expect(screen.getByTestId('alternativa-A')).toHaveTextContent('—');
+    expect(screen.getByTestId('distribuicao-A')).toHaveTextContent('—');
+  });
+
+  it('o rodapé diz quantas de quantas, e só cita a proveniência quando ela existe', () => {
+    const meta: Meta = {
+      periodo: '2026.1',
+      fonte: 'gabarito oficial',
+      atualizadoEm: '2026-05-12T10:00:00Z',
+      criterio: 'acerto por questão',
+      partial: false,
+      lowSample: false,
+    };
+    const { rerender } = render(<TabelaQuestoes {...props({ total: 100 })} />);
+    expect(screen.getByTestId('questoes-rodape')).toHaveTextContent('Mostrando 2 de 100 questões');
+    expect(screen.getByTestId('questoes-rodape')).not.toHaveTextContent('fonte:');
+
+    rerender(<TabelaQuestoes {...props({ total: 100, meta })} />);
+    expect(screen.getByTestId('questoes-rodape')).toHaveTextContent(
+      'Mostrando 2 de 100 questões · fonte: gabarito oficial · atualizado 12/05/2026',
+    );
+  });
+
+  it('usa a paginação única do gestor: anterior, números, próxima, com a atual marcada', async () => {
+    const user = userEvent.setup();
+    const onPageChange = vi.fn();
+    render(<TabelaQuestoes {...props({ total: 100, page: 3, onPageChange })} />);
+
+    const nav = screen.getByRole('navigation', { name: 'Paginação das questões' });
+    expect(within(nav).getByRole('button', { name: 'Página 3' })).toHaveAttribute('aria-current', 'page');
+    // Os números SÃO o controle: a primeira e a última página estão sempre a um
+    // clique, sem botão dedicado de "primeira" (componente `tabela/Paginacao`).
+    expect(within(nav).getByRole('button', { name: 'Página 1' })).toBeEnabled();
+    expect(within(nav).getByRole('button', { name: 'Página 5' })).toBeEnabled();
+    expect(within(nav).getByRole('button', { name: 'Página anterior' })).toBeEnabled();
+    expect(within(nav).getByRole('button', { name: 'Próxima página' })).toBeEnabled();
+
+    await user.click(within(nav).getByRole('button', { name: 'Página 1' }));
+    expect(onPageChange).toHaveBeenCalledWith(1);
   });
 
   it('gabarito em processamento: mensagem, nenhuma linha e nenhum número (§4.10)', () => {
     render(<TabelaQuestoes {...props({ questoes: [], total: 0, processando: true })} />);
 
-    expect(screen.getByTestId('questoes-processando')).toHaveTextContent('Gabarito em processamento');
+    const bloco = screen.getByTestId('questoes-processando');
+    expect(bloco).toHaveTextContent('Gabarito em processamento');
+    // A mensagem aponta para onde AINDA existe número, em vez de só negar.
+    expect(bloco).toHaveTextContent('As métricas gerais do simulado já podem ser consultadas acima.');
     expect(screen.queryByTestId(/^linha-questao-/)).toBeNull();
     expect(screen.queryByRole('table')).toBeNull();
   });

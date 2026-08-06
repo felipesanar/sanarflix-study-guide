@@ -22,13 +22,11 @@ export const BlocoErrorBoundary: React.FC<BlocoErrorBoundaryProps> = ({ bloco, c
         erro instanceof Error ? erro.message : String(erro),
       )
     }
-    fallbackRender={({ resetErrorBoundary }) => (
-      <EstadoErro
-        titulo="Não foi possível exibir este bloco"
-        descricao="O resto da página continua disponível."
-        onRetry={resetErrorBoundary}
-      />
-    )}
+    // Sem `titulo`/`descricao` de propósito: o default do `EstadoErro` já é a
+    // copy da referência ("Algo deu errado" / "Os demais componentes seguem
+    // disponíveis."), e erro de RENDER e erro de QUERY têm que ler igual — a
+    // distinção é interna, a gestora só precisa saber que o bloco falhou.
+    fallbackRender={({ resetErrorBoundary }) => <EstadoErro onRetry={resetErrorBoundary} />}
   >
     {children}
   </ErrorBoundary>

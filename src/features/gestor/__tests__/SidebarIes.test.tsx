@@ -99,7 +99,29 @@ describe('SidebarIes (spec §3)', () => {
     });
   });
 
-  it('carregando: reserva a altura do controle, sem número nem rótulo falso', () => {
+  it('trocar de IES limpa `?simulados=` — os ids pertenciam ao cronograma da IES anterior', async () => {
+    comContexto(contexto('admin', true, TRES_IES));
+    render(
+      <MemoryRouter initialEntries={['/gestor/detalhamento?ies=ies-1&simulados=s1,s2']}>
+        <SidebarIes />
+        <Sonda />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: /instituição/i }));
+    fireEvent.click(
+      await screen.findByText('IES Beta', { selector: '[role="option"] *, [role="option"]' }),
+    );
+
+    // Sem isso, a nova IES montava a tela inteira sobre uma seleção que não
+    // existe no cronograma dela — sem chip marcado E sem o estado vazio
+    // "Escolha ao menos um simulado", porque `selecionados.length` seguia > 0.
+    await waitFor(() => {
+      expect(screen.getByTestId('search').textContent).toBe('?ies=ies-2');
+    });
+  });
+
+  it('carregando: reserva a MESMA altura do cartão final (48px), sem número nem rótulo falso', () => {
     mockUseGestorContexto.mockReturnValue({
       data: undefined,
       meta: undefined,
@@ -108,8 +130,47 @@ describe('SidebarIes (spec §3)', () => {
       refetch: vi.fn(),
     });
     renderizar();
-    expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    const skeleton = screen.getByRole('status');
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    // A regra de doc 04 §7 é a ALTURA FINAL: antes o skeleton tinha 36px e o
+    // rótulo estático do `gestor` ~20px, então a sidebar pulava ao responder.
+    expect(skeleton.style.height).toBe('48px');
     expect(screen.queryByRole('combobox')).toBeNull();
+  });
+
+  it('não existe rótulo "Instituição" acima do cartão — o nome acessível vem do aria-label', () => {
+    comContexto(contexto('admin', true, TRES_IES));
+    renderizar();
+    expect(screen.queryByText(/^institui[çc][ãa]o$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Instituição em foco' })).toBeInTheDocument();
+  });
+
+  it('o cartão traz o tile de 30px com a sigla da IES e o chevron do Dendê', () => {
+    comContexto(contexto('admin', true, TRES_IES));
+    const { container } = renderizar();
+
+    const gatilho = screen.getByRole('combobox', { name: /instituição/i });
+    const tile = gatilho.firstElementChild as HTMLElement;
+    expect(tile.style.width).toBe('30px');
+    expect(tile.style.height).toBe('30px');
+    expect(tile.getAttribute('aria-hidden')).toBe('true');
+    expect(tile.textContent).toBe('IA'); // "IES Alfa"
+
+    // Chevron: glifo do Dendê de 16px, nunca o ChevronDown do Lucide.
+    const chevron = container.querySelector('.icon-dende-icons-expand_more-outlined') as HTMLElement;
+    expect(chevron).not.toBeNull();
+    expect(chevron.style.fontSize).toBe('16px');
+    expect(gatilho.querySelectorAll('svg')).toHaveLength(0);
+  });
+
+  it('gestor (rótulo estático) reserva a mesma caixa do cartão, sem borda nem chevron', () => {
+    comContexto(contexto('gestor', false, [{ id: 'ies-1', nome: 'IES Alfa' }]));
+    const { container } = renderizar();
+
+    const cartao = screen.getByText('IES Alfa').parentElement as HTMLElement;
+    expect(cartao.style.minHeight).toBe('48px');
+    expect(cartao.style.border).toBe('');
+    expect(container.querySelector('.icon-dende-icons-expand_more-outlined')).toBeNull();
   });
 
   it('semeia o iesId na URL com a IES do contexto quando ainda não há seleção (achado do Felipe, item 3a — sem isso nenhum hook de dado dispara no primeiro acesso)', async () => {

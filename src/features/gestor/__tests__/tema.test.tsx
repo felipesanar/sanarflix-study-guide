@@ -55,7 +55,16 @@ describe('tema do portal do gestor — análise estática do CSS (§Tema escuro)
     const literaisClaro = [...blocoDe('.gestor-portal').matchAll(/(--gp-[a-z0-9-]+)\s*:\s*([^;]+);/g)]
       .filter(([, , v]) => !v.includes('var(--'))
       .map(([, t]) => t);
-    const semPar = literaisClaro.filter((t) => !escuro.has(t) && !t.startsWith('--gp-radius'));
+    /**
+     * A regra vale para COR: um literal de cor calibrado para fundo claro quase
+     * nunca serve no escuro, e esquecer o par é como o tema quebra na prática.
+     * Forma, tempo, curva e família de fonte não são função do tema — um raio de
+     * 8px, 140ms, `cubic-bezier(0.2,0,0,1)` e Roboto Mono são os mesmos nos dois,
+     * e exigir uma duplicata idêntica no bloco escuro só criaria duas fontes de
+     * verdade para o mesmo valor.
+     */
+    const INVARIANTE_DE_TEMA = /^--gp-(radius|motion|ease|font)/;
+    const semPar = literaisClaro.filter((t) => !escuro.has(t) && !INVARIANTE_DE_TEMA.test(t));
     expect(semPar, `tokens literais sem calibração no escuro: ${semPar.join(', ')}`).toEqual([]);
   });
 

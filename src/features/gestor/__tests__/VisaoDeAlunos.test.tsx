@@ -35,20 +35,37 @@ describe('VisaoDeAlunos', () => {
     expect(distribuicao.compareDocumentPosition(dispersao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('fica ACIMA da visão por área quando os dois blocos são irmãos (§4.8, 22/07)', () => {
+  /**
+   * A ordem entre este bloco e o Diagnóstico é decidida pela ROTA (a referência
+   * promove o Diagnóstico para cima), e está provada em `VisaoGeral.test.tsx`.
+   * Aqui só resta o que é responsabilidade DESTE componente: o CTA que leva à
+   * tabela de alunos. A copy é fechada no handoff — "Ver visão detalhada",
+   * nunca "drill-down".
+   */
+  it('oferece o CTA "Ver visão detalhada" apontando para a tabela de alunos', () => {
     render(
       <>
-        <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />
         <CascataDiagnostico
           resumo={visaoGeralFake.diagnosticoResumo}
           recorte={{ iesId: 'ies-1', semestre: '6ano' }}
           onAbrirTemas={vi.fn()}
         />
+        <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />
       </>,
     );
-    const alunos = screen.getByTestId('bloco-visao-alunos');
-    const area = screen.getByTestId('bloco-diagnostico');
-    expect(alunos.compareDocumentPosition(area) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const cta = screen.getByTestId('link-visao-detalhada');
+    expect(cta).toHaveTextContent('Ver visão detalhada');
+    expect(cta).toHaveAttribute('href', '#alunos-detalhe');
+    expect(screen.getByTestId('bloco-visao-alunos').textContent).not.toMatch(/drill/i);
+  });
+
+  it('o semáforo dos grupos vem de token do tema, nunca de paleta crua do Tailwind', () => {
+    const { container } = render(
+      <VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} dispersao={visaoGeralFake.dispersao} />,
+    );
+    expect(container.innerHTML).toContain('var(--gp-success)');
+    expect(container.innerHTML).not.toMatch(/bg-(emerald|amber|red|slate)-\d{3}/);
   });
 
   it('mostra estado vazio de distribuição sem alunos', () => {

@@ -3,6 +3,10 @@ import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBound
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import type { DendeIconName } from '@/features/gestor/components/icon-names';
+
+/** Acima disto o bloco é alto o bastante para valer a silhueta, não a mancha. */
+const ALTURA_MINIMA_SILHUETA = 120;
 
 export type EstadoBloco = 'ok' | 'loading' | 'empty' | 'error';
 
@@ -11,6 +15,13 @@ export interface BlocoGestorProps {
   estado: EstadoBloco;
   aoTentarNovamente?: () => void;
   mensagemVazio?: string;
+  /**
+   * Glifo do vazio deste bloco. A referência §9 não tem ícone genérico de
+   * vazio: `calendar_month` quando não houve simulado no período, `schedule`
+   * quando o gabarito ainda está processando, `insights` quando o recorte
+   * simplesmente não produziu leitura.
+   */
+  glifoVazio?: DendeIconName;
   /** Faixa de aviso quando `meta.partial` é `true` — recorte não cobre todos os simulados do período. */
   parcial?: boolean;
   alturaSkeleton?: number;
@@ -45,6 +56,7 @@ export function BlocoGestor({
   estado,
   aoTentarNovamente,
   mensagemVazio = 'Sem dados neste recorte.',
+  glifoVazio,
   parcial = false,
   alturaSkeleton = 300,
   testIdLoading,
@@ -59,7 +71,7 @@ export function BlocoGestor({
         <p
           data-testid="faixa-parcial"
           role="status"
-          className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+          className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
         >
           Recorte parcial: parte dos simulados do período não entrou neste cálculo.
         </p>
@@ -69,13 +81,14 @@ export function BlocoGestor({
         <div data-testid={testIdLoading}>
           <GestorSkeleton
             altura={alturaSkeleton}
+            forma={alturaSkeleton >= ALTURA_MINIMA_SILHUETA ? 'cartao' : 'bloco'}
             rotulo={titulo ? `Carregando ${titulo}` : 'Carregando bloco'}
           />
         </div>
       ) : estado === 'error' ? (
         <EstadoErro altura={alturaSkeleton} onRetry={aoTentarNovamente ?? (() => undefined)} />
       ) : estado === 'empty' ? (
-        <EstadoVazio titulo={mensagemVazio} altura={alturaSkeleton} />
+        <EstadoVazio titulo={mensagemVazio} glifo={glifoVazio} altura={alturaSkeleton} />
       ) : (
         <BlocoErrorBoundary bloco={bloco ?? testIdLoading ?? 'bloco-gestor'}>{children}</BlocoErrorBoundary>
       )}

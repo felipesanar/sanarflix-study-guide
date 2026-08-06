@@ -376,3 +376,59 @@ describe('AvisosSanar — limite de 3 + Ver todos', () => {
     expect(screen.queryByRole('button', { name: 'Ver todos' })).not.toBeInTheDocument();
   });
 });
+
+/** Anatomia da referência (handoff §10.13). */
+describe('AvisosSanar — anatomia da referência (§10.13)', () => {
+  it('o não-lido ganha fundo e borda de marca por token, nunca cor crua', () => {
+    montar();
+    const naoLido = screen.getByTestId('aviso-a1');
+    expect(naoLido.style.background).toBe('var(--gp-brand-surface)');
+    expect(naoLido.style.borderColor).toBe('var(--gp-brand-border)');
+    expect(naoLido.style.borderRadius).toBe('var(--gp-radius-sm)');
+
+    // O lido não é destacado: fica na superfície do card.
+    expect(screen.getByTestId('aviso-a2').style.background).toBe('');
+  });
+
+  it('o ponto do não-lido é 7px de marca', () => {
+    montar();
+    const ponto = screen.getByTestId('aviso-ponto-a1');
+    expect(ponto.style.width).toBe('7px');
+    expect(ponto.style.background).toBe('var(--gp-brand)');
+  });
+
+  /**
+   * "Cada card mantém a altura final — sem salto de layout ao carregar"
+   * (docs/04-componentes.md). O skeleton já reservava; vazio e erro não, então
+   * a coluna encolhia quando a query falhava DEPOIS do skeleton.
+   */
+  it('vazio e erro reservam a mesma altura que o skeleton — a coluna não encolhe ao trocar de estado', async () => {
+    const { unmount } = montar([]);
+    const vazio = screen.getByText('Nenhum aviso da Sanar por aqui.').closest('div');
+    expect(vazio?.style.minHeight).toBe('288px');
+    unmount();
+
+    // Erro: mesma altura. `avisosQueryFn` rejeita e o cache fica sem semear.
+    mocks.avisosQueryFn.mockRejectedValue(new Error('boom'));
+    const queryClient = novoQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AvisosSanar iesId="ies-1" />
+      </QueryClientProvider>,
+    );
+
+    const erro = await screen.findByRole('alert');
+    expect(erro.style.minHeight).toBe('288px');
+  });
+
+  it('o chevron de expansão vira expand_less quando o aviso abre', async () => {
+    const user = userEvent.setup();
+    montar();
+
+    const aviso = screen.getByTestId('aviso-a2');
+    expect(aviso.querySelector('.icon-dende-icons-expand_more-outlined')).not.toBeNull();
+
+    await user.click(aviso);
+    expect(aviso.querySelector('.icon-dende-icons-expand_less-outlined')).not.toBeNull();
+  });
+});

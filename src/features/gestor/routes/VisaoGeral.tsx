@@ -9,6 +9,7 @@ import { BlocoInsights } from '@/features/gestor/components/BlocoInsights';
 import { CascataDiagnostico, type RecorteDiagnostico } from '@/features/gestor/components/CascataDiagnostico';
 import { ContextoDoRecorte } from '@/features/gestor/components/ContextoDoRecorte';
 import { DrawerTemas, type EspecialidadeSelecionada } from '@/features/gestor/components/DrawerTemas';
+import { Glossario } from '@/features/gestor/components/Glossario';
 import { GraficoProtagonista } from '@/features/gestor/components/GraficoProtagonista';
 import { KpisVisaoGeral } from '@/features/gestor/components/KpisVisaoGeral';
 import { TabelaAlunos } from '@/features/gestor/components/TabelaAlunos';
@@ -34,8 +35,11 @@ const META_VAZIA: Meta = {
  * A tabela de alunos e o drawer de temas têm consulta própria (paginação e
  * lazy-load, respectivamente) e por isso não dependem deste estado.
  *
- * Ordem vertical §4.8, com Visão de Alunos ACIMA da visão por área (decisão
- * 22/07: macro antes do micro).
+ * Ordem vertical §4.8: filtros → 4 indicadores → gráfico protagonista →
+ * Diagnóstico Curricular → Visão de Alunos → insights → divisor "Detalhe ·
+ * micro" → tabela de alunos. A referência PROMOVE o Diagnóstico para logo
+ * abaixo do gráfico (`<!-- Diagnóstico (promovido) -->`), invertendo a ordem
+ * que o portal tinha até 05/08: "onde dói?" vem antes de "quem dói?".
  */
 export default function VisaoGeral() {
   const filtros = useFiltrosGestor();
@@ -189,8 +193,22 @@ export default function VisaoGeral() {
 
   return (
     <div className="space-y-6 p-8 pb-12" data-testid="gestor-visao-geral" aria-busy={emTransicao}>
-      <div data-testid="barra-filtros" className="space-y-2">
-        <FiltroSemestre />
+      {/* Cabeçalho + filtros: o mesmo esqueleto do Detalhamento (título à
+          esquerda, recorte alinhado à direita), para que a troca de tela não
+          mexa a barra de lugar. */}
+      <div data-testid="barra-filtros" className="space-y-3">
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>Visão Geral</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">Leitura macro da evolução institucional</p>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            {/* Único caminho de UI para o glossário no produto: sem este gatilho o
+                componente existia e era inalcançável em produção. */}
+            <Glossario />
+            <FiltroSemestre />
+          </div>
+        </div>
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
       </div>
 
@@ -204,20 +222,29 @@ export default function VisaoGeral() {
         </p>
       ) : null}
 
-      {/* 1. KPIs — o próprio componente propaga `estado` para cada KpiCard. */}
-      <KpisVisaoGeral
-        kpis={
-          visao?.kpis ?? {
-            enamedProjetado: { valor: null, delta: null, serie: [], criterio: meta.criterio },
-            proficientesPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
-            acertoPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
-            simulados: { realizados: 0, contratados: null },
+      {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
+      <div className="flex flex-col gap-3">
+        <span
+          data-testid="overline-panorama"
+          className="uppercase text-muted-foreground"
+          style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em' }}
+        >
+          Panorama da instituição
+        </span>
+        <KpisVisaoGeral
+          kpis={
+            visao?.kpis ?? {
+              enamedProjetado: { valor: null, delta: null, serie: [], criterio: meta.criterio },
+              proficientesPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
+              acertoPct: { valor: null, delta: null, serie: [], criterio: meta.criterio },
+              simulados: { realizados: 0, contratados: null },
+            }
           }
-        }
-        meta={meta}
-        estado={estado}
-        onTentarNovamente={aoTentarNovamente}
-      />
+          meta={meta}
+          estado={estado}
+          onTentarNovamente={aoTentarNovamente}
+        />
+      </div>
 
       {/* 2. Gráfico protagonista com 3 modos (Geral / Por grande área / Por aluno). */}
       <BlocoGestor
@@ -232,22 +259,12 @@ export default function VisaoGeral() {
         {visao ? <GraficoProtagonista visao={visao} /> : null}
       </BlocoGestor>
 
-      {/* 3. Visão de Alunos (macro) — ACIMA do diagnóstico por área (decisão 22/07). */}
-      <BlocoGestor
-        estado={estado}
-        parcial={parcial}
-        alturaSkeleton={320}
-        bloco="visao-alunos"
-        testIdLoading="bloco-visao-alunos-loading"
-        aoTentarNovamente={aoTentarNovamente}
-        mensagemVazio="Sem alunos com resultado neste recorte."
-      >
-        {visao ? <VisaoDeAlunos distribuicao={visao.distribuicaoAlunos} dispersao={visao.dispersao} /> : null}
-      </BlocoGestor>
-
-      {/* 4. Diagnóstico Curricular (micro por grande área) + cascata ao lado. O vazio
-          do grupo crítico é o CAMINHO PRINCIPAL (87,9% dos recortes reais, NIVEL_CRITICO_MAX
-          em lib/regras.ts) — CascataDiagnostico já trata isso, nunca escondendo a seção. */}
+      {/* 3. Diagnóstico Curricular (por grande área) + cascata ao lado. A referência
+          o PROMOVE para logo abaixo do gráfico protagonista (`<!-- Diagnóstico
+          (promovido) -->`), antes da Visão de Alunos — a pergunta "onde dói?" vem
+          antes de "quem dói?". O vazio do grupo crítico é o CAMINHO PRINCIPAL
+          (87,9% dos recortes reais, NIVEL_CRITICO_MAX em lib/regras.ts) —
+          CascataDiagnostico já trata isso, nunca escondendo a seção. */}
       <BlocoGestor
         estado={estado}
         parcial={parcial}
@@ -264,6 +281,20 @@ export default function VisaoGeral() {
             onAbrirTemas={aoAbrirTemas}
           />
         ) : null}
+      </BlocoGestor>
+
+      {/* 4. Visão de Alunos — faixa larga, com o CTA "Ver visão detalhada" apontando
+          para a tabela de alunos lá embaixo (nunca "drill-down"). */}
+      <BlocoGestor
+        estado={estado}
+        parcial={parcial}
+        alturaSkeleton={320}
+        bloco="visao-alunos"
+        testIdLoading="bloco-visao-alunos-loading"
+        aoTentarNovamente={aoTentarNovamente}
+        mensagemVazio="Sem alunos com resultado neste recorte."
+      >
+        {visao ? <VisaoDeAlunos distribuicao={visao.distribuicaoAlunos} dispersao={visao.dispersao} /> : null}
       </BlocoGestor>
 
       {/* 5. Insights autogerados (1 por área, 1 por aluno). */}
@@ -284,7 +315,10 @@ export default function VisaoGeral() {
         <Separator className="flex-1" />
       </div>
 
-      <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
+      {/* `id` é o destino do "Ver visão detalhada" do bloco Visão de Alunos. */}
+      <div id="alunos-detalhe">
+        <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
+      </div>
 
       <DrawerTemas
         especialidade={especialidadeAberta}

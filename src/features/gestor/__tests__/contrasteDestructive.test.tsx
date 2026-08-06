@@ -177,15 +177,18 @@ describe('SeletorSimulados — alerta de seleção mínima', () => {
   });
 });
 
-describe('EstadoErro — FICOU: ícone decorativo (aria-hidden + redundante com o texto), nada mudou', () => {
-  it('o AlertTriangle continua text-destructive e aria-hidden; o texto equivalente está sempre presente ao lado', () => {
+describe('EstadoErro — ícone do Dendê, decorativo e sempre acompanhado de texto', () => {
+  it('o glifo é Fontello e aria-hidden; o texto equivalente está sempre presente ao lado', () => {
     const { container } = render(<EstadoErro onRetry={() => undefined} />);
-    const icone = container.querySelector('[role="alert"] > svg');
-    expect(icone).not.toBeNull();
+    // Deixou de ser `<svg>` do Lucide: o Fontello renderiza por `::before` num
+    // `<i>`, então o alvo do teste muda de elemento junto com a família.
+    const icone = container.querySelector('[role="alert"] i[class*="icon-dende-"]');
+    expect(icone, 'o EstadoErro deve usar um glifo do Fontello do Dendê').not.toBeNull();
     expect(icone).toHaveAttribute('aria-hidden', 'true');
-    expect(icone?.getAttribute('class') ?? '').toMatch(/\btext-destructive\b/);
+    expect(container.querySelector('[role="alert"] svg')).toBeNull();
     // titulo tem default — o ícone nunca aparece sem um texto equivalente ao lado.
-    expect(screen.getByText('Não foi possível carregar este bloco')).toBeInTheDocument();
+    // Copy do handoff §9 — o título padrão passou a ser exatamente "Algo deu errado".
+    expect(screen.getByText('Algo deu errado')).toBeInTheDocument();
   });
 });
 
@@ -194,11 +197,22 @@ describe('EstadoErro — FICOU: ícone decorativo (aria-hidden + redundante com 
 /* ---------------------------------------------------------------------- */
 
 describe('fonte — os 4 pontos corrigidos não usam mais text-destructive; usos fora de escopo continuam', () => {
-  it('AreasChart.tsx: badge não usa text-destructive; CORES[0] (série) continua var(--destructive)', () => {
+  /**
+   * ATUALIZADO no passe de conformidade. Este caso registrava que `CORES[0]`
+   * seguia em `hsl(var(--destructive))`, "fora de escopo". Passou a ser escopo:
+   * `--destructive` e `--chart-5` têm valor IDÊNTICO em `src/index.css`, então
+   * a 1ª e a 5ª grande área (Clínica Médica e Pediatria) renderizavam **a mesma
+   * cor** — na linha e na bolinha da legenda. A paleta agora vem das séries do
+   * handoff e é escolhida pelo NOME da área, não pela posição no array, para
+   * que uma grande área não troque de cor quando outra entra ou sai do recorte.
+   */
+  it('AreasChart.tsx: a paleta vem das séries do handoff, nunca de --destructive', () => {
     const semComent = semComentarios(SRC_AREAS_CHART);
     expect(semComent).not.toMatch(/text-destructive/);
-    expect(semComent).toMatch(/gp-text-danger/);
-    expect(semComent).toMatch(/hsl\(var\(--destructive\)\)/); // CORES[0], fora de escopo — intocado
+    expect(semComent).not.toMatch(/hsl\(var\(--destructive\)\)/);
+    for (const n of [1, 2, 3, 4, 5]) {
+      expect(semComent).toContain(`var(--gp-serie-${n})`);
+    }
   });
 
   it('AcertoPorAreaESemestre.tsx: nome da área não usa mais text-destructive; bg-destructive (barra) continua', () => {
@@ -212,8 +226,9 @@ describe('fonte — os 4 pontos corrigidos não usam mais text-destructive; usos
     const semComent = semComentarios(SRC_DISTRIBUICAO);
     expect(semComent).not.toMatch(/text-destructive\b/);
     expect(semComent).toMatch(/gp-text-danger/);
-    expect(semComent).toMatch(/bg-destructive\/10/);
-    expect(semComent).toMatch(/\?\s*'bg-destructive'/); // barra de marcação do distrator, fora de escopo
+    // A barra do distrator dominante passou a usar o token semântico do
+    // handoff (§7: "distrator dominante em erro") em vez da classe utilitária.
+    expect(semComent).toMatch(/--gp-danger/);
   });
 
   it('SeletorSimulados.tsx: <p> do alerta não usa mais text-destructive; border/ring-destructive (estado inválido) continuam', () => {
@@ -224,10 +239,17 @@ describe('fonte — os 4 pontos corrigidos não usam mais text-destructive; usos
     expect(semComent).toMatch(/ring-destructive\/20/);
   });
 
-  it('EstadoErro.tsx: NADA mudou — ícone continua text-destructive, sem gp-text-danger (decorativo, sem correção aplicável)', () => {
+  /**
+   * ATUALIZADO: o caso registrava que o `AlertTriangle` do Lucide seguia
+   * intocado por ser decorativo. A regra §3 do handoff ("100% dos ícones vêm do
+   * Fontello do Dendê") não abre exceção para ícone decorativo, então ele virou
+   * `error_outline` do Dendê. Continua decorativo — o texto ao lado carrega o
+   * significado sozinho.
+   */
+  it('EstadoErro.tsx: o ícone é do Dendê e segue decorativo', () => {
     const semComent = semComentarios(SRC_ESTADO_ERRO);
-    expect(semComent).toMatch(/text-destructive/);
-    expect(semComent).not.toMatch(/gp-text-danger/);
+    expect(semComent).not.toMatch(/lucide-react/);
+    expect(semComent).toMatch(/name="error_outline"/);
   });
 });
 

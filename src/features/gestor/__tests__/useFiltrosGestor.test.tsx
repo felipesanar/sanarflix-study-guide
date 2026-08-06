@@ -125,7 +125,10 @@ describe('useFiltrosGestor (spec §4.5, §8.2)', () => {
     );
 
     expect(screen.getByTestId('filtros').textContent).toBe('11|s1+s2');
-    fireEvent.click(screen.getByRole('link', { name: 'Detalhamento' }));
+    // Regex, não string exata: o rótulo da nav passou a ser "Detalhamento por
+    // Simulados" (alinhando nav, h1 da rota e direcionador do Início), e o que
+    // este caso prova é a preservação do filtro ao navegar, não a copy do item.
+    fireEvent.click(screen.getByRole('link', { name: /Detalhamento/ }));
     expect(screen.getByTestId('path').textContent).toBe('/gestor/detalhamento');
     expect(screen.getByTestId('filtros').textContent).toBe('11|s1+s2');
   });

@@ -122,10 +122,65 @@ describe('DrawerTemas', () => {
     expect(screen.getByTestId('tema-tema-arritmia')).toHaveTextContent('cobertura parcial');
   });
 
+  /**
+   * §10.7: a amostra é contexto de TODO tema, não só do de baixa cobertura —
+   * sem ela o gestor não sabe sobre quantas respostas o percentual foi
+   * calculado. E o `n` vive fora da pílula, como metadado da linha.
+   */
+  it('mostra a amostra de todo tema, não só do de cobertura parcial', () => {
+    render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+    expect(screen.getByTestId('amostra-tema-ic')).toHaveTextContent('118 respostas');
+    expect(screen.getByTestId('amostra-tema-arritmia')).toHaveTextContent('7 respostas');
+  });
+
+  /**
+   * §10.7: a barra codifica o nível pela MESMA régua da cascata
+   * (`lib/regras.ts`), e recua para o tom neutro quando a amostra é pequena —
+   * a cor não deve gritar severidade onde não se deve confiar no valor.
+   */
+  it('a barra do tema é tintada por nível, com tom neutro na baixa amostra', () => {
+    render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+
+    // 22% de acerto: abaixo do corte crítico de regras.ts.
+    const critico = screen.getByTestId('barra-tema-ic').firstElementChild as HTMLElement;
+    expect(critico.style.background).toBe('var(--gp-danger)');
+
+    // 41% seria "mediano", mas o tema tem lowSample: recua para o neutro.
+    const baixaAmostra = screen.getByTestId('barra-tema-arritmia').firstElementChild as HTMLElement;
+    expect(baixaAmostra.style.background).toBe('var(--gp-text-3)');
+  });
+
+  /**
+   * §10.7: cabeçalho em dois níveis. A grande área já chega na prop (é ela
+   * que desambigua duas especialidades homônimas) e precisa aparecer — mas o
+   * NOME ACESSÍVEL do diálogo continua carregando a frase inteira.
+   */
+  it('mostra a grande área como sobrelinha do título', () => {
+    render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+    const titulo = screen.getByRole('dialog').querySelector('h2');
+    expect(titulo).toHaveTextContent('Clínica Médica');
+    expect(titulo).toHaveTextContent('Cardiologia');
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(/Temas de Cardiologia/i);
+  });
+
+  it('declara a proveniência do recorte a partir do meta do envelope, nunca de texto fixo', () => {
+    render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+    const proveniencia = screen.getByTestId('temas-proveniencia');
+    expect(proveniencia).toHaveTextContent(metaFake.periodo);
+    expect(proveniencia).toHaveTextContent(metaFake.fonte);
+  });
+
   it('prende o foco dentro do drawer ao abrir', async () => {
     render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
     const dialogo = screen.getByRole('dialog');
     await waitFor(() => expect(dialogo).toContainElement(document.activeElement as HTMLElement));
+  });
+
+  /** §11: "Foco vai para o TÍTULO ao abrir" — não para o primeiro botão do rodapé. */
+  it('leva o foco ao título ao abrir, não ao primeiro controle do conteúdo', async () => {
+    render(<DrawerTemas especialidade={especialidade} recorte={recorte} onFechar={vi.fn()} onExportarRecorte={vi.fn()} />);
+    const titulo = screen.getByRole('dialog').querySelector('h2') as HTMLElement;
+    await waitFor(() => expect(titulo).toHaveFocus());
   });
 
   it('fecha com ESC', async () => {

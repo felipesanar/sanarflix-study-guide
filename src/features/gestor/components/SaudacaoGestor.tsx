@@ -58,7 +58,14 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
 
   return (
     <header data-testid="saudacao">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+      {/* Título de tela da referência: 26px/700, tracking -0.01em, 32px de
+          linha. `text-2xl`/`tracking-tight` do Tailwind davam 24px/600 com um
+          tracking 2,5× mais apertado — a saudação ficava do mesmo peso visual
+          dos títulos de card logo abaixo. */}
+      <h1
+        className="text-foreground"
+        style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: '32px' }}
+      >
         {`${saudacaoPorHora(new Date())}, ${primeiroNome(contexto.usuario.nome)}`}
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">

@@ -89,10 +89,20 @@ describe('ChipNivel (spec §4.4)', () => {
     }
   });
 
-  it('a cor vem de token, nunca de hex solto', () => {
+  /**
+   * A cor vem de token **semântico**, não da paleta de gráfico.
+   *
+   * O `ChipNivel` improvisava `color-mix` sobre `--chart-1/3/--destructive` — a
+   * escala de séries de gráfico, que existe para distinguir categorias lado a
+   * lado, não para carregar juízo de valor. Nível de desempenho é semântica
+   * (bom/atenção/ruim) e pede o par `on/surface` do handoff §5, que é o que o
+   * `<TagNivel>` aplica. Este teste trava a origem do token, não o hex.
+   */
+  it('a cor vem de token semântico, nunca de hex solto nem da paleta de gráfico', () => {
     const { container } = render(<ChipNivel nivel="excelente" />);
-    expect(container.innerHTML).toContain('hsl(var(--chart-1))');
+    expect(container.innerHTML).toContain('--gp-success');
     expect(container.innerHTML).not.toMatch(/#[0-9a-fA-F]{6}/);
+    expect(container.innerHTML).not.toMatch(/--chart-\d/);
   });
 });
 

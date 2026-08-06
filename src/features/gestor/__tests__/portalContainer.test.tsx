@@ -252,8 +252,13 @@ describe('controle — sem GestorShell na árvore, o padrão de aluno/admin não
   });
 
   it('DrawerAluno sozinho (sem GestorShell): o Sheet aberto NÃO está dentro de nenhum .gestor-portal', () => {
+    // Desde o passe de conformidade o DrawerAluno também renderiza
+    // AcoesRecorte, que chama useFiltrosGestor() (useSearchParams) — precisa de
+    // um Router ao redor, mesmo sem o shell. Mesmo caso do DrawerTemas abaixo.
     const { container } = render(
-      <DrawerAluno alunoId="a1" nome="Ana Prado" simulados={['s1']} onFechar={() => {}} />,
+      <MemoryRouter initialEntries={['/gestor']}>
+        <DrawerAluno alunoId="a1" nome="Ana Prado" simulados={['s1']} onFechar={() => {}} />
+      </MemoryRouter>,
     );
 
     const dialogo = screen.getByRole('dialog');

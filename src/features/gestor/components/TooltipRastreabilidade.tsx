@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Icon } from '@/features/gestor/components/Icon';
 import { TRACO } from '@/features/gestor/lib/formatters';
 import type { Meta } from '@/features/gestor/api/types';
 
@@ -16,8 +17,11 @@ import type { Meta } from '@/features/gestor/api/types';
  * `Date` e converte explicitamente para America/Sao_Paulo (achado da revisão
  * de 05/08). Também mostra a hora: a pergunta do gestor é "quão fresco é este
  * número".
+ *
+ * Exportado desde o passe de conformidade: `KpisDetalhamento` mostrava o mesmo
+ * instante com `formatData` e reproduzia exatamente o bug acima.
  */
-function formatDataHora(iso: string): string {
+export function formatDataHora(iso: string): string {
   if (!iso) return TRACO;
   const data = new Date(iso);
   if (Number.isNaN(data.getTime())) return TRACO;
@@ -37,6 +41,10 @@ function formatDataHora(iso: string): string {
  * mas cada consumidor pode sobrescrever com um `criterio` mais específico
  * (ex.: o critério de um KPI que não é o critério geral do bloco).
  *
+ * O gatilho é um `<button>`, não o `<i>` puro da referência: `<i>` não é
+ * alcançável por teclado, e a §11 exige que o mesmo conteúdo abra no FOCO,
+ * não só no hover. O Radix já fecha com ESC.
+ *
  * O mesmo texto some duplicado num `<span>` `sr-only` (`data-testid`
  * `rastreabilidade-texto`) para leitores de tela e para asserção em teste sem
  * depender de hover/focus no tooltip.
@@ -44,8 +52,17 @@ function formatDataHora(iso: string): string {
 export const TooltipRastreabilidade: React.FC<{
   meta: Meta;
   criterio?: string;
+  /** Nome do indicador — primeira linha do tooltip, antes da grade de 4 campos. */
+  titulo?: string;
+  /**
+   * Aresta do glifo `info`. A referência usa três tamanhos por contexto: 14px
+   * no cabeçalho de KPI, 15px no cabeçalho de gráfico, 13px na linha de
+   * proveniência do rodapé.
+   */
+  tamanho?: number;
+  className?: string;
   children?: React.ReactNode;
-}> = ({ meta, criterio, children }) => {
+}> = ({ meta, criterio, titulo, tamanho = 14, className, children }) => {
   /**
    * `meta.lowSample` faz parte da resposta à pergunta "de onde vem este
    * número": um indicador calculado sobre amostra pequena não tem a mesma
@@ -61,6 +78,7 @@ export const TooltipRastreabilidade: React.FC<{
   const cobertura = meta.lowSample ? 'parcial (amostra pequena)' : null;
 
   const linhas = [
+    ...(titulo ? [titulo] : []),
     `Período: ${meta.periodo}`,
     `Fonte: ${meta.fonte}`,
     `Atualizado em: ${formatDataHora(meta.atualizadoEm)}`,
@@ -69,21 +87,31 @@ export const TooltipRastreabilidade: React.FC<{
   ];
 
   return (
-    <span className="inline-flex items-center">
+    <span className={cn('inline-flex items-center', className)}>
       <Tooltip>
         <TooltipTrigger asChild>
           {children ?? (
             <button
               type="button"
               aria-label="Rastreabilidade do indicador"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex h-5 w-5 cursor-help items-center justify-center rounded-full transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{ color: 'var(--gp-border-strong)' }}
             >
-              <Info className="h-3.5 w-3.5" aria-hidden="true" />
+              <Icon name="info" variant="outlined" size={tamanho} />
             </button>
           )}
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[11px]">
+        <TooltipContent
+          className="max-w-xs"
+          style={{ borderRadius: 'var(--gp-radius-md)', padding: 16 }}
+        >
+          {titulo ? (
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>{titulo}</div>
+          ) : null}
+          <dl
+            className="grid grid-cols-[auto_1fr]"
+            style={{ gap: '6px 14px', fontSize: 11, lineHeight: '16px' }}
+          >
             <dt className="font-medium text-muted-foreground">Período</dt>
             <dd>{meta.periodo}</dd>
             <dt className="font-medium text-muted-foreground">Fonte</dt>

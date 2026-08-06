@@ -28,16 +28,22 @@ const metaFake: Meta = {
   lowSample: false,
 };
 
+/**
+ * Duas grandes áreas CRÍTICAS e uma excelente. A cascata aberta pela seta de
+ * um card mostra só as áreas daquele nível (handoff §10.6) — então o resumo e
+ * os nós da árvore precisam concordar sobre quem é crítico, ou os testes de
+ * exclusividade não teriam dois nós para alternar.
+ */
 const diagnosticoResumoFake: VisaoGeral['diagnosticoResumo'] = [
   { nivel: 'excelente', areas: [{ id: 'ga-gine', nome: 'Ginecologia e Obstetrícia', acertoPct: 84 }] },
+  { nivel: 'mediano', areas: [{ id: 'ga-pediatria', nome: 'Pediatria', acertoPct: 55 }] },
   {
-    nivel: 'mediano',
+    nivel: 'critico',
     areas: [
-      { id: 'ga-cirurgia', nome: 'Cirurgia', acertoPct: 61 },
-      { id: 'ga-pediatria', nome: 'Pediatria', acertoPct: 55 },
+      { id: 'ga-clinica', nome: 'Clínica Médica', acertoPct: 27 },
+      { id: 'ga-cirurgia', nome: 'Cirurgia', acertoPct: 28 },
     ],
   },
-  { nivel: 'critico', areas: [{ id: 'ga-clinica', nome: 'Clínica Médica', acertoPct: 27 }] },
 ];
 
 /** Mesmo recorte de 27% e 61% do fixture acima, sem nenhuma área crítica — o caminho principal (§4.4: 87,9% dos recortes reais). */
@@ -77,7 +83,8 @@ const diagnosticoResumoVazioFake: VisaoGeral['diagnosticoResumo'] = [
 
 const grandesAreas: NoDiagnostico[] = [
   { id: 'ga-clinica', nome: 'Clínica Médica', nivel: 'grande_area', acertoPct: 27, desempenho: 'critico', amostra: 118, lowSample: false, temFilhos: true },
-  { id: 'ga-cirurgia', nome: 'Cirurgia', nivel: 'grande_area', acertoPct: 61, desempenho: 'mediano', amostra: 118, lowSample: false, temFilhos: true },
+  { id: 'ga-cirurgia', nome: 'Cirurgia', nivel: 'grande_area', acertoPct: 28, desempenho: 'critico', amostra: 118, lowSample: false, temFilhos: true },
+  { id: 'ga-gine', nome: 'Ginecologia e Obstetrícia', nivel: 'grande_area', acertoPct: 84, desempenho: 'excelente', amostra: 118, lowSample: false, temFilhos: true },
 ];
 
 const especialidadesClinica: NoDiagnostico[] = [
@@ -105,7 +112,21 @@ describe('CascataDiagnostico', () => {
     expect(screen.getByText('Mediano')).toBeInTheDocument();
     expect(screen.getByText('Crítico')).toBeInTheDocument();
     expect(screen.getByTestId('chip-ga-clinica')).toHaveTextContent('Clínica Médica');
-    expect(screen.getByTestId('chip-ga-clinica')).toHaveTextContent('27%');
+  });
+
+  /**
+   * §10.6: o chip do cartão de nível carrega SÓ o nome da área. O % saiu de
+   * dentro dele — o cartão já agrupa por faixa de desempenho, e o número
+   * exato pertence à cascata, onde vem com amostra e cobertura. A asserção é
+   * negativa de propósito: o `27%` voltar para dentro do chip é justamente a
+   * regressão que este teste tranca.
+   */
+  it('o chip do cartão de nível traz só o nome da área, sem o percentual', () => {
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    const chip = screen.getByTestId('chip-ga-clinica');
+    expect(chip).toHaveTextContent('Clínica Médica');
+    expect(chip).not.toHaveTextContent('27%');
+    expect(chip.textContent?.trim()).toBe('Clínica Médica');
   });
 
   it('não renderiza os links removidos em 22/07', () => {
@@ -191,15 +212,165 @@ describe('CascataDiagnostico', () => {
     });
   });
 
-  it('marca cobertura parcial com o n da amostra quando lowSample', async () => {
+  it('marca cobertura parcial na pílula e mantém o n FORA dela, como metadado', async () => {
     const user = userEvent.setup();
     render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
     await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
 
     const cardio = screen.getByRole('button', { name: /Cardiologia/ });
-    expect(cardio).toHaveTextContent('cobertura parcial');
-    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('n = 8');
+    const pilula = within(cardio).getByText('cobertura parcial');
+    expect(pilula).toHaveAttribute('title', expect.stringContaining('8'));
+    // O n é metadado à direita da linha, não texto dentro da pílula.
+    expect(pilula).not.toHaveTextContent('8');
+    expect(cardio.querySelector('[data-testid="amostra-esp-cardio"]')).toHaveTextContent('8 respostas');
+
+    // Nó sem baixa amostra: nenhuma pílula, mas o n continua visível.
+    const pneumo = screen.getByRole('button', { name: /Pneumologia/ });
+    expect(within(pneumo).queryByText('cobertura parcial')).not.toBeInTheDocument();
+    expect(pneumo.querySelector('[data-testid="amostra-esp-pneumo"]')).toHaveTextContent('110 respostas');
+  });
+
+  /**
+   * §10.6 — o painel aberto pela seta de um card traz SÓ as grandes áreas
+   * daquele nível. Sem o recorte, abrir a seta do card "Crítico" listava
+   * todas as áreas do recorte, inclusive as excelentes, contradizendo o
+   * próprio `aria-label` do botão.
+   */
+  it('a cascata aberta por um card lista só as grandes áreas daquele nível', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+    const cascata = screen.getByTestId('cascata');
+    expect(within(cascata).getByRole('button', { name: /Clínica Médica/ })).toBeInTheDocument();
+    expect(within(cascata).getByRole('button', { name: /Cirurgia/ })).toBeInTheDocument();
+    expect(within(cascata).queryByRole('button', { name: /Ginecologia/ })).not.toBeInTheDocument();
+  });
+
+  it('a cascata do nível excelente traz a área excelente e nenhuma crítica', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível excelente' }));
+    const cascata = screen.getByTestId('cascata');
+    expect(within(cascata).getByRole('button', { name: /Ginecologia/ })).toBeInTheDocument();
+    expect(within(cascata).queryByRole('button', { name: /Clínica Médica/ })).not.toBeInTheDocument();
+  });
+
+  /** §10.6: cada nó carrega o nível, não só o %. */
+  it('cada nó da cascata mostra o nível de desempenho, não apenas o percentual', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
+    expect(clinica).toHaveTextContent('Crítico');
+    expect(clinica).toHaveTextContent('27%');
+  });
+
+  /**
+   * Handoff §3: dois GLIFOS distintos por estado, nunca um só girado por CSS.
+   * O teste olha a classe do Fontello porque é ela que decide qual desenho a
+   * fonte renderiza — `rotate-90` renderizaria o desenho errado inclinado.
+   */
+  it('troca o glifo do disclosure entre chevron_right e expand_more, sem rotação', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
+    expect(clinica.querySelector('.icon-dende-icons-chevron_right-outlined')).not.toBeNull();
+    expect(clinica.querySelector('.icon-dende-icons-expand_more-outlined')).toBeNull();
+
+    await user.click(clinica);
+    expect(clinica.querySelector('.icon-dende-icons-expand_more-outlined')).not.toBeNull();
+    expect(clinica.querySelector('[class*="rotate-90"]')).toBeNull();
+    expect(screen.getByTestId('cascata').querySelector('svg')).toBeNull();
+  });
+
+  /** §10.6: a especialidade é o único caminho para o 3º nível — e precisa dizer isso. */
+  it('a linha de especialidade anuncia "Ver temas"; a de grande área, não', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
+    expect(clinica).not.toHaveTextContent('Ver temas');
+
+    await user.click(clinica);
+    expect(screen.getByRole('button', { name: /Cardiologia/ })).toHaveTextContent('Ver temas');
+  });
+
+  /** §11, tabela de teclado: "Cascata | Enter/Espaço expande; setas ↑ ↓ entre nós". */
+  it('setas ↑ ↓ movem o foco entre os nós visíveis da árvore', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
+    const cirurgia = screen.getByRole('button', { name: /Cirurgia/ });
+
+    clinica.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(cirurgia).toHaveFocus();
+
+    await user.keyboard('{ArrowUp}');
+    expect(clinica).toHaveFocus();
+
+    // No topo, ArrowUp não sai da árvore.
+    await user.keyboard('{ArrowUp}');
+    expect(clinica).toHaveFocus();
+  });
+
+  it('as setas alcançam também os filhos do ramo aberto', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    const clinica = screen.getByRole('button', { name: /Clínica Médica/ });
+    await user.click(clinica);
+
+    clinica.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: /Cardiologia/ })).toHaveFocus();
+  });
+
+  /**
+   * §10.6: "trocar o filtro recolhe e recarrega". Manter o ramo aberto de
+   * outro recorte deixaria na tela especialidades de um filtro que não está
+   * mais selecionado.
+   */
+  it('trocar o recorte recolhe a cascata', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+    await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
+    expect(screen.getByTestId('filhos-ga-clinica')).toBeInTheDocument();
+
+    rerender(
+      <CascataDiagnostico
+        resumo={diagnosticoResumoFake}
+        recorte={{ iesId: 'ies-1', semestre: 'geral' }}
+        onAbrirTemas={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('cascata')).not.toBeInTheDocument();
+    expect(screen.getByTestId('diagnostico-grid')).toHaveAttribute('data-dividido', 'false');
+  });
+
+  it('o cabeçalho da cascata traz a trilha do ramo aberto', async () => {
+    const user = userEvent.setup();
+    render(<CascataDiagnostico resumo={diagnosticoResumoFake} recorte={recorte} onAbrirTemas={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Abrir cascata do nível crítico' }));
+
+    expect(screen.getByTestId('cascata-trilha')).not.toHaveTextContent('ga-clinica');
+    await user.click(screen.getByRole('button', { name: /Clínica Médica/ }));
+    expect(screen.getByTestId('cascata-trilha')).toHaveTextContent('ga-clinica');
   });
 
   /**

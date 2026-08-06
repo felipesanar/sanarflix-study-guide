@@ -1,17 +1,76 @@
 import * as React from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { Icon } from './Icon';
+import { Tag, TagDelta } from './Tag';
+import {
+  CabecalhoTabela,
+  Celula,
+  CelulaCabecalho,
+  CorpoTabela,
+  FONTE_MONO,
+  LinhaTabela,
+  TabelaGestor,
+} from './tabela';
 import { calcularVariacao } from '../lib/regras';
-import { formatConceito, formatData, formatDelta, formatNumero, formatPct } from '../lib/formatters';
+import { formatConceito, formatData, formatNumero, formatPct, TRACO } from '../lib/formatters';
 import type { Detalhamento, MetricasSimulado } from '../api/types';
 
 export interface ComparativoSimuladosProps {
   metricas: MetricasSimulado[];
   comparativoTemas?: Detalhamento['comparativoTemas'];
+}
+
+/** `dd/MM` — a referência usa a data curta no cabeçalho do card. */
+function dataCurta(iso: string | null): string {
+  const completa = formatData(iso);
+  return completa === TRACO ? TRACO : completa.slice(0, 5);
+}
+
+const CLASSE_TITULO_BLOCO = 'text-[13px] font-bold';
+
+/**
+ * Célula de valor destas duas tabelas: mono, mas alinhada à ESQUERDA. A
+ * referência não usa a coluna numérica à direita aqui — os números ficam
+ * colados ao rótulo do simulado, porque a leitura é linha a linha (SN1 × SN2),
+ * não varredura vertical. Por isso `Celula numerica` (que alinha à direita)
+ * não serve, e a família mono vem por `style`.
+ */
+const ESTILO_VALOR: React.CSSProperties = {
+  fontFamily: FONTE_MONO,
+  fontVariantNumeric: 'tabular-nums',
+};
+
+/**
+ * Cabeçalho da tabela de métricas: 13px/700 com a data e o n embaixo. É a
+ * única exceção ao cabeçalho padrão (10px caixa alta) do `components/tabela` —
+ * aqui a coluna é um SIMULADO, não um atributo, e a referência lhe dá o peso
+ * de um título de coluna.
+ */
+const ESTILO_CABECALHO_SIMULADO: React.CSSProperties = {
+  padding: '10px 12px',
+  fontSize: 13,
+  fontWeight: 700,
+  color: 'var(--gp-text-1)',
+  textAlign: 'left',
+  borderBottom: '1px solid var(--gp-border-strong)',
+};
+
+/** Painel interno do expandido: fundo um degrau abaixo do card, raio 12px. */
+const ESTILO_PAINEL: React.CSSProperties = {
+  background: 'var(--gp-surface-2)',
+  borderColor: 'var(--gp-border-subtle)',
+  borderRadius: 'var(--gp-radius-md)',
+};
+
+/** Chip "proj." — o Conceito ENAMED nunca aparece sem dizer que é projetado (§4.1). */
+function ChipProjetado() {
+  return (
+    <Tag variant="qualificador" title="Conceito ENAMED projetado">
+      proj.
+    </Tag>
+  );
 }
 
 export function ComparativoSimulados({ metricas, comparativoTemas }: ComparativoSimuladosProps) {
@@ -32,51 +91,60 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
         {metricas.map((m, i) => {
           const anterior = i > 0 ? metricas[i - 1] : null;
           const ehAtual = i === indiceAtual;
+
+          /* Delta só existe contra um simulado anterior: o primeiro card não recebe
+             pílula nenhuma. Imprimir `—` ali afirmaria "variação desconhecida" onde
+             simplesmente não há o que variar (§4.10). */
+          const deltaAcerto = anterior ? calcularVariacao(anterior.acertoMedioPct, m.acertoMedioPct) : null;
+          const deltaEnamed = anterior ? calcularVariacao(anterior.enamedProjetado, m.enamedProjetado) : null;
+          const deltaProficiencia = anterior
+            ? calcularVariacao(anterior.proficienciaMedia, m.proficienciaMedia)
+            : null;
+
           return (
             <Card
               key={m.simuladoId}
               data-testid={`card-simulado-${m.simuladoId}`}
               data-atual={String(ehAtual)}
-              className={cn(ehAtual && 'ring-2 ring-primary')}
+              /* Destaque do atual é borda de marca fina + sombra de card — nunca
+                 anel de 2px, que o handoff proíbe em card. */
+              className={cn(ehAtual && 'border-[var(--gp-brand-border)]')}
+              style={ehAtual ? { borderWidth: 1.5, boxShadow: 'var(--gp-shadow-card)' } : undefined}
             >
-              <CardContent className="space-y-2 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{m.nome}</p>
-                    <p className="text-xs text-muted-foreground">{formatData(m.data)}</p>
-                  </div>
-                  {ehAtual && <Badge>atual</Badge>}
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-baseline gap-2">
+                  <p className="text-[13px] font-bold text-foreground">{m.nome}</p>
+                  {ehAtual && <Tag variant="selo">atual</Tag>}
+                  <p className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
+                    {dataCurta(m.data)} · {m.participantes} part.
+                  </p>
                 </div>
 
-                <dl className="space-y-1 text-sm">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Percentual de acerto</dt>
-                    <dd className="flex items-baseline gap-2 tabular-nums">
-                      <span data-testid="card-acerto" className="font-semibold text-foreground">
-                        {formatPct(m.acertoMedioPct)}
-                      </span>
-                      <span data-testid="card-delta-acerto" className="text-xs text-muted-foreground">
-                        {formatDelta(calcularVariacao(anterior?.acertoMedioPct ?? null, m.acertoMedioPct))}
-                      </span>
-                    </dd>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Conceito ENAMED</dt>
-                    <dd data-testid="card-enamed" className="font-semibold tabular-nums text-foreground">
-                      {formatConceito(m.enamedProjetado)}
-                    </dd>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <dt className="text-muted-foreground">Proficiência média</dt>
-                    <dd className="flex items-baseline gap-2 tabular-nums">
-                      <span data-testid="card-proficiencia" className="font-semibold text-foreground">
-                        {formatNumero(m.proficienciaMedia)}
-                      </span>
-                      <span data-testid="card-delta-proficiencia" className="text-xs text-muted-foreground">
-                        {formatDelta(calcularVariacao(anterior?.proficienciaMedia ?? null, m.proficienciaMedia))}
-                      </span>
-                    </dd>
-                  </div>
+                <dl className="space-y-2.5">
+                  <LinhaIndicador
+                    rotulo="Percentual de acerto"
+                    valor={formatPct(m.acertoMedioPct)}
+                    valorTestId="card-acerto"
+                    delta={deltaAcerto}
+                    deltaTestId="card-delta-acerto"
+                  />
+                  <LinhaIndicador
+                    rotulo="Conceito ENAMED"
+                    qualificador={<ChipProjetado />}
+                    valor={formatConceito(m.enamedProjetado)}
+                    valorTestId="card-enamed"
+                    delta={deltaEnamed}
+                    deltaTestId="card-delta-enamed"
+                    separada
+                  />
+                  <LinhaIndicador
+                    rotulo="Proficiência média"
+                    valor={formatNumero(m.proficienciaMedia)}
+                    valorTestId="card-proficiencia"
+                    delta={deltaProficiencia}
+                    deltaTestId="card-delta-proficiencia"
+                    separada
+                  />
                 </dl>
               </CardContent>
             </Card>
@@ -85,56 +153,209 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
       </div>
 
       <Collapsible open={aberto} onOpenChange={setAberto}>
-        <CollapsibleTrigger className="inline-flex items-center gap-1 text-sm underline">
-          {aberto ? (
-            <ChevronDown className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          )}
-          Ver comparativo completo
+        <CollapsibleTrigger
+          className="inline-flex items-center gap-1.5 text-xs font-semibold"
+          style={{ color: 'var(--gp-brand-on-dark)' }}
+        >
+          Ver comparativo completo · questões e alunos
+          <Icon
+            name="expand_more"
+            size={15}
+            className={cn('transition-transform duration-200', aberto && 'rotate-180')}
+          />
         </CollapsibleTrigger>
-        <CollapsibleContent className="pt-3">
-          {comparativoTemas && comparativoTemas.length > 0 ? (
-            <div className="rounded-lg border border-border">
-              <Table data-testid="comparativo-temas">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tema</TableHead>
+
+        <CollapsibleContent className="flex flex-col gap-4 pt-3">
+          <div className="border p-4" style={ESTILO_PAINEL}>
+            <p className={cn(CLASSE_TITULO_BLOCO, 'mb-2.5 text-foreground')}>Métricas por simulado</p>
+            <div data-testid="comparativo-metricas">
+              <TabelaGestor rotulo="Métricas por simulado">
+                <CabecalhoTabela>
+                  <tr>
+                    <th scope="col" style={ESTILO_CABECALHO_SIMULADO}>
+                      <span className="sr-only">Indicador</span>
+                    </th>
                     {metricas.map((m) => (
-                      <TableHead key={m.simuladoId} className="text-right">
+                      <th key={m.simuladoId} scope="col" style={ESTILO_CABECALHO_SIMULADO}>
                         {m.nome}
-                      </TableHead>
+                        <span
+                          className="block text-[11px] font-normal tabular-nums"
+                          style={{ color: 'var(--gp-text-3)' }}
+                        >
+                          {dataCurta(m.data)} · {m.participantes} part.
+                        </span>
+                      </th>
                     ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {comparativoTemas.map((linha) => (
-                    <TableRow key={linha.tema}>
-                      <TableCell>{linha.tema}</TableCell>
-                      {metricas.map((m) => {
-                        const ponto = linha.porSimulado.find((p) => p.simuladoId === m.simuladoId);
-                        return (
-                          <TableCell
-                            key={m.simuladoId}
-                            data-testid={`tema-${m.simuladoId}`}
-                            className="text-right tabular-nums"
-                          >
-                            {formatPct(ponto?.acertoPct ?? null)}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </tr>
+                </CabecalhoTabela>
+                <CorpoTabela>
+                  <LinhaMetrica
+                    rotulo="Percentual de acerto médio"
+                    metricas={metricas}
+                    valor={(m) => formatPct(m.acertoMedioPct)}
+                    bruto={(m) => m.acertoMedioPct}
+                  />
+                  <LinhaMetrica
+                    rotulo="Conceito ENAMED"
+                    qualificador={<ChipProjetado />}
+                    metricas={metricas}
+                    valor={(m) => formatConceito(m.enamedProjetado)}
+                    bruto={(m) => m.enamedProjetado}
+                  />
+                  <LinhaMetrica
+                    rotulo="Proficiência média"
+                    metricas={metricas}
+                    valor={(m) => formatNumero(m.proficienciaMedia)}
+                    bruto={(m) => m.proficienciaMedia}
+                    ultima
+                  />
+                </CorpoTabela>
+              </TabelaGestor>
             </div>
-          ) : (
-            <p data-testid="comparativo-temas-vazio" className="text-sm text-muted-foreground">
-              Sem tema comparável entre estes simulados
+          </div>
+
+          <div className="border p-4" style={ESTILO_PAINEL}>
+            <p className={cn(CLASSE_TITULO_BLOCO, 'text-foreground')}>Questões — acerto por tema</p>
+            {/* Sem esta linha o gestor não sabe por que a comparação é por tema:
+                provas diferentes não compartilham questão, só assunto. */}
+            <p className="mb-2.5 text-[11px]" style={{ color: 'var(--gp-text-3)' }}>
+              provas têm questões distintas — a linha comparável é o tema
             </p>
-          )}
+            {comparativoTemas && comparativoTemas.length > 0 ? (
+              <div data-testid="comparativo-temas">
+                <TabelaGestor rotulo="Acerto por tema entre simulados">
+                  <CabecalhoTabela>
+                    <tr>
+                      <CelulaCabecalho>Tema</CelulaCabecalho>
+                      {metricas.map((m) => (
+                        <CelulaCabecalho key={m.simuladoId}>{m.nome}</CelulaCabecalho>
+                      ))}
+                    </tr>
+                  </CabecalhoTabela>
+                  <CorpoTabela>
+                    {comparativoTemas.map((linha, indiceLinha) => (
+                      <LinhaTabela key={linha.tema} ultima={indiceLinha === comparativoTemas.length - 1}>
+                        <Celula>{linha.tema}</Celula>
+                        {metricas.map((m, i) => {
+                          const ponto = linha.porSimulado.find((p) => p.simuladoId === m.simuladoId);
+                          const valor = ponto?.acertoPct ?? null;
+                          const anteriorId = i > 0 ? metricas[i - 1].simuladoId : null;
+                          const pontoAnterior = anteriorId
+                            ? linha.porSimulado.find((p) => p.simuladoId === anteriorId)
+                            : undefined;
+                          const variacao = calcularVariacao(pontoAnterior?.acertoPct ?? null, valor);
+                          return (
+                            <Celula
+                              key={m.simuladoId}
+                              data-testid={`tema-${m.simuladoId}`}
+                              style={{
+                                ...ESTILO_VALOR,
+                                // Ausência nunca herda a cor de um dado: o `—` fica em text-3.
+                                color: valor === null ? 'var(--gp-text-3)' : corDaVariacao(variacao),
+                              }}
+                            >
+                              {formatPct(valor)}
+                            </Celula>
+                          );
+                        })}
+                      </LinhaTabela>
+                    ))}
+                  </CorpoTabela>
+                </TabelaGestor>
+              </div>
+            ) : (
+              <p data-testid="comparativo-temas-vazio" className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                Sem tema comparável entre estes simulados
+              </p>
+            )}
+          </div>
         </CollapsibleContent>
       </Collapsible>
     </section>
+  );
+}
+
+/** Cor de leitura da variação: subiu = sucesso, caiu = erro, igual/ausente = neutro. */
+function corDaVariacao(variacao: number | null): string {
+  if (variacao === null || variacao === 0) return 'var(--gp-text-2)';
+  return variacao > 0 ? 'var(--gp-success-on)' : 'var(--gp-danger-on)';
+}
+
+function LinhaIndicador({
+  rotulo,
+  qualificador,
+  valor,
+  valorTestId,
+  delta,
+  deltaTestId,
+  separada = false,
+}: {
+  rotulo: string;
+  qualificador?: React.ReactNode;
+  valor: string;
+  valorTestId: string;
+  delta: number | null;
+  deltaTestId: string;
+  separada?: boolean;
+}) {
+  return (
+    <div
+      className={cn('flex items-center gap-2.5', separada && 'border-t pt-2.5')}
+      style={separada ? { borderColor: 'var(--gp-border-subtle)' } : undefined}
+    >
+      <dt className="flex flex-1 items-center gap-1.5 text-xs" style={{ color: 'var(--gp-text-3)' }}>
+        {rotulo}
+        {qualificador}
+      </dt>
+      <dd className="flex items-center gap-2.5">
+        {/* `TagDelta` não repassa props soltas; o testid mora no invólucro. */}
+        {delta !== null && (
+          <span data-testid={deltaTestId} className="inline-flex">
+            <TagDelta valor={delta} />
+          </span>
+        )}
+        <span data-testid={valorTestId} className="font-mono text-xl font-extrabold tabular-nums text-foreground">
+          {valor}
+        </span>
+      </dd>
+    </div>
+  );
+}
+
+function LinhaMetrica({
+  rotulo,
+  qualificador,
+  metricas,
+  valor,
+  bruto,
+  ultima = false,
+}: {
+  rotulo: string;
+  qualificador?: React.ReactNode;
+  metricas: MetricasSimulado[];
+  valor: (m: MetricasSimulado) => string;
+  bruto: (m: MetricasSimulado) => number | null;
+  ultima?: boolean;
+}) {
+  return (
+    <LinhaTabela ultima={ultima}>
+      <Celula>
+        <span className="flex items-center gap-1.5">
+          {rotulo}
+          {qualificador}
+        </span>
+      </Celula>
+      {metricas.map((m, i) => {
+        const variacao = i > 0 ? calcularVariacao(bruto(metricas[i - 1]), bruto(m)) : null;
+        return (
+          <Celula key={m.simuladoId} style={ESTILO_VALOR}>
+            <span className="flex items-center gap-1.5">
+              {valor(m)}
+              {variacao !== null && <TagDelta valor={variacao} />}
+            </span>
+          </Celula>
+        );
+      })}
+    </LinhaTabela>
   );
 }

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import { formatNumero } from '@/features/gestor/lib/formatters';
-import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
+import { MolduraVazia } from '@/features/gestor/charts/MolduraVazia';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
 type PontoDispersao = VisaoGeral['dispersao'][number];
@@ -26,8 +26,11 @@ export interface DispersaoChartProps {
   onSelecionarAluno?: (alunoId: string) => void;
 }
 
-const TICKS_Y = [0, 20, 40, 60, 80, 100];
+/** Sem o valor da meta: a linha tracejada já ocupa essa faixa (handoff §7). */
+const TICKS_Y = [0, 20, 40, 80, 100];
 const TITULO = 'Dispersão de proficiência por semestre, um ponto por aluno';
+/** docs/06-data-viz.md §3: "Ponto = aluno; opacidade 0.75". */
+const OPACIDADE_PONTO = 0.75;
 
 /**
  * Converte os pontos brutos em coordenadas de plotagem.
@@ -60,15 +63,43 @@ export function medianaDeNotas(pontos: PontoDispersao[]): number | null {
 }
 
 /**
- * Gráfico de dispersão do modo "Por aluno" do gráfico protagonista da Visão
+ * Ponto sob o cursor (docs/06 §3: "ponto sob hover ganha anel"). Sem uma forma
+ * ativa declarada, o recharts nem sequer renderiza o ponto destacado — o
+ * tooltip abria e a nuvem continuava idêntica, sem dizer QUAL ponto ele lê.
+ * Nada aqui expõe o `alunoId`: o anel é geometria pura.
+ */
+export function AnelDeFoco(props: { cx?: number; cy?: number }) {
+  const { cx, cy } = props;
+  if (cx === undefined || cy === undefined) return null;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={4} fill="var(--gp-brand)" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={8}
+        fill="none"
+        stroke="var(--gp-brand)"
+        strokeWidth={2}
+        strokeOpacity={0.55}
+      />
+    </g>
+  );
+}
+
+/**
+ * Gráfico de dispersão do modo "Aluno" do gráfico protagonista da Visão
  * Geral (spec §4.8) — cada ponto é um aluno, nunca identificado em tela.
  */
 export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSelecionarAluno }: DispersaoChartProps) {
   if (pontos.length === 0) {
     return (
-      <div data-testid="dispersao-vazio">
-        <EstadoVazio titulo="Sem alunos com resultado neste recorte." altura={altura} />
-      </div>
+      <MolduraVazia
+        testId="dispersao-vazio"
+        altura={altura}
+        comGradeVertical
+        mensagem="Sem alunos com resultado neste recorte."
+      />
     );
   }
 
@@ -84,9 +115,14 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
       height={largura ? altura : undefined}
       title={TITULO}
       desc={`${pontos.length} alunos, proficiência de 0 a 100, semestres ${semestres.join(', ')}.`}
-      margin={{ top: 8, right: 56, bottom: 8, left: 0 }}
+      margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
     >
-      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.5)" />
+      {/*
+       * Grade SÓLIDA de 1px em divisor sutil. A dispersão é o único gráfico do
+       * portal que mantém grade VERTICAL (docs/06, princípio 1): sem ela, a
+       * coluna de cada semestre some.
+       */}
+      <CartesianGrid stroke="var(--gp-border-subtle)" strokeWidth={1} />
       <XAxis
         type="number"
         dataKey="x"
@@ -94,8 +130,8 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
         domain={[semestres[0] - 0.5, semestres[semestres.length - 1] + 0.5]}
         ticks={semestres}
         tickFormatter={(valor: number) => `${Math.round(valor)}º`}
-        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-        axisLine={false}
+        tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
+        axisLine={{ stroke: 'var(--gp-border-strong)' }}
         tickLine={false}
       />
       <YAxis
@@ -105,22 +141,34 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
         domain={[0, 100]}
         ticks={TICKS_Y}
         width={36}
-        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+        tick={{ fontSize: 11, fill: 'var(--gp-axis)' }}
         axisLine={false}
         tickLine={false}
       />
+      {/* Corte discreto: linha fina tracejada com o rótulo DENTRO do plot. */}
       <ReferenceLine
         y={PROFICIENCIA_MINIMA}
-        stroke="hsl(var(--muted-foreground))"
-        strokeDasharray="6 4"
-        label={{ value: `Corte ${PROFICIENCIA_MINIMA}`, position: 'right', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+        stroke="var(--gp-border-input)"
+        strokeWidth={1.5}
+        strokeDasharray="6 5"
+        label={{
+          value: `meta de proficiência · ${PROFICIENCIA_MINIMA}`,
+          position: 'insideTopRight',
+          fontSize: 11,
+          fill: 'var(--gp-text-3)',
+        }}
       />
       {mediana !== null ? (
         <ReferenceLine
           y={mediana}
-          stroke="hsl(var(--primary))"
+          stroke="var(--gp-brand)"
           strokeWidth={2}
-          label={{ value: 'Mediana', position: 'right', fontSize: 11, fill: 'hsl(var(--primary))' }}
+          label={{
+            value: 'Mediana',
+            position: 'insideBottomRight',
+            fontSize: 11,
+            fill: 'var(--gp-brand)',
+          }}
         />
       ) : null}
       <Tooltip
@@ -128,17 +176,24 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
         // ponto sempre traz `alunoId`, mas o Tooltip nunca lê essa chave.
         formatter={(valor: number, nome: string) => [nome === 'Semestre' ? `${Math.round(valor)}º` : formatNumero(valor), nome]}
         contentStyle={{
-          backgroundColor: 'hsl(var(--card))',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: '8px',
+          background: 'var(--gp-surface-1)',
+          border: '1px solid var(--gp-border-strong)',
+          borderRadius: 'var(--gp-radius-md)',
+          boxShadow: 'var(--gp-shadow-card)',
           fontSize: '12px',
         }}
       />
       <Scatter
         name="Alunos"
         data={preparados}
-        fill="hsl(var(--primary))"
-        fillOpacity={0.55}
+        /*
+         * Cor NEUTRA, não a marca: a marca fica reservada para o que é
+         * afirmação do gráfico (mediana e reta de tendência). Com a nuvem
+         * inteira em vermelho, os três elementos liam como a mesma série.
+         */
+        fill="var(--gp-text-3)"
+        fillOpacity={OPACIDADE_PONTO}
+        activeShape={<AnelDeFoco />}
         isAnimationActive={false}
         cursor={onSelecionarAluno ? 'pointer' : undefined}
         onClick={
@@ -154,7 +209,13 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
           name="Tendência"
           data={retaTendencia}
           fill="transparent"
-          line={{ stroke: 'hsl(var(--primary))', strokeWidth: 2, strokeDasharray: '6 4' }}
+          line={{
+            stroke: 'var(--gp-brand)',
+            strokeWidth: 2.5,
+            strokeDasharray: '5 4',
+            strokeLinecap: 'round',
+            strokeOpacity: 0.8,
+          }}
           isAnimationActive={false}
           legendType="none"
         />
@@ -168,9 +229,9 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
        * `role="img"` fica no contêiner do DESENHO, nunca no `<figure>`:
        * `role="img"` torna todo descendente "presentational" (ARIA 1.2,
        * Children Presentational: True), o que podaria a `<figcaption>` — que
-       * carrega o corte, a mediana e o aviso de tendência indisponível — e a
-       * tabela colapsável, a alternativa não-visual exigida pelo handoff §5, da
-       * árvore de acessibilidade (achado 2, revisão de 05/08).
+       * carrega o corte, a mediana e a legenda — e a tabela colapsável, a
+       * alternativa não-visual exigida pelo handoff §5, da árvore de
+       * acessibilidade (achado 2, revisão de 05/08).
        */}
       {largura ? (
         <div role="img" aria-label={TITULO}>
@@ -183,10 +244,55 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
           </ResponsiveContainer>
         </div>
       )}
-      <figcaption className="text-xs text-muted-foreground">
-        Corte de proficiência: {PROFICIENCIA_MINIMA}.
-        {mediana !== null ? ` Mediana do semestre: ${formatNumero(mediana)}.` : ''}
-        {retaTendencia ? '' : ' Linha de tendência indisponível para este recorte.'}
+      <figcaption
+        className="mt-3 flex flex-wrap items-center gap-4 pt-3.5 text-[11px]"
+        style={{ borderTop: '1px solid var(--gp-border-subtle)', color: 'var(--gp-text-3)' }}
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 rounded-full"
+            style={{ background: 'var(--gp-text-3)', opacity: OPACIDADE_PONTO }}
+          />
+          Cada ponto é um aluno do recorte
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="w-4"
+            style={{ borderTop: '1.5px dashed var(--gp-border-input)' }}
+          />
+          {`Corte de proficiência: ${PROFICIENCIA_MINIMA}`}
+        </span>
+        {mediana !== null ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-0.5 w-4 rounded-full"
+              style={{ background: 'var(--gp-brand)' }}
+            />
+            {`Mediana do semestre: ${formatNumero(mediana)}`}
+          </span>
+        ) : null}
+        {retaTendencia ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="w-4"
+              style={{ borderTop: '1.5px dashed var(--gp-brand)' }}
+            />
+            Linha de tendência
+          </span>
+        ) : (
+          /*
+           * Sem reta de tendência, o aviso fala do CONTRATO, não do recorte: a
+           * reta é calculada no servidor (§4.11) e nenhuma RPC do portal a
+           * publica hoje. Dizer "indisponível para este recorte" empurrava para
+           * o gestor a leitura de que outro filtro traria a reta — ele trocaria
+           * de recorte atrás de um dado que não existe em nenhum.
+           */
+          <span>A reta de tendência ainda não é publicada pelo servidor.</span>
+        )}
       </figcaption>
       <details className="mt-2">
         <summary className="cursor-pointer text-xs text-muted-foreground">Ver dados em tabela</summary>

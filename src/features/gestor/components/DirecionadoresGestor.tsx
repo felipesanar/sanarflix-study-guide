@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, BarChart3, FileSearch } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Icon } from '@/features/gestor/components/Icon';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
+import type { DendeIconName } from '@/features/gestor/components/icon-names';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
 
 export interface DirecionadoresGestorProps {
@@ -11,11 +12,50 @@ export interface DirecionadoresGestorProps {
   semestre: FiltroSemestre;
 }
 
-/** Hover: sobe 1px + borda de marca (handoff docs/05-telas.md tela 1). */
+/**
+ * Cartão HORIZONTAL (handoff §4.4): tile de ícone · texto · chevron. O cartão
+ * inteiro é o link, então a referência não tem rótulo "Abrir" — o chevron é a
+ * afordância inteira, e um CTA em cima de um alvo que já ocupa a linha toda só
+ * duplica a mesma ação.
+ *
+ * Hover (docs/07-motion.md): sobe 1px, a sombra sobe um degrau e a borda vira
+ * marca, em `motion-2` (140ms) com a curva padrão. O degrau de sombra exige uma
+ * sombra em repouso — sem ela o hover não teria de onde subir.
+ */
 const CARTAO =
-  'group flex flex-col gap-2 rounded-lg border border-border bg-card p-5 ' +
-  'transition-all hover:-translate-y-px hover:border-primary ' +
+  'group flex items-center bg-card border border-border ' +
+  'shadow-[var(--gp-shadow-card)] hover:shadow-[0_12px_28px_-14px_hsl(var(--primary)/0.4)] ' +
+  'transition-[transform,box-shadow,border-color] duration-[140ms] ease-[cubic-bezier(0.2,0,0,1)] ' +
+  'hover:-translate-y-px hover:border-primary ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/** 48×48, raio 12px: marca no direcionador primário, neutro no secundário (§4.4). */
+function TileIcone({ icone, tom }: { icone: DendeIconName; tom: 'marca' | 'neutro' }) {
+  return (
+    <span
+      className="flex flex-none items-center justify-center"
+      style={{
+        width: 48,
+        height: 48,
+        borderRadius: 'var(--gp-radius-md)',
+        background: tom === 'marca' ? 'var(--gp-brand-surface)' : 'var(--gp-surface-3)',
+        // No escuro `--gp-brand` reprova AA sobre a superfície tintada; o par
+        // certo é `--gp-brand-on-dark`, que no claro resolve para a própria marca.
+        color: tom === 'marca' ? 'var(--gp-brand-on-dark, var(--gp-brand))' : 'var(--gp-text-2)',
+      }}
+    >
+      <Icon name={icone} variant="filled" size={24} />
+    </span>
+  );
+}
+
+function Chevron() {
+  return (
+    <span className="flex flex-none items-center" style={{ color: 'var(--gp-border-input)' }}>
+      <Icon name="chevron_right" size={22} />
+    </span>
+  );
+}
 
 /**
  * Os dois direcionadores que respondem "o que eu faço agora?" (spec §2.1).
@@ -43,40 +83,64 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
   const comFiltroAtual = (pathname: string) => ({ pathname, search: location.search });
 
   return (
-    <div className="grid gap-4 md:grid-cols-2" data-testid="direcionadores">
-      <Link
-        to={comFiltroAtual('/gestor/visao-geral')}
-        data-testid="direcionador-visao-geral"
-        className={CARTAO}
-        onMouseEnter={aquecer}
-        onFocus={aquecer}
+    <div className="flex flex-col" style={{ gap: 12 }} data-testid="direcionadores">
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--gp-text-3)',
+        }}
       >
-        <BarChart3 className="h-5 w-5 text-primary" aria-hidden="true" />
-        <span className="text-base font-semibold text-foreground">Visão Geral</span>
-        <span className="text-sm text-muted-foreground">
-          Como estamos e onde dói — o panorama da instituição em um recorte só.
-        </span>
-        <span className="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium text-primary">
-          Abrir
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </span>
-      </Link>
+        O que você quer ver?
+      </span>
 
-      <Link
-        to={comFiltroAtual('/gestor/detalhamento')}
-        data-testid="direcionador-detalhamento"
-        className={CARTAO}
-      >
-        <FileSearch className="h-5 w-5 text-primary" aria-hidden="true" />
-        <span className="text-base font-semibold text-foreground">Detalhamento por Simulados</span>
-        <span className="text-sm text-muted-foreground">
-          O que exatamente aconteceu num simulado — questão por questão, aluno por aluno.
-        </span>
-        <span className="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium text-primary">
-          Abrir
-          <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </span>
-      </Link>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link
+          to={comFiltroAtual('/gestor/visao-geral')}
+          data-testid="direcionador-visao-geral"
+          className={CARTAO}
+          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18 }}
+          onMouseEnter={aquecer}
+          onFocus={aquecer}
+        >
+          <TileIcone icone="equalizer" tom="marca" />
+          <span className="min-w-0 flex-1">
+            <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+              Visão Geral
+            </span>
+            <span
+              className="block"
+              style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
+            >
+              Como estamos e onde dói — o panorama da instituição em um recorte só.
+            </span>
+          </span>
+          <Chevron />
+        </Link>
+
+        <Link
+          to={comFiltroAtual('/gestor/detalhamento')}
+          data-testid="direcionador-detalhamento"
+          className={CARTAO}
+          style={{ borderRadius: 'var(--gp-radius-lg)', padding: 22, gap: 18 }}
+        >
+          <TileIcone icone="insights" tom="neutro" />
+          <span className="min-w-0 flex-1">
+            <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
+              Detalhamento por Simulados
+            </span>
+            <span
+              className="block"
+              style={{ fontSize: 13, lineHeight: '19px', marginTop: 3, color: 'var(--gp-text-3)' }}
+            >
+              O que exatamente aconteceu num simulado — questão por questão, aluno por aluno.
+            </span>
+          </span>
+          <Chevron />
+        </Link>
+      </div>
     </div>
   );
 }

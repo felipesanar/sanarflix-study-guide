@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Icon } from '@/features/gestor/components/Icon';
 
 interface EstadoErroProps {
   titulo?: string;
@@ -12,10 +12,19 @@ interface EstadoErroProps {
   className?: string;
 }
 
-/** Falha de um bloco, com retry local — a tela inteira continua utilizável. */
+/**
+ * Falha de um bloco, com retry local — a tela inteira continua utilizável.
+ *
+ * Copy e anatomia vêm da referência §9 ("Estados de dados"): tile CIRCULAR de
+ * 36px com `error_outline-filled` a 18px, "Algo deu errado", a linha de apoio
+ * que diz que o resto segue de pé e o botão "Tentar novamente" — só texto, sem
+ * ícone. O título e a descrição são defaults e não overrides de cada chamador
+ * de propósito: a gestora tem que ler a MESMA frase em qualquer bloco que
+ * falhe, senão cada erro parece um problema diferente.
+ */
 export const EstadoErro: React.FC<EstadoErroProps> = ({
-  titulo = 'Não foi possível carregar este bloco',
-  descricao,
+  titulo = 'Algo deu errado',
+  descricao = 'Os demais componentes seguem disponíveis.',
   onRetry,
   altura,
   className,
@@ -28,11 +37,27 @@ export const EstadoErro: React.FC<EstadoErroProps> = ({
       className,
     )}
   >
-    <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
+    <span
+      aria-hidden="true"
+      className="inline-flex shrink-0 items-center justify-center"
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: 'var(--gp-radius-pill)',
+        background: 'var(--gp-danger-surface)',
+        color: 'var(--gp-danger-on)',
+      }}
+    >
+      <Icon name="error_outline" variant="filled" size={18} />
+    </span>
     <p className="text-sm font-medium text-foreground">{titulo}</p>
     {descricao && <p className="max-w-sm text-xs text-muted-foreground">{descricao}</p>}
-    <Button variant="outline" size="sm" className="mt-1 gap-1.5 text-xs" onClick={onRetry}>
-      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+    <Button
+      variant="outline"
+      size="sm"
+      className="mt-1 h-auto rounded-sm px-3 py-1.5 text-[11px] font-semibold"
+      onClick={onRetry}
+    >
       Tentar novamente
     </Button>
   </div>

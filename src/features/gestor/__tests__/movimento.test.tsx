@@ -92,9 +92,14 @@ const lerFonte = (caminhoRelativoAoSrc: string) =>
   readFileSync(resolve(RAIZ, '../../', caminhoRelativoAoSrc), 'utf-8');
 
 describe('alcance de .gestor-portal * — documentação viva do limite de Portal do Radix', () => {
-  it('GestorSkeleton usa animate-pulse (loop infinito) e é um <div> comum — está DENTRO da subárvore, alcançável', () => {
+  it('GestorSkeleton usa animação em loop e é um <div> comum — está DENTRO da subárvore, alcançável', () => {
+    // O handoff §9 pede shimmer discreto, não pulse; o skeleton migrou de
+    // `animate-pulse` para `animate-shimmer`. O que este caso guarda não é a
+    // classe, é a propriedade que importa para o bloco reduced-motion: continua
+    // sendo animação em LOOP dentro da subárvore, alcançável por CSS escopado
+    // (por isso o `animation-iteration-count: 1` do caso acima).
     const src = readFileSync(resolve(RAIZ, 'components/GestorSkeleton.tsx'), 'utf-8');
-    expect(src).toMatch(/animate-pulse/);
+    expect(src).toMatch(/animate-(?:pulse|shimmer)/);
     expect(src).not.toMatch(/\.Portal\b/);
   });
 

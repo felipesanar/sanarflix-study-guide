@@ -263,6 +263,17 @@ beforeEach(() => {
 /* Zero violações de axe, por rota e por drawer (§11 do handoff)            */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Uma varredura completa do axe sobre uma rota inteira do portal custa dezenas
+ * de segundos em jsdom — a Visão Geral monta 4 KPIs, gráfico, cascata,
+ * distribuição e uma tabela de alunos. Com o timeout padrão de 15s a rota mais
+ * pesada estourava, e o pior era o efeito colateral: o axe abortado no meio
+ * ficava marcado como "already running" e derrubava os TRÊS casos seguintes,
+ * que na verdade nunca chegaram a rodar. Um teste que reprova por relógio, e
+ * ainda contamina os vizinhos, não diz nada sobre acessibilidade.
+ */
+const TIMEOUT_AXE = 120_000;
+
 describe('acessibilidade — sem violações de axe por rota e por drawer (§11)', () => {
   it('Início', async () => {
     montar(<Inicio />, '/gestor');
@@ -281,13 +292,13 @@ describe('acessibilidade — sem violações de axe por rota e por drawer (§11)
      */
     const resultado = await axe(document.body, AXE_CONFIG);
     expect(resultado, 'heading-order na rota Início — ver comentário acima').toHaveNoViolations();
-  });
+  }, TIMEOUT_AXE);
 
   it('Visão Geral', async () => {
     montar(<VisaoGeral />, '/gestor/visao-geral?ies=ies-1&semestre=6ano');
     expect(screen.getByRole('toolbar', { name: /modo do gráfico/i })).toBeInTheDocument();
     await checarSemViolacoes();
-  });
+  }, TIMEOUT_AXE);
 
   it('Detalhamento com 1 simulado', async () => {
     montar(<Detalhamento />, '/gestor/detalhamento?ies=ies-1&semestre=6ano&simulados=s1');
@@ -303,7 +314,7 @@ describe('acessibilidade — sem violações de axe por rota e por drawer (§11)
      */
     const resultado = await axe(document.body, AXE_CONFIG);
     expect(resultado, 'heading-order na rota Detalhamento — ver comentário acima').toHaveNoViolations();
-  });
+  }, TIMEOUT_AXE);
 
   it('DrawerAluno aberto', async () => {
     vi.mocked(useAluno).mockReturnValue(
@@ -312,7 +323,7 @@ describe('acessibilidade — sem violações de axe por rota e por drawer (§11)
     montar(<DrawerAluno alunoId="a1" nome="Ana Prado" simulados={['s1']} onFechar={() => {}} />, '/gestor');
     expect(screen.getByRole('dialog')).toHaveAccessibleName(/Ana Prado/);
     await checarSemViolacoes();
-  });
+  }, TIMEOUT_AXE);
 
   it('DrawerTemas aberto', async () => {
     montar(
@@ -326,7 +337,7 @@ describe('acessibilidade — sem violações de axe por rota e por drawer (§11)
     );
     expect(screen.getByRole('dialog')).toHaveAccessibleName(/Temas de Cardiologia/i);
     await checarSemViolacoes();
-  });
+  }, TIMEOUT_AXE);
 });
 
 /* ------------------------------------------------------------------------ */

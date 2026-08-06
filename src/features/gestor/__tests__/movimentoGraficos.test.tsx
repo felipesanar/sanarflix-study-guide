@@ -53,9 +53,15 @@ describe('gráficos do gestor: animação desligada por decisão (spec §11)', (
     const src = readFileSync(join(CHARTS, 'DistribuicaoAlternativas.tsx'), 'utf-8');
     // O plano, e o comentário que a Task 59b deixou no `gestor-theme.css`,
     // falam em "os 4 gráficos". São 3: este componente é `<ul>`/`<li>` com
-    // transição de largura em Tailwind, já coberta pelo
+    // transição em Tailwind, já coberta pelo
     // `@media (prefers-reduced-motion: reduce)` escopado em `.gestor-portal`.
+    //
+    // A barra passou a animar `transform` (scaleX de origem à esquerda) em vez
+    // de `width`: o handoff §8 é explícito em animar **só** transform e
+    // opacity, que são as duas propriedades que o compositor resolve sem
+    // recalcular layout — animar `width` força reflow a cada quadro.
     expect(src).not.toMatch(/from 'recharts'/);
-    expect(src).toMatch(/transition-\[width\]/);
+    expect(src).toMatch(/transition-transform/);
+    expect(src).not.toMatch(/transition-\[width\]/);
   });
 });

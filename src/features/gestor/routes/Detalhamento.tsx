@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { CalendarDays } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Icon } from '../components/Icon';
 import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '../api/queries';
 import { useFiltrosGestor } from '../hooks/useFiltrosGestor';
 import { AcertoPorAreaESemestre } from '../components/AcertoPorAreaESemestre';
@@ -15,7 +14,7 @@ import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
 import { EvolucaoRecorte } from '../components/EvolucaoRecorte';
 import { FiltroSemestre } from '../components/FiltroSemestre';
 import { KpisDetalhamento } from '../components/KpisDetalhamento';
-import { SeletorSimulados } from '../components/SeletorSimulados';
+import { SeletorSimulados, motivoIndisponivel } from '../components/SeletorSimulados';
 import { TabelaAlunosSimulado } from '../components/TabelaAlunosSimulado';
 import { TabelaQuestoes, deveMostrarQuestoes, type OrdenacaoQuestoes } from '../components/TabelaQuestoes';
 import { useTelemetriaGestor } from '../lib/telemetria';
@@ -50,12 +49,59 @@ export default function Detalhamento() {
   const iesNomeAtiva = contexto.data?.iesDisponiveis.find((ies) => ies.id === iesAtivaId)?.nome ?? '';
 
   const cronograma = useCronograma(iesAtivaId);
-  const itensCronograma = cronograma.data ?? [];
+  /* Estabilizado: `?? []` cria um array novo a cada render, e este valor entra
+     na lista de dependências do useMemo do recorte logo abaixo. */
+  const itensCronograma = React.useMemo(() => cronograma.data ?? [], [cronograma.data]);
+
+  /**
+   * A URL é hint de UI e pode carregar um simulado que não pode entrar no
+   * recorte — previsto, ou com gabarito em processamento. Sem reconciliar
+   * contra o cronograma, `?simulados=<id em processamento>` fazia duas coisas
+   * erradas ao mesmo tempo: as métricas eram pedidas e renderizadas para um
+   * simulado sem gabarito fechado (spec §10.4: "nenhum número é exibido"), e o
+   * item aparecia marcado E desabilitado no seletor, deixando o estado
+   * "desmarcado" inalcançável.
+   *
+   * Só filtra depois que o cronograma chega: com a lista vazia ainda não há
+   * como distinguir "id inválido" de "ainda não sei", e descartar cedo faria a
+   * seleção piscar para vazio em todo primeiro render.
+   */
+  const simuladosNoRecorte = React.useMemo(() => {
+    if (itensCronograma.length === 0) return filtros.simulados;
+    const disponiveis = new Set(
+      itensCronograma.filter((item) => motivoIndisponivel(item) === null).map((item) => item.id),
+    );
+    return filtros.simulados.filter((id) => disponiveis.has(id));
+  }, [filtros.simulados, itensCronograma]);
 
   const filtrosGestor: FiltrosGestor = React.useMemo(
-    () => ({ iesId: iesAtivaId, semestre: filtros.semestre, simulados: filtros.simulados }),
-    [iesAtivaId, filtros.semestre, filtros.simulados],
+    () => ({ iesId: iesAtivaId, semestre: filtros.semestre, simulados: simuladosNoRecorte }),
+    [iesAtivaId, filtros.semestre, simuladosNoRecorte],
   );
+
+  /**
+   * Fecha a divergência entre o que a URL diz e o que a tela mostra: depois que
+   * o cronograma chega, o que foi descartado do recorte também sai do `?simulados=`.
+   * Sem isto, um id inválido (trocou de IES e os ids da anterior sobreviveram na
+   * query string) continuava no link colável — e voltar para ele reencenava o
+   * mesmo estado inconsistente. A comparação é por string porque `filtros.simulados`
+   * é um array novo a cada render.
+   */
+  const { setSimulados } = filtros;
+  const chaveRecorte = simuladosNoRecorte.join(',');
+  const chaveUrl = filtros.simulados.join(',');
+  React.useEffect(() => {
+    if (chaveRecorte === chaveUrl) return;
+    setSimulados(chaveRecorte === '' ? [] : chaveRecorte.split(','));
+  }, [chaveRecorte, chaveUrl, setSimulados]);
+
+  /**
+   * Identidade do recorte inteiro numa string. Serve aos efeitos que precisam
+   * reagir a "o recorte mudou" sem depender de `useLocation().search`: os
+   * filtros vêm de `useSearchParams`, que é o mesmo estado da URL por outro
+   * caminho — e o único que sobrevive quando `useLocation` está stubado.
+   */
+  const chaveDoRecorte = `${iesAtivaId ?? ''}|${filtros.semestre}|${chaveUrl}`;
 
   /** `gestor_tela_vista` (spec §10, "adoção por tela") — reinicia também o relógio do primeiro insight. */
   React.useEffect(() => {
@@ -93,8 +139,15 @@ export default function Detalhamento() {
   const consulta = useDetalhamento(filtrosGestor);
   const dados = consulta.data as DetalhamentoComExtras | undefined;
   const meta = consulta.meta ?? META_VAZIA;
+  /**
+   * `partial` = há simulado selecionado que não entrou em nenhum número (a RPC
+   * marca isso quando algum simulado do recorte veio com `n_tri = 0`). A Visão
+   * Geral já repassava; aqui os blocos apresentavam KPIs, comparativo e tabelas
+   * sem nenhum aviso de que o recorte estava incompleto.
+   */
+  const parcial = meta.partial;
 
-  const mostrarQuestoes = deveMostrarQuestoes(filtros.simulados);
+  const mostrarQuestoes = deveMostrarQuestoes(simuladosNoRecorte);
   const [ordenacaoQuestoes, setOrdenacaoQuestoes] = React.useState<OrdenacaoQuestoes>('ordem_da_prova');
   const [areaQuestoes, setAreaQuestoes] = React.useState<string | null>(null);
   const [pageQuestoes, setPageQuestoes] = React.useState(1);
@@ -106,6 +159,17 @@ export default function Detalhamento() {
 
   const [recorte, setRecorte] = React.useState<RecorteCruzado | null>(null);
   const [alunoSelecionadoId, setAlunoSelecionadoId] = React.useState<string | null>(null);
+
+  /**
+   * O recorte cruzado (área × semestre) é estado do BLOCO e só existe dentro do
+   * recorte que o gerou. Sem esta limpeza, trocar semestre/simulados/IES deixava
+   * o chip "Recorte: …" ligado sobre uma matriz que já não tem aquela linha: o
+   * bloco mostrava "Sem dado de grande área neste recorte" com o chip aceso e,
+   * quando a área sumia de `dados.areas`, o rótulo caía no id CRU da área.
+   */
+  React.useEffect(() => {
+    setRecorte(null);
+  }, [chaveDoRecorte]);
 
   /**
    * `gestor_drawer_aberto('aluno')` + `marcarPrimeiroInsight` (spec §10):
@@ -122,8 +186,65 @@ export default function Detalhamento() {
     [drawerAberto, marcarPrimeiroInsight],
   );
 
-  const semSelecao = filtros.simulados.length === 0;
-  const multiSimulado = filtros.simulados.length > 1;
+  const semSelecao = simuladosNoRecorte.length === 0;
+  const multiSimulado = simuladosNoRecorte.length > 1;
+
+  /**
+   * Retry dos blocos desta tela, no mesmo padrão da Visão Geral. Sem ele, o
+   * `BlocoGestor` caía no fallback `onRetry={aoTentarNovamente ?? (() => undefined)}`:
+   * o botão "Tentar novamente" renderizava, recebia foco, era clicável — e não
+   * fazia nada. `refetch` vem do React Query e muda de identidade a cada
+   * render; o `useCallback` fixa a referência que os seis blocos recebem.
+   */
+  const { refetch } = consulta;
+  const aoTentarNovamente = React.useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  /**
+   * Mesmo remédio da Visão Geral para o `placeholderData`: na troca de recorte
+   * a query serve o dado ANTERIOR, `isLoading` é false e os blocos afirmam
+   * números do recorte abandonado. Não vira skeleton (a tela piscaria vazia a
+   * cada filtro) — fica anunciado nos dois canais, `aria-busy` na região e uma
+   * faixa `role="status"`, com a mesma copy da outra tela: componentes
+   * repetidos entre as duas telas são idênticos (§12).
+   */
+  const emTransicao = consulta.isPlaceholderData === true;
+
+  /**
+   * Drawer do cronograma CONTROLADO. Um clique num simulado realizado navega
+   * para `/gestor/detalhamento?...&simulados=<id>` — mesmo pathname, então o
+   * React Router não desmonta esta rota e o Sheet ficava aberto, cobrindo o
+   * resultado que a gestora acabou de filtrar. Fechar na mudança do RECORTE é
+   * exatamente o gatilho certo: enquanto o Sheet está aberto ele é modal, e
+   * nenhum outro filtro da tela é alcançável — então só o cronograma pode ter
+   * causado a troca.
+   */
+  const [cronogramaAberto, setCronogramaAberto] = React.useState(false);
+  React.useEffect(() => {
+    setCronogramaAberto(false);
+  }, [chaveDoRecorte]);
+
+  /**
+   * Estado do bloco de questões, no mesmo padrão dos outros seis. Era o único
+   * fora do `BlocoGestor`: em carregamento e em erro a gestora via a mesma
+   * tabela vazia com "Página 1 de 1", sem skeleton, mensagem nem retry.
+   *
+   * `processando` vence tudo: aí a tabela renderiza o próprio aviso de gabarito
+   * em processamento, e trocá-lo por um vazio genérico perderia a explicação.
+   */
+  const processandoQuestoes = itensCronograma.some(
+    (item) => simuladosNoRecorte.includes(item.id) && item.status === 'processing',
+  );
+  const estadoQuestoes: EstadoBloco = processandoQuestoes
+    ? 'ok'
+    : questoes.isLoading
+      ? 'loading'
+      : questoes.isError
+        ? 'error'
+        : (paginaQuestoes?.total ?? 0) > 0
+          ? 'ok'
+          : 'empty';
 
   // §12 caso 4: sem simulado, `useDetalhamento` nasce `enabled:false` e não
   // passa por `isLoading` — o vazio aqui é sobre a SELEÇÃO, não sobre a query.
@@ -140,89 +261,168 @@ export default function Detalhamento() {
   const alunoSelecionado = dados?.alunos?.find((a) => a.id === alunoSelecionadoId) ?? null;
 
   return (
-    <div className="space-y-6 p-6">
-      <h1 className="text-xl font-semibold text-foreground">Detalhamento por simulados</h1>
-
+    <div className="space-y-6 p-8" data-testid="gestor-detalhamento" aria-busy={emTransicao}>
       <div data-testid="bloco-filtros" className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <FiltroSemestre />
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="sm">
-                <CalendarDays className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                Ver cronograma
-              </Button>
-            </SheetTrigger>
-            <SheetContent container={portalContainer} side="right" className="w-full sm:max-w-md">
-              <SheetHeader>
-                <SheetTitle>Cronograma de simulados</SheetTitle>
-              </SheetHeader>
-              <div className="mt-4">
-                <CronogramaSimulados iesId={iesAtivaId ?? ''} iesNome={iesNomeAtiva} />
-              </div>
-            </SheetContent>
-          </Sheet>
+        <div className="flex flex-wrap items-center gap-4">
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>
+              Detalhamento por simulados
+            </h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Camada investigativa · métricas por simulado específico
+            </p>
+          </div>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2.5">
+            <FiltroSemestre />
+            <Sheet open={cronogramaAberto} onOpenChange={setCronogramaAberto}>
+              <SheetTrigger asChild>
+                {/* Link de texto, não botão de contorno: na referência o glifo de
+                    calendário pertence ao CABEÇALHO do drawer, e o gatilho leva só
+                    o chevron, DEPOIS do rótulo. */}
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm underline-offset-4 hover:underline focus-visible:outline-none"
+                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+                >
+                  Ver cronograma
+                  <Icon name="chevron_right" size={14} />
+                </button>
+              </SheetTrigger>
+              <SheetContent container={portalContainer} side="right" className="w-full sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2" style={{ fontSize: 15, fontWeight: 700 }}>
+                    <Icon name="calendar_month" variant="filled" size={18} />
+                    Cronograma de simulados
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <CronogramaSimulados iesId={iesAtivaId ?? ''} iesNome={iesNomeAtiva} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
 
-        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={consulta.isPlaceholderData === true} />
+        <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />
 
-        <SeletorSimulados itens={itensCronograma} selecionados={filtros.simulados} onChange={aoTrocarSimulados} />
-
-        <p data-testid="nota-reatividade" className="text-sm text-muted-foreground">
-          Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
-          recalculadas e o conceito ENAMED vira comparativo, nunca média.
-        </p>
+        <SeletorSimulados itens={itensCronograma} selecionados={simuladosNoRecorte} onChange={aoTrocarSimulados} />
       </div>
+
+      {emTransicao ? (
+        <p
+          data-testid="faixa-transicao-recorte"
+          role="status"
+          className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+        >
+          Atualizando para o recorte selecionado. Os números abaixo ainda são do recorte anterior.
+        </p>
+      ) : null}
 
       {semSelecao ? (
         <EstadoVazioDetalhamento />
       ) : (
         <>
-          <div data-testid="bloco-kpis">
-            <BlocoGestor estado={estado} alturaSkeleton={140} bloco="kpis" testIdLoading="bloco-kpis-loading">
+          {/* A nota é LEGENDA do grupo de métricas, não parágrafo da barra de
+              filtros: 11px, colada no topo do que ela explica. Em 14px dentro do
+              bloco de filtros ela competia com os próprios KPIs que legenda. */}
+          <div className="space-y-0.5" data-testid="bloco-kpis">
+            <p data-testid="nota-reatividade" className="text-muted-foreground" style={{ fontSize: 11, lineHeight: '16px' }}>
+              Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
+              recalculadas e o conceito ENAMED vira comparativo, nunca média.
+            </p>
+            <BlocoGestor
+              estado={estado}
+              parcial={parcial}
+              alturaSkeleton={140}
+              bloco="kpis"
+              testIdLoading="bloco-kpis-loading"
+              aoTentarNovamente={aoTentarNovamente}
+            >
               {dados ? <KpisDetalhamento metricas={dados.metricas} meta={meta} /> : null}
             </BlocoGestor>
           </div>
 
           {multiSimulado && (
             <div data-testid="bloco-comparativo">
-              <BlocoGestor estado={estado} alturaSkeleton={220} bloco="comparativo" testIdLoading="bloco-comparativo-loading">
+              <BlocoGestor
+                estado={estado}
+                parcial={parcial}
+                alturaSkeleton={220}
+                bloco="comparativo"
+                testIdLoading="bloco-comparativo-loading"
+                aoTentarNovamente={aoTentarNovamente}
+              >
                 {dados ? <ComparativoSimulados metricas={dados.metricas} comparativoTemas={dados.comparativoTemas} /> : null}
               </BlocoGestor>
             </div>
           )}
 
           <div data-testid="bloco-evolucao">
-            <BlocoGestor estado={estado} alturaSkeleton={300} bloco="evolucao" testIdLoading="bloco-evolucao-loading">
+            <BlocoGestor
+              estado={estado}
+              parcial={parcial}
+              alturaSkeleton={300}
+              bloco="evolucao"
+              testIdLoading="bloco-evolucao-loading"
+              aoTentarNovamente={aoTentarNovamente}
+            >
               {dados ? (
                 <EvolucaoRecorte metricas={dados.metricas} semestre={filtros.semestre} dispersao={dados.dispersao} />
               ) : null}
             </BlocoGestor>
           </div>
 
-          <div data-testid="bloco-area-semestre">
-            <BlocoGestor estado={estado} alturaSkeleton={280} bloco="area-semestre" testIdLoading="bloco-area-semestre-loading">
-              {dados ? (
-                <AcertoPorAreaESemestre
-                  dados={dados.acertoPorAreaESemestre}
-                  semestre={filtros.semestre}
-                  matriz={dados.acertoPorAreaESemestre.matriz}
-                  recorte={recorte}
-                  onRecorteChange={setRecorte}
-                />
-              ) : null}
-            </BlocoGestor>
-          </div>
+          {/* Área × semestre e dispersão são o MESMO movimento de exploração — a
+              referência os põe lado a lado (1.15fr/1fr). Empilhados, a dispersão
+              caía um scroll inteiro depois da leitura que ela complementa. */}
+          <div className="grid items-stretch gap-4 lg:grid-cols-[1.15fr_1fr]">
+            <div data-testid="bloco-area-semestre">
+              <BlocoGestor
+                estado={estado}
+                parcial={parcial}
+                alturaSkeleton={280}
+                bloco="area-semestre"
+                testIdLoading="bloco-area-semestre-loading"
+                aoTentarNovamente={aoTentarNovamente}
+              >
+                {dados ? (
+                  <AcertoPorAreaESemestre
+                    dados={dados.acertoPorAreaESemestre}
+                    semestre={filtros.semestre}
+                    matriz={dados.acertoPorAreaESemestre.matriz}
+                    recorte={recorte}
+                    onRecorteChange={setRecorte}
+                  />
+                ) : null}
+              </BlocoGestor>
+            </div>
 
-          <div data-testid="bloco-dispersao" className="rounded-lg border border-border bg-card p-4">
-            <h3 className="mb-3 text-base font-semibold text-foreground">Nota por semestre</h3>
-            <BlocoGestor estado={estado} alturaSkeleton={280} bloco="dispersao" testIdLoading="bloco-dispersao-loading">
-              {dados ? <DispersaoChart pontos={dados.dispersao} onSelecionarAluno={aoSelecionarAluno} /> : null}
-            </BlocoGestor>
+            <div data-testid="bloco-dispersao" className="rounded-lg border border-border bg-card p-4">
+              {/* O nome nomeia os dois eixos — é o que a legenda abaixo explica. */}
+              <h3 className="mb-3 text-base font-semibold text-foreground">Dispersão Nota × Semestre</h3>
+              <BlocoGestor
+                estado={estado}
+                parcial={parcial}
+                alturaSkeleton={280}
+                bloco="dispersao"
+                testIdLoading="bloco-dispersao-loading"
+                aoTentarNovamente={aoTentarNovamente}
+              >
+                {dados ? <DispersaoChart pontos={dados.dispersao} onSelecionarAluno={aoSelecionarAluno} /> : null}
+              </BlocoGestor>
+            </div>
           </div>
 
           <div data-testid="bloco-alunos">
-            <BlocoGestor estado={estado} alturaSkeleton={320} bloco="alunos" testIdLoading="bloco-alunos-loading">
+            <BlocoGestor
+              estado={estado}
+              parcial={parcial}
+              alturaSkeleton={320}
+              bloco="alunos"
+              testIdLoading="bloco-alunos-loading"
+              aoTentarNovamente={aoTentarNovamente}
+            >
               {dados ? (
                 <TabelaAlunosSimulado
                   alunos={dados.alunos ?? []}
@@ -237,32 +437,41 @@ export default function Detalhamento() {
           {/* §4.7.3-4: último componente da página e ausente com 2+ simulados. */}
           {mostrarQuestoes && (
             <div data-testid="bloco-questoes">
-              <TabelaQuestoes
-                questoes={paginaQuestoes?.data ?? []}
-                total={paginaQuestoes?.total ?? 0}
-                page={paginaQuestoes?.page ?? pageQuestoes}
-                pageSize={paginaQuestoes?.pageSize ?? 20}
-                onPageChange={setPageQuestoes}
-                ordenacao={ordenacaoQuestoes}
-                onOrdenacaoChange={(o) => {
-                  setOrdenacaoQuestoes(o);
-                  setPageQuestoes(1);
-                }}
-                areas={dados ? [...new Set(dados.acertoPorAreaESemestre.areas.map((a) => a.nome))] : []}
-                areaSelecionada={areaQuestoes}
-                onAreaChange={(a) => {
-                  setAreaQuestoes(a);
-                  setPageQuestoes(1);
-                }}
-                processando={itensCronograma.some((i) => filtros.simulados.includes(i.id) && i.status === 'processing')}
-              />
+              <BlocoGestor
+                estado={estadoQuestoes}
+                alturaSkeleton={360}
+                bloco="questoes"
+                testIdLoading="bloco-questoes-loading"
+                aoTentarNovamente={questoes.refetch}
+                mensagemVazio="Sem questões para este recorte."
+              >
+                <TabelaQuestoes
+                  questoes={paginaQuestoes?.data ?? []}
+                  total={paginaQuestoes?.total ?? 0}
+                  page={paginaQuestoes?.page ?? pageQuestoes}
+                  pageSize={paginaQuestoes?.pageSize ?? 20}
+                  onPageChange={setPageQuestoes}
+                  ordenacao={ordenacaoQuestoes}
+                  onOrdenacaoChange={(o) => {
+                    setOrdenacaoQuestoes(o);
+                    setPageQuestoes(1);
+                  }}
+                  areas={dados ? [...new Set(dados.acertoPorAreaESemestre.areas.map((a) => a.nome))] : []}
+                  areaSelecionada={areaQuestoes}
+                  onAreaChange={(a) => {
+                    setAreaQuestoes(a);
+                    setPageQuestoes(1);
+                  }}
+                  processando={processandoQuestoes}
+                />
+              </BlocoGestor>
             </div>
           )}
 
           <DrawerAluno
             alunoId={alunoSelecionadoId}
             nome={alunoSelecionado?.nome ?? ''}
-            simulados={filtros.simulados}
+            simulados={simuladosNoRecorte}
             onFechar={() => setAlunoSelecionadoId(null)}
           />
         </>

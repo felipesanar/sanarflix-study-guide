@@ -5,3 +5,9 @@
 # asserções nunca casam (bug confirmado — ver histórico do commit que
 # introduziu este arquivo).
 *.sql text eol=lf
+
+# Fontes são binárias — sem isto, core.autocrlf=true no Windows corrompe o
+# arquivo no checkout (mesma classe de bug do bloco acima).
+*.woff  binary
+*.woff2 binary
+*.ttf   binary

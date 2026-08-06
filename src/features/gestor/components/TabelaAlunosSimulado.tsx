@@ -1,28 +1,24 @@
 import * as React from 'react';
-import { ArrowDown, ArrowUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { cn } from '@/lib/utils';
-import { formatDelta, formatNumero } from '../lib/formatters';
+import { Icon } from '@/features/gestor/components/Icon';
+import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
+import {
+  CabecalhoTabela,
+  Celula,
+  CelulaCabecalho,
+  CorpoTabela,
+  FONTE_MONO,
+  LinhaTabela,
+  Paginacao,
+  RodapeTabela,
+  TabelaGestor,
+  TagSituacao,
+  type OrdemTabela,
+} from '@/features/gestor/components/tabela';
+import { TRACO, formatDelta, formatNumero } from '../lib/formatters';
 import type { AlunoNoSimulado } from '../api/types';
 
 export type ColunaOrdenavel = 'semestre' | 'acertos' | 'proficiencia' | 'variacao';
-type Ordem = 'asc' | 'desc';
-
-/**
- * `aguardando_resultado` é o 4º estado real (achado 03/08, `api/types.ts`):
- * aluno participou mas a nota TRI ainda não subiu pelo pipeline. Distinto de
- * `nao_participou` — aqui `acertos` já existe, só `proficiencia` fica null.
- */
-const SITUACAO_ROTULO: Record<AlunoNoSimulado['situacao'], string> = {
-  proficiente: 'Proficiente',
-  abaixo_do_limiar: 'Abaixo do limiar',
-  aguardando_resultado: 'Aguardando resultado',
-  nao_participou: 'Não participou',
-};
+type Ordem = OrdemTabela;
 
 function valorDaColuna(aluno: AlunoNoSimulado, coluna: ColunaOrdenavel): number | null {
   if (coluna === 'semestre') return aluno.semestre;
@@ -55,6 +51,16 @@ export interface TabelaAlunosSimuladoProps {
   onSelecionarAluno?: (id: string) => void;
 }
 
+/**
+ * Visão de alunos de um simulado (handoff §4.7 e §6). Mesma anatomia de tabela
+ * da Visão Geral — as duas eram implementações independentes, com ícone de
+ * ordenação, densidade e rodapé diferentes para o mesmo papel.
+ *
+ * A tabela abre JÁ ORDENADA por proficiência descendente: a referência mostra
+ * um critério vigente no cabeçalho, e abrir na ordem crua do array não é
+ * ordem nenhuma — é a ordem que a RPC devolveu, que o gestor não tem como
+ * inferir.
+ */
 export function TabelaAlunosSimulado({
   alunos,
   multiSimulado,
@@ -62,141 +68,216 @@ export function TabelaAlunosSimulado({
   alunoSelecionadoId = null,
   onSelecionarAluno,
 }: TabelaAlunosSimuladoProps) {
-  const [ordenacao, setOrdenacao] = React.useState<{ coluna: ColunaOrdenavel; ordem: Ordem } | null>(null);
+  const [ordenacao, setOrdenacao] = React.useState<{ coluna: ColunaOrdenavel; ordem: Ordem }>({
+    coluna: 'proficiencia',
+    ordem: 'desc',
+  });
   const [ocultarNaoParticipantes, setOcultarNaoParticipantes] = React.useState(false);
   const [page, setPage] = React.useState(1);
 
   const visiveis = React.useMemo(() => {
     const filtrados = ocultarNaoParticipantes ? alunos.filter((a) => a.participou) : alunos;
-    return ordenacao ? ordenarAlunosNoSimulado(filtrados, ordenacao.coluna, ordenacao.ordem) : filtrados;
+    return ordenarAlunosNoSimulado(filtrados, ordenacao.coluna, ordenacao.ordem);
   }, [alunos, ocultarNaoParticipantes, ordenacao]);
 
   const totalPages = Math.max(1, Math.ceil(visiveis.length / pageSize));
   const pageAtual = Math.min(page, totalPages);
   const daPagina = visiveis.slice((pageAtual - 1) * pageSize, pageAtual * pageSize);
 
+  /**
+   * Contado sobre `alunos`, nunca sobre `visiveis`: o total de quem não
+   * participou é justamente o número que o filtro esconde — derivá-lo da lista
+   * já filtrada o zeraria no exato momento em que ele é a informação.
+   */
+  const participantes = alunos.filter((a) => a.participou).length;
+  const semParticipacao = alunos.length - participantes;
+
   const alternarOrdenacao = (coluna: ColunaOrdenavel) => {
     setPage(1);
     setOrdenacao((atual) =>
-      atual?.coluna === coluna ? { coluna, ordem: atual.ordem === 'desc' ? 'asc' : 'desc' } : { coluna, ordem: 'desc' },
+      atual.coluna === coluna ? { coluna, ordem: atual.ordem === 'desc' ? 'asc' : 'desc' } : { coluna, ordem: 'desc' },
     );
   };
 
-  const ariaSort = (coluna: ColunaOrdenavel) => {
-    if (ordenacao?.coluna !== coluna) return 'none' as const;
-    return ordenacao.ordem === 'desc' ? ('descending' as const) : ('ascending' as const);
-  };
+  const ordemDe = (coluna: ColunaOrdenavel) => (ordenacao.coluna === coluna ? ordenacao.ordem : null);
 
-  const CabecalhoOrdenavel = ({ coluna, rotulo }: { coluna: ColunaOrdenavel; rotulo: string }) => (
-    <TableHead aria-sort={ariaSort(coluna)} className="text-right">
-      <button
-        type="button"
-        onClick={() => alternarOrdenacao(coluna)}
-        className="inline-flex w-full items-center justify-end gap-1"
-      >
-        {rotulo}
-        {ordenacao?.coluna === coluna &&
-          (ordenacao.ordem === 'desc' ? (
-            <ArrowDown className="h-3 w-3" aria-hidden="true" />
-          ) : (
-            <ArrowUp className="h-3 w-3" aria-hidden="true" />
-          ))}
-      </button>
-    </TableHead>
-  );
+  const colunas = multiSimulado ? 6 : 5;
 
   return (
-    <section aria-label="Visão de alunos do recorte" className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-foreground">Visão de alunos</h3>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="ocultar-nao-participantes"
-            checked={ocultarNaoParticipantes}
-            onCheckedChange={(v) => {
-              setOcultarNaoParticipantes(v);
-              setPage(1);
-            }}
-          />
-          <Label htmlFor="ocultar-nao-participantes" className="text-sm">
-            Ocultar não participantes
-          </Label>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Aluno</TableHead>
-              <CabecalhoOrdenavel coluna="semestre" rotulo="Semestre" />
-              <CabecalhoOrdenavel coluna="acertos" rotulo="Número de acertos" />
-              <CabecalhoOrdenavel coluna="proficiencia" rotulo="Proficiência" />
-              <TableHead>Situação</TableHead>
-              {multiSimulado && <CabecalhoOrdenavel coluna="variacao" rotulo="Variação" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {daPagina.map((a) => {
-              const selecionado = a.id === alunoSelecionadoId;
-              return (
-                <TableRow
-                  key={a.id}
-                  data-testid={`linha-aluno-${a.id}`}
-                  data-selecionado={String(selecionado)}
-                  className={cn(selecionado && 'bg-primary/5')}
-                >
-                  <TableCell className="relative">
-                    {selecionado && (
-                      <span
-                        data-testid="marca-selecao"
-                        aria-hidden="true"
-                        className="absolute left-0 top-0 h-full w-0.5 bg-primary"
-                      />
-                    )}
-                    <span data-testid="celula-nome">
-                      {onSelecionarAluno ? (
-                        <button type="button" onClick={() => onSelecionarAluno(a.id)} className="underline">
-                          {a.nome}
-                        </button>
-                      ) : (
-                        a.nome
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{a.semestre}º</TableCell>
-                  <TableCell data-testid="celula-acertos" className="text-right tabular-nums">
-                    {formatNumero(a.acertos)}
-                  </TableCell>
-                  <TableCell data-testid="celula-proficiencia" className="text-right tabular-nums">
-                    {formatNumero(a.proficiencia)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={a.participou ? 'secondary' : 'outline'}>{SITUACAO_ROTULO[a.situacao]}</Badge>
-                  </TableCell>
-                  {multiSimulado && (
-                    <TableCell data-testid="celula-variacao" className="text-right tabular-nums">
-                      {formatDelta(a.variacao ?? null)}
-                    </TableCell>
-                  )}
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div data-testid="paginacao" className="flex items-center justify-end gap-3 text-sm text-muted-foreground">
-        <span>
-          Página {pageAtual} de {totalPages}
+    <section
+      aria-label="Visão de alunos do recorte"
+      className="flex flex-col gap-3.5 p-6"
+      style={{
+        background: 'var(--gp-surface-1)',
+        border: '1px solid var(--gp-border-strong)',
+        borderRadius: 16,
+        boxShadow: 'var(--gp-shadow-card)',
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-2.5">
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gp-text-1)' }}>Visão de alunos</h3>
+        <span
+          data-testid="contador-participacao"
+          className="ml-auto"
+          style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
+        >
+          {participantes} {participantes === 1 ? 'participante' : 'participantes'} · {semParticipacao} sem
+          participação
         </span>
-        <Button variant="outline" size="sm" disabled={pageAtual === 1} onClick={() => setPage(pageAtual - 1)}>
-          Anterior
-        </Button>
-        <Button variant="outline" size="sm" disabled={pageAtual === totalPages} onClick={() => setPage(pageAtual + 1)}>
-          Próxima
-        </Button>
       </div>
+
+      {visiveis.length === 0 ? (
+        <div className="flex flex-col items-center gap-3">
+          <EstadoVazio
+            titulo={
+              ocultarNaoParticipantes
+                ? 'Nenhum aluno participou deste recorte'
+                : 'Nenhum aluno neste recorte'
+            }
+            descricao={
+              ocultarNaoParticipantes
+                ? 'O filtro de participação escondeu todas as linhas.'
+                : 'Ajuste o recorte de simulados ou de semestre.'
+            }
+          />
+          {ocultarNaoParticipantes ? (
+            <button
+              type="button"
+              onClick={() => {
+                setOcultarNaoParticipantes(false);
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1.5"
+              style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-text-2)' }}
+            >
+              <Icon name="visibility" size={15} />
+              Mostrar não participantes
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <TabelaGestor rotulo="Alunos do simulado">
+            <CabecalhoTabela>
+              <tr>
+                <CelulaCabecalho>Aluno</CelulaCabecalho>
+                <CelulaCabecalho numerica ordem={ordemDe('semestre')} onOrdenar={() => alternarOrdenacao('semestre')}>
+                  Semestre
+                </CelulaCabecalho>
+                <CelulaCabecalho numerica ordem={ordemDe('acertos')} onOrdenar={() => alternarOrdenacao('acertos')}>
+                  Número de acertos
+                </CelulaCabecalho>
+                <CelulaCabecalho
+                  numerica
+                  ordem={ordemDe('proficiencia')}
+                  onOrdenar={() => alternarOrdenacao('proficiencia')}
+                >
+                  Proficiência
+                </CelulaCabecalho>
+                <CelulaCabecalho>Situação</CelulaCabecalho>
+                {multiSimulado && (
+                  <CelulaCabecalho numerica ordem={ordemDe('variacao')} onOrdenar={() => alternarOrdenacao('variacao')}>
+                    Variação
+                  </CelulaCabecalho>
+                )}
+              </tr>
+            </CabecalhoTabela>
+            <CorpoTabela>
+              {daPagina.map((a, indice) => {
+                const selecionado = a.id === alunoSelecionadoId;
+                return (
+                  <LinhaTabela
+                    key={a.id}
+                    data-testid={`linha-aluno-${a.id}`}
+                    data-selecionado={String(selecionado)}
+                    selecionada={selecionado}
+                    ultima={indice === daPagina.length - 1}
+                    onSelecionar={onSelecionarAluno ? () => onSelecionarAluno(a.id) : undefined}
+                  >
+                    <Celula marcada={selecionado}>
+                      {/* A linha inteira abre o aluno no clique; este botão é o
+                          alvo de TECLADO, um só por linha. */}
+                      <span data-testid="celula-nome">
+                        {onSelecionarAluno ? (
+                          <button
+                            type="button"
+                            title={a.nome}
+                            onClick={() => onSelecionarAluno(a.id)}
+                            className="block max-w-[220px] truncate text-left"
+                            style={{ color: 'var(--gp-text-1)', fontWeight: selecionado ? 600 : 400 }}
+                          >
+                            {a.nome}
+                          </button>
+                        ) : (
+                          <span
+                            title={a.nome}
+                            className="block max-w-[220px] truncate"
+                            style={{ fontWeight: selecionado ? 600 : 400 }}
+                          >
+                            {a.nome}
+                          </span>
+                        )}
+                      </span>
+                    </Celula>
+                    <Celula numerica ausente={a.semestre === null}>
+                      {a.semestre === null ? TRACO : `${a.semestre}º`}
+                    </Celula>
+                    <Celula numerica ausente={a.acertos === null} data-testid="celula-acertos">
+                      {formatNumero(a.acertos)}
+                    </Celula>
+                    <Celula numerica ausente={a.proficiencia === null} data-testid="celula-proficiencia">
+                      {formatNumero(a.proficiencia)}
+                    </Celula>
+                    <Celula>
+                      <TagSituacao situacao={a.situacao} />
+                    </Celula>
+                    {multiSimulado && (
+                      <Celula
+                        numerica
+                        ausente={(a.variacao ?? null) === null}
+                        data-testid="celula-variacao"
+                      >
+                        {formatDelta(a.variacao ?? null)}
+                      </Celula>
+                    )}
+                  </LinhaTabela>
+                );
+              })}
+            </CorpoTabela>
+          </TabelaGestor>
+
+          <RodapeTabela>
+            {/* A ação vive no rodapé, à esquerda, como a referência — era um
+                Switch do Radix no cabeçalho, do outro lado do card. */}
+            <button
+              type="button"
+              aria-pressed={ocultarNaoParticipantes}
+              onClick={() => {
+                setOcultarNaoParticipantes((atual) => !atual);
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1.5"
+              style={{ color: 'var(--gp-text-2)' }}
+            >
+              <Icon name="visibility_off" size={15} />
+              Ocultar não participantes
+            </button>
+            <span
+              data-testid="contador-linhas"
+              style={{ fontFamily: FONTE_MONO, fontVariantNumeric: 'tabular-nums' }}
+            >
+              Mostrando {daPagina.length} de {visiveis.length}
+            </span>
+            <Paginacao
+              className="ml-auto"
+              rotulo="Paginação de alunos do simulado"
+              page={pageAtual}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </RodapeTabela>
+        </>
+      )}
     </section>
   );
 }

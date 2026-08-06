@@ -68,6 +68,81 @@ describe('AcoesRecorte', () => {
     expect(screen.getByRole('button', { name: 'Copiar resumo' })).toBeInTheDocument();
   });
 
+  it('o par e secundario + terciario: nenhum dos dois e o botao de marca preenchido', () => {
+    vi.mocked(useGestorContexto).mockReturnValue(contexto(true) as never);
+    render(
+      <AcoesRecorte escopo="Pediatria · 6º ano" resumoTexto="resumo" onExportar={vi.fn()} />,
+    );
+
+    const exportar = screen.getByRole('button', { name: 'Exportar recorte' });
+    const copiar = screen.getByRole('button', { name: 'Copiar resumo' });
+
+    // Na referencia o preenchimento solido de marca aparece uma unica vez, em
+    // "Selecionar simulado". Exportar um recorte e acao secundaria de um
+    // recorte, nao o CTA da tela — antes daqui era `variant="default"`.
+    expect(exportar.className).not.toContain('bg-primary');
+    expect(copiar.className).not.toContain('bg-primary');
+
+    // A hierarquia entre as duas vem so da COR DA BORDA (tom do texto x borda
+    // de input), com a mesma anatomia de raio/padding/peso.
+    expect(exportar.className).toContain('border-[color:var(--gp-text-2)]');
+    expect(copiar.className).toContain('border-[color:var(--gp-border-input)]');
+    expect(exportar.style.borderRadius).toBe('var(--gp-radius-sm)');
+    expect(exportar.style.fontWeight).toBe('600');
+    expect(copiar.style.borderRadius).toBe('var(--gp-radius-sm)');
+    expect(copiar.style.fontWeight).toBe('600');
+  });
+
+  it('o hover da secundaria INVERTE; o da terciaria so escurece a borda', () => {
+    vi.mocked(useGestorContexto).mockReturnValue(contexto(true) as never);
+    render(
+      <AcoesRecorte escopo="Pediatria · 6º ano" resumoTexto="resumo" onExportar={vi.fn()} />,
+    );
+
+    const exportar = screen.getByRole('button', { name: 'Exportar recorte' });
+    const copiar = screen.getByRole('button', { name: 'Copiar resumo' });
+
+    // Referencia: `style-hover="background:#292A2A; color:#fff; border-color:#292A2A"`
+    // na secundaria e `style-hover="border-color:#414141"` na terciaria.
+    expect(exportar.className).toContain('hover:bg-[var(--gp-text-1)]');
+    expect(exportar.className).toContain('hover:text-[color:var(--gp-text-inverse)]');
+    expect(copiar.className).toContain('hover:border-[color:var(--gp-text-2)]');
+
+    // O `hover:bg-accent`/`hover:text-accent-foreground` do `variant="outline"`
+    // preencheria o fundo da terciaria e empataria as duas acoes.
+    expect(copiar.className).not.toContain('hover:bg-accent');
+    expect(copiar.className).not.toContain('hover:text-accent-foreground');
+    expect(exportar.className).not.toContain('hover:bg-accent');
+  });
+
+  it('nenhuma sombra e a transicao fica na escala de movimento do portal', () => {
+    vi.mocked(useGestorContexto).mockReturnValue(contexto(true) as never);
+    render(
+      <AcoesRecorte escopo="Pediatria" resumoTexto="resumo" onExportar={vi.fn()} />,
+    );
+
+    const exportar = screen.getByRole('button', { name: 'Exportar recorte' });
+    // Sombra em botao nunca; e `.transition-smooth` (300ms, curva alheia) que o
+    // `variant="outline"` arrasta fica sobrescrita pelo inline.
+    expect(exportar.className).not.toContain('shadow');
+    expect(exportar.style.transitionDuration).toBe('var(--gp-motion-2)');
+    expect(exportar.style.transitionTimingFunction).toBe('var(--gp-ease)');
+  });
+
+  it('cada acao leva seu glifo Dende, nunca um SVG avulso', () => {
+    vi.mocked(useGestorContexto).mockReturnValue(contexto(true) as never);
+    const { container } = render(
+      <AcoesRecorte escopo="Pediatria" resumoTexto="resumo" onExportar={vi.fn()} />,
+    );
+
+    const exportar = screen.getByRole('button', { name: 'Exportar recorte' });
+    const copiar = screen.getByRole('button', { name: 'Copiar resumo' });
+
+    expect(exportar.querySelector('.icon-dende-icons-download-outlined')).not.toBeNull();
+    expect(copiar.querySelector('.icon-dende-icons-content_copy-outlined')).not.toBeNull();
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
   it('nao renderiza NADA quando podeExportar e false — ausente, nao desabilitado', () => {
     vi.mocked(useGestorContexto).mockReturnValue(contexto(false) as never);
     const { container } = render(

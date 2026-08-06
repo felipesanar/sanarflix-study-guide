@@ -1,7 +1,12 @@
 import * as React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@/test/utils';
-import { DispersaoChart, medianaDeNotas, prepararPontos } from '@/features/gestor/charts/DispersaoChart';
+import {
+  AnelDeFoco,
+  DispersaoChart,
+  medianaDeNotas,
+  prepararPontos,
+} from '@/features/gestor/charts/DispersaoChart';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
 const DIM = { largura: 640, altura: 320 };
@@ -52,20 +57,56 @@ describe('medianaDeNotas', () => {
   });
 });
 
-describe('DispersaoChart (modo Por aluno)', () => {
+describe('DispersaoChart (modo Aluno)', () => {
   it('desenha um símbolo por aluno e é acessível como imagem', () => {
     const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
     expect(screen.getByRole('img', { name: /Dispersão de proficiência por semestre/i })).toBeInTheDocument();
     expect(container.querySelectorAll('.recharts-scatter-symbol')).toHaveLength(6);
   });
 
-  it('desenha o corte de proficiência em 60', () => {
+  /**
+   * docs/06-data-viz.md §3: ponto de aluno em opacidade 0.75 e cor NEUTRA. A
+   * marca fica reservada para o que o gráfico AFIRMA (mediana, tendência) —
+   * com a nuvem inteira em vermelho, os três liam como a mesma série.
+   */
+  it('pinta a nuvem em cor neutra a 75% de opacidade, sem competir com a marca', () => {
     const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
-    expect(container.querySelector('.recharts-reference-line-line')).not.toBeNull();
+    const simbolo = container.querySelector('.recharts-scatter-symbol path');
+    expect(simbolo?.getAttribute('fill')).toBe('var(--gp-text-3)');
+    expect(simbolo?.getAttribute('fill-opacity')).toBe('0.75');
+  });
+
+  /** docs/06-data-viz.md §3: "ponto sob hover ganha anel". */
+  it('a forma ativa do ponto é um anel da marca, sem expor nada do aluno', () => {
+    const { container } = render(<AnelDeFoco cx={40} cy={20} />);
+    const circulos = Array.from(container.querySelectorAll('circle'));
+    expect(circulos.map((no) => no.getAttribute('r'))).toEqual(['4', '8']);
+    expect(circulos[1].getAttribute('fill')).toBe('none');
+    expect(circulos[1].getAttribute('stroke')).toBe('var(--gp-brand)');
+  });
+
+  it('desenha o corte de proficiência tracejado, com rótulo dentro do plot', () => {
+    const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
+    const corte = container.querySelector('.recharts-reference-line-line');
+    expect(corte).not.toBeNull();
+    expect(corte?.getAttribute('stroke-dasharray')).toBe('6 5');
+    expect(corte?.getAttribute('stroke-width')).toBe('1.5');
+    expect(container.querySelector('.recharts-reference-line text')?.textContent).toBe(
+      'meta de proficiência · 60',
+    );
     expect(screen.getByText(/Corte de proficiência: 60/i)).toBeInTheDocument();
   });
 
-  it('desenha a linha de tendência quando o servidor a fornece', () => {
+  /** Handoff §7: a dispersão é o único gráfico que mantém grade vertical. */
+  it('mantém grade sólida nos dois eixos — só aqui há grade vertical', () => {
+    const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
+    const linhas = Array.from(container.querySelectorAll('.recharts-cartesian-grid line'));
+    expect(linhas.length).toBeGreaterThan(0);
+    linhas.forEach((linha) => expect(linha.getAttribute('stroke-dasharray')).toBeNull());
+    expect(container.querySelector('.recharts-cartesian-grid-vertical line')).not.toBeNull();
+  });
+
+  it('desenha a linha de tendência tracejada quando o servidor a fornece, e a declara na legenda', () => {
     const { container } = render(
       <DispersaoChart
         pontos={DOIS_SEMESTRES}
@@ -73,14 +114,24 @@ describe('DispersaoChart (modo Por aluno)', () => {
         {...DIM}
       />
     );
-    expect(container.querySelector('.recharts-scatter-line')).not.toBeNull();
-    expect(screen.queryByText(/linha de tendência indisponível/i)).not.toBeInTheDocument();
+    const reta = container.querySelector('.recharts-scatter-line line, .recharts-scatter-line path');
+    expect(reta).not.toBeNull();
+    expect(reta?.getAttribute('stroke-dasharray')).toBe('5 4');
+    expect(screen.getByText('Linha de tendência')).toBeInTheDocument();
+    expect(screen.queryByText(/ainda não é publicada/i)).not.toBeInTheDocument();
   });
 
-  it('sem tendência do servidor não desenha reta e informa a indisponibilidade', () => {
+  /**
+   * Sem reta, o aviso fala do CONTRATO, não do recorte: a reta é calculada no
+   * servidor (§4.11) e nenhuma RPC do portal a publica hoje. "Indisponível
+   * para este recorte" mandava o gestor trocar de filtro atrás de um dado que
+   * não existe em nenhum.
+   */
+  it('sem tendência do servidor não desenha reta e diz que o dado ainda não é publicado', () => {
     const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
     expect(container.querySelector('.recharts-scatter-line')).toBeNull();
-    expect(screen.getByText(/linha de tendência indisponível para este recorte/i)).toBeInTheDocument();
+    expect(screen.getByText('A reta de tendência ainda não é publicada pelo servidor.')).toBeInTheDocument();
+    expect(screen.queryByText(/indisponível para este recorte/i)).not.toBeInTheDocument();
   });
 
   it('com um único semestre vira distribuição interna: jitter + mediana em destaque', () => {
@@ -89,9 +140,13 @@ describe('DispersaoChart (modo Por aluno)', () => {
     expect(screen.getByText(/Mediana do semestre: 55/i)).toBeInTheDocument();
   });
 
-  it('mostra estado vazio sem alunos', () => {
+  /** docs/06-data-viz.md, princípio 7: o vazio é desenhado, não um bloco branco. */
+  it('o estado vazio mantém a moldura do gráfico', () => {
     render(<DispersaoChart pontos={[]} {...DIM} />);
-    expect(screen.getByTestId('dispersao-vazio')).toHaveTextContent('Sem alunos com resultado neste recorte');
+    const vazio = screen.getByTestId('dispersao-vazio');
+    expect(vazio).toHaveTextContent('Sem alunos com resultado neste recorte');
+    expect(vazio).toHaveTextContent('meta de proficiência · 60');
+    ['100', '80', '40', '20', '0'].forEach((tick) => expect(vazio).toHaveTextContent(tick));
   });
 
   it('nunca expõe alunoId em atributo, tooltip, label ou tabela de dados no DOM', () => {
@@ -105,8 +160,8 @@ describe('DispersaoChart (modo Por aluno)', () => {
    * Achado 2 (revisão de 05/08), mesma classe já corrigida em `AreasChart`:
    * `role="img"` no `<figure>` torna todo descendente "presentational" (ARIA
    * 1.2, Children Presentational: True), podando a `<figcaption>` — que carrega
-   * o corte, a mediana e o aviso de tendência indisponível — e a tabela
-   * colapsável exigida pelo handoff §5 da árvore de acessibilidade.
+   * o corte, a mediana e a legenda — e a tabela colapsável exigida pelo handoff
+   * §5 da árvore de acessibilidade.
    */
   it('mantém role="img" restrito ao desenho, sem podar figcaption e tabela da árvore de acessibilidade', () => {
     const { container } = render(<DispersaoChart pontos={UM_SEMESTRE} {...DIM} />);

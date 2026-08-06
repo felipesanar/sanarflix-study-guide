@@ -1,8 +1,8 @@
 // src/features/gestor/__tests__/AreasChart.test.tsx
 import * as React from 'react';
 import { describe, expect, it } from 'vitest';
-import { render, screen, userEvent } from '@/test/utils';
-import { AreasChart } from '@/features/gestor/charts/AreasChart';
+import { fireEvent, render, screen, userEvent } from '@/test/utils';
+import { AreasChart, coresDasAreas } from '@/features/gestor/charts/AreasChart';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
 const DIM = { largura: 640, altura: 320 };
@@ -45,7 +45,48 @@ const evolucaoPorAreaFake: VisaoGeral['evolucaoPorArea'] = [
   },
 ];
 
-describe('AreasChart (modo Por grande área)', () => {
+const opacidades = (container: HTMLElement) =>
+  Array.from(container.querySelectorAll('.recharts-line-curve')).map((no) =>
+    no.getAttribute('stroke-opacity'),
+  );
+
+describe('coresDasAreas (paleta de séries, ordem fixa do handoff)', () => {
+  /**
+   * A cor tem que ser propriedade da grande ÁREA, não da posição dela no
+   * array: se viesse do índice, a Cirurgia mudaria de cor sempre que outra
+   * área entrasse ou saísse do recorte, e "a linha azul" deixaria de
+   * significar a mesma coisa entre dois filtros.
+   */
+  it('dá a mesma cor à mesma área, independentemente da posição no recorte', () => {
+    const completo = coresDasAreas(evolucaoPorAreaFake);
+    expect(completo).toEqual(['var(--gp-serie-1)', 'var(--gp-serie-2)', 'var(--gp-serie-5)']);
+
+    const semClinica = coresDasAreas(evolucaoPorAreaFake.slice(1));
+    expect(semClinica).toEqual(['var(--gp-serie-2)', 'var(--gp-serie-5)']);
+  });
+
+  it('casa a área mesmo com o nome abreviado no cadastro', () => {
+    const abreviado: VisaoGeral['evolucaoPorArea'] = [
+      { area: 'Gineco. e Obstetrícia', critica: false, pontos: [] },
+      { area: 'Medicina Preventiva', critica: false, pontos: [] },
+    ];
+    expect(coresDasAreas(abreviado)).toEqual(['var(--gp-serie-3)', 'var(--gp-serie-4)']);
+  });
+
+  it('nunca repete cor entre séries do mesmo gráfico quando a área é desconhecida', () => {
+    const comDesconhecida: VisaoGeral['evolucaoPorArea'] = [
+      { area: 'Clínica Médica', critica: false, pontos: [] },
+      { area: 'Área nova sem cor fixa', critica: false, pontos: [] },
+      { area: 'Cirurgia', critica: false, pontos: [] },
+    ];
+    const cores = coresDasAreas(comDesconhecida);
+    expect(new Set(cores).size).toBe(cores.length);
+    expect(cores[0]).toBe('var(--gp-serie-1)');
+    expect(cores[2]).toBe('var(--gp-serie-2)');
+  });
+});
+
+describe('AreasChart (modo Grande área)', () => {
   it('desenha uma linha por grande área', () => {
     const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
     expect(container.querySelectorAll('.recharts-line')).toHaveLength(3);
@@ -78,10 +119,79 @@ describe('AreasChart (modo Por grande área)', () => {
     expect(curvas[1].getAttribute('stroke-opacity')).toBe('0.7');
   });
 
+  /**
+   * docs/06-data-viz.md §2: a meta é linha tracejada com rótulo à direita.
+   * Sem ela, "Grande área" era o único modo em que o gestor não conseguia ver
+   * de relance quais áreas estão abaixo do corte.
+   */
+  it('desenha a linha de meta tracejada, com o rótulo dentro do plot', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    const meta = container.querySelector('.recharts-reference-line-line');
+    expect(meta).not.toBeNull();
+    expect(meta?.getAttribute('stroke-dasharray')).toBe('6 5');
+    expect(meta?.getAttribute('stroke-width')).toBe('1.5');
+    expect(container.querySelector('.recharts-reference-line text')?.textContent).toBe(
+      'meta de acerto · 60',
+    );
+  });
+
+  /** Handoff §7: grade horizontal SÓLIDA de 1px; sem grade vertical. */
+  it('desenha a grade sólida, só horizontal', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    const horizontais = Array.from(container.querySelectorAll('.recharts-cartesian-grid-horizontal line'));
+    expect(horizontais.length).toBeGreaterThan(0);
+    horizontais.forEach((linha) => expect(linha.getAttribute('stroke-dasharray')).toBeNull());
+    expect(container.querySelector('.recharts-cartesian-grid-vertical line')).toBeNull();
+  });
+
+  it('não repete o valor da meta nos ticks do eixo Y', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    const ticks = Array.from(
+      container.querySelectorAll('.recharts-yAxis .recharts-cartesian-axis-tick-value'),
+    ).map((no) => no.textContent);
+    expect(ticks).toEqual(['0%', '20%', '40%', '80%', '100%']);
+  });
+
+  /**
+   * Referência: cada série marca o ponto de cada simulado, e o ÚLTIMO ponto da
+   * série crítica ganha halo + anel — é onde a leitura vira decisão.
+   */
+  it('marca cada simulado com um ponto e destaca o último ponto da área crítica', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    const criticos = Array.from(
+      container.querySelectorAll('.recharts-line-dots'),
+    )[0].querySelectorAll('circle');
+    expect(Array.from(criticos).map((no) => no.getAttribute('r'))).toEqual(['4', '4', '12', '5.5', '3.2']);
+
+    const naoCriticos = Array.from(
+      container.querySelectorAll('.recharts-line-dots'),
+    )[1].querySelectorAll('circle');
+    expect(Array.from(naoCriticos).map((no) => no.getAttribute('r'))).toEqual(['3.5', '3.5', '3.5']);
+  });
+
   it('marca a área crítica na legenda', () => {
     render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
     const item = screen.getByRole('button', { name: /Clínica Médica/ });
     expect(item).toHaveTextContent('área crítica');
+  });
+
+  /** docs/06-data-viz.md §2: "Hover em uma série destaca e esmaece as outras." */
+  it('hover numa série a isola visualmente: as outras esmaecem, e voltam ao sair', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    expect(opacidades(container)).toEqual(['1', '0.7', '0.7']);
+
+    const cirurgia = screen.getByRole('button', { name: /Cirurgia/ });
+    fireEvent.mouseEnter(cirurgia);
+    expect(opacidades(container)).toEqual(['0.18', '0.7', '0.18']);
+
+    fireEvent.mouseLeave(cirurgia);
+    expect(opacidades(container)).toEqual(['1', '0.7', '0.7']);
+  });
+
+  it('o mesmo destaque acontece pelo teclado, ao focar o item da legenda', () => {
+    const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
+    fireEvent.focus(screen.getByRole('button', { name: /Pediatria/ }));
+    expect(opacidades(container)).toEqual(['0.18', '0.18', '0.7']);
   });
 
   it('legenda clicável isola a área e o segundo clique reativa todas', async () => {
@@ -105,9 +215,13 @@ describe('AreasChart (modo Por grande área)', () => {
     expect(tabela).toHaveTextContent('27%');
   });
 
-  it('mostra estado vazio sem áreas', () => {
+  /** docs/06-data-viz.md, princípio 7: o vazio é desenhado, não um bloco branco. */
+  it('o estado vazio mantém a moldura do gráfico, com a meta de acerto rotulada', () => {
     render(<AreasChart areas={[]} {...DIM} />);
-    expect(screen.getByTestId('areas-vazio')).toHaveTextContent('Sem dados por grande área neste recorte');
+    const vazio = screen.getByTestId('areas-vazio');
+    expect(vazio).toHaveTextContent('Sem dados por grande área neste recorte');
+    expect(vazio).toHaveTextContent('meta de acerto · 60');
+    ['100', '80', '40', '20', '0'].forEach((tick) => expect(vazio).toHaveTextContent(tick));
   });
 
   /**

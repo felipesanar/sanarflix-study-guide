@@ -123,17 +123,61 @@ describe('GraficoProtagonista', () => {
     expect(card).toContainElement(screen.getByTestId('grafico-modos'));
   });
 
-  it('alterna para Por grande área e para Por aluno trocando o componente exibido', async () => {
+  /**
+   * Os rótulos são os da referência, ao pé da letra: "Geral", "Grande área",
+   * "Aluno". O "Por " que existia antes ("Por grande área", "Por aluno")
+   * transformava um seletor de MODO DE LEITURA em algo que se lia como filtro,
+   * e alargava os segmentos a ponto de empurrar o título do card.
+   */
+  it('rotula os três modos exatamente como a referência: Geral · Grande área · Aluno', () => {
+    render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+    const barra = screen.getByTestId('grafico-modos');
+    expect(within(barra).getAllByRole('button').map((botao) => botao.textContent)).toEqual([
+      'Geral',
+      'Grande área',
+      'Aluno',
+    ]);
+    expect(screen.queryByRole('button', { name: /^Por / })).not.toBeInTheDocument();
+  });
+
+  it('alterna para Grande área e para Aluno trocando o componente exibido', async () => {
     const user = userEvent.setup();
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
 
-    await user.click(screen.getByRole('button', { name: 'Por grande área' }));
+    await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: /Evolução da proficiência institucional/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Por aluno' }));
+    await user.click(screen.getByRole('button', { name: 'Aluno' }));
     expect(screen.getByRole('img', { name: /Dispersão de proficiência por semestre/i })).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: /Desempenho por grande área/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Anatomia do segmented do handoff, a mesma de `FiltroSemestre`: um
+   * indicador ÚNICO que DESLIZA por `transform` sob os rótulos. O estado ativo
+   * era antes `bg-background … shadow-sm` no próprio botão — sombra em botão,
+   * que a régua proíbe, e um retângulo que piscava de um segmento para o outro
+   * em vez de deslizar.
+   */
+  it('o realce é um indicador único que desliza por transform, sem sombra em botão', async () => {
+    const user = userEvent.setup();
+    render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
+
+    const indicador = screen.getByTestId('grafico-modos-indicador');
+    expect(indicador.style.transform).toBe('translateX(0%)');
+
+    await user.click(screen.getByRole('button', { name: 'Grande área' }));
+    expect(screen.getByTestId('grafico-modos-indicador').style.transform).toBe('translateX(100%)');
+
+    await user.click(screen.getByRole('button', { name: 'Aluno' }));
+    expect(screen.getByTestId('grafico-modos-indicador').style.transform).toBe('translateX(200%)');
+
+    // Um só indicador, e nenhum segmento carrega sombra própria.
+    expect(screen.getAllByTestId('grafico-modos-indicador')).toHaveLength(1);
+    within(screen.getByTestId('grafico-modos'))
+      .getAllByRole('button')
+      .forEach((botao) => expect(botao.className).not.toMatch(/shadow/));
   });
 
   it('NÃO dispara nenhuma requisição ao trocar de modo (caso crítico nº15)', async () => {
@@ -144,8 +188,8 @@ describe('GraficoProtagonista', () => {
     expect(rpcSpy).toHaveBeenCalledTimes(1);
     expect(rpcSpy).toHaveBeenCalledWith('get_gestor_visao_geral', expect.anything());
 
-    await user.click(screen.getByRole('button', { name: 'Por grande área' }));
-    await user.click(screen.getByRole('button', { name: 'Por aluno' }));
+    await user.click(screen.getByRole('button', { name: 'Grande área' }));
+    await user.click(screen.getByRole('button', { name: 'Aluno' }));
     await user.click(screen.getByRole('button', { name: 'Geral' }));
 
     expect(rpcSpy).toHaveBeenCalledTimes(1);
@@ -162,19 +206,19 @@ describe('GraficoProtagonista', () => {
     render(<GraficoProtagonista visao={VISAO_GERAL_FAKE} />);
     const geral = screen.getByRole('button', { name: 'Geral' });
     expect(geral).toHaveAttribute('tabindex', '0');
-    expect(screen.getByRole('button', { name: 'Por grande área' })).toHaveAttribute('tabindex', '-1');
-    expect(screen.getByRole('button', { name: 'Por aluno' })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('button', { name: 'Grande área' })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('tabindex', '-1');
 
     geral.focus();
     fireEvent.keyDown(geral, { key: 'ArrowRight' });
-    const porArea = screen.getByRole('button', { name: 'Por grande área' });
+    const porArea = screen.getByRole('button', { name: 'Grande área' });
     expect(porArea).toHaveAttribute('aria-pressed', 'true');
     expect(porArea).toHaveFocus();
     expect(porArea).toHaveAttribute('tabindex', '0');
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
 
     fireEvent.keyDown(porArea, { key: 'ArrowRight' });
-    const porAluno = screen.getByRole('button', { name: 'Por aluno' });
+    const porAluno = screen.getByRole('button', { name: 'Aluno' });
     expect(porAluno).toHaveAttribute('aria-pressed', 'true');
     expect(porAluno).toHaveFocus();
 
@@ -183,6 +227,12 @@ describe('GraficoProtagonista', () => {
     expect(screen.getByRole('button', { name: 'Geral' })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Geral' }), { key: 'ArrowLeft' });
-    expect(screen.getByRole('button', { name: 'Por aluno' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Home/End vão direto às pontas, como manda o padrão APG Toolbar.
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Aluno' }), { key: 'Home' });
+    expect(screen.getByRole('button', { name: 'Geral' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Geral' }), { key: 'End' });
+    expect(screen.getByRole('button', { name: 'Aluno' })).toHaveAttribute('aria-pressed', 'true');
   });
 });

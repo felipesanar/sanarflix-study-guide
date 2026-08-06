@@ -50,9 +50,14 @@ export function Glossario() {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
+        {/* Link de marca, nunca botão neutro: na referência a afordância vive no
+            mesmo bloco alinhado à direita do segmented de semestre, em 12px/600
+            com a cor da marca. `--gp-brand-on-dark` porque no tema escuro a
+            marca crua reprova AA como cor de texto. */}
         <button
           type="button"
-          className="text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+          className="whitespace-nowrap rounded-sm underline-offset-4 hover:underline focus-visible:outline-none"
+          style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
         >
           Entenda as métricas
         </button>

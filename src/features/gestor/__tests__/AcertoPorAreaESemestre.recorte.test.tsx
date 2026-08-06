@@ -118,15 +118,69 @@ describe('AcertoPorAreaESemestre — clique cruzado (§12 caso 11)', () => {
     expect(onRecorteChange).toHaveBeenCalledWith(null);
   });
 
-  it('sem matriz o cruzamento fica desabilitado e a tela segue utilizável', () => {
-    render(<AcertoPorAreaESemestre dados={DADOS} semestre="6ano" recorte={null} onRecorteChange={vi.fn()} />);
+  /**
+   * §11: indisponível não pode significar inalcançável. `disabled` tirava as
+   * 17 barras da ordem de tabulação e deixava o motivo só no `title` (hover
+   * do mouse) — o clique cruzado inteiro sumia para quem usa teclado ou
+   * leitor de tela. `aria-disabled` mantém o foco e o motivo vira texto na
+   * tela, ligado por `aria-describedby`.
+   */
+  it('sem matriz o cruzamento fica indisponível — mas focável, com o motivo perceptível sem mouse', async () => {
+    const user = userEvent.setup();
+    const onRecorteChange = vi.fn();
+    render(<AcertoPorAreaESemestre dados={DADOS} semestre="6ano" recorte={null} onRecorteChange={onRecorteChange} />);
 
-    expect(screen.getByRole('button', { name: /Cirurgia/ })).toBeDisabled();
+    const cirurgia = screen.getByRole('button', { name: /Cirurgia/ });
+    expect(cirurgia).toHaveAttribute('aria-disabled', 'true');
+    expect(cirurgia).not.toBeDisabled();
+
+    cirurgia.focus();
+    expect(cirurgia).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(onRecorteChange).not.toHaveBeenCalled();
+
+    const motivo = screen.getByTestId('motivo-sem-cruzamento');
+    expect(motivo).toHaveTextContent('Recorte cruzado indisponível para esta seleção');
+    expect(cirurgia).toHaveAttribute('aria-describedby', motivo.id);
     expect(screen.getByRole('button', { name: /12º semestre/i })).toHaveAttribute(
       'title',
       'Recorte cruzado indisponível para esta seleção',
     );
     expect(screen.getByTestId('area-clinica')).toHaveTextContent('72%');
+  });
+
+  /**
+   * docs/06-data-viz §4: "o item selecionado recebe contorno **e o restante
+   * esmaece**". Sem o esmaecimento, um contorno de 1px era o único sinal de
+   * que havia recorte ativo.
+   */
+  it('com recorte ativo, os itens não selecionados do mesmo eixo esmaecem', () => {
+    render(
+      <AcertoPorAreaESemestre
+        dados={DADOS}
+        semestre="geral"
+        matriz={MATRIZ}
+        recorte={{ tipo: 'area', id: 'cirurgia' }}
+        onRecorteChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('area-cirurgia').className).toContain('opacity-100');
+    expect(screen.getByTestId('area-clinica').className).toContain('opacity-40');
+  });
+
+  /** §07-motion, regra de ouro nº1: animar só `transform` e `opacity`. */
+  it('as barras animam transform, nunca width/height', () => {
+    render(<AcertoPorAreaESemestre dados={DADOS} semestre="geral" />);
+
+    const barraArea = screen.getByTestId('area-clinica').querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(barraArea.style.transform).toContain('scaleX');
+    expect(barraArea.style.transition).toContain('transform');
+    expect(barraArea.style.width).not.toMatch(/\d+%/);
+
+    const barraSemestre = screen.getByTestId('semestre-11').querySelector('[aria-hidden="true"]') as HTMLElement;
+    expect(barraSemestre.style.transform).toContain('scaleY');
+    expect(barraSemestre.style.height).not.toMatch(/\d+%/);
   });
 
   it('sem os callbacks o bloco continua sendo só leitura (Task 51 intacta)', () => {

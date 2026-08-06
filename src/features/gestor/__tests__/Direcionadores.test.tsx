@@ -184,6 +184,23 @@ describe('SaudacaoGestor (spec §2.1)', () => {
     expect(within(skeleton).getAllByRole('status').length).toBeGreaterThan(0);
   });
 
+  /**
+   * Título de tela da referência (§5): 26px/700, tracking -0.01em, 32px de
+   * linha. `text-2xl`/`tracking-tight` do Tailwind davam 24px/600 com tracking
+   * 2,5× mais apertado — a saudação ficava do mesmo peso visual dos títulos de
+   * card logo abaixo, e a hierarquia da home sumia.
+   */
+  it('o título de tela tem a escala da referência, não a do Tailwind', () => {
+    montar(<SaudacaoGestor />);
+
+    const titulo = screen.getByRole('heading', { level: 1 });
+    expect(titulo.style.fontSize).toBe('26px');
+    expect(titulo.style.fontWeight).toBe('700');
+    expect(titulo.style.letterSpacing).toBe('-0.01em');
+    expect(titulo.style.lineHeight).toBe('32px');
+    expect(titulo.className).not.toContain('tracking-tight');
+  });
+
   describe('IES em foco divergente da IES padrão do usuário (achados 1, 3, 4 e 7)', () => {
     const CONTEXTO_MULTI_IES = {
       ...CONTEXTO.data,
@@ -318,6 +335,54 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
     await user.hover(screen.getByTestId('direcionador-detalhamento'));
 
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Anatomia do cartão de direcionamento (handoff §4.4): linha horizontal com
+ * tile de ícone 48×48, texto e chevron. A implementação anterior era um cartão
+ * vertical com ícone Lucide solto e um CTA "Abrir" que a referência não tem —
+ * afordância duplicada, já que o cartão inteiro é o link.
+ */
+describe('DirecionadoresGestor — anatomia da referência (§4.4)', () => {
+  it('não tem o rótulo "Abrir": o chevron é a afordância inteira', () => {
+    montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
+
+    expect(screen.queryByText('Abrir')).not.toBeInTheDocument();
+    for (const testid of ['direcionador-visao-geral', 'direcionador-detalhamento']) {
+      const cartao = screen.getByTestId(testid);
+      expect(cartao.querySelector('.icon-dende-icons-chevron_right-outlined')).not.toBeNull();
+    }
+  });
+
+  it('cada cartão abre com um tile de 48×48 e o glifo Dendê preenchido de 24px', () => {
+    montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
+
+    const visaoGeral = screen.getByTestId('direcionador-visao-geral');
+    const tileVisaoGeral = visaoGeral.firstElementChild as HTMLElement;
+    expect(tileVisaoGeral.style.width).toBe('48px');
+    expect(tileVisaoGeral.style.height).toBe('48px');
+    expect(tileVisaoGeral.style.borderRadius).toBe('var(--gp-radius-md)');
+    // Primário: tile de marca. Secundário: neutro.
+    expect(tileVisaoGeral.style.background).toBe('var(--gp-brand-surface)');
+    expect(visaoGeral.querySelector('.icon-dende-icons-equalizer-filled')).not.toBeNull();
+
+    const detalhamento = screen.getByTestId('direcionador-detalhamento');
+    const tileDetalhamento = detalhamento.firstElementChild as HTMLElement;
+    expect(tileDetalhamento.style.background).toBe('var(--gp-surface-3)');
+    expect(detalhamento.querySelector('.icon-dende-icons-insights-filled')).not.toBeNull();
+  });
+
+  it('o bloco é rotulado pela eyebrow "O que você quer ver?"', () => {
+    montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
+    expect(screen.getByTestId('direcionadores')).toHaveTextContent('O que você quer ver?');
+  });
+
+  it('o cartão tem sombra em repouso — sem ela o hover não teria degrau para subir', () => {
+    montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
+    const cartao = screen.getByTestId('direcionador-visao-geral');
+    expect(cartao.className).toContain('shadow-[var(--gp-shadow-card)]');
+    expect(cartao.className).toContain('duration-[140ms]');
   });
 });
 

@@ -1,5 +1,6 @@
-import { X } from 'lucide-react';
+import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { Icon } from './Icon';
 import { recalcularAreas, recalcularSemestres } from '../lib/agregarDetalhamento';
 import { formatPct } from '../lib/formatters';
 import type { CelulaAreaSemestre, RecorteCruzado } from '../api/detalhamentoExtras';
@@ -27,6 +28,33 @@ export interface AcertoPorAreaESemestreProps {
 
 const MOTIVO_SEM_MATRIZ = 'Recorte cruzado indisponível para esta seleção';
 
+/** Proporção 0–1 para `scaleX`/`scaleY`, sempre dentro da caixa. */
+const proporcao = (pct: number) => Math.max(0, Math.min(100, pct)) / 100;
+
+/**
+ * `motion-3` (200ms) na curva padrão, aplicada só a `transform`/`opacity` —
+ * as duas únicas propriedades que o handoff §07-motion permite animar. Antes
+ * daqui saíam `transition-[width]` e `transition-[height]`, que recalculam
+ * layout a cada frame do clique cruzado.
+ */
+const MOVIMENTO_BARRA: React.CSSProperties = {
+  transition: 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+};
+
+/**
+ * Rampa NEUTRA por posição para as barras de grande área. Estas barras não são
+ * séries categóricas — são o mesmo indicador (% de acerto) ordenado, então a
+ * cor codifica POSIÇÃO no ranking, não identidade da área. Sair da marca
+ * (`bg-primary`, vermelho SanarFlix) importa: pintar cinco áreas de vermelho
+ * fazia toda a lista parecer alarme e roubava o único destaque que deve
+ * gritar, o da área crítica.
+ *
+ * A referência usa quatro degraus (#292A2A, #414141, #6B7272, #899090); o tema
+ * expõe três neutros de texto, então a rampa cicla nos três — o gradiente
+ * escuro→claro se mantém, e nenhum hex entra à mão.
+ */
+const RAMPA_NEUTRA = ['var(--gp-text-1)', 'var(--gp-text-2)', 'var(--gp-text-3)'];
+
 export function AcertoPorAreaESemestre({
   dados,
   semestre,
@@ -36,6 +64,7 @@ export function AcertoPorAreaESemestre({
 }: AcertoPorAreaESemestreProps) {
   const interativo = typeof onRecorteChange === 'function';
   const cruzamentoDisponivel = Boolean(matriz && matriz.length > 0);
+  const idMotivo = React.useId();
 
   const areas =
     cruzamentoDisponivel && recorte?.tipo === 'semestre'
@@ -53,7 +82,7 @@ export function AcertoPorAreaESemestre({
   );
 
   const alternar = (proximo: RecorteCruzado) => {
-    if (!onRecorteChange) return;
+    if (!onRecorteChange || !cruzamentoDisponivel) return;
     const igual = recorte?.tipo === proximo.tipo && recorte.id === proximo.id;
     onRecorteChange(igual ? null : proximo);
   };
@@ -73,17 +102,47 @@ export function AcertoPorAreaESemestre({
     >
       {rotuloRecorte && (
         <p data-testid="recorte-ativo" className="flex items-center gap-2 text-sm text-muted-foreground">
-          Recorte: <strong className="text-foreground">{rotuloRecorte}</strong>
-          <button
-            type="button"
-            onClick={() => onRecorteChange?.(null)}
-            className="inline-flex items-center gap-1 rounded px-1 text-xs underline"
+          Recorte:
+          {/* O "x" mora DENTRO da pílula do recorte, como o remove-chip da
+              referência — não como um link "limpar recorte" solto ao lado. */}
+          <span
+            className="inline-flex items-center gap-1.5 whitespace-nowrap"
+            style={{
+              borderRadius: 'var(--gp-radius-pill)',
+              padding: '3px 11px',
+              fontSize: 12,
+              fontWeight: 600,
+              background: 'var(--gp-surface-3)',
+              color: 'var(--gp-text-1)',
+            }}
           >
-            <X className="h-3 w-3" aria-hidden="true" />
-            limpar recorte
-          </button>
+            {rotuloRecorte}
+            {interativo ? (
+              <button
+                type="button"
+                aria-label="Limpar recorte"
+                onClick={() => onRecorteChange?.(null)}
+                className="inline-flex items-center focus-visible:outline-none"
+                style={{ color: 'var(--gp-text-3)' }}
+              >
+                <Icon name="close" variant="outlined" size={13} />
+              </button>
+            ) : null}
+          </span>
         </p>
       )}
+
+      {/*
+        Indisponibilidade PERCEPTÍVEL sem mouse: o motivo é texto na tela e
+        chega por `aria-describedby`. As barras continuam focáveis
+        (`aria-disabled`, nunca `disabled`) — `disabled` as tirava da ordem de
+        tabulação e escondia o clique cruzado inteiro de quem usa teclado.
+      */}
+      {interativo && !cruzamentoDisponivel ? (
+        <p id={idMotivo} data-testid="motivo-sem-cruzamento" className="text-xs text-muted-foreground">
+          {MOTIVO_SEM_MATRIZ}
+        </p>
+      ) : null}
 
       <div>
         <h3 className="mb-3 text-base font-semibold text-foreground">Acerto por grande área</h3>
@@ -91,8 +150,11 @@ export function AcertoPorAreaESemestre({
           <p className="py-6 text-center text-sm text-muted-foreground">Sem dado de grande área neste recorte</p>
         ) : (
           <ul className="space-y-2">
-            {areas.map((area) => {
+            {areas.map((area, indice) => {
               const ativo = recorte?.tipo === 'area' && recorte.id === area.id;
+              // Recorte por ÁREA esmaece as demais áreas (o item selecionado
+              // recebe contorno **e o restante esmaece**, docs/06-data-viz §4).
+              const esmaecida = recorte?.tipo === 'area' && !ativo;
               const linha = (
                 <>
                   {/* Task: contraste AA do nome da área crítica (texto, text-sm, peso normal —
@@ -103,14 +165,28 @@ export function AcertoPorAreaESemestre({
                   <span className={cn('truncate text-left text-sm', area.critica ? 'gp-text-danger' : 'text-foreground')}>
                     {area.nome}
                   </span>
-                  <span className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="w-full overflow-hidden"
+                    style={{
+                      height: 8,
+                      borderRadius: 'var(--gp-radius-pill)',
+                      background: 'var(--gp-border-subtle)',
+                    }}
+                  >
+                    {/* A área crítica é o único destaque cromático da lista —
+                        as demais seguem a rampa neutra por posição. */}
                     <span
                       aria-hidden="true"
-                      className={cn(
-                        'block h-full rounded-full transition-[width] duration-200',
-                        area.critica ? 'bg-destructive' : 'bg-primary',
-                      )}
-                      style={{ width: `${Math.max(0, Math.min(100, area.acertoPct))}%` }}
+                      className={cn('block h-full w-full', area.critica ? 'bg-destructive' : undefined)}
+                      style={{
+                        ...MOVIMENTO_BARRA,
+                        borderRadius: 'var(--gp-radius-pill)',
+                        transformOrigin: 'left center',
+                        transform: `scaleX(${proporcao(area.acertoPct)})`,
+                        ...(area.critica
+                          ? null
+                          : { background: RAMPA_NEUTRA[indice % RAMPA_NEUTRA.length] }),
+                      }}
                     />
                   </span>
                   <span
@@ -128,16 +204,21 @@ export function AcertoPorAreaESemestre({
                   data-testid={`area-${area.id}`}
                   data-critica={String(area.critica)}
                   data-recorte={ativo ? 'ativo' : 'inativo'}
-                  className={cn('rounded', ativo && 'bg-primary/5 ring-1 ring-primary/30')}
+                  className={cn(
+                    'rounded transition-opacity duration-200',
+                    ativo && 'bg-primary/5 ring-1 ring-primary/30',
+                    esmaecida ? 'opacity-40' : 'opacity-100',
+                  )}
                 >
                   {interativo ? (
                     <button
                       type="button"
-                      disabled={!cruzamentoDisponivel}
+                      aria-disabled={!cruzamentoDisponivel}
+                      aria-describedby={cruzamentoDisponivel ? undefined : idMotivo}
                       title={cruzamentoDisponivel ? undefined : MOTIVO_SEM_MATRIZ}
                       aria-pressed={ativo}
                       onClick={() => alternar({ tipo: 'area', id: area.id })}
-                      className="grid w-full grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1 disabled:cursor-default"
+                      className="grid w-full grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1 aria-disabled:cursor-default"
                     >
                       {linha}
                     </button>
@@ -160,16 +241,33 @@ export function AcertoPorAreaESemestre({
             {semestres.map((s) => {
               const emEvidencia = evidentes.includes(s.semestre);
               const ativo = recorte?.tipo === 'semestre' && recorte.id === String(s.semestre);
+              // Duas causas de esmaecimento, independentes: o filtro global
+              // (6º ano evidencia 11º/12º) e o recorte cruzado ativo.
+              const esmaecida = !emEvidencia || (recorte?.tipo === 'semestre' && !ativo);
               const coluna = (
                 <>
                   <span className="text-xs tabular-nums text-foreground transition-opacity duration-200">
                     {formatPct(s.acertoPct)}
                   </span>
-                  <span className="flex h-32 w-full items-end rounded-t bg-muted">
+                  <span
+                    className="flex h-32 w-full items-end overflow-hidden"
+                    style={{ borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
+                  >
+                    {/* A evidência do filtro global também é TONAL, não só
+                        opacidade: o semestre em evidência vem no neutro escuro
+                        e os demais no neutro claro. Opacidade sozinha some em
+                        tela clara, e era o único sinal de que "6º ano" recorta
+                        11º e 12º. */}
                     <span
                       aria-hidden="true"
-                      className="block w-full rounded-t bg-primary transition-[height] duration-200"
-                      style={{ height: `${Math.max(0, Math.min(100, s.acertoPct))}%` }}
+                      className="block h-full w-full"
+                      style={{
+                        ...MOVIMENTO_BARRA,
+                        borderRadius: 'var(--gp-radius-pill)',
+                        transformOrigin: 'bottom center',
+                        transform: `scaleY(${proporcao(s.acertoPct)})`,
+                        background: emEvidencia ? 'var(--gp-text-1)' : 'var(--gp-border-input)',
+                      }}
                     />
                   </span>
                   <span className="text-xs text-muted-foreground">{s.semestre}º semestre</span>
@@ -184,18 +282,19 @@ export function AcertoPorAreaESemestre({
                   data-recorte={ativo ? 'ativo' : 'inativo'}
                   className={cn(
                     'flex flex-1 transition-opacity duration-200',
-                    emEvidencia ? 'opacity-100' : 'opacity-40',
+                    esmaecida ? 'opacity-40' : 'opacity-100',
                     ativo && 'rounded bg-primary/5 ring-1 ring-primary/30',
                   )}
                 >
                   {interativo ? (
                     <button
                       type="button"
-                      disabled={!cruzamentoDisponivel}
+                      aria-disabled={!cruzamentoDisponivel}
+                      aria-describedby={cruzamentoDisponivel ? undefined : idMotivo}
                       title={cruzamentoDisponivel ? undefined : MOTIVO_SEM_MATRIZ}
                       aria-pressed={ativo}
                       onClick={() => alternar({ tipo: 'semestre', id: String(s.semestre) })}
-                      className="flex w-full flex-col items-center gap-1 disabled:cursor-default"
+                      className="flex w-full flex-col items-center gap-1 aria-disabled:cursor-default"
                     >
                       {coluna}
                     </button>

@@ -484,6 +484,38 @@ export function useDetalhamento(filtros: FiltrosGestor): ResultadoGestor<Detalha
   );
 }
 
+/**
+ * Tradução do valor do controle de ordenação para o contrato da RPC.
+ *
+ * `get_gestor_questoes` só aceita `p_sort IN ('numero','acerto')` e, fora
+ * disso, `RAISE EXCEPTION 'sort_invalido'`. A UI mandava o próprio rótulo
+ * interno (`ordem_da_prova` | `mais_erradas` | `mais_acertadas`), que não está
+ * na whitelist — então TODA chamada falhava, inclusive a do estado inicial, e o
+ * bloco "Detalhamento das Questões" ficava permanentemente vazio nas três
+ * ordenações. O teste `questoesContratoSort.test.ts` trava os dois lados juntos
+ * para que a whitelist do SQL e os valores da UI não voltem a divergir.
+ *
+ * `mais_acertadas` ainda não tem caminho no servidor: o ORDER BY da RPC é
+ * `acerto_pct ASC` fixo, sem parâmetro de direção. A migration
+ * `20260806..._get_gestor_questoes_ordem_desc.sql` acrescenta `acerto_desc` à
+ * whitelist; enquanto ela não estiver aplicada, este mapa degrada para
+ * `acerto` (ascendente) em vez de estourar a RPC — lista errada é ruim, lista
+ * vazia é pior, e a alternativa seria esconder a opção do gestor.
+ */
+const SORT_QUESTOES_RPC: Record<string, string> = {
+  ordem_da_prova: 'numero',
+  mais_erradas: 'acerto',
+  mais_acertadas: 'acerto_desc',
+};
+
+/** Fallback enquanto `acerto_desc` não existir no banco. */
+const SORT_QUESTOES_FALLBACK: Record<string, string> = { acerto_desc: 'acerto' };
+
+export function sortQuestoesParaRpc(sort: string, suportaDesc = false): string {
+  const alvo = SORT_QUESTOES_RPC[sort] ?? 'numero';
+  return suportaDesc ? alvo : (SORT_QUESTOES_FALLBACK[alvo] ?? alvo);
+}
+
 /** Detalhamento das Questões — só com EXATAMENTE 1 simulado (spec §4.7). */
 export function useQuestoes(
   filtros: FiltrosGestor,
@@ -501,7 +533,7 @@ export function useQuestoes(
       p_simulado_id: simuladoId,
       p_page: paginacao.page,
       p_page_size: paginacao.pageSize,
-      p_sort: paginacao.sort,
+      p_sort: sortQuestoesParaRpc(paginacao.sort),
       p_area: paginacao.area,
     },
     filtros.iesId !== null && simuladoId !== null,

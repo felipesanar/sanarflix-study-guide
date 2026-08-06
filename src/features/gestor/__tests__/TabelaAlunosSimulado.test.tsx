@@ -85,44 +85,119 @@ describe('TabelaAlunosSimulado', () => {
     expect(within(linha).getByTestId('celula-proficiencia')).toHaveTextContent('—');
   });
 
-  it('ordena por qualquer coluna numérica ao clicar no cabeçalho', async () => {
+  /**
+   * A tabela ABRE ordenada por proficiência descendente: a referência mostra um
+   * critério vigente no cabeçalho, e a ordem crua do array não é ordem nenhuma.
+   * Por isso o primeiro clique na coluna vigente INVERTE a direção — não
+   * "começa" a ordenação.
+   */
+  it('abre ordenada por proficiência desc e alterna a direção ao clicar no cabeçalho', async () => {
     const user = userEvent.setup();
     render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
 
-    await user.click(screen.getByRole('button', { name: /Proficiência/ }));
     expect(nomesNaOrdem()).toEqual(['Ana', 'Bruno', 'Carla']);
     expect(screen.getByRole('columnheader', { name: /Proficiência/ })).toHaveAttribute('aria-sort', 'descending');
 
     await user.click(screen.getByRole('button', { name: /Proficiência/ }));
     expect(nomesNaOrdem()).toEqual(['Bruno', 'Ana', 'Carla']);
     expect(screen.getByRole('columnheader', { name: /Proficiência/ })).toHaveAttribute('aria-sort', 'ascending');
+
+    await user.click(screen.getByRole('button', { name: /Proficiência/ }));
+    expect(nomesNaOrdem()).toEqual(['Ana', 'Bruno', 'Carla']);
+    expect(screen.getByRole('columnheader', { name: /Proficiência/ })).toHaveAttribute('aria-sort', 'descending');
   });
 
-  it('oculta não participantes sob demanda', async () => {
+  it('ordena por qualquer coluna numérica, uma de cada vez', async () => {
+    const user = userEvent.setup();
+    render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
+
+    await user.click(screen.getByRole('button', { name: /Número de acertos/ }));
+    expect(screen.getByRole('columnheader', { name: /Número de acertos/ })).toHaveAttribute('aria-sort', 'descending');
+    // A coluna que perdeu a vez volta a "none" — nunca duas colunas ordenadas.
+    expect(screen.getByRole('columnheader', { name: /Proficiência/ })).toHaveAttribute('aria-sort', 'none');
+  });
+
+  /**
+   * §10.8: ordenar não pode embaralhar o vínculo linha↔dado. O risco real é
+   * ordenar um array e renderizar outro; aqui a prova é que, depois de virar a
+   * direção, cada nome continua com os SEUS números.
+   */
+  it('ordenar não desloca o dado de uma linha para a vizinha', async () => {
+    const user = userEvent.setup();
+    render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
+
+    await user.click(screen.getByRole('button', { name: /Proficiência/ }));
+
+    const ana = screen.getByTestId('linha-aluno-a1');
+    expect(within(ana).getByTestId('celula-nome')).toHaveTextContent('Ana');
+    expect(within(ana).getByTestId('celula-acertos')).toHaveTextContent('60');
+    expect(within(ana).getByTestId('celula-proficiencia')).toHaveTextContent('72');
+
+    const bruno = screen.getByTestId('linha-aluno-a2');
+    expect(within(bruno).getByTestId('celula-nome')).toHaveTextContent('Bruno');
+    expect(within(bruno).getByTestId('celula-acertos')).toHaveTextContent('40');
+    expect(within(bruno).getByTestId('celula-proficiencia')).toHaveTextContent('55');
+  });
+
+  /**
+   * A ação vive no RODAPÉ, à esquerda, como a referência (`visibility_off` +
+   * rótulo) — era um Switch do Radix no cabeçalho. O estado sai por
+   * `aria-pressed`, e o contador do rodapé acompanha o filtro.
+   */
+  it('oculta não participantes sob demanda, e o contador acompanha', async () => {
     const user = userEvent.setup();
     render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
 
     expect(screen.getAllByTestId(/^linha-aluno-/)).toHaveLength(3);
-    await user.click(screen.getByRole('switch', { name: /ocultar não participantes/i }));
+    expect(screen.getByTestId('contador-linhas')).toHaveTextContent('Mostrando 3 de 3');
+
+    const alternar = screen.getByRole('button', { name: /ocultar não participantes/i });
+    expect(alternar).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(alternar);
     expect(screen.getAllByTestId(/^linha-aluno-/)).toHaveLength(2);
     expect(screen.queryByTestId('linha-aluno-a3')).toBeNull();
+    expect(screen.getByTestId('contador-linhas')).toHaveTextContent('Mostrando 2 de 2');
+    expect(screen.getByRole('button', { name: /ocultar não participantes/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    /**
+     * O total de quem não participou é contado sobre TODOS os alunos, nunca
+     * sobre a lista já filtrada — derivá-lo dos visíveis o zeraria justamente
+     * quando ele é a informação.
+     */
+    expect(screen.getByTestId('contador-participacao')).toHaveTextContent('2 participantes · 1 sem participação');
   });
 
-  it('pagina no cliente', async () => {
+  it('pagina no cliente com o pager numerado, e a página atual é a única marcada', async () => {
     const user = userEvent.setup();
     const muitos = Array.from({ length: 25 }, (_, i) =>
       aluno({ id: `a${i}`, nome: `Aluno ${String(i).padStart(2, '0')}`, acertos: 100 - i, proficiencia: 90 - i }),
     );
     render(<TabelaAlunosSimulado alunos={muitos} multiSimulado={false} pageSize={20} />);
 
-    expect(screen.getAllByTestId(/^linha-aluno-/)).toHaveLength(20);
-    expect(screen.getByTestId('paginacao')).toHaveTextContent('Página 1 de 2');
+    const pager = () => screen.getByRole('navigation', { name: 'Paginação de alunos do simulado' });
 
-    await user.click(screen.getByRole('button', { name: 'Próxima' }));
+    expect(screen.getAllByTestId(/^linha-aluno-/)).toHaveLength(20);
+    expect(screen.getByTestId('contador-linhas')).toHaveTextContent('Mostrando 20 de 25');
+    expect(within(pager()).getByRole('button', { name: 'Página 1' })).toHaveAttribute('aria-current', 'page');
+    expect(within(pager()).getByRole('button', { name: 'Página anterior' })).toBeDisabled();
+
+    await user.click(within(pager()).getByRole('button', { name: 'Próxima página' }));
+
     expect(screen.getAllByTestId(/^linha-aluno-/)).toHaveLength(5);
-    expect(screen.getByRole('button', { name: 'Próxima' })).toBeDisabled();
+    expect(screen.getByTestId('contador-linhas')).toHaveTextContent('Mostrando 5 de 25');
+    expect(within(pager()).getByRole('button', { name: 'Página 2' })).toHaveAttribute('aria-current', 'page');
+    expect(within(pager()).getByRole('button', { name: 'Próxima página' })).toBeDisabled();
   });
 
+  /**
+   * Seleção (referência, linha "Bruno Carvalho"): tint `--gp-brand-surface` na
+   * linha inteira e barra de 3px da marca na PRIMEIRA célula. É o rastro que
+   * diz de onde o drawer foi aberto quando ele fecha.
+   */
   it('marca a linha selecionada com tint e barra de marca, e avisa o pai', async () => {
     const user = userEvent.setup();
     const onSelecionarAluno = vi.fn();
@@ -144,9 +219,15 @@ describe('TabelaAlunosSimulado', () => {
 
     const bruno = screen.getByTestId('linha-aluno-a2');
     expect(bruno).toHaveAttribute('data-selecionado', 'true');
-    expect(bruno.className).toContain('bg-primary/5');
-    expect(within(bruno).getByTestId('marca-selecao')).toBeInTheDocument();
-    expect(screen.getByTestId('linha-aluno-a1')).toHaveAttribute('data-selecionado', 'false');
+    expect(bruno.getAttribute('style')).toContain('background: var(--gp-brand-surface)');
+
+    const primeiraCelula = within(bruno).getAllByRole('cell')[0];
+    expect(primeiraCelula).toHaveAttribute('data-marca-selecao', 'true');
+    expect(primeiraCelula.getAttribute('style')).toContain('border-left: 3px solid var(--gp-brand)');
+
+    const ana = screen.getByTestId('linha-aluno-a1');
+    expect(ana).toHaveAttribute('data-selecionado', 'false');
+    expect(within(ana).getAllByRole('cell')[0]).not.toHaveAttribute('data-marca-selecao');
   });
 
   it('com 2+ simulados ganha a coluna Variação, só preenchida para quem participou de todos (§12 caso 8)', () => {

@@ -153,6 +153,21 @@ describe('Inicio — composição (spec §2.1)', () => {
     expect(screen.getByTestId('avisos')).toBeInTheDocument();
   });
 
+  /**
+   * A referência nunca solta a grade de direcionadores direto sob a saudação:
+   * o overline é o que declara que ali se ESCOLHE um caminho, e não que ali se
+   * lê um resumo (LIGHT.html:3375).
+   */
+  it('precede os direcionadores do overline "O que você quer ver?"', () => {
+    montar();
+    const overline = screen.getByTestId('overline-direcionadores');
+    expect(overline).toHaveTextContent('O que você quer ver?');
+    expect(
+      overline.compareDocumentPosition(screen.getByTestId('direcionadores')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('passa a IES do contexto adiante quando a URL não tem ies', () => {
     montar();
     expect(mocks.useCronograma).toHaveBeenCalledWith('ies-1');

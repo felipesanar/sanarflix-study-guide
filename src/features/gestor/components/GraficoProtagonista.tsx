@@ -11,10 +11,17 @@ export interface GraficoProtagonistaProps {
   visao: VisaoGeral;
 }
 
+/**
+ * Rótulos exatamente como a referência os escreve nos três estados do
+ * segmented ("Geral", "Grande área", "Aluno"). O "Por " que existia antes
+ * ("Por grande área") transformava o seletor de MODO DE LEITURA num filtro,
+ * e alargava o segmento a ponto de empurrar o título do card na largura de
+ * notebook.
+ */
 const MODOS: { valor: ModoGrafico; rotulo: string }[] = [
   { valor: 'geral', rotulo: 'Geral' },
-  { valor: 'area', rotulo: 'Por grande área' },
-  { valor: 'aluno', rotulo: 'Por aluno' },
+  { valor: 'area', rotulo: 'Grande área' },
+  { valor: 'aluno', rotulo: 'Aluno' },
 ];
 
 const TITULOS: Record<ModoGrafico, string> = {
@@ -22,6 +29,18 @@ const TITULOS: Record<ModoGrafico, string> = {
   area: 'Evolução por grande área',
   aluno: 'Alunos por semestre',
 };
+
+/** Padding do trilho, em px (referência: `padding:3px`). O indicador vive dentro dele. */
+const PADDING_TRILHO = 3;
+
+/**
+ * Raio do segmento, em px. Fora da escala geral do portal {8-9, 12, 16, 10em}
+ * pelo mesmo motivo já registrado em `FiltroSemestre`: a referência crava
+ * `border-radius:6px` no segmento, e 8px numa pastilha de ~28px de altura já
+ * lê como pílula. Os dois segmentados do portal têm que ter o MESMO raio —
+ * eles aparecem lado a lado no topo da Visão Geral.
+ */
+const RAIO_SEGMENTO = 6;
 
 /**
  * Gráfico protagonista da Visão Geral (spec §4.8) — 3 modos que leem as três
@@ -67,13 +86,48 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
     <Card data-testid="grafico-protagonista">
       <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
         <h2 className="text-sm font-semibold">{TITULOS[modo]}</h2>
+        {/*
+         * Anatomia do segmented do handoff, a mesma de `FiltroSemestre`:
+         * trilho tintado com 1px de borda e 3px de respiro, indicador ÚNICO
+         * que desliza por `transform` (200ms) sob os rótulos, e o segmento
+         * ativo em pílula escura com texto inverso. O estado ativo antes era
+         * `bg-background … shadow-sm` no próprio botão — sombra em botão, que
+         * a régua proíbe, e um retângulo que PISCAVA de um segmento para o
+         * outro em vez de deslizar.
+         *
+         * As três colunas têm largura igual (`grid-cols-3`) de propósito: com
+         * larguras variáveis, acompanhar o indicador exigiria animar `width`,
+         * e §7 só permite animar `transform` e `opacity`.
+         */}
         <div
           data-testid="grafico-modos"
           role="toolbar"
           aria-label="Modo do gráfico"
           aria-orientation="horizontal"
-          className="flex items-center rounded-lg bg-muted/60 p-0.5"
+          className="relative grid w-fit grid-cols-3"
+          style={{
+            background: 'var(--gp-surface-3)',
+            border: '1px solid var(--gp-border-strong)',
+            borderRadius: 'var(--gp-radius-sm)',
+            padding: PADDING_TRILHO,
+          }}
         >
+          {/* Pastilha PREENCHIDA de alto contraste, igual à de `FiltroSemestre`:
+              quase-preto no claro, marca no escuro (onde --gp-text-1 é claro e
+              uma pastilha branca viraria um clarão). */}
+          <span
+            aria-hidden="true"
+            data-testid="grafico-modos-indicador"
+            className="pointer-events-none absolute z-0 bg-[var(--gp-text-1)] transition-transform duration-200 ease-out dark:bg-[var(--gp-brand)]"
+            style={{
+              top: PADDING_TRILHO,
+              bottom: PADDING_TRILHO,
+              left: PADDING_TRILHO,
+              borderRadius: RAIO_SEGMENTO,
+              width: `calc((100% - ${PADDING_TRILHO * 2}px) / ${MODOS.length})`,
+              transform: `translateX(${indiceAtivo * 100}%)`,
+            }}
+          />
           {MODOS.map((opcao, indice) => {
             const ativo = indice === indiceAtivo;
             return (
@@ -86,12 +140,18 @@ export function GraficoProtagonista({ visao }: GraficoProtagonistaProps) {
                 onClick={() => selecionar(indice)}
                 onKeyDown={aoTeclar}
                 className={cn(
-                  'rounded-md px-2.5 py-1 text-[11px] font-medium transition-all',
+                  'relative z-10 whitespace-nowrap transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   ativo
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
+                    ? 'text-[color:var(--gp-text-inverse)]'
+                    : 'text-[color:var(--gp-text-3)] hover:text-[color:var(--gp-text-2)]',
                 )}
+                style={{
+                  padding: '6px 15px',
+                  borderRadius: RAIO_SEGMENTO,
+                  fontSize: 12,
+                  fontWeight: ativo ? 600 : 500,
+                }}
               >
                 {opcao.rotulo}
               </button>

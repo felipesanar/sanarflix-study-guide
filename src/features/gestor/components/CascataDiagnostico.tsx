@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useDiagnostico } from '@/features/gestor/api/queries';
 import { ChipNivel, ROTULO_NIVEL } from '@/features/gestor/components/ChipNivel';
+import { Icon } from '@/features/gestor/components/Icon';
+import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
@@ -104,31 +104,65 @@ function LinhaNo({
   return (
     <button
       type="button"
+      data-no-cascata=""
       onClick={onClick}
       aria-expanded={ehFolha ? undefined : aberto}
       className={cn(
-        'flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors',
+        'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors',
         'hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       )}
     >
-      <span className="flex min-w-0 items-center gap-2">
-        {ehFolha ? null : (
-          <ChevronRight
-            className={cn('h-3.5 w-3.5 shrink-0 transition-transform', aberto && 'rotate-90')}
-            aria-hidden="true"
-          />
-        )}
-        <span className="truncate">{no.nome}</span>
-        {no.lowSample ? (
-          <Badge variant="outline" className="shrink-0 gap-1 text-[10px] font-medium">
-            cobertura parcial
-            <span data-testid={`amostra-${no.id}`} className="text-muted-foreground">
-              n = {no.amostra}
-            </span>
-          </Badge>
-        ) : null}
+      {/*
+        Dois GLIFOS distintos, nunca um só girado por CSS: o handoff §3 troca
+        `chevron_right-outlined` (recolhido) por `expand_more-outlined`
+        (expandido) — a seta apontando para baixo é um desenho próprio da
+        fonte, não o mesmo desenho a 90°. A folha não tem disclosure nenhum,
+        só a caixa óptica vazia para os nomes alinharem entre irmãos.
+      */}
+      {ehFolha ? (
+        <span aria-hidden="true" className="inline-block w-4 shrink-0" />
+      ) : (
+        <Icon
+          name={aberto ? 'expand_more' : 'chevron_right'}
+          variant="outlined"
+          size={16}
+          box={16}
+          className={aberto ? 'text-foreground' : 'text-muted-foreground'}
+        />
+      )}
+
+      <span className="min-w-0 truncate">{no.nome}</span>
+
+      {/* Nível por NÓ (handoff §04-componentes, "Por nó: % de acerto, nível,
+          badge de cobertura parcial") — é aqui, e não só nos 3 cards de
+          resumo, que a classificação guia a ação da gestora. */}
+      <TagNivel nivel={no.desempenho} className="shrink-0" />
+
+      {no.lowSample ? <TagCoberturaParcial n={no.amostra} className="shrink-0" /> : null}
+
+      <span className="ml-auto shrink-0 tabular-nums text-muted-foreground">{formatPct(no.acertoPct)}</span>
+
+      {/* O `n` vive FORA da pílula (a pílula carrega só o rótulo + tooltip),
+          como metadado à direita — mesma anatomia do drawer de temas. */}
+      <span
+        data-testid={`amostra-${no.id}`}
+        className="shrink-0 whitespace-nowrap"
+        style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
+      >
+        {no.amostra} respostas
       </span>
-      <span className="shrink-0 tabular-nums text-muted-foreground">{formatPct(no.acertoPct)}</span>
+
+      {/* Afordância de folha: só este rótulo distingue "abre o drawer de
+          temas" de "nó terminal inerte" — a cascata para no 2º nível. */}
+      {ehFolha ? (
+        <span
+          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap"
+          style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+        >
+          Ver temas
+          <Icon name="chevron_right" variant="outlined" size={13} />
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -137,6 +171,13 @@ interface NivelCascataProps {
   filtros: FiltrosGestor;
   node: string | null;
   nodeAberto: string | null;
+  /**
+   * Só no nível raiz (`node === null`): recorta a árvore ao grupo de
+   * desempenho cuja seta foi clicada. Sem isso, abrir a seta do card
+   * "Crítico" listaria TODAS as grandes áreas do recorte, contradizendo o
+   * próprio `aria-label` do botão.
+   */
+  desempenhoAlvo?: NivelDesempenho | null;
   onAlternar: (id: string) => void;
   onAbrirTemas: (especialidade: { id: string; nome: string; grandeArea: string }) => void;
 }
@@ -156,7 +197,14 @@ interface NivelCascataProps {
  * drawer sem a grande área real reintroduziria exatamente o bug do
  * placeholder vazio que esta correção fecha.
  */
-function NivelCascata({ filtros, node, nodeAberto, onAlternar, onAbrirTemas }: NivelCascataProps) {
+function NivelCascata({
+  filtros,
+  node,
+  nodeAberto,
+  desempenhoAlvo = null,
+  onAlternar,
+  onAbrirTemas,
+}: NivelCascataProps) {
   const consulta = useDiagnostico(filtros, node);
 
   const abrirTemas = (especialidade: NoDiagnostico) => {
@@ -183,7 +231,12 @@ function NivelCascata({ filtros, node, nodeAberto, onAlternar, onAbrirTemas }: N
     );
   }
 
-  const nos = consulta.data ?? [];
+  const todos = consulta.data ?? [];
+  const nos =
+    node === null && desempenhoAlvo !== null
+      ? todos.filter((no) => no.desempenho === desempenhoAlvo)
+      : todos;
+
   if (nos.length === 0) {
     return <EstadoVazio titulo="Nenhum nó classificado neste nível." className="py-3" />;
   }
@@ -201,9 +254,14 @@ function NivelCascata({ filtros, node, nodeAberto, onAlternar, onAbrirTemas }: N
               ehFolha={ehEspecialidade}
               onClick={() => (ehEspecialidade ? abrirTemas(no) : onAlternar(no.id))}
             />
-            {/* Expande PARA BAIXO, no lugar, empurrando o conteúdo (spec §4.8). Especialidade nunca expande em cascata — abre o drawer de temas (§4.9, Task 43). */}
+            {/* Expande PARA BAIXO, no lugar, empurrando o conteúdo (spec §4.8). Especialidade nunca expande em cascata — abre o drawer de temas (§4.9, Task 43).
+                O ramo entra em `motion-4` (320ms): o mount continua condicional (é ele que
+                mantém o fetch preguiçoso e a exclusividade), a animação só cobre a entrada. */}
             {!ehEspecialidade && aberto ? (
-              <div data-testid={`filhos-${no.id}`} className="ml-4 border-l border-border pl-2">
+              <div
+                data-testid={`filhos-${no.id}`}
+                className="ml-4 animate-in border-l border-border pl-2 duration-[320ms] fade-in-0 slide-in-from-top-1"
+              >
                 <NivelCascata
                   filtros={filtros}
                   node={no.id}
@@ -218,6 +276,24 @@ function NivelCascata({ filtros, node, nodeAberto, onAlternar, onAbrirTemas }: N
       })}
     </ul>
   );
+}
+
+/**
+ * Move o foco entre os nós VISÍVEIS da árvore com ↑/↓ (handoff §11, tabela de
+ * teclado: "Cascata | Enter/Espaço expande; `aria-expanded`; setas ↑ ↓ entre
+ * nós"). Fica no contêiner e não em cada linha porque o evento borbulha: um
+ * único handler enxerga os nós do ramo aberto sem precisar de registro.
+ */
+function navegarEntreNos(evento: React.KeyboardEvent<HTMLDivElement>) {
+  if (evento.key !== 'ArrowDown' && evento.key !== 'ArrowUp') return;
+  const nos = Array.from(
+    evento.currentTarget.querySelectorAll<HTMLButtonElement>('button[data-no-cascata]'),
+  );
+  const atual = nos.indexOf(document.activeElement as HTMLButtonElement);
+  if (atual < 0) return;
+  evento.preventDefault();
+  const destino = evento.key === 'ArrowDown' ? Math.min(atual + 1, nos.length - 1) : Math.max(atual - 1, 0);
+  nos[destino]?.focus();
 }
 
 /**
@@ -242,6 +318,18 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
     setNivelOrigem(fechar ? null : nivel);
     setNodeAberto(null);
   };
+
+  /**
+   * Trocar o recorte recolhe a árvore e recarrega: manter um ramo aberto de
+   * outro recorte mostraria especialidades de um filtro que não está mais na
+   * tela (o `useDiagnostico` do nível filho refaz o fetch com os `filtros`
+   * novos, mas o nó pai aberto continuava sendo o do recorte anterior).
+   */
+  React.useEffect(() => {
+    setCascataAberta(false);
+    setNivelOrigem(null);
+    setNodeAberto(null);
+  }, [recorte.iesId, recorte.semestre]);
 
   const porNivel = new Map(resumo.map((grupo) => [grupo.nivel, grupo.areas]));
 
@@ -310,10 +398,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                       onClick={() => abrirCascata(nivel)}
                       className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      <ChevronRight
-                        className={cn('h-4 w-4 transition-transform', setaAberta && 'rotate-90')}
-                        aria-hidden="true"
-                      />
+                      <Icon name={setaAberta ? 'expand_more' : 'chevron_right'} variant="outlined" size={16} box={16} />
                     </button>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -321,14 +406,30 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                       <ul className="flex flex-wrap gap-1.5">
                         {areas.map((area) => (
                           <li key={area.id}>
+                            {/*
+                              Chip é só o NOME da área. O % saiu de dentro dele
+                              porque o card já agrupa por nível — a faixa de
+                              desempenho é o que o chip comunica, e o número
+                              exato mora um clique adiante, na cascata, onde
+                              vem acompanhado de amostra e cobertura. Dois
+                              números concorrentes no mesmo cartão (o do chip e
+                              o da lista de sugestão logo abaixo) faziam a
+                              gestora comparar grandezas de recortes
+                              diferentes.
+                            */}
                             <span
                               data-testid={`chip-${area.id}`}
-                              className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs"
+                              className="inline-flex items-center whitespace-nowrap"
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                color: 'var(--gp-text-2)',
+                                border: '1px solid var(--gp-border-input)',
+                                borderRadius: 'var(--gp-radius-pill)',
+                                padding: '3px 11px',
+                              }}
                             >
                               {area.nome}
-                              <span className="tabular-nums text-muted-foreground">
-                                {formatPct(area.acertoPct)}
-                              </span>
                             </span>
                           </li>
                         ))}
@@ -351,15 +452,25 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
           </div>
 
           {cascataAberta ? (
-            <Card data-testid="cascata">
-              <CardHeader className="pb-2">
-                <span className="text-xs font-semibold">Grande área → especialidade</span>
+            <Card data-testid="cascata" className="max-h-[560px] overflow-y-auto">
+              {/* Cabeçalho e trilha ficam FIXOS ao rolar (handoff §04-componentes):
+                  com um ramo aberto e a lista rolada, é a trilha que diz onde
+                  a gestora está. */}
+              <CardHeader className="sticky top-0 z-10 gap-1 bg-card pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Diagnóstico</span>
+                  <span data-testid="cascata-trilha" className="truncate text-xs text-muted-foreground">
+                    {nodeAberto === null ? '/ grande área' : `/ ${nodeAberto} / especialidade`}
+                  </span>
+                </div>
+                {nivelOrigem !== null ? <TagNivel nivel={nivelOrigem} className="self-start" /> : null}
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0" onKeyDown={navegarEntreNos}>
                 <NivelCascata
                   filtros={filtros}
                   node={null}
                   nodeAberto={nodeAberto}
+                  desempenhoAlvo={nivelOrigem}
                   onAlternar={(id) => setNodeAberto((atual) => (atual === id ? null : id))}
                   onAbrirTemas={onAbrirTemas}
                 />

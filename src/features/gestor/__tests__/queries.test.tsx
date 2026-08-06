@@ -129,13 +129,18 @@ describe('queries do gestor (spec §5.2, §8.2)', () => {
         ['gestor', 'u1', 'detalhamento', 'ies-1', '6ano', ['s1', 's2']],
       ],
       [
-        () => useQuestoes({ ...FILTROS, simulados: ['s1'] }, { page: 2, pageSize: 10, sort: 'numero', area: 'clinica' }),
+        /* `sort` recebe o valor REAL do controle (`ordem_da_prova`), não o
+           vocabulário da RPC. Antes este caso passava `'numero'` — um valor que
+           a UI nunca produz — e por isso não percebeu que o hook mandava o
+           rótulo cru para uma RPC que só aceita ('numero','acerto'). A chave de
+           cache guarda o valor da UI; só `p_sort` é traduzido. */
+        () => useQuestoes({ ...FILTROS, simulados: ['s1'] }, { page: 2, pageSize: 10, sort: 'ordem_da_prova', area: 'clinica' }),
         'get_gestor_questoes',
         {
           p_ies_id: 'ies-1', p_simulado_id: 's1', p_page: 2, p_page_size: 10,
           p_sort: 'numero', p_area: 'clinica',
         },
-        ['gestor', 'u1', 'questoes', 'ies-1', 's1', 2, 10, 'numero', 'clinica'],
+        ['gestor', 'u1', 'questoes', 'ies-1', 's1', 2, 10, 'ordem_da_prova', 'clinica'],
       ],
       [
         () => useAluno('aluno-7', ['s2', 's1']),

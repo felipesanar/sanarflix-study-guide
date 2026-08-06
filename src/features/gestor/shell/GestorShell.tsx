@@ -1,15 +1,19 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { LogOut, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/contexts/AuthContext';
 import { GoToStudentButton } from '@/experiences/shared/GoToStudentButton';
 import { useGestorContexto } from '@/features/gestor/api/queries';
+import type { ContextoGestor } from '@/features/gestor/api/types';
+import { Icon } from '@/features/gestor/components/Icon';
 import { SidebarIes } from '@/features/gestor/shell/SidebarIes';
-import { SidebarNav } from '@/features/gestor/shell/SidebarNav';
+import { OVERLINE_SIDEBAR, SidebarNav } from '@/features/gestor/shell/SidebarNav';
 import '@/features/gestor/gestor-theme.css';
+// Fonte de ícones do Dendê. Precisa vir junto do tema: sem este import o
+// @font-face não entra no bundle e todo `<Icon>` renderiza tofu.
+import '@/features/gestor/dende-icons.css';
 
 /** Iniciais do nome (até 2), para o avatar do rodapé. */
 const iniciaisDe = (nome: string | undefined): string =>
@@ -19,6 +23,20 @@ const iniciaisDe = (nome: string | undefined): string =>
     .slice(0, 2)
     .map((parte) => parte[0]?.toUpperCase() ?? '')
     .join('');
+
+/**
+ * Segunda linha do rodapé: o PAPEL da pessoa, como na referência ("Gestora
+ * acadêmica"), não o e-mail. Rótulos sem marca de gênero — a mesma conta serve
+ * a qualquer pessoa. O e-mail continua alcançável, no `title` do bloco.
+ */
+const ROTULO_PAPEL: Record<ContextoGestor['usuario']['papel'], string> = {
+  admin: 'Administração',
+  gestor_grupo: 'Gestão do grupo',
+  gestor: 'Gestão acadêmica',
+};
+
+/** Divisor entre os blocos da sidebar (lockup · IES · nav · rodapé). */
+const DIVISOR = '1px solid var(--gp-border-subtle)';
 
 /**
  * Container do Portal do Radix para quem vive dentro do shell (Task 65,
@@ -60,11 +78,11 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
 /**
  * Shell do Portal do Gestor v2 (spec §8.3).
  *
- * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. De cima para
- * baixo: lockup SanarFlix Academy (48px) → instituição → nav de 3 itens →
- * rodapé com tema, perfil, "Portal do Admin" (só para quem é admin — ver
- * abaixo), "Ir para versão aluno" e sair. A área de conteúdo é a única que
- * rola.
+ * Sidebar fixa de 240px (`w-60`), SEM header no topo do conteúdo. Quatro
+ * blocos separados por divisor, como na referência: lockup SanarFlix Academy
+ * (48px) + overline "Portal do Gestor" → cartão da instituição → nav de 3
+ * itens → rodapé com perfil e avisos, e abaixo as ações do portal. A área de
+ * conteúdo é a única que rola.
  *
  * "Ir para versão aluno" reusa {@link GoToStudentButton} (mesmo componente do
  * portal legado e do Admin) — apenas com `variant="ghost"` para caber no
@@ -80,10 +98,6 @@ export function useGestorPortalContainer(): HTMLDivElement | null {
  * `podeTrocarIes` em {@link SidebarIes}) devolve `usuario.papel === 'admin'`
  * — decisão de papel vinda do servidor, nunca de role lida no cliente
  * (`useAuth().access`/`user.roles` são espelho client-side, não a fonte).
- * Reusa o padrão de encaixe do {@link GoToStudentButton} no rodapé (mesmo
- * `Button` ghost/sm, `onClick` + `navigate`) e o rótulo/ícone (`UserCog`) já
- * estabelecidos em `getPortalEntries` (`globalNav.ts`) para "Portal do
- * Admin" nos outros pontos do app — mesmo destino, mesma copy.
  *
  * Marca: duas `<img>` (clara/branca) alternadas por `dark:` — nunca
  * `filter: invert()`, nunca redesenho, nunca sombra colorida.
@@ -92,7 +106,8 @@ export const GestorShell: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { data: contexto } = useGestorContexto();
-  const ehAdmin = contexto?.usuario.papel === 'admin';
+  const papel = contexto?.usuario.papel;
+  const ehAdmin = papel === 'admin';
 
   /**
    * `useState`, não `useRef`: só uma mudança de STATE re-renderiza os
@@ -114,68 +129,122 @@ export const GestorShell: React.FC = () => {
   return (
     <GestorPortalContainerContext.Provider value={portalContainer}>
       <div ref={setPortalContainer} className="gestor-portal flex h-screen overflow-hidden bg-background">
-        <aside className="flex h-full w-60 shrink-0 flex-col gap-4 border-r border-sidebar-border bg-sidebar py-4 text-sidebar-foreground">
-          <div className="flex min-h-[3.5rem] items-center px-4">
-            <img
-              src="/sanarflix-academy-lockup.svg"
-              alt="SanarFlix Academy"
-              className="h-12 w-auto dark:hidden"
-            />
-            <img
-              src="/sanarflix-academy-lockup-white.svg"
-              alt=""
-              aria-hidden="true"
-              className="hidden h-12 w-auto dark:block"
-            />
+        <aside
+          className="flex h-full w-60 shrink-0 flex-col border-r"
+          style={{
+            background: 'var(--gp-surface-1)',
+            borderColor: 'var(--gp-border-subtle)',
+            color: 'var(--gp-text-2)',
+          }}
+        >
+          <div
+            className="flex flex-col"
+            style={{ padding: '22px 20px 18px', gap: 14, borderBottom: DIVISOR }}
+          >
+            <div className="flex items-center">
+              <img
+                src="/sanarflix-academy-lockup.svg"
+                alt="SanarFlix Academy"
+                className="h-12 w-auto dark:hidden"
+              />
+              <img
+                src="/sanarflix-academy-lockup-white.svg"
+                alt=""
+                aria-hidden="true"
+                className="hidden h-12 w-auto dark:block"
+              />
+            </div>
+            <span style={OVERLINE_SIDEBAR}>Portal do Gestor</span>
           </div>
 
-          <div className="px-3">
+          <div style={{ padding: '14px 16px', borderBottom: DIVISOR }}>
             <SidebarIes />
           </div>
 
           <SidebarNav />
 
-          <div className="mt-auto space-y-2 border-t border-sidebar-border px-3 pt-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+          <div className="mt-auto" style={{ borderTop: DIVISOR }}>
+            <div className="flex items-center" style={{ padding: '14px 16px', gap: 10 }}>
+              <span
+                aria-hidden="true"
+                className="flex shrink-0 items-center justify-center rounded-full"
+                style={{
+                  width: 34,
+                  height: 34,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: 'var(--gp-brand-surface)',
+                  // No claro este token É a marca; no escuro ele vira o tom
+                  // clareado que passa AA sobre superfície escura — nunca a
+                  // marca crua como cor de texto ali.
+                  color: 'var(--gp-brand-on-dark)',
+                }}
+              >
+                {iniciaisDe(user?.nome)}
+              </span>
+              <div className="min-w-0 flex-1" title={user?.email ?? undefined}>
+                <p
+                  className="truncate"
+                  style={{ fontSize: 13, fontWeight: 600, lineHeight: '16px', color: 'var(--gp-text-1)' }}
                 >
-                  {iniciaisDe(user?.nome)}
-                </span>
-                <div className="min-w-0 leading-tight">
-                  <p className="truncate text-sm font-medium">{user?.nome ?? '—'}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{user?.email ?? ''}</p>
-                </div>
+                  {user?.nome ?? '—'}
+                </p>
+                {/* `minHeight` reserva a linha antes de o papel chegar do
+                    servidor — senão o rodapé cresce 14px no meio do carregamento. */}
+                <p
+                  className="truncate"
+                  style={{ fontSize: 11, lineHeight: '14px', minHeight: 14, color: 'var(--gp-text-3)' }}
+                >
+                  {papel ? ROTULO_PAPEL[papel] : ''}
+                </p>
               </div>
-              <ThemeToggle />
+              <button
+                type="button"
+                aria-label="Avisos da Sanar"
+                onClick={() => navigate('/gestor')}
+                className="gp-hover-surface flex shrink-0 items-center justify-center"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--gp-radius-sm)',
+                  color: 'var(--gp-text-2)',
+                }}
+              >
+                <Icon name="notifications" size={18} />
+              </button>
             </div>
-            {ehAdmin && (
+
+            <div className="space-y-1" style={{ padding: '10px 12px 12px', borderTop: DIVISOR }}>
+              {ehAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
+                  onClick={() => navigate('/admin')}
+                >
+                  <Icon name="settings" size={16} />
+                  Portal do Admin
+                </Button>
+              )}
+              <GoToStudentButton
+                variant="ghost"
+                size="sm"
+                className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
+              />
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-full justify-start gap-2 text-xs text-muted-foreground"
-                onClick={() => navigate('/admin')}
+                className="h-8 w-full justify-start gap-2 text-xs text-[color:var(--gp-text-3)]"
+                onClick={() => logout()}
               >
-                <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
-                Portal do Admin
+                <Icon name="logout" size={16} />
+                Sair
               </Button>
-            )}
-            <GoToStudentButton
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full justify-start gap-2 text-xs text-muted-foreground"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full justify-start gap-2 text-xs text-muted-foreground"
-              onClick={() => logout()}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              Sair
-            </Button>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <span style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>Tema</span>
+                <ThemeToggle />
+              </div>
+            </div>
           </div>
         </aside>
 

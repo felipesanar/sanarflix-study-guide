@@ -285,7 +285,7 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
     vi.mocked(useFiltrosGestor).mockReturnValue(filtrosFake({ simulados: [] }));
     render(<DetalhamentoRoute />);
 
-    expect(await screen.findByRole('heading', { name: 'Escolha ao menos um simulado' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Selecione um simulado' })).toBeInTheDocument();
     expect(screen.queryByTestId('bloco-kpis')).not.toBeInTheDocument();
     expect(screen.queryByTestId('bloco-alunos')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /detalhamento das quest/i })).not.toBeInTheDocument();
@@ -339,7 +339,7 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
 
     const aviso = await screen.findByTestId('aviso-legibilidade');
     expect(aviso).toHaveAttribute('role', 'status');
-    expect(aviso).toHaveTextContent('6 simulados selecionados');
+    expect(aviso).toHaveTextContent(/\(6 selecionados\)/);
     expect(aviso).toHaveTextContent(/dif[ií]ceis de ler/i);
 
     // Não-bloqueante: as métricas continuam renderizadas e utilizáveis.
@@ -608,10 +608,10 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
     await screen.findByText('Evolução institucional');
     const chamadasAntes = vi.mocked(useVisaoGeral).mock.calls.length;
 
-    await user.click(screen.getByRole('button', { name: 'Por grande área' }));
+    await user.click(screen.getByRole('button', { name: 'Grande área' }));
     expect(await screen.findByText('Evolução por grande área')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Por aluno' }));
+    await user.click(screen.getByRole('button', { name: 'Aluno' }));
     expect(await screen.findByText('Alunos por semestre')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Geral' }));

@@ -56,21 +56,37 @@ export default function Inicio() {
   }
 
   return (
-    <div className="space-y-8 p-8" data-testid="gestor-inicio">
+    <div className="space-y-6 p-8" data-testid="gestor-inicio">
       <SaudacaoGestor iesId={iesAtivaId} />
 
-      {iesAtivaId ? (
-        <DirecionadoresGestor iesId={iesAtivaId} semestre={semestre} />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div data-testid="inicio-skeleton-direcionadores">
+      {/* Overline do bloco de direcionadores — a referência nunca solta a grade
+          direto sob a saudação; o rótulo é o que declara que ali se ESCOLHE um
+          caminho, e não que ali se lê um resumo. */}
+      <div className="flex flex-col gap-3">
+        <span
+          data-testid="overline-direcionadores"
+          className="uppercase text-muted-foreground"
+          style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em' }}
+        >
+          O que você quer ver?
+        </span>
+
+        {iesAtivaId ? (
+          <DirecionadoresGestor iesId={iesAtivaId} semestre={semestre} />
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div data-testid="inicio-skeleton-direcionadores">
+              <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
+            </div>
             <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
           </div>
-          <GestorSkeleton altura={160} rotulo="Carregando direcionadores" />
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]" data-testid="inicio-grade">
+      {/* `items-start`: sem ele o card de Avisos estica até a altura do
+          Cronograma (o `stretch` padrão da grade) e ganha um vazio no rodapé —
+          na referência cada coluna tem a altura do próprio conteúdo. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[2fr_1fr]" data-testid="inicio-grade">
         {iesAtivaId && contexto ? (
           <>
             {/* Boundary por bloco (§8.4): um erro de render num bloco não derruba o outro. */}
