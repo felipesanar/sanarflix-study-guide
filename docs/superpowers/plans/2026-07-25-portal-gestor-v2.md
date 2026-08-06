@@ -2,9 +2,29 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Substituir as 5 telas atuais do gestor por um portal de 3 telas (Início, Visão Geral, Detalhamento por Simulados) que responde "minha instituição está melhorando?" em segundos e permite investigar até a questão e o aluno, com rollout controlado por IES.
+> ## ESTADO EM 06/08/2026 — as 6 fases estão entregues
+>
+> Branch `feat/portal-gestor-v2`, tags `fase-0` a `fase-5`. Suíte **1055 testes em
+> 100 arquivos**, type-check exit 0, build ok. **25 migrations em produção.**
+>
+> **A experiência antiga não existe mais.** `src/experiences/gestor/` e todo o
+> cluster órfão que ela sustentava foram apagados (50 arquivos, commit
+> `58226452`), e o gate por feature saiu junto: `/gestor` monta o portal novo
+> direto, protegido só pelo `ExperienceGuard`. As Tasks 62 e 63 foram
+> descontinuadas por isso — ver a nota no lugar delas.
+>
+> **Falta só o merge do PR #17**, previsto para 07/08. Aberto depois disso:
+> limpar do banco a chave `gestao.portal_v2` e as 5 chaves por módulo, que
+> viraram dado morto; 2 dos 7 eventos de telemetria, que exigem mudança
+> estrutural; e quatro erros 400 no boot ainda sem atribuição.
+>
+> Leia este bloco antes de executar qualquer tarefa daqui: o corpo do plano foi
+> escrito em 25/07 e várias premissas dele foram derrubadas pela implementação.
+> Cada tarefa entregue registra as divergências no próprio commit.
 
-**Architecture:** Diretório novo `src/features/gestor/` convivendo com `src/experiences/gestor/` (telas antigas) atrás da feature flag `gestao.portal_v2`. A camada de dados são 10 RPCs Postgres novas `get_gestor_*`, agregadoras por tela, que devolvem o envelope `{data, meta}` do handoff — a agregação e as regras de negócio ficam no servidor, o front nunca soma base bruta. O front consome via React Query com estado de filtro na URL, error boundary por bloco e as três telas em code-split.
+**Goal:** Substituir as 5 telas atuais do gestor por um portal de 3 telas (Início, Visão Geral, Detalhamento por Simulados) que responde "minha instituição está melhorando?" em segundos e permite investigar até a questão e o aluno. *(O plano original previa rollout controlado por IES; em 05/08 a virada passou a ser única e total — ver o bloco de estado acima.)*
+
+**Architecture:** Diretório `src/features/gestor/`, hoje a **única** experiência de gestão — `src/experiences/gestor/` foi apagada e a feature flag `gestao.portal_v2` deixou de ser lida pelo código. A camada de dados são 10 RPCs Postgres novas `get_gestor_*`, agregadoras por tela, que devolvem o envelope `{data, meta}` do handoff — a agregação e as regras de negócio ficam no servidor, o front nunca soma base bruta. O front consome via React Query com estado de filtro na URL, error boundary por bloco e as três telas em code-split.
 
 **Tech Stack:** React 18 · TypeScript · Vite · Tailwind + shadcn/ui · recharts 2.12 · @tanstack/react-query 5 · react-router-dom 6 · Supabase (Postgres + RPC) · vitest 3.2 + @testing-library/react 16.
 
@@ -22200,387 +22220,22 @@ git commit -m "test(gestor): guardas automatizadas de LGPD (§7.7) + checklist d
 
 ---
 
-### Task 62: Piloto por IES — procedimento operacional
+### Tasks 62 e 63 — DESCONTINUADAS em 05/08/2026
 
-**Files:** nenhum arquivo de código. Artefato: seção "Piloto" registrada no PR e o resultado das queries salvo no card do piloto.
+Eram **"Piloto por IES — procedimento operacional"** e **"GA por lotes"**.
 
-**Interfaces:**
-- Consumes: `gestao.portal_v2` no `feature_catalog` (criada na Fase 1); RPC `admin_set_ies_features(p_ies_id uuid, p_changes jsonb)` — **`p_changes` é um objeto** `{"chave": bool}`, não array (verificado em `supabase/migrations/20260707172740_...sql:296` e `src/services/admin/iesFeatures.ts:40`); evento `gestor_erro_bloco` da Task 60 em `public.analytics_events`.
-- Produces: lista de IES piloto e o veredito de 2 semanas que libera a Task 63.
+Deixaram de ter objeto por decisão do Felipe: **no merge, todos os gestores de
+todas as faculdades passam a receber a experiência nova, e a antiga é apagada
+completamente.** Não há piloto para operar nem lote para liberar — a virada é
+única, e o gate por feature (`gestao.portal_v2`) deixou de existir junto com a
+experiência legada (commit `58226452`).
 
-**Contexto de deploy que muda o procedimento:** não há pipeline de CD funcionando (ver achados no topo da fase). O código do portal v2 **vai para produção junto com tudo** no primeiro push na `main`; quem controla exposição é **só a flag**. Logo, a flag tem de estar **desligada para todas as IES** antes do merge, e o piloto é o primeiro momento em que alguém de fora vê a tela.
+O que sobrou das duas foi absorvido pela Task 64, que deixou de ser cleanup
+pós-GA e virou o trabalho principal: a remoção da experiência antiga inteira,
+com o critério de só apagar arquivo que prove não ter mais consumidor.
 
-- [ ] **Step 1: Confirmar que a flag existe e está desligada para todo mundo**
-
-Aplicar via **MCP do Supabase com o project ref `gvqvrmkizemwsasmupmo` (gvqv) CONFIRMADO** — o MCP da sessão pode estar apontado para `lljn`. Verificar antes com `get_project_url` e conferir que a URL contém `gvqvrmkizemwsasmupmo`.
-
-```sql
--- 1) a chave existe no catálogo?
-select key, experience, label, is_master, active, sort_order
-from public.feature_catalog
-where key in ('gestao.enabled', 'gestao.portal_v2');
-
--- 2) alguma IES já está com ela ligada?
-select i.nome, f.enabled, f.updated_at
-from public.ies_features f
-join public.ies i on i.id = f.ies_id
-where f.feature_key = 'gestao.portal_v2'
-order by f.updated_at desc;
-```
-Expected: query 1 devolve **2 linhas** (`gestao.enabled` com `is_master = true`, `gestao.portal_v2` com `is_master = false`, ambas `active = true`, `experience = 'gestao'`). Query 2 devolve **0 linhas**. Se devolver linhas com `enabled = true`, desligar antes de prosseguir.
-
-- [ ] **Step 2: Identificar as IES elegíveis**
-
-Critério: contrato preenchido **e** pelo menos 2 simulados com resultado processado.
-
-```sql
-select
-  i.id,
-  i.nome,
-  count(distinct r.simulado_id)                as simulados_com_resultado,
-  c.simulados_contratados,
-  sum(r.num_students)                          as alunos_com_resultado,
-  bool_and(f.enabled)                          as gestao_master_ligado,
-  max(r_dt.data_liberacao)                     as ultimo_simulado_liberado
-from public.ies i
-join public.resultados_ies_tri r        on r.college_id = i.id
-join public.ies_contrato_simulados c    on c.ies_id = i.id
-left join public.ies_features f         on f.ies_id = i.id and f.feature_key = 'gestao.enabled'
-left join public.simulados_admin r_dt   on r_dt.id = r.simulado_id
-group by i.id, i.nome, c.simulados_contratados
-having count(distinct r.simulado_id) >= 2
-   and c.simulados_contratados is not null
-order by alunos_com_resultado desc nulls last;
-```
-Expected: uma lista ordenada por volume de aluno. **Escolher 1–2 IES** entre as que têm `gestao_master_ligado = true` (já usam o portal antigo — o gestor tem base de comparação) e volume médio (nem a maior, para limitar exposição, nem uma com <30 alunos, que zeraria a leitura por `lowSample`).
-
-Se a query devolver 0 linhas, o bloqueio é **a tabela `ies_contrato_simulados` estar vazia** (pendência nº2 do spec — superfície de admin para contrato). Nesse caso, popular o contrato das IES piloto à mão antes de seguir:
-
-```sql
-insert into public.ies_contrato_simulados (ies_id, nome, simulados_contratados, vigencia_inicio, vigencia_fim)
-values ('<ies_uuid>', 'Contrato 2026', 4, '2026-01-01', '2026-12-31')
-on conflict (ies_id) do update set simulados_contratados = excluded.simulados_contratados;
-```
-
-- [ ] **Step 3: Ligar a flag nas IES piloto**
-
-**Preferir a UI**, que já audita: `/admin/ies` → localizar a IES → seção Gestão → marcar `gestao.portal_v2` → **Salvar** (a tela chama `admin_set_ies_features`, transacional, com log `ies_features_update`).
-
-Equivalente por SQL, se a UI não estiver disponível:
-```sql
-select public.admin_set_ies_features(
-  '<ies_uuid>'::uuid,
-  '{"gestao.portal_v2": true}'::jsonb
-);
-```
-Expected: JSON com `applied: 1`. A RPC exige `has_role(auth.uid(), 'admin')` — rodar autenticado como admin, **não** com service_role via MCP (com service_role `auth.uid()` é null e a RPC levanta `admin role required`).
-
-Confirmar:
-```sql
-select i.nome, f.feature_key, f.enabled, f.updated_at
-from public.ies_features f join public.ies i on i.id = f.ies_id
-where f.feature_key = 'gestao.portal_v2' and f.enabled;
-```
-Expected: exatamente as 1–2 IES escolhidas.
-
-- [ ] **Step 4: Roteiro de validação manual com dado real (rodar em cada IES piloto, ~20 min)**
-
-Logar como admin, trocar para a IES piloto pelo seletor da sidebar. Marcar cada item; qualquer falha vira issue **antes** de avisar o gestor.
-
-**Início**
-1. Cronograma lista os simulados da IES; realizados com data e participantes; previstos desabilitados com o motivo; nenhum número em simulado `processing`.
-2. Contrato mostra `realizados/contratados` batendo com a query do Step 2.
-3. Avisos da Sanar aparecem só com `publico_alvo` contendo gestor.
-
-**Visão Geral**
-4. Os 4 KPIs na ordem da §4.8; nenhum `—` onde a query do Step 2 mostrou dado.
-5. Conceito ENAMED entre 1 e 5, inteiro, nunca com decimal.
-6. Trocar os 3 modos do gráfico: **aba Network do DevTools não registra nova requisição** (§12.15).
-7. Filtro "6º ano": 11º e 12º em evidência. "Por semestre" → 5º: controles multi-semestre somem, comparação vira distribuição.
-8. Cascata do Diagnóstico abre ao lado, 2 níveis, especialidade abre drawer de temas — **só % de acerto**, nenhum ENAMED nem proficiência.
-9. Tabela de alunos: busca funciona; tag de grupo ao lado do nome; nome abre o drawer.
-10. Comparar o % de alunos proficientes com a tela antiga `/gestor/visao-institucional` da mesma IES. **Divergência > 1pp é bug** — investigar antes de liberar (a régua `>= 60` tem de coincidir).
-
-**Detalhamento**
-11. Nenhum simulado selecionado → estado vazio, **Network sem chamada de `get_gestor_detalhamento`**.
-12. 1 simulado → 3 KPIs + Detalhamento das Questões como último bloco.
-13. 2 simulados → comparativo com coluna por simulado, ENAMED lado a lado, coluna Variação, **Questões oculto**.
-14. Aluno que não fez um dos simulados: `—` + "Não participou", sem variação.
-15. Trocar de tela e voltar: o recorte de semestre e de simulados sobrevive (URL). Dar F5: sobrevive.
-
-**Transversal**
-16. Alternar tema claro/escuro em cada tela: nenhum texto ilegível, nenhum skeleton com clarão.
-17. Percorrer cada tela só com `Tab`: anel de foco visível em tudo; `ESC` fecha drawer e devolve o foco.
-18. DevTools → Application → Local Storage e Session Storage: **nenhuma chave com nome ou id de aluno**.
-
-- [ ] **Step 5: Instrumentar o acompanhamento de `gestor_erro_bloco`**
-
-Rodar diariamente nas 2 semanas (MCP com gvqv confirmado):
-
-```sql
--- saúde por bloco nas últimas 24h
-select
-  e.event_data->>'bloco'  as bloco,
-  e.event_data->>'codigo' as codigo,
-  count(*)                as ocorrencias,
-  count(distinct e.user_id) as gestores_afetados,
-  min(e.created_at)       as primeira,
-  max(e.created_at)       as ultima
-from public.analytics_events e
-where e.event_name = 'gestor_erro_bloco'
-  and e.created_at > now() - interval '24 hours'
-group by 1, 2
-order by ocorrencias desc;
-```
-Expected em operação saudável: **0 linhas**.
-
-```sql
--- adoção real: quem entrou, em que tela, quantas vezes
-select
-  e.event_data->>'tela' as tela,
-  count(*)              as visitas,
-  count(distinct e.user_id) as gestores,
-  count(distinct date_trunc('day', e.created_at)) as dias_com_uso
-from public.analytics_events e
-where e.event_name = 'gestor_tela_vista'
-  and e.ies_id in (select ies_id from public.ies_features
-                   where feature_key = 'gestao.portal_v2' and enabled)
-  and e.created_at > now() - interval '14 days'
-group by 1 order by visitas desc;
-```
-
-```sql
--- tempo até o primeiro insight (mediana e p90, em segundos)
-select
-  round(percentile_disc(0.5) within group (order by (event_data->>'ms')::numeric) / 1000.0, 1) as p50_s,
-  round(percentile_disc(0.9) within group (order by (event_data->>'ms')::numeric) / 1000.0, 1) as p90_s,
-  count(*) as amostras
-from public.analytics_events
-where event_name = 'gestor_tempo_ate_primeiro_insight'
-  and created_at > now() - interval '14 days';
-```
-
-- [ ] **Step 6: O que observar por 2 semanas e o gate de saída**
-
-| Sinal | Fonte | Verde | Amarelo (ajustar antes do GA) | Vermelho (rollback) |
-|---|---|---|---|---|
-| `gestor_erro_bloco` | query do Step 5 | 0 ocorrências | ≤3 ocorrências, 1 bloco, causa conhecida | qualquer erro reincidente ou >1 gestor afetado |
-| Adoção | `gestor_tela_vista` | gestor volta em ≥3 dias distintos | volta 1–2 dias | não volta depois da 1ª visita |
-| Modos do gráfico | `gestor_modo_grafico_alterado` | os 3 modos usados | 2 modos usados | só "Geral" — reavaliar se os outros 2 se justificam (§10) |
-| Tempo até o 1º insight | query do Step 5 | p50 < 60s | p50 60–180s | p50 > 180s — a tela não está entregando leitura |
-| Distribuição do nível "crítico" | `get_gestor_diagnostico` com dado real | grupo crítico não-vazio na maioria dos recortes | vazio em metade | **sempre vazio** → subir `NIVEL_CRITICO_MAX` de 30 para 50 em `regras.ts` (decisão prevista na §4.4) |
-| Divergência vs telas antigas | item 10 do Step 4 | ≤1pp | — | >1pp |
-| Reclamação qualitativa | conversa com o gestor da IES | "consigo agir com isso" | dúvidas de nomenclatura | "não entendi a tela" |
-
-- [ ] **Step 7: Rollback — critério e execução**
-
-**Aciona rollback:** qualquer sinal vermelho da tabela acima; ou número divergente de mais de 1pp em relação às telas antigas; ou qualquer exposição de dado de aluno de outra IES.
-
-Execução (segundos, sem deploy):
-```sql
-select public.admin_set_ies_features('<ies_uuid>'::uuid, '{"gestao.portal_v2": false}'::jsonb);
-```
-Ou `/admin/ies` → desmarcar → Salvar. A IES volta imediatamente às 5 telas antigas (§12.16 garante isso por teste). **Nenhuma migração é revertida** — o rollout não fez migração destrutiva (§9). O gestor não perde nada: o dado é o mesmo.
-
-- [ ] **Step 8: Registrar o resultado**
-
-Salvar no card do piloto: as 1–2 IES escolhidas, a data de ligação, o output das 3 queries do Step 5 no dia 7 e no dia 14, a tabela de sinais preenchida e o veredito (`GA liberado` / `ajustar e repetir` / `rollback`). **A Task 63 só começa com veredito "GA liberado".**
-
----
-
-### Task 63: GA por lotes
-
-**Files:**
-- Modify: `src/features/gestor/api/queries.ts` (Step 1 — instrumentação de latência)
-- Test: `src/features/gestor/__tests__/latencia.test.tsx`
-
-**Interfaces:**
-- Consumes: `trackEdgeLatency(functionName, latencyMs, success)` de `useAnalyticsTracker` — **já existe** no projeto e grava `perf_edge_latency` em `analytics_events`; `admin_set_ies_features`.
-- Produces: eventos `perf_edge_latency` com `function_name` começando em `get_gestor_`, que é como se mede o orçamento de 800ms da §8.5.
-
-- [ ] **Step 1: Instrumentar a latência real das RPCs (o único código desta task)**
-
-Sem isso não há como afirmar "latência dentro de 800ms" — `pg_stat_statements` mediria o tempo do banco, não o que o gestor sente (rede + PostgREST + parse).
-
-```ts
-// src/features/gestor/api/queries.ts — wrapper único usado por todos os 10 hooks
-import { supabase } from '@/integrations/supabase/client';
-import { useAnalyticsTracker } from '@/hooks/useAnalyticsTracker';
-import type { Envelope } from '@/features/gestor/api/types';
-
-/**
- * Chama uma RPC `get_gestor_*` medindo a latência ponta-a-ponta e emitindo
- * `perf_edge_latency` (evento já existente do projeto). É assim que o gate de
- * GA da §8.5 (< 800ms) é medido — não por pg_stat_statements, que ignora rede.
- */
-export function useRpcGestor() {
-  const { trackEdgeLatency } = useAnalyticsTracker();
-  return async function chamar<T>(fn: string, args: Record<string, unknown>): Promise<Envelope<T>> {
-    const t0 = performance.now();
-    const { data, error } = await (supabase.rpc as (
-      f: string, a: Record<string, unknown>,
-    ) => PromiseLike<{ data: unknown; error: { message: string } | null }>)(fn, args);
-    trackEdgeLatency(fn, Math.round(performance.now() - t0), !error);
-    if (error) throw new Error(error.message);
-    return data as Envelope<T>;
-  };
-}
-```
-
-```tsx
-// src/features/gestor/__tests__/latencia.test.tsx
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { useRpcGestor } from '@/features/gestor/api/queries';
-import { env, VISAO_GERAL } from './fixturesRegrasCriticas';
-
-const trackEdgeLatency = vi.fn();
-vi.mock('@/hooks/useAnalyticsTracker', () => ({
-  useAnalyticsTracker: () => ({ trackEdgeLatency, trackEvent: vi.fn() }),
-  default: () => ({ trackEdgeLatency, trackEvent: vi.fn() }),
-}));
-const rpc = vi.fn();
-vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a), from: vi.fn(), auth: { onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })) } } }));
-
-describe('instrumentação de latência das RPCs do gestor', () => {
-  it('emite perf_edge_latency com o nome da RPC e sucesso', async () => {
-    rpc.mockResolvedValue({ data: env(VISAO_GERAL), error: null });
-    const { result } = renderHook(() => useRpcGestor());
-    await result.current('get_gestor_visao_geral', { p_ies_id: 'x', p_semestre: '6ano' });
-    const [fn, ms, ok] = trackEdgeLatency.mock.calls.at(-1)!;
-    expect(fn).toBe('get_gestor_visao_geral');
-    expect(typeof ms).toBe('number');
-    expect(ms).toBeGreaterThanOrEqual(0);
-    expect(ok).toBe(true);
-  });
-
-  it('emite com success=false e propaga o erro', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'permissao_negada' } });
-    const { result } = renderHook(() => useRpcGestor());
-    await expect(result.current('get_gestor_alunos', {})).rejects.toThrow('permissao_negada');
-    expect(trackEdgeLatency.mock.calls.at(-1)![2]).toBe(false);
-  });
-});
-```
-
-Run: `npx vitest run src/features/gestor/__tests__/latencia.test.tsx`
-Expected: `Tests 2 passed (2)`
-
-- [ ] **Step 2: Montar os lotes**
-
-```sql
--- IES com a experiência de gestão ligada, ainda sem o portal v2, em lotes de 5
-with elegiveis as (
-  select
-    i.id,
-    i.nome,
-    count(distinct r.simulado_id)                 as simulados,
-    coalesce(sum(r.num_students), 0)              as alunos
-  from public.ies i
-  join public.ies_features m on m.ies_id = i.id and m.feature_key = 'gestao.enabled' and m.enabled
-  left join public.resultados_ies_tri r on r.college_id = i.id
-  where not exists (
-    select 1 from public.ies_features f
-    where f.ies_id = i.id and f.feature_key = 'gestao.portal_v2' and f.enabled
-  )
-  group by i.id, i.nome
-)
-select
-  ntile(ceil(count(*) over () / 5.0)::int) over (order by alunos asc) as lote,
-  id, nome, simulados, alunos
-from elegiveis
-order by lote, alunos;
-```
-Expected: as IES restantes numeradas em lotes de ~5, **ordenadas do menor para o maior volume de aluno** — o menor risco primeiro. Salvar o resultado; é a partir dele que se liga a chave.
-
-- [ ] **Step 3: Ligar um lote**
-
-Para cada IES do lote (preferir `/admin/ies`, que audita; o BulkRunner do console admin faz o lote de uma vez):
-```sql
-select public.admin_set_ies_features('<ies_uuid>'::uuid, '{"gestao.portal_v2": true}'::jsonb);
-```
-Confirmar o total ligado:
-```sql
-select count(*) as ies_no_portal_v2
-from public.ies_features
-where feature_key = 'gestao.portal_v2' and enabled;
-```
-Expected: piloto + lotes já liberados + 5.
-
-- [ ] **Step 4: Janela de observação de 5 dias úteis por lote**
-
-Rodar as duas queries de gate no fim de cada dia.
-
-Gate A — **nenhum `gestor_erro_bloco` novo**:
-```sql
-select
-  e.event_data->>'bloco'  as bloco,
-  e.event_data->>'codigo' as codigo,
-  count(*)                as ocorrencias,
-  count(distinct e.ies_id) as ies_afetadas
-from public.analytics_events e
-where e.event_name = 'gestor_erro_bloco'
-  and e.created_at > now() - interval '5 days'
-group by 1, 2
-order by ocorrencias desc;
-```
-Expected para avançar: **0 linhas**. Qualquer linha bloqueia o lote seguinte até a causa estar corrigida ou explicada (ex.: IES sem contrato → não é bug de código, é dado faltando).
-
-Gate B — **latência de RPC dentro de 800ms**:
-```sql
-select
-  e.event_data->>'function_name' as rpc,
-  count(*)                                                                                  as chamadas,
-  round(percentile_disc(0.50) within group (order by (e.event_data->>'latency_ms')::numeric))as p50_ms,
-  round(percentile_disc(0.95) within group (order by (e.event_data->>'latency_ms')::numeric))as p95_ms,
-  round(100.0 * avg(case when (e.event_data->>'success')::boolean then 1 else 0 end), 2)     as sucesso_pct
-from public.analytics_events e
-where e.event_name = 'perf_edge_latency'
-  and e.event_data->>'function_name' like 'get_gestor_%'
-  and e.created_at > now() - interval '5 days'
-group by 1
-order by p95_ms desc;
-```
-Expected para avançar: **`p95_ms` < 800 em todas as 10 RPCs** e `sucesso_pct` >= 99,5.
-
-Diagnóstico quando uma RPC estoura 800ms — separar rede de banco:
-```sql
--- tempo puro do banco para o mesmo recorte que estourou
-explain (analyze, buffers)
-select public.get_gestor_visao_geral('<ies_uuid>'::uuid, '6ano');
-```
-Se o `Execution Time` do `explain analyze` já passa de 800ms, o problema é a query (índice, agregação); se ele é baixo e o p95 do cliente é alto, é payload/rede (reduzir colunas, paginar).
-
-- [ ] **Step 5: Gate para avançar de lote**
-
-Só liga o lote seguinte quando **todas** forem verdade:
-1. Gate A: zero `gestor_erro_bloco` em 5 dias.
-2. Gate B: p95 < 800ms nas 10 RPCs, sucesso ≥ 99,5%.
-3. Nenhuma reclamação de número divergente vindo das IES do lote.
-4. `npm run lint` · `npm run type-check` · `npm run test:run` · `npm run build` verdes na `main` (não há CI que garanta — rodar à mão antes de cada lote).
-
-Falhando qualquer um: **desligar o lote inteiro** (`'{"gestao.portal_v2": false}'`), corrigir, e refazer o mesmo lote. Não avançar "acumulando dívida".
-
-- [ ] **Step 6: Fechar o GA**
-
-Quando o último lote passar o gate:
-```sql
--- cobertura final
-select
-  count(*) filter (where f.enabled) as com_portal_v2,
-  count(*) as ies_com_gestao
-from public.ies_features m
-left join public.ies_features f on f.ies_id = m.ies_id and f.feature_key = 'gestao.portal_v2'
-where m.feature_key = 'gestao.enabled' and m.enabled;
-```
-Expected: `com_portal_v2 = ies_com_gestao`. **Esse é o pré-requisito da Task 64** — nenhuma remoção antes disso.
-
-- [ ] **Step 7: Commit**
-```bash
-git add src/features/gestor/api/queries.ts src/features/gestor/__tests__/latencia.test.tsx
-git commit -m "feat(gestor): mede latencia ponta-a-ponta das RPCs via perf_edge_latency (gate de GA)"
-```
-
+**Não reescreva estas tarefas.** Se um dia voltar a existir rollout gradual, ele
+nasce de spec nova — o mecanismo que elas descreviam não existe mais no código.
 ---
 
 ### Task 64: Cleanup pós-GA (§9)
