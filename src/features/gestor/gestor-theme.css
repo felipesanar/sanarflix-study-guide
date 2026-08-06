@@ -203,6 +203,64 @@
    3,48:1 escuro) e ESCURECIA no escuro (L 60%→50%) — o oposto da regra acima. */
 .gestor-portal .gp-text-danger { color: var(--gp-danger-on); }
 
+/* Item A7 — animação de entrada/saída do Sheet/Drawer (handoff
+   docs/07-motion.md): 320ms (--gp-motion-4), translateX(16px) + fade, curva
+   de entrada --gp-ease-in na abertura e --gp-ease-out no fechamento, com o
+   scrim escurecendo em paralelo na mesma duração. Hoje `sheetVariants` (cva,
+   `src/components/ui/sheet.tsx`) usa 500ms/300ms sem timing function
+   explícita e `slide-in-from-right`/`slide-out-to-right` sem valor (100% da
+   largura), sem `fade-in-0` no painel — nenhum dos quatro consumidores do
+   gestor (DrawerAluno, DrawerTemas, o Sheet de cronograma em
+   Detalhamento.tsx, Glossario — este é Dialog, não entra aqui) sobrescreve.
+
+   Seletor do painel: `[class*="duration-500"]`. `sheetVariants` grava a
+   classe `data-[state=open]:duration-500` na BASE do `cva` — não no variant
+   por `side` — então ela chega independente do lado. Entre os primitivos
+   Radix que o gestor monta dentro de si (Sheet, Dialog via `Glossario`,
+   Select via `SidebarIes`/`FiltroSemestre` — ver comentário mais abaixo),
+   SÓ o painel do Sheet carrega essa classe: `DialogContent`
+   (`src/components/ui/dialog.tsx`) usa `duration-200` sem variante de
+   estado, e `SelectContent` não declara duração nenhuma. Não usa `role`
+   nem `data-state` isolado porque Sheet e Dialog compartilham a mesma
+   primitiva Radix (`@radix-ui/react-dialog`) e por isso o MESMO
+   `role="dialog"` — `duration-500` é o único traço realmente exclusivo do
+   painel do Sheet no DOM.
+
+   Especificidade: o utilitário compilado do Tailwind para
+   `data-[state=open]:duration-500` é 1 classe + 1 atributo de estado = (0,2,0)
+   — mesmo peso para `ease-in-out`/`slide-in-from-right`/etc. na base do
+   `cva` (0,1,0 a 0,2,0). `.gestor-portal [class*="duration-500"][data-state]`
+   soma 1 classe (.gestor-portal) + 2 atributos ([class*=], [data-state]) =
+   (0,3,0): vence pela cascata em qualquer ordem de import entre este arquivo
+   e o Tailwind, sem precisar de `!important`. Isso é o que importa aqui: o
+   bloco de reduced-motion abaixo usa `!important` e precisa continuar
+   ganhando de TUDO nesta folha — se esta regra também usasse `!important`,
+   ela venceria o guard de acessibilidade e viraria regressão. */
+.gestor-portal [class*="duration-500"][data-state] {
+  animation-duration: var(--gp-motion-4);
+  --tw-enter-translate-x: 16px;
+  --tw-exit-translate-x: 16px;
+  --tw-enter-opacity: 0;
+  --tw-exit-opacity: 0;
+}
+.gestor-portal [class*="duration-500"][data-state="open"] {
+  animation-timing-function: var(--gp-ease-in);
+}
+.gestor-portal [class*="duration-500"][data-state="closed"] {
+  animation-timing-function: var(--gp-ease-out);
+}
+
+/* Scrim do Sheet escurecendo em paralelo, mesma duração. `SheetOverlay` e
+   `DialogOverlay` (Glossario) compartilham a MESMA string de classe
+   (`bg-black/80 ... fade-in-0`), então `[class*="bg-black/80"]` sozinho
+   pegaria os dois. `:has(+ [class*="duration-500"])` restringe ao overlay
+   cujo IRMÃO SEGUINTE é o painel do Sheet — é exatamente a estrutura que
+   `SheetPortal` renderiza (`<SheetOverlay /><SheetPrimitive.Content />` como
+   irmãos adjacentes, ver sheet.tsx) — sem afetar o overlay do Dialog. */
+.gestor-portal [class*="bg-black/80"]:has(+ [class*="duration-500"]) {
+  animation-duration: var(--gp-motion-4);
+}
+
 /* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md
    princípio 6). Zera QUALQUER animação/transição CSS em todo descendente do
    portal: a transição de hover de `.gp-hover-surface` acima, o `animate-pulse`
