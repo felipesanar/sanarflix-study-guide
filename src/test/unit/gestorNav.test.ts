@@ -29,11 +29,11 @@ describe('experiences/gestor/GestorNav', () => {
 
   it('gestor (institutional.view + alunos.view) vê todos os módulos', () => {
     const access = deriveAccessFromRoles(['gestor']);
-    expect(filterGestorNav(GESTOR_NAV, access, () => true)).toHaveLength(GESTOR_NAV.length);
+    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
   });
 
   it('admin (super usuário) também vê todos os módulos', () => {
     const access = deriveAccessFromRoles(['admin']);
-    expect(filterGestorNav(GESTOR_NAV, access, () => true)).toHaveLength(GESTOR_NAV.length);
+    expect(filterGestorNav(GESTOR_NAV, access)).toHaveLength(GESTOR_NAV.length);
   });
 });

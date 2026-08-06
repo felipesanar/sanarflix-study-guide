@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import * as React from 'react';
 import { Navigate } from 'react-router-dom';
 import { alunoRoutes } from '@/experiences/aluno/alunoRoutes';
-import { GESTOR_NAV } from '@/experiences/gestor/GestorNav';
 import type { AccessRules, User } from '@/types';
 
 const ALL_OFF: AccessRules = {
@@ -25,16 +24,6 @@ describe('guarda de regressão: toda rota nova precisa declarar gate', () => {
       if (ALUNO_UNGATED_ALLOWLIST.includes(route.path ?? '')) continue;
       const el = route.element as React.ReactElement;
       expect(el.type, `rota ${route.path} montada sem gate — adicione o gate ou inclua na allowlist`).toBe(Navigate);
-    }
-  });
-
-  // Duplica (intencionalmente) a asserção de featureKey já coberta em
-  // gestorFeatureGate.test.tsx: este arquivo é a guarda canônica consolidada
-  // de regressão de gates por rota (aluno + gestor) — mantém a checagem aqui
-  // mesmo que redundante, para que toda a garantia viva num único lugar.
-  it('todo item da nav do gestor declara featureKey gestao.*', () => {
-    for (const item of GESTOR_NAV) {
-      expect(item.featureKey, `item ${item.url} sem featureKey`).toMatch(/^gestao\./);
     }
   });
 });
