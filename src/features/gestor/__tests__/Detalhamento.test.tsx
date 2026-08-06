@@ -427,3 +427,54 @@ describe('Rota Detalhamento — carregando e erro', () => {
     expect(screen.getByTestId('seletor-simulados')).toBeInTheDocument();
   });
 });
+
+/**
+ * Paginação e filtro de área das questões são estado do RECORTE, não da tela.
+ *
+ * Sem esta limpeza a gestora ficava PRESA: na página 3 do Simulado A (60
+ * questões), trocar para o Simulado B (18) mantinha `p_page = 3`. A RPC não
+ * clampa a página contra o total, devolve lista vazia com `total: 18`, e como o
+ * bloco só entra em vazio quando `total = 0`, a tabela renderizava cabeçalho e
+ * rodapé — "Mostrando 0 de 18 questões" — com o corpo vazio. Pior: a
+ * `Paginacao` clampa a EXIBIÇÃO para "1 de 1", então os dois chevrons saíam
+ * desabilitados e não sobrava nenhum controle que oferecesse saída.
+ */
+describe('Rota Detalhamento — troca de recorte reinicia a leitura das questões', () => {
+  /** Última paginação pedida ao hook — é o que vira `p_page`/`p_area` na RPC. */
+  const ultimoPedido = () => {
+    const chamadas = vi.mocked(useQuestoes).mock.calls;
+    return chamadas[chamadas.length - 1]?.[1];
+  };
+
+  it('trocar de simulado volta para a página 1 e limpa o filtro de área', async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    // 3 páginas de questões, para o rodapé oferecer navegação de verdade.
+    vi.mocked(useQuestoes).mockReturnValue({
+      data: { data: [questao], page: 1, pageSize: 20, total: 60, totalPages: 3 },
+      meta: META,
+      isLoading: false,
+      isError: false,
+      isPlaceholderData: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useQuestoes>);
+    comSimulados(1);
+
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    // A tela tem DUAS paginações (alunos e questões); escopar ao bloco certo.
+    const blocoQuestoes = await screen.findByTestId('bloco-questoes');
+    await user.click(within(blocoQuestoes).getByRole('button', { name: 'Página 2' }));
+    expect(ultimoPedido()?.page).toBe(2);
+
+    /* Navegação REAL, pelo cronograma: reescreve `?simulados=` no mesmo
+       pathname. `rerender` com outro `initialEntries` não serviria — o
+       MemoryRouter só lê `initialEntries` na montagem, então a URL nunca
+       mudaria e o teste passaria sem nunca ter havido troca de recorte. */
+    await user.click(screen.getByRole('button', { name: 'Ver cronograma' }));
+    await user.click(screen.getByRole('button', { name: 'Abrir simulado realizado' }));
+
+    expect(ultimoPedido()?.page).toBe(1);
+    expect(ultimoPedido()?.area).toBeNull();
+  });
+});

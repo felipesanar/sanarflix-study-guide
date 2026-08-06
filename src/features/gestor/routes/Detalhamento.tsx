@@ -10,6 +10,7 @@ import { ContextoDoRecorte } from '../components/ContextoDoRecorte';
 import { CronogramaSimulados } from '../components/CronogramaSimulados';
 import { DrawerAluno } from '../components/DrawerAluno';
 import { DispersaoChart } from '../charts/DispersaoChart';
+import { EstadoVazio } from '../components/EstadoVazio';
 import { EstadoVazioDetalhamento } from '../components/EstadoVazioDetalhamento';
 import { EvolucaoRecorte } from '../components/EvolucaoRecorte';
 import { FiltroSemestre } from '../components/FiltroSemestre';
@@ -169,6 +170,33 @@ export default function Detalhamento() {
    */
   React.useEffect(() => {
     setRecorte(null);
+  }, [chaveDoRecorte]);
+
+  /**
+   * Paginação e filtro de área das questões também são estado do RECORTE, não
+   * da tela — e não eram limpos junto.
+   *
+   * O sintoma: gestora na página 3 do Simulado A (60 questões) troca para o
+   * Simulado B (18). `pageQuestoes` continua 3, a RPC faz
+   * `v_page := GREATEST(COALESCE(p_page,1),1)` sem clampar contra o total, e
+   * devolve `data: []` com `total: 18`. Como o bloco só entra em estado vazio
+   * quando `total = 0`, a tabela renderiza cabeçalho e rodapé dizendo
+   * "Mostrando 0 de 18 questões" com o corpo vazio. Pior: a `Paginacao` clampa
+   * a exibição para "1 de 1", então os dois chevrons saem desabilitados e não
+   * sobra nenhum controle que ofereça saída — a gestora fica presa.
+   *
+   * Mesma coisa com `areaQuestoes`: "Clínica Médica" filtrada no Simulado A
+   * continuava sendo enviada no Simulado B, que pode nem ter a área. Aí a RPC
+   * devolve `total: 0`, o bloco diz "Sem questões para este recorte" e o gatilho
+   * do Select mostra "Grande área:" com o valor em branco, porque o valor
+   * selecionado não está mais na lista derivada de `dados`.
+   *
+   * `setPageQuestoes(1)` já existia dentro de `onOrdenacaoChange`/`onAreaChange`
+   * — a lacuna era só a troca de recorte, que não passa por nenhum dos dois.
+   */
+  React.useEffect(() => {
+    setPageQuestoes(1);
+    setAreaQuestoes(null);
   }, [chaveDoRecorte]);
 
   /**
@@ -423,13 +451,29 @@ export default function Detalhamento() {
               testIdLoading="bloco-alunos-loading"
               aoTentarNovamente={aoTentarNovamente}
             >
+              {/* `undefined` e `[]` NÃO são a mesma coisa aqui, e tratá-los
+                  igual era um defeito: `get_gestor_detalhamento` nunca emitiu a
+                  chave `alunos` (nenhuma versão da função, em nenhuma
+                  migration), então `dados.alunos ?? []` fazia a tabela afirmar
+                  "Nenhum aluno neste recorte · 0 participantes" para uma IES
+                  com centenas de alunos que participaram. `[]` é uma resposta
+                  do servidor e pode ser dita; `undefined` é o servidor não ter
+                  respondido, e sobre isso a tela não pode concluir nada. */}
               {dados ? (
-                <TabelaAlunosSimulado
-                  alunos={dados.alunos ?? []}
-                  multiSimulado={multiSimulado}
-                  alunoSelecionadoId={alunoSelecionadoId}
-                  onSelecionarAluno={aoSelecionarAluno}
-                />
+                dados.alunos === undefined ? (
+                  <EstadoVazio
+                    glifo="groups"
+                    titulo="Lista de alunos indisponível neste recorte"
+                    descricao="A consulta do Detalhamento ainda não devolve os alunos por simulado. Os indicadores acima e a dispersão já refletem este recorte."
+                  />
+                ) : (
+                  <TabelaAlunosSimulado
+                    alunos={dados.alunos}
+                    multiSimulado={multiSimulado}
+                    alunoSelecionadoId={alunoSelecionadoId}
+                    onSelecionarAluno={aoSelecionarAluno}
+                  />
+                )
               ) : null}
             </BlocoGestor>
           </div>

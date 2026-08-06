@@ -145,7 +145,23 @@ describe('TabelaAlunos', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockUseAlunos.mockReturnValue(paginaResultado());
-    mockUseAluno.mockReturnValue(alunoResultado());
+    /**
+     * O mock responde AO ALUNO PEDIDO, não uma entrada fixa.
+     *
+     * `useAluno` real busca por `alunoId`, então devolver sempre a mesma pessoa
+     * fazia o mock afirmar algo que o servidor nunca faria — e escondia se o
+     * drawer estava mesmo abrindo o aluno clicado. O `DrawerAluno` passou a
+     * tirar o nome da própria consulta (a Dispersão do Detalhamento só tem
+     * `alunoId`, e o prop chegava vazio por ali), o que tornou essa diferença
+     * observável: com o mock constante, clicar no Bruno abria "Ana Prado".
+     */
+    mockUseAluno.mockImplementation((alunoId: string | null) => {
+      const linha = linhas.find((l) => l.id === alunoId);
+      if (!linha) return alunoResultado({ data: [] });
+      return alunoResultado({
+        data: [{ ...alunoNoSimulado, id: linha.id, nome: linha.nome }],
+      });
+    });
   });
 
   afterEach(() => {

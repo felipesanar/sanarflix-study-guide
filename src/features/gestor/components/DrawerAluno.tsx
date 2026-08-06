@@ -218,6 +218,18 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
   const consulta = useAluno(alunoId, simulados);
   const contato = useAlunoContato(alunoId);
   const entradas: AlunoSimuladoEntry[] = consulta.data ?? [];
+
+  /**
+   * O nome vem PRIMEIRO da própria consulta, e só cai no prop como reserva.
+   *
+   * `get_gestor_aluno` já devolve `nome` em cada entrada, então o drawer não
+   * precisa que o chamador saiba quem é o aluno — e depender do prop era um
+   * defeito real: a Dispersão do Detalhamento só tem `alunoId` (o contrato de
+   * `dispersao` é `{ alunoId, semestre, nota }`), então todo clique num ponto
+   * do gráfico abria o painel com título vazio, iniciais vazias no avatar e
+   * "— proficiência por simulado" no texto de exportação.
+   */
+  const nomeExibido = entradas[0]?.nome?.trim() || nome;
   useDevolverFocoAoFechar(Boolean(alunoId));
   const container = useGestorPortalContainer();
   const { toast } = useToast();
@@ -239,7 +251,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
    * de alunos e portanto não pode montar uma.
    */
   const resumoTexto = [
-    `${nome} — proficiência por simulado`,
+    `${nomeExibido} — proficiência por simulado`,
     ...cronologicas.map(
       (e) =>
         `${e.simuladoNome} (${formatData(e.simuladoData)}): proficiência ${formatNumero(e.proficiencia)} · acertos ${formatNumero(e.acertos)} · ${rotuloSituacao(e.situacao)}`,
@@ -283,10 +295,10 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
                 fontWeight: 700,
               }}
             >
-              {iniciais(nome)}
+              {iniciais(nomeExibido)}
             </span>
             <div className="min-w-0 flex-1 text-left">
-              <SheetTitle style={{ fontSize: 15, fontWeight: 700 }}>{nome}</SheetTitle>
+              <SheetTitle style={{ fontSize: 15, fontWeight: 700 }}>{nomeExibido}</SheetTitle>
               <SheetDescription style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
                 {consulta.isLoading
                   ? 'Carregando dados do aluno'
@@ -432,7 +444,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
           desabilitadas.
         */}
         <div className="flex flex-wrap gap-2 pt-3.5" style={{ borderTop: '1px solid var(--gp-border-subtle)' }}>
-          <AcoesRecorte escopo={nome} resumoTexto={resumoTexto} onExportar={exportar} />
+          <AcoesRecorte escopo={nomeExibido} resumoTexto={resumoTexto} onExportar={exportar} />
         </div>
       </SheetContent>
     </Sheet>
