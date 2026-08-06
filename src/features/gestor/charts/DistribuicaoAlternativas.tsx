@@ -43,7 +43,14 @@ export function DistribuicaoAlternativas({ alternativas, distratorDominante }: D
               <span className="block text-foreground">{alt.texto}</span>
               {alt.correta && <span className="sr-only">resposta correta</span>}
               {ehDominante && (
-                <span className="inline-block rounded bg-destructive/10 px-1.5 py-0.5 text-xs text-destructive">
+                /* Task: contraste AA de "distrator dominante" (texto, text-xs — mínimo 4,5:1).
+                   Este chip é o caso "texto sobre --gp-*-surface" citado em gestor-theme.css: o
+                   fundo real não é o card puro, é bg-destructive/10 (destructive a 10% composto
+                   sobre o card, valor exato em contrasteDestructive.test.tsx). Contra esse fundo
+                   tintado, text-destructive dava 3,31:1 no claro e 3,26:1 no escuro (reprova AA).
+                   Mantendo o mesmo bg-destructive/10 (não é o que falha — só o texto), trocar para
+                   gp-text-danger (--gp-danger-on) dá 9,71:1 no claro e 6,70:1 no escuro. */
+                <span className="inline-block rounded bg-destructive/10 px-1.5 py-0.5 text-xs gp-text-danger">
                   distrator dominante
                 </span>
               )}

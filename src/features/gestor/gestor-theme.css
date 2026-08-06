@@ -117,6 +117,17 @@
 }
 .gestor-portal :focus-visible { outline: none; box-shadow: var(--gp-focus-ring); }
 
+/* Texto de status diretamente sobre a superfície do card (--gp-surface-1) —
+   NÃO é o mesmo caso de texto sobre --gp-*-surface (chip tintado), que já tem
+   contraste próprio calibrado com --gp-*-on naquele par. `--gp-danger-on` dá
+   11,09:1 no claro e 7,15:1 no escuro contra o card (medido: getComputedStyle
+   real + fórmula WCAG, ver contrasteKpi.test.tsx) — os dois folgados acima do
+   mínimo AA (4,5:1) e clareando no escuro (L 27%→72%), nunca escurecendo.
+   Substitui `text-destructive` (var(--destructive) de src/index.css) no delta
+   negativo do KpiCard: aquele token reprovava AA nos dois temas (3,78:1 claro,
+   3,48:1 escuro) e ESCURECIA no escuro (L 60%→50%) — o oposto da regra acima. */
+.gestor-portal .gp-text-danger { color: var(--gp-danger-on); }
+
 /* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md
    princípio 6). Zera QUALQUER animação/transição CSS em todo descendente do
    portal: a transição de hover de `.gp-hover-surface` acima, o `animate-pulse`
@@ -142,9 +153,16 @@
    exigiria um `container` de Portal apontando pra dentro do shell (mexe em
    `sheet.tsx`/`dialog.tsx`/`select.tsx`, compartilhados com aluno/admin) ou
    tocar os componentes de drawer — por isso ficou em NAO_CORRIGIDOS no
-   relatório da Task 59b, não corrigido aqui. Mesmo raciocínio vale para a
-   animação do Recharts nos 4 gráficos (`isAnimationActive`): é prop JS lida
-   pelo componente, não CSS — nenhuma regra deste arquivo a alcança. */
+   relatório da Task 59b, não corrigido aqui.
+
+   Sobre o Recharts, corrigindo o que este comentário dizia antes: os gráficos
+   NÃO precisam ser alcançados. São três, não quatro — `DistribuicaoAlternativas`
+   é `<ul>`/`<li>` com transição de largura em Tailwind, coberta pelo bloco
+   abaixo — e os três reais já trazem `isAnimationActive={false}` cravado desde
+   a Fase 4: nunca animaram para ninguém. Decisão do Felipe em 05/08: continuam
+   estáticos, porque animação que não existe não precisa ser suprimida e ligar
+   movimento novo na véspera do piloto seria estrear mudança visual não
+   validada. Travado em `__tests__/movimentoGraficos.test.tsx`. */
 @media (prefers-reduced-motion: reduce) {
   .gestor-portal *,
   .gestor-portal *::before,

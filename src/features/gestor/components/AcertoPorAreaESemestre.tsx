@@ -95,7 +95,12 @@ export function AcertoPorAreaESemestre({
               const ativo = recorte?.tipo === 'area' && recorte.id === area.id;
               const linha = (
                 <>
-                  <span className={cn('truncate text-left text-sm', area.critica ? 'text-destructive' : 'text-foreground')}>
+                  {/* Task: contraste AA do nome da área crítica (texto, text-sm, peso normal —
+                      mínimo 4,5:1). `text-destructive` reprovava contra os fundos reais deste
+                      <span> — card (padrão) e card+primary/5% (recorte "ativo"): 3,78:1/3,48:1 no
+                      claro, 3,48:1/3,40:1 no escuro. `gp-text-danger` resolve para --gp-danger-on:
+                      11,09:1/10,20:1 no claro e 7,15:1/6,97:1 no escuro. Ver contrasteDestructive.test.tsx. */}
+                  <span className={cn('truncate text-left text-sm', area.critica ? 'gp-text-danger' : 'text-foreground')}>
                     {area.nome}
                   </span>
                   <span className="h-2.5 w-full overflow-hidden rounded-full bg-muted">

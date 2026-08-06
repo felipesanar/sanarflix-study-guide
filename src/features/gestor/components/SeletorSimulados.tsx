@@ -64,7 +64,12 @@ export function SeletorSimulados({ itens, selecionados, onChange }: SeletorSimul
       </ToggleGroup>
 
       {semSelecao && (
-        <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm text-destructive">
+        // Task: contraste AA de "Escolha ao menos um simulado" (texto real, text-sm — mínimo
+        // 4,5:1; o <Info> é aria-hidden e redundante com este texto, só herda a cor por
+        // currentColor). text-destructive contra o bg-card deste <div> dava 3,78:1 no claro e
+        // 3,48:1 no escuro (reprova AA) — mesmo achado do KpiCard. gp-text-danger
+        // (--gp-danger-on) dá 11,09:1 no claro e 7,15:1 no escuro. Ver contrasteDestructive.test.tsx.
+        <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm gp-text-danger">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
           Escolha ao menos um simulado
         </p>

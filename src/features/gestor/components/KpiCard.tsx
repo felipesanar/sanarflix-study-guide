@@ -115,7 +115,13 @@ export function KpiCard({
                   className={cn(
                     'mb-0.5 inline-flex items-center gap-0.5 text-xs font-medium tabular-nums',
                     delta > 0 && 'text-emerald-600 dark:text-emerald-400',
-                    delta < 0 && 'text-destructive',
+                    /* Task: contraste AA do delta negativo. `text-destructive` (var(--destructive)
+                       de src/index.css) reprova AA nos dois temas — 3,78:1 no claro, 3,48:1 no
+                       escuro — e ESCURECE no escuro (60%→50% de L) em vez de clarear, o oposto da
+                       regra de tema escuro do portal. `gp-text-danger` (gestor-theme.css) resolve
+                       para --gp-danger-on: 11,09:1 no claro e 7,15:1 no escuro contra o card,
+                       clareando corretamente no escuro. Ver contrasteKpi.test.tsx. */
+                    delta < 0 && 'gp-text-danger',
                     delta === 0 && 'text-muted-foreground',
                   )}
                 >

@@ -249,7 +249,17 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
                 style={{ backgroundColor: CORES[indice % CORES.length] }}
               />
               {area.area}
-              {area.critica ? <span className="text-[10px] font-medium text-destructive">área crítica</span> : null}
+              {/* Task: contraste AA do rótulo "área crítica" (texto, 10px/medium — não é "bold"
+                  para fins de WCAG, então o mínimo é 4,5:1, não 3:1). `text-destructive`
+                  (var(--destructive) de src/index.css) reprovava AA contra os dois fundos em que
+                  este <span> realmente aparece — card (padrão) e muted (botão isolado): 3,78:1/3,44:1
+                  no claro, 3,48:1/3,30:1 no escuro. `gp-text-danger` (gestor-theme.css) resolve para
+                  --gp-danger-on: 11,09:1/10,08:1 no claro e 7,15:1/6,78:1 no escuro — os quatro acima
+                  do mínimo. NÃO mexe em CORES[0] (var(--destructive) como cor de série, linhas 29-35):
+                  aquela cor é só a posição 0 da paleta, não o sinal de "crítica" (que vem de espessura/
+                  opacidade), então trocar o texto do badge não muda a leitura do gráfico. Ver
+                  contrasteDestructive.test.tsx. */}
+              {area.critica ? <span className="text-[10px] font-medium gp-text-danger">área crítica</span> : null}
             </button>
           </li>
         ))}
