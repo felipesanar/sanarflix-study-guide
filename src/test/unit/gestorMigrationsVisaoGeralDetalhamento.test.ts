@@ -17,7 +17,11 @@ import { join } from 'path';
 const MIGRATIONS_DIR = join(process.cwd(), 'supabase', 'migrations');
 
 function readMigration(filename: string): string {
-  return readFileSync(join(MIGRATIONS_DIR, filename), 'utf8');
+  // Normaliza CRLF -> LF: numa máquina com core.autocrlf=true, o checkout
+  // materializa estes .sql com \r\n, e as asserções abaixo (indexOf/toMatch
+  // com "\n" puro) nunca casariam sem isto. Ver .gitattributes (*.sql eol=lf)
+  // para a camada complementar, que só age em checkout novo.
+  return readFileSync(join(MIGRATIONS_DIR, filename), 'utf8').replace(/\r\n/g, '\n');
 }
 
 /**

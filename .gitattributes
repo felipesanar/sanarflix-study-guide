@@ -1,0 +1,7 @@
+# As migrations .sql em supabase/migrations/ têm o conteúdo afirmado
+# verbatim (indexOf/includes/regex com "\n" puro) pelos testes estáticos em
+# src/test/unit/gestorMigrations*.test.ts. Sem isto, um checkout numa máquina
+# com core.autocrlf=true materializa esses arquivos com \r\n e essas
+# asserções nunca casam (bug confirmado — ver histórico do commit que
+# introduziu este arquivo).
+*.sql text eol=lf
