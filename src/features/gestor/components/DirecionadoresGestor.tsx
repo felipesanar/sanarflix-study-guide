@@ -36,8 +36,8 @@ export interface DirecionadoresGestorProps {
  */
 const CARTAO =
   'group flex items-center bg-card border border-border ' +
-  'shadow-[var(--gp-shadow-card)] hover:shadow-[0_12px_28px_-14px_hsl(var(--primary)/0.4)] ' +
-  'transition-[transform,box-shadow,border-color] duration-[140ms] ease-[cubic-bezier(0.2,0,0,1)] ' +
+  '[box-shadow:var(--gp-shadow-card)] hover:[box-shadow:0_12px_28px_-14px_hsl(var(--primary)/0.4)] ' +
+  'transition-[transform,box-shadow,border-color] [transition-duration:140ms] ease-[cubic-bezier(0.2,0,0,1)] ' +
   'hover:-translate-y-px hover:border-primary ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -95,20 +95,12 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
   const comFiltroAtual = (pathname: string) => ({ pathname, search: location.search });
 
   return (
-    <div className="flex flex-col" style={{ gap: 12 }} data-testid="direcionadores">
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: 'var(--gp-text-3)',
-        }}
-      >
-        O que você quer ver?
-      </span>
-
-      <div className="grid gap-4 md:grid-cols-2">
+    /* O overline "O que você quer ver?" NÃO mora aqui: ele rotula a SEÇÃO, e
+       quem decide o que a seção mostra é a rota — com a IES ainda não
+       resolvida, `Inicio` troca estes cartões por skeletons, e o rótulo tem que
+       sobreviver a esse estado. Ele viveu nos dois por um tempo, e a tela
+       imprimia a frase duas vezes. */
+    <div className="grid gap-4 md:grid-cols-2" data-testid="direcionadores">
         <Link
           to={comFiltroAtual('/gestor/visao-geral')}
           data-testid="direcionador-visao-geral"
@@ -152,7 +144,6 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           </span>
           <Chevron />
         </Link>
-      </div>
     </div>
   );
 }

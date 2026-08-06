@@ -133,6 +133,30 @@ describe('tema do portal do gestor — análise estática do CSS (§Tema escuro)
     });
   });
 
+  /**
+   * Classe utilitária ambígua do Tailwind não vira o CSS que se espera — e o
+   * teste unitário nunca pega, porque jsdom não roda o Tailwind.
+   *
+   * Achado no navegador: `shadow-[var(--gp-shadow-card)]` foi resolvido como
+   * `--tw-shadow-color`, e não como a sombra. O cartão de direcionamento ficou
+   * com `box-shadow: none` em produção, e o hover — que sobe um degrau de
+   * sombra — não tinha de onde subir. O `duration-[140ms]` é a mesma família:
+   * o Tailwind não sabe se é `transition-duration` ou `animation-duration`, e
+   * avisa "ambiguous" no build.
+   *
+   * A sintaxe de propriedade explícita (`[box-shadow:...]`,
+   * `[transition-duration:...]`) não tem ambiguidade.
+   */
+  it('nenhuma classe arbitrária ambígua do Tailwind (shadow-[var(…)], duration-[Nms])', () => {
+    FONTES.filter(({ p }) => /\.tsx?$/.test(p)).forEach(({ p, src }) => {
+      const semComentarios = semComentariosDeBloco(src);
+      expect(semComentarios, `${p}: shadow-[var(…)] cai em --tw-shadow-color; use [box-shadow:var(…)]`)
+        .not.toMatch(/\bshadow-\[var\(/);
+      expect(semComentarios, `${p}: duration-[Nms] é ambíguo; use [transition-duration:…] ou [animation-duration:…]`)
+        .not.toMatch(/\bduration-\[\d/);
+    });
+  });
+
   it('skeleton do escuro é mais claro que o card, sem clarão branco', () => {
     const escuro = blocoDe('.dark .gestor-portal');
     const m = escuro.match(/--gp-skeleton:\s*hsl\(220 13% (\d+)%\)/);

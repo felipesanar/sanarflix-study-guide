@@ -379,16 +379,40 @@ describe('DirecionadoresGestor — anatomia da referência (§4.4)', () => {
     expect(detalhamento.querySelector('.icon-dende-icons-insights-filled')).not.toBeNull();
   });
 
-  it('o bloco é rotulado pela eyebrow "O que você quer ver?"', () => {
+  /**
+   * A eyebrow "O que você quer ver?" é da SEÇÃO, não deste componente — quem
+   * decide o que a seção mostra é a rota, que troca estes cartões por skeletons
+   * enquanto a IES não resolve, e o rótulo tem que sobreviver a esse estado.
+   *
+   * Este caso existe invertido de propósito: por um tempo o rótulo viveu nos
+   * DOIS lugares (dois lotes do passe de conformidade o acrescentaram em
+   * paralelo) e a tela imprimia a frase duas vezes. Quem cobra a presença é
+   * `Inicio.test.tsx`, via `overline-direcionadores`.
+   */
+  it('NÃO renderiza a eyebrow — ela pertence à seção, e duplicá-la já aconteceu', () => {
     montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
-    expect(screen.getByTestId('direcionadores')).toHaveTextContent('O que você quer ver?');
+    expect(screen.getByTestId('direcionadores')).not.toHaveTextContent('O que você quer ver?');
   });
 
-  it('o cartão tem sombra em repouso — sem ela o hover não teria degrau para subir', () => {
+  /**
+   * ATENÇÃO ao que este caso consegue e ao que NÃO consegue provar.
+   *
+   * Ele afirma a CLASSE, não o efeito — e a versão anterior dele passava
+   * verde enquanto o cartão estava, em produção, com `box-shadow: none`. O
+   * Tailwind resolvia `shadow-[var(--gp-shadow-card)]` como `--tw-shadow-color`
+   * (a COR da sombra) em vez de `--tw-shadow`, então a sombra inteira ia parar
+   * no slot errado e nada era pintado. jsdom não roda o Tailwind, então nenhum
+   * teste desta suíte poderia ter pego: foi preciso medir `getComputedStyle` no
+   * navegador real.
+   *
+   * A sintaxe de propriedade explícita não tem essa ambiguidade, e
+   * `tema.test.tsx` passou a proibir as duas formas ambíguas em todo o portal.
+   */
+  it('o cartão declara sombra em repouso e a duração, em sintaxe não-ambígua', () => {
     montar(<DirecionadoresGestor iesId="ies-1" semestre="6ano" />);
     const cartao = screen.getByTestId('direcionador-visao-geral');
-    expect(cartao.className).toContain('shadow-[var(--gp-shadow-card)]');
-    expect(cartao.className).toContain('duration-[140ms]');
+    expect(cartao.className).toContain('[box-shadow:var(--gp-shadow-card)]');
+    expect(cartao.className).toContain('[transition-duration:140ms]');
   });
 });
 

@@ -261,7 +261,7 @@ function NivelCascata({
             {!ehEspecialidade && aberto ? (
               <div
                 data-testid={`filhos-${no.id}`}
-                className="ml-4 animate-in border-l border-border pl-2 duration-[320ms] fade-in-0 slide-in-from-top-1"
+                className="ml-4 animate-in border-l border-border pl-2 [animation-duration:320ms] fade-in-0 slide-in-from-top-1"
               >
                 <NivelCascata
                   filtros={filtros}

@@ -116,7 +116,7 @@ export function AvisosSanar({ iesId }: AvisosSanarProps) {
                 className={cn(
                   // 140ms = motion-2; o default do Tailwind (150ms) está fora
                   // da régua de durações do handoff.
-                  'w-full px-3 py-2 text-left transition-colors duration-[140ms]',
+                  'w-full px-3 py-2 text-left transition-colors [transition-duration:140ms]',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   // rounded-sm = --gp-radius-sm, o mesmo raio do não-lido
                   // abaixo. `rounded-md` resolvia para 10px, raio que a escala

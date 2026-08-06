@@ -294,7 +294,7 @@ function ItemLinha({ item }: { item: ItemCronograma }) {
         // do handoff não tem.
         // 140ms = motion-2 do handoff; o default do Tailwind é 150ms, fora da
         // régua de durações.
-        'flex w-full items-center justify-between gap-3 rounded-sm px-3 py-3 text-left transition-colors duration-[140ms]',
+        'flex w-full items-center justify-between gap-3 rounded-sm px-3 py-3 text-left transition-colors [transition-duration:140ms]',
         navegavel &&
           'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         !navegavel && 'cursor-default',
