@@ -8,9 +8,8 @@ import type { AlunoSimuladoEntry, FiltrosGestor, LinhaAluno, Meta } from '@/feat
 
 // `useAlunos`/`useAluno` continuam mockados (todo o resto do arquivo depende
 // disso), mas `normalizarLinhaAluno` passa pelo módulo REAL — é a função que
-// os testes de compatibilidade legado/novo abaixo exercitam diretamente,
-// mesmo padrão de `queries.test.tsx` para espiar `useQuery` sem perder o
-// `@tanstack/react-query` de verdade.
+// os testes abaixo exercitam diretamente, mesmo padrão de `queries.test.tsx`
+// para espiar `useQuery` sem perder o `@tanstack/react-query` de verdade.
 vi.mock('@/features/gestor/api/queries', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/features/gestor/api/queries')>();
   return { ...real, useAlunos: vi.fn(), useAluno: vi.fn() };
@@ -360,19 +359,16 @@ describe('TabelaAlunos', () => {
 
 /**
  * `normalizarLinhaAluno` (api/queries.ts) é o único ponto de normalização do
- * mapeamento de `get_gestor_alunos` — ele aceita as DUAS formas que a RPC
- * pode devolver durante a transição de contrato (migration
- * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`):
- *  - legada: `(number | null)[]`, a forma que produção ainda devolve hoje (o
- *    ambiente de desenvolvimento aponta para o banco de produção — a
- *    migration não foi aplicada lá ainda);
- *  - nova: `{ simuladoId, valor }[]`, a forma que a migration acima passa a
- *    fazer a RPC devolver.
- * O ramo legado sai de `normalizarLinhaAluno` quando a migration estiver
- * aplicada em produção e o array anônimo parar de ser emitido.
+ * mapeamento de `get_gestor_alunos`: valida o tipo de cada campo de
+ * `proficiencias` — a RPC devolve `{ simuladoId, valor }[]` (migration
+ * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`, aplicada
+ * em produção em 05/08) — antes de expor `ProficienciaSimulado` ao resto do
+ * app. O ramo que aceitava o array legado `(number | null)[]` saiu de
+ * `normalizarLinhaAluno`/`normalizarProficiencia` junto com esta migration;
+ * os testes que só existiam para provar essa compatibilidade saíram daqui.
  */
-describe('normalizarLinhaAluno — compatibilidade com o array legado de proficiencias (migration 20260805160000)', () => {
-  it('forma nova ({simuladoId, valor}[]): preserva simuladoId e valor tal qual, e os demais campos da linha', () => {
+describe('normalizarLinhaAluno — mapeia e valida proficiencias da RPC (migration 20260805160000)', () => {
+  it('preserva simuladoId e valor tal qual, e os demais campos da linha', () => {
     const linha = normalizarLinhaAluno({
       id: 'a1',
       nome: 'Ana',
@@ -397,54 +393,11 @@ describe('normalizarLinhaAluno — compatibilidade com o array legado de profici
     });
   });
 
-  it('forma legada ((number|null)[]): simuladoId vira null — não há como recuperar a qual simulado a posição pertence', () => {
-    const linha = normalizarLinhaAluno({
-      id: 'a2',
-      nome: 'Bruno',
-      semestre: 8,
-      grupo: 'consistentemente_proficiente',
-      tendencia: 'subindo',
-      proficiencias: [64, null, 71],
-    });
-    expect(linha.proficiencias).toEqual([
-      { simuladoId: null, valor: 64 },
-      { simuladoId: null, valor: null },
-      { simuladoId: null, valor: 71 },
-    ]);
-  });
-
-  it('array vazio (nenhum simulado no recorte do aluno): devolve array vazio nas duas formas', () => {
+  it('array vazio (nenhum simulado no recorte do aluno): devolve array vazio', () => {
     expect(
       normalizarLinhaAluno({
         id: 'a3', nome: 'Carla', semestre: null, grupo: null, tendencia: 'estavel', proficiencias: [],
       }).proficiencias,
     ).toEqual([]);
-  });
-
-  /**
-   * Prova ao vivo: a forma legada nunca casa por id contra `colunasSimulados`
-   * (nenhuma coluna real tem `simuladoId === null`), então `TabelaAlunos`
-   * mostra TRAÇO em toda coluna para uma linha legada — mesmo quando a
-   * posição "coincidiria" com a coluna certa. É o comportamento mais
-   * conservador possível enquanto a migration não chega a produção: nunca um
-   * valor sob o cabeçalho errado.
-   */
-  it('renderizado ao vivo: forma legada nunca casa por id — TabelaAlunos mostra TRAÇO em toda coluna até a migration ser aplicada em produção', () => {
-    const linhaLegada = normalizarLinhaAluno({
-      id: 'a6',
-      nome: 'Legado',
-      semestre: 5,
-      grupo: 'em_variacao',
-      tendencia: 'estavel',
-      proficiencias: [64, 68, 71],
-    });
-    mockUseAlunos.mockReturnValue(
-      paginaResultado({ data: { data: [linhaLegada], page: 1, pageSize: 25, total: 1, totalPages: 1 } }),
-    );
-    render(<TabelaAlunos recorte={recorte} colunasSimulados={colunasSimulados} />);
-
-    expect(screen.getByTestId('prof-a6-s1')).toHaveTextContent('—');
-    expect(screen.getByTestId('prof-a6-s2')).toHaveTextContent('—');
-    expect(screen.getByTestId('prof-a6-s3')).toHaveTextContent('—');
   });
 });

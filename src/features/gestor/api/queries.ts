@@ -230,20 +230,18 @@ export function useDiagnosticoTemas(
 }
 
 /**
- * Forma de `LinhaAluno.proficiencias` como a RPC `get_gestor_alunos` pode
- * devolver HOJE, em transição de contrato (migration
- * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`):
- *  - legada: `number | null` solto, uma posição por simulado, SEM id — a
- *    forma que produção ainda devolve enquanto a migration acima não for
- *    aplicada lá (o ambiente de desenvolvimento aponta para o banco de
- *    produção — ver MEMORY "Dois projetos Supabase").
- *  - nova: `{ simuladoId, valor }` — a forma que a migration acima faz a RPC
- *    passar a devolver.
- * `normalizarLinhaAluno` (abaixo) aceita as duas SEM checar uma flag de
- * versão: o formato de cada posição (primitivo vs. objeto) já basta para
- * distinguir uma da outra.
+ * Forma de `LinhaAluno.proficiencias` como a RPC `get_gestor_alunos` devolve
+ * em produção: `{ simuladoId, valor }[]` (migration
+ * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql`, aplicada
+ * em produção em 05/08 — ver `ProficienciaSimulado` em `api/types.ts` para o
+ * porquê do casamento por id em vez de por posição).
+ *
+ * Os campos chegam tipados como `unknown`: `chamarRpcGestor` faz um cast não
+ * verificado a partir da resposta da RPC (linha 43 acima), então
+ * `normalizarProficiencia` (abaixo) é quem valida o tipo real de cada campo
+ * antes de expor `ProficienciaSimulado` ao resto do app.
  */
-type ProficienciaRpc = number | null | { simuladoId?: unknown; valor?: unknown };
+type ProficienciaRpc = { simuladoId?: unknown; valor?: unknown };
 
 interface LinhaAlunoRpc extends Omit<LinhaAluno, 'proficiencias'> {
   proficiencias: ProficienciaRpc[];
@@ -251,36 +249,29 @@ interface LinhaAlunoRpc extends Omit<LinhaAluno, 'proficiencias'> {
 
 /**
  * Normaliza UMA posição de `proficiencias` para a forma canônica
- * `ProficienciaSimulado`, aceitando tanto o array legado quanto o novo (ver
- * `LinhaAlunoRpc` acima). Único ponto de normalização desta RPC — a partir
- * daqui (`TabelaAlunos` e qualquer outro consumidor) só existe
+ * `ProficienciaSimulado`, validando o tipo de cada campo — `entrada` chega
+ * como `unknown` na prática (ver `ProficienciaRpc` acima), então um campo
+ * ausente ou de tipo inesperado vira `null` em vez de propagar um valor não
+ * confiável. Único ponto de normalização desta RPC — a partir daqui
+ * (`TabelaAlunos` e qualquer outro consumidor) só existe
  * `ProficienciaSimulado`, nunca a forma bruta da RPC.
  *
- * RAMO LEGADO (`number | null`, sem `simuladoId`): não há como recuperar a
- * qual simulado aquela posição pertence — a RPC antiga simplesmente não manda
- * essa informação. `simuladoId: null` sinaliza "desconhecido"; como nenhuma
- * coluna real tem id `null`, a tabela nunca casa essa posição com uma coluna
- * e mostra TRAÇO — nunca um valor sob o cabeçalho errado (o próprio bug que
- * este contrato novo elimina). ESTE RAMO SAI assim que a migration
- * `20260805160000_get_gestor_alunos_proficiencias_por_simulado.sql` estiver
- * aplicada em produção e a RPC parar de devolver o array anônimo — a partir
- * daí, todo `entrada` chega como objeto e o primeiro `if` sempre é o tomado.
+ * `simuladoId: null` (campo ausente ou de tipo inesperado): não há como
+ * recuperar a qual simulado aquela posição pertence. Como nenhuma coluna real
+ * tem id `null`, a tabela nunca casa essa posição com uma coluna e mostra
+ * TRAÇO — nunca um valor sob o cabeçalho errado.
  */
 function normalizarProficiencia(entrada: ProficienciaRpc): ProficienciaSimulado {
-  if (entrada !== null && typeof entrada === 'object') {
-    return {
-      simuladoId: typeof entrada.simuladoId === 'string' ? entrada.simuladoId : null,
-      valor: typeof entrada.valor === 'number' ? entrada.valor : null,
-    };
-  }
-  return { simuladoId: null, valor: typeof entrada === 'number' ? entrada : null };
+  return {
+    simuladoId: typeof entrada.simuladoId === 'string' ? entrada.simuladoId : null,
+    valor: typeof entrada.valor === 'number' ? entrada.valor : null,
+  };
 }
 
 /**
  * Aplica `normalizarProficiencia` a uma `LinhaAluno` inteira, preservando os
  * demais campos (`id`, `nome`, `semestre`, `grupo`, `tendencia`) tal qual a
- * RPC devolveu. Exportada para ser testada diretamente com as duas formas de
- * `proficiencias` (ver `TabelaAlunos.test.tsx`).
+ * RPC devolveu. Exportada para ser testada diretamente (ver `TabelaAlunos.test.tsx`).
  */
 export function normalizarLinhaAluno(linha: LinhaAlunoRpc): LinhaAluno {
   return { ...linha, proficiencias: linha.proficiencias.map(normalizarProficiencia) };
@@ -309,10 +300,10 @@ export function useAlunos(
     filtros.iesId !== null,
   );
 
-  // Mapeamento de get_gestor_alunos: normaliza proficiencias (legada ou
-  // nova, ver normalizarLinhaAluno acima) antes de expor o dado ao resto do
-  // app. Único ponto de tradução — o resto de queries.ts/TabelaAlunos nunca
-  // vê a forma bruta da RPC.
+  // Mapeamento de get_gestor_alunos: normaliza proficiencias (ver
+  // normalizarLinhaAluno acima) antes de expor o dado ao resto do app. Único
+  // ponto de tradução — o resto de queries.ts/TabelaAlunos nunca vê a forma
+  // bruta da RPC.
   //
   // `Array.isArray(paginado.data)` guarda contra um envelope que não tem o
   // formato `Paginado` (ex.: um mock de teste genérico que devolve `[]` para
