@@ -11,7 +11,7 @@
  * ATUALIZAÇÃO 03/08 (decisão do Felipe): quem marca modalidade e data de
  * realização do simulado é o ADMIN (equipe B2B) nesta mesma tela — não o CX.
  * O dialog passou a conhecer `modalidade`/`data_realizacao` e agora ENVIA
- * `atualizarAgenda: true` em todo save de edição (antes ficava em `false` de
+ * `atualizarAgenda: true` no save de edição (antes ficava em `false` de
  * propósito, porque o form não conhecia esses campos). Os dois primeiros
  * testes abaixo foram ajustados para o novo contrato — a intenção que eles
  * protegem virou o oposto: antes provavam que a agenda NUNCA era tocada;
@@ -19,12 +19,17 @@
  * os testes de modalidade/data de realização mais abaixo).
  *
  * O que está travado aqui, e por quê:
- * - As 12 colunas do save, campo a campo (9 + modalidade + dataRealizacao +
- *   atualizarAgenda). A RPC anterior (`admin_set_simulado_agenda`) recebia só
- *   4 delas e nenhum `status` — foi exatamente isso que travou a primeira
- *   migração e motivou o alargamento.
- * - `atualizarAgenda: true` é enviado sempre — é o que faz a RPC GRAVAR
- *   `modalidade`/`data_realizacao` que este dialog agora edita.
+ * - Os 14 campos do save, campo a campo (10 + modalidade + dataRealizacao +
+ *   atualizarAgenda + definitiva). A RPC anterior (`admin_set_simulado_agenda`)
+ *   recebia só 4 deles e nenhum `status` — foi exatamente isso que travou a
+ *   primeira migração e motivou o alargamento.
+ * - `atualizarAgenda: true` é o padrão — é o que faz a RPC GRAVAR
+ *   `modalidade`/`data_realizacao` que este dialog edita. A ÚNICA exceção é
+ *   presencial sem data de realização, onde a RPC daria RAISE (achado A da
+ *   revisão do PR #17); ver o describe dedicado no fim do arquivo.
+ * - `definitiva` sai do checkbox do bloco de agenda (achado B): sem ele a RPC
+ *   nunca sincroniza `data_agendada_original` e o cronograma do gestor exibe
+ *   "Reagendado" para sempre numa data nova OFICIAL.
  * - Achado P2: editar sem tocar no agendamento NÃO reescreve `data_liberacao`
  *   para "agora" — mantém o valor que veio do banco.
  * - Achado P1: `statusDb === 'encerrado'` é preservado mesmo alterando datas;
@@ -124,7 +129,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     mockLogAdminAction.mockResolvedValue(undefined);
   });
 
-  it('manda EXATAMENTE os 13 campos do save (10 anteriores + atualizarAgenda + modalidade + dataRealizacao), e nenhum a mais', async () => {
+  it('manda EXATAMENTE os 14 campos do save (10 anteriores + atualizarAgenda + modalidade + dataRealizacao + definitiva), e nenhum a mais', async () => {
     renderDialog(makeSimulado());
     await clicarAtualizar();
     await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
@@ -136,6 +141,9 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
         'dataLiberacao',
         'dataLiberacaoDesempenho',
         'dataRealizacao',
+        // `definitiva` omitido virava `false` no wrapper e a RPC preservava
+        // `data_agendada_original` para sempre — o falso positivo do achado B.
+        'definitiva',
         'descricao',
         'duracaoMinutos',
         'iesIds',
@@ -148,7 +156,7 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
     );
   });
 
-  it('SEMPRE manda atualizarAgenda: true — esta tela agora é a dona da escrita de modalidade/data de realização', async () => {
+  it('manda atualizarAgenda: true — esta tela é a dona da escrita de modalidade/data de realização (exceção do achado A à parte)', async () => {
     renderDialog(makeSimulado({ modalidade: null, data_realizacao: null }));
     await clicarAtualizar();
     await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
@@ -321,6 +329,99 @@ describe('SimuladoConfigDialog — caracterização do save em modo edição', (
 
       expect(screen.getByText(/anterior ao início/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+    });
+  });
+
+  /**
+   * Achado A da revisão do PR #17. A RPC `admin_update_simulado` tem um guard
+   * duro: `IF v_modalidade = 'presencial' AND v_data_realizacao IS NULL THEN
+   * RAISE`. Com `atualizarAgenda: true` incondicional, salvar uma prova
+   * presencial sem data de realização — estado REAL em produção — devolvia
+   * erro do banco na cara do admin, e nenhum outro campo do form era gravado.
+   *
+   * A saída escolhida foi degradar só o bloco de agenda (`atualizarAgenda:
+   * false`) em vez de travar o botão: travar impediria o admin de corrigir
+   * NOME, IES ou datas de uma prova que já está nesse estado hoje.
+   */
+  describe('achado A — presencial sem data de realização não pode estourar a RPC', () => {
+    it('manda atualizarAgenda: false quando é presencial e a data de realização está vazia', async () => {
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      // Com `true` a RPC responderia RAISE 'simulado presencial exige data_realizacao'.
+      expect(payloadDoUpdate().atualizarAgenda).toBe(false);
+    });
+
+    it('volta a mandar atualizarAgenda: true assim que o admin preenche a data de realização', async () => {
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
+
+      fireEvent.change(screen.getByLabelText(/data de realização/i), {
+        target: { value: '2026-10-05T09:00' },
+      });
+
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      const payload = payloadDoUpdate();
+      expect(payload.atualizarAgenda).toBe(true);
+      expect(payload.dataRealizacao).toBe('2026-10-05T12:00:00.000Z');
+    });
+
+    it('continua mandando atualizarAgenda: true para online sem data de realização', async () => {
+      renderDialog(makeSimulado({ modalidade: 'online', data_realizacao: null }));
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      expect(payloadDoUpdate().atualizarAgenda).toBe(true);
+    });
+
+    it('o aviso diz que modalidade e data de realização NÃO serão gravadas', () => {
+      renderDialog(makeSimulado({ modalidade: 'presencial', data_realizacao: null }));
+
+      // Sem isto o admin acha que salvou a modalidade e ela não foi gravada.
+      expect(screen.getByText(/não serão gravadas/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /atualizar simulado/i })).not.toBeDisabled();
+    });
+  });
+
+  /**
+   * Achado B da revisão do PR #17. Nada no produto mandava `definitiva`, então
+   * a RPC caía sempre no `ELSE v_original := v_antes.data_agendada_original` e
+   * preservava a data original PARA SEMPRE — quando a Sanar acerta uma data
+   * nova oficial com a IES, o cronograma do gestor passava a exibir
+   * "Reagendado" naquela linha permanentemente, um falso positivo que nunca
+   * saía. O checkbox expõe a intenção que só o admin conhece.
+   */
+  describe('achado B — data definitiva (§6.4)', () => {
+    const checkboxDefinitiva = () => screen.getByLabelText(/data definitiva/i);
+
+    it('manda definitiva: false quando o admin não marca nada', async () => {
+      renderDialog(makeSimulado());
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      // Default = remarcação: a tag "Reagendado" deve continuar aparecendo.
+      expect(payloadDoUpdate().definitiva).toBe(false);
+    });
+
+    it('manda definitiva: true quando o admin marca o checkbox', async () => {
+      renderDialog(makeSimulado());
+
+      fireEvent.click(checkboxDefinitiva());
+      await waitFor(() => expect(checkboxDefinitiva()).toHaveAttribute('data-state', 'checked'));
+
+      await clicarAtualizar();
+      await waitFor(() => expect(mockUpdateSimulado).toHaveBeenCalled());
+
+      // É isto que sincroniza `data_agendada_original` e apaga o falso positivo.
+      expect(payloadDoUpdate().definitiva).toBe(true);
+    });
+
+    it('o checkbox começa desmarcado a cada abertura — marcar não é estado que gruda', () => {
+      renderDialog(makeSimulado());
+
+      expect(checkboxDefinitiva()).toHaveAttribute('data-state', 'unchecked');
     });
   });
 });

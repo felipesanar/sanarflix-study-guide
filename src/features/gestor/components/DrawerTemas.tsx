@@ -5,6 +5,7 @@ import type { RecorteDiagnostico } from '@/features/gestor/components/CascataDia
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial } from '@/features/gestor/components/Tag';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
@@ -116,6 +117,17 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
         container={container}
         side="right"
         className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md"
+        /*
+          Fechar do PORTAL, não o do shadcn: o `X` do Lucide é de outra família
+          de ícones (handoff §3 exige 100% Fontello do Dendê) e anunciava
+          "Close" num portal inteiro em pt-BR. O scrim segue o mesmo caminho —
+          `bg-black/80` é opaco demais para o tema claro do gestor, e
+          `--gp-scrim` é o token que o `gestor-theme.css` calibra por tema.
+        */
+        closeIcon={<Icon name="close" size={16} />}
+        closeLabel="Fechar"
+        closeClassName="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"
+        overlayClassName="bg-[var(--gp-scrim)]"
         /*
           Handoff §11: "o foco vai para o TÍTULO ao abrir". Sem isto o
           FocusScope do Radix manda o foco ao primeiro tabulável do conteúdo —

@@ -37,7 +37,7 @@ export interface DirecionadoresGestorProps {
 const CARTAO =
   'group flex items-center bg-card border border-border ' +
   '[box-shadow:var(--gp-shadow-card)] hover:[box-shadow:0_12px_28px_-14px_hsl(var(--primary)/0.4)] ' +
-  'transition-[transform,box-shadow,border-color] [transition-duration:140ms] ease-[cubic-bezier(0.2,0,0,1)] ' +
+  'transition-[transform,box-shadow,border-color] [transition-duration:140ms] [transition-timing-function:cubic-bezier(0.2,0,0,1)] ' +
   'hover:-translate-y-px hover:border-primary ' +
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 

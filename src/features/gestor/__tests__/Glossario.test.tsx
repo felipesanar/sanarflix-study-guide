@@ -42,6 +42,30 @@ describe('Glossario', () => {
     }
   });
 
+  /**
+   * O diálogo é do PORTAL: nenhum glifo de outra família (handoff §3, 100%
+   * Fontello do Dendê), nada em inglês (docs/11-acessibilidade.md) e o scrim
+   * pelo token de tema. Sem as props de slot, o `DialogContent` entrega o `X`
+   * do Lucide anunciando "Close" sobre um `bg-black/80` que ignora o tema.
+   */
+  it('o fechar é do Dendê, anuncia "Fechar" e o scrim usa o token do portal', async () => {
+    const user = userEvent.setup();
+    const { baseElement } = render(<Glossario />);
+
+    await user.click(screen.getByRole('button', { name: 'Entenda as métricas' }));
+
+    const fechar = screen.getByRole('button', { name: 'Fechar' });
+    expect(fechar.querySelector('.icon-dende-icons-close-outlined')).not.toBeNull();
+    expect(fechar.querySelector('svg')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    expect(fechar.className).toContain('h-[30px]');
+    expect(fechar.className).toContain('rounded-[8px]');
+
+    const scrim = baseElement.querySelector('div.fixed.inset-0');
+    expect(scrim?.className).toContain('bg-[var(--gp-scrim)]');
+    expect(scrim?.className).not.toContain('bg-black/80');
+  });
+
   it('fecha com ESC', async () => {
     const user = userEvent.setup();
     render(<Glossario />);

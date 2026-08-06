@@ -5,6 +5,7 @@ import { AcoesRecorte } from '@/features/gestor/components/AcoesRecorte';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import { Icon } from '@/features/gestor/components/Icon';
 import { FONTE_MONO, TagSituacao } from '@/features/gestor/components/tabela';
 import { useAluno, useAlunoContato } from '@/features/gestor/api/queries';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
@@ -238,6 +239,26 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
 
   const semestre = entradas[0]?.semestre ?? null;
 
+  /**
+   * Cobertura do recorte. Numerador e denominador precisam sair do MESMO
+   * conjunto: `entradas` vem de `get_gestor_aluno` e `simulados` é o recorte
+   * que a tela pediu. Casar os dois crus (`entradas.length` sobre
+   * `simulados.length`) misturava fontes com `WHERE` diferente — imprimia
+   * "3 de 0" com o recorte vazio, e numerador maior que o denominador quando o
+   * aluno tinha simulado fora do recorte. Contar por pertencimento faz a
+   * fração se fechar sozinha; sem denominador, não há fração a mostrar.
+   */
+  const noRecorte = new Set(simulados);
+  const cobertos = entradas.filter((e) => noRecorte.has(e.simuladoId)).length;
+  const contexto = [
+    `${semestre === null ? TRACO : `${semestre}º`} período`,
+    simulados.length === 0
+      ? null
+      : `${cobertos} de ${simulados.length} ${simulados.length === 1 ? 'simulado' : 'simulados'}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   /** Ordem cronológica para a série — a RPC já devolve assim, mas não custa garantir. */
   const cronologicas = [...entradas].sort((a, b) => a.simuladoData.localeCompare(b.simuladoData));
   const pontos = cronologicas
@@ -278,6 +299,20 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
         side="right"
         className="flex w-full flex-col gap-4 overflow-y-auto p-[22px] sm:max-w-[392px]"
         style={{ boxShadow: 'var(--gp-shadow-panel)' }}
+        /*
+          Os quatro slots do `SheetContent` existem para este portal. Sem eles o
+          drawer herdava o fechar do shadcn: leitor de tela anunciando "Close"
+          em inglês numa tela toda em pt-BR, o `X` do Lucide onde o handoff §3
+          exige 100% Fontello do Dendê, e o scrim `bg-black/80` em vez do
+          `--gp-scrim` do tema (42% no claro, 60% no escuro).
+        */
+        closeIcon={<Icon name="close" size={16} />}
+        closeLabel="Fechar"
+        /* Alvo de 30×30 com borda e raio 8px (handoff §4.5). O `opacity-100`
+           está aqui para VENCER o `opacity-70` do shadcn no tailwind-merge —
+           sem ele o alvo fica translúcido. */
+        closeClassName="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"
+        overlayClassName="bg-[var(--gp-scrim)]"
       >
         <SheetHeader className="space-y-0">
           <div className="flex items-center gap-3">
@@ -300,9 +335,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             <div className="min-w-0 flex-1 text-left">
               <SheetTitle style={{ fontSize: 15, fontWeight: 700 }}>{nomeExibido}</SheetTitle>
               <SheetDescription style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                {consulta.isLoading
-                  ? 'Carregando dados do aluno'
-                  : `${semestre === null ? TRACO : `${semestre}º`} período · ${entradas.length} de ${simulados.length} simulados`}
+                {consulta.isLoading ? 'Carregando dados do aluno' : contexto}
               </SheetDescription>
             </div>
           </div>

@@ -124,6 +124,8 @@ export function TabelaQuestoes({
   const [expandida, setExpandida] = React.useState<number | null>(null);
   const portalContainer = useGestorPortalContainer();
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const idMotivo = React.useId();
+  const indisponiveis = ORDENACOES_QUESTOES.filter((o) => o.indisponivel !== undefined);
 
   const atualizadoEm = meta?.atualizadoEm ? formatData(meta.atualizadoEm) : TRACO;
   const temRastreabilidade = Boolean(meta) && meta?.fonte !== TRACO;
@@ -193,31 +195,56 @@ export function TabelaQuestoes({
               </SelectContent>
             </Select>
 
-            <ToggleGroup
-              type="single"
-              value={ordenacao}
-              onValueChange={(v) => v && onOrdenacaoChange(v as OrdenacaoQuestoes)}
-              aria-label="Ordenação das questões"
-              className="ml-auto gap-0 border p-[3px]"
-              style={{
-                background: 'var(--gp-surface-3)',
-                borderColor: 'var(--gp-border-subtle)',
-                borderRadius: 'var(--gp-radius-sm)',
-              }}
-            >
-              {ORDENACOES_QUESTOES.map((o) => (
-                <ToggleGroupItem
+            {/*
+              O motivo da opção desabilitada é TEXTO NA TELA, ao lado do
+              controle — mesmo padrão do `motivo-sem-cruzamento` de
+              `AcertoPorAreaESemestre`. Em `title` de um botão `disabled` ele
+              não chegava a ninguém: controle desabilitado não dispara evento
+              de mouse, então Chrome e Firefox nunca mostram a tooltip; e
+              `aria-description` não é texto na tela e tem suporte parcial. A
+              gestora via um segmento cinza e inerte, sem explicação. O `title`
+              fica por cima como reforço, e a ligação com o segmento passa a
+              ser `aria-describedby`, que aponta para este texto real.
+            */}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              {indisponiveis.map((o) => (
+                <p
                   key={o.valor}
-                  value={o.valor}
-                  disabled={o.indisponivel !== undefined}
-                  title={o.indisponivel}
-                  aria-description={o.indisponivel}
-                  className="h-auto px-3 py-1 text-[11px]"
+                  id={`${idMotivo}-${o.valor}`}
+                  data-testid={`motivo-ordenacao-${o.valor}`}
+                  className="leading-4"
+                  style={{ fontSize: 11, color: 'var(--gp-text-3)' }}
                 >
-                  {o.rotulo}
-                </ToggleGroupItem>
+                  {o.indisponivel}
+                </p>
               ))}
-            </ToggleGroup>
+
+              <ToggleGroup
+                type="single"
+                value={ordenacao}
+                onValueChange={(v) => v && onOrdenacaoChange(v as OrdenacaoQuestoes)}
+                aria-label="Ordenação das questões"
+                className="gap-0 border p-[3px]"
+                style={{
+                  background: 'var(--gp-surface-3)',
+                  borderColor: 'var(--gp-border-subtle)',
+                  borderRadius: 'var(--gp-radius-sm)',
+                }}
+              >
+                {ORDENACOES_QUESTOES.map((o) => (
+                  <ToggleGroupItem
+                    key={o.valor}
+                    value={o.valor}
+                    disabled={o.indisponivel !== undefined}
+                    title={o.indisponivel}
+                    aria-describedby={o.indisponivel === undefined ? undefined : `${idMotivo}-${o.valor}`}
+                    className="h-auto px-3 py-1 text-[11px]"
+                  >
+                    {o.rotulo}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
           </div>
 
           <div

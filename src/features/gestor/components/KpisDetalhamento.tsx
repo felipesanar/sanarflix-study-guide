@@ -14,7 +14,7 @@ const CRITERIO_ACERTO =
 const CRITERIO_ENAMED =
   'Conceito projetado por simulado, escala 1 a 5. Não existe média de conceito: com 2+ simulados o cartão compara simulado a simulado.';
 const CRITERIO_PROFICIENCIA =
-  'Média das proficiências (escala 0 a 100) dos participantes, ponderada pelo número de participantes de cada simulado.';
+  'Média das proficiências (escala 0 a 100) dos participantes, ponderada pelo número de participantes de cada simulado. O peso é a participação, que inclui quem respondeu mas ainda não tem proficiência calculada — por isso a média não é situada contra a meta quando os simulados do recorte ficam dos dois lados dela.';
 
 /**
  * Os 3 indicadores do Detalhamento. Usam o MESMO `KpiCard` da Visão Geral —
@@ -59,15 +59,46 @@ export function KpisDetalhamento({ metricas, meta }: KpisDetalhamentoProps) {
     : `${formatNumero(participacoes)} ${participacoes === 1 ? 'participante' : 'participantes'}`;
 
   /**
+   * O veredito de meta só pode ser dito quando o PESO da média não decide o
+   * lado. `mediaPonderadaPorParticipantes` pondera por `participantes`, que a
+   * RPC devolve como `GREATEST(n_resp, n_tri)` — mas proficiência só existe
+   * para quem tem nota calculada, um subconjunto de quem respondeu. Simulado A
+   * (200 respostas, 200 notas, média 70) e simulado B recém-encerrado (190
+   * respostas, 20 notas, média 40) dão 55,4 com o peso errado e mais de 60 com
+   * o certo: o rodapé afirmava "abaixo da meta" quando a verdade é "acima".
+   *
+   * A média verdadeira, qualquer que seja o peso, fica sempre ENTRE a menor e
+   * a maior das proficiências que entraram na conta. Então o veredito é seguro
+   * exatamente quando todas elas caem do mesmo lado da régua — inclusive no
+   * caso de um simulado só, onde não há ponderação nenhuma. Quando os
+   * simulados do recorte ficam dos dois lados, o peso é que decide, e como não
+   * sabemos o peso certo o cartão não escolhe um lado (§4.10: afirmar o lado
+   * errado da meta é pior do que não afirmar).
+   *
+   * A condição de entrada replica a de `mediaPonderadaPorParticipantes`: o que
+   * ela descarta não pode puxar o veredito.
+   */
+  const proficienciasNaMedia = metricas.flatMap((m) =>
+    m.proficienciaMedia !== null && m.participantes > 0 ? [m.proficienciaMedia] : [],
+  );
+  const vereditoDependeDoPeso =
+    proficienciasNaMedia.some((p) => p >= PROFICIENCIA_MINIMA) &&
+    proficienciasNaMedia.some((p) => p < PROFICIENCIA_MINIMA);
+
+  /**
    * Proficiência: o rodapé situa a média contra a régua única (`lib/regras.ts`),
    * como na referência — nunca um `60` datilografado na copy. Sem valor medido
    * não há "acima" nem "abaixo" de nada (§4.10), e o cartão volta a dizer só a
    * base do recorte.
    */
-  const rodapeProficiencia =
-    proficienciaMedia === null
-      ? base
-      : `${proficienciaMedia >= PROFICIENCIA_MINIMA ? 'acima' : 'abaixo'} da meta de proficiência (${PROFICIENCIA_MINIMA})`;
+  let rodapeProficiencia: string;
+  if (proficienciaMedia === null) {
+    rodapeProficiencia = base;
+  } else if (vereditoDependeDoPeso) {
+    rodapeProficiencia = `${base} · os simulados do recorte ficam dos dois lados da meta (${PROFICIENCIA_MINIMA})`;
+  } else {
+    rodapeProficiencia = `${proficienciaMedia >= PROFICIENCIA_MINIMA ? 'acima' : 'abaixo'} da meta de proficiência (${PROFICIENCIA_MINIMA})`;
+  }
 
   return (
     <section aria-label="Indicadores do recorte" className="space-y-2">

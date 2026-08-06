@@ -168,6 +168,12 @@ const FORM_INITIAL = {
   // em produção (boa parte das provas ainda não tem modalidade definida).
   modalidade: null as Modalidade | null,
   dataRealizacao: '',
+  // §6.4: sem esta intenção explícita a RPC nunca sincroniza
+  // `data_agendada_original`, e uma data nova OFICIAL acordada com a IES fica
+  // marcada como "Reagendado" no cronograma do gestor para sempre. Não é
+  // derivável de "o admin mexeu na data": remarcar e oficializar são as duas
+  // coisas que o §6.4 precisa distinguir, e só o admin sabe qual é qual.
+  dataDefinitiva: false,
 };
 
 export interface SimuladoConfigDialogProps {
@@ -223,11 +229,15 @@ export default function SimuladoConfigDialog({
           ? brazilISOToDatetimeLocal(simulado.data_liberacao_desempenho)
           : '',
         // CRÍTICO: se isto não carregar os valores atuais, o save abaixo (que
-        // agora manda `atualizarAgenda: true`) mandaria null e apagaria
-        // modalidade/data_realizacao/data_agendada_original do banco — era
-        // exatamente esse o risco levantado na Task 10.
+        // manda `atualizarAgenda` ligado no caso normal) mandaria null e
+        // apagaria modalidade/data_realizacao/data_agendada_original do banco —
+        // era exatamente esse o risco levantado na Task 10.
         modalidade: simulado.modalidade,
         dataRealizacao: simulado.data_realizacao ? brazilISOToDatetimeLocal(simulado.data_realizacao) : '',
+        // Sempre desmarcado ao abrir: "definitiva" é uma afirmação sobre ESTA
+        // edição, não um atributo do simulado. Herdar do save anterior faria o
+        // admin oficializar uma remarcação sem perceber.
+        dataDefinitiva: false,
       });
       setSelectedIES(simulado.ies_ids);
       setDuracaoMinutos(simulado.duracao_minutos);
@@ -258,7 +268,19 @@ export default function SimuladoConfigDialog({
   // salvar (mesma decisão consciente da Task 10 para o resto da agenda).
   const avisoOnlineSemDataLiberacao =
     form.modalidade === 'online' && !form.dataLiberacao && !form.liberarImediatamente;
+  // A RPC `admin_update_simulado` tem um guard DURO neste caso:
+  // `IF v_modalidade = 'presencial' AND v_data_realizacao IS NULL THEN RAISE`.
+  // Mandar `atualizarAgenda: true` aqui faria o save inteiro estourar com erro
+  // de banco na cara do admin — e é um estado real em produção, não hipotético.
+  //
+  // Optamos por degradar SÓ o bloco de agenda em vez de travar o botão: travar
+  // impediria o admin de corrigir nome, IES ou datas de uma prova que já está
+  // nesse estado hoje, que é justamente quem mais precisa ser editada. Com
+  // `atualizarAgenda: false` a RPC preserva modalidade/data_realizacao do banco
+  // e o resto do formulário grava normalmente — daí o aviso abaixo precisar
+  // dizer, com todas as letras, que esses dois campos ficaram de fora.
   const avisoPresencialSemDataRealizacao = form.modalidade === 'presencial' && !form.dataRealizacao;
+  const atualizarAgenda = !avisoPresencialSemDataRealizacao;
   // Comparação lexicográfica é segura aqui: os dois valores estão no mesmo
   // formato "YYYY-MM-DDTHH:mm" (datetime-local), então ordena como data.
   const avisoEncerramentoAntesDoInicio =
@@ -548,12 +570,13 @@ export default function SimuladoConfigDialog({
         // caminhos de escrita convivendo deixavam metade das mudanças sem
         // auditoria e sem a derivação.
         //
-        // `atualizarAgenda: true` (decisão do Felipe, 03/08): quem marca
-        // modalidade e data de realização é o admin (equipe B2B) NESTA tela,
-        // não o CX — este dialog agora conhece os dois campos (carregados a
-        // partir do registro no `useEffect` acima) e os manda de volta a cada
-        // save. Sem o `useEffect` carregar os valores atuais, isto apagaria
-        // a agenda a cada edição — daí o comentário CRÍTICO ali.
+        // `atualizarAgenda` (decisão do Felipe, 03/08): quem marca modalidade e
+        // data de realização é o admin (equipe B2B) NESTA tela, não o CX — este
+        // dialog agora conhece os dois campos (carregados a partir do registro
+        // no `useEffect` acima) e os manda de volta a cada save. Sem o
+        // `useEffect` carregar os valores atuais, isto apagaria a agenda a cada
+        // edição — daí o comentário CRÍTICO ali. A única exceção é presencial
+        // sem data de realização, onde a RPC daria RAISE (ver `atualizarAgenda`).
         await updateSimulado({
           simuladoId: simulado.id,
           nome: form.nome,
@@ -565,9 +588,10 @@ export default function SimuladoConfigDialog({
           iesIds: selectedIES,
           liberacaoDesempenho: form.liberacaoDesempenho,
           dataLiberacaoDesempenho: dataLiberacaoDesempenhoISO,
-          atualizarAgenda: true,
+          atualizarAgenda,
           modalidade: form.modalidade,
           dataRealizacao: dataRealizacaoISO,
+          definitiva: form.dataDefinitiva,
         });
 
         // Sem `logAdminAction` aqui: a RPC já grava `editar_simulado` em
@@ -881,7 +905,9 @@ export default function SimuladoConfigDialog({
             </p>
             {avisoPresencialSemDataRealizacao && (
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Simulado presencial sem data de realização definida.
+                Simulado presencial sem data de realização definida — modalidade e data de realização{' '}
+                <strong>não serão gravadas</strong> neste save (o servidor recusa prova presencial sem
+                data). Os demais campos são salvos normalmente. Preencha a data para gravar a agenda.
               </p>
             )}
           </div>
@@ -937,6 +963,35 @@ export default function SimuladoConfigDialog({
               )}
             </div>
           </div>
+
+          {/* §6.4 — só em edição: a criação insere direto em `simulados_admin`,
+              onde `data_agendada_original` nasce junto com a data e "Reagendado"
+              é impossível por construção. Um checkbox sem efeito ali seria mentira.
+
+              Sem marcar, a RPC preserva `data_agendada_original` e o cronograma do
+              gestor mostra "Reagendado" — correto para uma remarcação, falso
+              positivo PERMANENTE para uma data nova oficial acordada com a IES.
+              Só o admin sabe qual dos dois casos é este. */}
+          {mode === 'edit' && (
+            <div className="flex items-start gap-2 rounded-xl border border-dashed p-3">
+              <Checkbox
+                id="simulado-data-definitiva"
+                checked={form.dataDefinitiva}
+                onCheckedChange={(c) => setForm((prev) => ({ ...prev, dataDefinitiva: !!c }))}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor="simulado-data-definitiva" className="cursor-pointer text-xs font-medium">
+                  Esta é a data definitiva acordada com a IES
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marque quando a data acima passar a ser a data OFICIAL da prova. O cronograma do gestor
+                  passa a tratá-la como o agendamento original e para de exibir “Reagendado”. Deixe
+                  desmarcado para uma remarcação — aí a marca de reagendamento é o comportamento certo.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2 border-t pt-4">
             <Label>Regra de liberação de desempenho</Label>

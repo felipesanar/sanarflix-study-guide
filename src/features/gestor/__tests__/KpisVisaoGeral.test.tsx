@@ -1,15 +1,26 @@
 import * as React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@/test/utils';
 import { KpisVisaoGeral } from '@/features/gestor/components/KpisVisaoGeral';
-import { contarSimuladosComNotaReal } from '@/features/gestor/api/queries';
-import type { VisaoGeral } from '@/features/gestor/api/types';
+import { contarSimuladosComNotaReal, useVisaoGeral } from '@/features/gestor/api/queries';
+import type { FiltrosGestor, VisaoGeral } from '@/features/gestor/api/types';
 import { metaFake, visaoGeralFake, visaoComUmSimulado, visaoComCasosDificeis } from './fixtures/visaoGeral';
 
 // O setup global troca useLocation por () => ({ pathname: '/' }); o link "Ver
 // cronograma" precisa da search real da URL (medido: sem esta linha o teste
 // de preservação de query string falha mesmo com o componente correto).
 vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
+
+// A RPC e a sessão, para o bloco de `useVisaoGeral` no fim do arquivo. Mesmo
+// padrão de `queries.test.tsx`. Não afetam os testes de render acima:
+// `KpisVisaoGeral` é apresentacional e não toca nem em supabase nem em auth.
+const mockRpc = vi.hoisted(() => vi.fn());
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: { rpc: (...args: unknown[]) => mockRpc(...args) },
+}));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
 
 const titulos = () =>
   screen.getAllByTestId('kpi-card').map((card) => card.querySelector('[data-testid="kpi-titulo"]')?.textContent);
@@ -138,16 +149,19 @@ describe('KpisVisaoGeral', () => {
     // Reproduz o defeito relatado: a RPC calculava o numerador como "slots do
     // contrato com simulado realizado", que zerava para uma IES sem
     // `ies_simulado_previsto` vinculado (FAI) mesmo com simulados reais no
-    // gráfico "Evolução institucional" logo abaixo, na MESMA tela. A correção
-    // (`contarSimuladosComNotaReal`, `api/queries.ts`, consumida por
-    // `useVisaoGeral` antes de `kpis` chegar aqui) recalcula o numerador a
-    // partir de `evolucao` — os 3 pontos de `visaoGeralFake.evolucao` têm
-    // nota real, então o numerador é 3 independentemente do que a RPC diria
-    // sobre slots de contrato.
+    // gráfico "Evolução institucional" logo abaixo, na MESMA tela.
+    //
+    // Aqui o escopo é só o RENDER: dado um numerador já corrigido, o cartão o
+    // mostra ao lado de um denominador ausente. O `3` é LITERAL de propósito —
+    // até 06/08 esta linha chamava `contarSimuladosComNotaReal(...)` para
+    // montar o próprio insumo, isto é, calculava o esperado com a mesma função
+    // que deveria estar verificando; o caso seguia verde mesmo com o
+    // pós-processamento de `useVisaoGeral` apagado. Quem prova que o numerador
+    // corrigido CHEGA até aqui é o bloco de `useVisaoGeral` no fim do arquivo.
     const kpisComoFai: VisaoGeral['kpis'] = {
       ...visaoGeralFake.kpis,
       simulados: {
-        realizados: contarSimuladosComNotaReal(visaoGeralFake.evolucao),
+        realizados: 3, // os 3 pontos de `visaoGeralFake.evolucao` têm nota real
         contratados: null, // FAI não tem linha em ies_contrato_simulados.
       },
     };
@@ -157,6 +171,50 @@ describe('KpisVisaoGeral', () => {
     expect(valorSimulados?.textContent).toBe('3');
     expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')?.textContent).toBe('/ —');
     expect(valorSimulados?.textContent).not.toContain('0');
+  });
+
+  /**
+   * As duas pontas de "Simulados realizados" têm recortes diferentes: o
+   * numerador é contado sobre `evolucao`, que a RPC monta só com os alunos do
+   * semestre selecionado (`u.semestre = ANY(v_sems)`), e o denominador é a
+   * soma dos contratos vigentes da IES INTEIRA. Com um semestre específico a
+   * fração dizia "1 de 7" comparando universos diferentes; o denominador é
+   * suprimido em vez de mentir sobre o total.
+   */
+  it('com recorte de um semestre específico, o KPI de simulados esconde o denominador e a trilha', () => {
+    window.history.pushState({}, '', '/gestor/visao-geral?ies=univille&semestre=5');
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cards = screen.getAllByTestId('kpi-card');
+    // O numerador (3 simulados com nota no recorte) continua sendo afirmado.
+    expect(cards[3].querySelector('[data-testid="kpi-valor"]')?.textContent).toBe('3');
+    expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')).toBeNull();
+    expect(cards[3].querySelector('[data-testid="kpi-trilha"]')).toBeNull();
+    // E o total contratado não reaparece pela contagem de restantes da trilha.
+    expect(cards[3].querySelector('[data-testid="kpi-trilha-restantes"]')).toBeNull();
+  });
+
+  it('com recorte de um semestre específico, o cartão explica por que o total contratado sumiu', () => {
+    window.history.pushState({}, '', '/gestor/visao-geral?semestre=12');
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cards = screen.getAllByTestId('kpi-card');
+    expect(cards[3].querySelector('[data-testid="kpi-hint"]')?.textContent).toBe(
+      'com nota neste recorte de semestre',
+    );
+    expect(cards[3].textContent ?? '').toContain('vale para a IES inteira');
+  });
+
+  /**
+   * `6ano` e `geral` deixam `v_sems` NULL na RPC — os dois cobrem a IES
+   * inteira (`6ano` só põe 11º/12º em evidência). Nesses recortes o
+   * denominador do contrato descreve o mesmo universo do numerador e continua
+   * onde sempre esteve; suprimi-lo ali seria esconder metade do KPI à toa.
+   */
+  it.each(['6ano', 'geral'])('com recorte "%s" (IES inteira) o denominador e a trilha permanecem', (semestre) => {
+    window.history.pushState({}, '', `/gestor/visao-geral?semestre=${semestre}`);
+    render(<KpisVisaoGeral kpis={visaoGeralFake.kpis} meta={metaFake} />);
+    const cards = screen.getAllByTestId('kpi-card');
+    expect(cards[3].querySelector('[data-testid="kpi-sufixo"]')?.textContent).toBe('/ 7');
+    expect(cards[3].querySelector('[data-testid="kpi-trilha"]')).not.toBeNull();
   });
 
   it('com ponto nulo na régua, o KPI de proficientes mostra traço nesse ponto (nunca zero)', () => {
@@ -204,5 +262,87 @@ describe('contarSimuladosComNotaReal (api/queries.ts)', () => {
   it('todos os pontos sem nota (aguardando resultado) conta 0, nunca o total de pontos', () => {
     const evolucao = [ponto(null), ponto(null)];
     expect(contarSimuladosComNotaReal(evolucao)).toBe(0);
+  });
+});
+
+/**
+ * A EMENDA entre a função pura e o cartão — a parte que faltava.
+ *
+ * Os dois blocos acima cobriam as duas pontas e nenhum cobria o meio: apagar o
+ * pós-processamento de `realizados` em `useVisaoGeral` (`api/queries.ts`)
+ * deixava a suíte inteira verde enquanto produção voltava a mostrar "0 de —"
+ * ao lado de um gráfico com 3 simulados. O teste de render recebia o numerador
+ * já corrigido de mão beijada; o teste da função pura nunca via o hook.
+ *
+ * Aqui a RPC é mockada com o envelope EXATO que produção devolve para a FAI
+ * (`kpis.simulados.realizados = 0`, `evolucao` com 3 pontos com nota) e a
+ * asserção é sobre o que sai do hook. Se a substituição sair de `useVisaoGeral`,
+ * este é o caso que fica vermelho.
+ */
+describe('useVisaoGeral — o numerador de "Simulados realizados" não é o que a RPC manda', () => {
+  const FILTROS: FiltrosGestor = { iesId: 'ies-fai', semestre: '6ano', simulados: [] };
+
+  let queryClient: QueryClient;
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  /** Envelope da RPC com o `realizados` que o servidor calcularia. */
+  const envelopeCom = (realizados: number, evolucao: VisaoGeral['evolucao']) => ({
+    data: {
+      data: {
+        ...visaoGeralFake,
+        kpis: { ...visaoGeralFake.kpis, simulados: { realizados, contratados: null } },
+        evolucao,
+      },
+      meta: metaFake,
+    },
+    error: null,
+  });
+
+  beforeEach(() => {
+    mockRpc.mockReset();
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  });
+
+  it('a RPC diz realizados=0 e o hook entrega 3 — os 3 pontos com nota de `evolucao`', async () => {
+    mockRpc.mockResolvedValue(envelopeCom(0, visaoGeralFake.evolucao));
+
+    const { result } = renderHook(() => useVisaoGeral(FILTROS), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.kpis.simulados.realizados).toBe(3);
+    // `contratados` NÃO é recalculado: continua vindo do servidor tal qual
+    // (`null` sem contrato, nunca `0` — spec §4.10). Só o numerador troca de fonte.
+    expect(result.current.data?.kpis.simulados.contratados).toBeNull();
+  });
+
+  it('ponto sem nota não vira simulado realizado, mesmo quando a RPC infla o número', async () => {
+    // O inverso do caso acima: aqui o servidor manda 3 (slots de contrato) e a
+    // série só tem 2 medições — o KPI tem de descer para 2, ou volta a
+    // discordar do gráfico, que não desenha o ponto nulo (connectNulls={false}).
+    const comBuraco: VisaoGeral['evolucao'] = [
+      ...visaoGeralFake.evolucao.slice(0, 2),
+      { ...visaoGeralFake.evolucao[2], valor: null, participantes: 0 },
+    ];
+    mockRpc.mockResolvedValue(envelopeCom(3, comBuraco));
+
+    const { result } = renderHook(() => useVisaoGeral(FILTROS), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.kpis.simulados.realizados).toBe(2);
+  });
+
+  it('o resto do payload atravessa intacto — a correção é cirúrgica no numerador', async () => {
+    // Guarda contra "consertar" o KPI reescrevendo o envelope inteiro: nenhum
+    // outro KPI, nem a série, podem ser tocados no caminho.
+    mockRpc.mockResolvedValue(envelopeCom(0, visaoGeralFake.evolucao));
+
+    const { result } = renderHook(() => useVisaoGeral(FILTROS), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.data?.kpis.proficientesPct).toEqual(visaoGeralFake.kpis.proficientesPct);
+    expect(result.current.data?.evolucao).toEqual(visaoGeralFake.evolucao);
+    expect(result.current.meta).toEqual(metaFake);
   });
 });

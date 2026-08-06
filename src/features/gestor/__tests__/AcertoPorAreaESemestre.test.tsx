@@ -117,28 +117,66 @@ describe('AcertoPorAreaESemestre', () => {
   });
 
   /**
-   * §10.9 / docs/06-data-viz: as barras de grande área são o MESMO indicador
-   * ordenado, não séries categóricas — a cor codifica posição no ranking, numa
-   * rampa neutra. Antes saíam todas em `bg-primary` (o vermelho da marca), o
-   * que fazia a lista inteira parecer alarme e anulava o destaque da área
-   * crítica, o único que deve chamar atenção.
+   * §10.9 / docs/06-data-viz: as barras de grande área são o MESMO indicador,
+   * não séries categóricas — nenhuma delas pode usar a cor de marca, que faria
+   * a lista inteira parecer alarme e anularia o destaque da área crítica.
+   *
+   * E a cor também não pode afirmar RANKING. A RPC devolve as áreas em ordem
+   * ALFABÉTICA; pintar por índice sobre uma rampa fazia o tom prometer um
+   * ordenamento que o dado não tinha — e, com mais áreas que degraus, a rampa
+   * ainda ciclava e dava o mesmo tom a desempenhos muito diferentes. Tom único
+   * para todas as não-críticas: o comprimento da barra é o único canal de
+   * comparação, porque é o único que carrega o número.
    */
-  it('as barras de área seguem a rampa neutra por posição, e só a crítica destoa', () => {
-    render(<AcertoPorAreaESemestre dados={DADOS} semestre="geral" />);
+  it('todas as barras não-críticas usam o MESMO tom — a cor não afirma ranking', () => {
+    // Cinco áreas em ordem alfabética (como a RPC devolve), com o ranking de
+    // acerto deliberadamente embaralhado em relação ao índice.
+    const cinco: Dados = {
+      ...DADOS,
+      areas: [
+        { id: 'cirurgia', nome: 'Cirurgia', acertoPct: 41, critica: true },
+        { id: 'clinica', nome: 'Clínica Médica', acertoPct: 72, critica: false },
+        { id: 'gineco', nome: 'Ginecologia e Obstetrícia', acertoPct: 55, critica: false },
+        { id: 'pediatria', nome: 'Pediatria', acertoPct: 58, critica: false },
+        { id: 'preventiva', nome: 'Medicina Preventiva', acertoPct: 66, critica: false },
+      ],
+    };
+    render(<AcertoPorAreaESemestre dados={cinco} semestre="geral" />);
 
     const preenchimento = (testId: string) =>
       screen.getByTestId(testId).querySelector('[aria-hidden="true"]') as HTMLElement;
 
-    // Posição 0 e 2 da rampa (clinica e pediatria; cirurgia, no meio, é crítica).
-    expect(preenchimento('area-clinica').style.background).toBe('var(--gp-text-1)');
-    expect(preenchimento('area-pediatria').style.background).toBe('var(--gp-text-3)');
+    const naoCriticas = ['clinica', 'gineco', 'pediatria', 'preventiva'].map(
+      (id) => preenchimento(`area-${id}`).style.background,
+    );
+
+    // Um único tom entre todas: nenhuma posição da lista vale mais que outra.
+    expect(new Set(naoCriticas).size).toBe(1);
+    expect(naoCriticas[0]).toBe('var(--gp-text-1)');
 
     // Nenhuma barra não-crítica carrega a cor de marca.
-    expect(preenchimento('area-clinica').className).not.toContain('bg-primary');
-    expect(preenchimento('area-pediatria').className).not.toContain('bg-primary');
+    naoCriticas.forEach((_, i) => {
+      const id = ['clinica', 'gineco', 'pediatria', 'preventiva'][i];
+      expect(preenchimento(`area-${id}`).className).not.toContain('bg-primary');
+    });
 
-    // A crítica continua na família danger — é o destaque da lista.
+    // A crítica continua na família danger — é o único destaque cromático.
     expect(preenchimento('area-cirurgia').className).toContain('bg-destructive');
+  });
+
+  /**
+   * A ordem alfabética que a RPC entrega é PRESERVADA. Ordenar por `acertoPct`
+   * para justificar uma rampa seria pior: o recorte cruzado recalcula o
+   * percentual de cada área a cada clique, e a lista se reembaralharia debaixo
+   * do cursor.
+   */
+  it('mantém a ordem em que a RPC entregou as áreas, sem reordenar por desempenho', () => {
+    render(<AcertoPorAreaESemestre dados={DADOS} semestre="geral" />);
+
+    const ids = screen
+      .getAllByTestId(/^area-(?!valor)/)
+      .map((li) => li.getAttribute('data-testid'));
+    expect(ids).toEqual(['area-clinica', 'area-cirurgia', 'area-pediatria']);
   });
 
   /**

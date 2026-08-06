@@ -42,18 +42,25 @@ const MOVIMENTO_BARRA: React.CSSProperties = {
 };
 
 /**
- * Rampa NEUTRA por posição para as barras de grande área. Estas barras não são
- * séries categóricas — são o mesmo indicador (% de acerto) ordenado, então a
- * cor codifica POSIÇÃO no ranking, não identidade da área. Sair da marca
+ * Tom ÚNICO e neutro para as barras de grande área. Sair da marca
  * (`bg-primary`, vermelho SanarFlix) importa: pintar cinco áreas de vermelho
  * fazia toda a lista parecer alarme e roubava o único destaque que deve
  * gritar, o da área crítica.
  *
- * A referência usa quatro degraus (#292A2A, #414141, #6B7272, #899090); o tema
- * expõe três neutros de texto, então a rampa cicla nos três — o gradiente
- * escuro→claro se mantém, e nenhum hex entra à mão.
+ * Aqui saía uma rampa de três neutros aplicada por ÍNDICE, e o índice é a
+ * ordem ALFABÉTICA em que a RPC entrega as áreas — não o ranking. A cor
+ * prometia um ordenamento que o dado não tinha: Cirurgia (41%) saía no tom
+ * mais escuro e Clínica Médica (72%) no médio, e com mais áreas que degraus a
+ * rampa ainda ciclava, dando o mesmo tom a desempenhos muito distantes.
+ *
+ * Ordenar por `acertoPct` antes de pintar não resolve neste componente: o
+ * recorte cruzado RECALCULA o percentual de cada área a cada clique
+ * (`recalcularAreas`), então a lista se reembaralharia debaixo do cursor a cada
+ * seleção — e a rampa de três degraus continuaria ciclando com cinco áreas.
+ * Com tom único, a cor deixa de afirmar ranking e o comprimento da barra volta
+ * a ser o único canal de comparação, que é o único que carrega o número.
  */
-const RAMPA_NEUTRA = ['var(--gp-text-1)', 'var(--gp-text-2)', 'var(--gp-text-3)'];
+const TOM_BARRA_AREA = 'var(--gp-text-1)';
 
 export function AcertoPorAreaESemestre({
   dados,
@@ -150,7 +157,7 @@ export function AcertoPorAreaESemestre({
           <p className="py-6 text-center text-sm text-muted-foreground">Sem dado de grande área neste recorte</p>
         ) : (
           <ul className="space-y-2">
-            {areas.map((area, indice) => {
+            {areas.map((area) => {
               const ativo = recorte?.tipo === 'area' && recorte.id === area.id;
               // Recorte por ÁREA esmaece as demais áreas (o item selecionado
               // recebe contorno **e o restante esmaece**, docs/06-data-viz §4).
@@ -174,7 +181,7 @@ export function AcertoPorAreaESemestre({
                     }}
                   >
                     {/* A área crítica é o único destaque cromático da lista —
-                        as demais seguem a rampa neutra por posição. */}
+                        as demais dividem o mesmo neutro. */}
                     <span
                       aria-hidden="true"
                       className={cn('block h-full w-full', area.critica ? 'bg-destructive' : undefined)}
@@ -183,9 +190,7 @@ export function AcertoPorAreaESemestre({
                         borderRadius: 'var(--gp-radius-pill)',
                         transformOrigin: 'left center',
                         transform: `scaleX(${proporcao(area.acertoPct)})`,
-                        ...(area.critica
-                          ? null
-                          : { background: RAMPA_NEUTRA[indice % RAMPA_NEUTRA.length] }),
+                        ...(area.critica ? null : { background: TOM_BARRA_AREA }),
                       }}
                     />
                   </span>

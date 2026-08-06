@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '@/features/gestor/components/Icon';
 import { KpiCard, type EstadoKpi } from '@/features/gestor/components/KpiCard';
 import { formatConceito, formatNumero, formatPct } from '@/features/gestor/lib/formatters';
@@ -24,6 +24,22 @@ function conceitoSemEscala(valor: number | null): string {
 }
 
 /**
+ * Recorte de UM semestre específico. É o MESMO regex que
+ * `get_gestor_visao_geral` usa para decidir o recorte (`v_sems :=
+ * ARRAY[p_semestre::int]`, migration
+ * `20260804130000_get_gestor_visao_geral_guard_kpi_lowsample.sql`); `6ano` e
+ * `geral` deixam `v_sems` NULL, ou seja, cobrem a IES inteira — `6ano` só põe
+ * 11º/12º em evidência, não filtra. Valor ausente ou inválido degrada para o
+ * padrão `6ano` em `useFiltrosGestor`, que também é a IES inteira, então o
+ * "não casou" desta expressão coincide com o comportamento real do servidor.
+ *
+ * Não importamos as constantes de `useFiltrosGestor` de propósito: aquele
+ * módulo é substituído por `vi.mock` em suítes que montam a rota inteira, e um
+ * import de constante viria `undefined` lá dentro.
+ */
+const SEMESTRE_UNICO = /^(1[0-2]|[1-9])$/;
+
+/**
  * Os 4 KPIs no topo da Visão Geral, na ordem canônica fixa (spec §4.8):
  * Conceito ENAMED projetado · Alunos proficientes · Percentual de acerto ·
  * Simulados realizados. Os três primeiros lideram pela evolução (régua
@@ -40,23 +56,43 @@ function conceitoSemEscala(valor: number | null): string {
  * mesma tela): o numerador passa a contar simulados com nota, não slots de
  * contrato — `contratados` (o denominador) continua vindo do servidor tal
  * qual, `null` sem contrato.
+ *
+ * Consequência disso: as duas pontas dessa fração têm recortes diferentes, e o
+ * denominador só é exibido quando os dois coincidem. Ver `recorteEhIesInteira`
+ * no corpo do componente.
  */
 export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }: KpisVisaoGeralProps) {
   const { simulados } = kpis;
   const { search } = useLocation();
+  const [searchParams] = useSearchParams();
+  /**
+   * As duas pontas da fração precisam falar do MESMO universo. O numerador
+   * (`realizados`) é recortado por semestre — `contarSimuladosComNotaReal` lê
+   * `evolucao`, que a RPC monta só sobre os alunos de `v_sems`. O denominador
+   * (`contratados`) é a soma dos contratos vigentes da IES INTEIRA, sem
+   * recorte nenhum. Com `?semestre=5` numa IES que aplicou 4 simulados o
+   * cartão dizia "1 de 7": uma fração cujas pontas contam coisas diferentes.
+   *
+   * Enquanto a RPC não devolver contratados por recorte, a saída honesta é
+   * mostrar só o numerador quando o recorte não é a IES inteira — afirmar um
+   * total que não corresponde é pior do que não afirmar total nenhum.
+   */
+  const recorteEhIesInteira = !SEMESTRE_UNICO.test(searchParams.get('semestre') ?? '');
   /**
    * `contratados` é `null` quando a IES não tem linha de contrato — nunca
    * `0` (spec §4.10). `formatNumero` já devolve TRACO para `null`, então o
    * denominador sai como "/ —" sem nenhum corte aqui. A trilha, porém, exige
    * `{ feitos: number; total: number }`: sem total conhecido não há progresso
    * para desenhar, então ela simplesmente não aparece — em vez de inventar
-   * uma barra em 0%, que afirmaria "a IES contratou zero".
+   * uma barra em 0%, que afirmaria "a IES contratou zero". Pelo mesmo motivo
+   * ela some fora do recorte da IES inteira: a barra é a razão entre as duas
+   * pontas, e a razão é justamente o que deixa de fazer sentido ali.
    *
    * `simulados.realizados` (o numerador, `feitos` aqui) já chega recalculado
    * por `useVisaoGeral` a partir de `evolucao` — ver o comentário no topo
    * deste arquivo e `contarSimuladosComNotaReal` em `api/queries.ts`.
    */
-  const trilha = simulados.contratados !== null
+  const trilha = recorteEhIesInteira && simulados.contratados !== null
     ? { feitos: simulados.realizados, total: simulados.contratados }
     : undefined;
 
@@ -105,9 +141,9 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
       />
       <KpiCard
         titulo="Simulados realizados"
-        hint="do contrato vigente da IES"
+        hint={recorteEhIesInteira ? 'do contrato vigente da IES' : 'com nota neste recorte de semestre'}
         valor={formatNumero(simulados.realizados)}
-        sufixo={`/ ${formatNumero(simulados.contratados)}`}
+        sufixo={recorteEhIesInteira ? `/ ${formatNumero(simulados.contratados)}` : undefined}
         densidadeSufixo="fracao"
         meta={meta}
         /* Sem a sigla TRI: invariante 2 do handoff — TRI só existe por aluno,
@@ -115,7 +151,11 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
            de rastreabilidade, ou seja, dentro da Visão Geral. O conceito que a
            gestora precisa aqui é "nota de proficiência", que é como o resto da
            tela chama a mesma medida. */
-        criterio="Simulados com nota de proficiência calculada no recorte atual — mesma base do gráfico de evolução. Contratados vêm do contrato vigente da IES."
+        criterio={
+          recorteEhIesInteira
+            ? 'Simulados com nota de proficiência calculada no recorte atual — mesma base do gráfico de evolução. Contratados vêm do contrato vigente da IES.'
+            : 'Simulados com nota de proficiência calculada neste recorte de semestre — mesma base do gráfico de evolução. O total contratado não aparece aqui porque vale para a IES inteira, não para um semestre: dividir um pelo outro compararia universos diferentes.'
+        }
         trilha={trilha}
         rodape={
           <Link

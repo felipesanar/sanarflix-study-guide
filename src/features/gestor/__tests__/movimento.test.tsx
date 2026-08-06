@@ -83,15 +83,25 @@ describe('prefers-reduced-motion no tema do portal do gestor (Task 59b)', () => 
 
 // ---------------------------------------------------------------------------
 // Documentação executável do alcance real de `.gestor-portal *`: por que o
-// bloco acima é SUFICIENTE para tudo que anima dentro da subárvore do shell,
-// e por que Sheet/Dialog/Select ficam de fora (NAO_CORRIGIDOS do relatório da
-// Task 59b). Lê os arquivos-fonte envolvidos — não os edita; nenhum é um dos
-// dois arquivos que esta tarefa pode alterar.
+// bloco acima alcança tudo que anima dentro do shell.
+//
+// ATENÇÃO AO HISTÓRICO — este bloco já afirmou o contrário. Até o commit
+// `4786362b`, Sheet/Dialog/Select do Radix despachavam para `document.body`,
+// FORA de `.gestor-portal`, e três casos aqui documentavam essa limitação
+// ("fora de alcance") como um NAO_CORRIGIDO da Task 59b. A Task 65 fechou o
+// buraco: os SEIS usos do gestor passam `container={useGestorPortalContainer()}`
+// e o conteúdo monta DENTRO do shell. Os casos seguiram verdes afirmando o
+// mundo antigo, porque só olhavam para `components/ui/*` — onde o Portal
+// continua existindo, como tem de continuar (aluno/admin dependem do padrão do
+// Radix). Reescritos: o que estes casos guardam agora é o CONTRATO que torna o
+// bloco de CSS suficiente — a primitiva expõe `container`, e todo uso do gestor
+// o passa. A prova de DOM (`closest('.gestor-portal')` sobre o diálogo aberto
+// de verdade) mora em `portalContainer.test.tsx`; aqui é só análise estática.
 
 const lerFonte = (caminhoRelativoAoSrc: string) =>
   readFileSync(resolve(RAIZ, '../../', caminhoRelativoAoSrc), 'utf-8');
 
-describe('alcance de .gestor-portal * — documentação viva do limite de Portal do Radix', () => {
+describe('alcance de .gestor-portal * — o contrato do container do Portal (Task 65)', () => {
   it('GestorSkeleton usa animação em loop e é um <div> comum — está DENTRO da subárvore, alcançável', () => {
     // O handoff §9 pede shimmer discreto, não pulse; o skeleton migrou de
     // `animate-pulse` para `animate-shimmer`. O que este caso guarda não é a
@@ -109,26 +119,53 @@ describe('alcance de .gestor-portal * — documentação viva do limite de Porta
     expect(src).not.toMatch(/TooltipPrimitive\.Portal/);
   });
 
-  it('SheetContent (components/ui/sheet.tsx, usado pelos drawers do gestor) embrulha em Portal — conteúdo cai fora de .gestor-portal, fora de alcance', () => {
+  // Os três a seguir cobrem a MESMA invariante nas três primitivas que o
+  // gestor usa: continuam embrulhando em Portal (o padrão do Radix, que
+  // aluno/admin herdam intacto) E repassam `container` para ele. É o "E" que
+  // importa: um Portal sem `container` repassado despacha para document.body
+  // e leva o conteúdo para fora do alcance de `gestor-theme.css`.
+
+  it('SheetContent (components/ui/sheet.tsx, usado pelos drawers do gestor) embrulha em Portal e REPASSA container para ele', () => {
     const src = lerFonte('components/ui/sheet.tsx');
-    expect(src).toMatch(/SheetPortal|SheetPrimitive\.Portal/);
     expect(src).toMatch(/animate-in/); // confirma que de fato anima por padrão
+    expect(src).toMatch(/container\?:\s*HTMLElement \| null/);
+    expect(src).toMatch(/<SheetPortal container=\{container\}>/);
   });
 
-  it('DialogContent (components/ui/dialog.tsx, usado por Glossario) também embrulha em Portal — mesma limitação', () => {
+  it('DialogContent (components/ui/dialog.tsx, usado por Glossario) embrulha em Portal e REPASSA container para ele', () => {
     const src = lerFonte('components/ui/dialog.tsx');
-    expect(src).toMatch(/DialogPortal|DialogPrimitive\.Portal/);
+    expect(src).toMatch(/container\?:\s*HTMLElement \| null/);
+    expect(src).toMatch(/<DialogPortal container=\{container\}>/);
   });
 
-  it('SelectContent (components/ui/select.tsx, usado por SidebarIes/FiltroSemestre) também embrulha em Portal — mesma limitação', () => {
+  it('SelectContent (components/ui/select.tsx, usado por SidebarIes/FiltroSemestre) embrulha em Portal e REPASSA container para ele', () => {
     const src = lerFonte('components/ui/select.tsx');
-    expect(src).toMatch(/SelectPrimitive\.Portal/);
+    expect(src).toMatch(/container\?:\s*HTMLElement \| null/);
+    expect(src).toMatch(/<SelectPrimitive\.Portal container=\{container\}>/);
   });
 
-  it('os drawers do gestor (DrawerAluno, DrawerTemas) de fato usam o Sheet baseado em Portal', () => {
-    const drawerAluno = readFileSync(resolve(RAIZ, 'components/DrawerAluno.tsx'), 'utf-8');
-    const drawerTemas = readFileSync(resolve(RAIZ, 'components/DrawerTemas.tsx'), 'utf-8');
-    expect(drawerAluno).toMatch(/from '@\/components\/ui\/sheet'/);
-    expect(drawerTemas).toMatch(/from '@\/components\/ui\/sheet'/);
+  it('os SEIS usos do gestor passam o container do shell — nenhum aceita o document.body do Radix', () => {
+    // Se um uso novo aparecer sem `container`, o conteúdo dele fica fora de
+    // `.gestor-portal` e este bloco de CSS deixa de alcançá-lo em silêncio:
+    // nada quebra, o movimento só volta a rodar com reduced-motion ligado.
+    // A lista é explícita de propósito — é o inventário que a Task 65 fechou.
+    const usos: Array<[string, string]> = [
+      ['DrawerAluno', 'features/gestor/components/DrawerAluno.tsx'],
+      ['DrawerTemas', 'features/gestor/components/DrawerTemas.tsx'],
+      ['Glossario', 'features/gestor/components/Glossario.tsx'],
+      ['FiltroSemestre', 'features/gestor/components/FiltroSemestre.tsx'],
+      ['SidebarIes', 'features/gestor/shell/SidebarIes.tsx'],
+      ['Sheet de cronograma (Detalhamento)', 'features/gestor/routes/Detalhamento.tsx'],
+    ];
+
+    const semContainer = usos.filter(([, caminho]) => {
+      const src = lerFonte(caminho);
+      return !/useGestorPortalContainer\(\)/.test(src) || !/container=\{\w+\}/.test(src);
+    });
+
+    expect(
+      semContainer.map(([nome]) => nome),
+      'estes usos do gestor não passam container e cairiam em document.body, fora de .gestor-portal',
+    ).toEqual([]);
   });
 });

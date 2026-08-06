@@ -141,6 +141,83 @@ describe('KpisDetalhamento', () => {
     );
   });
 
+  /**
+   * O peso da média ponderada é `participantes`, que a RPC devolve como
+   * `GREATEST(n_resp, n_tri)` — mas proficiência só existe para quem tem nota
+   * calculada. Com um simulado recém-encerrado (muitas respostas, poucas
+   * notas) o peso errado INVERTE o veredito: 70×200 e 40×190 dão 55,4
+   * ("abaixo"), enquanto ponderar pelos alunos que realmente têm nota passa de
+   * 60. Como o cartão não sabe o peso certo, não escolhe lado nenhum.
+   */
+  it('com simulados dos dois lados da meta, o rodapé não afirma lado nenhum — o peso é que decidiria', () => {
+    render(
+      <KpisDetalhamento
+        metricas={[
+          metrica({ simuladoId: 's1', participantes: 200, proficienciaMedia: 70 }),
+          metrica({ simuladoId: 's2', participantes: 190, proficienciaMedia: 40 }),
+        ]}
+        meta={META}
+      />,
+    );
+    const rodape = within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-rodape');
+    expect(rodape).not.toHaveTextContent(/acima|abaixo/);
+    expect(rodape).toHaveTextContent(`dos dois lados da meta (${PROFICIENCIA_MINIMA})`);
+  });
+
+  /**
+   * A média ponderada fica sempre ENTRE a menor e a maior das proficiências
+   * que entraram na conta: com todas do mesmo lado da régua, nenhum peso muda
+   * o veredito e suprimi-lo seria calar uma informação verdadeira.
+   */
+  it('com todos os simulados do mesmo lado da meta, o veredito continua sendo dito', () => {
+    const { rerender } = render(
+      <KpisDetalhamento
+        metricas={[
+          metrica({ simuladoId: 's1', participantes: 200, proficienciaMedia: 63 }),
+          metrica({ simuladoId: 's2', participantes: 190, proficienciaMedia: 70 }),
+        ]}
+        meta={META}
+      />,
+    );
+    expect(within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-rodape')).toHaveTextContent(
+      'acima da meta',
+    );
+
+    rerender(
+      <KpisDetalhamento
+        metricas={[
+          metrica({ simuladoId: 's1', participantes: 200, proficienciaMedia: 40 }),
+          metrica({ simuladoId: 's2', participantes: 190, proficienciaMedia: 55 }),
+        ]}
+        meta={META}
+      />,
+    );
+    expect(within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-rodape')).toHaveTextContent(
+      'abaixo da meta',
+    );
+  });
+
+  /**
+   * Simulado sem proficiência (ou sem participante) fica fora da média — e,
+   * pelo mesmo motivo, não pode puxar o veredito para "depende do peso": a
+   * condição de entrada aqui é a mesma de `mediaPonderadaPorParticipantes`.
+   */
+  it('simulado fora da média não bloqueia o veredito dos que entraram nela', () => {
+    render(
+      <KpisDetalhamento
+        metricas={[
+          metrica({ simuladoId: 's1', participantes: 200, proficienciaMedia: 70 }),
+          metrica({ simuladoId: 's2', participantes: 0, proficienciaMedia: 40 }),
+          metrica({ simuladoId: 's3', participantes: 150, proficienciaMedia: null }),
+        ]}
+        meta={META}
+      />,
+    );
+    expect(within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-rodape')).toHaveTextContent(
+      'acima da meta',
+    );
+  });
+
   it('sem proficiência medida o rodapé não afirma "acima" nem "abaixo" de nada (§4.10)', () => {
     render(<KpisDetalhamento metricas={[metrica({ proficienciaMedia: null })]} meta={META} />);
     const rodape = within(screen.getByTestId('kpi-proficiencia-media')).getByTestId('kpi-rodape');

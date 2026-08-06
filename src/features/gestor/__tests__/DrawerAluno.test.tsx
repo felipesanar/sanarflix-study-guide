@@ -256,6 +256,75 @@ describe('DrawerAluno — cabeçalho', () => {
     expect(dialogo).toHaveTextContent(`${TRACO} período`);
     expect(dialogo).not.toHaveTextContent('0º período');
   });
+
+  /**
+   * A cobertura casava DUAS fontes com `WHERE` diferente: o numerador vinha de
+   * `get_gestor_aluno` (que com `p_simulados` vazio devolve tudo o que o aluno
+   * tem) e o denominador do recorte de `get_gestor_visao_geral` (que filtra).
+   * Sem denominador não existe fração para mostrar — e "3 de 0" é pior que
+   * nada, porque afirma um recorte que não foi pedido.
+   */
+  it('sem recorte de simulados, a cobertura é OMITIDA — nunca "N de 0"', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar({ simulados: [] });
+    const dialogo = screen.getByRole('dialog');
+
+    expect(dialogo).toHaveTextContent('11º período');
+    expect(dialogo.textContent ?? '').not.toMatch(/de 0 simulados/);
+    expect(dialogo.textContent ?? '').not.toMatch(/\d+ de \d+ simulados?/);
+  });
+
+  /** Numerador e denominador saem do MESMO conjunto: o recorte pedido. */
+  it('conta só os simulados do recorte — o numerador nunca passa o denominador', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar({ simulados: ['s2'] });
+    const dialogo = screen.getByRole('dialog');
+
+    expect(dialogo).toHaveTextContent('11º período · 1 de 1 simulado');
+    expect(dialogo.textContent ?? '').not.toMatch(/2 de 1/);
+  });
+});
+
+/**
+ * O botão de fechar do drawer (§4.5 + docs/11-acessibilidade). O `SheetContent`
+ * expõe os slots justamente para o portal do gestor: sem passá-los, o leitor de
+ * tela anuncia "Close" em inglês num portal todo em pt-BR, o glifo é o `X` do
+ * Lucide (o handoff §3 exige 100% Fontello do Dendê) e o scrim fica no
+ * `bg-black/80` do shadcn em vez do `--gp-scrim` do tema.
+ */
+describe('DrawerAluno — alvo de fechar', () => {
+  it('anuncia "Fechar" em pt-BR e usa o glifo close do Dendê, nunca o X do Lucide', () => {
+    montar();
+    const fechar = screen.getByRole('button', { name: 'Fechar' });
+
+    expect(fechar.querySelector('.icon-dende-icons-close-outlined')).not.toBeNull();
+    expect(fechar.querySelector('svg')).toBeNull();
+    expect(screen.queryByText('Close')).toBeNull();
+  });
+
+  it('é o alvo de 30×30 com borda e raio 8px do handoff', () => {
+    montar();
+    const fechar = screen.getByRole('button', { name: 'Fechar' });
+
+    expect(fechar.className).toContain('h-[30px]');
+    expect(fechar.className).toContain('w-[30px]');
+    expect(fechar.className).toContain('rounded-[8px]');
+    expect(fechar.className).toContain('border-[color:var(--gp-border-strong)]');
+    // O `opacity-100` precisa VENCER o `opacity-70` do shadcn via tailwind-merge.
+    expect(fechar.className).toContain('opacity-100');
+    expect(fechar.className).not.toContain('opacity-70');
+  });
+
+  it('o scrim é o do tema do gestor, não o bg-black/80 do shadcn', () => {
+    const { baseElement } = montar();
+
+    expect(baseElement.querySelector('.bg-\\[var\\(--gp-scrim\\)\\]')).not.toBeNull();
+    expect(baseElement.querySelector('.bg-black\\/80')).toBeNull();
+  });
 });
 
 /**

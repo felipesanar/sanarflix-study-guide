@@ -128,9 +128,21 @@ export const GestorShell: React.FC = () => {
 
   return (
     <GestorPortalContainerContext.Provider value={portalContainer}>
-      <div ref={setPortalContainer} className="gestor-portal flex h-screen overflow-hidden bg-background">
+      <div
+        ref={setPortalContainer}
+        /* `h-dvh`, não `h-screen`: `100vh` ignora a barra de UI do navegador e o
+           shell fica mais alto que a área visível, sobrando faixa sem pintura no
+           fim da página. `overscroll-none` impede que o scroll do conteúdo
+           "vaze" e role o documento junto — a origem do scroll duplo. */
+        className="gestor-portal flex h-dvh overflow-hidden overscroll-none bg-background"
+      >
         <aside
-          className="flex h-full w-60 shrink-0 flex-col border-r"
+          /* `overflow-y-auto`: o conteúdo da sidebar (lockup + IES + nav +
+             perfil + ações + tema) passa de 650px, e sem scroll próprio ele
+             era cortado em janela baixa — o rodapé com "Sair" ficava
+             inalcançável. `min-h-0` porque um filho de flex não encolhe abaixo
+             do conteúdo sem isso, e o `overflow` nunca chegaria a valer. */
+          className="flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r"
           style={{
             background: 'var(--gp-surface-1)',
             borderColor: 'var(--gp-border-subtle)',
@@ -248,7 +260,7 @@ export const GestorShell: React.FC = () => {
           </div>
         </aside>
 
-        <main className="h-full flex-1 overflow-y-auto">
+        <main className="h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
             <Outlet />
           </Suspense>

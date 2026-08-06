@@ -317,7 +317,20 @@ export default function Detalhamento() {
                   <Icon name="chevron_right" size={14} />
                 </button>
               </SheetTrigger>
-              <SheetContent container={portalContainer} side="right" className="w-full sm:max-w-md">
+              {/* Fechar do PORTAL, não o do shadcn: o `X` do Lucide é de outra
+                  família de ícones (handoff §3 exige 100% Fontello do Dendê) e
+                  anunciava "Close" num portal inteiro em pt-BR. O scrim vem de
+                  `--gp-scrim`, calibrado por tema no `gestor-theme.css` —
+                  `bg-black/80` é opaco demais para o claro. */}
+              <SheetContent
+                container={portalContainer}
+                side="right"
+                className="w-full sm:max-w-md"
+                closeIcon={<Icon name="close" size={16} />}
+                closeLabel="Fechar"
+                closeClassName="inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px] border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"
+                overlayClassName="bg-[var(--gp-scrim)]"
+              >
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2" style={{ fontSize: 15, fontWeight: 700 }}>
                     <Icon name="calendar_month" variant="filled" size={18} />

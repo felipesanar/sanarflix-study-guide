@@ -140,20 +140,28 @@ describe('tema do portal do gestor — análise estática do CSS (§Tema escuro)
    * Achado no navegador: `shadow-[var(--gp-shadow-card)]` foi resolvido como
    * `--tw-shadow-color`, e não como a sombra. O cartão de direcionamento ficou
    * com `box-shadow: none` em produção, e o hover — que sobe um degrau de
-   * sombra — não tinha de onde subir. O `duration-[140ms]` é a mesma família:
-   * o Tailwind não sabe se é `transition-duration` ou `animation-duration`, e
+   * sombra — não tinha de onde subir. Duração e curva arbitrárias são a mesma
+   * família: o Tailwind não sabe se são `transition-*` ou `animation-*`, e
    * avisa "ambiguous" no build.
    *
    * A sintaxe de propriedade explícita (`[box-shadow:...]`,
-   * `[transition-duration:...]`) não tem ambiguidade.
+   * `[transition-duration:...]`, `[transition-timing-function:...]`) não tem
+   * ambiguidade.
+   *
+   * As mensagens abaixo evitam escrever as classes por extenso de propósito: o
+   * Tailwind varre os arquivos de TESTE junto com os de código, e a própria
+   * mensagem deste guard fazia o build avisar sobre uma classe que só existia
+   * dentro da string de erro.
    */
-  it('nenhuma classe arbitrária ambígua do Tailwind (shadow-[var(…)], duration-[Nms])', () => {
+  it('nenhuma classe arbitrária ambígua do Tailwind (sombra, duração, curva)', () => {
     FONTES.filter(({ p }) => /\.tsx?$/.test(p)).forEach(({ p, src }) => {
       const semComentarios = semComentariosDeBloco(src);
-      expect(semComentarios, `${p}: shadow-[var(…)] cai em --tw-shadow-color; use [box-shadow:var(…)]`)
+      expect(semComentarios, `${p}: sombra arbitrária cai em --tw-shadow-color; use a propriedade explícita`)
         .not.toMatch(/\bshadow-\[var\(/);
-      expect(semComentarios, `${p}: duration-[Nms] é ambíguo; use [transition-duration:…] ou [animation-duration:…]`)
+      expect(semComentarios, `${p}: duração arbitrária é ambígua; use a propriedade explícita`)
         .not.toMatch(/\bduration-\[\d/);
+      expect(semComentarios, `${p}: curva arbitrária é ambígua; use a propriedade explícita`)
+        .not.toMatch(/\bease-\[/);
     });
   });
 
