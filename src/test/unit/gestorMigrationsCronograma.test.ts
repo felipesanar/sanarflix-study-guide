@@ -110,7 +110,7 @@ describe('migration get_gestor_cronograma — guard de papel e helper de IES (ac
     );
   });
 
-  it('checa a feature via user_has_feature_for_ies com v_ies (achado 2, herdado — não regride)', () => {
+  it('checa a feature via user_has_feature_for_ies com v_ies (achado 2, herdado nesta migration — guard removido depois, ver describe no fim do arquivo)', () => {
     const code = codeOnly(sql());
     expect(code).toMatch(/user_has_feature_for_ies\(\s*'gestao\.portal_v2'\s*,\s*v_ies\s*\)/);
     expect(code).not.toMatch(/user_has_feature\(\s*'gestao\.portal_v2'\s*\)/);
@@ -208,5 +208,15 @@ describe('migration get_gestor_cronograma — preservação de infraestrutura', 
     const body = sql();
     expect(body).toMatch(/SUCEDE 20260804140100_get_gestor_cronograma_guard_precedencia_datas\.sql/);
     expect(body).toMatch(/DEPENDE de 20260804160000_gestor_pode_acessar_ies\.sql/);
+  });
+});
+
+describe('migration get_gestor_cronograma — guard de feature removido (GA total, decisão do Felipe em 06/08)', () => {
+  it('a migration mais recente não checa mais gestao.portal_v2 — a v2 vale para todo gestor, sem gate no banco', () => {
+    const body = readMigration('20260806144647_gestor_remove_guard_portal_v2_ga_total.sql');
+    const inicio = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_cronograma');
+    const fim = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_avisos');
+    const corpo = body.slice(inicio, fim);
+    expect(corpo).not.toMatch(/user_has_feature/);
   });
 });

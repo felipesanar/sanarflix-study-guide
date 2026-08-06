@@ -2,13 +2,6 @@ import * as React from 'react';
 import { TagNivel } from '@/features/gestor/components/Tag';
 import type { NivelDesempenho } from '@/features/gestor/api/types';
 
-/** Níveis de desempenho sobre % de acerto (spec §4.4). */
-export const ROTULO_NIVEL: Record<NivelDesempenho, string> = {
-  excelente: 'Excelente',
-  mediano: 'Mediano',
-  critico: 'Crítico',
-};
-
 /**
  * Nível de desempenho de uma grande área / especialidade / tema.
  *
@@ -19,9 +12,10 @@ export const ROTULO_NIVEL: Record<NivelDesempenho, string> = {
  * `--destructive`): cor de série não é cor de status, e o rótulo herdava
  * `foreground`, deixando a classificação sem cor nenhuma no texto.
  *
- * O componente continua existindo (em vez de os chamadores importarem
- * `TagNivel` direto) porque `ROTULO_NIVEL` mora aqui e é o vocabulário
- * compartilhado — `Tag.tsx` e `CascataDiagnostico.tsx` importam dele.
+ * O rótulo em si vem de `lib/rotulos.ts`, a fonte única de vocabulário pt-BR
+ * do portal — este arquivo não guarda mais cópia própria de `ROTULO_NIVEL`.
+ * O componente continua existindo só para não obrigar os chamadores atuais a
+ * trocar de import; quem for escrever tela nova pode usar `TagNivel` direto.
  */
 export const ChipNivel: React.FC<{ nivel: NivelDesempenho; className?: string }> = ({
   nivel,

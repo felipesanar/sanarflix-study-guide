@@ -254,6 +254,32 @@ describe('migration get_gestor_questoes (gap 119, achado 14 herdado)', () => {
   });
 });
 
+describe('migrations get_gestor_avisos / diagnostico / diagnostico_temas / questoes — guard de feature removido (GA total, 06/08)', () => {
+  const GUARD_REMOVAL_FILE = '20260806144647_gestor_remove_guard_portal_v2_ga_total.sql';
+  const NEXT_FUNCTION_MARKER: Record<string, string> = {
+    get_gestor_avisos: 'CREATE OR REPLACE FUNCTION public.get_gestor_aluno_contato',
+    get_gestor_diagnostico: 'CREATE OR REPLACE FUNCTION public.get_gestor_diagnostico_temas',
+    get_gestor_diagnostico_temas: 'CREATE OR REPLACE FUNCTION public.get_gestor_alunos',
+    // get_gestor_questoes é a última função da migration — o marcador de fim é
+    // o comentário de "dado morto" que precede as exclusões de feature_catalog/
+    // ies_features, não o fim do arquivo (que ainda cita
+    // user_has_feature_for_ies no COMMENT ON FUNCTION final, sem relação com o
+    // guard removido).
+    get_gestor_questoes: '-- Dado morto:',
+  };
+
+  it.each(['get_gestor_avisos', 'get_gestor_diagnostico', 'get_gestor_diagnostico_temas', 'get_gestor_questoes'])(
+    '%s na migration mais recente não checa mais gestao.portal_v2 — a v2 vale para todo gestor, sem gate no banco',
+    (fnName) => {
+      const body = readMigration(GUARD_REMOVAL_FILE);
+      const inicio = body.indexOf(`CREATE OR REPLACE FUNCTION public.${fnName}`);
+      const fim = body.indexOf(NEXT_FUNCTION_MARKER[fnName]);
+      const corpo = body.slice(inicio, fim === -1 ? body.length : fim);
+      expect(corpo).not.toMatch(/user_has_feature/);
+    },
+  );
+});
+
 describe('as quatro migrations dependem da mesma função nova, sem duplicar sua definição', () => {
   const FILES = [
     '20260804161000_get_gestor_avisos_gestor_pode_acessar_ies.sql',

@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { DispersaoChart } from '@/features/gestor/charts/DispersaoChart';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { Icon } from '@/features/gestor/components/Icon';
-import { formatNumero, formatPct, rotuloGrupo } from '@/features/gestor/lib/formatters';
+import { formatNumero, formatPct } from '@/features/gestor/lib/formatters';
+import { rotuloGrupo } from '@/features/gestor/lib/rotulos';
 import type { GrupoEvolucao, VisaoGeral } from '@/features/gestor/api/types';
 
 export interface VisaoDeAlunosProps {

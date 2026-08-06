@@ -11,6 +11,7 @@ import {
 } from '@/features/gestor/components/SaudacaoGestor';
 import { DirecionadoresGestor } from '@/features/gestor/components/DirecionadoresGestor';
 import { visaoGeralQueryKey } from '@/features/gestor/api/prefetch';
+import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
 import type { ContextoGestor, Envelope, Meta } from '@/features/gestor/api/types';
 
 const mocks = vi.hoisted(() => ({
@@ -267,8 +268,13 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
       'href',
       '/gestor/detalhamento',
     );
-    expect(screen.getByText('Visão Geral')).toBeInTheDocument();
-    expect(screen.getByText('Detalhamento por Simulados')).toBeInTheDocument();
+    // Os títulos vêm da nav, não de literal aqui: o direcionador e o item da
+    // sidebar apontam para a mesma tela e têm que dizer o mesmo nome. Este
+    // teste afirmava "Detalhamento por simulados" com `s` minúsculo enquanto a
+    // nav dizia `S` maiúsculo — a divergência que motivou a fonte única.
+    for (const item of GESTOR_V2_NAV.filter((i) => i.url !== '/gestor')) {
+      expect(screen.getByText(item.title)).toBeInTheDocument();
+    }
   });
 
   it('o card da Visão Geral navega para /gestor/visao-geral', async () => {

@@ -36,10 +36,27 @@ function sqlVigente(): string {
   return fs.readFileSync(path.join(DIR, comFuncao[comFuncao.length - 1]), 'utf-8');
 }
 
-/** Extrai a whitelist do `IF v_sort NOT IN (...)` da migration vigente. */
+/**
+ * Corpo de UMA função dentro do arquivo de migration.
+ *
+ * Uma migration pode recriar várias funções de uma vez — a de 06/08 que tirou o
+ * guard de feature recria as onze RPCs `get_gestor_*` no mesmo arquivo. Sem
+ * recortar por função, um `match` de `v_sort NOT IN (...)` pega a primeira
+ * ocorrência do arquivo, que é a whitelist de `get_gestor_alunos`
+ * ('nome','semestre',...), e o teste passa a validar o contrato errado.
+ */
+function corpoDaFuncao(sql: string, nome: string): string {
+  const inicio = sql.indexOf(`CREATE OR REPLACE FUNCTION public.${nome}`);
+  expect(inicio, `função ${nome} não encontrada na migration`).toBeGreaterThanOrEqual(0);
+  const proxima = sql.indexOf('CREATE OR REPLACE FUNCTION', inicio + 1);
+  return sql.slice(inicio, proxima === -1 ? undefined : proxima);
+}
+
+/** Extrai a whitelist do `IF v_sort NOT IN (...)` de `get_gestor_questoes`. */
 function whitelistDoSql(sql: string): string[] {
-  const m = sql.match(/v_sort\s+NOT\s+IN\s*\(([^)]*)\)/i);
-  expect(m, 'não achei a whitelist de v_sort na migration').not.toBeNull();
+  const corpo = corpoDaFuncao(sql, 'get_gestor_questoes');
+  const m = corpo.match(/v_sort\s+NOT\s+IN\s*\(([^)]*)\)/i);
+  expect(m, 'não achei a whitelist de v_sort em get_gestor_questoes').not.toBeNull();
   return [...m![1].matchAll(/'([^']+)'/g)].map((x) => x[1]);
 }
 
@@ -71,7 +88,11 @@ describe('contrato de ordenação do Detalhamento das Questões', () => {
 
   it('"Mais erradas" pede o acerto ascendente — a questão mais errada primeiro', () => {
     expect(sortQuestoesParaRpc('mais_erradas')).toBe('acerto');
-    expect(sql).toMatch(/v_sort\s*=\s*'acerto'\s*THEN\s*f\.acerto_pct\s*END\s*ASC/i);
+    // Escopado à função, pelo mesmo motivo da whitelist: o arquivo tem outras
+    // RPCs com o próprio `ORDER BY` sobre `v_sort`.
+    expect(corpoDaFuncao(sql, 'get_gestor_questoes')).toMatch(
+      /v_sort\s*=\s*'acerto'\s*THEN\s*f\.acerto_pct\s*END\s*ASC/i,
+    );
   });
 
   it('valor desconhecido degrada para o padrão em vez de estourar a RPC', () => {

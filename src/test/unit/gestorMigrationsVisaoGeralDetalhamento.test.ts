@@ -233,9 +233,8 @@ describe('migration get_gestor_visao_geral (2ª rodada — achado 15/119, gaps 1
     expect(code).not.toMatch(/'critica',\s*COALESCE\(\(100\.0 \* t\.acertos \/ NULLIF\(t\.total,0\)\) < 30, false\)/);
   });
 
-  it('preserva os achados 2, 5, 8 e 9 da rodada anterior (guard de feature, KPI vinculado ao contrato, n_prof distinto, lowSample no ponto atual)', () => {
+  it('preserva os achados 5, 8 e 9 da rodada anterior nesta migration (KPI vinculado ao contrato, n_prof distinto, lowSample no ponto atual) — o guard de feature do achado 2 foi removido depois, ver describe no fim do arquivo', () => {
     const code = codeOnly(sql());
-    expect(code).toMatch(/user_has_feature_for_ies\(\s*'gestao\.portal_v2'\s*,\s*v_ies\s*\)/);
     expect(code).toMatch(/kpi_slots AS \(/);
     expect(code).toMatch(/JOIN kpi_contrato kc ON kc\.contrato_id = sp\.contrato_id/);
     expect(code).toMatch(
@@ -278,5 +277,25 @@ describe('coerência entre get_gestor_detalhamento e get_gestor_questoes (achado
     expect(b).toContain('data_liberacao IS NULL OR sa.data_liberacao <= now()');
     expect(a).toContain('data_encerramento IS NULL OR sa.data_encerramento >= now()');
     expect(b).toContain('data_encerramento IS NULL OR sa.data_encerramento >= now()');
+  });
+});
+
+describe('migrations get_gestor_visao_geral / get_gestor_detalhamento — guard de feature removido (GA total, decisão do Felipe em 06/08)', () => {
+  const GUARD_REMOVAL_FILE = '20260806144647_gestor_remove_guard_portal_v2_ga_total.sql';
+
+  it('get_gestor_visao_geral na migration mais recente não checa mais gestao.portal_v2 — a v2 vale para todo gestor, sem gate no banco', () => {
+    const body = readMigration(GUARD_REMOVAL_FILE);
+    const inicio = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_visao_geral');
+    const fim = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_diagnostico');
+    const corpo = body.slice(inicio, fim);
+    expect(corpo).not.toMatch(/user_has_feature/);
+  });
+
+  it('get_gestor_detalhamento na migration mais recente não checa mais gestao.portal_v2 — a v2 vale para todo gestor, sem gate no banco', () => {
+    const body = readMigration(GUARD_REMOVAL_FILE);
+    const inicio = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_detalhamento');
+    const fim = body.indexOf('CREATE OR REPLACE FUNCTION public.get_gestor_questoes');
+    const corpo = body.slice(inicio, fim);
+    expect(corpo).not.toMatch(/user_has_feature/);
   });
 });

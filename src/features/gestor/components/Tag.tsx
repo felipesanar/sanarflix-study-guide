@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/features/gestor/components/Icon';
-import { ROTULO_NIVEL } from '@/features/gestor/components/ChipNivel';
+import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 import type { NivelDesempenho } from '@/features/gestor/api/types';
 
 /**

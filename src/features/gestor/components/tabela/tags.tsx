@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Icon } from '@/features/gestor/components/Icon';
 import { Tag } from '@/features/gestor/components/Tag';
-import { rotuloGrupo, rotuloSituacao } from '@/features/gestor/lib/formatters';
+import { ROTULO_TENDENCIA, rotuloGrupo, rotuloSituacao } from '@/features/gestor/lib/rotulos';
 import type { AlunoNoSimulado, GrupoEvolucao, Tendencia } from '@/features/gestor/api/types';
 
 /**
@@ -66,14 +66,6 @@ export function TagGrupo({ grupo }: { grupo: GrupoEvolucao }) {
     </Tag>
   );
 }
-
-/** Rótulo pt-BR da tendência (handoff §4.11). */
-export const ROTULO_TENDENCIA: Record<Tendencia, string> = {
-  subindo: 'Subindo',
-  descendo: 'Descendo',
-  alternando: 'Alternando',
-  estavel: 'Estável',
-};
 
 /**
  * Tendência entre simulados.

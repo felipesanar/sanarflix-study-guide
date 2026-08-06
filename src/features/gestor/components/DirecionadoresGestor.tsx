@@ -5,7 +5,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Icon } from '@/features/gestor/components/Icon';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
+import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
+
+/**
+ * Os dois rótulos vêm da nav, não de string literal aqui: o direcionador e o
+ * item da sidebar apontam para a mesma tela e precisam dizer o mesmo nome. Foi
+ * assim que "Detalhamento por simulados" e "Detalhamento por Simulados"
+ * conviveram divergindo em silêncio.
+ */
+const tituloDaRota = (url: string) => GESTOR_V2_NAV.find((item) => item.url === url)!.title;
+
+const ROTULO_VISAO_GERAL = tituloDaRota('/gestor/visao-geral');
+const ROTULO_DETALHAMENTO = tituloDaRota('/gestor/detalhamento');
 
 export interface DirecionadoresGestorProps {
   iesId: string;
@@ -108,7 +120,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           <TileIcone icone="equalizer" tom="marca" />
           <span className="min-w-0 flex-1">
             <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
-              Visão Geral
+              {ROTULO_VISAO_GERAL}
             </span>
             <span
               className="block"
@@ -129,7 +141,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
           <TileIcone icone="insights" tom="neutro" />
           <span className="min-w-0 flex-1">
             <span className="block" style={{ fontSize: 16, fontWeight: 700, color: 'var(--gp-text-1)' }}>
-              Detalhamento por Simulados
+              {ROTULO_DETALHAMENTO}
             </span>
             <span
               className="block"
