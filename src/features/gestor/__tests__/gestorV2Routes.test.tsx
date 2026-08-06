@@ -1,320 +1,116 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import * as React from 'react';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route, useLocation, type RouteObject } from 'react-router-dom';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { Navigate, type RouteObject } from 'react-router-dom';
+import { ExperienceGuard } from '@/experiences/shared/ExperienceGuard';
+import { GestorShell } from '@/features/gestor/shell/GestorShell';
+import { gestorV2Routes } from '@/features/gestor/gestorV2Routes';
 
-// O setup global troca useLocation por () => ({ pathname: '/' }); aqui
-// precisamos do router real (medido: sem esta linha o pathname vira '/').
-vi.mock('react-router-dom', async () => await vi.importActual('react-router-dom'));
+/**
+ * Task 64 (cleanup, escopo definido pelo Felipe em 05/08): no merge, TODOS os
+ * gestores de TODAS as IES passam a receber o portal novo — sem piloto, sem
+ * GA por lotes. Isso elimina a própria razão de existir do gate por feature
+ * (`gestao.portal_v2`).
+ *
+ * O que esta suíte testava antes (e não existe mais, por não ter mais
+ * comportamento correspondente no produto):
+ *  - `GestorPortalShell` escolhendo entre `GestorShell` (v2) e
+ *    `GestorLayoutLegado` (= `GestorLayout`) pela flag — só havia UM shell
+ *    daqui pra frente, então não há mais escolha a testar.
+ *  - `PortalV2Gate`/`LegacyGestorGate` alternando as 3 rotas novas e as 5
+ *    telas antigas conforme a flag — a experiência legada inteira
+ *    (`src/experiences/gestor/**`) foi apagada (Task 64), não há mais um
+ *    "outro lado" para o gate escolher.
+ *  - A válvula de escape do admin (`?legado=1`, card 108) — existia só para
+ *    o admin conseguir verificar a experiência legada sem editar
+ *    `ies_features`; sem experiência legada, não há o que escapar para.
+ *  - Preservação da query string no redirect dos gates (card 120) — não há
+ *    mais redirect nenhum entre as rotas do portal (só os 2 compat estáticos
+ *    de Desempenho Institucional, que nunca carregaram a query string).
+ *
+ * A chave `gestao.portal_v2` continua existindo em `ies_features` no banco
+ * (dado morto agora — limpeza é outra tarefa, fora do escopo de frontend).
+ *
+ * O que continua valendo e é testado abaixo: `/gestor` monta o portal novo
+ * direto, protegido SÓ pelo `ExperienceGuard` (separa a experiência de
+ * gestão de aluno/admin/CX — nunca decidiu entre versões do portal, isso
+ * era papel do gate que foi removido). Ver também
+ * `src/test/components/ExperienceGuard.test.tsx` para o comportamento do
+ * guard em si, e `src/test/unit/buildAppRoutes.test.ts` para a árvore
+ * completa por perfil de usuário.
+ */
 
-// Os dois shells são stubados: esta suíte verifica QUAL shell a flag escolhe,
-// não o conteúdo de cada um (e evita arrastar o módulo de analytics legado).
-vi.mock('@/features/gestor/shell/GestorShell', () => ({
-  GestorShell: () => <div>shell v2</div>,
-}));
-vi.mock('@/experiences/gestor/GestorLayout', () => ({
-  GestorLayout: () => <div>layout legado</div>,
-}));
-// GestorIndexSwitch delega pro GestorIndexRedirect existente quando o portal
-// v2 está efetivamente desligado (flag off OU escape de admin do card 108).
-// Stub SÓ o redirect (mock parcial — `GestorFeatureGate` continua real, pois
-// `gestorRoutes()` usa ele nas 5 telas legadas): esta suíte testa SÓ a decisão
-// de ramo, não o comportamento interno do redirect (que tem suíte própria em
-// gestorFeatureGate.test.tsx).
-vi.mock('@/experiences/gestor/GestorFeatureGate', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/experiences/gestor/GestorFeatureGate')>();
-  return {
-    ...original,
-    GestorIndexRedirect: () => <div>index redirect legado</div>,
-  };
-});
+const REPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
 
-const mockUseEffectiveFeatures = vi.fn();
-vi.mock('@/hooks/useEffectiveFeatures', () => ({
-  useEffectiveFeatures: () => mockUseEffectiveFeatures(),
-}));
+const filhasDeGestor = (): RouteObject[] =>
+  gestorV2Routes().find((rota) => rota.path === '/gestor')?.children ?? [];
 
-// A válvula de escape do card 108 lê a role no AuthContext — precisa de mock
-// próprio (padrão espelhado de src/test/unit/gestorFeatureGate.test.tsx).
-const mockUseAuth = vi.fn();
-vi.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => mockUseAuth(),
-}));
+describe('gestorV2Routes — GA total, sem gate por feature (Task 64)', () => {
+  it('/gestor é protegido só pelo ExperienceGuard("gestao") envolvendo o GestorShell — nenhum gate por feature por cima', () => {
+    const rotaGestor = gestorV2Routes().find((r) => r.path === '/gestor');
+    expect(rotaGestor).toBeDefined();
 
-import {
-  gestorV2Routes,
-} from '@/features/gestor/gestorV2Routes';
-import {
-  GestorPortalShell,
-  GestorIndexSwitch,
-  PortalV2Gate,
-  LegacyGestorGate,
-  PORTAL_V2_FEATURE,
-} from '@/features/gestor/portalV2Gates';
-
-const comFlag = (ligada: boolean, loading = false) =>
-  mockUseEffectiveFeatures.mockReturnValue({
-    loading,
-    hasFeature: (key: string) => ligada && key === PORTAL_V2_FEATURE,
+    const el = rotaGestor!.element as React.ReactElement<{
+      experience?: string;
+      children?: React.ReactNode;
+    }>;
+    expect(el.type).toBe(ExperienceGuard);
+    expect(el.props.experience).toBe('gestao');
+    expect((el.props.children as React.ReactElement).type).toBe(GestorShell);
   });
 
-/** Papel do usuário autenticado (consumido só pela válvula de escape do card 108). */
-const comUsuario = (roles: string[]) => mockUseAuth.mockReturnValue({ user: { roles } });
+  /**
+   * As 5 URLs legadas continuam na árvore, mas como REDIRECT, não como tela:
+   * a experiência que as servia foi apagada, e deixá-las cair no 404 faria o
+   * gestor com link salvo descobrir a mudança batendo num erro exatamente no
+   * dia do merge (decisão do Felipe, 05/08).
+   */
+  const TELAS_DO_PORTAL = ['index', 'visao-geral', 'detalhamento'];
+  const URLS_LEGADAS = [
+    'visao-institucional',
+    'diagnostico-curricular',
+    'alunos',
+    'insights-pedagogicos',
+    'inteligencia-decisoria',
+  ];
 
-const pathsDosFilhos = (rotas: RouteObject[]): string[] =>
-  (rotas.find((r) => r.path === '/gestor')?.children ?? []).map((c) =>
-    c.index ? 'index' : (c.path ?? ''),
-  );
-
-/** Sonda de rota: expõe a query string efetivamente recebida em `/gestor`. */
-const SondaSearch: React.FC = () => {
-  const location = useLocation();
-  return <div data-testid="search-recebida">{location.search}</div>;
-};
-
-const renderizarGateComPath = (gate: React.ReactElement, path: string) =>
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/gestor/alvo" element={gate} />
-        <Route path="/gestor" element={<div>index gestor</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
-
-const renderizarGateComSonda = (gate: React.ReactElement, path: string) =>
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/gestor/alvo" element={gate} />
-        <Route path="/gestor" element={<SondaSearch />} />
-      </Routes>
-    </MemoryRouter>,
-  );
-
-describe('gestorV2Routes — forma da árvore', () => {
-  it('serve as 3 rotas novas e mantém as 5 legadas como filhas de /gestor', () => {
-    expect(pathsDosFilhos(gestorV2Routes())).toEqual([
-      'index',
-      'visao-geral',
-      'detalhamento',
-      'visao-institucional',
-      'diagnostico-curricular',
-      'alunos',
-      'insights-pedagogicos',
-      'inteligencia-decisoria',
-    ]);
+  it('serve as 3 telas do portal e mais nada além dos redirects de compatibilidade', () => {
+    const paths = filhasDeGestor().map((c) => (c.index ? 'index' : c.path));
+    expect(paths).toEqual([...TELAS_DO_PORTAL, ...URLS_LEGADAS]);
   });
 
-  it('preserva os redirects de compatibilidade do Desempenho Institucional', () => {
+  it('as 3 telas renderizam conteúdo real, sem gate e sem redirect (PortalV2Gate/LegacyGestorGate não existem mais)', () => {
+    const telas = filhasDeGestor().filter((c) => c.index || TELAS_DO_PORTAL.includes(c.path ?? ''));
+    expect(telas).toHaveLength(TELAS_DO_PORTAL.length);
+    for (const filha of telas) {
+      const tipo = (filha.element as React.ReactElement).type;
+      expect(tipo, `rota /gestor/${filha.path ?? '(index)'} deveria renderizar conteúdo real`).toBeDefined();
+      expect(tipo).not.toBe(Navigate);
+    }
+  });
+
+  it.each(URLS_LEGADAS)('a URL legada /gestor/%s desvia para o portal, nunca 404', (caminho) => {
+    const filha = filhasDeGestor().find((c) => c.path === caminho);
+    expect(filha, `/gestor/${caminho} sumiu da árvore`).toBeDefined();
+    const elemento = filha!.element as React.ReactElement<{ to?: string }>;
+    expect(elemento.type).toBe(Navigate);
+    expect(elemento.props.to).toBe('/gestor');
+  });
+
+  it('preserva os redirects de compatibilidade do Desempenho Institucional (pré-existentes ao gate, nada a ver com ele)', () => {
     const rotas = gestorV2Routes();
     const alvo = (path: string) =>
-      (rotas.find((r) => r.path === path)?.element as React.ReactElement<{ to?: string }>)
-        ?.props?.to;
+      (rotas.find((r) => r.path === path)?.element as React.ReactElement<{ to?: string }>)?.props
+        ?.to;
     expect(alvo('/desempenho-institucional')).toBe('/gestor');
     expect(alvo('/desempenho-institucional-v2')).toBe('/gestor');
   });
 
-  it('toda rota-filha não-index declara um gate (PortalV2Gate ou LegacyGestorGate)', () => {
-    const filhas = gestorV2Routes().find((r) => r.path === '/gestor')?.children ?? [];
-    for (const filha of filhas) {
-      if (filha.index) continue;
-      const tipo = (filha.element as React.ReactElement).type;
-      expect(
-        [PortalV2Gate, LegacyGestorGate].includes(tipo as never),
-        `rota /gestor/${filha.path} montada sem gate`,
-      ).toBe(true);
-    }
-  });
-});
-
-describe('GestorPortalShell — escolha do shell pela feature', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    comUsuario(['gestor']);
-  });
-
-  it('flag ligada → shell do portal v2', async () => {
-    comFlag(true);
-    render(
-      <MemoryRouter initialEntries={['/gestor']}>
-        <GestorPortalShell />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('shell v2')).toBeInTheDocument();
-    expect(screen.queryByText('layout legado')).not.toBeInTheDocument();
-  });
-
-  it('flag desligada → layout legado (comportamento atual, intacto)', async () => {
-    comFlag(false);
-    render(
-      <MemoryRouter initialEntries={['/gestor']}>
-        <GestorPortalShell />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('layout legado')).toBeInTheDocument();
-    expect(screen.queryByText('shell v2')).not.toBeInTheDocument();
-  });
-
-  it('features carregando → não decide nada ainda', () => {
-    comFlag(false, true);
-    const { container } = render(
-      <MemoryRouter initialEntries={['/gestor']}>
-        <GestorPortalShell />
-      </MemoryRouter>,
-    );
-    expect(container.textContent).toBe('');
-  });
-});
-
-describe('gates das rotas exclusivas', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    comUsuario(['gestor']);
-  });
-
-  const renderizarGate = (gate: React.ReactElement) =>
-    render(
-      <MemoryRouter initialEntries={['/gestor/alvo']}>
-        <Routes>
-          <Route path="/gestor/alvo" element={gate} />
-          <Route path="/gestor" element={<div>index gestor</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-  it('PortalV2Gate: flag ligada renderiza; desligada volta para /gestor', () => {
-    comFlag(true);
-    renderizarGate(<PortalV2Gate><div>tela nova</div></PortalV2Gate>);
-    expect(screen.getByText('tela nova')).toBeInTheDocument();
-
-    comFlag(false);
-    renderizarGate(<PortalV2Gate><div>tela nova 2</div></PortalV2Gate>);
-    expect(screen.queryByText('tela nova 2')).not.toBeInTheDocument();
-    expect(screen.getByText('index gestor')).toBeInTheDocument();
-  });
-
-  it('LegacyGestorGate: flag desligada renderiza a tela antiga; ligada volta para /gestor', () => {
-    comFlag(false);
-    renderizarGate(<LegacyGestorGate><div>tela antiga</div></LegacyGestorGate>);
-    expect(screen.getByText('tela antiga')).toBeInTheDocument();
-
-    comFlag(true);
-    renderizarGate(<LegacyGestorGate><div>tela antiga 2</div></LegacyGestorGate>);
-    expect(screen.queryByText('tela antiga 2')).not.toBeInTheDocument();
-    expect(screen.getByText('index gestor')).toBeInTheDocument();
-  });
-});
-
-describe('card 120 (achado 13, revisão 03/08) — redirect preserva a query string', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    comUsuario(['gestor']);
-  });
-
-  it('PortalV2Gate: flag desligada redireciona para /gestor SEM perder o recorte da URL', () => {
-    comFlag(false);
-    renderizarGateComSonda(
-      <PortalV2Gate><div>tela nova</div></PortalV2Gate>,
-      '/gestor/alvo?ies=X&semestre=3&simulados=a,b',
-    );
-    expect(screen.getByTestId('search-recebida').textContent).toBe(
-      '?ies=X&semestre=3&simulados=a,b',
-    );
-  });
-
-  it('LegacyGestorGate: flag ligada redireciona para /gestor SEM perder o recorte da URL', () => {
-    comFlag(true);
-    renderizarGateComSonda(
-      <LegacyGestorGate><div>tela antiga</div></LegacyGestorGate>,
-      '/gestor/alvo?ies=X&semestre=3&simulados=a,b',
-    );
-    expect(screen.getByTestId('search-recebida').textContent).toBe(
-      '?ies=X&semestre=3&simulados=a,b',
-    );
-  });
-});
-
-describe('card 108 (achado 24, revisão 03/08) — válvula de escape do admin para o legado', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('GestorPortalShell: admin com ?legado=1 vê o shell legado mesmo com a flag ligada', async () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    render(
-      <MemoryRouter initialEntries={['/gestor?legado=1']}>
-        <GestorPortalShell />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('layout legado')).toBeInTheDocument();
-    expect(screen.queryByText('shell v2')).not.toBeInTheDocument();
-  });
-
-  it('GestorPortalShell: admin SEM ?legado=1 continua no portal v2 (escape não é o padrão)', async () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    render(
-      <MemoryRouter initialEntries={['/gestor']}>
-        <GestorPortalShell />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('shell v2')).toBeInTheDocument();
-    expect(screen.queryByText('layout legado')).not.toBeInTheDocument();
-  });
-
-  it('LegacyGestorGate: admin com ?legado=1 alcança a tela legada mesmo com a flag ligada', () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    renderizarGateComPath(
-      <LegacyGestorGate><div>tela antiga</div></LegacyGestorGate>,
-      '/gestor/alvo?legado=1',
-    );
-    expect(screen.getByText('tela antiga')).toBeInTheDocument();
-  });
-
-  it('LegacyGestorGate: admin SEM ?legado=1 continua redirecionado (escape não é o padrão)', () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    renderizarGateComPath(
-      <LegacyGestorGate><div>tela antiga</div></LegacyGestorGate>,
-      '/gestor/alvo',
-    );
-    expect(screen.queryByText('tela antiga')).not.toBeInTheDocument();
-    expect(screen.getByText('index gestor')).toBeInTheDocument();
-  });
-
-  it('LegacyGestorGate: gestor comum com ?legado=1 NÃO ganha acesso — a válvula é só de admin', () => {
-    comFlag(true);
-    comUsuario(['gestor']);
-    renderizarGateComPath(
-      <LegacyGestorGate><div>tela antiga</div></LegacyGestorGate>,
-      '/gestor/alvo?legado=1',
-    );
-    expect(screen.queryByText('tela antiga')).not.toBeInTheDocument();
-    expect(screen.getByText('index gestor')).toBeInTheDocument();
-  });
-
-  it('PortalV2Gate: admin com ?legado=1 é negado nas rotas exclusivas do v2 (a troca é de experiência inteira)', () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    renderizarGateComPath(
-      <PortalV2Gate><div>tela nova</div></PortalV2Gate>,
-      '/gestor/alvo?legado=1',
-    );
-    expect(screen.queryByText('tela nova')).not.toBeInTheDocument();
-    expect(screen.getByText('index gestor')).toBeInTheDocument();
-  });
-
-  it('GestorIndexSwitch: admin com ?legado=1 no índice cai no GestorIndexRedirect (não no Início novo)', async () => {
-    comFlag(true);
-    comUsuario(['admin']);
-    render(
-      <MemoryRouter initialEntries={['/gestor/alvo?legado=1']}>
-        <Routes>
-          <Route path="/gestor/alvo" element={<GestorIndexSwitch />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('index redirect legado')).toBeInTheDocument();
+  it('regressão: o gate por feature e a experiência legada foram mesmo apagados, não só desligados', () => {
+    // Trava contra reintrodução acidental (merge malfeito, cherry-pick etc.)
+    // do mecanismo que esta própria tarefa removeu.
+    expect(existsSync(resolve(REPO_ROOT, 'src/features/gestor/portalV2Gates.tsx'))).toBe(false);
+    expect(existsSync(resolve(REPO_ROOT, 'src/experiences/gestor'))).toBe(false);
   });
 });

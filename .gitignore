@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 *.env
 *.csv
+
+# Handoff de design do gestor (export do Figma, 24/07) - fonte, nao artefato de build
+Nova Visão do Gestor SanarFlix.zip
