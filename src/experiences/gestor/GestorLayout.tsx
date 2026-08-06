@@ -47,7 +47,7 @@ const GestorLayoutContent: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
 
   const { hasFeature } = useEffectiveFeatures();
-  const navItems = filterGestorNav(GESTOR_NAV, access, hasFeature);
+  const navItems = filterGestorNav(GESTOR_NAV, access);
   const canExport = hasFeature('gestao.exportar');
   const canChat = hasFeature('gestao.ia');
   // Outros portais do usuário, exceto a Gestão (já estamos nela).
