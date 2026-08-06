@@ -5,8 +5,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
-import { useAluno } from '@/features/gestor/api/queries';
+import { useAluno, useAlunoContato } from '@/features/gestor/api/queries';
 import { TRACO, formatData, formatDelta, formatNumero, formatPct, rotuloSituacao } from '@/features/gestor/lib/formatters';
+import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 export interface DrawerAlunoProps {
   alunoId: string | null;
@@ -30,8 +31,10 @@ export interface DrawerAlunoProps {
  */
 export function DrawerAluno({ alunoId, nome, simulados, onFechar }: DrawerAlunoProps) {
   const consulta = useAluno(alunoId, simulados);
+  const contato = useAlunoContato(alunoId);
   const entradas = consulta.data ?? [];
   useDevolverFocoAoFechar(Boolean(alunoId));
+  const container = useGestorPortalContainer();
 
   if (!alunoId) return null;
 
@@ -44,7 +47,7 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar }: DrawerAlunoP
         if (!aberto) onFechar();
       }}
     >
-      <SheetContent side="right" className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md">
+      <SheetContent container={container} side="right" className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{nome}</SheetTitle>
           <SheetDescription>
@@ -54,6 +57,21 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar }: DrawerAlunoP
                 ? `${semestre}º semestre`
                 : TRACO}
           </SheetDescription>
+          {/*
+            Telefone do aluno (decisão de Felipe, 31/07/reafirmada 05/08):
+            dado de CONTATO, não métrica — por isso fica aqui, no cabeçalho,
+            nunca na grade Proficiência/Acertos/Posição/Variação abaixo.
+            Busca própria (`useAlunoContato`), independente de `consulta`:
+            carrega quando o drawer abre, para este aluno, nunca em lote.
+            Ausência (`telefone: null`) e erro caem no mesmo TRACO — nunca
+            zero, nunca string vazia, nunca um espaço em branco.
+          */}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Telefone: </span>
+            <span data-testid="drawer-telefone">
+              {contato.isLoading ? 'Carregando telefone' : (contato.data?.telefone ?? TRACO)}
+            </span>
+          </p>
         </SheetHeader>
 
         {consulta.isLoading ? (

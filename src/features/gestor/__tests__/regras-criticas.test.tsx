@@ -108,7 +108,6 @@ import { KpisDetalhamento } from '@/features/gestor/components/KpisDetalhamento'
 import { AcertoPorAreaESemestre, semestresEmEvidencia } from '@/features/gestor/components/AcertoPorAreaESemestre';
 import { DrawerTemas } from '@/features/gestor/components/DrawerTemas';
 import { DispersaoChart, medianaDeNotas, prepararPontos } from '@/features/gestor/charts/DispersaoChart';
-import { LegacyGestorGate, PORTAL_V2_FEATURE, PortalV2Gate } from '@/features/gestor/portalV2Gates';
 import type { RecorteCruzado } from '@/features/gestor/api/detalhamentoExtras';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +119,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useVisaoGeral: vi.fn(),
   useAlunos: vi.fn(),
   useAluno: vi.fn(),
+  useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
   useDiagnostico: vi.fn(),
   useDiagnosticoTemas: vi.fn(),
   useGestorContexto: vi.fn(),
@@ -622,73 +622,21 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
   });
 
   // ── Caso 16 ────────────────────────────────────────────────────────────
-  describe('caso 16 — IES sem gestao.portal_v2 continua nas 5 telas antigas (mecanismo real: PortalV2Gate/LegacyGestorGate)', () => {
-    it('feature desligada: LegacyGestorGate deixa passar a tela antiga', () => {
-      mockUseEffectiveFeatures.mockReturnValue({ hasFeature: () => false, loading: false });
-      rtlRender(
-        <MemoryRouter initialEntries={['/gestor/visao-institucional']}>
-          <Routes>
-            <Route path="/gestor" element={<p>index fallback</p>} />
-            <Route
-              path="/gestor/visao-institucional"
-              element={<LegacyGestorGate><p>tela antiga</p></LegacyGestorGate>}
-            />
-          </Routes>
-        </MemoryRouter>,
-      );
-      expect(screen.getByText('tela antiga')).toBeInTheDocument();
-    });
-
-    it('feature ligada: LegacyGestorGate NÃO deixa a tela antiga passar — volta para /gestor', () => {
-      mockUseEffectiveFeatures.mockReturnValue({
-        hasFeature: (k: string) => k === PORTAL_V2_FEATURE,
-        loading: false,
-      });
-      rtlRender(
-        <MemoryRouter initialEntries={['/gestor/visao-institucional']}>
-          <Routes>
-            <Route path="/gestor" element={<p>index fallback</p>} />
-            <Route
-              path="/gestor/visao-institucional"
-              element={<LegacyGestorGate><p>tela antiga</p></LegacyGestorGate>}
-            />
-          </Routes>
-        </MemoryRouter>,
-      );
-      expect(screen.queryByText('tela antiga')).not.toBeInTheDocument();
-      expect(screen.getByText('index fallback')).toBeInTheDocument();
-    });
-
-    it('feature desligada: PortalV2Gate NÃO deixa o portal novo passar — volta para /gestor', () => {
-      mockUseEffectiveFeatures.mockReturnValue({ hasFeature: () => false, loading: false });
-      rtlRender(
-        <MemoryRouter initialEntries={['/gestor/visao-geral']}>
-          <Routes>
-            <Route path="/gestor" element={<p>index fallback</p>} />
-            <Route path="/gestor/visao-geral" element={<PortalV2Gate><p>portal novo</p></PortalV2Gate>} />
-          </Routes>
-        </MemoryRouter>,
-      );
-      expect(screen.queryByText('portal novo')).not.toBeInTheDocument();
-      expect(screen.getByText('index fallback')).toBeInTheDocument();
-    });
-
-    it('feature ligada: PortalV2Gate deixa o portal novo passar', () => {
-      mockUseEffectiveFeatures.mockReturnValue({
-        hasFeature: (k: string) => k === PORTAL_V2_FEATURE,
-        loading: false,
-      });
-      rtlRender(
-        <MemoryRouter initialEntries={['/gestor/visao-geral']}>
-          <Routes>
-            <Route path="/gestor" element={<p>index fallback</p>} />
-            <Route path="/gestor/visao-geral" element={<PortalV2Gate><p>portal novo</p></PortalV2Gate>} />
-          </Routes>
-        </MemoryRouter>,
-      );
-      expect(screen.getByText('portal novo')).toBeInTheDocument();
-    });
-  });
+  // REMOVIDO na Task 64 (cleanup): o caso 16 original testava o mecanismo de
+  // rollback por IES — `PortalV2Gate`/`LegacyGestorGate` alternando entre o
+  // portal novo e as 5 telas antigas conforme a feature `gestao.portal_v2`.
+  // Esse mecanismo deixou de existir: o escopo novo definido pelo Felipe é
+  // GA total no merge (todos os gestores de todas as IES recebem o portal
+  // novo, sem piloto, sem GA por lotes) — não há mais dois caminhos para
+  // alternar. `PortalV2Gate`, `LegacyGestorGate` e a experiência legada
+  // inteira (`src/experiences/gestor/**`) foram apagados; não há para onde
+  // "cair" mais. O único gate que resta em `/gestor` é o `ExperienceGuard`
+  // (separa gestão de aluno/admin/CX), coberto em
+  // `src/test/components/ExperienceGuard.test.tsx` e na forma da árvore
+  // testada em `gestorV2Routes.test.tsx`. Não há um "caso 16 novo" a escrever
+  // aqui: a regra "IES sem gestao.portal_v2 continua nas 5 telas antigas" não
+  // existe mais no produto, então não há comportamento para este caso
+  // afirmar.
 
   // ── Caso 17 ────────────────────────────────────────────────────────────
   describe('caso 17 — RPC chamada por gestor de outra IES → erro de permissão, sem revelar existência (§7.7)', () => {

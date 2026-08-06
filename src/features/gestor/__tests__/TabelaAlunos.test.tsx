@@ -12,7 +12,15 @@ import type { AlunoSimuladoEntry, FiltrosGestor, LinhaAluno, Meta } from '@/feat
 // para espiar `useQuery` sem perder o `@tanstack/react-query` de verdade.
 vi.mock('@/features/gestor/api/queries', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/features/gestor/api/queries')>();
-  return { ...real, useAlunos: vi.fn(), useAluno: vi.fn() };
+  // `useAlunoContato` precisa ser mockado mesmo não sendo assunto deste
+  // arquivo: o `DrawerAluno` que a tabela abre passou a buscar o telefone por
+  // conta própria (05/08), e o `...real` deixaria a busca de verdade rodar.
+  return {
+    ...real,
+    useAlunos: vi.fn(),
+    useAluno: vi.fn(),
+    useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
+  };
 });
 
 const mockUseAlunos = vi.mocked(useAlunos);

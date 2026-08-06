@@ -70,6 +70,7 @@ vi.mock('@/features/gestor/api/queries', () => ({
   useDiagnosticoTemas: vi.fn(),
   useAlunos: vi.fn(),
   useAluno: vi.fn(),
+  useAlunoContato: vi.fn(() => ({ data: undefined, meta: null, isLoading: false, isError: false, refetch: () => {} })),
   useDetalhamento: vi.fn(),
   useQuestoes: vi.fn(),
 }));

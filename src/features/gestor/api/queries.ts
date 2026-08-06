@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 import type {
+  AlunoContato,
   AlunoSimuladoEntry,
   Aviso,
   ContextoGestor,
@@ -157,17 +158,73 @@ export function useAvisos(iesId: string | null): ResultadoGestor<Aviso[]> {
 }
 
 /**
+ * Conta simulados "com dado" a partir de `evolucao` — a MESMA fonte que
+ * alimenta o gráfico protagonista no modo 'geral' (`GraficoProtagonista` →
+ * `EvolucaoChart`, que recebe `visao.evolucao` direto, sem transformação no
+ * meio). Definição escolhida (Felipe, 05/08, achado FAI): simulado com NOTA
+ * de proficiência calculada — `ponto.valor !== null` —, porque é exatamente
+ * essa condição que decide se o simulado ganha um ponto real no gráfico
+ * (`EvolucaoChart` usa `connectNulls={false}`: um `valor: null` é um buraco
+ * na série, nunca uma medição). Contar qualquer participação (>=1 resposta,
+ * mesmo sem TRI processada ainda) contaria como "realizado" um simulado que o
+ * gráfico não desenha como medição — reabriria a mesma classe de
+ * discordância que este fix fecha, só que ao contrário.
+ *
+ * Consumida por `useVisaoGeral` para substituir, no numerador exibido pelo
+ * KPI "Simulados realizados" (`KpisVisaoGeral.tsx`), o que o servidor
+ * calcula em `kpis.simulados.realizados`: slots do CONTRATO vigente com
+ * simulado vinculado (migration
+ * `20260804174000_get_gestor_visao_geral_multicontrato_dedup_nivel.sql`).
+ * Esse número do servidor é `0` sempre que a IES não tem
+ * `ies_simulado_previsto` vinculado — achado de 05/08, IES FAI: o KPI
+ * mostrava "0 de —" na mesma tela em que o gráfico "Evolução institucional"
+ * logo abaixo plotava 3 simulados com nota real. `contratados` continua
+ * vindo do servidor tal qual (`null` sem contrato, nunca `0` — spec §4.10);
+ * só o NUMERADOR muda de fonte.
+ */
+export function contarSimuladosComNotaReal(evolucao: VisaoGeral['evolucao']): number {
+  return evolucao.filter((ponto) => ponto.valor !== null).length;
+}
+
+/**
  * Visão Geral inteira em um round-trip: 4 KPIs + as 3 séries do gráfico
  * protagonista + resumo do diagnóstico + distribuição + dispersão (spec §4.8).
  * Trocar o modo do gráfico NÃO refaz requisição (caso de teste 15).
+ *
+ * `kpis.simulados.realizados` é RECALCULADO aqui a partir de `evolucao` (ver
+ * `contarSimuladosComNotaReal` acima) — nunca o valor cru que a RPC devolve
+ * nesse campo. Único ponto de tradução desta query, mesmo padrão de
+ * `normalizarLinhaAluno`/`useAlunos` abaixo: dado de servidor corrigido aqui,
+ * antes de qualquer componente ler `visao.kpis` (`KpisVisaoGeral` só formata
+ * e ordena — spec do próprio arquivo). A guarda `Array.isArray(visao.evolucao)`
+ * também protege o teste de placeholderData de `queries.test.tsx` ("mantém o
+ * dado anterior..."), que usa de propósito payloads fora da forma de
+ * `VisaoGeral` (ex.: `{ kpis: 'primeiro' }`) para isolar o comportamento de
+ * cache — sem `evolucao` como array, esta função devolve o dado tal como
+ * chegou, sem tocar nele.
  */
 export function useVisaoGeral(filtros: FiltrosGestor): ResultadoGestor<VisaoGeral> {
-  return useEnvelope<VisaoGeral>(
+  const resultado = useEnvelope<VisaoGeral>(
     ['gestor', 'visao-geral', filtros.iesId, filtros.semestre],
     'get_gestor_visao_geral',
     { p_ies_id: filtros.iesId, p_semestre: filtros.semestre },
     filtros.iesId !== null,
   );
+
+  const visao = resultado.data;
+  return {
+    ...resultado,
+    data:
+      visao && Array.isArray(visao.evolucao)
+        ? {
+            ...visao,
+            kpis: {
+              ...visao.kpis,
+              simulados: { ...visao.kpis.simulados, realizados: contarSimuladosComNotaReal(visao.evolucao) },
+            },
+          }
+        : visao,
+  };
 }
 
 /** Um nível da cascata do Diagnóstico Curricular, lazy por nó (spec §4.8). */
@@ -353,6 +410,67 @@ export function useAluno(
     iesId !== null && alunoId !== null,
     false,
   );
+}
+
+/**
+ * Contato do aluno (telefone) para o cabeçalho do `DrawerAluno` — decisão de
+ * Felipe (31/07, reafirmada em 05/08 ao herdar o dado do
+ * `StudentAnalyticsDrawer` extinto junto do console antigo): qualquer gestor
+ * com acesso ao aluno pode ver o telefone, sem flag de permissão extra.
+ *
+ * Deliberadamente UM aluno por chamada — nunca embutido em `get_gestor_alunos`
+ * (RPC de turma, paginada): somar telefone lá devolveria o telefone de TODOS
+ * os alunos do recorte a cada carregamento da tabela. O `DrawerAluno` chama
+ * isto só quando abre (`enabled: alunoId !== null` abaixo), nunca em lote e
+ * nunca junto da tabela.
+ *
+ * NÃO usa `useEnvelope`/`chamarRpcGestor`: ao contrário de todo outro
+ * `get_gestor_*`, `get_gestor_aluno_contato` não devolve o envelope
+ * `{ data, meta }` — devolve `{ id, telefone }` direto (ver `AlunoContato` em
+ * `api/types.ts` para a migration exata). Passar por `useEnvelope` aqui leria
+ * `.data`/`.meta` de um objeto que não os tem e devolveria `undefined` mesmo
+ * numa resposta de sucesso — por isso a query é montada à mão, no mesmo
+ * formato de `ResultadoGestor<T>` que todo consumidor do portal já espera.
+ * `meta` sai sempre `undefined`: telefone é dado de cadastro cru, não
+ * indicador calculado — não há "fonte/critério" de rastreabilidade (spec
+ * §4.1) para expor.
+ *
+ * Sem `placeholderData` — equivalente ao `manterDadoAnterior = false` dos
+ * outros hooks de objeto único (`useAluno`/`useDiagnosticoTemas` acima):
+ * `alunoId` IDENTIFICA o aluno exibido, então trocar de aluno nunca deve
+ * mostrar o telefone do ANTERIOR sob o nome do novo enquanto a busca nova
+ * está em voo.
+ */
+export function useAlunoContato(alunoId: string | null): ResultadoGestor<AlunoContato> {
+  const { user } = useAuth();
+  const query = useQuery({
+    queryKey: ['gestor', user?.id, 'aluno-contato', alunoId],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as (
+        fn: string,
+        args?: ArgsRpc,
+      ) => PromiseLike<{ data: unknown; error: { message: string } | null }>)('get_gestor_aluno_contato', {
+        p_aluno_id: alunoId,
+      });
+      if (error) throw new Error(`get_gestor_aluno_contato: ${error.message}`);
+      if (data == null) throw new Error('get_gestor_aluno_contato: resposta vazia');
+      return data as AlunoContato;
+    },
+    staleTime: GESTOR_STALE_TIME,
+    enabled: alunoId !== null,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
+  return {
+    data: query.data,
+    meta: undefined,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isPlaceholderData: query.isPlaceholderData,
+    isFetching: query.isFetching,
+    refetch: () => void query.refetch(),
+  };
 }
 
 /** Detalhamento por simulados — nunca "todos": exige seleção explícita (spec §4.7). */

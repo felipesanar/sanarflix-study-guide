@@ -114,9 +114,21 @@ export interface VisaoGeral {
     proficientesPct: Kpi;
     acertoPct: Kpi;
     /**
+     * `realizados` é RECALCULADO no cliente (`contarSimuladosComNotaReal`,
+     * `api/queries.ts`, dentro de `useVisaoGeral`) a partir de `evolucao`:
+     * conta pontos com `valor !== null`, a MESMA condição que decide se o
+     * simulado aparece com nota real no gráfico "Evolução institucional"
+     * (`EvolucaoChart`, que usa `connectNulls={false}`). NÃO é mais o valor
+     * cru que a RPC devolve neste campo (slots do contrato vigente com
+     * simulado vinculado) — aquele número zera sempre que a IES não tem
+     * `ies_simulado_previsto` vinculado, mesmo com simulados reais no
+     * gráfico (achado de 05/08, IES FAI: "0 de —" ao lado de 3 simulados com
+     * nota no gráfico, mesma tela).
+     *
      * `contratados` é `null` quando a IES não tem linha em
      * `ies_contrato_simulados` — nunca `0` (spec §4.10, "nunca zero onde não há
-     * dado"). O front renderiza TRACO nesse caso.
+     * dado"). O front renderiza TRACO nesse caso. Este campo CONTINUA vindo
+     * direto da RPC, sem recálculo — só `realizados` muda de fonte.
      */
     simulados: { realizados: number; contratados: number | null };
   };
@@ -304,6 +316,32 @@ export interface AlunoSimuladoEntry extends AlunoNoSimulado {
   simuladoId: string;
   simuladoNome: string;
   simuladoData: string;
+}
+
+/**
+ * Contato do aluno — `get_gestor_aluno_contato(p_aluno_id)`, já em produção
+ * desde 31/07. Decisão de Felipe: qualquer gestor com acesso ao aluno vê o
+ * telefone, sem flag de permissão extra — mesma régua que valia no
+ * `StudentAnalyticsDrawer` do console antigo, removido em 05/08 (este tipo
+ * existe para o dado não sumir de produção sem substituto, ver handoff).
+ *
+ * Ao contrário de TODO outro `get_gestor_*`, esta RPC NÃO devolve o envelope
+ * `{ data, meta }` — devolve `{ id, telefone }` direto (migration
+ * `20260804171500_get_gestor_aluno_contato_gestor_pode_acessar_ies.sql`:
+ * `RETURN jsonb_build_object('id', p_aluno_id, 'telefone', v_telefone)`, sem
+ * chave `data`/`meta`). Faz sentido: telefone é dado de cadastro cru, não um
+ * indicador calculado — não há "fonte/critério" de rastreabilidade (spec
+ * §4.1) para expor. Por isso `useAlunoContato` (`api/queries.ts`) não passa
+ * por `useEnvelope`/`chamarRpcGestor`: usá-los aqui leria `.data`/`.meta` de
+ * um objeto que não os tem e devolveria `undefined` mesmo numa resposta de
+ * sucesso.
+ *
+ * `telefone: null` é o aluno sem telefone cadastrado (`public.users.telefone`
+ * é nullable) — nunca string vazia. Renderiza TRACO, nunca um espaço em branco.
+ */
+export interface AlunoContato {
+  id: string;
+  telefone: string | null;
 }
 
 export interface MetricasSimulado {

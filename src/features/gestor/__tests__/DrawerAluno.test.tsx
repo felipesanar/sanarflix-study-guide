@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DrawerAluno } from '@/features/gestor/components/DrawerAluno';
-import { useAluno } from '@/features/gestor/api/queries';
-import type { AlunoSimuladoEntry, Meta } from '@/features/gestor/api/types';
+import { useAluno, useAlunoContato } from '@/features/gestor/api/queries';
+import { TRACO } from '@/features/gestor/lib/formatters';
+import type { AlunoContato, AlunoSimuladoEntry, Meta } from '@/features/gestor/api/types';
 
-vi.mock('@/features/gestor/api/queries', () => ({ useAluno: vi.fn() }));
+vi.mock('@/features/gestor/api/queries', () => ({ useAluno: vi.fn(), useAlunoContato: vi.fn() }));
 
 const mockUseAluno = vi.mocked(useAluno);
+const mockUseAlunoContato = vi.mocked(useAlunoContato);
 
 const META: Meta = {
   periodo: '2026',
@@ -73,14 +75,68 @@ function montar(props?: Partial<React.ComponentProps<typeof DrawerAluno>>) {
   return { ...utils, onFechar };
 }
 
+/** Telefone default para os testes que não são sobre telefone — número plausível, sem relevância própria. */
+const CONTATO_PADRAO: AlunoContato = { id: 'a1', telefone: '11988887777' };
+
 beforeEach(() => {
   mockUseAluno.mockReturnValue(resultado({ data: [ENTRADA_S1] }) as unknown as ReturnType<typeof useAluno>);
+  mockUseAlunoContato.mockReturnValue(
+    resultado({ data: CONTATO_PADRAO }) as unknown as ReturnType<typeof useAlunoContato>,
+  );
 });
 
 describe('DrawerAluno — fechado', () => {
   it('alunoId nulo não renderiza o dialog', () => {
     render(<DrawerAluno alunoId={null} nome="" simulados={[]} onFechar={vi.fn()} />);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Telefone do aluno (05/08). Ele shipou para produção em 31/07 pelo
+ * `StudentAnalyticsDrawer` do console antigo — decisão do Felipe: qualquer
+ * gestor pode ver, e o admin também. Com o console apagado, sumiria de
+ * produção; foi trazido para cá.
+ *
+ * A busca é própria (`useAlunoContato`), independente da de simulados: a RPC
+ * `get_gestor_aluno_contato` devolve UM aluno por chamada, deliberadamente —
+ * somar telefone a uma RPC de turma despejaria o telefone de todos os alunos
+ * a cada load.
+ */
+describe('DrawerAluno — telefone do aluno', () => {
+  it('com telefone cadastrado, mostra o número', () => {
+    montar();
+    expect(screen.getByTestId('drawer-telefone')).toHaveTextContent('11988887777');
+  });
+
+  it('sem telefone cadastrado, mostra TRAÇO — nunca vazio, nunca texto inventado', () => {
+    mockUseAlunoContato.mockReturnValue(
+      resultado({ data: { id: 'a1', telefone: null } }) as unknown as ReturnType<typeof useAlunoContato>,
+    );
+    montar();
+    const celula = screen.getByTestId('drawer-telefone');
+    expect(celula).toHaveTextContent(TRACO);
+    // Ausência não pode virar afirmação: nem dígito, nem "não informado".
+    expect(celula.textContent ?? '').not.toMatch(/\d/);
+    expect(celula.textContent ?? '').not.toMatch(/informad/i);
+  });
+
+  it('erro na busca do contato cai no mesmo TRAÇO e não derruba o resto do drawer', () => {
+    mockUseAlunoContato.mockReturnValue(
+      resultado({ data: undefined, isError: true }) as unknown as ReturnType<typeof useAlunoContato>,
+    );
+    montar();
+    expect(screen.getByTestId('drawer-telefone')).toHaveTextContent(TRACO);
+    // O drawer continua servindo o que ele sabe: a métrica do simulado.
+    expect(screen.getByText('Proficiência')).toBeInTheDocument();
+  });
+
+  it('enquanto carrega, não mostra número nem finge ausência', () => {
+    mockUseAlunoContato.mockReturnValue(
+      resultado({ data: undefined, isLoading: true }) as unknown as ReturnType<typeof useAlunoContato>,
+    );
+    montar();
+    expect(screen.getByTestId('drawer-telefone').textContent ?? '').not.toMatch(/\d/);
   });
 });
 
