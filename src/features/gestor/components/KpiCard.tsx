@@ -66,7 +66,17 @@ export function KpiCard({
   onTentarNovamente,
 }: KpiCardProps) {
   const mostrarRegua = estado === 'ok' && Array.isArray(serie) && serie.length >= 2;
-  const percentualTrilha = trilha && trilha.total > 0 ? Math.round((trilha.feitos / trilha.total) * 100) : 0;
+  /**
+   * Limitado a 100 desde 05/08, quando o numerador de "Simulados realizados"
+   * deixou de vir dos slots do contrato e passou a contar simulados com nota
+   * (ver `contarSimuladosComNotaReal` em `api/queries.ts`). Antes disso
+   * `feitos` nunca podia exceder `total` por construção; agora uma IES que
+   * aplicou mais simulados do que contratou faria `aria-valuenow` passar de
+   * `aria-valuemax`, e a barra vazaria do trilho. O número em texto continua
+   * mostrando a razão real — quem é limitado aqui é só a representação.
+   */
+  const percentualTrilha =
+    trilha && trilha.total > 0 ? Math.min(100, Math.round((trilha.feitos / trilha.total) * 100)) : 0;
 
   return (
     <Card data-testid="kpi-card" className="h-full">

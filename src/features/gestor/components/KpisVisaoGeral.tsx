@@ -20,6 +20,14 @@ export interface KpisVisaoGeralProps {
  *
  * Nenhum corte de nota vive aqui: os valores já vêm computados do servidor
  * (`Kpi.valor`/`Kpi.delta`/`Kpi.serie`), este componente só formata e ordena.
+ * ÚNICA exceção: `simulados.realizados` chega já RECALCULADO no cliente por
+ * `useVisaoGeral` (`api/queries.ts`, `contarSimuladosComNotaReal`) a partir
+ * de `evolucao` — nunca o valor cru que a RPC devolve nesse campo (slots do
+ * contrato vigente). Decisão de Felipe em 05/08 (achado FAI: KPI "0 de —" ao
+ * lado de 3 simulados com nota real no gráfico "Evolução institucional", na
+ * mesma tela): o numerador passa a contar simulados com nota, não slots de
+ * contrato — `contratados` (o denominador) continua vindo do servidor tal
+ * qual, `null` sem contrato.
  */
 export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }: KpisVisaoGeralProps) {
   const { simulados } = kpis;
@@ -31,6 +39,10 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
    * porém, exige `{ feitos: number; total: number }`: sem total conhecido não
    * há progresso para desenhar, então ela simplesmente não aparece — em vez
    * de inventar uma barra em 0%, que afirmaria "a IES contratou zero".
+   *
+   * `simulados.realizados` (o numerador, `feitos` aqui) já chega recalculado
+   * por `useVisaoGeral` a partir de `evolucao` — ver o comentário no topo
+   * deste arquivo e `contarSimuladosComNotaReal` em `api/queries.ts`.
    */
   const trilha = simulados.contratados !== null
     ? { feitos: simulados.realizados, total: simulados.contratados }
@@ -76,7 +88,7 @@ export function KpisVisaoGeral({ kpis, meta, estado = 'ok', onTentarNovamente }:
         titulo="Simulados realizados"
         valor={`${formatNumero(simulados.realizados)} de ${formatNumero(simulados.contratados)}`}
         meta={meta}
-        criterio="Slots do contrato com simulado já realizado"
+        criterio="Simulados com nota de proficiência (TRI) calculada no recorte atual — mesma base do gráfico de evolução. Contratados vêm do contrato vigente da IES."
         trilha={trilha}
         rodape={<Link to={{ pathname: '/gestor', search }}>Ver cronograma</Link>}
         estado={estado}

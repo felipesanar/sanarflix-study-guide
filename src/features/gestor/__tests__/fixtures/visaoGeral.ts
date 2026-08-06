@@ -158,7 +158,14 @@ export function visaoComCasosDificeis(): VisaoGeral {
           { rotulo: 'atual', valor: 62 },
         ],
       },
-      simulados: { realizados: 3, contratados: null },
+      // `realizados: 2`, não 3: desde a Task de 05/08 (KPI "simulados
+      // realizados" recalculado no cliente a partir de `evolucao`, ver
+      // `contarSimuladosComNotaReal` em `api/queries.ts`), o numerador conta
+      // só pontos com `valor !== null` — e `evolucao` abaixo tem exatamente 2
+      // (s1, s2; s3 tem `valor: null`). Deixar em 3 aqui reproduziria, DENTRO
+      // da própria fixture, o mesmo tipo de contradição KPI-vs-gráfico que a
+      // correção existe para eliminar.
+      simulados: { realizados: 2, contratados: null },
     },
     evolucao: [
       visaoGeralFake.evolucao[0],
