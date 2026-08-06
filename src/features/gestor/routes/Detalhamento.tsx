@@ -21,6 +21,7 @@ import { TabelaQuestoes, deveMostrarQuestoes, type OrdenacaoQuestoes } from '../
 import { useTelemetriaGestor } from '../lib/telemetria';
 import type { DetalhamentoComExtras, RecorteCruzado } from '../api/detalhamentoExtras';
 import type { FiltrosGestor, Meta } from '../api/types';
+import { useGestorPortalContainer } from '../shell/GestorShell';
 
 const META_VAZIA: Meta = {
   periodo: '—',
@@ -41,6 +42,7 @@ export default function Detalhamento() {
   const filtros = useFiltrosGestor();
   const contexto = useGestorContexto();
   const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight } = useTelemetriaGestor();
+  const portalContainer = useGestorPortalContainer();
 
   // Mesmo padrão de Inicio.tsx/VisaoGeral.tsx: a URL é hint de UI, a IES
   // autoritativa vem do servidor.
@@ -151,7 +153,7 @@ export default function Detalhamento() {
                 Ver cronograma
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-md">
+            <SheetContent container={portalContainer} side="right" className="w-full sm:max-w-md">
               <SheetHeader>
                 <SheetTitle>Cronograma de simulados</SheetTitle>
               </SheetHeader>

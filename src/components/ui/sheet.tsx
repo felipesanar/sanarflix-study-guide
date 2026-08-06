@@ -49,13 +49,24 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-  VariantProps<typeof sheetVariants> { }
+  VariantProps<typeof sheetVariants> {
+  /**
+   * Nó DOM onde o `Portal` do Radix deve montar o conteúdo (overlay + painel).
+   * Opcional e SEM MUDAR O PADRÃO: quem não passa nada (aluno, admin) cai
+   * exatamente onde caía antes — `container` `undefined` é o próprio padrão
+   * do Radix (`document.body`, ver `@radix-ui/react-portal`). Existe para o
+   * Portal do Gestor v2 ancorar Sheet dentro de `.gestor-portal`, para que
+   * `gestor-theme.css` (tokens `--gp-*` e `prefers-reduced-motion`) alcance
+   * o drawer — ver `useGestorPortalContainer` em `features/gestor/shell/GestorShell.tsx`.
+   */
+  container?: HTMLElement | null;
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
+>(({ side = "right", className, children, container, ...props }, ref) => (
+  <SheetPortal container={container}>
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}

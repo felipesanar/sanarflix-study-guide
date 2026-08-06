@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { FiltroSemestre as ValorSemestre } from '@/features/gestor/api/types';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
+import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 type IdOpcao = '6ano' | 'geral' | 'por-semestre';
 
@@ -43,6 +44,7 @@ const indiceDe = (valor: ValorSemestre): number =>
 export const FiltroSemestre: React.FC<{ disabled?: boolean }> = ({ disabled = false }) => {
   const { semestre, setSemestre } = useFiltrosGestor();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const container = useGestorPortalContainer();
 
   const indiceAtivo = indiceDe(semestre);
   const mostrarDropdown = indiceAtivo === 2;
@@ -125,7 +127,7 @@ export const FiltroSemestre: React.FC<{ disabled?: boolean }> = ({ disabled = fa
           <SelectTrigger aria-label="Semestre específico" className="h-8 w-[7.5rem] text-xs">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent container={container}>
             {SEMESTRES_NUMERICOS.map((numero) => (
               <SelectItem key={numero} value={numero}>
                 {`${numero}º`}

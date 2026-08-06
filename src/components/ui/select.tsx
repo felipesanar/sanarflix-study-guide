@@ -65,11 +65,25 @@ const SelectScrollDownButton = React.forwardRef<
 SelectScrollDownButton.displayName =
   SelectPrimitive.ScrollDownButton.displayName
 
+interface SelectContentProps
+  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content> {
+  /**
+   * Nó DOM onde o `Portal` do Radix deve montar o popper. Opcional e SEM
+   * MUDAR O PADRÃO: quem não passa nada (aluno, admin) cai exatamente onde
+   * caía antes — `container` `undefined` é o próprio padrão do Radix
+   * (`document.body`, ver `@radix-ui/react-portal`). Existe para o Portal do
+   * Gestor v2 ancorar Select dentro de `.gestor-portal`, para que
+   * `gestor-theme.css` (tokens `--gp-*` e `prefers-reduced-motion`) alcance
+   * o popper — ver `useGestorPortalContainer` em `features/gestor/shell/GestorShell.tsx`.
+   */
+  container?: HTMLElement | null;
+}
+
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
-  <SelectPrimitive.Portal>
+  SelectContentProps
+>(({ className, children, position = "popper", container, ...props }, ref) => (
+  <SelectPrimitive.Portal container={container}>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(

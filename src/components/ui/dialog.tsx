@@ -27,11 +27,25 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+interface DialogContentProps
+  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+  /**
+   * Nó DOM onde o `Portal` do Radix deve montar o conteúdo (overlay + painel).
+   * Opcional e SEM MUDAR O PADRÃO: quem não passa nada (aluno, admin) cai
+   * exatamente onde caía antes — `container` `undefined` é o próprio padrão
+   * do Radix (`document.body`, ver `@radix-ui/react-portal`). Existe para o
+   * Portal do Gestor v2 ancorar Dialog dentro de `.gestor-portal`, para que
+   * `gestor-theme.css` (tokens `--gp-*` e `prefers-reduced-motion`) alcance
+   * o conteúdo — ver `useGestorPortalContainer` em `features/gestor/shell/GestorShell.tsx`.
+   */
+  container?: HTMLElement | null;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
-  <DialogPortal>
+  DialogContentProps
+>(({ className, children, container, ...props }, ref) => (
+  <DialogPortal container={container}>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}

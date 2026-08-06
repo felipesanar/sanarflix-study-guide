@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
+import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 const Rotulo: React.FC = () => (
   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
@@ -27,6 +28,7 @@ const Rotulo: React.FC = () => (
 export const SidebarIes: React.FC = () => {
   const { data: contexto, isLoading } = useGestorContexto();
   const { iesId, setIesId } = useFiltrosGestor();
+  const container = useGestorPortalContainer();
 
   // `?ies=` só é aceito se apontar para uma IES que a pessoa de fato acessa.
   // Sem essa validação, um link colável para uma IES fora do escopo (ou um
@@ -97,7 +99,7 @@ export const SidebarIes: React.FC = () => {
         <SelectTrigger aria-label="Instituição em foco" className="h-9 w-full text-sm">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent container={container}>
           {contexto.iesDisponiveis.map((ies) => (
             <SelectItem key={ies.id} value={ies.id}>
               {ies.nome}

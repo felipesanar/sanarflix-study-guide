@@ -131,12 +131,14 @@
 /* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md
    princípio 6). Zera QUALQUER animação/transição CSS em todo descendente do
    portal: a transição de hover de `.gp-hover-surface` acima, o `animate-pulse`
-   (loop infinito) que `GestorSkeleton` aplica em todo carregamento, e as classes
+   (loop infinito) que `GestorSkeleton` aplica em todo carregamento, as classes
    `animate-in`/`animate-out`/`fade-in-0`/`zoom-in-95`/`slide-in-from-*` que o
    plugin tailwindcss-animate gera para `TooltipContent`
-   (`src/components/ui/tooltip.tsx`) — o único primitivo Radix usado no portal que
-   NÃO embrulha o conteúdo em `<Primitive.Portal>`, logo o único cujo nó fica DE
-   FATO dentro da subárvore `.gestor-portal` e é alcançável por um seletor daqui.
+   (`src/components/ui/tooltip.tsx`) — o único primitivo Radix do portal que
+   NUNCA embrulhou o conteúdo em `<Primitive.Portal>` — e, desde a Task 65
+   (ver parágrafo abaixo), também o conteúdo de Sheet/Dialog/Select: os quatro
+   primitivos Radix usados no portal ficam hoje DENTRO da subárvore
+   `.gestor-portal` e são alcançáveis por um seletor daqui.
 
    `0.01ms`, nunca `0s`: duração zero pode não disparar `transitionend`/
    `animationend` em alguns navegadores, e travar código que espera esse evento.
@@ -144,16 +146,24 @@
    sem `!important` qualquer classe utilitária de duração (ex.: `duration-500` do
    Tailwind, usada no Sheet) continuaria vencendo a cascata.
 
-   NÃO alcança — e não há como alcançar daqui — o conteúdo de Sheet/Drawer
-   (`DrawerAluno`, `DrawerTemas`, o Sheet de cronograma em `Detalhamento.tsx`),
-   Dialog (`Glossario`) nem Select (`SidebarIes`, `FiltroSemestre`): os quatro
-   embrulham o conteúdo em `<Primitive.Portal>`, que por padrão despacha para
-   `document.body` — FORA de qualquer subárvore com a classe `gestor-portal`.
-   Nenhum seletor CSS escopado neste arquivo alcança um nó fora dela. Corrigir
-   exigiria um `container` de Portal apontando pra dentro do shell (mexe em
-   `sheet.tsx`/`dialog.tsx`/`select.tsx`, compartilhados com aluno/admin) ou
-   tocar os componentes de drawer — por isso ficou em NAO_CORRIGIDOS no
-   relatório da Task 59b, não corrigido aqui.
+   Sheet/Drawer (`DrawerAluno`, `DrawerTemas`, o Sheet de cronograma em
+   `Detalhamento.tsx`), Dialog (`Glossario`) e Select (`SidebarIes`,
+   `FiltroSemestre`) embrulham o conteúdo em `<Primitive.Portal>`, que por
+   padrão despacha para `document.body` — FORA de qualquer subárvore com a
+   classe `gestor-portal`, e por isso ficaram fora do alcance de qualquer
+   seletor CSS escopado neste arquivo, registrados em NAO_CORRIGIDOS no
+   relatório da Task 59b. CORRIGIDO na Task 65 (decisão do Felipe, 05/08): a
+   correção não foi CSS, foi dar a esse Portal um `container` apontando para o
+   nó raiz do próprio shell — prop opcional acrescentada em
+   `sheet.tsx`/`dialog.tsx`/`select.tsx` (`useGestorPortalContainer`, exportado
+   de `shell/GestorShell.tsx`). `sheet.tsx`/`dialog.tsx`/`select.tsx` são
+   compartilhados com aluno/admin: os dois nunca passam essa prop e por isso
+   continuam caindo em `document.body`, sem nenhuma mudança de comportamento —
+   só os seis usos do gestor listados acima (Drawer×2, o Sheet de cronograma,
+   Glossario, SidebarIes, FiltroSemestre) passam `container` e montam dentro
+   de `.gestor-portal`. Prova por relação de DOM (`closest('.gestor-portal')`
+   a partir do nó aberto de verdade, não por presença da prop) em
+   `__tests__/portalContainer.test.tsx`.
 
    Sobre o Recharts, corrigindo o que este comentário dizia antes: os gráficos
    NÃO precisam ser alcançados. São três, não quatro — `DistribuicaoAlternativas`

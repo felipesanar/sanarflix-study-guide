@@ -7,6 +7,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { PROFICIENCIA_MINIMA } from '../lib/regras';
+import { useGestorPortalContainer } from '../shell/GestorShell';
 
 /**
  * Lista definitiva das escalas do portal — handoff docs/04-componentes.md §7.
@@ -44,6 +45,7 @@ export const ENTRADAS_GLOSSARIO: { termo: string; definicao: string }[] = [
 
 export function Glossario() {
   const [aberto, setAberto] = useState(false);
+  const container = useGestorPortalContainer();
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -56,7 +58,7 @@ export function Glossario() {
         </button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent container={container} className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Entenda as métricas</DialogTitle>
         </DialogHeader>

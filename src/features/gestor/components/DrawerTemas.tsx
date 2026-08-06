@@ -10,6 +10,7 @@ import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import type { FiltrosGestor } from '@/features/gestor/api/types';
+import { useGestorPortalContainer } from '@/features/gestor/shell/GestorShell';
 
 /**
  * Especialidade selecionada na cascata do Diagnóstico Curricular (Task 42),
@@ -64,6 +65,7 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
   const filtros: FiltrosGestor = { iesId: recorte.iesId, semestre: recorte.semestre, simulados: [] };
   const consulta = useDiagnosticoTemas(filtros, especialidade?.id ?? null, especialidade?.grandeArea ?? null);
   useDevolverFocoAoFechar(especialidade !== null);
+  const container = useGestorPortalContainer();
 
   if (!especialidade) return null;
 
@@ -87,7 +89,7 @@ export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecort
         if (!aberto) onFechar();
       }}
     >
-      <SheetContent side="right" className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md">
+      <SheetContent container={container} side="right" className="flex w-full flex-col gap-4 overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Temas de {especialidade.nome}</SheetTitle>
           <SheetDescription>
