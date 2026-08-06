@@ -382,3 +382,43 @@ describe('GestorShell (spec §8.3)', () => {
     });
   });
 });
+
+/**
+ * Os dois contêineres roláveis do shell precisam ser `position: relative`.
+ *
+ * Sem isso, todo descendente `position:absolute` resolve contra o VIEWPORT
+ * INICIAL em vez de contra o contêiner — e o `.sr-only` do Tailwind é
+ * justamente `position:absolute`. A posição estática dele fica onde ele aparece
+ * no fluxo, lá embaixo num conteúdo de 3400px, então o `<html>` crescia para
+ * 2486px num viewport de 891: o documento ganhava barra de rolagem PRÓPRIA
+ * além da do conteúdo (o "scroll duplo") e sobrava uma faixa vazia abaixo do
+ * app.
+ *
+ * Só aparecia no Detalhamento, porque é a tela cujo conteúdo passa da altura da
+ * janela por margem suficiente para o `sr-only` cair fora — o que fez o defeito
+ * parecer intermitente e específico de tela.
+ *
+ * jsdom não faz layout, então este teste guarda a CAUSA (a classe), não o
+ * efeito. A medição do efeito foi feita no navegador real:
+ * `documentElement.scrollHeight` caiu de 2486 para 891 ao aplicar `relative`.
+ */
+describe('GestorShell — contêineres roláveis ancoram os absolutos', () => {
+  it('o main e o aside são position:relative', () => {
+    const { container } = renderizar("/gestor");
+
+    const main = container.querySelector('main');
+    const aside = container.querySelector('aside');
+
+    expect(main?.className, 'sem `relative` o conteúdo rolável estica o documento').toContain('relative');
+    expect(aside?.className, 'a sidebar rola e tem a mesma armadilha').toContain('relative');
+  });
+
+  it('o shell usa h-dvh e trava o overscroll — nunca h-screen', () => {
+    const { container } = renderizar("/gestor");
+    const shell = container.querySelector('.gestor-portal');
+
+    expect(shell?.className).toContain('h-dvh');
+    expect(shell?.className).not.toContain('h-screen');
+    expect(shell?.className).toContain('overflow-hidden');
+  });
+});

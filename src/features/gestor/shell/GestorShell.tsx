@@ -142,7 +142,7 @@ export const GestorShell: React.FC = () => {
              era cortado em janela baixa — o rodapé com "Sair" ficava
              inalcançável. `min-h-0` porque um filho de flex não encolhe abaixo
              do conteúdo sem isso, e o `overflow` nunca chegaria a valer. */
-          className="flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r"
+          className="relative flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto overscroll-contain border-r"
           style={{
             background: 'var(--gp-surface-1)',
             borderColor: 'var(--gp-border-subtle)',
@@ -260,7 +260,22 @@ export const GestorShell: React.FC = () => {
           </div>
         </aside>
 
-        <main className="h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* `relative` não é decoração: é o que impede o conteúdo rolável de
+            esticar o DOCUMENTO.
+
+            Sem um ancestral posicionado, todo descendente `position:absolute`
+            resolve contra o viewport inicial, não contra este `main`. O
+            `.sr-only` do Tailwind é justamente `position:absolute`, e a posição
+            estática dele fica onde ele aparece no fluxo — lá embaixo, num
+            conteúdo de 3400px. Resultado: o `<html>` crescia para 2486px num
+            viewport de 891, o documento ganhava barra de rolagem própria e
+            sobrava uma faixa vazia (preta) abaixo do app. Só acontecia no
+            Detalhamento porque é a tela cujo conteúdo passa da altura da
+            janela por margem suficiente.
+
+            Medido no navegador: com `relative`, `documentElement.scrollHeight`
+            cai de 2486 para 891 — exatamente o viewport. */}
+        <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
             <Outlet />
           </Suspense>
