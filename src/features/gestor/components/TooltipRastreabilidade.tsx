@@ -103,7 +103,23 @@ export const TooltipRastreabilidade: React.FC<{
         </TooltipTrigger>
         <TooltipContent
           className="max-w-xs"
-          style={{ borderRadius: 'var(--gp-radius-md)', padding: 16 }}
+          style={{
+            borderRadius: 'var(--gp-radius-md)',
+            padding: 16,
+            /*
+             * Item A6 — superfície escura nos dois temas (referência
+             * LIGHT.html, bloco "Tooltip do 'i' · rastreabilidade"). O
+             * primitivo (`src/components/ui/tooltip.tsx`) traz
+             * `bg-popover text-popover-foreground border` por CLASSE
+             * utilitária, sem `!important`; `style` inline sempre vence
+             * classe utilitária na cascata (mesma origem, especificidade de
+             * atributo > classe), então background/color abaixo bastam para
+             * substituir o par claro/branco herdado.
+             */
+            background: 'var(--gp-tooltip-surface)',
+            color: 'var(--gp-tooltip-value)',
+            boxShadow: 'var(--gp-tooltip-shadow)',
+          }}
         >
           {titulo ? (
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>{titulo}</div>
@@ -112,17 +128,17 @@ export const TooltipRastreabilidade: React.FC<{
             className="grid grid-cols-[auto_1fr]"
             style={{ gap: '6px 14px', fontSize: 11, lineHeight: '16px' }}
           >
-            <dt className="font-medium text-muted-foreground">Período</dt>
+            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Período</dt>
             <dd>{meta.periodo}</dd>
-            <dt className="font-medium text-muted-foreground">Fonte</dt>
+            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Fonte</dt>
             <dd>{meta.fonte}</dd>
-            <dt className="font-medium text-muted-foreground">Atualizado em</dt>
+            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Atualizado em</dt>
             <dd>{formatDataHora(meta.atualizadoEm)}</dd>
-            <dt className="font-medium text-muted-foreground">Critério</dt>
+            <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Critério</dt>
             <dd>{criterio ?? meta.criterio}</dd>
             {cobertura ? (
               <>
-                <dt className="font-medium text-muted-foreground">Cobertura</dt>
+                <dt className="font-medium" style={{ color: 'var(--gp-tooltip-label)' }}>Cobertura</dt>
                 <dd data-testid="rastreabilidade-cobertura">{cobertura}</dd>
               </>
             ) : null}

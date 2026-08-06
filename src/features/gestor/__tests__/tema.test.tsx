@@ -200,9 +200,10 @@ describe('tema do portal do gestor — análise estática do CSS (§Tema escuro)
 //
 // Nota sobre jsdom e custom properties (testado empiricamente, não assumido):
 // `getComputedStyle(el).getPropertyValue('--gp-x')` FUNCIONA em jsdom para
-// tokens com valor LITERAL (ex.: `--gp-surface-3: hsl(220 14% 93%)`) — o
-// experimento abaixo mediu `hsl(220 14% 93%)` no claro e `hsl(220 13% 16%)`
-// no escuro, exatamente os valores do CSS. Mas jsdom NÃO substitui `var()`
+// tokens com valor LITERAL (ex.: `--gp-surface-3: hsl(210 10% 96.1%)`) — o
+// experimento abaixo mediu `hsl(210 10% 96.1%)` no claro e `hsl(197 9.1% 15.1%)`
+// no escuro, exatamente os valores do CSS (reconfirmado no passe do Lote A,
+// item A2 — os literais mudaram, mas o comportamento do jsdom não). Mas jsdom NÃO substitui `var()`
 // aninhado dentro do valor de uma custom property: para um token DERIVADO
 // como `--gp-bg-app: hsl(var(--background))`, `getPropertyValue` devolveu a
 // string CRUA `"hsl(var(--background))"` nos dois temas (idêntica), porque o
@@ -301,8 +302,8 @@ describe('classe gestor-portal e tokens --gp-* no GestorShell, claro e escuro', 
     const raizEscura = escuro.container.querySelector('.gestor-portal') as HTMLElement;
     const valorEscuro = getComputedStyle(raizEscura).getPropertyValue('--gp-surface-3').trim();
 
-    expect(valorClaro).toBe('hsl(220 14% 93%)');
-    expect(valorEscuro).toBe('hsl(220 13% 16%)');
+    expect(valorClaro).toBe('hsl(210 10% 96.1%)');
+    expect(valorEscuro).toBe('hsl(197 9.1% 15.1%)');
     expect(valorEscuro).not.toBe(valorClaro);
   });
 

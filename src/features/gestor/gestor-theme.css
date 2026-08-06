@@ -9,11 +9,17 @@
   /* Superfícies e linhas — mapeadas nas variáveis do repo */
   --gp-bg-app: hsl(var(--background));
   --gp-surface-1: hsl(var(--card));
-  --gp-surface-2: hsl(var(--muted));
-  --gp-surface-3: hsl(220 14% 93%);
+  /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
+     (#EBECF0) não batem com o handoff (#F9FAFB / #F4F5F6). Par escuro abaixo. */
+  --gp-surface-2: hsl(210 20% 98%);
+  --gp-surface-3: hsl(210 10% 96.1%);
   --gp-border-strong: hsl(var(--border));
   --gp-border-subtle: hsl(var(--border) / 0.5);
-  --gp-border-input: hsl(var(--input));
+  /* Item A1: literal próprio — hsl(var(--input)) resolve para o MESMO valor
+     de --border em src/index.css, então este token colapsava com
+     --gp-border-strong (mesmo cinza #E5E7EB); o handoff quer #C3C6C6. Par
+     escuro abaixo. */
+  --gp-border-input: hsl(180 2.6% 77.1%);
 
   /* Texto */
   --gp-text-1: hsl(var(--foreground));
@@ -25,8 +31,13 @@
   --gp-brand: hsl(var(--primary));
   --gp-brand-strong: hsl(var(--primary-dark, var(--primary)));
   --gp-brand-on-dark: hsl(var(--primary));   /* no claro, texto de marca = a própria marca */
-  --gp-brand-surface: hsl(var(--primary) / 0.08);
-  --gp-brand-border: hsl(var(--primary) / 0.24);
+  /* Item A4: literal opaco — alfa sobre --primary composto contra card branco
+     dava ≈#F6EEEE (o handoff pede #FCE3E3) e, por ser alfa, o tinte mudava de
+     cor conforme o fundo atrás. Par escuro abaixo. Não mexer em
+     --gp-brand-surface-soft (mais abaixo): continua alfa por decisão
+     separada, documentada onde é declarado. */
+  --gp-brand-surface: hsl(0 80.6% 93.9%);
+  --gp-brand-border: hsl(0 63.6% 87.1%);
   --gp-on-brand: hsl(var(--primary-foreground));
 
   /* Semânticos (único bloco literal — o repo não tem status tokens) */
@@ -91,21 +102,59 @@
      Faltava, e o estado "selecionado" das tabelas (§6: fundo brand-surface-soft
      + barra de 3px) não tinha token de origem. */
   --gp-brand-surface-soft: hsl(var(--primary) / 0.04);
+
+  /* Item A6: tooltip de rastreabilidade. Superfície escura NOS DOIS TEMAS por
+     decisão de design (referência LIGHT.html, bloco "Tooltip do 'i' ·
+     rastreabilidade") — o par em `.dark .gestor-portal` repete os MESMOS
+     quatro valores de propósito (não é descuido: o guard de
+     `tema.test.tsx:52-69` exige par escuro para todo literal declarado aqui). */
+  --gp-tooltip-surface: hsl(180 2.6% 7.6%);
+  --gp-tooltip-label: hsl(180 3% 67.3%);
+  --gp-tooltip-value: hsl(210 20% 98%);
+  --gp-tooltip-shadow: 0 12px 32px -12px hsl(180 2.9% 6.9% / 0.5);
 }
 
 /* Camada escura. `.dark` é a classe do next-themes (attribute="class") —
    NÃO usar [data-theme="dark"] do handoff: esse atributo não existe neste app. */
 .dark .gestor-portal {
-  --gp-surface-3: hsl(220 13% 16%);
+  /* Item A2: par escuro do degrau de superfície (handoff #1E2223 / #23282A). */
+  --gp-surface-2: hsl(192 7.7% 12.7%);
+  --gp-surface-3: hsl(197 9.1% 15.1%);
+
+  /* Item A1: par escuro de --gp-border-input (handoff #535959). */
+  --gp-border-input: hsl(180 3.5% 33.7%);
+
+  /* Item A5: par escuro de --gp-border-strong. No claro deriva de --border e
+     não precisa de literal próprio; no escuro, --border vale #1F2228 contra
+     o card #16181C (~1,2:1) — insuficiente para a linha que substitui a
+     sombra no tema escuro (ver cabeçalho do arquivo). */
+  --gp-border-strong: hsl(192 5.9% 16.7%);
+
+  /* Item A3: par escuro de --gp-brand-strong. No claro deriva de
+     --primary-dark (src/index.css só declara em :root, então hoje vale
+     #691616 nos dois temas); no escuro, iniciar o gradiente da linha de
+     evolução em L 25% sobre um card de L 10% apagava a ponta esquerda do
+     traço. */
+  --gp-brand-strong: hsl(0 75.5% 32%);
 
   /* Nunca #B81414 como texto sobre escuro (2,73:1 — reprova AA).
      Este token dá 7,08:1 sobre a superfície de card do escuro. */
   --gp-brand-on-dark: hsl(2 76% 72%);
-  --gp-brand-surface: hsl(var(--primary) / 0.16);
-  --gp-brand-border: hsl(var(--primary) / 0.38);
+  /* Item A4: literal opaco — par escuro (handoff #2C1517 / #5A2426). */
+  --gp-brand-surface: hsl(355 35.4% 12.7%);
+  --gp-brand-border: hsl(358 42.9% 24.7%);
   /* No escuro a seleção precisa de mais corpo que os 4% do claro: sobre uma
      superfície escura, um tinte tão baixo simplesmente não aparece. */
   --gp-brand-surface-soft: hsl(var(--primary) / 0.10);
+
+  /* Item A6: tooltip de rastreabilidade — MESMOS valores do claro, de
+     propósito (ver comentário no bloco `.gestor-portal`): é escuro nos dois
+     temas por decisão de design, e o guard de literal-sem-par exige a
+     repetição mesmo sem diferença visual. */
+  --gp-tooltip-surface: hsl(180 2.6% 7.6%);
+  --gp-tooltip-label: hsl(180 3% 67.3%);
+  --gp-tooltip-value: hsl(210 20% 98%);
+  --gp-tooltip-shadow: 0 12px 32px -12px hsl(180 2.9% 6.9% / 0.5);
 
   --gp-success: hsl(145 57% 47%);
   --gp-success-on: hsl(145 55% 61%);
