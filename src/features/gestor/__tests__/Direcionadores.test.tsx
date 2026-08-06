@@ -251,7 +251,7 @@ describe('DirecionadoresGestor (spec §2.1)', () => {
       '/gestor/detalhamento',
     );
     expect(screen.getByText('Visão Geral')).toBeInTheDocument();
-    expect(screen.getByText('Detalhamento por Simulados')).toBeInTheDocument();
+    expect(screen.getByText('Detalhamento por simulados')).toBeInTheDocument();
   });
 
   it('o card da Visão Geral navega para /gestor/visao-geral', async () => {

@@ -4,7 +4,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BarChart3, FileSearch } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchVisaoGeral } from '@/features/gestor/api/prefetch';
+import { GESTOR_V2_NAV } from '@/features/gestor/shell/SidebarNav';
 import type { FiltroSemestre } from '@/features/gestor/api/types';
+
+const ROTULO_VISAO_GERAL = GESTOR_V2_NAV.find((item) => item.url === '/gestor/visao-geral')!.title;
 
 export interface DirecionadoresGestorProps {
   iesId: string;
@@ -52,7 +55,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
         onFocus={aquecer}
       >
         <BarChart3 className="h-5 w-5 text-primary" aria-hidden="true" />
-        <span className="text-base font-semibold text-foreground">Visão Geral</span>
+        <span className="text-base font-semibold text-foreground">{ROTULO_VISAO_GERAL}</span>
         <span className="text-sm text-muted-foreground">
           Como estamos e onde dói — o panorama da instituição em um recorte só.
         </span>
@@ -68,7 +71,7 @@ export function DirecionadoresGestor({ iesId, semestre }: DirecionadoresGestorPr
         className={CARTAO}
       >
         <FileSearch className="h-5 w-5 text-primary" aria-hidden="true" />
-        <span className="text-base font-semibold text-foreground">Detalhamento por Simulados</span>
+        <span className="text-base font-semibold text-foreground">Detalhamento por simulados</span>
         <span className="text-sm text-muted-foreground">
           O que exatamente aconteceu num simulado — questão por questão, aluno por aluno.
         </span>

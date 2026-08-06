@@ -1,13 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
 import type { NivelDesempenho } from '@/features/gestor/api/types';
-
-/** Níveis de desempenho sobre % de acerto (spec §4.4). */
-export const ROTULO_NIVEL: Record<NivelDesempenho, string> = {
-  excelente: 'Excelente',
-  mediano: 'Mediano',
-  critico: 'Crítico',
-};
 
 /** Cor semântica por token do projeto — nenhum hex solto (spec §11). */
 const COR_NIVEL: Record<NivelDesempenho, string> = {

@@ -10,6 +10,7 @@ import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { useAlunos } from '@/features/gestor/api/queries';
 import { TRACO, formatNumero, rotuloGrupo } from '@/features/gestor/lib/formatters';
+import { ROTULO_TENDENCIA } from '@/features/gestor/lib/rotulos';
 import type { FiltrosGestor, Tendencia } from '@/features/gestor/api/types';
 
 export interface TabelaAlunosProps {
@@ -19,14 +20,6 @@ export interface TabelaAlunosProps {
 
 const TAMANHO_PAGINA = 25;
 const DEBOUNCE_BUSCA_MS = 300;
-
-/** Rótulo pt-BR da tendência (spec §4.11) — só usado nesta tabela. */
-const ROTULO_TENDENCIA: Record<Tendencia, string> = {
-  subindo: 'Subindo',
-  descendo: 'Descendo',
-  alternando: 'Alternando',
-  estavel: 'Estável',
-};
 
 function IconeTendencia({ tendencia }: { tendencia: Tendencia }) {
   if (tendencia === 'subindo') return <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />;

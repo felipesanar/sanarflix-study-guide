@@ -7,22 +7,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { formatDelta, formatNumero } from '../lib/formatters';
+import { rotuloSituacao } from '../lib/rotulos';
 import type { AlunoNoSimulado } from '../api/types';
 
 export type ColunaOrdenavel = 'semestre' | 'acertos' | 'proficiencia' | 'variacao';
 type Ordem = 'asc' | 'desc';
-
-/**
- * `aguardando_resultado` é o 4º estado real (achado 03/08, `api/types.ts`):
- * aluno participou mas a nota TRI ainda não subiu pelo pipeline. Distinto de
- * `nao_participou` — aqui `acertos` já existe, só `proficiencia` fica null.
- */
-const SITUACAO_ROTULO: Record<AlunoNoSimulado['situacao'], string> = {
-  proficiente: 'Proficiente',
-  abaixo_do_limiar: 'Abaixo do limiar',
-  aguardando_resultado: 'Aguardando resultado',
-  nao_participou: 'Não participou',
-};
 
 function valorDaColuna(aluno: AlunoNoSimulado, coluna: ColunaOrdenavel): number | null {
   if (coluna === 'semestre') return aluno.semestre;
@@ -172,7 +161,7 @@ export function TabelaAlunosSimulado({
                     {formatNumero(a.proficiencia)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={a.participou ? 'secondary' : 'outline'}>{SITUACAO_ROTULO[a.situacao]}</Badge>
+                    <Badge variant={a.participou ? 'secondary' : 'outline'}>{rotuloSituacao(a.situacao)}</Badge>
                   </TableCell>
                   {multiSimulado && (
                     <TableCell data-testid="celula-variacao" className="text-right tabular-nums">
