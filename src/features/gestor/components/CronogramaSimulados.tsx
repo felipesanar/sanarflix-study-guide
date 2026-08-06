@@ -94,7 +94,12 @@ function Moldura({ children }: { children: React.ReactNode }) {
   return (
     <Card data-testid="cronograma">
       <CardHeader>
-        <CardTitle className="text-base">Cronograma de Simulados</CardTitle>
+        {/* aria-level={2}: o CardTitle do shadcn renderiza <h3> e este card é
+            título de primeiro nível da rota, logo abaixo do h1 da saudação —
+            sem isso o axe acusa heading-order (§11). Corrigido por ARIA em vez
+            de mexer em components/ui/card.tsx, que é compartilhado com as
+            experiências de aluno e admin. */}
+        <CardTitle className="text-base" aria-level={2}>Cronograma de Simulados</CardTitle>
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>

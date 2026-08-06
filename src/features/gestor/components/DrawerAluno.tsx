@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
@@ -30,6 +31,7 @@ export interface DrawerAlunoProps {
 export function DrawerAluno({ alunoId, nome, simulados, onFechar }: DrawerAlunoProps) {
   const consulta = useAluno(alunoId, simulados);
   const entradas = consulta.data ?? [];
+  useDevolverFocoAoFechar(Boolean(alunoId));
 
   if (!alunoId) return null;
 

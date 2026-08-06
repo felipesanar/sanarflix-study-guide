@@ -8,6 +8,7 @@ import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { useDiagnosticoTemas } from '@/features/gestor/api/queries';
 import { formatPct } from '@/features/gestor/lib/formatters';
+import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import type { FiltrosGestor } from '@/features/gestor/api/types';
 
 /**
@@ -62,6 +63,7 @@ export interface DrawerTemasProps {
 export function DrawerTemas({ especialidade, recorte, onFechar, onExportarRecorte }: DrawerTemasProps) {
   const filtros: FiltrosGestor = { iesId: recorte.iesId, semestre: recorte.semestre, simulados: [] };
   const consulta = useDiagnosticoTemas(filtros, especialidade?.id ?? null, especialidade?.grandeArea ?? null);
+  useDevolverFocoAoFechar(especialidade !== null);
 
   if (!especialidade) return null;
 

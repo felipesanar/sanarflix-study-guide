@@ -29,9 +29,12 @@ export function EvolucaoRecorte({ metricas, semestre, dispersao }: EvolucaoRecor
 
     return (
       <section aria-labelledby="evolucao-recorte-titulo" className="rounded-lg border border-border bg-card p-4">
-        <h3 id="evolucao-recorte-titulo" className="mb-2 text-base font-semibold text-foreground">
+        {/* h2, não h3: é título de bloco de primeiro nível da rota, mesmo
+            nível que o BlocoGestor usa. Com h3 aqui, o leitor de tela pula
+            de h1 para h3 e o axe acusa heading-order (§11). */}
+        <h2 id="evolucao-recorte-titulo" className="mb-2 text-base font-semibold text-foreground">
           Distribuição do {alvo}º semestre
-        </h3>
+        </h2>
         <DispersaoChart pontos={pontos} />
       </section>
     );
@@ -39,9 +42,9 @@ export function EvolucaoRecorte({ metricas, semestre, dispersao }: EvolucaoRecor
 
   return (
     <section aria-labelledby="evolucao-recorte-titulo" className="rounded-lg border border-border bg-card p-4">
-      <h3 id="evolucao-recorte-titulo" className="mb-2 text-base font-semibold text-foreground">
+      <h2 id="evolucao-recorte-titulo" className="mb-2 text-base font-semibold text-foreground">
         Evolução do recorte
-      </h3>
+      </h2>
       <EvolucaoChart
         pontos={metricas.map((m) => ({
           simuladoId: m.simuladoId,
