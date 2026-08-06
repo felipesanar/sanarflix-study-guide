@@ -18,6 +18,7 @@ import { KpisDetalhamento } from '../components/KpisDetalhamento';
 import { SeletorSimulados } from '../components/SeletorSimulados';
 import { TabelaAlunosSimulado } from '../components/TabelaAlunosSimulado';
 import { TabelaQuestoes, deveMostrarQuestoes, type OrdenacaoQuestoes } from '../components/TabelaQuestoes';
+import { useTelemetriaGestor } from '../lib/telemetria';
 import type { DetalhamentoComExtras, RecorteCruzado } from '../api/detalhamentoExtras';
 import type { FiltrosGestor, Meta } from '../api/types';
 
@@ -39,6 +40,7 @@ const META_VAZIA: Meta = {
 export default function Detalhamento() {
   const filtros = useFiltrosGestor();
   const contexto = useGestorContexto();
+  const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight } = useTelemetriaGestor();
 
   // Mesmo padrão de Inicio.tsx/VisaoGeral.tsx: a URL é hint de UI, a IES
   // autoritativa vem do servidor.
@@ -51,6 +53,39 @@ export default function Detalhamento() {
   const filtrosGestor: FiltrosGestor = React.useMemo(
     () => ({ iesId: iesAtivaId, semestre: filtros.semestre, simulados: filtros.simulados }),
     [iesAtivaId, filtros.semestre, filtros.simulados],
+  );
+
+  /** `gestor_tela_vista` (spec §10, "adoção por tela") — reinicia também o relógio do primeiro insight. */
+  React.useEffect(() => {
+    telaVista('detalhamento', filtros.semestre);
+  }, [telaVista, filtros.semestre]);
+
+  /**
+   * `gestor_filtro_alterado` para o semestre (spec §10). Mesmo motivo de
+   * `VisaoGeral.tsx`: `FiltroSemestre` lê/escreve `useFiltrosGestor()` direto,
+   * sem prop de callback — a troca é observada no valor já consumido aqui,
+   * nunca disparada no mount.
+   */
+  const semestreAnterior = React.useRef(filtros.semestre);
+  React.useEffect(() => {
+    if (semestreAnterior.current !== filtros.semestre) {
+      filtroAlterado('semestre', filtros.semestre);
+      semestreAnterior.current = filtros.semestre;
+    }
+  }, [filtros.semestre, filtroAlterado]);
+
+  /**
+   * `gestor_filtro_alterado` para simulados (spec §10) — aqui SIM dá para
+   * envolver o `onChange` direto (`SeletorSimulados` recebe o handler como
+   * prop, ao contrário de `FiltroSemestre`), então o valor emitido é o exato
+   * clique da gestora, nunca uma correção automática de URL.
+   */
+  const aoTrocarSimulados = React.useCallback(
+    (ids: string[]) => {
+      filtros.setSimulados(ids);
+      filtroAlterado('simulados', ids.join(','));
+    },
+    [filtros, filtroAlterado],
   );
 
   const consulta = useDetalhamento(filtrosGestor);
@@ -69,6 +104,21 @@ export default function Detalhamento() {
 
   const [recorte, setRecorte] = React.useState<RecorteCruzado | null>(null);
   const [alunoSelecionadoId, setAlunoSelecionadoId] = React.useState<string | null>(null);
+
+  /**
+   * `gestor_drawer_aberto('aluno')` + `marcarPrimeiroInsight` (spec §10):
+   * `TabelaAlunosSimulado` e `DispersaoChart` são os dois gatilhos de abertura
+   * do `DrawerAluno` — ambos já recebem este handler como prop, então a
+   * telemetria entra aqui, uma única vez, para os dois.
+   */
+  const aoSelecionarAluno = React.useCallback(
+    (id: string) => {
+      setAlunoSelecionadoId(id);
+      drawerAberto('aluno');
+      marcarPrimeiroInsight();
+    },
+    [drawerAberto, marcarPrimeiroInsight],
+  );
 
   const semSelecao = filtros.simulados.length === 0;
   const multiSimulado = filtros.simulados.length > 1;
@@ -114,7 +164,7 @@ export default function Detalhamento() {
 
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={consulta.isPlaceholderData === true} />
 
-        <SeletorSimulados itens={itensCronograma} selecionados={filtros.simulados} onChange={filtros.setSimulados} />
+        <SeletorSimulados itens={itensCronograma} selecionados={filtros.simulados} onChange={aoTrocarSimulados} />
 
         <p data-testid="nota-reatividade" className="text-sm text-muted-foreground">
           Os indicadores abaixo reagem ao semestre e aos simulados selecionados. Com 2 ou mais simulados as médias são
@@ -165,7 +215,7 @@ export default function Detalhamento() {
           <div data-testid="bloco-dispersao" className="rounded-lg border border-border bg-card p-4">
             <h3 className="mb-3 text-base font-semibold text-foreground">Nota por semestre</h3>
             <BlocoGestor estado={estado} alturaSkeleton={280} bloco="dispersao" testIdLoading="bloco-dispersao-loading">
-              {dados ? <DispersaoChart pontos={dados.dispersao} onSelecionarAluno={setAlunoSelecionadoId} /> : null}
+              {dados ? <DispersaoChart pontos={dados.dispersao} onSelecionarAluno={aoSelecionarAluno} /> : null}
             </BlocoGestor>
           </div>
 
@@ -176,7 +226,7 @@ export default function Detalhamento() {
                   alunos={dados.alunos ?? []}
                   multiSimulado={multiSimulado}
                   alunoSelecionadoId={alunoSelecionadoId}
-                  onSelecionarAluno={setAlunoSelecionadoId}
+                  onSelecionarAluno={aoSelecionarAluno}
                 />
               ) : null}
             </BlocoGestor>

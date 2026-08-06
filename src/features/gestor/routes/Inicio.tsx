@@ -8,6 +8,7 @@ import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
 import { SaudacaoGestor } from '@/features/gestor/components/SaudacaoGestor';
 import { useGestorContexto } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
+import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
 
 /**
  * Início do gestor — rota `/gestor` do portal v2 (spec §2.1).
@@ -18,10 +19,16 @@ import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
 export default function Inicio() {
   const { data: contexto, isError, refetch } = useGestorContexto();
   const { semestre, iesId } = useFiltrosGestor();
+  const { telaVista } = useTelemetriaGestor();
 
   // A URL é hint de UI; a IES autoritativa vem do servidor (§3) — sem
   // nenhuma das duas, a tela fica em loading, nunca chuta uma IES.
   const iesAtivaId = iesId ?? contexto?.iesAtual.id ?? null;
+
+  /** `gestor_tela_vista` (spec §10, "adoção por tela"). */
+  React.useEffect(() => {
+    telaVista('inicio', semestre);
+  }, [telaVista, semestre]);
 
   /**
    * NOME da IES em foco (achados 1, 3, 4 e 7 da revisão de 03/08):

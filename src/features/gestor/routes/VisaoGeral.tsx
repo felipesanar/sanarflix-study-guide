@@ -13,6 +13,7 @@ import { GraficoProtagonista } from '@/features/gestor/components/GraficoProtago
 import { KpisVisaoGeral } from '@/features/gestor/components/KpisVisaoGeral';
 import { TabelaAlunos } from '@/features/gestor/components/TabelaAlunos';
 import { VisaoDeAlunos } from '@/features/gestor/components/VisaoDeAlunos';
+import { useTelemetriaGestor } from '@/features/gestor/lib/telemetria';
 import type { FiltrosGestor, Meta } from '@/features/gestor/api/types';
 
 const META_VAZIA: Meta = {
@@ -40,6 +41,7 @@ export default function VisaoGeral() {
   const filtros = useFiltrosGestor();
   const contexto = useGestorContexto();
   const { toast } = useToast();
+  const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight, exportSolicitado } = useTelemetriaGestor();
 
   /**
    * A URL é hint de UI; a IES autoritativa vem do servidor — mesmo padrão de
@@ -61,6 +63,26 @@ export default function VisaoGeral() {
     () => ({ iesId: iesAtivaId, semestre: filtros.semestre }),
     [iesAtivaId, filtros.semestre],
   );
+
+  /** `gestor_tela_vista` (spec §10, "adoção por tela") — reinicia também o relógio do primeiro insight. */
+  React.useEffect(() => {
+    telaVista('visao_geral', filtros.semestre);
+  }, [telaVista, filtros.semestre]);
+
+  /**
+   * `gestor_filtro_alterado` para o semestre (spec §10, "o filtro está sendo
+   * usado?"). `FiltroSemestre` lê/escreve `useFiltrosGestor()` direto, sem
+   * prop de callback até aqui — por isso a troca é OBSERVADA no valor já
+   * consumido nesta rota, nunca disparada no mount (o ref começa igual ao
+   * valor atual; só o dispara quando o valor realmente muda).
+   */
+  const semestreAnterior = React.useRef(filtros.semestre);
+  React.useEffect(() => {
+    if (semestreAnterior.current !== filtros.semestre) {
+      filtroAlterado('semestre', filtros.semestre);
+      semestreAnterior.current = filtros.semestre;
+    }
+  }, [filtros.semestre, filtroAlterado]);
 
   const consulta = useVisaoGeral(filtrosGestor);
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);
@@ -128,6 +150,21 @@ export default function VisaoGeral() {
   );
 
   /**
+   * `gestor_drawer_aberto('temas')` + `marcarPrimeiroInsight` (spec §10,
+   * "profundidade de investigação" / "tempo até o primeiro insight"): a
+   * abertura do `DrawerTemas` é decidida aqui (`setEspecialidadeAberta`), por
+   * isso a telemetria entra neste wrapper em vez de dentro do drawer.
+   */
+  const aoAbrirTemas = React.useCallback(
+    (especialidade: EspecialidadeSelecionada) => {
+      setEspecialidadeAberta(especialidade);
+      drawerAberto('temas');
+      marcarPrimeiroInsight();
+    },
+    [drawerAberto, marcarPrimeiroInsight],
+  );
+
+  /**
    * Rodapé de ações do `DrawerTemas` (Task 46): a exportação de verdade
    * ainda não existe no produto — spec §7.7 pede export com auditoria de
    * quem/quando/escopo/formato, e nenhuma task implementa isso. O achado 1/3
@@ -135,12 +172,19 @@ export default function VisaoGeral() {
    * (`() => undefined`): nenhum download, toast ou erro, ao lado de "Copiar
    * resumo", que funciona. Enquanto o export real não entra nesta fase,
    * avisamos — nunca engolimos o clique em silêncio.
+   *
+   * `gestor_export_solicitado` (spec §10, "valor percebido") dispara ANTES do
+   * toast — a §10 pede o clique em si, não o resultado (que hoje nem existe).
+   * `escopo` é sempre `'visao_geral'`: é a única tela com export hoje (via
+   * `DrawerTemas`/`AcoesRecorte`); o parâmetro recebido aqui identifica a
+   * especialidade, não o escopo da telemetria (que é por TELA, spec §10).
    */
   const aoExportarRecorte = React.useCallback(
     (_escopo: string) => {
+      exportSolicitado('visao_geral');
       toast({ description: 'Exportação ainda não está disponível.' });
     },
-    [toast],
+    [toast, exportSolicitado],
   );
 
   return (
@@ -217,7 +261,7 @@ export default function VisaoGeral() {
           <CascataDiagnostico
             resumo={visao.diagnosticoResumo}
             recorte={recorteDiagnostico}
-            onAbrirTemas={setEspecialidadeAberta}
+            onAbrirTemas={aoAbrirTemas}
           />
         ) : null}
       </BlocoGestor>
