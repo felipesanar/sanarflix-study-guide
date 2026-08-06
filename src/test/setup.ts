@@ -1,6 +1,14 @@
+/// <reference types="vitest-axe/extend-expect" />
 import '@testing-library/jest-dom';
-import { beforeAll, afterEach, afterAll, vi } from 'vitest';
+import { beforeAll, afterEach, afterAll, expect, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import * as axeMatchers from 'vitest-axe/matchers';
+
+// Task 58 (a11y): matcher `toHaveNoViolations` do vitest-axe, registrado uma
+// vez para toda a suíte — mesmo padrão do jest-dom acima. A referência de
+// tipos no topo do arquivo traz `toHaveNoViolations` para o tipo de `expect`
+// em todo o projeto, sem precisar de um arquivo .d.ts à parte.
+expect.extend(axeMatchers);
 
 // Mock do Supabase
 vi.mock('@/integrations/supabase/client', () => ({
