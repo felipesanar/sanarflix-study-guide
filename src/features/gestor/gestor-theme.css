@@ -116,3 +116,42 @@
   border-radius: var(--gp-radius-sm);
 }
 .gestor-portal :focus-visible { outline: none; box-shadow: var(--gp-focus-ring); }
+
+/* prefers-reduced-motion (Task 59b; handoff docs/07-motion.md e docs/06-data-viz.md
+   princípio 6). Zera QUALQUER animação/transição CSS em todo descendente do
+   portal: a transição de hover de `.gp-hover-surface` acima, o `animate-pulse`
+   (loop infinito) que `GestorSkeleton` aplica em todo carregamento, e as classes
+   `animate-in`/`animate-out`/`fade-in-0`/`zoom-in-95`/`slide-in-from-*` que o
+   plugin tailwindcss-animate gera para `TooltipContent`
+   (`src/components/ui/tooltip.tsx`) — o único primitivo Radix usado no portal que
+   NÃO embrulha o conteúdo em `<Primitive.Portal>`, logo o único cujo nó fica DE
+   FATO dentro da subárvore `.gestor-portal` e é alcançável por um seletor daqui.
+
+   `0.01ms`, nunca `0s`: duração zero pode não disparar `transitionend`/
+   `animationend` em alguns navegadores, e travar código que espera esse evento.
+   `!important` é obrigatório: `*` tem a MENOR especificidade possível do CSS, e
+   sem `!important` qualquer classe utilitária de duração (ex.: `duration-500` do
+   Tailwind, usada no Sheet) continuaria vencendo a cascata.
+
+   NÃO alcança — e não há como alcançar daqui — o conteúdo de Sheet/Drawer
+   (`DrawerAluno`, `DrawerTemas`, o Sheet de cronograma em `Detalhamento.tsx`),
+   Dialog (`Glossario`) nem Select (`SidebarIes`, `FiltroSemestre`): os quatro
+   embrulham o conteúdo em `<Primitive.Portal>`, que por padrão despacha para
+   `document.body` — FORA de qualquer subárvore com a classe `gestor-portal`.
+   Nenhum seletor CSS escopado neste arquivo alcança um nó fora dela. Corrigir
+   exigiria um `container` de Portal apontando pra dentro do shell (mexe em
+   `sheet.tsx`/`dialog.tsx`/`select.tsx`, compartilhados com aluno/admin) ou
+   tocar os componentes de drawer — por isso ficou em NAO_CORRIGIDOS no
+   relatório da Task 59b, não corrigido aqui. Mesmo raciocínio vale para a
+   animação do Recharts nos 4 gráficos (`isAnimationActive`): é prop JS lida
+   pelo componente, não CSS — nenhuma regra deste arquivo a alcança. */
+@media (prefers-reduced-motion: reduce) {
+  .gestor-portal *,
+  .gestor-portal *::before,
+  .gestor-portal *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
