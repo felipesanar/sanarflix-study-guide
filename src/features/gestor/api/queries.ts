@@ -474,13 +474,23 @@ export function useAlunoContato(alunoId: string | null): ResultadoGestor<AlunoCo
 }
 
 /** Detalhamento por simulados — nunca "todos": exige seleção explícita (spec §4.7). */
-export function useDetalhamento(filtros: FiltrosGestor): ResultadoGestor<Detalhamento> {
+/**
+ * `habilitado` existe para a tela poder DESLIGAR a consulta mais cara do
+ * portal quando já sabe que não vai mostrar o resultado — hoje, o caso de
+ * "todos os simulados selecionados", que o Detalhamento responde com um
+ * estado explicativo em vez de números. Sem o gate, a RPC rodava sobre o
+ * período inteiro para um resultado que ninguém veria.
+ */
+export function useDetalhamento(
+  filtros: FiltrosGestor,
+  habilitado = true,
+): ResultadoGestor<Detalhamento> {
   const lista = ordenados(filtros.simulados);
   return useEnvelope<Detalhamento>(
     ['gestor', 'detalhamento', filtros.iesId, filtros.semestre, lista],
     'get_gestor_detalhamento',
     { p_ies_id: filtros.iesId, p_semestre: filtros.semestre, p_simulados: lista },
-    filtros.iesId !== null && lista.length > 0,
+    habilitado && filtros.iesId !== null && lista.length > 0,
   );
 }
 

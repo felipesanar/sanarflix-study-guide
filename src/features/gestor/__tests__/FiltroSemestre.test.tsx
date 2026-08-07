@@ -9,10 +9,10 @@ import { FiltroSemestre } from '@/features/gestor/components/FiltroSemestre';
 
 const Sonda = () => <span data-testid="search">{useLocation().search}</span>;
 
-const renderizar = (url = '/gestor/visao-geral') =>
+const renderizar = (url = '/gestor/visao-geral', props: React.ComponentProps<typeof FiltroSemestre> = {}) =>
   render(
     <MemoryRouter initialEntries={[url]}>
-      <FiltroSemestre />
+      <FiltroSemestre {...props} />
       <Sonda />
     </MemoryRouter>,
   );
@@ -204,5 +204,61 @@ describe('FiltroSemestre — o realce cobre exatamente o rótulo ativo', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Por semestre' }));
     expect(indicador().style.width).toBe('96px');
     expect(indicador().style.transform).toBe('translateX(172px)');
+  });
+});
+
+/**
+ * O dropdown listava 1º a 12º cravados no código, e numa IES que só tem 11º e
+ * 12º dez opções levavam a uma tela vazia — becos que o gestor só descobria
+ * depois de clicar e a página recarregar em branco.
+ */
+describe('FiltroSemestre — só oferece semestre que tem resultado', () => {
+  const abrirDropdown = () => {
+    fireEvent.click(screen.getByRole('radio', { name: 'Por semestre' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Semestre específico' }));
+  };
+
+  it('lista apenas os semestres informados', async () => {
+    renderizar('/gestor/visao-geral', { semestresDisponiveis: [11, 12] });
+    abrirDropdown();
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '11º período' })).toBeInTheDocument());
+    expect(screen.getByRole('option', { name: '12º período' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: '1º período' })).toBeNull();
+    expect(screen.queryByRole('option', { name: '6º período' })).toBeNull();
+  });
+
+  /** Sem a prop, o chamador não sabe — a lista completa continua valendo. */
+  it('sem a prop, mantém os doze', async () => {
+    renderizar();
+    abrirDropdown();
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '1º período' })).toBeInTheDocument());
+    expect(screen.getByRole('option', { name: '12º período' })).toBeInTheDocument();
+  });
+
+  /** Lista vazia é "consultei e não há", diferente de "não sei". */
+  it('com lista vazia, diz que não há semestre com resultado', async () => {
+    renderizar('/gestor/visao-geral', { semestresDisponiveis: [] });
+    abrirDropdown();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('filtro-semestre-sem-opcao')).toHaveTextContent(
+        'Nenhum semestre com resultado neste recorte',
+      ),
+    );
+    expect(screen.queryByRole('option')).toBeNull();
+  });
+
+  /**
+   * O semestre já escolhido entra na lista mesmo fora dos disponíveis: um
+   * `<Select>` com `value` sem item correspondente renderiza o gatilho EM
+   * BRANCO, sem caminho de volta (mesma armadilha de `SidebarIes`).
+   */
+  it('mantém o semestre selecionado na lista mesmo que ele não tenha resultado', async () => {
+    renderizar('/gestor/visao-geral?semestre=7', { semestresDisponiveis: [11, 12] });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Semestre específico' }));
+
+    await waitFor(() => expect(screen.getByRole('option', { name: '7º período' })).toBeInTheDocument());
   });
 });

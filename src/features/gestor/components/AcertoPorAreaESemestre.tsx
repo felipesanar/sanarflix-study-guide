@@ -299,6 +299,20 @@ export function AcertoPorAreaESemestre({
         )}
       </div>
 
+      {/*
+        Com UM semestre, a seção inteira some.
+
+        Uma barra sozinha não compara nada — o número dela é o mesmo do
+        recorte, já dito acima —, e o clique cruzado que ela oferece é um
+        no-op: recortar as grandes áreas "pelo 11º semestre" quando só existe
+        o 11º devolve exatamente as mesmas áreas. Sobrava meia tela de altura
+        para um controle que promete um filtro sem efeito.
+
+        `=== 1`, não `<= 1`: com ZERO semestres o bloco continua aparecendo
+        com "Sem dado de semestre neste recorte". Aí não é redundância, é
+        ausência — e ausência o portal diz, não esconde (§4.10).
+      */}
+      {semestres.length === 1 ? null : (
       <div>
         <h2 className={cn('text-base font-semibold text-foreground', interativo ? 'mb-1' : 'mb-3')}>
           Acerto por semestre
@@ -394,6 +408,7 @@ export function AcertoPorAreaESemestre({
           </ul>
         )}
       </div>
+      )}
     </section>
   );
 }

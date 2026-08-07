@@ -190,6 +190,18 @@ export default function VisaoGeral() {
     else consulta.refetch();
   }, [contextoTravouRecorte, contexto, consulta]);
 
+  /**
+   * Semestres que têm ao menos um aluno com resultado. Alimenta o dropdown do
+   * filtro para ele não oferecer recorte que leva a tela vazia.
+   */
+  const semestresComResultado = React.useMemo(
+    () =>
+      visao
+        ? [...new Set((visao.dispersao ?? []).map((ponto) => ponto.semestre))].sort((a, b) => a - b)
+        : undefined,
+    [visao],
+  );
+
   const colunasSimulados = React.useMemo(
     () => (visao?.evolucao ?? []).map((ponto) => ({ id: ponto.simuladoId, nome: ponto.nome })),
     [visao?.evolucao],
@@ -248,7 +260,11 @@ export default function VisaoGeral() {
             {/* Único caminho de UI para o glossário no produto: sem este gatilho o
                 componente existia e era inalcançável em produção. */}
             <Glossario />
-            <FiltroSemestre />
+            {/* `dispersao` é exatamente "aluno com nota de proficiência no
+                recorte" — a mesma população que o filtro por semestre
+                consegue responder. Enquanto a query não volta, `undefined`
+                mantém a lista completa em vez de piscar um dropdown vazio. */}
+            <FiltroSemestre semestresDisponiveis={semestresComResultado} />
           </div>
         </div>
         <ContextoDoRecorte semestre={filtros.semestre} meta={meta} emTransicao={emTransicao} />

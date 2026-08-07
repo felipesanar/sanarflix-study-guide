@@ -49,6 +49,40 @@ describe('recalculo cruzado (funções puras)', () => {
   });
 });
 
+/**
+ * Com UM semestre a seção inteira some: a barra sozinha repete o número do
+ * recorte e o clique cruzado que ela oferece é um no-op — recortar as áreas
+ * "pelo 11º" quando só existe o 11º devolve as mesmas áreas.
+ */
+describe('AcertoPorAreaESemestre — seção de semestre com um semestre só', () => {
+  const UM_SEMESTRE = {
+    ...DADOS,
+    semestres: [{ semestre: 11, acertoPct: 61, emEvidencia: true }],
+  };
+
+  it('não exibe "Acerto por semestre" quando há apenas um', () => {
+    render(<AcertoPorAreaESemestre dados={UM_SEMESTRE} semestre="6ano" matriz={MATRIZ} onRecorteChange={vi.fn()} />);
+
+    expect(screen.queryByText('Acerto por semestre')).toBeNull();
+    expect(screen.queryByTestId('semestre-11')).toBeNull();
+    // A leitura por área continua — ela é o assunto do bloco.
+    expect(screen.getByText('Acerto por grande área')).toBeInTheDocument();
+  });
+
+  it('com dois ou mais semestres, a seção volta', () => {
+    render(<AcertoPorAreaESemestre dados={DADOS} semestre="6ano" matriz={MATRIZ} onRecorteChange={vi.fn()} />);
+    expect(screen.getByText('Acerto por semestre')).toBeInTheDocument();
+  });
+
+  /** Zero semestres é ausência, não redundância — e ausência o portal diz. */
+  it('com nenhum semestre, continua dizendo que não há dado', () => {
+    render(
+      <AcertoPorAreaESemestre dados={{ ...DADOS, semestres: [] }} semestre="6ano" matriz={MATRIZ} onRecorteChange={vi.fn()} />,
+    );
+    expect(screen.getByText('Sem dado de semestre neste recorte')).toBeInTheDocument();
+  });
+});
+
 describe('AcertoPorAreaESemestre — afordância do clique cruzado', () => {
   /**
    * O cruzamento área × semestre é a funcionalidade central deste bloco e era

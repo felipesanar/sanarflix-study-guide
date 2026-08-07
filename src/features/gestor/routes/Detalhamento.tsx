@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Icon } from '../components/Icon';
 import { useCronograma, useDetalhamento, useGestorContexto, useQuestoes } from '../api/queries';
@@ -43,6 +44,7 @@ export default function Detalhamento() {
   const contexto = useGestorContexto();
   const { telaVista, filtroAlterado, drawerAberto, marcarPrimeiroInsight } = useTelemetriaGestor();
   const portalContainer = useGestorPortalContainer();
+  const navegar = useNavigate();
 
   // Mesmo padrão de Inicio.tsx/VisaoGeral.tsx: a URL é hint de UI, a IES
   // autoritativa vem do servidor.
@@ -137,7 +139,27 @@ export default function Detalhamento() {
     [filtros, filtroAlterado],
   );
 
-  const consulta = useDetalhamento(filtrosGestor);
+  /**
+   * Selecionar TODOS os simulados não é um recorte — é o período inteiro, que
+   * é a pergunta da Visão Geral. O Detalhamento existe para aprofundar num
+   * simulado ou num subconjunto deles; com tudo marcado, cada bloco vira uma
+   * média de tudo contra tudo, que é exatamente o número que a outra tela já
+   * dá, e com mais contexto.
+   *
+   * Não bloqueamos o clique: o gestor marca à vontade e a tela EXPLICA. Um
+   * checkbox que se recusa a marcar sem dizer por quê é pior do que o estado.
+   *
+   * Só vale a partir de 2 selecionáveis — com um simulado só na IES,
+   * "todos" e "esse aqui" são a mesma coisa, e não há nada a explicar.
+   */
+  const idsSelecionaveis = React.useMemo(
+    () => itensCronograma.filter((item) => motivoIndisponivel(item) === null).map((item) => item.id),
+    [itensCronograma],
+  );
+  const todosSelecionados =
+    idsSelecionaveis.length > 1 && simuladosNoRecorte.length === idsSelecionaveis.length;
+
+  const consulta = useDetalhamento(filtrosGestor, !todosSelecionados);
   const dados = consulta.data as DetalhamentoComExtras | undefined;
   const meta = consulta.meta ?? META_VAZIA;
   /**
@@ -147,6 +169,18 @@ export default function Detalhamento() {
    * sem nenhum aviso de que o recorte estava incompleto.
    */
   const parcial = meta.partial;
+
+  /**
+   * Semestres que o recorte consegue responder — alimentam o dropdown do
+   * filtro para ele não oferecer opção que leva a tela vazia. A própria RPC
+   * já devolve só os semestres que produziram acerto. `undefined` enquanto o
+   * dado não chega: mantém a lista completa em vez de piscar um dropdown
+   * vazio.
+   */
+  const semestresComResultado = React.useMemo(
+    () => dados?.acertoPorAreaESemestre?.semestres.map((s) => s.semestre),
+    [dados],
+  );
 
   const mostrarQuestoes = deveMostrarQuestoes(simuladosNoRecorte);
   const [ordenacaoQuestoes, setOrdenacaoQuestoes] = React.useState<OrdenacaoQuestoes>('ordem_da_prova');
@@ -302,7 +336,9 @@ export default function Detalhamento() {
           </div>
 
           <div className="ml-auto flex flex-wrap items-center gap-2.5">
-            <FiltroSemestre />
+            {/* `acertoPorAreaESemestre.semestres` já é a lista de semestres
+                que produziram acerto no recorte — não oferecer os outros. */}
+            <FiltroSemestre semestresDisponiveis={semestresComResultado} />
             <Sheet open={cronogramaAberto} onOpenChange={setCronogramaAberto}>
               <SheetTrigger asChild>
                 {/* Link de texto, não botão de contorno: na referência o glifo de
@@ -362,6 +398,18 @@ export default function Detalhamento() {
 
       {semSelecao ? (
         <EstadoVazioDetalhamento />
+      ) : todosSelecionados ? (
+        <div data-testid="detalhamento-todos-selecionados">
+          <EstadoVazio
+            glifo="insights"
+            titulo="Todos os simulados estão selecionados"
+            descricao="Isso é o período inteiro, que é a leitura da Visão Geral. O Detalhamento existe para aprofundar num simulado específico — ou num recorte deles. Desmarque ao menos um para ver os números aqui."
+            acao={{
+              rotulo: 'Ir para a Visão Geral',
+              onClick: () => navegar({ pathname: '/gestor/visao-geral', search: window.location.search }),
+            }}
+          />
+        </div>
       ) : (
         <>
           {/* A nota é LEGENDA do grupo de métricas, não parágrafo da barra de

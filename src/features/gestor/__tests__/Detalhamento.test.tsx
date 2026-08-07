@@ -214,11 +214,66 @@ describe('Rota Detalhamento — sub-estado vazio (§12 caso 4)', () => {
     expect(screen.queryByTestId('kpi-acerto-medio')).toBeNull();
     expect(screen.queryByTestId('comparativo-temas')).toBeNull();
     expect(screen.queryByText('Detalhamento das questões')).toBeNull();
-    expect(vi.mocked(useDetalhamento)).toHaveBeenCalledWith({
-      iesId: 'ies-1',
-      semestre: '6ano',
-      simulados: [],
-    });
+    // 2º argumento = gate de "todos selecionados" (ver `useDetalhamento`).
+    expect(vi.mocked(useDetalhamento)).toHaveBeenCalledWith(
+      { iesId: 'ies-1', semestre: '6ano', simulados: [] },
+      true,
+    );
+  });
+});
+
+/**
+ * Marcar TODOS os simulados não é recorte — é o período inteiro, que é a
+ * pergunta da Visão Geral. O clique não é bloqueado (checkbox que se recusa a
+ * marcar sem dizer por quê é pior); a tela explica.
+ */
+describe('Rota Detalhamento — todos os simulados selecionados', () => {
+  const TODOS = CRONOGRAMA.map((c) => c.id).join(',');
+
+  it('explica que o agregado do período é a Visão Geral, em vez de mostrar números', () => {
+    comSimulados(7);
+    renderRota(`?ies=ies-1&semestre=6ano&simulados=${TODOS}`);
+
+    const estado = screen.getByTestId('detalhamento-todos-selecionados');
+    expect(estado).toHaveTextContent('Todos os simulados estão selecionados');
+    expect(estado).toHaveTextContent('leitura da Visão Geral');
+    expect(screen.getByRole('button', { name: 'Ir para a Visão Geral' })).toBeInTheDocument();
+
+    // Nenhum bloco de número na tela.
+    expect(screen.queryByTestId('kpi-acerto-medio')).toBeNull();
+    expect(screen.queryByTestId('bloco-evolucao')).toBeNull();
+  });
+
+  /** O seletor continua ali — é por ele que se sai do estado. */
+  it('mantém o seletor de simulados acessível', () => {
+    comSimulados(7);
+    renderRota(`?ies=ies-1&semestre=6ano&simulados=${TODOS}`);
+    expect(screen.getByTestId('seletor-simulados')).toBeInTheDocument();
+  });
+
+  /** A RPC mais cara do portal não roda para um resultado que não será exibido. */
+  it('desliga a consulta de detalhamento', () => {
+    comSimulados(7);
+    renderRota(`?ies=ies-1&semestre=6ano&simulados=${TODOS}`);
+    expect(vi.mocked(useDetalhamento)).toHaveBeenCalledWith(expect.anything(), false);
+  });
+
+  /** Com um selecionável só, "todos" e "esse aqui" são a mesma coisa. */
+  it('não dispara com um único simulado selecionável na IES', () => {
+    vi.mocked(useCronograma).mockReturnValue({
+      data: [CRONOGRAMA[0]],
+      meta: META,
+      isLoading: false,
+      isError: false,
+      isPlaceholderData: false,
+      isFetching: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useCronograma>);
+    comSimulados(1);
+    renderRota('?ies=ies-1&semestre=6ano&simulados=s1');
+
+    expect(screen.queryByTestId('detalhamento-todos-selecionados')).toBeNull();
+    expect(screen.getByTestId('kpi-acerto-medio')).toBeInTheDocument();
   });
 });
 

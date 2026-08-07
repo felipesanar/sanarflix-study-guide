@@ -48,7 +48,22 @@ const rotuloPeriodo = (numero: ValorSemestre): string => `${numero}º período`;
  * o 3º segmento revela o dropdown 1º…12º. Semântica de `radiogroup` com
  * roving tabIndex: setas movem seleção e foco juntos.
  */
-export const FiltroSemestre: React.FC<{ disabled?: boolean }> = ({ disabled = false }) => {
+export const FiltroSemestre: React.FC<{
+  disabled?: boolean;
+  /**
+   * Semestres que REALMENTE têm resultado no recorte — os que a tela consegue
+   * responder. Sem isto o dropdown listava 1º a 12º cravados no código, e a
+   * maioria levava a uma tela vazia: numa IES que só tem 11º e 12º, dez das
+   * doze opções eram becos sem saída que o gestor só descobria depois de
+   * clicar e a página recarregar em branco.
+   *
+   * `undefined` = o chamador não sabe (uso isolado, ou dado ainda chegando) e
+   * a lista completa continua valendo. Lista VAZIA é diferente: significa
+   * "consultei e não há nenhum", e aí o dropdown diz isso em vez de oferecer
+   * doze opções falsas.
+   */
+  semestresDisponiveis?: number[];
+}> = ({ disabled = false, semestresDisponiveis }) => {
   const { semestre, setSemestre } = useFiltrosGestor();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const trilhoRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +79,26 @@ export const FiltroSemestre: React.FC<{ disabled?: boolean }> = ({ disabled = fa
    * local e não passa pela URL.
    */
   const [modoPorSemestre, setModoPorSemestre] = useState(false);
+
+  /**
+   * O semestre já selecionado entra na lista mesmo que não esteja entre os
+   * disponíveis. Um `<Select>` com `value` sem `SelectItem` correspondente
+   * renderiza o gatilho EM BRANCO, sem caminho de volta — a mesma armadilha
+   * já documentada em `SidebarIes` para a troca de IES. Pode acontecer com um
+   * link colado de outro recorte, ou quando a IES muda por baixo.
+   */
+  const opcoesSemestre = React.useMemo<ValorSemestre[] | null>(() => {
+    if (semestresDisponiveis === undefined) return null; // lista completa
+
+    const unicos = new Set(
+      semestresDisponiveis
+        .filter((numero) => Number.isInteger(numero))
+        .map((numero) => String(numero) as ValorSemestre),
+    );
+    if (ehNumerico(semestre)) unicos.add(semestre);
+
+    return [...unicos].sort((a, b) => Number(a) - Number(b));
+  }, [semestresDisponiveis, semestre]);
 
   const emPorSemestre = ehNumerico(semestre) || modoPorSemestre;
   const indiceAtivo = emPorSemestre ? 2 : semestre === 'geral' ? 1 : 0;
@@ -251,15 +286,29 @@ export const FiltroSemestre: React.FC<{ disabled?: boolean }> = ({ disabled = fa
             scrollUpIcon={<Icon name="expand_less" size={14} />}
             scrollDownIcon={<Icon name="expand_more" size={14} />}
           >
-            {SEMESTRES_NUMERICOS.map((numero) => (
-              <SelectItem
-                key={numero}
-                value={numero}
-                indicatorIcon={<Icon name="check" size={13} />}
+            {opcoesSemestre !== null && opcoesSemestre.length === 0 ? (
+              /* Nem `SelectItem` desabilitado nem lista vazia muda: o Radix
+                 exige `value` não-vazio em todo item, e um item clicável
+                 gravaria um recorte inexistente na URL. Texto puro diz o que
+                 há para dizer. */
+              <p
+                data-testid="filtro-semestre-sem-opcao"
+                className="px-2 py-1.5"
+                style={{ fontSize: 12, color: 'var(--gp-text-3)' }}
               >
-                {rotuloPeriodo(numero)}
-              </SelectItem>
-            ))}
+                Nenhum semestre com resultado neste recorte
+              </p>
+            ) : (
+              (opcoesSemestre ?? SEMESTRES_NUMERICOS).map((numero) => (
+                <SelectItem
+                  key={numero}
+                  value={numero}
+                  indicatorIcon={<Icon name="check" size={13} />}
+                >
+                  {rotuloPeriodo(numero)}
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
       )}
