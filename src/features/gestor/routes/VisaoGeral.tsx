@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useGestorContexto, useVisaoGeral } from '@/features/gestor/api/queries';
 import { useFiltrosGestor } from '@/features/gestor/hooks/useFiltrosGestor';
@@ -36,11 +35,18 @@ const META_VAZIA: Meta = {
  * A tabela de alunos e o drawer de temas têm consulta própria (paginação e
  * lazy-load, respectivamente) e por isso não dependem deste estado.
  *
- * Ordem vertical §4.8: filtros → 4 indicadores → gráfico protagonista →
- * Diagnóstico Curricular → Visão de Alunos → insights → divisor "Detalhe ·
- * micro" → tabela de alunos. A referência PROMOVE o Diagnóstico para logo
- * abaixo do gráfico (`<!-- Diagnóstico (promovido) -->`), invertendo a ordem
- * que o portal tinha até 05/08: "onde dói?" vem antes de "quem dói?".
+ * Ordem vertical: filtros → 4 indicadores → gráfico protagonista →
+ * Diagnóstico Curricular → Visão de Alunos → [tabela de alunos, sob demanda]
+ * → insights. A referência PROMOVE o Diagnóstico para logo abaixo do gráfico
+ * (`<!-- Diagnóstico (promovido) -->`), invertendo a ordem que o portal tinha
+ * até 05/08: "onde dói?" vem antes de "quem dói?".
+ *
+ * Duas divergências deliberadas da §4.8, decididas em 07/08: a tabela de
+ * alunos só monta quando o gestor clica em "Ver visão detalhada", e ela ficou
+ * colada na Visão de Alunos (antes dos insights, sem o divisor "Detalhe ·
+ * micro") em vez de no fim da página — quem abre a tabela é o CTA daquele
+ * bloco, e ver a lista aparecer depois de um bloco sem relação fazia o clique
+ * parecer não ter surtido efeito.
  */
 export default function VisaoGeral() {
   const filtros = useFiltrosGestor();
@@ -93,8 +99,7 @@ export default function VisaoGeral() {
   const [especialidadeAberta, setEspecialidadeAberta] = React.useState<EspecialidadeSelecionada | null>(null);
 
   /**
-   * O "Detalhe · micro" (a tabela nominal de alunos) só existe depois que o
-   * gestor pede.
+   * A tabela nominal de alunos só existe depois que o gestor pede.
    *
    * A tela é uma leitura MACRO — "como estamos e onde dói" (spec §2.1). A
    * tabela de alunos é a resposta a outra pergunta, feita depois, e vinha
@@ -359,6 +364,39 @@ export default function VisaoGeral() {
         ) : null}
       </BlocoGestor>
 
+      {/*
+        4b. O detalhe micro é EXTENSÃO da Visão de Alunos, não rodapé da tela.
+
+        Ele nasceu no fim da página, atrás dos Insights, sob o divisor
+        "Detalhe · micro" da ordem original da §4.8. Só que quem abre a tabela
+        é o CTA da Visão de Alunos, logo acima — e a lista aparecia depois de
+        um bloco inteiro sem relação, o que fazia o clique parecer não ter
+        surtido efeito e quebrava a leitura "grupos de evolução → quem são
+        esses alunos".
+
+        Sem divisor: a tabela já traz o próprio cabeçalho ("Alunos", com
+        subtítulo), e um separador entre ela e o bloco que a abriu empurraria
+        de volta para a leitura de "seção nova". Divergência deliberada da
+        ordem vertical da §4.8, decidida em 07/08.
+
+        A entrada é `motion-4` (320ms), a mesma família de classes do ramo que
+        abre na cascata do Diagnóstico — o portal tem uma régua só de
+        movimento. Sob `prefers-reduced-motion` o bloco `@media` de
+        `gestor-theme.css` zera a duração para todo descendente do portal: o
+        conteúdo aparece, o movimento não.
+
+        `id` é o destino do scroll e o `aria-controls` do CTA.
+      */}
+      {detalheAberto ? (
+        <div
+          id="alunos-detalhe"
+          data-testid="detalhe-micro"
+          className="animate-in [animation-duration:320ms] fade-in-0 slide-in-from-top-2"
+        >
+          <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
+        </div>
+      ) : null}
+
       {/* 5. Insights autogerados (1 por área, 1 por aluno). */}
       <BlocoGestor
         estado={estado}
@@ -370,34 +408,6 @@ export default function VisaoGeral() {
       >
         {visao ? <BlocoInsights insights={visao.insights} /> : null}
       </BlocoGestor>
-
-      {/*
-        6. Divisor + tabela de alunos, SÓ depois do "Ver visão detalhada" —
-        query própria, paginada no servidor, estado independente.
-
-        A entrada é `motion-4` (320ms), a mesma duração e a mesma família de
-        classes do ramo que abre na cascata do Diagnóstico: o portal tem uma
-        régua só de movimento, e conteúdo que aparece empurrando o resto entra
-        deslizando de cima com fade. Sob `prefers-reduced-motion` o bloco
-        `@media` de `gestor-theme.css` zera a duração para todo descendente do
-        portal — o conteúdo aparece, o movimento não.
-
-        `id` é o destino do scroll e o `aria-controls` do CTA.
-      */}
-      {detalheAberto ? (
-        <div
-          id="alunos-detalhe"
-          data-testid="detalhe-micro"
-          className="animate-in space-y-6 [animation-duration:320ms] fade-in-0 slide-in-from-top-2"
-        >
-          <div data-testid="divisor-detalhe-micro" className="flex items-center gap-3 pt-2">
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Detalhe · micro</span>
-            <Separator className="flex-1" />
-          </div>
-
-          <TabelaAlunos recorte={filtrosGestor} colunasSimulados={colunasSimulados} />
-        </div>
-      ) : null}
 
       <DrawerTemas
         especialidade={especialidadeAberta}

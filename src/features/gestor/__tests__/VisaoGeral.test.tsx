@@ -159,7 +159,6 @@ describe('rota VisaoGeral', () => {
   it('o detalhe micro não existe até o gestor pedir', () => {
     render(<VisaoGeralRoute />);
     expect(screen.queryByTestId('detalhe-micro')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('divisor-detalhe-micro')).not.toBeInTheDocument();
     expect(screen.queryByTestId('bloco-tabela-alunos')).not.toBeInTheDocument();
   });
 
@@ -174,9 +173,16 @@ describe('rota VisaoGeral', () => {
     expect(screen.getByTestId('bloco-tabela-alunos')).toBeInTheDocument();
     expect(cta).toHaveAttribute('aria-expanded', 'true');
     expect(cta).toHaveTextContent('Ocultar visão detalhada');
+    // A tabela é EXTENSÃO da Visão de Alunos: entra colada nela e ANTES dos
+    // insights, não no fim da página. Quem abre a tabela é o CTA daquele
+    // bloco — vê-la surgir depois de um bloco sem relação fazia o clique
+    // parecer não ter surtido efeito (decisão de 07/08, diverge da §4.8).
     expect(
-      ordemNoDom(['bloco-visao-alunos', 'divisor-detalhe-micro', 'bloco-tabela-alunos']),
+      ordemNoDom(['bloco-visao-alunos', 'bloco-tabela-alunos', 'bloco-insights']),
     ).toBe(true);
+    // E sem o divisor "Detalhe · micro": a tabela já tem cabeçalho próprio, e
+    // um separador a devolveria à leitura de "seção nova".
+    expect(screen.queryByTestId('divisor-detalhe-micro')).not.toBeInTheDocument();
 
     await user.click(cta);
     expect(screen.queryByTestId('bloco-tabela-alunos')).not.toBeInTheDocument();

@@ -61,13 +61,61 @@ teria que tirar exatamente a mesma nota, o que é impossível.
    **migration**, não CSS — e as duas RPCs precisam concordar, senão a Visão Geral
    e a tabela discordam sobre o mesmo aluno.
 
-**Proposta de encaminhamento:** antes de codar, rodar a regra candidata em cima de
-2–3 IES reais (UEA, FAI, UNIATENAS) e olhar quantos alunos mudam de tag em cada
-valor de faixa. É uma consulta, não um deploy. Com o número na mão, a decisão sai
-em minutos e a migration vira mecânica.
+**A SIMULAÇÃO JÁ FOI RODADA (07/08).** Regra candidata testada, por aluno com
+2+ notas, em ordem cronológica: `amplitude = max−min`, `liquido = última−primeira`;
+`estavel` se `amplitude ≤ T`; `subindo` se `liquido > T` e nenhum delta `< −T`;
+`descendo` se `liquido < −T` e nenhum delta `> +T`; `instavel` no resto.
 
-**Bloqueado por:** definição de Felipe + João. **Impacto:** alto (é a leitura
-principal da tabela de alunos). **Não deveria ir para gestores como está.**
+FAI (100 alunos com 2+ notas):
+
+| tag | hoje | T=3 | T=4 | T=5 |
+|---|---|---|---|---|
+| alternando | 89 | — | — | — |
+| instavel | — | 78 | 71 | 68 |
+| descendo | 11 | 19 | 23 | 24 |
+| subindo | 0 | 2 | 2 | 2 |
+| estavel | 0 | **1** | **4** | **6** |
+
+PARACATU (294 alunos):
+
+| tag | hoje | T=3 | T=4 | T=5 |
+|---|---|---|---|---|
+| alternando | 70 | — | — | — |
+| instavel | — | 47 | 42 | 38 |
+| descendo | 127 | 114 | 106 | 94 |
+| subindo | 97 | 75 | 65 | 56 |
+| estavel | 0 | **58** | **81** | **106** |
+
+**O que os números dizem:** o efeito da faixa depende muito da IES. Na FAI as
+séries têm amplitude grande e a tolerância quase não resgata — T=5 tira só 21
+dos 89 "alternando". Na PARACATU o efeito é forte: T=3 já reclassifica 58
+alunos como estáveis e T=5 chega a 106, ou seja 36% da base.
+
+Séries reais que mudam de classificação entre T=3 e T=5 (sem identificador):
+
+```
+[75.6, 72.7, 72.1, 74.6]  → T3: instavel | T5: estavel
+[57.7, 53.0, 56.1, 56.4]  → T3: instavel | T5: estavel
+[60.7, 59.2, 56.9, 58.4]  → T3: instavel | T5: estavel
+[81.8, 82.7, 79.3]        → T3: instavel | T5: estavel
+[58.7, 62.9, 61.1, 51.4]  → T3: instavel | T5: descendo
+[74.4, 72.7, 77.5, 56.4]  → T3: instavel | T5: descendo
+[57.4, 61.8, 61.5]        → T3: subindo  | T5: estavel
+[60.7, 54.5, 56.4]        → T3: descendo | T5: instavel
+```
+
+Nota: o caso `[75, 72, 72, 74]` citado na reunião tem amplitude 3 — já vira
+estável com T=3. As séries de amplitude 4–5 (muito comuns) só são resgatadas
+com T=4 ou T=5.
+
+**Confirmado:** a regra atual em produção é `bool_or(diff>0)`/`bool_or(diff<0)`
+sobre a série, sem banda morta nenhuma — o próprio `criterio` da função admite.
+
+**Falta só a sua escolha:** valor de T, janela (série inteira × últimos N) e se
+`instavel` e `descendo` são tags separadas. Com isso a migration vira mecânica.
+
+**Impacto:** alto (é a leitura principal da tabela de alunos). **Não deveria ir
+para gestores como está.**
 
 ### 2.2 Média no card do aluno com 3+ simulados
 
@@ -109,18 +157,101 @@ menciona)? Se sim, implemento o limite. Se a intenção era só remover um botã
 
 ---
 
-## 3. Precisa de backend / dado (não é frontend)
+## 3. Backend / dado — DIAGNOSTICADO em 07/08
 
-| Item | Natureza | Dono provável |
-|---|---|---|
-| **FNEP não carrega dados** | Investigação de dado/RPC — travou a análise na própria reunião | João |
-| **Plataforma exibe 5 simulados quando deveria exibir 4** | Inconformidade de dado (UNIATENAS); pode ser simulado-irmão contado em dobro | João |
-| **Imagens das questões no detalhamento** | Pipeline existe (biblioteca extratora → bucket S3/Supabase, pasta por `simulado_id`); falta verificar se o upload rodou para estes simulados. Não é render | João |
-| **Títulos dos simulados ambíguos** ("4º ano" lido como "4º de Paracatumbo") | Dado cadastral. Padrão acordado: `Quarto Simulado — [data completa]`. O front só exibe `simulados_admin.nome` | Admin/CX |
-| **Padronização de nomes de temas** | Maiúscula/acento/singular-plural fazem o mesmo tema virar dois. O sistema já normaliza (tira acento, espaço e caixa) — o que sobra (plural × singular) é impossível de resolver deterministicamente | Cadu → pedagogia, padrão SanarFlix |
-| **Adicionar simulados futuros para ver o estado** | Carga de dado para validação | Admin |
+Rodado via agente do Lovable, somente leitura (o MCP do Supabase aponta para
+`lljn`; o app usa `gvqv`, então não há como consultar produção por aqui).
+Resultados abaixo — vários derrubam a hipótese original.
 
----
+### 3.0 Correção de nomes: FNEP e UNIATENAS não existem como IES
+
+São 24 IES cadastradas, e **nenhuma se chama FNEP nem UNIATENAS**:
+
+- O candidato a "FNEP" é **Funepe**.
+- Os simulados da "UNIATENAS" estão sob a IES **PARACATU** — "UNIATENAS"
+  aparece só no NOME dos simulados.
+
+Todo o resto deste documento usa os nomes reais. Se FNEP for outra coisa,
+o item 3.1 volta à estaca zero.
+
+### 3.1 Funepe "sem dados" — nenhuma camada está vazia
+
+| IES | `gestao.enabled` | simulados | c/ TRI | alunos | linhas TRI | respostas | contratos |
+|---|---|---|---|---|---|---|---|
+| Funepe | true | 6 | 3 | 451 | 250 | 49.700 | **0** |
+| FAI | true | 6 | 4 | 116 | 393 | 40.100 | **0** |
+| PARACATU | true | 5 | 4 | 590 | 894 | 106.800 | **0** |
+| UEA | true | 1 | 1 | 360 | 79 | 9.200 | **0** |
+
+Feature ligada, 6 simulados encerrados, 250 linhas de TRI que casam com
+aluno+simulado da própria IES. **Não é falta de dado.**
+
+**Hipótese que sobra:** escopo do gestor. A RPC estoura `Permission denied`
+em `gestor_pode_acessar_ies` quando o gestor que testa não tem
+`users.id_ies` apontando para a Funepe — e a tela fica vazia exatamente
+assim. A Funepe tem 3 gestores cadastrados.
+
+**Bloqueado por:** preciso do **e-mail do gestor que viu a tela vazia**. O
+agente não consegue simular a RPC (roda como `supabase_read_only_user`,
+`auth.uid()` nulo, a função barra antes de qualquer consulta).
+
+### 3.2 Cinco simulados na PARACATU — hipótese descartada
+
+| data | nome | `pai_id` | participantes c/ TRI |
+|---|---|---|---|
+| 20/05 | Simulado Global PARACATU - UNIATENAS | null | 276 |
+| 02/06 | Simulado 4 ano PARACATU - UNIATENAS | null | 0 |
+| 23/06 | Simulado 2 2026 - UNIATENAS (4° ano) | null | 158 |
+| 30/06 | Simulado 2 2026 - UNIATENAS (5º e 6º ano) | null | 292 |
+| 17/07 | Simulado 3 2026 - UNIATENAS | null | 168 |
+
+Não são simulados-irmãos: `simulado_pai_id` é `NULL` nos cinco. O par que
+DEVERIA ser irmão — "Simulado 2 2026" nas versões (4º ano) e (5º e 6º ano) —
+foi cadastrado como **dois simulados-pai independentes**. É daí que sai o 5.
+
+**Correção é de DADO, não de código:** vincular um ao outro por
+`simulado_pai_id`. As RPCs já agrupam por `COALESCE(simulado_pai_id, id)`.
+
+### 3.3 Imagens das questões — o upload não rodou
+
+- Bucket: `imagensSimulado` (público). Coluna: `questoes_simulado.imagem`
+  (URL pública completa), mais `imagem_2` e `imagem_comentario`.
+- Preenchimento global: 811 de 4.502 questões com imagem.
+- FAI: 18 questões com imagem em 5 simulados — mas o mais recente
+  ("4º Simulado FAI") tem **zero**.
+- PARACATU: só "Simulado 4 ano PARACATU" tem imagem; os quatro demais,
+  inclusive os recentes, **zero**. E esse não tem pasta no bucket.
+
+**Não é o front deixando de ler:** onde a coluna está preenchida, a URL é
+pública e válida. Faltou rodar o upload nos simulados recentes.
+
+### 3.4 Achado NOVO: nenhuma IES tem contrato cadastrado
+
+`ies_contrato_simulados` e `ies_simulado_previsto` estão **vazias para as
+quatro IES**. É por isso que o KPI "Simulados realizados" sai como `N / —` e
+o cronograma não tem vigência: não há contrato de onde tirar o denominador.
+O front está certo ao mostrar traço em vez de zero (§4.10) — o que falta é
+o dado.
+
+### 3.5 Achado NOVO e mais sério: `get_gestor_visao_geral` não tem o guard de `gestao.enabled`
+
+A definição em produção tem os dois guards de PAPEL (`admin`/`gestor`/
+`gestor_grupo` → `Access denied`) e de ESCOPO (`gestor_pode_acessar_ies` →
+`Permission denied`), mas **nenhuma checagem de `gestao.enabled`**.
+
+Isso contradiz o que se acreditava desde 06/08 (o guard teria voltado às
+RPCs). Duas leituras possíveis, e não dá para decidir daqui: ou esta função
+nunca esteve na lista das que receberam o guard, ou ele foi perdido de novo
+numa recriação posterior. **Vale auditar as outras RPCs de gestor antes de
+segunda** — o efeito prático é que uma IES com a feature desligada ainda
+responde dado se o gestor tiver escopo nela.
+
+### 3.6 Segue com dono fora do time técnico
+
+| Item | Dono |
+|---|---|
+| Títulos dos simulados (`Quarto Simulado — [data completa]`) | Admin/CX |
+| Padronização de nomes de temas, padrão SanarFlix | Cadu → pedagogia |
 
 ## 4. Adiado por decisão explícita
 
@@ -155,9 +286,20 @@ Coisas claras que não entraram por escopo/tempo — pego na próxima se você q
 
 ## Sugestão de ordem até segunda
 
-1. Fechar **2.1** (faixa de tolerância) — é o único item que muda o que o gestor
-   *conclui*, e o resto de aluno depende dele.
-2. **3** em paralelo (FNEP, contagem de simulados, imagens) — sem isso, a demo de
-   segunda tem IES que não carrega.
-3. Itens de **5**, que são mecânicos.
-4. **2.3** e **2.4** podem esperar: são refinamento de leitura, não erro.
+Reordenada depois do diagnóstico de 07/08:
+
+1. **3.5 — auditar o guard de `gestao.enabled`** nas demais RPCs de gestor. É o
+   único item com cara de segurança, e descobri por acaso. Se o guard sumiu de
+   mais funções, é melhor saber antes de abrir para gestores.
+2. **3.1 — Funepe.** Preciso do e-mail do gestor que viu a tela vazia. Se a
+   hipótese de escopo se confirmar, o conserto é uma linha em `users.id_ies`, e
+   sem ele há IES que não carrega na demo.
+3. **3.2 — vincular os dois "Simulado 2 2026"** por `simulado_pai_id`. Correção
+   de dado, some o 5º simulado fantasma.
+4. **2.1 — escolher T.** Os números já estão na mesa; falta a decisão. Sugiro
+   olhar as séries de exemplo e escolher entre T=4 e T=5.
+5. **3.4 — cadastrar contratos.** Sem eles o KPI de simulados fica `N / —` para
+   todas as IES.
+6. **3.3 — rodar o upload de imagens** nos simulados recentes.
+7. Itens de **5**, mecânicos.
+8. **2.3** e **2.4** podem esperar: refinamento de leitura, não erro.

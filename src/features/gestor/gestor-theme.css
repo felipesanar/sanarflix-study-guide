@@ -7,14 +7,24 @@
 
 .gestor-portal {
   /* Superfícies e linhas — mapeadas nas variáveis do repo */
-  /* Fundo da ÁREA DE CONTEÚDO — literal próprio (handoff tokens.light.css:16
-     #EDEEF0 / tokens.dark.css:17 #0B0C0D). Não pode derivar de `--background`:
-     no claro ela vale `0 0% 100%`, exatamente o mesmo branco de
-     `--gp-surface-1` (`--card`), e o portal ficava branco-sobre-branco — o
+  /* Fundo da ÁREA DE CONTEÚDO — literal próprio. Não pode derivar de
+     `--background`: no claro ela vale `0 0% 100%`, exatamente o mesmo branco
+     de `--gp-surface-1` (`--card`), e o portal ficava branco-sobre-branco — o
      card só se distinguia pela borda de 1px e a separação figura/fundo da
      referência desaparecia. No escuro `--background` é preto puro, dois
-     degraus abaixo do #0B0C0D da referência. Par escuro abaixo. */
-  --gp-bg-app: hsl(220 9.1% 93.5%);
+     degraus abaixo do #0B0C0D da referência. Par escuro abaixo.
+
+     #F1F2F4, um degrau ACIMA do #EDEEF0 de `tokens.light.css` (decisão do
+     Felipe em 07/08, olhando a tela montada): o #EDEEF0 do handoff pesava
+     demais atrás de uma tela que é quase toda card branco. A escala continua
+     legível nos quatro degraus — fundo #F1F2F4 → card #FFFFFF → bloco interno
+     #F9FAFB → chip/trilho #F4F5F6 —, mas a distância entre o fundo e o bloco
+     interno encurtou: ao mexer em `--gp-surface-2` ou `--gp-surface-3`,
+     conferir que os três ainda se distinguem.
+
+     Sem gradiente e sem malha de pontos: aquilo é tratamento do board de
+     apresentação, não da aplicação. Aqui o fundo é chapado. */
+  --gp-bg-app: hsl(220 12% 95.1%);
   --gp-surface-1: hsl(var(--card));
   /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
      (#EBECF0) não batem com o handoff (#F9FAFB / #F4F5F6). Par escuro abaixo. */
