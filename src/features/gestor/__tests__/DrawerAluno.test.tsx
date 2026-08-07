@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // que lê o recorte da URL (`useFiltrosGestor` → `useSearchParams`) e portanto
 // exige um Router montado. Mesmo wrapper de DrawerTemas.test.tsx.
 import { render, screen, userEvent, waitFor, within } from '@/test/utils';
-import { DrawerAluno } from '@/features/gestor/components/DrawerAluno';
+import { DrawerAluno, linkWhatsAppAluno } from '@/features/gestor/components/DrawerAluno';
 import { useAluno, useAlunoContato, useGestorContexto } from '@/features/gestor/api/queries';
 import { TRACO } from '@/features/gestor/lib/formatters';
 import type { AlunoContato, AlunoSimuladoEntry, Meta } from '@/features/gestor/api/types';
@@ -221,6 +221,74 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
   });
 
   /**
+   * O comparativo é UM só, e é RECORTADO ao simulado mais recente — nunca
+   * fundido. `acertoPorArea` existe por simulado; tirar média por área entre
+   * simulados produziria número que a RPC não devolve, que é a mesma regra
+   * de agregação honesta que proíbe média de Conceito ENAMED.
+   */
+  it('o comparativo por grande área vem do simulado mais recente, e diz de qual', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+
+    const areas = screen.getByTestId('drawer-areas');
+    // S2 (12/05) é o mais recente; S1 (10/03) não entra no comparativo.
+    expect(areas).toHaveTextContent('Simulado 2');
+    expect(areas).toHaveTextContent('55%');
+    expect(areas).not.toHaveTextContent('42%');
+    // E nada de média entre os dois (42 e 55 dariam 48,5).
+    expect(areas.textContent).not.toMatch(/48[.,]5/);
+  });
+
+  /**
+   * Sem área crítica, quatro barras sem leitura não são um insight. A
+   * referência sempre fecha o painel nomeando uma área — quando não há
+   * crítica, é o destaque, com a menor citada na mesma frase.
+   */
+  it('sem área crítica, o insight nomeia o destaque em vez de silenciar', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({
+        data: [
+          {
+            ...ENTRADA_S2,
+            acertoPorArea: [
+              { area: 'Cirurgia', acertoPct: 81, critica: false },
+              { area: 'Pediatria', acertoPct: 54, critica: false },
+            ],
+          },
+        ],
+      }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+
+    const destaque = screen.getByTestId('drawer-area-destaque-s2');
+    expect(destaque).toHaveTextContent('Destaque do aluno');
+    expect(destaque).toHaveTextContent('Cirurgia · 81% de acerto');
+    expect(destaque).toHaveTextContent('Menor acerto: Pediatria · 54%');
+    expect(screen.queryByTestId('drawer-area-critica-s2')).not.toBeInTheDocument();
+  });
+
+  /**
+   * As notas viram uma LISTA — uma linha por simulado —, não um cartão de
+   * meia tela repetido por simulado. Os campos que moravam nas caixas de
+   * métrica (acertos, posição, percentil, variação) seguem na linha de apoio.
+   */
+  it('lista as notas dos simulados sem perder acertos, posição e variação', () => {
+    mockUseAluno.mockReturnValue(
+      resultado({ data: [ENTRADA_S1, ENTRADA_S2] }) as unknown as ReturnType<typeof useAluno>,
+    );
+    montar();
+
+    const linha = screen.getByTestId('drawer-simulado-s1');
+    expect(linha).toHaveTextContent('Simulado 1');
+    expect(linha).toHaveTextContent('71 acertos');
+    expect(linha).toHaveTextContent('12º de 118 · percentil 90');
+    expect(linha).toHaveTextContent('+3 vs anterior');
+    expect(screen.getByTestId('drawer-proficiencia-s1')).toHaveTextContent('71');
+  });
+
+  /**
    * §4.5/§6: o comparativo por grande área é BARRA, não lista texto-a-texto —
    * o canal visual é o que permite varrer as áreas de um aluno de relance.
    */
@@ -237,6 +305,38 @@ describe('DrawerAluno — visão detalhada de um simulado (§4.8)', () => {
  * Cabeçalho do drawer (§4.5): avatar circular de iniciais, nome e uma linha de
  * contexto com o período e a cobertura do recorte ("3 de 3 simulados").
  */
+/**
+ * "Enviar no WhatsApp" (reunião de 07/08). Leva o MESMO resumo agregado do
+ * "Copiar resumo" — nunca lista nominal de terceiros (§7.7) — para o telefone
+ * do próprio aluno.
+ */
+describe('DrawerAluno — falar com o aluno no WhatsApp', () => {
+  it('monta o link com DDI, só dígitos e o resumo no texto', () => {
+    expect(linkWhatsAppAluno('(11) 98888-7777', 'oi')).toBe('https://wa.me/5511988887777?text=oi');
+  });
+
+  /** Número já cadastrado com DDI não pode virar `5555…`. */
+  it('não duplica o DDI quando o número já vem com ele', () => {
+    expect(linkWhatsAppAluno('5511988887777', 'oi')).toBe('https://wa.me/5511988887777?text=oi');
+  });
+
+  it('sem telefone, não há link — e o botão não aparece', () => {
+    expect(linkWhatsAppAluno(null, 'oi')).toBeNull();
+    expect(linkWhatsAppAluno('', 'oi')).toBeNull();
+
+    mockUseAlunoContato.mockReturnValue(
+      resultado({ data: { id: 'a1', telefone: null } }) as unknown as ReturnType<typeof useAlunoContato>,
+    );
+    montar();
+    expect(screen.queryByTestId('drawer-whatsapp')).not.toBeInTheDocument();
+  });
+
+  it('com telefone, oferece o botão', () => {
+    montar();
+    expect(screen.getByTestId('drawer-whatsapp')).toHaveTextContent('Enviar no WhatsApp');
+  });
+});
+
 describe('DrawerAluno — cabeçalho', () => {
   it('avatar de iniciais e linha de contexto com período e cobertura', () => {
     montar();

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Button } from '@/components/ui/button';
 import { useDevolverFocoAoFechar } from '@/features/gestor/hooks/useDevolverFocoAoFechar';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { AcoesRecorte } from '@/features/gestor/components/AcoesRecorte';
@@ -38,6 +39,43 @@ export interface DrawerAlunoProps {
   onExportar?: (escopo: string) => void;
 }
 
+/**
+ * DDI do Brasil para o link `wa.me`. Os telefones de `public.users.telefone`
+ * são cadastrados com DDD e sem DDI (ex.: `11988887777`), e o `wa.me` exige o
+ * número internacional completo. Só é prefixado quando o número já não vem
+ * com ele — ver `linkWhatsAppAluno`.
+ */
+const LINK_WHATSAPP_DDI = '55';
+
+/**
+ * Link `wa.me` para o telefone do aluno, com o resumo do recorte já no texto.
+ *
+ * Devolve `null` para telefone ausente ou que não sobrou número nenhum depois
+ * de limpar a máscara — um "falar no WhatsApp" que abre uma conversa vazia é
+ * pior que a ausência do botão. O DDI só entra quando falta: números
+ * cadastrados com `55` na frente (acontece) virariam `5555…` se prefixados
+ * sem checar. O teto de 11 dígitos é o do telefone nacional (DDD + 9 dígitos),
+ * que é o formato de `public.users.telefone`.
+ */
+export function linkWhatsAppAluno(telefone: string | null | undefined, texto: string): string | null {
+  const digitos = (telefone ?? '').replace(/\D/g, '');
+  if (digitos.length === 0) return null;
+  const numero = digitos.length <= 11 ? `${LINK_WHATSAPP_DDI}${digitos}` : digitos;
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
+}
+
+/**
+ * `dd/MM` a partir dos dígitos do ISO — mesmo cuidado de `formatData`: nunca
+ * instanciar `Date` a partir da string, porque `new Date('2026-03-10')` é
+ * meia-noite UTC e, em UTC-3, viraria 09/03.
+ */
+export function formatDataCurta(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  if (!match) return TRACO;
+  const [, , mes, dia] = match;
+  return `${dia}/${mes}`;
+}
+
 /** Iniciais do avatar: primeira letra do primeiro e do último nome. */
 function iniciais(nome: string): string {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
@@ -47,20 +85,39 @@ function iniciais(nome: string): string {
   return `${primeira}${ultima}`.toUpperCase();
 }
 
+interface PontoEvolucao {
+  rotulo: string;
+  valor: number;
+  data: string;
+}
+
 /**
- * Sparkline de evolução da proficiência (docs/06 §6): sem eixo, sem grade,
- * 3 a 5 pontos, todos marcados, linha de meta tracejada.
+ * Evolução da proficiência do aluno (docs/06 §6) — o gráfico PROTAGONISTA do
+ * drawer, não um fio de cabelo no canto.
+ *
+ * A versão anterior era uma sparkline de 76px de altura, sem valor, sem data
+ * e sem hierarquia entre os pontos: dava para ver que subiu, não QUANTO nem
+ * QUANDO, e ela era justamente o único lugar do drawer onde a leitura é "este
+ * aluno está melhorando?". Aqui ela ganha a mesma anatomia do gráfico
+ * institucional (`charts/EvolucaoChart.tsx`), na escala do painel: área em
+ * gradiente sob a linha, meta tracejada rotulada, valor sobre cada ponto,
+ * data sob cada ponto, e o ponto CORRENTE com halo + anel + miolo, enquanto
+ * os anteriores são círculos brancos de anel fino.
  *
  * Só pontos MEDIDOS entram: simulado sem nota fica fora da série, nunca vira
  * zero nem interpolação entre vizinhos. Com menos de dois pontos não há
  * evolução para desenhar e o bloco inteiro não é renderizado pelo chamador.
+ *
+ * SVG à mão, sem Recharts: são 2 a 5 pontos num painel de largura fixa, e o
+ * drawer não paga o custo de montar um `ResponsiveContainer` para isso.
  */
-function EvolucaoSparkline({ pontos }: { pontos: { rotulo: string; valor: number }[] }) {
+function EvolucaoAluno({ pontos }: { pontos: PontoEvolucao[] }) {
   const LARGURA = 348;
-  const ALTURA = 76;
-  const TOPO = 12;
-  const BASE = 64;
-  const MARGEM_X = 30;
+  const ALTURA = 148;
+  /** Faixa vertical do plot. O respiro de cima é onde moram os valores. */
+  const TOPO = 30;
+  const BASE = 108;
+  const MARGEM_X = 26;
 
   const y = (valor: number) => BASE - (valor / 100) * (BASE - TOPO);
   const x = (i: number) =>
@@ -68,7 +125,9 @@ function EvolucaoSparkline({ pontos }: { pontos: { rotulo: string; valor: number
       ? LARGURA / 2
       : MARGEM_X + (i * (LARGURA - MARGEM_X * 2)) / (pontos.length - 1);
 
-  const linha = pontos.map((p, i) => `${x(i)},${y(p.valor)}`).join(' ');
+  const ultimo = pontos.length - 1;
+  const vertices = pontos.map((p, i) => `${x(i)},${y(p.valor)}`).join(' ');
+  const areaSobALinha = `${x(0)},${BASE} ${vertices} ${x(ultimo)},${BASE}`;
   const descricao = pontos.map((p) => `${p.rotulo}: ${formatNumero(p.valor)}`).join('; ');
 
   return (
@@ -78,19 +137,32 @@ function EvolucaoSparkline({ pontos }: { pontos: { rotulo: string; valor: number
       viewBox={`0 0 ${LARGURA} ${ALTURA}`}
       style={{ width: '100%', height: 'auto', display: 'block' }}
     >
-      <title>{`Evolução de proficiência — ${descricao}`}</title>
+      {/* Sem `<title>`: com `role="img"` + `aria-label` ele não acrescenta
+          nada à árvore de acessibilidade e vira tooltip nativo do navegador
+          por cima do próprio gráfico — mesma razão registrada em
+          `charts/EvolucaoChart.tsx`. */}
+      <defs>
+        <linearGradient id="gradiente-evolucao-aluno" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--gp-brand)" stopOpacity={0.2} />
+          <stop offset="70%" stopColor="var(--gp-brand)" stopOpacity={0.04} />
+          <stop offset="100%" stopColor="var(--gp-brand)" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+
+      <polygon points={areaSobALinha} fill="url(#gradiente-evolucao-aluno)" />
+
       <line
-        x1={10}
+        x1={8}
         y1={y(PROFICIENCIA_MINIMA)}
-        x2={LARGURA - 10}
+        x2={LARGURA - 8}
         y2={y(PROFICIENCIA_MINIMA)}
         stroke="var(--gp-border-input)"
-        strokeWidth={1}
+        strokeWidth={1.2}
         strokeDasharray="5 4"
       />
       <text
-        x={LARGURA - 10}
-        y={y(PROFICIENCIA_MINIMA) - 6}
+        x={LARGURA - 8}
+        y={y(PROFICIENCIA_MINIMA) - 5}
         fontSize={9}
         fill="var(--gp-text-3)"
         textAnchor="end"
@@ -98,17 +170,71 @@ function EvolucaoSparkline({ pontos }: { pontos: { rotulo: string; valor: number
       >
         {`meta ${PROFICIENCIA_MINIMA}`}
       </text>
+
       <polyline
-        points={linha}
+        points={vertices}
         fill="none"
         stroke="var(--gp-brand)"
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {pontos.map((p, i) => (
-        <circle key={p.rotulo} cx={x(i)} cy={y(p.valor)} r={4} fill="var(--gp-brand)" />
-      ))}
+
+      {pontos.map((ponto, i) => {
+        const ehUltimo = i === ultimo;
+        return (
+          <g key={`${ponto.rotulo}-${ponto.data}`}>
+            {ehUltimo ? (
+              <>
+                <circle cx={x(i)} cy={y(ponto.valor)} r={12} fill="var(--gp-brand)" opacity={0.14} />
+                <circle
+                  cx={x(i)}
+                  cy={y(ponto.valor)}
+                  r={6.5}
+                  fill="var(--gp-surface-1)"
+                  stroke="var(--gp-brand)"
+                  strokeWidth={2.2}
+                />
+                <circle cx={x(i)} cy={y(ponto.valor)} r={3.2} fill="var(--gp-brand)" />
+              </>
+            ) : (
+              <circle
+                cx={x(i)}
+                cy={y(ponto.valor)}
+                r={5}
+                fill="var(--gp-surface-1)"
+                stroke="var(--gp-brand)"
+                strokeWidth={1.6}
+              />
+            )}
+            {/* Valor acima do ponto: sem eixo Y, é o único jeito de saber
+                QUANTO — a leitura que a sparkline anterior não entregava. */}
+            <text
+              x={x(i)}
+              y={y(ponto.valor) - 14}
+              fontSize={11}
+              fontWeight={ehUltimo ? 700 : 600}
+              fill={ehUltimo ? 'var(--gp-brand-on-dark)' : 'var(--gp-text-2)'}
+              textAnchor="middle"
+              fontFamily={FONTE_MONO}
+            >
+              {formatNumero(ponto.valor)}
+            </text>
+            {/* Data sob o ponto, no lugar de um eixo X: o nome do simulado
+                não cabe em 5 colunas, e a data é o que ordena a leitura. */}
+            <text
+              x={x(i)}
+              y={ALTURA - 12}
+              fontSize={9}
+              fill="var(--gp-text-3)"
+              textAnchor="middle"
+              fontFamily={FONTE_MONO}
+            >
+              {formatDataCurta(ponto.data)}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -170,33 +296,154 @@ function BarraArea({ area, acertoPct, critica }: { area: string; acertoPct: numb
   );
 }
 
-/** Um card de métrica do drawer (Proficiência, Acertos, Posição, Variação). */
-function CardMetrica({
-  rotulo,
-  children,
-  destaque = false,
-  testId,
-}: {
-  rotulo: string;
-  children: React.ReactNode;
-  destaque?: boolean;
-  testId?: string;
-}) {
+/**
+ * Uma linha da lista "Notas dos simulados".
+ *
+ * Substitui o cartão de meia tela por simulado que o drawer tinha antes
+ * (quatro caixas de métrica + barras de área + bloco de crítica, REPETIDOS a
+ * cada simulado): num aluno com 4 simulados, era preciso rolar quatro telas
+ * para responder "como ele foi indo". A referência resolve com uma lista —
+ * nome à esquerda, nota à direita — e é dela que sai a leitura de relance.
+ *
+ * Nada foi perdido no caminho: acertos, posição, percentil e variação, que
+ * viviam nas caixas, seguem na linha de apoio. Nenhum número é somado ou
+ * mediado entre simulados (regra de agregação honesta do handoff).
+ */
+function LinhaSimulado({ entrada }: { entrada: AlunoSimuladoEntry }) {
+  const apoio = [
+    formatData(entrada.simuladoData),
+    entrada.acertos === null ? null : `${formatNumero(entrada.acertos)} acertos`,
+    entrada.posicao
+      ? `${entrada.posicao.lugar}º de ${entrada.posicao.total} · percentil ${entrada.posicao.percentil}`
+      : null,
+    entrada.variacao === null || entrada.variacao === undefined
+      ? null
+      : `${formatDelta(entrada.variacao)} vs anterior`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
-    <div style={{ border: '1px solid var(--gp-border-strong)', borderRadius: 12, padding: 12 }}>
-      <div style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>{rotulo}</div>
+    <li
+      data-testid={`drawer-simulado-${entrada.simuladoId}`}
+      className="flex items-start justify-between gap-3 py-2.5"
+    >
+      <div className="min-w-0 flex-1">
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)' }}>
+          {entrada.simuladoNome}
+        </p>
+        <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>{apoio}</p>
+      </div>
+      <div className="flex flex-none flex-col items-end gap-1">
+        <span
+          data-testid={`drawer-proficiencia-${entrada.simuladoId}`}
+          style={{
+            fontSize: 17,
+            fontWeight: 700,
+            color: 'var(--gp-text-1)',
+            fontFamily: FONTE_MONO,
+            fontVariantNumeric: 'tabular-nums',
+            lineHeight: 1,
+          }}
+        >
+          {formatNumero(entrada.proficiencia)}
+        </span>
+        <TagSituacao situacao={entrada.situacao} />
+      </div>
+    </li>
+  );
+}
+
+/**
+ * O insight de grande área do drawer.
+ *
+ * A referência fecha o painel com um bloco que NOMEIA uma área — é o que
+ * transforma quatro barras num próximo passo. A regra de escolha:
+ *
+ * 1. Existe área crítica? É dela que se fala, em tinta de perigo. Entre duas
+ *    críticas, a de menor acerto — "comece pela pior" é o mesmo conselho que
+ *    o Diagnóstico Curricular dá no macro.
+ * 2. Não existe? Então o insight é o DESTAQUE (maior acerto), com a menor
+ *    citada na mesma frase. Sem área crítica, silenciar seria devolver quatro
+ *    barras e nenhuma leitura.
+ *
+ * O "Foco sugerido: Neonatologia — ictericia e hipoglicemia concentram 70%
+ * dos erros" da referência continua fora: depende de erro por TEMA do aluno,
+ * que `get_gestor_aluno` não devolve. Recomendação inventada é pior que
+ * recomendação ausente (§4.10).
+ */
+function InsightArea({
+  areas,
+  simuladoId,
+}: {
+  areas: NonNullable<AlunoSimuladoEntry['acertoPorArea']>;
+  simuladoId: string;
+}) {
+  const criticas = areas.filter((area) => area.critica);
+
+  if (criticas.length > 0) {
+    const pior = criticas.reduce((menor, area) => (area.acertoPct < menor.acertoPct ? area : menor));
+    return (
       <div
-        data-testid={testId}
+        data-testid={`drawer-area-critica-${simuladoId}`}
         style={{
-          fontSize: destaque ? 20 : 13,
-          fontWeight: destaque ? 700 : 600,
-          color: 'var(--gp-text-1)',
-          fontFamily: FONTE_MONO,
-          fontVariantNumeric: 'tabular-nums',
+          border: '1px solid var(--gp-danger-surface)',
+          background: 'var(--gp-danger-surface)',
+          borderRadius: 12,
+          padding: 12,
         }}
       >
-        {children}
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: 'var(--gp-danger-on)',
+          }}
+        >
+          Grande área crítica
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)', marginTop: 4 }}>
+          {`${pior.area} · ${formatPct(pior.acertoPct)} de acerto`}
+        </div>
       </div>
+    );
+  }
+
+  const ordenadas = [...areas].sort((a, b) => b.acertoPct - a.acertoPct);
+  const melhor = ordenadas[0];
+  const menor = ordenadas[ordenadas.length - 1];
+
+  return (
+    <div
+      data-testid={`drawer-area-destaque-${simuladoId}`}
+      style={{
+        border: '1px solid var(--gp-success-surface)',
+        background: 'var(--gp-success-surface)',
+        borderRadius: 12,
+        padding: 12,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: 'var(--gp-success-on)',
+        }}
+      >
+        Destaque do aluno
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)', marginTop: 4 }}>
+        {`${melhor.area} · ${formatPct(melhor.acertoPct)} de acerto`}
+      </div>
+      {melhor.area !== menor.area ? (
+        <div style={{ fontSize: 11, color: 'var(--gp-text-2)', marginTop: 4 }}>
+          {`Menor acerto: ${menor.area} · ${formatPct(menor.acertoPct)} — nenhuma área abaixo do corte de área crítica.`}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -261,9 +508,30 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
 
   /** Ordem cronológica para a série — a RPC já devolve assim, mas não custa garantir. */
   const cronologicas = [...entradas].sort((a, b) => a.simuladoData.localeCompare(b.simuladoData));
-  const pontos = cronologicas
+  const pontos: PontoEvolucao[] = cronologicas
     .filter((e): e is AlunoSimuladoEntry & { proficiencia: number } => e.proficiencia !== null)
-    .map((e) => ({ rotulo: e.simuladoNome, valor: e.proficiencia }));
+    .map((e) => ({ rotulo: e.simuladoNome, valor: e.proficiencia, data: e.simuladoData }));
+
+  /**
+   * O comparativo entre grandes áreas é UM, e é o do simulado MAIS RECENTE
+   * que tenha classificação por área.
+   *
+   * A referência mostra um único conjunto de barras por aluno; o payload
+   * traz `acertoPorArea` por SIMULADO. Fundir os simulados numa média por
+   * área seria produzir número que a RPC não devolve — exatamente o que a
+   * regra de agregação honesta proíbe (mesma família de "Conceito ENAMED não
+   * tem média"). Então o comparativo é recortado, não fundido: o simulado
+   * mais recente, dito com todas as letras no subtítulo da seção.
+   *
+   * `.reverse()` sobre uma CÓPIA — `cronologicas` já é cópia de `entradas`,
+   * mas reverter no lugar mudaria a ordem da lista de notas e da série, que
+   * são renderizadas a partir dela.
+   */
+  const entradaDasAreas =
+    [...cronologicas].reverse().find((e) => (e.acertoPorArea ?? []).length > 0) ?? null;
+  const areasDoAluno = [...(entradaDasAreas?.acertoPorArea ?? [])].sort(
+    (a, b) => b.acertoPct - a.acertoPct,
+  );
 
   /**
    * §7.7: o texto do "Copiar resumo" é o recorte DESTE aluno, agregado por
@@ -278,6 +546,8 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
         `${e.simuladoNome} (${formatData(e.simuladoData)}): proficiência ${formatNumero(e.proficiencia)} · acertos ${formatNumero(e.acertos)} · ${rotuloSituacao(e.situacao)}`,
     ),
   ].join('\n');
+
+  const linkWhatsApp = linkWhatsAppAluno(contato.data?.telefone, resumoTexto);
 
   const exportar = () => {
     if (onExportar) {
@@ -369,103 +639,73 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
             descricao="Ajuste o recorte de simulados para ver os dados deste aluno."
           />
         ) : (
-          <div className="flex-1 space-y-4">
+          /*
+            Visão GERAL do aluno, na ordem da referência: as notas de cada
+            simulado, a evolução, o comparativo entre grandes áreas e um
+            insight que nomeia uma delas. Antes, o drawer repetia um cartão
+            completo por simulado — a mesma informação, quatro vezes, sem
+            nunca responder "como este aluno está indo" numa tela só.
+          */
+          <div className="flex-1 space-y-5">
+            <div className="space-y-1">
+              <TituloSecao>Notas dos simulados</TituloSecao>
+              {/* Cabeçalho da lista: sem ele, a coluna da direita é um número
+                  solto — e é o número mais importante do painel. */}
+              <div
+                className="flex items-center justify-between gap-3 pb-1"
+                style={{ fontSize: 10, color: 'var(--gp-text-3)' }}
+              >
+                <span>Simulado</span>
+                <span>Proficiência</span>
+              </div>
+              <ul className="divide-y" style={{ borderColor: 'var(--gp-border-subtle)' }}>
+                {cronologicas.map((entrada) => (
+                  <LinhaSimulado key={entrada.simuladoId} entrada={entrada} />
+                ))}
+              </ul>
+            </div>
+
             {/* Comparativo entre simulados: só existe com 2+ pontos medidos. */}
             {pontos.length > 1 ? (
               <div data-testid="drawer-evolucao" className="space-y-2">
                 <TituloSecao>Evolução de proficiência</TituloSecao>
-                <EvolucaoSparkline pontos={pontos} />
+                <div
+                  style={{
+                    border: '1px solid var(--gp-border-strong)',
+                    borderRadius: 12,
+                    padding: '10px 8px 2px',
+                    background: 'var(--gp-surface-2)',
+                  }}
+                >
+                  <EvolucaoAluno pontos={pontos} />
+                </div>
               </div>
             ) : null}
 
-            {cronologicas.map((entrada) => {
-              const areas = entrada.acertoPorArea ?? [];
-              const areaCritica = areas.find((a) => a.critica);
-              return (
-                <article
-                  key={entrada.simuladoId}
-                  data-testid={`drawer-simulado-${entrada.simuladoId}`}
-                  className="space-y-3 p-3"
-                  style={{ border: '1px solid var(--gp-border-strong)', borderRadius: 12 }}
-                >
-                  <header className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--gp-text-1)' }}>
-                        {entrada.simuladoNome}
-                      </h3>
-                      <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
-                        {formatData(entrada.simuladoData)}
-                      </p>
-                    </div>
-                    <TagSituacao situacao={entrada.situacao} />
-                  </header>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <CardMetrica rotulo="Proficiência" destaque testId={`drawer-proficiencia-${entrada.simuladoId}`}>
-                      {formatNumero(entrada.proficiencia)}
-                    </CardMetrica>
-                    <CardMetrica rotulo="Acertos" destaque>
-                      {formatNumero(entrada.acertos)}
-                    </CardMetrica>
-                    <CardMetrica rotulo="Posição">
-                      {/* Percentil junto do lugar: o contrato já traz os três
-                          campos, e sozinho o lugar não diz onde o aluno está
-                          na turma sem que o gestor faça a conta. */}
-                      {entrada.posicao
-                        ? `${entrada.posicao.lugar}º de ${entrada.posicao.total} · percentil ${entrada.posicao.percentil}`
-                        : TRACO}
-                    </CardMetrica>
-                    <CardMetrica rotulo="Variação">{formatDelta(entrada.variacao ?? null)}</CardMetrica>
-                  </div>
-
-                  {areas.length > 0 ? (
-                    <div className="space-y-2">
-                      <TituloSecao>Acerto por grande área · neste simulado</TituloSecao>
-                      <div className="flex flex-col gap-2">
-                        {areas.map((area) => (
-                          <BarraArea
-                            key={area.area}
-                            area={area.area}
-                            acertoPct={area.acertoPct}
-                            critica={area.critica}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {areaCritica ? (
-                    <div
-                      data-testid={`drawer-area-critica-${entrada.simuladoId}`}
-                      style={{
-                        border: '1px solid var(--gp-danger-surface)',
-                        background: 'var(--gp-danger-surface)',
-                        borderRadius: 12,
-                        padding: 12,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 700,
-                          letterSpacing: '0.06em',
-                          textTransform: 'uppercase',
-                          color: 'var(--gp-danger-on)',
-                        }}
-                      >
-                        Grande área crítica
-                      </div>
-                      {/* Sem "foco sugerido": a recomendação da referência
-                          depende de dado que `get_gestor_aluno` não devolve —
-                          e inventar recomendação é pior que não ter. */}
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gp-text-1)', marginTop: 4 }}>
-                        {`${areaCritica.area} · ${formatPct(areaCritica.acertoPct)} de acerto`}
-                      </div>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+            {areasDoAluno.length > 0 && entradaDasAreas ? (
+              <div data-testid="drawer-areas" className="space-y-2">
+                <TituloSecao>Comparativo entre grandes áreas · % de acerto</TituloSecao>
+                {/* De QUAL simulado saem estas barras. Sem esta linha, quatro
+                    barras sem procedência viram média imaginária na cabeça de
+                    quem lê. */}
+                <p style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+                  {`${entradaDasAreas.simuladoNome} · ${formatData(entradaDasAreas.simuladoData)}`}
+                </p>
+                <div className="flex flex-col gap-2 pt-0.5">
+                  {areasDoAluno.map((area) => (
+                    <BarraArea
+                      key={area.area}
+                      area={area.area}
+                      acertoPct={area.acertoPct}
+                      critica={area.critica}
+                    />
+                  ))}
+                </div>
+                <div className="pt-1">
+                  <InsightArea areas={areasDoAluno} simuladoId={entradaDasAreas.simuladoId} />
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -478,6 +718,32 @@ export function DrawerAluno({ alunoId, nome, simulados, onFechar, onExportar }: 
         */}
         <div className="flex flex-wrap gap-2 pt-3.5" style={{ borderTop: '1px solid var(--gp-border-subtle)' }}>
           <AcoesRecorte escopo={nomeExibido} resumoTexto={resumoTexto} onExportar={exportar} />
+          {/*
+            "Falar no WhatsApp" (reunião de 07/08: "lembra de botar aqui a
+            mesma coisa de copiar e o botão que você botou lá antes? o de
+            levar para o WhatsApp").
+
+            Leva o MESMO resumo agregado do "Copiar resumo" — nunca lista
+            nominal de terceiros (§7.7) —, e vai para o telefone do PRÓPRIO
+            aluno, que já está no cabeçalho deste drawer (`useAlunoContato`).
+            Sem telefone cadastrado o botão não aparece: um "falar" que não
+            tem com quem falar é um clique que só pode frustrar. Fora do
+            `AcoesRecorte` de propósito — aquele componente é o par
+            Exportar/Copiar sob a capability de export, e falar com um aluno
+            não é exportar dado.
+          */}
+          {linkWhatsApp ? (
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="drawer-whatsapp"
+              className="h-auto gap-1.5 rounded-sm px-3.5 py-2 text-xs font-semibold"
+              onClick={() => window.open(linkWhatsApp, '_blank', 'noopener,noreferrer')}
+            >
+              <Icon name="whatsapp" size={14} />
+              Enviar no WhatsApp
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
