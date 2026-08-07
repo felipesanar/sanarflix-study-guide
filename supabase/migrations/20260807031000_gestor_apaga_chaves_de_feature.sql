@@ -82,10 +82,41 @@
 -- NAO FOI APLICADA em producao (07/08/2026).
 --
 -- user_has_feature(text) NAO e tocada: 19 RPCs institucionais legadas ainda a
--- usam para chaves aluno.%. O ramo dela que trata gestao.% vira inerte (as
--- linhas de ies_features/feature_catalog que ela leria para 'gestao.enabled'
--- deixam de existir), mas a funcao em si permanece, sem CREATE OR REPLACE
--- nem DROP.
+-- usam para chaves aluno.% e gestao.%. Para gestao.%, o efeito NAO e ficar
+-- inerte -- e fail-closed. Em
+-- 20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:26-30, para toda
+-- chave gestao.% DIFERENTE de gestao.enabled a funcao exige o master
+-- (bool_or(enabled) sobre ies_features filtrado por feature_key =
+-- 'gestao.enabled'; coalesce(..., false) se nao achar linha); e para a
+-- propria chave gestao.enabled (:31-32), o mesmo coalesce(bool_or(enabled),
+-- false) roda sobre ZERO linhas depois deste DELETE, o que da false. Ou seja:
+-- depois desta migration, user_has_feature('gestao.*') passa a ser FALSE para
+-- todo mundo que nao seja admin/atendimento (bypass de papel, linha 16 do
+-- mesmo arquivo), e as RPCs legadas guardadas por ela levantam
+-- 'feature_not_enabled'.
+--
+-- QUAIS: a lista completa esta no bloco DO daquele mesmo arquivo
+-- (:113-166, mapping de :119-139) -- get_institutional_simulados,
+-- get_institutional_performance, get_institutional_student_scores,
+-- get_institutional_evolution, get_institutional_tri,
+-- get_institutional_evolution_tri, get_ies_student_count (todas com guard
+-- 'gestao.enabled') -- mais get_simulado_tem_tri (:49, guard hardcoded no
+-- corpo da funcao, fora do bloco DO).
+--
+-- ALCANCE -- O QUE SE SABE E O QUE NAO SE SABE:
+--   - em feat/portal-gestor-v2 (estado-alvo, PR #17) nao sobrou chamador vivo
+--     dessas RPCs no front -- so um comentario em
+--     src/components/admin/ies/IesFeaturesBoard.tsx:66, sem chamada real;
+--   - na main de hoje elas estao vivas: src/pages/DesempenhoInstitucionalV2.tsx:71
+--     e src/experiences/gestor/GestorFiltersProvider.tsx:59 as consomem, os
+--     dois via useInstitutionalPerformanceData(filters);
+--   - NAO DA PARA FECHAR O ALCANCE SO PELO REPOSITORIO: os guards destas 19
+--     RPCs foram injetados em runtime por aquele bloco DO
+--     (20260709171344...sql:113-166), reescrevendo pg_get_functiondef de cada
+--     uma via EXECUTE -- o corpo real, ja com o guard aplicado, NAO ESTA em
+--     nenhum .sql deste repo, so em producao. Uma varredura textual no
+--     repositorio nao encontra (nem prova a ausencia de) outros chamadores
+--     alem dos listados aqui.
 
 DELETE FROM public.ies_features
  WHERE feature_key IN ('gestao.enabled', 'gestao.exportar', 'gestao.ia');
