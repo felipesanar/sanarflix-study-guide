@@ -129,9 +129,20 @@ function readMigration(filename: string): string {
   return readFileSync(join(MIGRATIONS_DIR, filename), 'utf8').replace(/\r\n/g, '\n');
 }
 
-/** O `(` no fim não é enfeite: sem ele, `get_gestor_aluno` casa com
- *  `get_gestor_aluno_contato` e `get_gestor_alunos`, que vêm ANTES no arquivo. */
-const cabecalhoDe = (nome: string) => `CREATE OR REPLACE FUNCTION public.${nome}(`;
+/**
+ * O `(` no fim não é enfeite: sem ele, `get_gestor_aluno` casa com
+ * `get_gestor_aluno_contato` e `get_gestor_alunos`, que vêm ANTES no arquivo.
+ *
+ * Flag `i`: case-insensitive. O agente do Lovable gera SQL em minúsculas com
+ * frequência neste repo (`create or replace function`, não `CREATE OR REPLACE
+ * FUNCTION`) — ver `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2`,
+ * que recria `user_has_feature` inteiramente em minúsculo. Sem a flag, uma
+ * migration do Lovable em minúsculas que recriasse qualquer uma das onze
+ * `get_gestor_*` ficaria invisível para `vigente()`, que continuaria
+ * devolvendo a versão anterior como se fosse a vigente.
+ */
+const cabecalhoDe = (nome: string) =>
+  new RegExp(`CREATE OR REPLACE FUNCTION public\\.${nome}\\(`, 'i');
 
 /** Migrations em ordem cronológica (o prefixo do nome é o timestamp). */
 function migrationsOrdenadas(): string[] {
@@ -145,7 +156,7 @@ function vigente(nome: string): { arquivo: string; sql: string } {
   const marca = cabecalhoDe(nome);
   const candidatos = migrationsOrdenadas()
     .map((arquivo) => ({ arquivo, sql: readMigration(arquivo) }))
-    .filter(({ sql }) => sql.includes(marca));
+    .filter(({ sql }) => marca.test(sql));
   expect(candidatos.length, `nenhuma migration recria ${nome}`).toBeGreaterThan(0);
   return candidatos[candidatos.length - 1];
 }
@@ -158,7 +169,8 @@ function vigente(nome: string): { arquivo: string; sql: string } {
  * em vez de importar de outro arquivo de teste.
  */
 function corpoDaFuncao(sql: string, nome: string): string {
-  const inicio = sql.indexOf(cabecalhoDe(nome));
+  const match = cabecalhoDe(nome).exec(sql);
+  const inicio = match ? match.index : -1;
   expect(inicio, `função ${nome} não encontrada na migration`).toBeGreaterThanOrEqual(0);
   const abertura = /\bAS\s+(\$[A-Za-z_]*\$)/.exec(sql.slice(inicio));
   expect(abertura, `não achei o dollar-quote que abre o corpo de ${nome}`).not.toBeNull();
@@ -231,10 +243,22 @@ describe('acesso por papel nas onze RPCs get_gestor_* (gestao.enabled removida, 
     }
   });
 
-  it('user_has_feature NAO e recriada em nenhuma migration (19 RPCs legadas dependem dela para aluno.%)', () => {
-    for (const arquivo of migrationsOrdenadas()) {
+  // As duas migrations deste PR — nao o repositorio inteiro. Uma asserção
+  // sobre TODAS as migrations seria falsa hoje:
+  // `20260709171344_44671730-cd9c-4e8a-b003-49034839440e.sql:2` já recria
+  // `user_has_feature` (em minúsculas — `create or replace function`), e essa
+  // é a definição VIGENTE da helper, não uma regressão deste PR. O que este
+  // PR precisa garantir é que ELE não recria a função — não que nenhuma
+  // migration jamais o fez.
+  const MIGRATIONS_DESTE_PR = [
+    '20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql',
+    '20260807031000_gestor_apaga_chaves_de_feature.sql',
+  ];
+
+  it('as duas migrations deste PR nao recriam user_has_feature (19 RPCs legadas dependem dela para aluno.%)', () => {
+    for (const arquivo of MIGRATIONS_DESTE_PR) {
       expect(readMigration(arquivo), arquivo).not.toMatch(
-        /CREATE OR REPLACE FUNCTION public\.user_has_feature\(/,
+        /CREATE OR REPLACE FUNCTION public\.user_has_feature\(/i,
       );
     }
   });
