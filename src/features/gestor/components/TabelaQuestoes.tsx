@@ -310,9 +310,21 @@ export function TabelaQuestoes({
                             {formatNumeroQuestao(q.numero)}
                           </button>
                         </Celula>
-                        <Celula>{q.grandeArea}</Celula>
-                        <Celula>{q.especialidade}</Celula>
-                        <Celula>{q.tema}</Celula>
+                        <Celula>
+                          <span title={q.grandeArea} className="block max-w-[220px] truncate">
+                            {q.grandeArea}
+                          </span>
+                        </Celula>
+                        <Celula>
+                          <span title={q.especialidade} className="block max-w-[220px] truncate">
+                            {q.especialidade}
+                          </span>
+                        </Celula>
+                        <Celula>
+                          <span title={q.tema} className="block max-w-[220px] truncate">
+                            {q.tema}
+                          </span>
+                        </Celula>
                         <Celula>
                           {nivel === null ? null : (
                             <span

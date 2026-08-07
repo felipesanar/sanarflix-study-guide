@@ -124,6 +124,38 @@ describe('TabelaQuestoes', () => {
     expect(gatilho.style.fontFamily).toContain('Roboto Mono');
   });
 
+  /**
+   * Mesma receita já usada nas duas tabelas de aluno (`TabelaAlunos.tsx`,
+   * `TabelaAlunosSimulado.tsx`): `title` com o texto integral + `truncate`
+   * na célula, para grande área/especialidade/tema não vazarem da coluna
+   * quando o texto é longo (C3).
+   */
+  it('grande área, especialidade e tema truncam com title, como as tabelas de aluno (C3)', () => {
+    render(
+      <TabelaQuestoes
+        {...props({
+          questoes: [
+            questao({
+              numero: 1,
+              grandeArea: 'Clínica Médica e Cirúrgica Combinadas em Regime Ambulatorial',
+              especialidade: 'Cardiologia Intervencionista de Alta Complexidade',
+              tema: 'Insuficiência cardíaca descompensada em paciente crônico grave',
+            }),
+          ],
+          total: 1,
+        })}
+      />,
+    );
+
+    const linha = screen.getByTestId('linha-questao-1');
+    const grandeArea = within(linha).getByTitle('Clínica Médica e Cirúrgica Combinadas em Regime Ambulatorial');
+    expect(grandeArea).toHaveClass('truncate');
+    const especialidade = within(linha).getByTitle('Cardiologia Intervencionista de Alta Complexidade');
+    expect(especialidade).toHaveClass('truncate');
+    const tema = within(linha).getByTitle('Insuficiência cardíaca descompensada em paciente crônico grave');
+    expect(tema).toHaveClass('truncate');
+  });
+
   it('a coluna de índice de acerto tem barra colorida pela régua única, e o crítico marca o valor', () => {
     render(<TabelaQuestoes {...props()} />);
 
