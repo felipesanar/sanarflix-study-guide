@@ -119,6 +119,15 @@ export const TooltipRastreabilidade: React.FC<{
             background: 'var(--gp-tooltip-surface)',
             color: 'var(--gp-tooltip-value)',
             boxShadow: 'var(--gp-tooltip-shadow)',
+            /*
+             * Achado F5 (revisão final): `TooltipContent` herda a classe
+             * `border` sem cor (`src/components/ui/tooltip.tsx`), que
+             * resolve para `hsl(var(--border))` — um anel cinza-claro no
+             * tema claro contra esta superfície escura, e some no escuro
+             * (`--border` também é escuro lá). Sobrescrevendo aqui, não em
+             * `tooltip.tsx` (compartilhado com aluno e admin).
+             */
+            borderColor: 'var(--gp-tooltip-surface)',
           }}
         >
           {titulo ? (

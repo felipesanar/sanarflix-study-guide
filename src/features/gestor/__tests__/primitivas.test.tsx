@@ -190,6 +190,28 @@ describe('TooltipRastreabilidade (spec §4.1)', () => {
 
     expect(screen.getByTestId('rastreabilidade-texto')).not.toHaveTextContent('Cobertura');
   });
+
+  /**
+   * Achado F5 (revisão final): `TooltipContent` herda a classe `border` SEM
+   * cor do primitivo compartilhado (`src/components/ui/tooltip.tsx`) — sem
+   * `borderColor` no `style`, o anel resolve para `hsl(var(--border))`, um
+   * cinza-claro contra a superfície escura que o item A6 usa nos dois temas.
+   */
+  it('a borda do tooltip usa --gp-tooltip-surface — nunca a borda cinza-clara herdada do primitivo (F5)', async () => {
+    render(
+      <TooltipProvider>
+        <TooltipRastreabilidade meta={META} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.focus(screen.getByRole('button', { name: /rastreabilidade/i }));
+    // O role="tooltip" cai no <span> sr-only que o Radix usa para a
+    // descrição acessível — o balão VISÍVEL (que carrega o `style` real) é
+    // o irmão renderizado por TooltipPrimitive.Content, sem esse role.
+    await screen.findByRole('tooltip');
+    const balao = document.querySelector('[data-radix-popper-content-wrapper] [data-side]');
+    expect(balao?.getAttribute('style')).toContain('border-color: var(--gp-tooltip-surface)');
+  });
 });
 
 describe('BlocoErrorBoundary (spec §8.4 — boundary POR BLOCO)', () => {
