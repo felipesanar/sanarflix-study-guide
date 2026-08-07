@@ -9,12 +9,28 @@
 -- "resultados_alunos_tri.score_proprio" e "score_proprio" pro gestor,
 -- estrutura interna do banco que ele nao tem por que ver.
 --
--- Base usada para o CREATE OR REPLACE: a ULTIMA migration que recria esta
--- funcao antes desta, 20260807021546_a19e4160-6f1c-4f0d-9cc8-f9743ff340dc.sql
--- (encontrada via grep -l "CREATE OR REPLACE FUNCTION
--- public.get_gestor_visao_geral" supabase/migrations/*.sql, maior timestamp).
--- Usar uma base mais antiga reverteria fix de producao -- ja aconteceu duas
--- vezes neste projeto.
+-- Base usada para o CREATE OR REPLACE:
+-- 20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql (branch
+-- docs/simplificacao-acesso-gestor, PR 1), NAO a 20260807021546. Aquela
+-- migration recria as onze RPCs get_gestor_* removendo de proposito o guard
+-- de feature mestre do modulo gestao (a chave documentada no cabecalho
+-- daquele arquivo) -- decisao de produto do PR 1, distinta e posterior ao
+-- Lote D que o tinha restaurado. Usar a 021546 (que AINDA tem esse guard)
+-- como base reintroduziria o guard em get_gestor_visao_geral por baixo do
+-- rebase, revertendo o PR 1 em silencio -- exatamente o bug que esta
+-- migration corrigiu ao nascer com prefixo 20260807030000 e colidir, por
+-- ordem alfabetica de arquivo (Supabase ordena migrations por nome; "ges" <
+-- "get"), com a 20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql
+-- do PR 1: as duas tinham o MESMO prefixo de timestamp, e a nossa vencia por
+-- rodar depois, reintroduzindo o guard.
+--
+-- POR ISSO o prefixo aqui e 20260807040000, estritamente maior que o maior
+-- prefixo do PR 1 (20260807031000, de
+-- 20260807031000_gestor_apaga_chaves_de_feature.sql): esta migration PRECISA
+-- rodar depois de TODAS as migrations do PR 1 que tocam get_gestor_*, nunca
+-- antes. Quem no futuro "arrumar" este numero de volta para 20260807030000 (ou
+-- qualquer prefixo <= 20260807031000) reabre esta mesma colisao e reintroduz o
+-- guard que o PR 1 removeu de proposito -- NAO renumerar para tras.
 --
 -- Mudanca e SOMENTE literal: sem alterar assinatura, shape de retorno nem
 -- logica de negocio.
@@ -23,12 +39,16 @@
 --   recorte.
 -- - kpis.proficientesPct.criterio: tirou "score_proprio", agora fala
 --   "proficiencia acima de 60".
--- Verificado por diff linha a linha contra a versao anterior (script,
--- nao leitura visual): so essas duas linhas mudam, resto identico.
+-- Verificado por script (nao leitura visual): diff linha a linha contra a
+-- base do PR 1 mostra SOMENTE essas duas linhas mudando, resto identico
+-- (inclusive o guard mestre ausente -- este arquivo nao contem a chave de
+-- feature citada no cabecalho da 20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql,
+-- a prova de que a base usada foi a certa).
 --
 -- Teste estatico que trava a ausencia de "resultados_alunos_tri" e
--- "score_proprio" no texto de criterio desta migration, para nao regredir na
--- proxima vez que alguem recriar a funcao:
+-- "score_proprio" no texto de criterio desta migration, e agora tambem a
+-- ausencia do guard mestre (regressao de base, ver acima), para nao
+-- regredir na proxima vez que alguem recriar a funcao:
 -- src/features/gestor/__tests__/criterioSemNomeInterno.test.ts.
 
 CREATE OR REPLACE FUNCTION public.get_gestor_visao_geral(p_ies_id uuid, p_semestre text)
@@ -79,17 +99,6 @@ BEGIN
   -- libera um caso hoje negado.
   IF NOT public.gestor_pode_acessar_ies(v_ies) THEN
     RAISE EXCEPTION 'Permission denied: cannot access this IES';
-  END IF;
-
-  -- Lote D (06/08): restaura SOMENTE o guard de 'gestao.enabled' (master),
-  -- removido por engano junto com 'gestao.portal_v2' na migration
-  -- 20260806144647 (GA total). Fica DEPOIS da resolucao de v_ies e da
-  -- autorizacao por IES -- nunca antes, pois a helper e fail-closed para
-  -- p_ies_id NULL (armadilha documentada em
-  -- 20260804120000_user_has_feature_for_ies.sql:99-127). 'gestao.portal_v2'
-  -- e as 5 chaves por modulo continuam mortas, nao voltam aqui.
-  IF NOT public.user_has_feature_for_ies('gestao.enabled', v_ies) THEN
-    RAISE EXCEPTION 'feature_not_enabled' USING ERRCODE = '42501';
   END IF;
 
   -- recorte de semestre: '6ano' => todos, 11 e 12 em evidência; 'geral' => todos; '1'..'12' => só aquele

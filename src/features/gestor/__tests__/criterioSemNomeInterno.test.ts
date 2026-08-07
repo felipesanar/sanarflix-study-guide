@@ -83,4 +83,17 @@ describe('get_gestor_visao_geral — meta.criterio e kpis.*.criterio em linguage
       'estes literais de criterio vazam nome de coluna do banco pro tooltip do gestor',
     ).toEqual([]);
   });
+
+  it('a migration vigente não reintroduz o guard de gestao.enabled removido pelo PR de simplificação de acesso', () => {
+    // Regressão real: esta migration nasceu com o mesmo prefixo de timestamp
+    // de 20260807030000_gestor_remove_guard_feature_acesso_por_papel.sql (que
+    // remove esse guard de propósito) e, por ordem alfabética de arquivo,
+    // rodava DEPOIS dela — reintroduzindo o guard em silêncio. A correção foi
+    // reconstruir o corpo a partir da versão sem guard e renumerar para
+    // 20260807040000 (depois de todas as migrations daquele PR). Esta
+    // asserção trava a ausência do guard na migration `sql` inteira (não só
+    // no `corpo` recortado acima) — é exatamente a checagem que provaria, se
+    // falhasse, que a base usada para reconstruir a função foi a errada.
+    expect(sql).not.toMatch(/gestao\.enabled/);
+  });
 });
