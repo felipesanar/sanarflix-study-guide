@@ -227,3 +227,48 @@ describe('acesso por papel nas onze RPCs get_gestor_* (gestao.enabled removida, 
     expect(corpo, nome).toMatch(/SET search_path (?:TO 'public'|= public)/);
   });
 });
+
+/**
+ * Migration de limpeza (20260807031000): apaga as 3 chaves de feature de
+ * gestao (`gestao.enabled`, `gestao.exportar`, `gestao.ia`) de
+ * `ies_features`/`feature_catalog` e dropa `user_has_feature_for_ies`, que
+ * fica orfa depois que a migration anterior (20260807030000) parou de
+ * chama-la nas onze RPCs. Depende da anterior: dropar a helper enquanto as
+ * RPCs ainda a chamassem quebraria todas as onze.
+ *
+ * A asserção que importa de verdade aqui é a NEGATIVA: `user_has_feature` e
+ * `user_has_feature_for_ies` compartilham prefixo (`user_has_feature`), então
+ * um regex de DROP descuidado — por exemplo `/DROP FUNCTION[^;]*user_has_feature/`
+ * sem `\(` ancorando o nome completo — casaria com as duas. `user_has_feature`
+ * NUNCA pode ser dropada nem recriada: 19 RPCs institucionais legadas
+ * dependem dela para chaves `aluno.%`.
+ */
+describe('migration de limpeza: apaga as 3 chaves de gestao e a helper orfa (20260807031000)', () => {
+  const MIGRATION_LIMPEZA = '20260807031000_gestor_apaga_chaves_de_feature.sql';
+  const sqlLimpeza = readMigration(MIGRATION_LIMPEZA);
+
+  it('a migration de limpeza nao dropa (nem recria) user_has_feature', () => {
+    expect(sqlLimpeza).not.toMatch(/DROP FUNCTION[^;]*\buser_has_feature\s*\(/);
+    expect(sqlLimpeza).not.toMatch(/CREATE (OR REPLACE )?FUNCTION public\.user_has_feature\(/);
+  });
+
+  it('dropa a helper orfa user_has_feature_for_ies', () => {
+    expect(sqlLimpeza).toMatch(
+      /DROP FUNCTION IF EXISTS public\.user_has_feature_for_ies\(text, uuid\)/,
+    );
+  });
+
+  it('apaga as 3 chaves de ies_features (coluna feature_key) e feature_catalog (coluna key)', () => {
+    expect(sqlLimpeza).toMatch(/DELETE FROM public\.ies_features/);
+    expect(sqlLimpeza).toMatch(/feature_key IN \('gestao\.enabled', 'gestao\.exportar', 'gestao\.ia'\)/);
+    expect(sqlLimpeza).toMatch(/DELETE FROM public\.feature_catalog/);
+    expect(sqlLimpeza).toMatch(/\bkey IN \('gestao\.enabled', 'gestao\.exportar', 'gestao\.ia'\)/);
+  });
+
+  it('nao toca nenhuma outra tabela ou funcao (migration aditiva/de limpeza, sem ALTER TABLE)', () => {
+    expect(sqlLimpeza).not.toMatch(/ALTER TABLE/i);
+    // só as duas DELETE + o DROP FUNCTION da helper orfa.
+    expect(sqlLimpeza.match(/^DELETE FROM/gm)?.length).toBe(2);
+    expect(sqlLimpeza.match(/^DROP FUNCTION/gm)?.length).toBe(1);
+  });
+});
