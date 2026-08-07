@@ -165,6 +165,30 @@ describe('tema do portal do gestor — análise estática do CSS (§Tema escuro)
     });
   });
 
+  /**
+   * Achado F2 (revisão final): o commit do item C1 varreu a classe utilitária
+   * de mono do Tailwind ("os dois últimos ... que não resolviam Roboto Mono"),
+   * mas não pegou `KpiCard.tsx` — arquivo que o lote B estava editando ao
+   * mesmo tempo num worktree paralelo, ponto cego clássico de fan-out. A
+   * classe cai no stack mono DEFAULT do Tailwind (`tailwind.config.ts` só
+   * estende `sans`/`display`, não declara `mono`) — família diferente de
+   * `FONTE_MONO` (`components/tabela/TabelaGestor.tsx`), que é a que o resto
+   * do portal usa via `style`.
+   *
+   * Por isso este guard não escreve a classe por extenso na MENSAGEM de erro
+   * (só dentro do regex de verdade): o Tailwind varre os arquivos de TESTE
+   * junto com os de código (mesmo aviso do cabeçalho do teste anterior), e a
+   * classe escrita à toa dentro de uma string de erro já causou o build
+   * reclamar de uma classe que só existia ali dentro.
+   */
+  it('nenhum arquivo de código do gestor usa a classe do Tailwind de mono (achado F2) — números usam FONTE_MONO por style', () => {
+    FONTES.filter(({ p }) => /\.tsx?$/.test(p)).forEach(({ p, src }) => {
+      const semComentarios = semComentariosDeBloco(src);
+      expect(semComentarios, `${p}: use style={{ fontFamily: FONTE_MONO }}, não a classe utilitária de mono`)
+        .not.toMatch(/\bfont-mono\b/);
+    });
+  });
+
   it('skeleton do escuro é mais claro que o card, sem clarão branco', () => {
     const escuro = blocoDe('.dark .gestor-portal');
     const m = escuro.match(/--gp-skeleton:\s*hsl\(220 13% (\d+)%\)/);

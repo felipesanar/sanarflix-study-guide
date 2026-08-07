@@ -7,6 +7,7 @@ import { Tag, TagDelta } from '@/features/gestor/components/Tag';
 import { TooltipRastreabilidade } from '@/features/gestor/components/TooltipRastreabilidade';
 import { TRACO, formatNumero } from '@/features/gestor/lib/formatters';
 import { useCountUp } from '@/features/gestor/hooks/useCountUp';
+import { FONTE_MONO } from '@/features/gestor/components/tabela/TabelaGestor';
 import type { Meta, PontoSerie } from '@/features/gestor/api/types';
 
 export type EstadoKpi = 'ok' | 'loading' | 'empty' | 'error';
@@ -268,8 +269,9 @@ export function KpiCard({
                         {ponto.rotulo}
                       </span>
                       <span
-                        className="font-mono tabular-nums"
+                        className="tabular-nums"
                         style={{
+                          fontFamily: FONTE_MONO,
                           fontSize: 14,
                           fontWeight: corrente ? 700 : 600,
                           color: corrente
