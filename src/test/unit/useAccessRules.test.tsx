@@ -17,6 +17,7 @@ const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));
 
 import { useAccessRules } from '@/hooks/useAccessRules';
+import { deriveAccessFromRoles } from '@/experiences/access';
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -27,10 +28,13 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('useAccessRules (fonte única get_effective_features)', () => {
   beforeEach(() => {
     mockRpc.mockReset();
-    mockUseAuth.mockReturnValue({ user: { id: 'u1', id_ies: 'ies1', roles: ['gestor'] } });
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', id_ies: 'ies1', roles: ['gestor'] },
+      access: deriveAccessFromRoles(['gestor']),
+    });
   });
 
-  it('mapeia chaves namespaced para AccessRules e respeita gestao.enabled', async () => {
+  it('mapeia chaves namespaced para AccessRules; desempenhoInstitucional vem do papel de gestor', async () => {
     mockRpc.mockResolvedValue({
       data: {
         bypass: false,
@@ -49,16 +53,49 @@ describe('useAccessRules (fonte única get_effective_features)', () => {
     expect(result.current.accessRules.home).toBe(true);
     expect(result.current.accessRules.studyGuide).toBe(false);
     expect(result.current.accessRules.errorNotebook).toBe(true);
-    // gestor NÃO tem mais bypass hardcoded: portal segue o contrato da IES
-    expect(result.current.accessRules.desempenhoInstitucional).toBe(false);
+    // Portal do gestor deixou de ser contratado por IES (spec 2026-08-07):
+    // papel de gestor concede acesso completo, mesmo com gestao.enabled false.
+    expect(result.current.accessRules.desempenhoInstitucional).toBe(true);
     expect(result.current.accessRules.userManagement).toBe(false);
     expect(result.current.hasFeature('gestao.visao_institucional')).toBe(false);
   });
 
-  it('bypass do servidor (admin/atendimento) liga tudo, inclusive userManagement', async () => {
-    mockUseAuth.mockReturnValue({ user: { id: 'u2', id_ies: '', roles: ['admin'] } });
+  it('desempenhoInstitucional vem do papel, não da feature gestao.enabled', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u3', id_ies: 'ies-sem-feature', roles: ['gestor'] },
+      access: deriveAccessFromRoles(['gestor']),
+    });
+    // A IES NÃO tem a feature — antes disto bastava para negar o acesso.
     mockRpc.mockResolvedValue({
-      data: { bypass: true, ies_id: null, features: { 'aluno.home': true, 'gestao.enabled': true } },
+      data: { bypass: false, ies_id: 'ies-sem-feature', features: {} },
+      error: null,
+    });
+    const { result } = renderHook(() => useAccessRules(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.accessRules.desempenhoInstitucional).toBe(true);
+  });
+
+  it('aluno não recebe desempenhoInstitucional, mesmo se a IES tiver a feature', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u4', id_ies: 'ies-com-feature', roles: [] },
+      access: deriveAccessFromRoles([]),
+    });
+    mockRpc.mockResolvedValue({
+      data: { bypass: false, ies_id: 'ies-com-feature', features: { 'gestao.enabled': true } },
+      error: null,
+    });
+    const { result } = renderHook(() => useAccessRules(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.accessRules.desempenhoInstitucional).toBe(false);
+  });
+
+  it('bypass do servidor (admin/atendimento) liga tudo, inclusive userManagement', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', id_ies: '', roles: ['admin'] },
+      access: deriveAccessFromRoles(['admin']),
+    });
+    mockRpc.mockResolvedValue({
+      data: { bypass: true, ies_id: null, features: { 'aluno.home': true } },
       error: null,
     });
     const { result } = renderHook(() => useAccessRules(), { wrapper });
@@ -68,7 +105,7 @@ describe('useAccessRules (fonte única get_effective_features)', () => {
   });
 
   it('sem usuário: tudo false, sem chamada à RPC', () => {
-    mockUseAuth.mockReturnValue({ user: null });
+    mockUseAuth.mockReturnValue({ user: null, access: null });
     const { result } = renderHook(() => useAccessRules(), { wrapper });
     expect(result.current.accessRules.simulados).toBe(false);
     expect(mockRpc).not.toHaveBeenCalled();
