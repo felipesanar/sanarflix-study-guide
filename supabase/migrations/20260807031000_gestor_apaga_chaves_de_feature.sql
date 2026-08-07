@@ -1,5 +1,37 @@
 -- ============================================================================
--- PRE-REQUISITO DE FRONT -- LEIA ANTES DE APLICAR (07/08/2026)
+-- ORDEM DE APLICACAO -- 3 PASSOS, NESSA ORDEM (07/08/2026)
+--
+-- Esta migration e SO o passo 3. As duas migrations deste PR NAO sao um bloco
+-- so -- aplicar fora de ordem quebra o portal para TODO gestor, nao so para
+-- quem hoje tem a feature desligada:
+--   1) aplicar 20260807030000 -- as 11 RPCs get_gestor_* param de exigir
+--      gestao.enabled; o front (useAccessRules.ts:35 na main de hoje) ainda
+--      exige a chave, nada muda para o usuario (quem tinha a feature ligada
+--      continua vendo o portal; quem nao tinha continua sem ver);
+--   2) subir o front -- a mudanca de pr1/front (Task 1 do plano):
+--      useAccessRules.ts para de ler hasFeature('gestao.enabled') e passa a
+--      usar hasExperience(access, 'gestao');
+--   3) SO ENTAO aplicar esta migration (20260807031000).
+--
+-- POR QUE A ORDEM IMPORTA AQUI -- QUEDA TOTAL, NAO JANELA INVISIVEL: apagar a
+-- linha de gestao.enabled faz hasFeature('gestao.enabled') devolver false
+-- para QUALQUER IES (mesmo coalesce(bool_or(enabled), false) sobre zero
+-- linhas que a RPC user_has_feature faz -- ver o bloco mais abaixo, sobre as
+-- 19 RPCs legadas). Enquanto o front ainda ler essa chave (passo 2 nao
+-- feito), TODO gestor perde o portal -- nao so as IES que hoje tem a feature
+-- desligada. E diferente do risco da 20260807030000 isolada: aquela e uma
+-- janela SEM efeito perceptivel (o front continua bloqueando quem ja estava
+-- bloqueado; nada piora). Esta aqui e queda visivel, imediata, para 100% dos
+-- gestores, se aplicada antes do passo 2.
+--
+-- Este pre-requisito (passo 2) SOMA-SE ao pre-requisito de
+-- GestorLayout.tsx/botoes Exportar+IA descrito no bloco abaixo -- os dois tem
+-- de estar satisfeitos antes de aplicar; nenhum substitui o outro. Ver a
+-- secao "Ordem de implantacao" em
+-- docs/superpowers/plans/2026-08-07-simplificacao-acesso-gestor-pr1.md.
+-- ============================================================================
+--
+-- PRE-REQUISITO ADICIONAL DE FRONT -- GestorLayout.tsx (exportar/ia)
 --
 -- Este DELETE tem uma dependencia no front que o spec original nao previa. A
 -- premissa "gestao.exportar e gestao.ia sao dado morto, zero consumidores"
