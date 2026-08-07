@@ -425,7 +425,16 @@ function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: ()
       </div>
 
       <BadgeStatus status={item.status} />
-      <Button variant="outline" size="sm" className="flex-none" onClick={onAgendar}>
+      {/* Item B4 do passe de conformidade: receita de botão de ação em
+          página já aplicada em EstadoErro/EstadoVazio — 8px de raio, 8px
+          14px de padding, 12px/600 — em vez do `size="sm"` cru (herdando
+          h-9/px-3/text-sm do primitivo compartilhado com aluno/admin). */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-auto flex-none rounded-sm px-3.5 py-2 text-xs font-semibold"
+        onClick={onAgendar}
+      >
         Agendar data
       </Button>
     </div>
@@ -480,7 +489,7 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
         <Button
           variant="outline"
           size="sm"
-          className="mt-3"
+          className="mt-3 h-auto rounded-sm px-3.5 py-2 text-xs font-semibold"
           onClick={() => abrirWhatsApp(MSG_CONSULTOR(iesNome))}
         >
           Falar com consultor
@@ -545,6 +554,7 @@ export function CronogramaSimulados({ iesId, iesNome }: CronogramaSimuladosProps
             <Button
               variant="ghost"
               size="sm"
+              className="h-auto rounded-sm px-3.5 py-2 text-xs font-semibold"
               onClick={() => abrirWhatsApp(MSG_CONSULTOR(iesNome))}
             >
               Falar com consultor

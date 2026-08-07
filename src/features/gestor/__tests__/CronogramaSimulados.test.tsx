@@ -225,6 +225,47 @@ describe('CronogramaSimulados — anatomia da referência (§10.12)', () => {
     expect(agendar.querySelector('i')).toBeNull();
     expect(agendar.querySelector('svg')).toBeNull();
   });
+
+  /**
+   * Item B4 do passe de conformidade: os três botões de ação da referência
+   * ("Agendar data" e os dois "Falar com consultor") herdavam `size="sm"` cru
+   * do primitivo compartilhado (h-9/rounded-md/px-3/text-sm) em vez da
+   * receita de botão de ação em página já aplicada em EstadoErro/EstadoVazio
+   * — 8px de raio, 8px 14px de padding, 12px/600.
+   */
+  it('"Agendar data" (linha sem data) usa a receita h-auto/rounded-sm/px-3.5/py-2/text-xs/font-semibold', () => {
+    montar();
+    const agendar = screen.getByRole('button', { name: 'Agendar data' });
+    expect(agendar.className).toMatch(/\bh-auto\b/);
+    expect(agendar.className).toMatch(/\brounded-sm\b/);
+    expect(agendar.className).toMatch(/\bpx-3\.5\b/);
+    expect(agendar.className).toMatch(/\bpy-2\b/);
+    expect(agendar.className).toMatch(/\btext-xs\b/);
+    expect(agendar.className).toMatch(/\bfont-semibold\b/);
+  });
+
+  it('"Falar com consultor" do grupo sem data usa a mesma receita de geometria', () => {
+    montar();
+    const falar = screen.getByRole('button', { name: 'Falar com consultor' });
+    expect(falar.className).toMatch(/\bh-auto\b/);
+    expect(falar.className).toMatch(/\brounded-sm\b/);
+    expect(falar.className).toMatch(/\bpx-3\.5\b/);
+    expect(falar.className).toMatch(/\bpy-2\b/);
+    expect(falar.className).toMatch(/\btext-xs\b/);
+    expect(falar.className).toMatch(/\bfont-semibold\b/);
+  });
+
+  it('"Falar com consultor" do estado vazio (nenhum simulado contratado) usa a mesma receita de geometria', () => {
+    mocks.useCronograma.mockReturnValue(resultado({ data: [] }));
+    montar();
+    const falar = screen.getByRole('button', { name: 'Falar com consultor' });
+    expect(falar.className).toMatch(/\bh-auto\b/);
+    expect(falar.className).toMatch(/\brounded-sm\b/);
+    expect(falar.className).toMatch(/\bpx-3\.5\b/);
+    expect(falar.className).toMatch(/\bpy-2\b/);
+    expect(falar.className).toMatch(/\btext-xs\b/);
+    expect(falar.className).toMatch(/\bfont-semibold\b/);
+  });
 });
 
 describe('resumoCronograma', () => {
