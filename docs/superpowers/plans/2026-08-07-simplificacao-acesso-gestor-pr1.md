@@ -309,6 +309,38 @@ git commit -m "feat(gestor): 11 RPCs deixam de exigir gestao.enabled; papel e es
 
 **Interfaces:**
 - Consumes: a Task 3 precisa vir antes — dropar `user_has_feature_for_ies` com as RPCs ainda chamando-a quebraria as 11.
+- Consumes: **um pré-requisito de front, descrito abaixo.** Escrever e commitar a migration é seguro a qualquer momento; **aplicá-la em produção não é.**
+
+> ⚠️ **Não aplique esta migration antes de ler.** A premissa do spec de que
+> `gestao.exportar` e `gestao.ia` são dado morto valia para o estado **pós-#17**,
+> não para a `main` de hoje. Em `src/experiences/gestor/GestorLayout.tsx:51-52` as
+> duas chaves eram lidas via `useEffectiveFeatures` e controlavam os botões
+> **Exportar** e **IA** do header do `/gestor` e os drawers correspondentes.
+> Como `hasFeature` devolve `false` para chave inexistente, o `DELETE` faria os
+> dois botões sumirem em silêncio para todo gestor.
+>
+> Isso foi corrigido em **07/08** pelo commit `fix(gestor): Exportar e IA deixam de
+> depender de ies_features`, que remove o gate e trava o comportamento em
+> `src/test/unit/gestorExportarIaSemFeature.test.tsx`. **Aplique esta migration
+> somente depois** que esse commit estiver na `main` **e deployado** — ou depois que
+> o **PR #17** estiver mergeado e deployado, já que ele apaga `src/experiences/gestor/`
+> inteiro e o portal novo (`src/features/gestor/`) não referencia nenhuma das duas chaves.
+>
+> Checagem antes de aplicar — os dois comandos devem sair vazios na `main`:
+> ```bash
+> git grep -n -E "gestao\.(exportar|ia)" -- src/
+> ```
+> ```bash
+> git grep -n -E "canExport|canChat" -- src/
+> ```
+>
+> Efeito colateral a conferir em produção (projeto **gvqv**, não `lljn` — o MCP
+> aponta para o projeto errado): IES com as chaves `false` ou sem linha passam a
+> ver os botões. Pelo seed de 09/07 o esperado é zero afetadas, mas confirme:
+> ```sql
+> SELECT feature_key, enabled, count(*) FROM public.ies_features
+>  WHERE feature_key IN ('gestao.exportar','gestao.ia') GROUP BY 1,2 ORDER BY 1,2;
+> ```
 
 - [ ] **Step 1: Escrever a migration**
 
