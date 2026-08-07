@@ -42,15 +42,41 @@ function corpoDaFuncao(sql: string, nome: string): string {
   return sql.slice(inicio, proxima === -1 ? undefined : proxima);
 }
 
-/** Os literais de texto que alimentam `criterio` no payload — nunca a função inteira. */
+/**
+ * Os literais de texto que alimentam `criterio` no payload — nunca a função
+ * inteira.
+ *
+ * Desde 07/08 um `criterio` pode ser montado por `CASE`, não só por literal
+ * solto: o Conceito ENAMED tem DUAS fontes (consolidado institucional em
+ * "Geral", derivado do % de proficientes nos demais recortes) e portanto duas
+ * frases de rastreabilidade. Pelo mesmo motivo, a frase do conceito saiu de
+ * dentro do `format()` de `v_criterio` e virou `v_conceito_criterio`, montada
+ * antes e passada como argumento.
+ *
+ * As três formas são colhidas aqui porque o teste guarda o TEXTO que chega ao
+ * tooltip do gestor, não a sintaxe que o produz — um extrator que só conhece
+ * uma das formas passa a aprovar em silêncio o que deixou de enxergar.
+ */
 function literaisDeCriterio(corpo: string): string[] {
   const literais: string[] = [];
+  const literaisDe = (trecho: string) => [...trecho.matchAll(/'([^']*)'/g)].map((m) => m[1]);
 
   const metaCriterio = corpo.match(/v_criterio\s*:=\s*format\(\s*'([^']*)'/);
   expect(metaCriterio, 'não achei o format() de v_criterio (meta.criterio)').not.toBeNull();
   literais.push(metaCriterio![1]);
 
-  const kpisCriterio = [...corpo.matchAll(/'criterio',\s*'([^']*)'/g)].map((m) => m[1]);
+  // Frases que entram em meta.criterio como ARGUMENTO do format() acima.
+  const conceitoCriterio = corpo.match(/v_conceito_criterio\s*:=\s*CASE\b([\s\S]*?)\bEND\b/);
+  if (conceitoCriterio) literais.push(...literaisDe(conceitoCriterio[1]));
+
+  // Forma A: 'criterio', '<literal>'
+  const kpisLiteral = [...corpo.matchAll(/'criterio',\s*'([^']*)'/g)].map((m) => m[1]);
+  // Forma B: 'criterio', CASE WHEN ... THEN '<literal>' ELSE '<literal>' END
+  const kpisCase = [...corpo.matchAll(/'criterio',\s*CASE\b([\s\S]*?)\bEND\b/g)].flatMap((m) =>
+    literaisDe(m[1]),
+  );
+
+  const kpisCriterio = [...kpisLiteral, ...kpisCase];
   expect(kpisCriterio.length, 'não achei nenhum literal kpis.*.criterio').toBeGreaterThan(0);
   literais.push(...kpisCriterio);
 
