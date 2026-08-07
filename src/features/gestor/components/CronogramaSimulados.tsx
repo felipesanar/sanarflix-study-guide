@@ -425,10 +425,14 @@ function LinhaSemData({ item, onAgendar }: { item: ItemCronograma; onAgendar: ()
       </div>
 
       <BadgeStatus status={item.status} />
-      {/* Item B4 do passe de conformidade: receita de botão de ação em
-          página já aplicada em EstadoErro/EstadoVazio — 8px de raio, 8px
-          14px de padding, 12px/600 — em vez do `size="sm"` cru (herdando
-          h-9/px-3/text-sm do primitivo compartilhado com aluno/admin). */}
+      {/* Item B4 do passe de conformidade: receita de botão de AÇÃO EM
+          PÁGINA (8px de raio, 8px 14px de padding, 12px/600 — bate com o
+          handoff) em vez do `size="sm"` cru (herdando h-9/px-3/text-sm do
+          primitivo compartilhado com aluno/admin). Corrigido na revisão
+          final (F4): esta receita NÃO é a mesma de EstadoErro/EstadoVazio
+          — aqueles usam `px-3 py-1.5 text-[11px]`, a receita de botão de
+          RETRY EM ESTADO, um papel diferente. Duas receitas distintas para
+          dois papéis distintos; não "alinhe" um lado no outro. */}
       <Button
         variant="outline"
         size="sm"

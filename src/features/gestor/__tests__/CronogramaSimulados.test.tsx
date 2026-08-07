@@ -230,8 +230,10 @@ describe('CronogramaSimulados — anatomia da referência (§10.12)', () => {
    * Item B4 do passe de conformidade: os três botões de ação da referência
    * ("Agendar data" e os dois "Falar com consultor") herdavam `size="sm"` cru
    * do primitivo compartilhado (h-9/rounded-md/px-3/text-sm) em vez da
-   * receita de botão de ação em página já aplicada em EstadoErro/EstadoVazio
-   * — 8px de raio, 8px 14px de padding, 12px/600.
+   * receita de botão de AÇÃO EM PÁGINA que bate com o handoff — 8px de raio,
+   * 8px 14px de padding, 12px/600. Corrigido na revisão final (F4): esta NÃO
+   * é a mesma receita de EstadoErro/EstadoVazio (retry EM ESTADO, `px-3
+   * py-1.5 text-[11px]`) — são dois papéis distintos, cada um com a sua.
    */
   it('"Agendar data" (linha sem data) usa a receita h-auto/rounded-sm/px-3.5/py-2/text-xs/font-semibold', () => {
     montar();
