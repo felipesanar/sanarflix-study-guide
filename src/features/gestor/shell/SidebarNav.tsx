@@ -24,14 +24,31 @@ export const GESTOR_V2_NAV: GestorV2NavItem[] = [
 
 /**
  * Overline estrutural da sidebar — 11px/600, tracking 0.1em, uppercase, em
- * `--gp-text-3`. Exportado porque a MESMA anatomia serve a dois lugares na
- * referência: "Portal do Gestor" sob o lockup (`GestorShell`) e o título de
- * grupo "Desempenho Institucional" aqui. Um só lugar para não divergirem.
+ * `--gp-text-3`. Hoje serve a UM lugar: "Portal do Gestor" sob o lockup
+ * (`GestorShell`). Continua exportado por isso. O título de grupo da nav
+ * ganhou anatomia própria — ver {@link TITULO_GRUPO_NAV}.
  */
 export const OVERLINE_SIDEBAR: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
   letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+  color: 'var(--gp-text-3)',
+};
+
+/**
+ * Título de GRUPO da nav — um degrau abaixo de {@link OVERLINE_SIDEBAR}.
+ *
+ * "Portal do Gestor" (sob o lockup) é rótulo do produto e pode ocupar a
+ * largura toda; "Desempenho Institucional" é só uma etiqueta de seção e, nos
+ * 11px/0.1em do overline, não cabia na coluna de 240px — quebrava em duas
+ * linhas e competia em peso com os próprios itens de nav que rotula. Em
+ * 10px/0.06em cabe numa linha e volta a ser fundo de tela.
+ */
+const TITULO_GRUPO_NAV: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.06em',
   textTransform: 'uppercase',
   color: 'var(--gp-text-3)',
 };
@@ -82,7 +99,7 @@ export const SidebarNav: React.FC = () => {
       {GESTOR_V2_NAV.map(({ title, url, icon }, indice) => (
         <React.Fragment key={url}>
           {indice === PRIMEIRO_DO_GRUPO && (
-            <div style={{ ...OVERLINE_SIDEBAR, padding: '18px 12px 8px' }}>
+            <div style={{ ...TITULO_GRUPO_NAV, padding: '18px 12px 8px' }}>
               Desempenho Institucional
             </div>
           )}

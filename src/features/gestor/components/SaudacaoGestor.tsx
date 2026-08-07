@@ -45,17 +45,6 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
   const nomeIes =
     contexto.iesDisponiveis.find((ies) => ies.id === iesFocoId)?.nome ?? contexto.iesAtual.nome;
 
-  /**
-   * `get_gestor_contexto()` não recebe `p_ies_id`: `contexto.contrato` é
-   * sempre o da IES padrão do usuário (`contexto.iesAtual`), nunca o da IES
-   * em foco no dropdown — não é reconsultado na troca (achados 1, 3 e 4 da
-   * revisão de 03/08; mesma armadilha documentada em `SidebarIes.tsx:71-75`).
-   * Só afirmamos o contrato quando a IES em foco é de fato a IES padrão;
-   * senão omitimos a informação em vez de atribuir o contrato errado à IES
-   * errada (spec §4.10 — nunca afirmar mais do que o dado permite).
-   */
-  const contratoConfiavel = iesFocoId === contexto.iesAtual.id ? contexto.contrato : null;
-
   return (
     <header data-testid="saudacao">
       {/* Título de tela da referência: 26px/700, tracking -0.01em, 32px de
@@ -68,11 +57,14 @@ export function SaudacaoGestor({ iesId }: SaudacaoGestorProps = {}) {
       >
         {`${saudacaoPorHora(new Date())}, ${primeiroNome(contexto.usuario.nome)}`}
       </h1>
+      {/* Subtítulo da referência: a FRASE de orientação, não a ficha do
+          contrato. O Início existe para ORIENTAR (spec §2.1) — dizer o que a
+          tela tem e para onde ela leva é o trabalho desta linha. Nome da IES,
+          vigência e nº de simulados continuam ditos onde são dado, e não
+          moldura: o cartão da sidebar e o rodapé de proveniência do
+          cronograma. */}
       <p className="mt-1 text-sm text-muted-foreground">
-        {nomeIes}
-        {contratoConfiavel
-          ? ` · ${contratoConfiavel.nome} · ${contratoConfiavel.simuladosContratados} simulados contratados`
-          : ''}
+        {`Acompanhe a visão institucional da ${nomeIes}: o cronograma de simulados, os avisos da Sanar e os caminhos para analisar o desempenho das suas turmas.`}
       </p>
     </header>
   );

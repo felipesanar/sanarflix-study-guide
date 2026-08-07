@@ -242,6 +242,49 @@ function Moldura({
   );
 }
 
+/**
+ * Coluna de data da linha do cronograma (referência §10.12): "10 mai" à
+ * ESQUERDA do nome, na mesma métrica do bloco de data do cartão do próximo —
+ * é o que dá à lista uma régua temporal legível de cima a baixo, em vez de
+ * enterrar a data numa linha de metadados sob o nome.
+ *
+ * O rótulo por modalidade ("Início" no online, "Realização" no presencial) e a
+ * data por extenso continuam ditos — em `sr-only` e no `title`. São informação
+ * de desambiguação, não de varredura: quem lê a lista quer a régua; quem
+ * precisa do rótulo exato o alcança pelo leitor de tela ou pelo hover.
+ */
+function ColunaData({ item }: { item: ItemCronograma }) {
+  const bloco = blocoData(item.data);
+  const porExtenso = `${item.modalidade ? `${ROTULO_DATA[item.modalidade]}: ` : ''}${formatData(item.data)}`;
+
+  return (
+    <span
+      className="flex flex-none items-baseline gap-1"
+      style={{ width: 46 }}
+      title={porExtenso}
+    >
+      <span className="sr-only">{porExtenso}</span>
+      {bloco ? (
+        <>
+          <span
+            aria-hidden="true"
+            style={{ fontSize: 13, fontWeight: 700, color: 'var(--gp-text-1)' }}
+          >
+            {bloco.dia}
+          </span>
+          <span aria-hidden="true" style={{ fontSize: 11, color: 'var(--gp-text-3)' }}>
+            {bloco.mes}
+          </span>
+        </>
+      ) : (
+        <span aria-hidden="true" style={{ fontSize: 13, color: 'var(--gp-text-3)' }}>
+          —
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Pílula de modalidade — só quando o dado existe; ausência não vira chute. */
 function PilulaModalidade({ item }: { item: ItemCronograma }) {
   if (!item.modalidade) return null;
@@ -300,13 +343,18 @@ function ItemLinha({ item }: { item: ItemCronograma }) {
         !navegavel && 'cursor-default',
       )}
     >
+      <ColunaData item={item} />
+
       <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">{item.nome}</span>
-        <p className="text-xs text-muted-foreground">
-          {item.modalidade ? `${ROTULO_DATA[item.modalidade]}: ` : ''}
-          {formatData(item.data)}
-          {typeof item.participantes === 'number' ? ` · ${item.participantes} participantes` : ''}
-        </p>
+        {/* Segunda linha SÓ quando há o que dizer. A data saiu daqui para a
+            coluna da esquerda; sobraram participação e as duas ressalvas.
+            Antes, uma linha realizada sem participantes e sem ressalva ainda
+            gastava uma linha inteira com "Início: —" — texto que não informa
+            nada que a coluna de data já não mostre. */}
+        {typeof item.participantes === 'number' && (
+          <p className="text-xs text-muted-foreground">{`${item.participantes} participantes`}</p>
+        )}
         {item.indisponivelPorque && (
           <p className="text-xs text-muted-foreground">{item.indisponivelPorque}</p>
         )}

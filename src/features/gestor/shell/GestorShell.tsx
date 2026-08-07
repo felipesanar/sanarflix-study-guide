@@ -134,7 +134,14 @@ export const GestorShell: React.FC = () => {
            shell fica mais alto que a área visível, sobrando faixa sem pintura no
            fim da página. `overscroll-none` impede que o scroll do conteúdo
            "vaze" e role o documento junto — a origem do scroll duplo. */
-        className="gestor-portal flex h-dvh overflow-hidden overscroll-none bg-background"
+        className="gestor-portal flex h-dvh overflow-hidden overscroll-none"
+        /* `--gp-bg-app`, não `bg-background`: no tema claro `--background` é o
+           MESMO branco de `--card`, então a área de conteúdo e os cards ficavam
+           indistinguíveis (a separação figura/fundo da referência só existia
+           pela borda de 1px). O token é declarado na própria classe
+           `.gestor-portal` deste nó — CSS resolve `var()` no elemento que
+           declara sem problema. */
+        style={{ background: 'var(--gp-bg-app)' }}
       >
         <aside
           /* `overflow-y-auto`: o conteúdo da sidebar (lockup + IES + nav +
@@ -185,6 +192,11 @@ export const GestorShell: React.FC = () => {
                   height: 34,
                   fontSize: 12,
                   fontWeight: 700,
+                  // `lineHeight: 1` — ver TileIes em SidebarIes.tsx: com o
+                  // `normal` (≈1.21em na Inter) a caixa de linha não é
+                  // simétrica em torno das maiúsculas e a sigla assenta fora
+                  // do centro vertical do tile.
+                  lineHeight: 1,
                   background: 'var(--gp-brand-surface)',
                   // No claro este token É a marca; no escuro ele vira o tom
                   // clareado que passa AA sobre superfície escura — nunca a

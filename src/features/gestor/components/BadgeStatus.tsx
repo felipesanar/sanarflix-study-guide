@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Icon } from '@/features/gestor/components/Icon';
 import type { StatusSimulado } from '@/features/gestor/api/types';
 
 /** Rótulos de status do cronograma (spec §6.4). `previsto` = slot sem data. */
@@ -16,8 +15,12 @@ interface Anatomia {
   estilo: React.CSSProperties;
   /** Só `reagendado` é pílula na referência; todo o resto é texto na coluna de status. */
   pilula?: boolean;
-  /** "· Resultados ›" — afordância de que a linha leva ao Detalhamento. */
-  afordancia?: boolean;
+  /**
+   * Status que a própria linha já comunica por outro elemento — o rótulo
+   * existe só para leitor de tela. Ver o comentário de `realizado` em
+   * {@link ANATOMIA}.
+   */
+  apenasParaLeitorDeTela?: boolean;
 }
 
 /**
@@ -32,11 +35,18 @@ interface Anatomia {
  * `reagendado` é a única pílula (warning, 11px/600, 3px 10px) — a referência a
  * usa para chamar atenção à data que mudou. `previsto`/`processing` são texto
  * terciário/warning, nunca pílula.
+ *
+ * `realizado` não desenha nada: na referência a linha realizada termina em
+ * "Resultados ›" e mais nada — é a própria afordância que diz que o simulado
+ * já aconteceu. Este componente chegou a desenhar "Realizado · Resultados ›"
+ * ao lado do "Resultados ›" que `ItemLinha` já renderiza, e a palavra saía
+ * duas vezes na mesma linha. Quem some é o rótulo VISUAL: o texto continua no
+ * DOM para leitor de tela, porque um chevron vermelho não anuncia "realizado".
  */
 const ANATOMIA: Record<StatusSimulado, Anatomia> = {
   realizado: {
     estilo: { color: 'var(--gp-brand-on-dark)', fontWeight: 600 },
-    afordancia: true,
+    apenasParaLeitorDeTela: true,
   },
   agendado: { estilo: { color: 'var(--gp-text-2)', fontWeight: 600 } },
   reagendado: {
@@ -56,7 +66,15 @@ export const BadgeStatus: React.FC<{ status: StatusSimulado; className?: string 
   status,
   className,
 }) => {
-  const { estilo, pilula, afordancia } = ANATOMIA[status];
+  const { estilo, pilula, apenasParaLeitorDeTela } = ANATOMIA[status];
+
+  if (apenasParaLeitorDeTela) {
+    return (
+      <span data-testid={`status-${status}`} className={cn('sr-only', className)}>
+        {ROTULO_STATUS[status]}
+      </span>
+    );
+  }
 
   return (
     <span
@@ -68,14 +86,7 @@ export const BadgeStatus: React.FC<{ status: StatusSimulado; className?: string 
         ...estilo,
       }}
     >
-      <span>{ROTULO_STATUS[status]}</span>
-      {afordancia ? (
-        <>
-          <span aria-hidden="true">·</span>
-          <span>Resultados</span>
-          <Icon name="chevron_right" size={13} />
-        </>
-      ) : null}
+      {ROTULO_STATUS[status]}
     </span>
   );
 };

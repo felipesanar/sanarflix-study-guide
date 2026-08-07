@@ -200,6 +200,42 @@ describe('CronogramaSimulados — anatomia da referência (§10.12)', () => {
     expect(screen.getByTestId('cronograma-item-s5')).not.toHaveTextContent('Resultados');
   });
 
+  /**
+   * Regressão: `BadgeStatus` desenhava "Realizado · Resultados ›" e a linha
+   * desenhava o SEU "Resultados ›" logo depois — a palavra saía duas vezes,
+   * lado a lado, na mesma linha. Conta ocorrências no texto, não presença:
+   * `toHaveTextContent` passava nos dois mundos.
+   */
+  it('a afordância "Resultados" aparece UMA vez por linha, nunca duplicada', () => {
+    montar();
+    const linha = screen.getByTestId('cronograma-item-s1');
+    expect(linha.textContent?.match(/Resultados/g) ?? []).toHaveLength(1);
+  });
+
+  /**
+   * O rótulo textual do status continua no DOM para leitor de tela (nunca só
+   * o chevron), mas some da pintura: na referência a linha realizada termina
+   * em "Resultados ›" e mais nada.
+   */
+  it('"Realizado" fica só para leitor de tela — a linha não repinta o status', () => {
+    montar();
+    expect(screen.getByTestId('status-realizado')).toHaveClass('sr-only');
+    expect(screen.getByTestId('status-realizado')).toHaveTextContent('Realizado');
+  });
+
+  /**
+   * Régua temporal da referência (§10.12): a data abre a linha, em dia + mês
+   * abreviado. A forma por extenso e o rótulo por modalidade não somem — vão
+   * para `sr-only`/`title` (coberto pelo teste "rotula a data conforme a
+   * modalidade" acima, que continua lendo "Início: 10/03/2026").
+   */
+  it('a data abre a linha em dia + mês abreviado', () => {
+    montar();
+    const linha = screen.getByTestId('cronograma-item-s1');
+    expect(linha).toHaveTextContent('10');
+    expect(linha).toHaveTextContent('mar');
+  });
+
   it('o cabeçalho traz a pílula-contador com o resumo do cronograma', () => {
     montar();
     expect(screen.getByTestId('cronograma-resumo')).toHaveTextContent(

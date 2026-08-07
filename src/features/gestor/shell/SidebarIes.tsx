@@ -56,6 +56,18 @@ const TileIes: React.FC<{ nome: string }> = ({ nome }) => (
       borderRadius: 'var(--gp-radius-sm)',
       fontSize: 11,
       fontWeight: 700,
+      /**
+       * `lineHeight: 1` é o que centra a sigla de verdade.
+       *
+       * `align-items: center` centra a CAIXA DE LINHA, não o desenho da letra.
+       * Com o `line-height: normal` da Inter (≈1.21em: 0.969 de ascendente +
+       * 0.241 de descendente), a caixa tem folga assimétrica em torno de uma
+       * palavra só de maiúsculas — sobra o vão do descendente embaixo e a
+       * sigla sobe. Em 1em a meia-entrelinha fica negativa e simétrica: o topo
+       * da maiúscula cai a 0.137em do topo da caixa e a base a 0.136em do
+       * fundo — centrada por construção, sem nudge mágico.
+       */
+      lineHeight: 1,
       color: 'var(--gp-text-inverse)',
     }}
   >

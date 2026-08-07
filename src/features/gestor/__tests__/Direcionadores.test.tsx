@@ -143,17 +143,31 @@ describe('primeiroNome', () => {
 });
 
 describe('SaudacaoGestor (spec §2.1)', () => {
-  it('mostra o primeiro nome e a linha de contexto da IES', () => {
+  it('mostra o primeiro nome e a frase de orientação com a IES em foco', () => {
     montar(<SaudacaoGestor />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/Marina$/);
     expect(screen.getByTestId('saudacao')).toHaveTextContent(
-      'Universidade do Estado do Amazonas',
+      'Acompanhe a visão institucional da Universidade do Estado do Amazonas: o cronograma de simulados, os avisos da Sanar e os caminhos para analisar o desempenho das suas turmas.',
     );
-    expect(screen.getByTestId('saudacao')).toHaveTextContent('Academy 2026');
   });
 
-  it('sem contrato, mostra só o nome da IES', () => {
+  /**
+   * O subtítulo é ORIENTAÇÃO, não a ficha do contrato (spec §2.1: o Início
+   * existe para orientar). Vigência e nº de simulados continuam ditos onde são
+   * dado e não moldura — o rodapé de proveniência do cronograma. Sem isto, a
+   * mesma informação aparecia em dois lugares da mesma tela, e o subtítulo
+   * ainda arriscava atribuir o contrato da IES padrão à IES em foco (achados
+   * 1, 3 e 4 da revisão de 03/08).
+   */
+  it('o subtítulo não repete o contrato — ele vive no rodapé do cronograma', () => {
+    montar(<SaudacaoGestor />);
+
+    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
+    expect(screen.getByTestId('saudacao')).not.toHaveTextContent('simulados contratados');
+  });
+
+  it('sem contrato no contexto, a frase de orientação é a mesma', () => {
     mocks.useGestorContexto.mockReturnValue({
       data: { ...CONTEXTO.data, contrato: null },
       meta: CONTEXTO.meta,
@@ -164,7 +178,7 @@ describe('SaudacaoGestor (spec §2.1)', () => {
     montar(<SaudacaoGestor />);
 
     expect(screen.getByTestId('saudacao')).toHaveTextContent(
-      'Universidade do Estado do Amazonas',
+      'Acompanhe a visão institucional da Universidade do Estado do Amazonas:',
     );
     expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
   });
@@ -232,7 +246,7 @@ describe('SaudacaoGestor (spec §2.1)', () => {
       );
     });
 
-    it('omite o contrato quando ele pertence à IES padrão do usuário, não à IES em foco', () => {
+    it('nunca afirma o contrato — que é o da IES padrão, não o da IES em foco', () => {
       montar(<SaudacaoGestor iesId="ies-2" />);
 
       expect(screen.getByTestId('saudacao')).not.toHaveTextContent('Academy 2026');
@@ -245,13 +259,6 @@ describe('SaudacaoGestor (spec §2.1)', () => {
       expect(screen.getByTestId('saudacao')).toHaveTextContent(
         'Universidade do Estado do Amazonas',
       );
-      expect(screen.getByTestId('saudacao')).toHaveTextContent('Academy 2026');
-    });
-
-    it('quando iesId aponta para a própria IES padrão, o contrato continua aparecendo', () => {
-      montar(<SaudacaoGestor iesId="ies-1" />);
-
-      expect(screen.getByTestId('saudacao')).toHaveTextContent('Academy 2026');
     });
   });
 });

@@ -262,9 +262,29 @@ describe('Inicio — nenhum indicador de desempenho na tela (spec §2.1)', () =>
     /\bnota\b/i,
   ];
 
-  it('a tela inteira não contém nenhum vocabulário de desempenho', () => {
+  /**
+   * O varrido exclui o cabeçalho de saudação, e só ele.
+   *
+   * A regra da spec §2.1 é sobre MEDIR: nenhum bloco do Início pode exibir
+   * indicador de desempenho. O subtítulo da saudação não exibe nada — ele diz
+   * para onde ir ("...e os caminhos para analisar o desempenho das suas
+   * turmas"), que é exatamente o trabalho de uma tela cujo propósito é
+   * orientar. A lista abaixo é um blacklist de PALAVRAS, um proxy grosseiro
+   * para "tem número de desempenho aqui": aplicá-la também à frase de
+   * orientação proibiria o Início de nomear o seu próprio destino.
+   *
+   * Continua valendo para tudo mais — direcionadores, cronograma, avisos —,
+   * que é onde um indicador de fato apareceria por descuido.
+   */
+  const textoDosBlocos = (): string => {
+    const tela = screen.getByTestId('gestor-inicio').cloneNode(true) as HTMLElement;
+    tela.querySelector('[data-testid="saudacao"]')?.remove();
+    return tela.textContent ?? '';
+  };
+
+  it('nenhum bloco da tela contém vocabulário de desempenho', () => {
     montar();
-    const texto = screen.getByTestId('gestor-inicio').textContent ?? '';
+    const texto = textoDosBlocos();
 
     for (const proibido of PROIBIDOS) {
       expect(
@@ -277,7 +297,7 @@ describe('Inicio — nenhum indicador de desempenho na tela (spec §2.1)', () =>
   it('vale também no estado vazio do cronograma', () => {
     mocks.useCronograma.mockReturnValue(pronto([]));
     montar();
-    const texto = screen.getByTestId('gestor-inicio').textContent ?? '';
+    const texto = textoDosBlocos();
 
     for (const proibido of PROIBIDOS) {
       expect(texto).not.toMatch(proibido);

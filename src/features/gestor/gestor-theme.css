@@ -7,7 +7,14 @@
 
 .gestor-portal {
   /* Superfícies e linhas — mapeadas nas variáveis do repo */
-  --gp-bg-app: hsl(var(--background));
+  /* Fundo da ÁREA DE CONTEÚDO — literal próprio (handoff tokens.light.css:16
+     #EDEEF0 / tokens.dark.css:17 #0B0C0D). Não pode derivar de `--background`:
+     no claro ela vale `0 0% 100%`, exatamente o mesmo branco de
+     `--gp-surface-1` (`--card`), e o portal ficava branco-sobre-branco — o
+     card só se distinguia pela borda de 1px e a separação figura/fundo da
+     referência desaparecia. No escuro `--background` é preto puro, dois
+     degraus abaixo do #0B0C0D da referência. Par escuro abaixo. */
+  --gp-bg-app: hsl(220 9.1% 93.5%);
   --gp-surface-1: hsl(var(--card));
   /* Item A2: literal próprio — hsl(var(--muted)) (#F3F4F6) e hsl(220 14% 93%)
      (#EBECF0) não batem com o handoff (#F9FAFB / #F4F5F6). Par escuro abaixo. */
@@ -117,6 +124,10 @@
 /* Camada escura. `.dark` é a classe do next-themes (attribute="class") —
    NÃO usar [data-theme="dark"] do handoff: esse atributo não existe neste app. */
 .dark .gestor-portal {
+  /* Par escuro do fundo da área de conteúdo (handoff #0B0C0D) — um degrau
+     ABAIXO do card (#16181C), que é o que faz o card subir no escuro. */
+  --gp-bg-app: hsl(209 8.3% 4.7%);
+
   /* Item A2: par escuro do degrau de superfície (handoff #1E2223 / #23282A). */
   --gp-surface-2: hsl(192 7.7% 12.7%);
   --gp-surface-3: hsl(197 9.1% 15.1%);

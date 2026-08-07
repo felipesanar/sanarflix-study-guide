@@ -89,10 +89,13 @@ describe('GestorShell (spec §8.3)', () => {
     const nav = screen.getByRole('navigation', { name: /seções do portal/i });
     const grupo = within(nav).getByText('Desempenho Institucional');
 
-    // Overline: 11px/600, 0.1em, uppercase, em --gp-text-3.
-    expect(grupo.style.fontSize).toBe('11px');
+    // Título de GRUPO: 10px/600, 0.06em, uppercase, em --gp-text-3 — um degrau
+    // ABAIXO do overline "Portal do Gestor" (11px/0.1em), de propósito. Nos
+    // 11px/0.1em o rótulo não cabia na coluna de 240px, quebrava em duas linhas
+    // e competia em peso com os próprios itens de nav que rotula.
+    expect(grupo.style.fontSize).toBe('10px');
     expect(grupo.style.fontWeight).toBe('600');
-    expect(grupo.style.letterSpacing).toBe('0.1em');
+    expect(grupo.style.letterSpacing).toBe('0.06em');
     expect(grupo.style.textTransform).toBe('uppercase');
 
     // Texto, não link — o grupo não é focável nem navegável.
