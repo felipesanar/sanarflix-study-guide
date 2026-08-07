@@ -67,8 +67,20 @@ e `get_gestor_questoes`). Usar base mais antiga reverte fixes de produção — 
 - **`public.user_has_feature(text) NÃO é tocada.** 19 RPCs institucionais legadas ainda a
   usam para chaves `aluno.%`. O ramo dela que trata `gestao.%` vira código morto inerte.
 
-`gestao.exportar` e `gestao.ia` já são dado morto verificado: zero consumidores no front
-e no SQL, e `get_gestor_contexto` devolve `podeExportar: true` hardcoded.
+`gestao.exportar` e `gestao.ia` são dado morto **no estado pós-#17**, não hoje. Correção de
+07/08, depois que uma revisão pegou o erro: `src/experiences/gestor/GestorLayout.tsx:51-52`
+lê as duas (`canExport`, `canChat`) e com elas controla os botões Exportar e IA e os
+drawers correspondentes. Esse arquivo é da experiência legada do gestor, **apagada pelo
+PR #17** — some no merge. A primeira varredura afirmou "zero consumidores" porque rodou
+na branch do #17, onde o arquivo já não existe.
+
+Consequência prática, e é ela que importa: **este trabalho precisa ter como base a `main`
+depois do merge do #17**, nunca a `main` de hoje. Se as chaves forem apagadas enquanto
+`GestorLayout.tsx` ainda existir, os botões Exportar e IA somem em silêncio para todo
+gestor, sem teste que acuse.
+
+`get_gestor_contexto` devolve `podeExportar: true` hardcoded, sem checar feature — isso
+sim é verdade nos dois estados.
 
 **1.3 · Front: gate por papel, não por feature**
 
