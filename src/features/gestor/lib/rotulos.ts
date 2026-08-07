@@ -14,9 +14,9 @@ export const TRACO = '—';
 
 /** Níveis de desempenho sobre % de acerto (spec §4.4). */
 export const ROTULO_NIVEL: Record<NivelDesempenho, string> = {
-  excelente: 'Excelente',
-  mediano: 'Mediano',
-  critico: 'Crítico',
+  excelente: 'Excelente desempenho',
+  mediano: 'Desempenho mediano',
+  critico: 'Desempenho crítico',
 };
 
 /** Rótulo pt-BR da tendência (spec §4.11). */
