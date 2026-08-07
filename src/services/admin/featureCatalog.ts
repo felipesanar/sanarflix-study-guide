@@ -1,21 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { withRetry } from '@/utils/networkRetry';
 
-/**
- * Entrada do catálogo de features (`feature_catalog`) — a tela /admin/ies
- * renderiza a partir daqui.
- *
- * `is_master` não é mais selecionado: existia só para o master switch de
- * `gestao.enabled` no card da IES, removido junto com a seção "Experiência
- * do Gestor" (o Portal do Gestor passou a depender de papel, não de feature
- * por IES). A coluna continua na tabela; o front só deixou de precisar dela.
- */
+/** Entrada do catálogo de features (`feature_catalog`) — a tela /admin/ies renderiza a partir daqui. */
 export interface FeatureCatalogEntry {
   key: string;
   experience: 'aluno' | 'gestao';
   label: string;
   description: string;
   sortOrder: number;
+  isMaster: boolean;
 }
 
 interface FeatureCatalogRow {
@@ -24,6 +17,7 @@ interface FeatureCatalogRow {
   label: string;
   description: string;
   sort_order: number;
+  is_master: boolean;
 }
 
 /**
@@ -44,7 +38,7 @@ export async function fetchFeatureCatalog(): Promise<FeatureCatalogEntry[]> {
       }
     )
       .from('feature_catalog')
-      .select('key, experience, label, description, sort_order')
+      .select('key, experience, label, description, sort_order, is_master')
       .eq('active', true)
       .order('sort_order');
     if (error) throw new Error(`feature_catalog: ${error.message}`);
@@ -54,6 +48,7 @@ export async function fetchFeatureCatalog(): Promise<FeatureCatalogEntry[]> {
       label: row.label,
       description: row.description,
       sortOrder: row.sort_order,
+      isMaster: row.is_master,
     }));
   });
 }

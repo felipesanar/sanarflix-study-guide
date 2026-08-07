@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffectiveFeatures } from '@/hooks/useEffectiveFeatures';
-import { hasExperience } from '@/experiences/access';
 import { AccessRules } from '@/types';
 
 const NO_ACCESS: AccessRules = {
@@ -14,16 +13,13 @@ const NO_ACCESS: AccessRules = {
  * Adaptador fino da fonte única (`get_effective_features`) para a interface
  * `AccessRules` consumida por rotas/sidebar/bottom-nav.
  *
- * Nenhum role é interpretado aqui para as chaves `aluno.*` — o bypass
- * (admin/atendimento) é decidido no servidor. Semânticas:
- * - `desempenhoInstitucional` == papel de gestor (`hasExperience(access, 'gestao')`).
- *   O portal do gestor deixou de ser liberado por IES (spec 2026-08-07): todo
- *   gestor tem acesso completo, sempre. O nome do campo é legado de quando
- *   isto era a feature `gestao.enabled`.
+ * Nenhum role é interpretado aqui — o bypass (admin/atendimento) é decidido
+ * no servidor. Semânticas:
+ * - `desempenhoInstitucional` == `gestao.enabled` (gate do portal do gestor);
  * - `userManagement` == bypass (equipe interna Sanar).
  */
 export const useAccessRules = () => {
-  const { user, access } = useAuth();
+  const { user } = useAuth();
   const { features, bypass, loading, refetching, error, hasFeature, refetch } = useEffectiveFeatures();
 
   const accessRules = useMemo<AccessRules>(() => {
@@ -36,14 +32,11 @@ export const useAccessRules = () => {
       SimuladoDesempenho: hasFeature('aluno.desempenho_simulados'),
       sanarclass: hasFeature('aluno.sanarclass'),
       errorNotebook: hasFeature('aluno.caderno_erros'),
-      // Papel, não feature. O portal do gestor deixou de ser liberado por IES
-      // (spec 2026-08-07): todo gestor tem acesso completo, sempre. O nome do
-      // campo é legado de quando isto era a feature `gestao.enabled`.
-      desempenhoInstitucional: hasExperience(access, 'gestao'),
+      desempenhoInstitucional: hasFeature('gestao.enabled'),
       userManagement: bypass,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hasFeature deriva de features
-  }, [user, access, features, bypass]);
+  }, [user, features, bypass]);
 
   return { accessRules, loading, refetching, error, hasFeature, refetch };
 };

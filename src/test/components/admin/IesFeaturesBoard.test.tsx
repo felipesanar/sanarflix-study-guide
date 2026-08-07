@@ -25,16 +25,12 @@ vi.mock('@/services/admin/audit', () => ({
   useAuditLog: vi.fn(() => ({ data: undefined, isLoading: false })),
 }));
 
-// `gestao.*` seguem no catálogo mockado só para cobrir o uso genérico de
-// `catalog.gestao` no dialog "Copiar de..." (soma com `catalog.aluno` pro
-// diff) — o Portal do Gestor não é mais liberado por feature de IES, então
-// o card não renderiza seção nenhuma para essas entradas.
 const CATALOG_ROWS = [
-  { key: 'gestao.enabled', experience: 'gestao', label: 'Habilitar Portal do Gestor', description: 'Master do gestor', sort_order: 100 },
-  { key: 'gestao.alunos', experience: 'gestao', label: 'Alunos', description: 'Lista de alunos', sort_order: 101 },
-  { key: 'gestao.insights', experience: 'gestao', label: 'Insights', description: 'Insights pedagógicos', sort_order: 102 },
-  { key: 'aluno.home', experience: 'aluno', label: 'Home', description: 'Início', sort_order: 10 },
-  { key: 'aluno.guia_estudos', experience: 'aluno', label: 'Guia de Estudos', description: 'Conteúdo por matéria', sort_order: 11 },
+  { key: 'gestao.enabled', experience: 'gestao', label: 'Habilitar Portal do Gestor', description: 'Master do gestor', sort_order: 100, is_master: true },
+  { key: 'gestao.alunos', experience: 'gestao', label: 'Alunos', description: 'Lista de alunos', sort_order: 101, is_master: false },
+  { key: 'gestao.insights', experience: 'gestao', label: 'Insights', description: 'Insights pedagógicos', sort_order: 102, is_master: false },
+  { key: 'aluno.home', experience: 'aluno', label: 'Home', description: 'Início', sort_order: 10, is_master: false },
+  { key: 'aluno.guia_estudos', experience: 'aluno', label: 'Guia de Estudos', description: 'Conteúdo por matéria', sort_order: 11, is_master: false },
 ];
 
 const IES_ROWS = [
@@ -83,7 +79,7 @@ describe('IesFeaturesBoard', () => {
     mockSupabaseFrom();
   });
 
-  it('renderiza um card por IES só com a seção do aluno e seu contador — sem seção de gestor', async () => {
+  it('renderiza um card por IES com as duas seções e os contadores do catálogo', async () => {
     render(<IesFeaturesBoard />);
 
     await waitFor(() => {
@@ -92,13 +88,12 @@ describe('IesFeaturesBoard', () => {
     });
 
     expect(screen.getAllByText('Experiência do Aluno').length).toBe(2);
-    // Trava o resultado: Portal do Gestor não é mais liberado por feature de
-    // IES, então a seção "Experiência do Gestor" não deve mais existir.
-    expect(screen.queryByText('Experiência do Gestor')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Habilitar Portal do Gestor')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Experiência do Gestor').length).toBe(2);
     const alphaCard = cardFor('Faculdade Alpha');
     // Alpha: aluno.home=true, aluno.guia_estudos=false (default) → 1/2.
     expect(within(alphaCard).getByText('1/2')).toBeInTheDocument();
+    // Alpha: gestao.enabled=true, gestao.alunos/insights=false (default) → 1/3.
+    expect(within(alphaCard).getByText('1/3')).toBeInTheDocument();
   });
 
   it('busca filtra a lista por nome (case/acento-insensitive)', async () => {
@@ -138,6 +133,24 @@ describe('IesFeaturesBoard', () => {
     await waitFor(() => {
       expect(within(alphaCard).queryByText(/alteraç(ão|ões) não salva/)).not.toBeInTheDocument();
     });
+  });
+
+  it('desliga o master do gestor e preserva (sem apagar) o estado dos subswitches, só desabilitando visualmente', async () => {
+    render(<IesFeaturesBoard />);
+    await waitFor(() => screen.getByText('Faculdade Beta'));
+
+    const betaCard = cardFor('Faculdade Beta');
+    const masterSwitch = within(betaCard).getByLabelText('Habilitar Portal do Gestor');
+    const subSwitch = within(betaCard).getByLabelText('Alunos');
+
+    // Beta começa com gestao.enabled=false (via FEATURES_ROWS) → subswitch já nasce desabilitado.
+    expect(masterSwitch).not.toBeChecked();
+    expect(subSwitch).toBeDisabled();
+
+    // Ligar o master não deve mexer no valor do subswitch (nenhuma pendência para ele).
+    fireEvent.click(masterSwitch);
+    await waitFor(() => expect(subSwitch).not.toBeDisabled());
+    expect(subSwitch).not.toBeChecked();
   });
 
   it('copiar-de: cancelar não aplica nada nem chama setIesFeatures', async () => {

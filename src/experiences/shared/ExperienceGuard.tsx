@@ -16,11 +16,9 @@ interface ExperienceGuardProps {
  * Fronteira de autorização das experiências dedicadas.
  *
  * Renderiza os filhos apenas quando o `access` do usuário concede a
- * `experience` guardada ({@link hasExperience}) — papel e escopo de IES
- * bastam, não há mais gate por feature (`gestao.enabled` saiu de ponta a
- * ponta, spec 2026-08-07). Caso contrário, redireciona para o entrypoint
- * padrão do usuário ({@link getDefaultRouteForUser}) — um aluno cai em `/`
- * (sua base); um gestor tentando `/admin` cai em `/gestor`.
+ * `experience` guardada ({@link hasExperience}). Caso contrário, redireciona
+ * para o entrypoint padrão do usuário ({@link getDefaultRouteForUser}) — um
+ * aluno cai em `/` (sua base); um gestor tentando `/admin` cai em `/gestor`.
  *
  * Pressupõe que as regras de acesso já estejam carregadas (o gate de loading
  * fica em DynamicRoutes).
@@ -32,7 +30,10 @@ export const ExperienceGuard: React.FC<ExperienceGuardProps> = ({
   const { user, access } = useAuth();
   const { accessRules } = useAccessRules();
 
-  if (!hasExperience(access, experience)) {
+  const featureGateOk =
+    experience !== 'gestao' || accessRules.desempenhoInstitucional;
+
+  if (!hasExperience(access, experience) || !featureGateOk) {
     return <Navigate to={getDefaultRouteForUser(user, accessRules, access)} replace />;
   }
 

@@ -29,15 +29,10 @@ export interface IesFeatureCardProps {
 }
 
 /**
- * Card de uma IES: seção "Experiência do Aluno", header com badge de
- * pendências, "Copiar de...", "Histórico" e "Salvar". Renderiza a partir do
- * catálogo do banco — nada de lista hardcoded de features.
- *
- * O Portal do Gestor deixou de ser liberado por feature de IES (acesso
- * passou a depender de papel) — a seção "Experiência do Gestor" e o master
- * switch de `gestao.enabled` foram removidos daqui. `catalog.gestao` segue
- * no tipo só porque `CopyFeaturesDialog` soma `catalog.aluno` + `catalog.gestao`
- * de forma genérica; hoje chega vazio.
+ * Card de uma IES: seções "Experiência do Aluno" e "Experiência do Gestor"
+ * (com master switch), header com badge de pendências, "Copiar de...",
+ * "Histórico" e "Salvar". Renderiza a partir do catálogo do banco — nada de
+ * lista hardcoded de features.
  */
 export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
   ies,
@@ -58,6 +53,11 @@ export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
   const getEffective = (featureKey: string): boolean => pending?.[featureKey] ?? ies.features[featureKey] ?? false;
 
   const alunoEnabled = catalog.aluno.filter((f) => getEffective(f.key)).length;
+  const gestaoEnabled = catalog.gestao.filter((f) => getEffective(f.key)).length;
+
+  const masterEntry = catalog.gestao.find((f) => f.isMaster);
+  const masterOn = masterEntry ? getEffective(masterEntry.key) : true;
+  const otherGestaoEntries = catalog.gestao.filter((f) => !f.isMaster);
 
   return (
     <div
@@ -121,6 +121,67 @@ export const IesFeatureCard: React.FC<IesFeatureCardProps> = ({
                   id={`${ies.id}-${feature.key}`}
                   checked={isEnabled}
                   disabled={saving}
+                  onCheckedChange={(checked) => onToggle(feature.key, checked)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <h4 className="text-sm font-medium">Experiência do Gestor</h4>
+          <MonoValue muted className="text-xs">
+            {gestaoEnabled}/{catalog.gestao.length}
+          </MonoValue>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {masterEntry && (
+            <div
+              key={masterEntry.key}
+              className={cn(
+                'flex items-start justify-between gap-3 rounded-lg border-2 p-3',
+                pending?.[masterEntry.key] !== undefined ? 'border-primary/60 bg-primary/5' : 'border-primary/30 bg-muted/30',
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <Label htmlFor={`${ies.id}-${masterEntry.key}`} className="cursor-pointer text-sm font-medium">
+                  {masterEntry.label}
+                </Label>
+                <p className="truncate text-xs text-muted-foreground">{masterEntry.description}</p>
+              </div>
+              <Switch
+                id={`${ies.id}-${masterEntry.key}`}
+                checked={masterOn}
+                disabled={saving}
+                onCheckedChange={(checked) => onToggle(masterEntry.key, checked)}
+              />
+            </div>
+          )}
+          {otherGestaoEntries.map((feature) => {
+            const isEnabled = getEffective(feature.key);
+            const changed = pending?.[feature.key] !== undefined;
+            const disabled = saving || !masterOn;
+            return (
+              <div
+                key={feature.key}
+                className={cn(
+                  'flex items-start justify-between gap-3 rounded-lg border p-3',
+                  changed ? 'border-primary/40 bg-primary/5' : 'bg-muted/30',
+                  !masterOn && 'opacity-50',
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor={`${ies.id}-${feature.key}`} className="cursor-pointer text-sm font-medium">
+                    {feature.label}
+                  </Label>
+                  <p className="truncate text-xs text-muted-foreground">{feature.description}</p>
+                </div>
+                <Switch
+                  id={`${ies.id}-${feature.key}`}
+                  checked={isEnabled}
+                  disabled={disabled}
                   onCheckedChange={(checked) => onToggle(feature.key, checked)}
                 />
               </div>

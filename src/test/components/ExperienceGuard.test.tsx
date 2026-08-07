@@ -151,17 +151,12 @@ describe('ExperienceGuard', () => {
     expect(redirectedTo()).toBe('/home');
   });
 
-  it('não bloqueia o gestor mesmo com desempenhoInstitucional (legado) false, pois o guard não consulta mais feature', () => {
-    // Antes, `gestao.enabled` desligado na IES (espelhado em
-    // `desempenhoInstitucional: false`) bastava para negar o portal mesmo com
-    // a experiência concedida. Decisão de produto (spec 2026-08-07): o portal
-    // do gestor não é mais liberado por IES — só papel e escopo de IES contam,
-    // e o guard passou a checar só `hasExperience`. `desempenhoInstitucional`
-    // é campo legado que a UI ainda lê para outros fins, mas o guard o ignora.
+  it('bloqueia o gestor cuja IES não tem gestao.enabled (desempenhoInstitucional: false), mesmo tendo a experiência gestao', () => {
     const user = makeUser(['gestor']);
     setUser(user, { ...gestorRules, desempenhoInstitucional: false });
     renderGuard('gestao');
-    expect(screen.getByText('conteúdo protegido')).toBeInTheDocument();
-    expect(redirectedTo()).toBeNull();
+    expect(screen.queryByText('conteúdo protegido')).not.toBeInTheDocument();
+    // Sem o portal contratado, cai no comportamento de aluno (home liberada nesta fixture).
+    expect(redirectedTo()).toBe('/');
   });
 });

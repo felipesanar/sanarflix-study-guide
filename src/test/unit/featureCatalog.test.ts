@@ -15,8 +15,8 @@ describe('featureCatalog', () => {
           order: () =>
             Promise.resolve({
               data: [
-                { key: 'gestao.enabled', experience: 'gestao', label: 'Portal do Gestor', description: 'Master', sort_order: 100 },
-                { key: 'aluno.home', experience: 'aluno', label: 'Home', description: 'Início', sort_order: 10 },
+                { key: 'gestao.enabled', experience: 'gestao', label: 'Portal do Gestor', description: 'Master', sort_order: 100, is_master: true },
+                { key: 'aluno.home', experience: 'aluno', label: 'Home', description: 'Início', sort_order: 10, is_master: false },
               ],
               error: null,
             }),
@@ -24,9 +24,9 @@ describe('featureCatalog', () => {
       }),
     });
     const catalog = await fetchFeatureCatalog();
-    expect(catalog[0]).toEqual({ key: 'gestao.enabled', experience: 'gestao', label: 'Portal do Gestor', description: 'Master', sortOrder: 100 });
+    expect(catalog[0]).toEqual({ key: 'gestao.enabled', experience: 'gestao', label: 'Portal do Gestor', description: 'Master', sortOrder: 100, isMaster: true });
     const grouped = groupCatalogByExperience(catalog);
     expect(grouped.aluno.map((f) => f.key)).toEqual(['aluno.home']);
-    expect(grouped.gestao.map((f) => f.key)).toEqual(['gestao.enabled']);
+    expect(grouped.gestao[0].isMaster).toBe(true);
   });
 });
