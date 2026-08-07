@@ -14,7 +14,7 @@
 --   END IF;
 --
 -- e public.user_has_feature_for_ies (20260804120000_user_has_feature_for_ies.sql,
--- linhas 69-81) embute o master: antes de olhar a chave especifica, ela exige
+-- linhas 67-80) embute o master: antes de olhar a chave especifica, ela exige
 -- que 'gestao.enabled' esteja ligada para aquela IES. Tirar a checagem de
 -- portal_v2 levou junto a checagem de modulo contratado -- que nao estava no
 -- escopo da limpeza e e o interruptor mestre do produto. Hoje as 14 IES tem
@@ -77,6 +77,29 @@
 -- CREATE OR REPLACE nela apagaria esse guard em silencio. Nao reintroduz
 -- 'gestao.portal_v2' nem as 5 chaves por modulo em feature_catalog/
 -- ies_features -- essas seguem apagadas pela 20260806144647.
+--
+-- STATUS DE APLICACAO -- NAO CONFUNDIR ARQUIVO COM BANCO
+-- ---------------------------------------------------------
+-- Esta migration NAO FOI APLICADA em producao ainda (escrita em 06/08/2026).
+-- Neste repositorio o banco nao sobe por push/deploy automatico -- DDL vai
+-- por um caminho manual, separado do deploy do front. Ate a aplicacao
+-- acontecer de verdade, o servidor CONTINUA sem validar 'gestao.enabled'
+-- nas 11 RPCs do gestor, exatamente como a 20260806144647 deixou. Quem ler
+-- este arquivo e concluir que o guard ja esta ativo em producao esta lendo
+-- o repo, nao o banco -- confirme o estado real antes de assumir qualquer
+-- coisa sobre modulo contratado.
+--
+-- A ARMADILHA QUE JA ACONTECEU UMA VEZ -- NAO REPETIR UMA TERCEIRA
+-- --------------------------------------------------------------------
+-- Foi um CREATE OR REPLACE FUNCTION (a propria 20260806144647, ao limpar
+-- 'gestao.portal_v2') que apagou este guard em silencio, sem intencao,
+-- porque o guard vive DENTRO do corpo de cada uma das 11 funcoes, nao numa
+-- trigger ou policy separada que sobreviveria a um CREATE OR REPLACE. Quem
+-- recriar qualquer uma das 11 RPCs get_gestor_* (get_gestor_contexto,
+-- get_gestor_aluno_contato, e as outras 9 listadas nesta migration) por
+-- QUALQUER motivo -- fix, feature nova, refactor -- precisa reinserir este
+-- mesmo bloco de guard 'gestao.enabled' no novo corpo, ou ele desaparece de
+-- novo sem nenhum erro, nenhum teste de tipo, nada que avise em compile-time.
 
 CREATE OR REPLACE FUNCTION public.get_gestor_contexto()
  RETURNS jsonb
@@ -2473,3 +2496,16 @@ BEGIN
   RETURN v_result;
 END;
 $function$;
+
+-- Achado F3 (revisao final): o COMMENT ON gravado por
+-- 20260806144647_gestor_remove_guard_portal_v2_ga_total.sql dizia que
+-- public.user_has_feature_for_ies estava ORFA -- "nenhum chamador em
+-- supabase/migrations/*.sql alem daquele guard". Esta migration (Lote D) da
+-- funcao 10 chamadores de volta (o guard 'gestao.enabled' nas 11 RPCs
+-- get_gestor_*, exceto get_gestor_contexto, que usa public.user_has_feature).
+-- Esse comentario antigo vive NO BANCO, nao no repo -- e o primeiro lugar
+-- onde um DBA olha, e nenhum teste automatizado le COMMENT ON. Atualiza aqui,
+-- no fim da mesma migration que reintroduz os chamadores, para as duas
+-- mudancas chegarem juntas em producao quando esta migration for aplicada.
+COMMENT ON FUNCTION public.user_has_feature_for_ies(text, uuid) IS
+'Checa se uma feature de ies_features esta ligada PARA UMA IES ESPECIFICA (master gestao.enabled + chave), sem bool_or sobre as IES do grupo. Chamada pelo guard "gestao.enabled" nas 10 RPCs get_gestor_* desta migration (Lote D, 06/08) que resolvem v_ies a partir de p_ies_id/users.id_ies/get_accessible_ies -- todas exceto get_gestor_contexto, que enumera o switcher de IES e por isso usa public.user_has_feature (bool_or) em vez desta variante. Deixou de estar orfa nesta mesma data.';
