@@ -103,6 +103,56 @@ describe('TabelaAlunosSimulado', () => {
     expect(botaoAna).toHaveStyle({ color: 'var(--gp-text-1)' });
   });
 
+  /**
+   * Achado F1 (revisão final): a linha SELECIONADA do não participante pinta
+   * o fundo com `--gp-brand-surface` (item A4, agora opaco). `--gp-text-3`
+   * contra essa superfície mede 3,98:1 — sub-AA num nome próprio. A linha
+   * selecionada precisa usar `--gp-text-2` em vez de `--gp-text-3` — nos DOIS
+   * ramos (botão e span) e também na célula de semestre — sem perder a
+   * atenuação quando a linha NÃO está selecionada.
+   */
+  it('na linha selecionada, o não participante vai para --gp-text-2 (AA), nunca --gp-text-3 — ramo botão', async () => {
+    const user = userEvent.setup();
+    const onSelecionarAluno = vi.fn();
+    const { rerender } = render(
+      <TabelaAlunosSimulado alunos={TRES} multiSimulado={false} onSelecionarAluno={onSelecionarAluno} />,
+    );
+
+    rerender(
+      <TabelaAlunosSimulado
+        alunos={TRES}
+        multiSimulado={false}
+        alunoSelecionadoId="a3"
+        onSelecionarAluno={onSelecionarAluno}
+      />,
+    );
+
+    const carla = screen.getByTestId('linha-aluno-a3');
+    expect(carla).toHaveAttribute('data-selecionado', 'true');
+
+    const botaoCarla = within(carla).getByRole('button', { name: 'Carla' });
+    expect(botaoCarla).toHaveStyle({ color: 'var(--gp-text-2)' });
+
+    // Semestre (2ª célula) acompanha o mesmo par cor/superfície.
+    expect(within(carla).getAllByRole('cell')[1].getAttribute('style')).toContain('color: var(--gp-text-2)');
+    expect(within(carla).getAllByRole('cell')[1].getAttribute('style')).not.toContain('color: var(--gp-text-3)');
+
+    // Um participante selecionado continua em text-1 — a atenuação relativa se mantém.
+    await user.click(screen.getByRole('button', { name: 'Ana' }));
+    expect(onSelecionarAluno).toHaveBeenCalledWith('a1');
+  });
+
+  it('na linha selecionada, o não participante vai para --gp-text-2 — ramo span (sem onSelecionarAluno)', () => {
+    render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} alunoSelecionadoId="a3" />);
+
+    const carla = screen.getByTestId('linha-aluno-a3');
+    expect(carla).toHaveAttribute('data-selecionado', 'true');
+
+    const nomeCarla = within(carla).getByTestId('celula-nome');
+    expect(nomeCarla.querySelector('span[title="Carla"]')).toHaveStyle({ color: 'var(--gp-text-2)' });
+    expect(within(carla).getAllByRole('cell')[1].getAttribute('style')).toContain('color: var(--gp-text-2)');
+  });
+
   it('aluno que participou mas ainda não tem nota TRI aparece como "Aguardando resultado" (achado 03/08)', () => {
     render(
       <TabelaAlunosSimulado

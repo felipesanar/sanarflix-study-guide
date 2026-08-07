@@ -43,6 +43,24 @@ export function ordenarAlunosNoSimulado(
   });
 }
 
+/**
+ * Cor do nome/semestre de quem não participou (achado F1 da revisão final).
+ *
+ * `--gp-text-3` (`--muted-foreground`) é a atenuação padrão — mas na linha
+ * SELECIONADA o fundo passa a ser `--gp-brand-surface`, hoje opaco (item A4),
+ * e o par text-3/brand-surface mede 3,98:1, abaixo do mínimo AA de 4,5:1
+ * (nome próprio, conteúdo primário — não decoração). `--gp-text-2` é
+ * `hsl(var(--foreground) / 0.78)`; composto sobre a mesma superfície mede
+ * 7,97:1 no claro e 8,81:1 no escuro — passa AA com folga nos dois temas
+ * (medido: composição alfa real + fórmula WCAG 2.1, não o token isolado) e
+ * mantém a linha selecionada menos intensa que um participante, que fica em
+ * `--gp-text-1` independente de seleção.
+ */
+function corAtenuada(participou: boolean, selecionado: boolean): string {
+  if (participou) return 'var(--gp-text-1)';
+  return selecionado ? 'var(--gp-text-2)' : 'var(--gp-text-3)';
+}
+
 export interface TabelaAlunosSimuladoProps {
   alunos: AlunoNoSimulado[];
   multiSimulado: boolean;
@@ -205,7 +223,7 @@ export function TabelaAlunosSimulado({
                             onClick={() => onSelecionarAluno(a.id)}
                             className="block max-w-[220px] truncate text-left"
                             style={{
-                              color: a.participou ? 'var(--gp-text-1)' : 'var(--gp-text-3)',
+                              color: corAtenuada(a.participou, selecionado),
                               fontWeight: selecionado ? 600 : 400,
                             }}
                           >
@@ -216,7 +234,7 @@ export function TabelaAlunosSimulado({
                             title={a.nome}
                             className="block max-w-[220px] truncate"
                             style={{
-                              color: a.participou ? undefined : 'var(--gp-text-3)',
+                              color: corAtenuada(a.participou, selecionado),
                               fontWeight: selecionado ? 600 : 400,
                             }}
                           >
@@ -225,7 +243,17 @@ export function TabelaAlunosSimulado({
                         )}
                       </span>
                     </Celula>
-                    <Celula numerica ausente={a.semestre === null || !a.participou}>
+                    <Celula
+                      numerica
+                      ausente={a.semestre === null || !a.participou}
+                      // Mesmo achado F1: na linha selecionada, `ausente` pintaria
+                      // este `—`/semestre em `--gp-text-3` sobre `--gp-brand-surface`
+                      // (3,98:1, sub-AA) exatamente pelo NÃO PARTICIPOU — não pela
+                      // ausência real do dado. Sobrescreve só nesse caso; a
+                      // ausência genuína (semestre nulo de quem participou)
+                      // continua em text-3, sem relação com este achado.
+                      style={selecionado && !a.participou ? { color: 'var(--gp-text-2)' } : undefined}
+                    >
                       {a.semestre === null ? TRACO : `${a.semestre}º`}
                     </Celula>
                     <Celula numerica ausente={a.acertos === null} data-testid="celula-acertos">
