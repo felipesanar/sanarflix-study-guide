@@ -3,6 +3,7 @@ import { BlocoErrorBoundary } from '@/features/gestor/components/BlocoErrorBound
 import { EstadoErro } from '@/features/gestor/components/EstadoErro';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { GestorSkeleton } from '@/features/gestor/components/GestorSkeleton';
+import { Icon } from '@/features/gestor/components/Icon';
 import type { DendeIconName } from '@/features/gestor/components/icon-names';
 
 /** Acima disto o bloco é alto o bastante para valer a silhueta, não a mancha. */
@@ -68,13 +69,31 @@ export function BlocoGestor({
       {titulo ? <h2 className="text-sm font-semibold">{titulo}</h2> : null}
 
       {parcial ? (
-        <p
+        // Item B3 do passe de conformidade: a faixa era indistinguível de uma
+        // nota informativa (sem ícone, tokens neutros). Anatomia copiada de
+        // `SeletorSimulados.tsx` (`aviso-legibilidade`) — mesmos tokens de
+        // warning e mesmo ícone `error_outline`, para o aviso de recorte
+        // parcial ler como ALERTA, não como rodapé qualquer.
+        <div
           data-testid="faixa-parcial"
           role="status"
-          className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+          className="flex gap-2.5"
+          style={{
+            background: 'var(--gp-warning-surface)',
+            border: '1px solid var(--gp-warning)',
+            borderRadius: 'var(--gp-radius-sm)',
+            padding: '10px 13px',
+          }}
         >
-          Recorte parcial: parte dos simulados do período não entrou neste cálculo.
-        </p>
+          <Icon
+            name="error_outline"
+            size={17}
+            className="shrink-0 text-[color:var(--gp-warning-on)]"
+          />
+          <span style={{ fontSize: 11, lineHeight: '16px', color: 'var(--gp-warning-on)' }}>
+            Recorte parcial: parte dos simulados do período não entrou neste cálculo.
+          </span>
+        </div>
       ) : null}
 
       {estado === 'loading' ? (
