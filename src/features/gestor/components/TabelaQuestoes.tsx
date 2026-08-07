@@ -284,6 +284,23 @@ export function TabelaQuestoes({
                         // Com o detalhe aberto embaixo, o divisor da linha-gatilho
                         // vira o `border-top` que a referência desenha entre os dois.
                         ultima={ultima && !aberta}
+                        /*
+                          A LINHA INTEIRA abre o detalhe, não só a setinha
+                          (reunião de 07/08: "tem que abrir clicando em qualquer
+                          lugar, não só na seta"). O alvo de clique era um
+                          chevron de 14px numa linha de 700px de largura — e
+                          nada na linha dizia que ela era clicável.
+
+                          O `<button>` da primeira célula continua: é ele o
+                          controle acessível, com `aria-expanded`/`aria-controls`,
+                          alcançável por Tab. Por isso o guard: sem ele, um
+                          clique no botão dispararia o handler do botão E o da
+                          linha (bubbling), abrindo e fechando no mesmo gesto.
+                        */
+                        onSelecionar={(evento: React.MouseEvent<HTMLTableRowElement>) => {
+                          if ((evento.target as HTMLElement).closest('button')) return;
+                          setExpandida(aberta ? null : q.numero);
+                        }}
                       >
                         <Celula>
                           <button

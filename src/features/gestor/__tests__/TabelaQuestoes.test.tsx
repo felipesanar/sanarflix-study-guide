@@ -114,6 +114,44 @@ describe('TabelaQuestoes', () => {
     ]);
   });
 
+  /**
+   * Reunião de 07/08: "o detalhamento das questões tem que abrir clicando em
+   * qualquer lugar, não só na seta". O alvo era um chevron de 14px numa linha
+   * de largura de tela, e nada indicava que a linha respondia a clique.
+   */
+  it('abre o detalhe clicando em QUALQUER lugar da linha, não só na seta', async () => {
+    const user = userEvent.setup();
+    render(<TabelaQuestoes {...props()} />);
+
+    const linha = screen.getByTestId('linha-questao-1');
+    // Uma célula qualquer que NÃO seja o disclosure.
+    await user.click(within(linha).getByText('Insuficiência cardíaca'));
+
+    expect(within(linha).getByRole('button', { name: /Ver detalhe da questão 1/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    expect(screen.getByText(/Paciente de 62 anos/)).toBeInTheDocument();
+  });
+
+  /**
+   * O disclosure continua sendo o controle acessível da linha. Sem o guard de
+   * bubbling, o clique nele dispararia o handler do botão E o da linha — abrir
+   * e fechar no mesmo gesto, deixando o detalhe inalcançável pelo próprio
+   * controle que existe para abri-lo.
+   */
+  it('clicar no disclosure abre uma vez só — não abre e fecha no mesmo gesto', async () => {
+    const user = userEvent.setup();
+    render(<TabelaQuestoes {...props()} />);
+
+    const gatilho = screen.getByRole('button', { name: /Ver detalhe da questão 1/ });
+    await user.click(gatilho);
+    expect(gatilho).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(gatilho);
+    expect(gatilho).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('o Nº é Q + dois dígitos em fonte mono, não o inteiro cru', () => {
     render(<TabelaQuestoes {...props({ questoes: [questao({ numero: 4 })], total: 1 })} />);
 

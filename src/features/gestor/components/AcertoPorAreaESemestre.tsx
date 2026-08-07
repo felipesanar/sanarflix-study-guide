@@ -62,6 +62,36 @@ const MOVIMENTO_BARRA: React.CSSProperties = {
  */
 const TOM_BARRA_AREA = 'var(--gp-text-1)';
 
+/**
+ * Largura máxima de uma coluna de semestre.
+ *
+ * Sem teto, `flex-1` reparte a largura do card entre os semestres presentes —
+ * com UM semestre no recorte, a "barra" virava um bloco de 1000×128px, e o
+ * raio de pílula (`10em`, ~160px) arredondava tanto as pontas que o resultado
+ * lia como um comprimido gigante deitado, não como um gráfico. O teto mantém
+ * a coluna com proporção de barra em qualquer quantidade de semestres.
+ */
+const LARGURA_MAX_COLUNA = 76;
+
+/**
+ * Raio das barras verticais — 4px, NÃO a pílula.
+ *
+ * A barra cresce por `scaleY` (única propriedade animável, §07-motion), e
+ * `scaleY` esmaga o raio junto: um canto de 160px sob `scaleY(0.6)` vira uma
+ * elipse de 160×96 e a barra inteira aparece como um oval. Em 4px a distorção
+ * é imperceptível e o desenho continua sendo uma barra.
+ */
+const RAIO_BARRA_SEMESTRE = 4;
+
+/** Dica de interação — o handoff não põe ícone aqui; o que faltava era a frase. */
+function DicaDeClique({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-xs" style={{ color: 'var(--gp-text-3)' }}>
+      {children}
+    </p>
+  );
+}
+
 export function AcertoPorAreaESemestre({
   dados,
   semestre,
@@ -152,7 +182,27 @@ export function AcertoPorAreaESemestre({
       ) : null}
 
       <div>
-        <h3 className="mb-3 text-base font-semibold text-foreground">Acerto por grande área</h3>
+        {/*
+          A dica de clique não é enfeite: o cruzamento área × semestre era
+          invisível. As linhas eram `<button>` sem nenhuma marca de controle —
+          sem cursor de mão, sem hover, sem uma palavra dizendo que dava para
+          clicar —, então a funcionalidade central deste bloco só existia para
+          quem tropeçasse nela. `mb-3` migra do `h3` para a dica: o par
+          título+dica é que fica separado da lista.
+        */}
+        {/* h2, não h3: são títulos de bloco de PRIMEIRO nível da rota, o
+            mesmo nível que `EvolucaoRecorte` e `BlocoGestor` usam. Com h3, e
+            sem nenhum h2 antes deles — o que acontece sempre que a "Evolução
+            do recorte" não é montada, ou seja, com um simulado só —, o leitor
+            de tela pula de h1 para h3 e o axe acusa heading-order (§11). */}
+        <h2 className={cn('text-base font-semibold text-foreground', interativo ? 'mb-1' : 'mb-3')}>
+          Acerto por grande área
+        </h2>
+        {interativo && cruzamentoDisponivel ? (
+          <DicaDeClique>
+            Clique numa área para recortar os semestres por ela. Clique de novo para limpar.
+          </DicaDeClique>
+        ) : null}
         {areas.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Sem dado de grande área neste recorte</p>
         ) : (
@@ -223,7 +273,19 @@ export function AcertoPorAreaESemestre({
                       title={cruzamentoDisponivel ? undefined : MOTIVO_SEM_MATRIZ}
                       aria-pressed={ativo}
                       onClick={() => alternar({ tipo: 'area', id: area.id })}
-                      className="grid w-full grid-cols-[10rem_1fr_3.5rem] items-center gap-3 px-1 py-1 aria-disabled:cursor-default"
+                      /* `cursor-pointer` + hover: as duas marcas que dizem
+                         "isto é um controle" antes de qualquer clique.
+                         `aria-disabled` desfaz as duas quando o cruzamento
+                         não está disponível — o botão continua focável (ver
+                         o comentário do motivo, acima), mas para de prometer
+                         um clique que não vai acontecer. */
+                      className={cn(
+                        'grid w-full grid-cols-[10rem_1fr_3.5rem] items-center gap-3 rounded px-1 py-1',
+                        'transition-colors duration-200',
+                        cruzamentoDisponivel
+                          ? 'cursor-pointer hover:bg-[color:var(--gp-surface-3)]'
+                          : 'cursor-default',
+                      )}
                     >
                       {linha}
                     </button>
@@ -238,11 +300,21 @@ export function AcertoPorAreaESemestre({
       </div>
 
       <div>
-        <h3 className="mb-3 text-base font-semibold text-foreground">Acerto por semestre</h3>
+        <h2 className={cn('text-base font-semibold text-foreground', interativo ? 'mb-1' : 'mb-3')}>
+          Acerto por semestre
+        </h2>
+        {interativo && cruzamentoDisponivel ? (
+          <DicaDeClique>
+            Clique num semestre para recortar as grandes áreas por ele. Clique de novo para limpar.
+          </DicaDeClique>
+        ) : null}
         {semestres.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Sem dado de semestre neste recorte</p>
         ) : (
-          <ul className="flex items-end gap-3">
+          /* `justify-start` + teto de largura por coluna: com poucos
+             semestres as barras ficam do lado esquerdo, com proporção de
+             barra, em vez de esticarem até virar blocos. */
+          <ul className="flex items-end justify-start gap-3">
             {semestres.map((s) => {
               const emEvidencia = evidentes.includes(s.semestre);
               const ativo = recorte?.tipo === 'semestre' && recorte.id === String(s.semestre);
@@ -256,7 +328,10 @@ export function AcertoPorAreaESemestre({
                   </span>
                   <span
                     className="flex h-32 w-full items-end overflow-hidden"
-                    style={{ borderRadius: 'var(--gp-radius-pill)', background: 'var(--gp-border-subtle)' }}
+                    style={{
+                      borderRadius: RAIO_BARRA_SEMESTRE,
+                      background: 'var(--gp-surface-3)',
+                    }}
                   >
                     {/* A evidência do filtro global também é TONAL, não só
                         opacidade: o semestre em evidência vem no neutro escuro
@@ -268,7 +343,7 @@ export function AcertoPorAreaESemestre({
                       className="block h-full w-full"
                       style={{
                         ...MOVIMENTO_BARRA,
-                        borderRadius: 'var(--gp-radius-pill)',
+                        borderRadius: RAIO_BARRA_SEMESTRE,
                         transformOrigin: 'bottom center',
                         transform: `scaleY(${proporcao(s.acertoPct)})`,
                         background: emEvidencia ? 'var(--gp-text-1)' : 'var(--gp-border-input)',
@@ -285,6 +360,7 @@ export function AcertoPorAreaESemestre({
                   data-testid={`semestre-${s.semestre}`}
                   data-evidencia={String(emEvidencia)}
                   data-recorte={ativo ? 'ativo' : 'inativo'}
+                  style={{ maxWidth: LARGURA_MAX_COLUNA }}
                   className={cn(
                     'flex flex-1 transition-opacity duration-200',
                     esmaecida ? 'opacity-40' : 'opacity-100',
@@ -299,7 +375,13 @@ export function AcertoPorAreaESemestre({
                       title={cruzamentoDisponivel ? undefined : MOTIVO_SEM_MATRIZ}
                       aria-pressed={ativo}
                       onClick={() => alternar({ tipo: 'semestre', id: String(s.semestre) })}
-                      className="flex w-full flex-col items-center gap-1 aria-disabled:cursor-default"
+                      /* Mesmas duas marcas de controle das linhas de área. */
+                      className={cn(
+                        'flex w-full flex-col items-center gap-1 rounded p-1 transition-colors duration-200',
+                        cruzamentoDisponivel
+                          ? 'cursor-pointer hover:bg-[color:var(--gp-surface-3)]'
+                          : 'cursor-default',
+                      )}
                     >
                       {coluna}
                     </button>

@@ -89,7 +89,13 @@ export interface LinhaTabelaProps extends React.HTMLAttributes<HTMLTableRowEleme
    * `role="button"`/`tabIndex` na linha criaria um segundo tab stop por linha
    * e um `nested-interactive` de axe (botão focável dentro de botão).
    */
-  onSelecionar?: () => void;
+  /**
+   * Clique na linha inteira. Recebe o evento porque quem tem um controle
+   * PRÓPRIO dentro da linha (o disclosure de `TabelaQuestoes`, por exemplo)
+   * precisa distinguir o clique nele do clique na linha — senão o mesmo gesto
+   * dispara os dois handlers e o estado abre e fecha no mesmo instante.
+   */
+  onSelecionar?: (evento: React.MouseEvent<HTMLTableRowElement>) => void;
 }
 
 export function LinhaTabela({

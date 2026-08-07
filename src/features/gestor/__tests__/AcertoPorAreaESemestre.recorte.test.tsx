@@ -49,6 +49,37 @@ describe('recalculo cruzado (funções puras)', () => {
   });
 });
 
+describe('AcertoPorAreaESemestre — afordância do clique cruzado', () => {
+  /**
+   * O cruzamento área × semestre é a funcionalidade central deste bloco e era
+   * invisível: as linhas eram `<button>` sem cursor de mão, sem hover e sem
+   * uma palavra dizendo que dava para clicar — só achava quem tropeçasse.
+   */
+  it('diz, em texto, que dá para clicar — nas duas leituras', () => {
+    render(
+      <AcertoPorAreaESemestre dados={DADOS} semestre="6ano" matriz={MATRIZ} recorte={null} onRecorteChange={vi.fn()} />,
+    );
+
+    expect(screen.getByText(/Clique numa área para recortar os semestres/i)).toBeInTheDocument();
+    expect(screen.getByText(/Clique num semestre para recortar as grandes áreas/i)).toBeInTheDocument();
+  });
+
+  it('sem cruzamento disponível, não promete clique nenhum', () => {
+    render(
+      <AcertoPorAreaESemestre dados={DADOS} semestre="6ano" matriz={[]} recorte={null} onRecorteChange={vi.fn()} />,
+    );
+
+    expect(screen.queryByText(/Clique numa área/i)).toBeNull();
+    expect(screen.getByTestId('motivo-sem-cruzamento')).toBeInTheDocument();
+  });
+
+  /** Sem consumidor de recorte, o bloco é leitura pura — nada de "clique". */
+  it('em modo não interativo, nenhuma dica de clique', () => {
+    render(<AcertoPorAreaESemestre dados={DADOS} semestre="6ano" matriz={MATRIZ} />);
+    expect(screen.queryByText(/Clique num/i)).toBeNull();
+  });
+});
+
 describe('AcertoPorAreaESemestre — clique cruzado (§12 caso 11)', () => {
   it('clicar num semestre recalcula as áreas para aquele semestre', async () => {
     const user = userEvent.setup();

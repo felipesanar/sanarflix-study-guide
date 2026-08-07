@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Icon } from './Icon';
@@ -82,195 +82,240 @@ export function ComparativoSimulados({ metricas, comparativoTemas }: Comparativo
   const indiceAtual = metricas.length - 1;
 
   return (
-    <section aria-labelledby="comparativo-titulo" className="space-y-3">
-      <h3 id="comparativo-titulo" className="text-base font-semibold text-foreground">
-        Comparativo entre simulados
-      </h3>
+    /*
+      A seção ganha CASCA de bloco.
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {metricas.map((m, i) => {
-          const anterior = i > 0 ? metricas[i - 1] : null;
-          const ehAtual = i === indiceAtual;
+      Ela é a resposta à pergunta que traz o gestor ao Detalhamento — "o que
+      mudou de um simulado para o outro" — e era a única da rota sem moldura:
+      um `<h3>` de 16px/600 e cartões flutuando direto sobre o fundo, entre
+      dois blocos em card. Sem contorno, a seção lia como sobra do bloco de
+      cima, e o próprio comparativo completo (o painel mais denso da tela)
+      pendurado num link de 12px.
+    */
+    <section aria-labelledby="comparativo-titulo">
+      <Card>
+        <CardHeader className="pb-3">
+          <h3 id="comparativo-titulo" style={{ fontSize: 16, fontWeight: 700 }} className="text-foreground">
+            Comparativo entre simulados
+          </h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            O que mudou de um simulado para o outro em acerto, conceito e proficiência.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {metricas.map((m, i) => {
+              const anterior = i > 0 ? metricas[i - 1] : null;
+              const ehAtual = i === indiceAtual;
 
-          /* Delta só existe contra um simulado anterior: o primeiro card não recebe
-             pílula nenhuma. Imprimir `—` ali afirmaria "variação desconhecida" onde
-             simplesmente não há o que variar (§4.10). */
-          const deltaAcerto = anterior ? calcularVariacao(anterior.acertoMedioPct, m.acertoMedioPct) : null;
-          const deltaEnamed = anterior ? calcularVariacao(anterior.enamedProjetado, m.enamedProjetado) : null;
-          const deltaProficiencia = anterior
-            ? calcularVariacao(anterior.proficienciaMedia, m.proficienciaMedia)
-            : null;
+              /* Delta só existe contra um simulado anterior: o primeiro card não recebe
+                 pílula nenhuma. Imprimir `—` ali afirmaria "variação desconhecida" onde
+                 simplesmente não há o que variar (§4.10). */
+              const deltaAcerto = anterior ? calcularVariacao(anterior.acertoMedioPct, m.acertoMedioPct) : null;
+              const deltaEnamed = anterior ? calcularVariacao(anterior.enamedProjetado, m.enamedProjetado) : null;
+              const deltaProficiencia = anterior
+                ? calcularVariacao(anterior.proficienciaMedia, m.proficienciaMedia)
+                : null;
 
-          return (
-            <Card
-              key={m.simuladoId}
-              data-testid={`card-simulado-${m.simuladoId}`}
-              data-atual={String(ehAtual)}
-              /* Destaque do atual é borda de marca fina + sombra de card — nunca
-                 anel de 2px, que o handoff proíbe em card. */
-              className={cn(ehAtual && 'border-[var(--gp-brand-border)]')}
-              style={ehAtual ? { borderWidth: 1.5, boxShadow: 'var(--gp-shadow-card)' } : undefined}
+              return (
+                <Card
+                  key={m.simuladoId}
+                  data-testid={`card-simulado-${m.simuladoId}`}
+                  data-atual={String(ehAtual)}
+                  /* Destaque do atual é borda de marca fina + sombra de card — nunca
+                     anel de 2px, que o handoff proíbe em card. */
+                  className={cn(ehAtual && 'border-[var(--gp-brand-border)]')}
+                  /* Dentro da casca nova, um tile `bg-card` seria branco sobre
+                     branco: os que não são o atual descem um degrau de superfície
+                     para o contorno não ser o único sinal de que ali há um
+                     cartão. O atual continua no branco do card, que é o que o
+                     faz saltar. */
+                  style={
+                    ehAtual
+                      ? { borderWidth: 1.5, boxShadow: 'var(--gp-shadow-card)' }
+                      : { background: 'var(--gp-surface-2)' }
+                  }
+                >
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-[13px] font-bold text-foreground">{m.nome}</p>
+                      {ehAtual && <Tag variant="selo">atual</Tag>}
+                      <p className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
+                        {dataCurta(m.data)} · {m.participantes} part.
+                      </p>
+                    </div>
+
+                    <dl className="space-y-2.5">
+                      <LinhaIndicador
+                        rotulo="Percentual de acerto"
+                        valor={formatPct(m.acertoMedioPct)}
+                        valorTestId="card-acerto"
+                        delta={deltaAcerto}
+                        deltaTestId="card-delta-acerto"
+                      />
+                      <LinhaIndicador
+                        rotulo="Conceito ENAMED"
+                        qualificador={<ChipProjetado />}
+                        valor={formatConceito(m.enamedProjetado)}
+                        valorTestId="card-enamed"
+                        delta={deltaEnamed}
+                        deltaTestId="card-delta-enamed"
+                        separada
+                      />
+                      <LinhaIndicador
+                        rotulo="Proficiência média"
+                        valor={formatNumero(m.proficienciaMedia)}
+                        valorTestId="card-proficiencia"
+                        delta={deltaProficiencia}
+                        deltaTestId="card-delta-proficiencia"
+                        separada
+                      />
+                    </dl>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Collapsible open={aberto} onOpenChange={setAberto}>
+            {/*
+              O gatilho é um BOTÃO de largura total, não um link de 12px.
+
+              O que ele abre é o painel mais denso da rota — métricas lado a lado,
+              acerto por tema, alunos. Pendurar isso num texto miúdo, do mesmo peso
+              de uma legenda, escondia o caminho principal do Detalhamento: quem
+              não sabia que existia, não achava. Largura total porque o painel que
+              ele revela também é de largura total — o controle tem o tamanho do
+              que ele controla.
+            */}
+            <CollapsibleTrigger
+              data-testid="comparativo-abrir"
+              className="flex w-full items-center justify-center gap-2 rounded-sm transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              style={{
+                padding: '11px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--gp-brand-on-dark)',
+                background: 'var(--gp-brand-surface)',
+                border: '1px solid var(--gp-brand-border)',
+              }}
             >
-              <CardContent className="space-y-3 p-4">
-                <div className="flex items-baseline gap-2">
-                  <p className="text-[13px] font-bold text-foreground">{m.nome}</p>
-                  {ehAtual && <Tag variant="selo">atual</Tag>}
-                  <p className="ml-auto text-[11px] tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
-                    {dataCurta(m.data)} · {m.participantes} part.
-                  </p>
-                </div>
+              {aberto ? 'Ocultar comparativo completo' : 'Ver comparativo completo · questões e alunos'}
+              <Icon
+                name="expand_more"
+                size={16}
+                className={cn('transition-transform duration-200', aberto && 'rotate-180')}
+              />
+            </CollapsibleTrigger>
 
-                <dl className="space-y-2.5">
-                  <LinhaIndicador
-                    rotulo="Percentual de acerto"
-                    valor={formatPct(m.acertoMedioPct)}
-                    valorTestId="card-acerto"
-                    delta={deltaAcerto}
-                    deltaTestId="card-delta-acerto"
-                  />
-                  <LinhaIndicador
-                    rotulo="Conceito ENAMED"
-                    qualificador={<ChipProjetado />}
-                    valor={formatConceito(m.enamedProjetado)}
-                    valorTestId="card-enamed"
-                    delta={deltaEnamed}
-                    deltaTestId="card-delta-enamed"
-                    separada
-                  />
-                  <LinhaIndicador
-                    rotulo="Proficiência média"
-                    valor={formatNumero(m.proficienciaMedia)}
-                    valorTestId="card-proficiencia"
-                    delta={deltaProficiencia}
-                    deltaTestId="card-delta-proficiencia"
-                    separada
-                  />
-                </dl>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Collapsible open={aberto} onOpenChange={setAberto}>
-        <CollapsibleTrigger
-          className="inline-flex items-center gap-1.5 text-xs font-semibold"
-          style={{ color: 'var(--gp-brand-on-dark)' }}
-        >
-          Ver comparativo completo · questões e alunos
-          <Icon
-            name="expand_more"
-            size={15}
-            className={cn('transition-transform duration-200', aberto && 'rotate-180')}
-          />
-        </CollapsibleTrigger>
-
-        <CollapsibleContent className="flex flex-col gap-4 pt-3">
-          <div className="border p-4" style={ESTILO_PAINEL}>
-            <p className={cn(CLASSE_TITULO_BLOCO, 'mb-2.5 text-foreground')}>Métricas por simulado</p>
-            <div data-testid="comparativo-metricas">
-              <TabelaGestor rotulo="Métricas por simulado">
-                <CabecalhoTabela>
-                  <tr>
-                    <th scope="col" style={ESTILO_CABECALHO_SIMULADO}>
-                      <span className="sr-only">Indicador</span>
-                    </th>
-                    {metricas.map((m) => (
-                      <th key={m.simuladoId} scope="col" style={ESTILO_CABECALHO_SIMULADO}>
-                        {m.nome}
-                        <span
-                          className="block text-[11px] font-normal tabular-nums"
-                          style={{ color: 'var(--gp-text-3)' }}
-                        >
-                          {dataCurta(m.data)} · {m.participantes} part.
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </CabecalhoTabela>
-                <CorpoTabela>
-                  <LinhaMetrica
-                    rotulo="Percentual de acerto médio"
-                    metricas={metricas}
-                    valor={(m) => formatPct(m.acertoMedioPct)}
-                    bruto={(m) => m.acertoMedioPct}
-                  />
-                  <LinhaMetrica
-                    rotulo="Conceito ENAMED"
-                    qualificador={<ChipProjetado />}
-                    metricas={metricas}
-                    valor={(m) => formatConceito(m.enamedProjetado)}
-                    bruto={(m) => m.enamedProjetado}
-                  />
-                  <LinhaMetrica
-                    rotulo="Proficiência média"
-                    metricas={metricas}
-                    valor={(m) => formatNumero(m.proficienciaMedia)}
-                    bruto={(m) => m.proficienciaMedia}
-                    ultima
-                  />
-                </CorpoTabela>
-              </TabelaGestor>
-            </div>
-          </div>
-
-          <div className="border p-4" style={ESTILO_PAINEL}>
-            <p className={cn(CLASSE_TITULO_BLOCO, 'text-foreground')}>Questões — acerto por tema</p>
-            {/* Sem esta linha o gestor não sabe por que a comparação é por tema:
-                provas diferentes não compartilham questão, só assunto. */}
-            <p className="mb-2.5 text-[11px]" style={{ color: 'var(--gp-text-3)' }}>
-              provas têm questões distintas — a linha comparável é o tema
-            </p>
-            {comparativoTemas && comparativoTemas.length > 0 ? (
-              <div data-testid="comparativo-temas">
-                <TabelaGestor rotulo="Acerto por tema entre simulados">
-                  <CabecalhoTabela>
-                    <tr>
-                      <CelulaCabecalho>Tema</CelulaCabecalho>
-                      {metricas.map((m) => (
-                        <CelulaCabecalho key={m.simuladoId}>{m.nome}</CelulaCabecalho>
-                      ))}
-                    </tr>
-                  </CabecalhoTabela>
-                  <CorpoTabela>
-                    {comparativoTemas.map((linha, indiceLinha) => (
-                      <LinhaTabela key={linha.tema} ultima={indiceLinha === comparativoTemas.length - 1}>
-                        <Celula>{linha.tema}</Celula>
-                        {metricas.map((m, i) => {
-                          const ponto = linha.porSimulado.find((p) => p.simuladoId === m.simuladoId);
-                          const valor = ponto?.acertoPct ?? null;
-                          const anteriorId = i > 0 ? metricas[i - 1].simuladoId : null;
-                          const pontoAnterior = anteriorId
-                            ? linha.porSimulado.find((p) => p.simuladoId === anteriorId)
-                            : undefined;
-                          const variacao = calcularVariacao(pontoAnterior?.acertoPct ?? null, valor);
-                          return (
-                            <Celula
-                              key={m.simuladoId}
-                              data-testid={`tema-${m.simuladoId}`}
-                              style={{
-                                ...ESTILO_VALOR,
-                                // Ausência nunca herda a cor de um dado: o `—` fica em text-3.
-                                color: valor === null ? 'var(--gp-text-3)' : corDaVariacao(variacao),
-                              }}
+            <CollapsibleContent className="flex flex-col gap-4 pt-3">
+              <div className="border p-4" style={ESTILO_PAINEL}>
+                <p className={cn(CLASSE_TITULO_BLOCO, 'mb-2.5 text-foreground')}>Métricas por simulado</p>
+                <div data-testid="comparativo-metricas">
+                  <TabelaGestor rotulo="Métricas por simulado">
+                    <CabecalhoTabela>
+                      <tr>
+                        <th scope="col" style={ESTILO_CABECALHO_SIMULADO}>
+                          <span className="sr-only">Indicador</span>
+                        </th>
+                        {metricas.map((m) => (
+                          <th key={m.simuladoId} scope="col" style={ESTILO_CABECALHO_SIMULADO}>
+                            {m.nome}
+                            <span
+                              className="block text-[11px] font-normal tabular-nums"
+                              style={{ color: 'var(--gp-text-3)' }}
                             >
-                              {formatPct(valor)}
-                            </Celula>
-                          );
-                        })}
-                      </LinhaTabela>
-                    ))}
-                  </CorpoTabela>
-                </TabelaGestor>
+                              {dataCurta(m.data)} · {m.participantes} part.
+                            </span>
+                          </th>
+                        ))}
+                      </tr>
+                    </CabecalhoTabela>
+                    <CorpoTabela>
+                      <LinhaMetrica
+                        rotulo="Percentual de acerto médio"
+                        metricas={metricas}
+                        valor={(m) => formatPct(m.acertoMedioPct)}
+                        bruto={(m) => m.acertoMedioPct}
+                      />
+                      <LinhaMetrica
+                        rotulo="Conceito ENAMED"
+                        qualificador={<ChipProjetado />}
+                        metricas={metricas}
+                        valor={(m) => formatConceito(m.enamedProjetado)}
+                        bruto={(m) => m.enamedProjetado}
+                      />
+                      <LinhaMetrica
+                        rotulo="Proficiência média"
+                        metricas={metricas}
+                        valor={(m) => formatNumero(m.proficienciaMedia)}
+                        bruto={(m) => m.proficienciaMedia}
+                        ultima
+                      />
+                    </CorpoTabela>
+                  </TabelaGestor>
+                </div>
               </div>
-            ) : (
-              <p data-testid="comparativo-temas-vazio" className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
-                Sem tema comparável entre estes simulados
-              </p>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+
+              <div className="border p-4" style={ESTILO_PAINEL}>
+                <p className={cn(CLASSE_TITULO_BLOCO, 'text-foreground')}>Questões — acerto por tema</p>
+                {/* Sem esta linha o gestor não sabe por que a comparação é por tema:
+                    provas diferentes não compartilham questão, só assunto. */}
+                <p className="mb-2.5 text-[11px]" style={{ color: 'var(--gp-text-3)' }}>
+                  provas têm questões distintas — a linha comparável é o tema
+                </p>
+                {comparativoTemas && comparativoTemas.length > 0 ? (
+                  <div data-testid="comparativo-temas">
+                    <TabelaGestor rotulo="Acerto por tema entre simulados">
+                      <CabecalhoTabela>
+                        <tr>
+                          <CelulaCabecalho>Tema</CelulaCabecalho>
+                          {metricas.map((m) => (
+                            <CelulaCabecalho key={m.simuladoId}>{m.nome}</CelulaCabecalho>
+                          ))}
+                        </tr>
+                      </CabecalhoTabela>
+                      <CorpoTabela>
+                        {comparativoTemas.map((linha, indiceLinha) => (
+                          <LinhaTabela key={linha.tema} ultima={indiceLinha === comparativoTemas.length - 1}>
+                            <Celula>{linha.tema}</Celula>
+                            {metricas.map((m, i) => {
+                              const ponto = linha.porSimulado.find((p) => p.simuladoId === m.simuladoId);
+                              const valor = ponto?.acertoPct ?? null;
+                              const anteriorId = i > 0 ? metricas[i - 1].simuladoId : null;
+                              const pontoAnterior = anteriorId
+                                ? linha.porSimulado.find((p) => p.simuladoId === anteriorId)
+                                : undefined;
+                              const variacao = calcularVariacao(pontoAnterior?.acertoPct ?? null, valor);
+                              return (
+                                <Celula
+                                  key={m.simuladoId}
+                                  data-testid={`tema-${m.simuladoId}`}
+                                  style={{
+                                    ...ESTILO_VALOR,
+                                    // Ausência nunca herda a cor de um dado: o `—` fica em text-3.
+                                    color: valor === null ? 'var(--gp-text-3)' : corDaVariacao(variacao),
+                                  }}
+                                >
+                                  {formatPct(valor)}
+                                </Celula>
+                              );
+                            })}
+                          </LinhaTabela>
+                        ))}
+                      </CorpoTabela>
+                    </TabelaGestor>
+                  </div>
+                ) : (
+                  <p data-testid="comparativo-temas-vazio" className="text-xs" style={{ color: 'var(--gp-text-3)' }}>
+                    Sem tema comparável entre estes simulados
+                  </p>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
     </section>
   );
 }
