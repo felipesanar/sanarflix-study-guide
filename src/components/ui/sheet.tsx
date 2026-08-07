@@ -49,23 +49,78 @@ const sheetVariants = cva(
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
-  VariantProps<typeof sheetVariants> { }
+  VariantProps<typeof sheetVariants> {
+  /**
+   * Nó DOM onde o `Portal` do Radix deve montar o conteúdo (overlay + painel).
+   * Opcional e SEM MUDAR O PADRÃO: quem não passa nada (aluno, admin) cai
+   * exatamente onde caía antes — `container` `undefined` é o próprio padrão
+   * do Radix (`document.body`, ver `@radix-ui/react-portal`). Existe para o
+   * Portal do Gestor v2 ancorar Sheet dentro de `.gestor-portal`, para que
+   * `gestor-theme.css` (tokens `--gp-*` e `prefers-reduced-motion`) alcance
+   * o drawer — ver `useGestorPortalContainer` em `features/gestor/shell/GestorShell.tsx`.
+   */
+  container?: HTMLElement | null;
+  /**
+   * Glifo do botão de fechar. Mesmo contrato de `container`: omitir entrega
+   * exatamente o `X` do Lucide de hoje, então aluno e admin não mudam. O Portal
+   * do Gestor v2 exige 100% dos ícones vindos do Fontello do Dendê (handoff §3)
+   * e injeta `<Icon name="close" size={16} />` por aqui.
+   */
+  closeIcon?: React.ReactNode;
+  /**
+   * Rótulo do botão de fechar para leitor de tela. O default segue "Close"
+   * porque é o que aluno e admin anunciam hoje; o portal do gestor é todo em
+   * pt-BR (handoff docs/11-acessibilidade.md) e passa "Fechar".
+   */
+  closeLabel?: string;
+  /**
+   * Classes extras do alvo de fechar. O gestor pede um alvo de 30×30 com borda
+   * e raio 8px (handoff §4.5; referência LIGHT.html offset 171600 —
+   * `width:30px; height:30px; border:1px solid #E9EBED; border-radius:8px`):
+   * `"inline-flex h-[30px] w-[30px] items-center justify-center rounded-[8px]
+   *   border border-[color:var(--gp-border-strong)] text-[color:var(--gp-text-3)] opacity-100"`.
+   * Sem a prop, o alvo continua sendo o quadrado nu do shadcn.
+   */
+  closeClassName?: string;
+  /**
+   * Classes extras do scrim. Existe porque o overlay é montado aqui dentro e o
+   * consumidor não tem outra forma de alcançá-lo. O default `bg-black/80` fica
+   * para aluno/admin; o gestor passa `bg-[var(--gp-scrim)]` (42% no claro, 60%
+   * no escuro), e o `tailwind-merge` do `cn` resolve o conflito de background.
+   */
+  overlayClassName?: string;
+}
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
+>(({
+  side = "right",
+  className,
+  children,
+  container,
+  closeIcon,
+  closeLabel = "Close",
+  closeClassName,
+  overlayClassName,
+  ...props
+}, ref) => (
+  <SheetPortal container={container}>
+    <SheetOverlay className={overlayClassName} />
     <SheetPrimitive.Content
       ref={ref}
       className={cn(sheetVariants({ side }), className)}
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+      <SheetPrimitive.Close
+        className={cn(
+          "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary",
+          closeClassName
+        )}
+      >
+        {closeIcon ?? <X className="h-4 w-4" />}
+        <span className="sr-only">{closeLabel}</span>
       </SheetPrimitive.Close>
     </SheetPrimitive.Content>
   </SheetPortal>

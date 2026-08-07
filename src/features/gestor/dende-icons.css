@@ -1,0 +1,373 @@
+/* src/features/gestor/dende-icons.css
+   Fonte de ícones Fontello do Dendê Design System — 321 glifos.
+
+   GERADO. Fonte: sanar-ui-kit/assets/fontello/fontello.css (mesmo build usado
+   no handoff de design; os codepoints foram conferidos um a um contra
+   docs/handoff/gestor/design/gestor-sanarflix-LIGHT.html).
+
+   Regra do handoff §3: 100% dos ícones do Portal do Gestor vêm desta fonte.
+   Nenhum SVG avulso, nenhum Lucide/Heroicons/Material, nenhum emoji. Glifo que
+   faltar é adicionado ao Fontello, nunca substituído por outra família.
+
+   Só woff2 + woff são servidos: cobrem todo browser que o projeto suporta e
+   poupam os 64KB do .ttf legado. O handoff lista .ttf apenas por herança do
+   export do Fontello.
+
+   Uso: prefira o componente <Icon> (components/Icon.tsx), que aplica a
+   gramática filled/outlined e o alinhamento óptico. */
+
+@font-face {
+  font-family: 'dende-icons';
+  src:
+    url('/fonts/dende/fontello.woff2') format('woff2'),
+    url('/fonts/dende/fontello.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block; /* block, não swap: um ícone em fallback vira tofu, não texto legível */
+}
+
+[class^='icon-dende-']::before,
+[class*=' icon-dende-']::before,
+/* Dois glifos do Fontello não carregam o sub-prefixo `dende-` (herança do
+   export). Ficam listados à mão em vez de afrouxar o seletor para `icon-`,
+   que capturaria classes de outras partes do repo. */
+.icon-room-filled::before,
+.icon-room-outlined::before {
+  font-family: 'dende-icons';
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  speak: never;
+  display: inline-block;
+  text-decoration: inherit;
+  text-align: center;
+  /* O fontello original injeta width:1em + margin lateral de 0.2em. Aqui não:
+     o <Icon> controla a caixa, e a margem embutida quebraria o alinhamento
+     óptico exigido pelo handoff §3 (span de largura fixa, inline-flex). */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-dende-check-required::before { content: '\e93d'; }
+.icon-dende-draw-outlined::before { content: '\e940'; }
+.icon-dende-icons-account_circle-filled::before { content: '\e800'; }
+.icon-dende-icons-account_circle-outlined::before { content: '\e801'; }
+.icon-dende-icons-add-filled::before { content: '\e804'; }
+.icon-dende-icons-add-outlined::before { content: '\e805'; }
+.icon-dende-icons-add_circle_outline-filled::before { content: '\e802'; }
+.icon-dende-icons-add_circle_outline-outlined::before { content: '\e803'; }
+.icon-dende-icons-android_share-filled::before { content: '\e807'; }
+.icon-dende-icons-android_share-outlined::before { content: '\e806'; }
+.icon-dende-icons-apps-filled::before { content: '\e808'; }
+.icon-dende-icons-apps-outlined::before { content: '\e80a'; }
+.icon-dende-icons-arrow_back-filled::before { content: '\e809'; }
+.icon-dende-icons-arrow_back-outlined::before { content: '\e80b'; }
+.icon-dende-icons-arrow_downward-filled::before { content: '\e80d'; }
+.icon-dende-icons-arrow_downward-outlined::before { content: '\e80c'; }
+.icon-dende-icons-arrow_drop_down-filled::before { content: '\e80e'; }
+.icon-dende-icons-arrow_drop_down-outlined::before { content: '\e80f'; }
+.icon-dende-icons-arrow_drop_up-filled::before { content: '\e810'; }
+.icon-dende-icons-arrow_drop_up-outlined::before { content: '\e811'; }
+.icon-dende-icons-arrow_forward-filled::before { content: '\e812'; }
+.icon-dende-icons-arrow_forward-outlined::before { content: '\e813'; }
+.icon-dende-icons-arrow_left-filled::before { content: '\e814'; }
+.icon-dende-icons-arrow_left-outlined::before { content: '\e815'; }
+.icon-dende-icons-arrow_right-filled::before { content: '\e816'; }
+.icon-dende-icons-arrow_right-outlined::before { content: '\e817'; }
+.icon-dende-icons-arrow_upward-filled::before { content: '\e818'; }
+.icon-dende-icons-arrow_upward-outlined::before { content: '\e81a'; }
+.icon-dende-icons-attach_file-filled::before { content: '\e819'; }
+.icon-dende-icons-attach_file-outlined::before { content: '\e81b'; }
+.icon-dende-icons-attach_money-filled::before { content: '\e81c'; }
+.icon-dende-icons-attach_money-outlined::before { content: '\e81d'; }
+.icon-dende-icons-auto-awesome-motion-filled::before { content: '\e91c'; }
+.icon-dende-icons-auto-awesome-motion-outlined::before { content: '\e91d'; }
+.icon-dende-icons-auto_awesome-outlined::before { content: '\e919'; }
+.icon-dende-icons-auto_stories-filled::before { content: '\e81e'; }
+.icon-dende-icons-auto_stories-outlined::before { content: '\e81f'; }
+.icon-dende-icons-block-filled::before { content: '\e820'; }
+.icon-dende-icons-block-outlined::before { content: '\e821'; }
+.icon-dende-icons-brand-watermark::before { content: '\e83c'; }
+.icon-dende-icons-calendar_mont-outlined::before { content: '\e822'; }
+.icon-dende-icons-calendar_month-filled::before { content: '\e823'; }
+.icon-dende-icons-campaign-filled::before { content: '\e824'; }
+.icon-dende-icons-campaign-outlined::before { content: '\e825'; }
+.icon-dende-icons-cancel-filled::before { content: '\e826'; }
+.icon-dende-icons-cancel-outlined::before { content: '\e827'; }
+.icon-dende-icons-check-circle-filled::before { content: '\e916'; }
+.icon-dende-icons-check-circle-outlined::before { content: '\e915'; }
+.icon-dende-icons-check-outlined::before { content: '\e930'; }
+.icon-dende-icons-check_box-filled::before { content: '\e829'; }
+.icon-dende-icons-check_box-outlined::before { content: '\e82c'; }
+.icon-dende-icons-check_box_outline_blank-filled::before { content: '\e828'; }
+.icon-dende-icons-check_box_outline_blank-outlined::before { content: '\e82a'; }
+.icon-dende-icons-chevron_left-filled::before { content: '\e82b'; }
+.icon-dende-icons-chevron_left-outlined::before { content: '\e82d'; }
+.icon-dende-icons-chevron_right-filled::before { content: '\e82e'; }
+.icon-dende-icons-chevron_right-outlined::before { content: '\e82f'; }
+.icon-dende-icons-clear-filled::before { content: '\e830'; }
+.icon-dende-icons-clear-outlined::before { content: '\e832'; }
+.icon-dende-icons-close-filled::before { content: '\e831'; }
+.icon-dende-icons-close-outlined::before { content: '\e834'; }
+.icon-dende-icons-cloud-filled::before { content: '\e901'; }
+.icon-dende-icons-cloud-outlined::before { content: '\e83d'; }
+.icon-dende-icons-cloud_done-filled::before { content: '\e833'; }
+.icon-dende-icons-cloud_done-outlined::before { content: '\e835'; }
+.icon-dende-icons-cloud_download-filled::before { content: '\e836'; }
+.icon-dende-icons-cloud_download-outlined::before { content: '\e838'; }
+.icon-dende-icons-cloud_off-filled::before { content: '\e837'; }
+.icon-dende-icons-cloud_off-outlined::before { content: '\e839'; }
+.icon-dende-icons-cloud_upload-filled::before { content: '\e8ff'; }
+.icon-dende-icons-cloud_upload-outlined::before { content: '\e83b'; }
+.icon-dende-icons-collections-bookmark::before { content: '\e929'; }
+.icon-dende-icons-content_copy-filled::before { content: '\e83e'; }
+.icon-dende-icons-content_copy-outlined::before { content: '\e83f'; }
+.icon-dende-icons-credit_card-filled::before { content: '\e840'; }
+.icon-dende-icons-credit_card-outlined::before { content: '\e841'; }
+.icon-dende-icons-dark-mode-filled::before { content: '\e90f'; }
+.icon-dende-icons-dark-mode-outlined::before { content: '\e902'; }
+.icon-dende-icons-date-picker-outlined::before { content: '\e923'; }
+.icon-dende-icons-delete-filled::before { content: '\e843'; }
+.icon-dende-icons-delete-outlined::before { content: '\e842'; }
+.icon-dende-icons-devices::before { content: '\e939'; }
+.icon-dende-icons-documents-filled::before { content: '\e914'; }
+.icon-dende-icons-documents-outlined::before { content: '\e913'; }
+.icon-dende-icons-done-filled::before { content: '\e844'; }
+.icon-dende-icons-done-outlined::before { content: '\e845'; }
+.icon-dende-icons-download-filled::before { content: '\e847'; }
+.icon-dende-icons-download-for-offline::before { content: '\e8de'; }
+.icon-dende-icons-download-for-offline-outlined::before { content: '\e920'; }
+.icon-dende-icons-download-outlined::before { content: '\e846'; }
+.icon-dende-icons-downloading::before { content: '\e8db'; }
+.icon-dende-icons-drag-handle::before { content: '\e8e0'; }
+.icon-dende-icons-edit-note-filled::before { content: '\e907'; }
+.icon-dende-icons-edit-note-outlined::before { content: '\e906'; }
+.icon-dende-icons-edit_calendar-filled::before { content: '\e8f4'; }
+.icon-dende-icons-edit_calendar-filled-1::before { content: '\e8ea'; }
+.icon-dende-icons-edit_calendar-outlined::before { content: '\e8f5'; }
+.icon-dende-icons-edit_calendar-outlined-1::before { content: '\e8e9'; }
+.icon-dende-icons-email-filled::before { content: '\e848'; }
+.icon-dende-icons-email-outlined::before { content: '\e849'; }
+.icon-dende-icons-equalizer-filled::before { content: '\e8fc'; }
+.icon-dende-icons-equalizer-outlined::before { content: '\e8fd'; }
+.icon-dende-icons-error-filled::before { content: '\e84c'; }
+.icon-dende-icons-error-outlined::before { content: '\e84d'; }
+.icon-dende-icons-error_outline-filled::before { content: '\e84a'; }
+.icon-dende-icons-error_outline-outlined::before { content: '\e84b'; }
+.icon-dende-icons-expand_less-filled::before { content: '\e84e'; }
+.icon-dende-icons-expand_less-outlined::before { content: '\e84f'; }
+.icon-dende-icons-expand_more-filled::before { content: '\e850'; }
+.icon-dende-icons-expand_more-outlined::before { content: '\e851'; }
+.icon-dende-icons-fast_forward-filled::before { content: '\e853'; }
+.icon-dende-icons-fast_forward-outlined::before { content: '\e852'; }
+.icon-dende-icons-fast_rewind-filled::before { content: '\e854'; }
+.icon-dende-icons-fast_rewind-outlined::before { content: '\e855'; }
+.icon-dende-icons-filter_list-filled::before { content: '\e858'; }
+.icon-dende-icons-filter_list-outlined::before { content: '\e859'; }
+.icon-dende-icons-filter_list_off-filled::before { content: '\e856'; }
+.icon-dende-icons-filter_list_off-outlined::before { content: '\e857'; }
+.icon-dende-icons-first_page-filled::before { content: '\e85a'; }
+.icon-dende-icons-first_page-outlined::before { content: '\e85b'; }
+.icon-dende-icons-flag-filled::before { content: '\e85c'; }
+.icon-dende-icons-flag-outlined::before { content: '\e85d'; }
+.icon-dende-icons-flow-chart::before { content: '\e8da'; }
+.icon-dende-icons-folder-filled::before { content: '\e911'; }
+.icon-dende-icons-folder-outlined::before { content: '\e910'; }
+.icon-dende-icons-format-list-bullet-filled::before { content: '\e905'; }
+.icon-dende-icons-format-list-bullet-outlined::before { content: '\e904'; }
+.icon-dende-icons-format_strikethrough-filled::before { content: '\e85e'; }
+.icon-dende-icons-format_strikethrough-outlined::before { content: '\e862'; }
+.icon-dende-icons-forward-10-seconds::before { content: '\e8f6'; }
+.icon-dende-icons-forward_10-filled::before { content: '\e85f'; }
+.icon-dende-icons-forward_10-outlined::before { content: '\e860'; }
+.icon-dende-icons-fullscreen-filled::before { content: '\e864'; }
+.icon-dende-icons-fullscreen-outlined::before { content: '\e865'; }
+.icon-dende-icons-fullscreen_exit-filled::before { content: '\e861'; }
+.icon-dende-icons-fullscreen_exit-outlined::before { content: '\e863'; }
+.icon-dende-icons-gps-fixed::before { content: '\e938'; }
+.icon-dende-icons-groups-filled::before { content: '\e91f'; }
+.icon-dende-icons-groups-outlined::before { content: '\e91e'; }
+.icon-dende-icons-health-and-safety-filled::before { content: '\e8dd'; }
+.icon-dende-icons-health-and-safety-outlined::before { content: '\e92a'; }
+.icon-dende-icons-highlight-outlined::before { content: '\e924'; }
+.icon-dende-icons-home-filled::before { content: '\e866'; }
+.icon-dende-icons-home-outlined::before { content: '\e867'; }
+.icon-dende-icons-indetermine_check_box-filled::before { content: '\e868'; }
+.icon-dende-icons-indetermine_check_box-outlined::before { content: '\e869'; }
+.icon-dende-icons-info-filled::before { content: '\e86a'; }
+.icon-dende-icons-info-outlined::before { content: '\e86b'; }
+.icon-dende-icons-insights-filled::before { content: '\e8f0'; }
+.icon-dende-icons-insights-filled-1::before { content: '\e8ed'; }
+.icon-dende-icons-insights-outlined::before { content: '\e8f1'; }
+.icon-dende-icons-insights-outlined-1::before { content: '\e8ec'; }
+.icon-dende-icons-ios_share-filled::before { content: '\e86c'; }
+.icon-dende-icons-ios_share-outlined::before { content: '\e86d'; }
+.icon-dende-icons-key-filled::before { content: '\e870'; }
+.icon-dende-icons-key-outlined::before { content: '\e871'; }
+.icon-dende-icons-key_off-filled::before { content: '\e86e'; }
+.icon-dende-icons-key_off-outlined::before { content: '\e86f'; }
+.icon-dende-icons-keyboard-double-arrow-up::before { content: '\e8e1'; }
+.icon-dende-icons-last_page-filled::before { content: '\e872'; }
+.icon-dende-icons-last_page-outlined::before { content: '\e873'; }
+.icon-dende-icons-library-books-filled::before { content: '\e922'; }
+.icon-dende-icons-library-books-outlined::before { content: '\e921'; }
+.icon-dende-icons-light-mode-filled::before { content: '\e90e'; }
+.icon-dende-icons-light-mode-outlined::before { content: '\e900'; }
+.icon-dende-icons-lock-open-outlined::before { content: '\e933'; }
+.icon-dende-icons-login-filled::before { content: '\e874'; }
+.icon-dende-icons-login-outlined::before { content: '\e875'; }
+.icon-dende-icons-logout-filled::before { content: '\e876'; }
+.icon-dende-icons-logout-outlined::before { content: '\e877'; }
+.icon-dende-icons-mental-maps::before { content: '\e8dc'; }
+.icon-dende-icons-menu-filled::before { content: '\e878'; }
+.icon-dende-icons-menu-outlined::before { content: '\e879'; }
+.icon-dende-icons-mode_edit-filled::before { content: '\e87a'; }
+.icon-dende-icons-mode_edit-outlined::before { content: '\e87b'; }
+.icon-dende-icons-more_horiz-filled::before { content: '\e87c'; }
+.icon-dende-icons-more_horiz-outlined::before { content: '\e87d'; }
+.icon-dende-icons-more_vert-filled::before { content: '\e87e'; }
+.icon-dende-icons-more_vert-outlined::before { content: '\e87f'; }
+.icon-dende-icons-notifications-filled::before { content: '\e880'; }
+.icon-dende-icons-notifications-outlined::before { content: '\e881'; }
+.icon-dende-icons-open_in_new-filled::before { content: '\e882'; }
+.icon-dende-icons-open_in_new-outlined::before { content: '\e883'; }
+.icon-dende-icons-padlock-filled::before { content: '\e91a'; }
+.icon-dende-icons-padlock-outlined::before { content: '\e91b'; }
+.icon-dende-icons-pause-filled::before { content: '\e886'; }
+.icon-dende-icons-pause-outlined::before { content: '\e887'; }
+.icon-dende-icons-pause_circle-filled::before { content: '\e884'; }
+.icon-dende-icons-pause_circle-outlined::before { content: '\e885'; }
+.icon-dende-icons-piggy-illed::before { content: '\e955'; }
+.icon-dende-icons-piggy-outlined::before { content: '\e953'; }
+.icon-dende-icons-play::before { content: '\e8f8'; }
+.icon-dende-icons-play_arrow-filled::before { content: '\e888'; }
+.icon-dende-icons-play_arrow-outlined::before { content: '\e889'; }
+.icon-dende-icons-play_circle-filled::before { content: '\e88a'; }
+.icon-dende-icons-play_circle-outlined::before { content: '\e88b'; }
+.icon-dende-icons-play_disabled-filled::before { content: '\e88c'; }
+.icon-dende-icons-play_disabled-outlined::before { content: '\e88d'; }
+.icon-dende-icons-publish-filled::before { content: '\e88e'; }
+.icon-dende-icons-publish-outlined::before { content: '\e88f'; }
+.icon-dende-icons-push_pin-filled::before { content: '\e890'; }
+.icon-dende-icons-push_pin-outlined::before { content: '\e891'; }
+.icon-dende-icons-quiz-filled::before { content: '\e90c'; }
+.icon-dende-icons-quiz-outlined::before { content: '\e90d'; }
+.icon-dende-icons-radio_button_checked-filled::before { content: '\e892'; }
+.icon-dende-icons-radio_button_checked-outlined::before { content: '\e893'; }
+.icon-dende-icons-radio_button_unchecked-filled::before { content: '\e894'; }
+.icon-dende-icons-radio_button_unchecked-outlined::before { content: '\e895'; }
+.icon-dende-icons-receipt_long-filled::before { content: '\e896'; }
+.icon-dende-icons-receipt_long-outlined::before { content: '\e897'; }
+.icon-dende-icons-redo-filled::before { content: '\e898'; }
+.icon-dende-icons-redo-outlined::before { content: '\e899'; }
+.icon-dende-icons-refresh-filled::before { content: '\e89a'; }
+.icon-dende-icons-refresh-outlined::before { content: '\e89b'; }
+.icon-dende-icons-remove-filled::before { content: '\e89e'; }
+.icon-dende-icons-remove-outlined::before { content: '\e89f'; }
+.icon-dende-icons-remove_circle_outline-filled::before { content: '\e89c'; }
+.icon-dende-icons-remove_circle_outline-outlined::before { content: '\e89d'; }
+.icon-dende-icons-replay_10-filled::before { content: '\e8a0'; }
+.icon-dende-icons-replay_10-outlined::before { content: '\e8a1'; }
+.icon-dende-icons-report_problem-filled::before { content: '\e8a2'; }
+.icon-dende-icons-report_problem-outlined::before { content: '\e8a3'; }
+.icon-dende-icons-rewind-10-seconds::before { content: '\e8f7'; }
+.icon-dende-icons-save_alt-filled::before { content: '\e8a4'; }
+.icon-dende-icons-save_alt-outlined::before { content: '\e8a5'; }
+.icon-dende-icons-schedule-filled::before { content: '\e8a6'; }
+.icon-dende-icons-schedule-outlined::before { content: '\e8a7'; }
+.icon-dende-icons-school-filled::before { content: '\e8e6'; }
+.icon-dende-icons-school-outlined::before { content: '\e83a'; }
+.icon-dende-icons-search-filled::before { content: '\e8a8'; }
+.icon-dende-icons-search-outlined::before { content: '\e8a9'; }
+.icon-dende-icons-settings-filled::before { content: '\e8aa'; }
+.icon-dende-icons-settings-outlined::before { content: '\e8ab'; }
+.icon-dende-icons-skip_next-filled::before { content: '\e8ac'; }
+.icon-dende-icons-skip_next-outlined::before { content: '\e8ad'; }
+.icon-dende-icons-skip_previous-filled::before { content: '\e8ae'; }
+.icon-dende-icons-skip_previous-outlined::before { content: '\e8af'; }
+.icon-dende-icons-slideshow-filled::before { content: '\e8b0'; }
+.icon-dende-icons-slideshow-outlined::before { content: '\e8b1'; }
+.icon-dende-icons-spinner-filled::before { content: '\e8b2'; }
+.icon-dende-icons-spinner-outlined::before { content: '\e8b3'; }
+.icon-dende-icons-star-filled::before { content: '\e8bb'; }
+.icon-dende-icons-star-outlined::before { content: '\e8bc'; }
+.icon-dende-icons-star-rate_filled::before { content: '\e8bd'; }
+.icon-dende-icons-star_border-filled::before { content: '\e8b4'; }
+.icon-dende-icons-star_border-outlined::before { content: '\e8b5'; }
+.icon-dende-icons-star_half-filled::before { content: '\e8b6'; }
+.icon-dende-icons-star_half-outlined::before { content: '\e8b7'; }
+.icon-dende-icons-star_outline-filled::before { content: '\e8b8'; }
+.icon-dende-icons-star_outline-outlined::before { content: '\e8b9'; }
+.icon-dende-icons-star_rate-outlined::before { content: '\e8ba'; }
+.icon-dende-icons-stop::before { content: '\e8df'; }
+.icon-dende-icons-strike-filled::before { content: '\e926'; }
+.icon-dende-icons-strike-filled-1::before { content: '\e925'; }
+.icon-dende-icons-subscriptions-filled::before { content: '\e8f3'; }
+.icon-dende-icons-subscriptions-filled-1::before { content: '\e8eb'; }
+.icon-dende-icons-subscriptions-outlined::before { content: '\e8f2'; }
+.icon-dende-icons-subscriptions-outlined-1::before { content: '\e8e7'; }
+.icon-dende-icons-suport_agent-filled::before { content: '\e8ee'; }
+.icon-dende-icons-suport_agent-filled-1::before { content: '\e8f9'; }
+.icon-dende-icons-suport_agent-outlined::before { content: '\e8ef'; }
+.icon-dende-icons-suport_agent-outlined-1::before { content: '\e8fa'; }
+.icon-dende-icons-thumb_down-filled::before { content: '\e8e2'; }
+.icon-dende-icons-thumb_down-outlined::before { content: '\e8e3'; }
+.icon-dende-icons-thumb_up-filled::before { content: '\e8e5'; }
+.icon-dende-icons-thumb_up-outlined::before { content: '\e8e4'; }
+.icon-dende-icons-timeline-filled::before { content: '\e912'; }
+.icon-dende-icons-timer-filled::before { content: '\e8fb'; }
+.icon-dende-icons-timer-outlined::before { content: '\e8fe'; }
+.icon-dende-icons-toggle_off-filled::before { content: '\e8be'; }
+.icon-dende-icons-toggle_off-outlined::before { content: '\e8bf'; }
+.icon-dende-icons-toggle_on-filled::before { content: '\e8c0'; }
+.icon-dende-icons-toggle_on-outlined::before { content: '\e8c1'; }
+.icon-dende-icons-touch-app-filled::before { content: '\e909'; }
+.icon-dende-icons-touch-app-outlined::before { content: '\e908'; }
+.icon-dende-icons-undo-filled::before { content: '\e8c2'; }
+.icon-dende-icons-undo-outlined::before { content: '\e8c3'; }
+.icon-dende-icons-unfold_less-filled::before { content: '\e8c4'; }
+.icon-dende-icons-unfold_less-outlined::before { content: '\e8c5'; }
+.icon-dende-icons-unfold_more-filled::before { content: '\e8c6'; }
+.icon-dende-icons-unfold_more-outlined::before { content: '\e8c7'; }
+.icon-dende-icons-upload-filled::before { content: '\e8c8'; }
+.icon-dende-icons-upload-outlined::before { content: '\e8c9'; }
+.icon-dende-icons-vaccines-filled::before { content: '\e917'; }
+.icon-dende-icons-vaccines-outlined::before { content: '\e918'; }
+.icon-dende-icons-video-library-filled::before { content: '\e90b'; }
+.icon-dende-icons-video-library-outlined::before { content: '\e90a'; }
+.icon-dende-icons-videocam-filled::before { content: '\e8e8'; }
+.icon-dende-icons-videocam-outlined::before { content: '\e903'; }
+.icon-dende-icons-visibility-filled::before { content: '\e8cc'; }
+.icon-dende-icons-visibility-outlined::before { content: '\e8cd'; }
+.icon-dende-icons-visibility_off-filled::before { content: '\e8ca'; }
+.icon-dende-icons-visibility_off-outlined::before { content: '\e8cb'; }
+.icon-dende-icons-volume_down-filled::before { content: '\e8ce'; }
+.icon-dende-icons-volume_down-outlined::before { content: '\e8cf'; }
+.icon-dende-icons-volume_mute-filled::before { content: '\e8d0'; }
+.icon-dende-icons-volume_mute-outlined::before { content: '\e8d1'; }
+.icon-dende-icons-volume_off-filled::before { content: '\e8d2'; }
+.icon-dende-icons-volume_off-outlined::before { content: '\e8d3'; }
+.icon-dende-icons-volume_up-filled::before { content: '\e8d4'; }
+.icon-dende-icons-volume_up-outlined::before { content: '\e8d5'; }
+.icon-dende-icons-watch-later-filled::before { content: '\e931'; }
+.icon-dende-icons-watch-later-outlined::before { content: '\e932'; }
+.icon-dende-icons-whatsapp-filled::before { content: '\e8d6'; }
+.icon-dende-icons-whatsapp-outlined::before { content: '\e8d7'; }
+.icon-dende-icons-workspace_premium-filled::before { content: '\e8d8'; }
+.icon-dende-icons-workspace_premium-outlined::before { content: '\e8d9'; }
+.icon-dende-library-add::before { content: '\e93c'; }
+.icon-dende-link-address::before { content: '\e93b'; }
+.icon-dende-pix-outlined::before { content: '\e93f'; }
+.icon-dende-post-add-filled::before { content: '\e92d'; }
+.icon-dende-post-add-outlined::before { content: '\e92c'; }
+.icon-dende-trending-down-filled::before { content: '\e92b'; }
+.icon-dende-trending-down-outlined::before { content: '\e934'; }
+.icon-dende-trending-flat-filled::before { content: '\e93a'; }
+.icon-dende-trending-flat-outlined::before { content: '\e937'; }
+.icon-dende-trending-up-filled::before { content: '\e935'; }
+.icon-dende-trending-up-outlined::before { content: '\e936'; }
+.icon-dende-upload-file-filled::before { content: '\e92e'; }
+.icon-room-filled::before { content: '\e927'; }
+.icon-room-outlined::before { content: '\e928'; }
