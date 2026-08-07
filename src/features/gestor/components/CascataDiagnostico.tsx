@@ -394,7 +394,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                     </div>
                     <button
                       type="button"
-                      aria-label={`Abrir cascata do nível ${ROTULO_NIVEL[nivel].toLowerCase()}`}
+                      aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
                       aria-expanded={setaAberta}
                       onClick={() => abrirCascata(nivel)}
                       className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
