@@ -15,7 +15,6 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.claude/settings.local.json
 .idea
 .DS_Store
 *.suo
@@ -25,6 +24,3 @@ dist-ssr
 *.sw?
 *.env
 *.csv
-
-# Handoff de design do gestor (export do Figma, 24/07) - fonte, nao artefato de build
-Nova Visão do Gestor SanarFlix.zip

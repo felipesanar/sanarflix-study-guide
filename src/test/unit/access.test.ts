@@ -64,28 +64,17 @@ describe('experiences/access — deriveAccessFromRoles', () => {
   it('atendimento ganha a experiência atendimento e as capabilities de suporte', () => {
     const access = deriveAccessFromRoles(['atendimento']);
     expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'atendimento']));
-    // `users.edit` é intencional no atendimento (confirmado em 28/07): o CX precisa
-    // corrigir cadastro de aluno, não só consultar. A RPC `get_access` em produção
-    // concede as mesmas três — este espelho client-side não pode divergir dela.
-    expect(access.capabilities).toEqual(
-      expect.arrayContaining(['users.support', 'users.edit', 'feedbacks.support']),
-    );
-    expect(access.capabilities).toHaveLength(3);
+    expect(access.capabilities).toEqual(expect.arrayContaining(['users.support', 'feedbacks.support']));
+    expect(access.capabilities).toHaveLength(2);
   });
 
   it('combinação gestor + atendimento soma as duas experiências e capabilities', () => {
     const access = deriveAccessFromRoles(['gestor', 'atendimento']);
     expect(access.experiences).toEqual(expect.arrayContaining(['aluno', 'gestao', 'atendimento']));
     expect(access.capabilities).toEqual(
-      expect.arrayContaining([
-        'institutional.view',
-        'alunos.view',
-        'users.support',
-        'users.edit',
-        'feedbacks.support',
-      ]),
+      expect.arrayContaining(['institutional.view', 'alunos.view', 'users.support', 'feedbacks.support']),
     );
-    expect(access.capabilities).toHaveLength(5);
+    expect(access.capabilities).toHaveLength(4);
   });
 
   it('roles desconhecidas são ignoradas para fins de experiência/capability mas mantidas em roles[]', () => {

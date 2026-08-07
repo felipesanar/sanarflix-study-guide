@@ -10,7 +10,6 @@ import {
   MessageSquare,
   BarChart3,
   History,
-  FileSignature,
 } from 'lucide-react';
 import type { NavItem } from '@/experiences/types';
 import { can, type Access } from '@/experiences/access';
@@ -38,10 +37,10 @@ export interface AdminNavGroup {
 }
 
 /**
- * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 12 itens.
+ * Navegação canônica do Portal do Admin (`/admin/*`): 4 grupos, 11 itens.
  *
  * - Operação: Command Center, Simulados, Monitoramento.
- * - Contas & acesso: Usuários, IES, Contratos & cronograma.
+ * - Contas & acesso: Usuários, IES.
  * - Conteúdo & comunicação: Guia de Estudos, Avisos, SanarClass.
  * - Suporte & dados: Feedbacks, Analytics, Auditoria.
  */
@@ -70,12 +69,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         icon: Building2,
         capability: 'ies.manage',
         badgeKey: 'iesSemSimuladoAtivo',
-      },
-      {
-        title: 'Contratos & cronograma',
-        url: '/admin/contratos',
-        icon: FileSignature,
-        capability: 'ies.manage',
       },
     ],
   },

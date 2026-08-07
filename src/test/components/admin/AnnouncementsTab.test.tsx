@@ -31,7 +31,6 @@ describe('AnnouncementsTab', () => {
       visibilidade: 'todas',
       ies_selecionadas: [],
       ies_excluidas: [],
-      publico_alvo: ['aluno'],
       created_at: '2024-01-01T00:00:00Z',
     },
     {
@@ -47,7 +46,6 @@ describe('AnnouncementsTab', () => {
       visibilidade: 'todas',
       ies_selecionadas: [],
       ies_excluidas: [],
-      publico_alvo: ['gestor'],
       created_at: '2024-01-02T00:00:00Z',
     },
   ];
@@ -248,99 +246,6 @@ describe('AnnouncementsTab', () => {
       );
     });
     expect(toast.success).toHaveBeenCalledWith('Aviso criado!');
-  });
-
-  // --- público-alvo -------------------------------------------------------
-  // O bloco de Avisos do gestor subia vazio: o editor não tinha campo de
-  // público-alvo e o upsert (lista explícita de colunas) não mandava
-  // `publico_alvo`, então todo aviso nascia com o default `{aluno}` do banco e
-  // `get_gestor_avisos` — que filtra por `'gestor' = ANY(publico_alvo)` — nunca
-  // devolvia nada. Estes testes cobrem o caminho inteiro: UI -> upsert.
-
-  async function abrirNovoAviso() {
-    await waitFor(() => screen.getByRole('button', { name: /Novo aviso/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Novo aviso/i }));
-    await waitFor(() => screen.getByPlaceholderText(/Título do aviso/i));
-    fireEvent.change(screen.getByPlaceholderText(/Título do aviso/i), { target: { value: 'Aviso de teste' } });
-    fireEvent.change(screen.getByPlaceholderText(/Descrição do aviso/i), { target: { value: 'Descrição de teste' } });
-  }
-
-  it('novo aviso nasce com público-alvo {aluno} e leva a coluna para o upsert', async () => {
-    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
-
-    render(<AnnouncementsTab />);
-    await abrirNovoAviso();
-
-    expect(screen.getByRole('checkbox', { name: /^Aluno$/i })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /^Gestor$/i })).not.toBeChecked();
-
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
-
-    await waitFor(() => {
-      expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({ publico_alvo: ['aluno'] }));
-    });
-  });
-
-  it('publica o aviso para o gestor quando o público-alvo é marcado no editor', async () => {
-    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
-
-    render(<AnnouncementsTab />);
-    await abrirNovoAviso();
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Gestor$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
-
-    await waitFor(() => {
-      expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({ publico_alvo: ['aluno', 'gestor'] }));
-    });
-  });
-
-  it('permite um aviso só para gestor, sem aluno', async () => {
-    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
-
-    render(<AnnouncementsTab />);
-    await abrirNovoAviso();
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Gestor$/i }));
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Aluno$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
-
-    await waitFor(() => {
-      expect(mockUpsert).toHaveBeenCalledWith(expect.objectContaining({ publico_alvo: ['gestor'] }));
-    });
-  });
-
-  it('bloqueia o save quando nenhum público-alvo está marcado', async () => {
-    // O CHECK do banco exige cardinality(publico_alvo) >= 1; um aviso sem
-    // público nenhum seria invisível para todo mundo.
-    const mockUpsert = vi.fn().mockResolvedValue({ data: null, error: null });
-    mockSupabaseFrom({ announcements: { upsert: mockUpsert } });
-
-    render(<AnnouncementsTab />);
-    await abrirNovoAviso();
-
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Aluno$/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Aviso/i }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith('Selecione pelo menos um público-alvo para o aviso');
-    });
-    expect(mockUpsert).not.toHaveBeenCalled();
-  });
-
-  it('carrega o público-alvo do aviso existente ao abrir o editor', async () => {
-    render(<AnnouncementsTab />);
-
-    await waitFor(() => screen.getAllByRole('button', { name: /Editar aviso/i }));
-    // Ordenação padrão é created_at desc — a primeira linha é o id '2', que é {gestor}.
-    fireEvent.click(screen.getAllByRole('button', { name: /Editar aviso/i })[0]);
-
-    await waitFor(() => screen.getByRole('checkbox', { name: /^Gestor$/i }));
-    expect(screen.getByRole('checkbox', { name: /^Gestor$/i })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /^Aluno$/i })).not.toBeChecked();
   });
 
   it('should show error state with retry when fetch fails', async () => {

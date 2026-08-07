@@ -31,7 +31,7 @@ import {
   adminTableHeadClass,
   type StatusPillVariant,
 } from '@/experiences/admin/ui';
-import { encerrarSimulado } from '@/services/admin/simulados';
+import { logAdminAction } from '@/services/admin/logAction';
 import SimuladoConfigDialog from './SimuladoConfigDialog';
 import QuestoesDialog from './QuestoesDialog';
 
@@ -58,19 +58,6 @@ export interface Simulado {
   questoes_count: number;
   liberacao_desempenho: 'imediato' | 'agendado' | 'ao_encerrar';
   data_liberacao_desempenho: string | null;
-  /**
-   * Modalidade do simulado (§6.4) — `null` quando o admin ainda não definiu
-   * (estado real de boa parte das 44 provas em produção). Escrita exclusiva
-   * via `admin_update_simulado` (SimuladoConfigDialog), nunca pelo CX.
-   */
-  modalidade: 'online' | 'presencial' | null;
-  /**
-   * Data em que a prova PRESENCIAL acontece — é a data principal quando
-   * `modalidade === 'presencial'` (o banco já deriva `data_agendada_original`
-   * a partir de `COALESCE(data_realizacao, data_liberacao)`). Para
-   * `modalidade === 'online'` este campo normalmente fica vazio.
-   */
-  data_realizacao: string | null;
 }
 
 export interface IES {
@@ -174,8 +161,6 @@ export default function ProvasTab() {
         questoes_count: countsBySimulado[String(s.id)] ?? 0,
         liberacao_desempenho: (s.liberacao_desempenho as Simulado['liberacao_desempenho']) || 'imediato',
         data_liberacao_desempenho: s.data_liberacao_desempenho,
-        modalidade: (s.modalidade as Simulado['modalidade']) ?? null,
-        data_realizacao: s.data_realizacao,
       }));
 
       setSimulados(rows);
@@ -276,11 +261,13 @@ export default function ProvasTab() {
     if (!encerrarTarget) return;
     try {
       setEncerrando(true);
-      // Via RPC `admin_encerrar_simulado` em vez de `.from().update()` direto
-      // (escopo extra da Task 10 da Fase 0b). A RPC escreve só `status` e audita
-      // como `encerrar_simulado` no mesmo commit — daí não haver mais
-      // `logAdminAction` aqui, que daria auditoria dobrada.
-      await encerrarSimulado(encerrarTarget.id);
+      const { error: updateError } = await supabase
+        .from('simulados_admin')
+        .update({ status: 'encerrado' })
+        .eq('id', encerrarTarget.id);
+      if (updateError) throw updateError;
+
+      await logAdminAction('encerrar_simulado', null, { simulado_id: encerrarTarget.id, nome: encerrarTarget.nome });
 
       toast.success('Simulado encerrado', { description: 'Os alunos perderam acesso imediatamente.' });
       fetchSimulados();

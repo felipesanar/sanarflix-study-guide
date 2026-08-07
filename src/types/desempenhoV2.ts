@@ -1,0 +1,199 @@
+export type DesempenhoV2Tab =
+  | 'visao-institucional'
+  | 'diagnostico-curricular'
+  | 'visao-alunos'
+  | 'insights-pedagogicos'
+  | 'inteligencia-decisoria';
+
+export type InstitutionalBaseMode = 'sixth-year' | 'general' | 'semestres';
+
+export interface DesempenhoV2Filters {
+  iesId: string;
+  simuladoId: string;
+  periodo: string;
+  turmas: string[];
+  semestres: string[];
+  areas: string[];
+  especialidades: string[];
+  temas: string[];
+  /** Modo de base ativo na Visão Institucional. Os 3 modos são mutuamente exclusivos. */
+  baseMode: InstitutionalBaseMode;
+  /** @deprecated Substituído por `baseMode === 'general'`. Mantido apenas para compat de query-string antiga. */
+  conceitoGeral?: boolean;
+}
+
+export const DEFAULT_FILTERS: DesempenhoV2Filters = {
+  iesId: '',
+  simuladoId: '',
+  periodo: '',
+  turmas: [],
+  semestres: [],
+  areas: [],
+  especialidades: [],
+  temas: [],
+  baseMode: 'sixth-year',
+  conceitoGeral: false,
+};
+
+/** Count how many filters are actively set (non-default) */
+export function countActiveFilters(filters: DesempenhoV2Filters): number {
+  let count = 0;
+  if (filters.iesId) count++;
+  if (filters.simuladoId) count++;
+  if (filters.periodo) count++;
+  if (filters.turmas.length) count++;
+  if (filters.baseMode !== 'sixth-year') count++;
+  if (filters.baseMode === 'semestres' && filters.semestres.length) count++;
+  if (filters.areas.length) count++;
+  if (filters.especialidades.length) count++;
+  if (filters.temas.length) count++;
+  return count;
+}
+
+export const TAB_CONFIG: { value: DesempenhoV2Tab; label: string }[] = [
+  { value: 'visao-institucional', label: 'Visão Institucional' },
+  { value: 'diagnostico-curricular', label: 'Diagnóstico Curricular' },
+  { value: 'visao-alunos', label: 'Visão de Alunos' },
+  { value: 'insights-pedagogicos', label: 'Insights Pedagógicos' },
+  { value: 'inteligencia-decisoria', label: 'Inteligência Decisória' },
+];
+
+// ── View Model types consumed by UI components ──
+
+export interface SimuladoOption {
+  id: string;
+  nome: string;
+}
+
+export interface IesOption {
+  id: string;
+  nome: string;
+}
+
+export interface CurricularNode {
+  name: string;
+  total: number;
+  acertos: number;
+  percentual: number;
+  /** How many students answered questions in this node */
+  prevalencia?: number;
+}
+
+export interface CurricularAreaNode extends CurricularNode {
+  specialties: CurricularSpecialtyNode[];
+}
+
+export interface CurricularSpecialtyNode extends CurricularNode {
+  areaName: string;
+  temas: CurricularTemaNode[];
+}
+
+export interface CurricularTemaNode extends CurricularNode {
+  areaName: string;
+  specialtyName: string;
+}
+
+export interface CurricularBreakdown {
+  areas: CurricularAreaNode[];
+}
+
+export interface InstitutionalViewModel {
+  kpis: import('@/mocks/desempenhoInstitucionalV2').KpiData[];
+  faixas: import('@/mocks/desempenhoInstitucionalV2').FaixaDistribuicao[];
+  meta: import('@/mocks/desempenhoInstitucionalV2').MetaInstitucional;
+  evolucao: import('@/mocks/desempenhoInstitucionalV2').EvolucaoSimulado[];
+  distanciaFaixa: import('@/mocks/desempenhoInstitucionalV2').DistanciaFaixa[];
+  /** @deprecated Use allStudents instead. Kept for backward compat — contains only below-threshold students */
+  alunosAbaixo: StudentScore[];
+  /** All students (proficient + below threshold) */
+  allStudents: StudentScore[];
+  headerSummary: HeaderSummary;
+  curricular: CurricularBreakdown;
+}
+
+export interface StudentScore {
+  studentId?: string;
+  nome: string;
+  semestre: number;
+  acertos: number;
+  total: number;
+  percentual: number;
+  scoresByArea: Record<string, number>;
+  /** Total questions per area in the simulado (excluding annulled) */
+  totalsByArea: Record<string, number>;
+  /** Student hits per tema in the simulado */
+  scoresByTema: Record<string, number>;
+  /** Total questions per tema in the simulado (excluding annulled) */
+  totalsByTema: Record<string, number>;
+  /** TRI score (score_proprio) from resultados_alunos_tri, when available */
+  triScore?: number | null;
+}
+
+export interface HeaderSummary {
+  totalAlunos: number;
+  percentProficientes: number;
+  alunosFaltamMeta: number;
+  sancao: string | null;
+  /** Conceito previsto calculado a partir do % de proficientes do recorte (base ativa). */
+  conceitoScoped: string | null;
+  /** Nota numérica (1..5) correspondente ao conceitoScoped */
+  notaScoped: number | null;
+  /** True quando os KPIs reagentes estão recortados por pelo menos 1 semestre */
+  isSemestreScoped?: boolean;
+  /** Semestres ativos no recorte (array, vazio = todos) */
+  semestresAtivos?: number[];
+  /** Modo da base ativa: 6º ano (padrão), geral (toggle) ou semestres (multisseleção) */
+  conceitoMode?: 'sixth-year' | 'general' | 'semestres';
+  /** True quando o modo 6º ano caiu em fallback por não haver alunos do 6º ano */
+  sixthYearFallback?: boolean;
+  /** % de proficientes da base ativa — usado pelo banner de sanção */
+  basePctProficientes?: number | null;
+  /** Rótulo curto da base ativa, ex.: "6º ano", "IES inteira", "Semestres 9, 10" */
+  baseLabel?: string;
+  /** True quando o simulado ainda não tem TRI processado — KPIs de proficiência ficam em branco. */
+  triPending?: boolean;
+}
+
+// ── Raw RPC response types ──
+
+export interface RpcOverallStats {
+  total: number;
+  acertos: number;
+  totalStudents: number;
+}
+
+export interface RpcAreaData {
+  name: string;
+  total: number;
+  acertos: number;
+}
+
+export interface RpcPerformanceResponse {
+  overallStats: RpcOverallStats;
+  bySemester: { semestre: number; total: number; acertos: number; num_students: number }[];
+  byArea: RpcAreaData[];
+  bySpecialty: (RpcAreaData & { area_name: string })[];
+  bySubspecialty: (RpcAreaData & { specialty_name: string; area_name: string })[];
+}
+
+export interface RpcEvolutionEntry {
+  simulado_id: string;
+  simulado_nome: string;
+  created_at: string;
+  areas: { area: string; total: number; acertos: number; percentual: number }[];
+}
+
+export interface RpcStudentScoresResponse {
+  areas: string[];
+  students: {
+    student_id?: string;
+    nome: string;
+    semestre: number;
+    score_total: number;
+    total_questions: number;
+    scores_by_area: Record<string, number> | null;
+    totals_by_area?: Record<string, number> | null;
+    scores_by_tema?: Record<string, number> | null;
+    totals_by_tema?: Record<string, number> | null;
+  }[];
+}

@@ -26,14 +26,6 @@ interface AnnouncementConfig {
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
-  // Personas que veem o aviso. O banco aceita aluno | gestor | professor
-  // (CHECK announcements_publico_alvo_check); o editor expõe aluno e gestor e
-  // preserva qualquer outro valor que já esteja gravado na linha.
-  //
-  // Opcional só para casar com a assinatura de `setConfig` do editor (que aceita
-  // um config sem o campo). Quem garante que a coluna sempre chega preenchida ao
-  // banco é a validação em `handleSave`, não o compilador.
-  publico_alvo?: string[];
 }
 
 interface Announcement {
@@ -49,7 +41,6 @@ interface Announcement {
   visibilidade: 'todas' | 'seletivo' | 'exceto';
   ies_selecionadas: string[];
   ies_excluidas: string[];
-  publico_alvo: string[] | null;
   created_at: string;
 }
 
@@ -65,8 +56,6 @@ const defaultConfig: AnnouncementConfig = {
   visibilidade: 'todas',
   ies_selecionadas: [],
   ies_excluidas: [],
-  // Mesmo default do banco: aviso novo continua nascendo só para aluno.
-  publico_alvo: ['aluno'],
 };
 
 export const AnnouncementsTab: React.FC = () => {
@@ -125,14 +114,6 @@ export const AnnouncementsTab: React.FC = () => {
       return;
     }
 
-    // O CHECK do banco exige cardinality(publico_alvo) >= 1. Barrar aqui troca
-    // um 400 opaco do PostgREST por uma mensagem que diz o que fazer — e evita
-    // salvar um aviso que não apareceria para ninguém.
-    if (!configToSave.publico_alvo?.length) {
-      toast.error('Selecione pelo menos um público-alvo para o aviso');
-      return;
-    }
-
     const { error: saveError } = await supabase.from('announcements').upsert({
       id: configToSave.id,
       titulo: configToSave.titulo,
@@ -146,10 +127,6 @@ export const AnnouncementsTab: React.FC = () => {
       visibilidade: configToSave.visibilidade,
       ies_selecionadas: configToSave.ies_selecionadas,
       ies_excluidas: configToSave.ies_excluidas,
-      // Sem esta coluna na lista o campo do editor não persiste: o insert cai
-      // no default '{aluno}' e get_gestor_avisos, que filtra por
-      // 'gestor' = ANY(publico_alvo), nunca devolve o aviso.
-      publico_alvo: configToSave.publico_alvo,
     });
 
     if (saveError) {
@@ -228,22 +205,13 @@ export const AnnouncementsTab: React.FC = () => {
     <>
       <AnnouncementsList
         announcements={announcements}
-        onEdit={(announcement) => {
-          // A lista trabalha com um recorte do aviso (o tipo dela não conhece
-          // publico_alvo). Buscamos a linha inteira no estado para o editor não
-          // perder campos no caminho até o upsert, que grava todas as colunas.
-          const full = announcements.find((a) => a.id === announcement.id);
-          if (!full) return;
-
+        onEdit={(announcement) =>
           setEditingConfig({
-            ...full,
-            link_botao: full.link_botao || '',
-            texto_botao: full.texto_botao || 'Ver mais',
-            // Linhas anteriores ao backfill podem vir nulas; o editor não sabe
-            // lidar com ausência de público.
-            publico_alvo: full.publico_alvo?.length ? full.publico_alvo : ['aluno'],
-          });
-        }}
+            ...announcement,
+            link_botao: announcement.link_botao || '',
+            texto_botao: announcement.texto_botao || 'Ver mais',
+          })
+        }
         onToggleStatus={handleToggleStatus}
         onDelete={(id) => {
           const ann = announcements.find((a) => a.id === id);
