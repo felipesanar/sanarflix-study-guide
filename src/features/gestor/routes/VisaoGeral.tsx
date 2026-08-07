@@ -227,7 +227,7 @@ export default function VisaoGeral() {
         {/* Item B5 do passe de conformidade: a nota da régua ("compara 1º
             simulado · anterior · atual...") não existia em lugar nenhum do
             código — a referência põe a nota na MESMA linha do overline. */}
-        <div className="flex items-baseline gap-[10px]">
+        <div className="flex flex-wrap items-baseline gap-[10px]">
           <span
             data-testid="overline-panorama"
             className="uppercase text-muted-foreground"

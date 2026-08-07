@@ -87,7 +87,7 @@ export function BlocoGestor({
         >
           <Icon
             name="error_outline"
-            size={17}
+            size={16}
             className="shrink-0 text-[color:var(--gp-warning-on)]"
           />
           <span style={{ fontSize: 11, lineHeight: '16px', color: 'var(--gp-warning-on)' }}>
