@@ -182,6 +182,33 @@ describe('rota VisaoGeral', () => {
     ).toBeTruthy();
   });
 
+  /**
+   * Item B5 do passe de conformidade: a nota explicativa da régua não
+   * existia em lugar nenhum do código — a referência põe a nota na MESMA
+   * linha do overline "Panorama da instituição".
+   */
+  it('a nota da régua aparece na MESMA linha do overline "Panorama da instituição" (item B5)', () => {
+    render(<VisaoGeralRoute />);
+    const overline = screen.getByTestId('overline-panorama');
+    const nota = screen.getByTestId('nota-regua-panorama');
+
+    expect(nota).toHaveTextContent(
+      'compara 1º simulado · anterior · atual — com 1 simulado a régua não aparece; com 2, mostra só os dois',
+    );
+
+    const linha = overline.parentElement;
+    expect(linha).toContainElement(nota);
+    expect(linha?.className).toMatch(/items-baseline/);
+    expect(linha?.className).toMatch(/gap-\[10px\]/);
+  });
+
+  it('sem `--gp-text-4` no tema, a nota da régua usa text-muted-foreground em vez de inventar um token (item B5)', () => {
+    render(<VisaoGeralRoute />);
+    const nota = screen.getByTestId('nota-regua-panorama');
+    expect(nota.className).toMatch(/\btext-muted-foreground\b/);
+    expect(nota.style.fontSize).toBe('12px');
+  });
+
   it('mostra os 2 insights autogerados, um por área e um por aluno', () => {
     render(<VisaoGeralRoute />);
     const insights = screen.getByTestId('bloco-insights').querySelectorAll('li');

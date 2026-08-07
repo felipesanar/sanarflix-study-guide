@@ -224,13 +224,27 @@ export default function VisaoGeral() {
 
       {/* 1. Panorama — os 4 indicadores, sob o overline que os nomeia como bloco. */}
       <div className="flex flex-col gap-3">
-        <span
-          data-testid="overline-panorama"
-          className="uppercase text-muted-foreground"
-          style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em' }}
-        >
-          Panorama da instituição
-        </span>
+        {/* Item B5 do passe de conformidade: a nota da régua ("compara 1º
+            simulado · anterior · atual...") não existia em lugar nenhum do
+            código — a referência põe a nota na MESMA linha do overline. */}
+        <div className="flex items-baseline gap-[10px]">
+          <span
+            data-testid="overline-panorama"
+            className="uppercase text-muted-foreground"
+            style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em' }}
+          >
+            Panorama da instituição
+          </span>
+          {/*
+           * `--gp-text-4` não existe em `gestor-theme.css` (só há
+           * `--gp-text-1..3` + `--gp-text-inverse`) — decisão já resolvida
+           * no brief do item B5: usar `text-muted-foreground` em vez de
+           * inventar um token novo numa camada que não é desta tarefa.
+           */}
+          <span data-testid="nota-regua-panorama" className="text-muted-foreground" style={{ fontSize: 12 }}>
+            compara 1º simulado · anterior · atual — com 1 simulado a régua não aparece; com 2, mostra só os dois
+          </span>
+        </div>
         <KpisVisaoGeral
           kpis={
             visao?.kpis ?? {
