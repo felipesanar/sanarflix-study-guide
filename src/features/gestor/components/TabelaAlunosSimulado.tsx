@@ -204,7 +204,10 @@ export function TabelaAlunosSimulado({
                             title={a.nome}
                             onClick={() => onSelecionarAluno(a.id)}
                             className="block max-w-[220px] truncate text-left"
-                            style={{ color: 'var(--gp-text-1)', fontWeight: selecionado ? 600 : 400 }}
+                            style={{
+                              color: a.participou ? 'var(--gp-text-1)' : 'var(--gp-text-3)',
+                              fontWeight: selecionado ? 600 : 400,
+                            }}
                           >
                             {a.nome}
                           </button>
@@ -212,14 +215,17 @@ export function TabelaAlunosSimulado({
                           <span
                             title={a.nome}
                             className="block max-w-[220px] truncate"
-                            style={{ fontWeight: selecionado ? 600 : 400 }}
+                            style={{
+                              color: a.participou ? undefined : 'var(--gp-text-3)',
+                              fontWeight: selecionado ? 600 : 400,
+                            }}
                           >
                             {a.nome}
                           </span>
                         )}
                       </span>
                     </Celula>
-                    <Celula numerica ausente={a.semestre === null}>
+                    <Celula numerica ausente={a.semestre === null || !a.participou}>
                       {a.semestre === null ? TRACO : `${a.semestre}º`}
                     </Celula>
                     <Celula numerica ausente={a.acertos === null} data-testid="celula-acertos">

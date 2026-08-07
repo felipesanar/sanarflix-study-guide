@@ -69,6 +69,40 @@ describe('TabelaAlunosSimulado', () => {
     expect(within(carla).getByText('Não participou')).toBeInTheDocument();
   });
 
+  /**
+   * A referência atenua a LINHA INTEIRA de quem não participou, não só as
+   * células que já ficavam em `—` (acertos/proficiência). Nome e semestre
+   * continuavam em texto cheio antes deste fix; agora caem em `--gp-text-3`
+   * junto com o resto, no ramo sem `onSelecionarAluno` (span) e no ramo com
+   * ele (botão).
+   */
+  it('atenua nome e semestre de quem não participou (linha inteira em text-3, §12)', () => {
+    render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} />);
+
+    const carla = screen.getByTestId('linha-aluno-a3');
+    const nomeCarla = within(carla).getByTestId('celula-nome');
+    expect(nomeCarla.querySelector('span[title="Carla"]')).toHaveStyle({ color: 'var(--gp-text-3)' });
+    // Semestre reaproveita o mecanismo `ausente`, já usado por acertos/proficiência.
+    expect(within(carla).getAllByRole('cell')[1].getAttribute('style')).toContain('color: var(--gp-text-3)');
+
+    const ana = screen.getByTestId('linha-aluno-a1');
+    const nomeAna = within(ana).getByTestId('celula-nome');
+    expect(nomeAna.querySelector('span[title="Ana"]')).toHaveStyle({ color: 'var(--gp-text-1)' });
+    expect(within(ana).getAllByRole('cell')[1].getAttribute('style')).not.toContain('color: var(--gp-text-3)');
+  });
+
+  it('atenua o nome também no ramo com onSelecionarAluno (botão)', () => {
+    render(<TabelaAlunosSimulado alunos={TRES} multiSimulado={false} onSelecionarAluno={vi.fn()} />);
+
+    const carla = screen.getByTestId('linha-aluno-a3');
+    const botaoCarla = within(carla).getByRole('button', { name: 'Carla' });
+    expect(botaoCarla).toHaveStyle({ color: 'var(--gp-text-3)' });
+
+    const ana = screen.getByTestId('linha-aluno-a1');
+    const botaoAna = within(ana).getByRole('button', { name: 'Ana' });
+    expect(botaoAna).toHaveStyle({ color: 'var(--gp-text-1)' });
+  });
+
   it('aluno que participou mas ainda não tem nota TRI aparece como "Aguardando resultado" (achado 03/08)', () => {
     render(
       <TabelaAlunosSimulado
