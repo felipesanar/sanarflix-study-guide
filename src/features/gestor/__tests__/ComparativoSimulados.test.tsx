@@ -66,6 +66,22 @@ describe('ComparativoSimulados', () => {
     expect(screen.queryByText(/média dos simulados|conceito médio/i)).toBeNull();
   });
 
+  /**
+   * `font-mono` do Tailwind não resolve para Roboto Mono (não há chave `mono`
+   * em `tailwind.config.ts`) — os três valores grandes do card precisam da
+   * mesma `FONTE_MONO` que as células numéricas da tabela já usam (C1).
+   */
+  it('os três valores grandes do card usam FONTE_MONO por style, não a classe font-mono', () => {
+    render(<ComparativoSimulados metricas={DUAS} comparativoTemas={TEMAS} />);
+
+    const s1 = screen.getByTestId('card-simulado-s1');
+    for (const testId of ['card-acerto', 'card-enamed', 'card-proficiencia']) {
+      const valor = within(s1).getByTestId(testId);
+      expect(valor.style.fontFamily).toContain('Roboto Mono');
+      expect(valor.className).not.toMatch(/\bfont-mono\b/);
+    }
+  });
+
   it('o cabeçalho do card traz data curta e participantes — o n que sustenta o percentual', () => {
     render(<ComparativoSimulados metricas={DUAS} comparativoTemas={TEMAS} />);
 

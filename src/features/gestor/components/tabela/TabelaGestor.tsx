@@ -24,10 +24,10 @@ import { Icon } from '@/features/gestor/components/Icon';
 /**
  * Família mono das tabelas (handoff §3 de tipografia: "números em tabela em
  * Roboto Mono"). Escrita aqui como constante, e não como `var(--gp-font-mono)`,
- * porque o token AINDA NÃO existe em `gestor-theme.css` e a fonte não é
- * carregada pelo app — usar a variável inexistente deixaria toda célula
- * numérica sem família nenhuma. Enquanto Roboto Mono não sobe, a cadeia cai
- * na mono do sistema, que já dá o alinhamento tabular que a coluna precisa.
+ * porque a fonte não é carregada pelo app — usar a variável deixaria toda
+ * célula numérica sem família nenhuma se o carregamento falhar. Enquanto
+ * Roboto Mono não sobe via `<link>`/`@font-face`, a cadeia cai na mono do
+ * sistema, que já dá o alinhamento tabular que a coluna precisa.
  */
 export const FONTE_MONO = "'Roboto Mono', ui-monospace, SFMono-Regular, monospace";
 

@@ -223,6 +223,25 @@ describe('TabelaQuestoes', () => {
     expect(within(detalhe).getByTestId('distribuicao-B')).toHaveTextContent('31%');
   });
 
+  /**
+   * `font-mono` do Tailwind não resolve para Roboto Mono (não há chave `mono`
+   * em `tailwind.config.ts`) — o percentual por alternativa da distribuição
+   * precisa da mesma `FONTE_MONO` que a coluna numérica da tabela já usa (C1).
+   */
+  it('o percentual da distribuição usa FONTE_MONO por style, não a classe font-mono (C1)', async () => {
+    const user = userEvent.setup();
+    render(<TabelaQuestoes {...props()} />);
+
+    await user.click(screen.getByRole('button', { name: /Ver detalhe da questão 1/i }));
+
+    const detalhe = screen.getByTestId('detalhe-questao-1');
+    const pctA = within(detalhe)
+      .getByTestId('distribuicao-A')
+      .querySelector(':scope > span:last-child') as HTMLElement;
+    expect(pctA.style.fontFamily).toContain('Roboto Mono');
+    expect(pctA.className).not.toMatch(/\bfont-mono\b/);
+  });
+
   it('a distribuição traz legenda por extenso e a frase de leitura do distrator', async () => {
     const user = userEvent.setup();
     render(<TabelaQuestoes {...props()} />);

@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { formatPct } from '../lib/formatters';
 import type { Alternativa } from '../api/types';
+import { FONTE_MONO } from '../components/tabela/TabelaGestor';
 
 /**
  * Derivação exata (não estimativa): a incorreta mais marcada. Usada só quando o
@@ -149,8 +150,8 @@ export function DistribuicaoAlternativas({
                   />
                 </span>
                 <span
-                  className={cn('text-right font-mono tabular-nums', papel !== 'neutro' && 'font-semibold')}
-                  style={{ color: COR_TEXTO[papel] }}
+                  className={cn('text-right tabular-nums', papel !== 'neutro' && 'font-semibold')}
+                  style={{ color: COR_TEXTO[papel], fontFamily: FONTE_MONO }}
                 >
                   {formatPct(alt.marcadaPct)}
                 </span>

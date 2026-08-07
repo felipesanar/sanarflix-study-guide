@@ -314,7 +314,11 @@ function LinhaIndicador({
             <TagDelta valor={delta} />
           </span>
         )}
-        <span data-testid={valorTestId} className="font-mono text-xl font-extrabold tabular-nums text-foreground">
+        <span
+          data-testid={valorTestId}
+          className="text-xl font-extrabold tabular-nums text-foreground"
+          style={{ fontFamily: FONTE_MONO }}
+        >
           {valor}
         </span>
       </dd>
