@@ -268,13 +268,28 @@ describe('acesso por papel nas onze RPCs get_gestor_* (gestao.enabled removida, 
     (nome) => {
       const corpo = corpoVigente(nome);
       const idxPapel = corpo.indexOf("has_role(v_uid,'admin'::app_role)");
+      // Não basta achar `has_role`: um corpo que o mantivesse SEM levantar
+      // exceção para papel errado passaria pelo indexOf sozinho. Ancora
+      // também no `RAISE EXCEPTION` que fecha aquele bloco — mesmo padrão do
+      // teste de get_gestor_contexto, abaixo.
+      const idxAccessDenied = corpo.indexOf("RAISE EXCEPTION 'Access denied';");
       const idxResolucao = corpo.indexOf('IES not resolved');
-      const idxEscopo = corpo.indexOf('gestor_pode_acessar_ies(v_ies)');
+      // Ancora no `IF NOT ... THEN` completo, não só na chamada da função:
+      // `gestor_pode_acessar_ies(v_ies)` sozinho casaria com um comentário
+      // (ex.: "ver gestor_pode_acessar_ies(v_ies) abaixo") sem que o corpo
+      // realmente autorize antes de seguir.
+      const idxEscopo = corpo.indexOf('IF NOT public.gestor_pode_acessar_ies(v_ies) THEN');
       expect(idxPapel, `${nome}: bloco de papel não encontrado`).toBeGreaterThan(-1);
-      expect(idxResolucao, `${nome}: "IES not resolved" não encontrado`).toBeGreaterThan(idxPapel);
-      expect(idxEscopo, `${nome}: gestor_pode_acessar_ies(v_ies) não encontrado`).toBeGreaterThan(
-        idxResolucao,
+      expect(idxAccessDenied, `${nome}: RAISE EXCEPTION 'Access denied' não encontrado`).toBeGreaterThan(
+        idxPapel,
       );
+      expect(idxResolucao, `${nome}: "IES not resolved" não encontrado`).toBeGreaterThan(
+        idxAccessDenied,
+      );
+      expect(
+        idxEscopo,
+        `${nome}: IF NOT public.gestor_pode_acessar_ies(v_ies) THEN não encontrado`,
+      ).toBeGreaterThan(idxResolucao);
     },
   );
 
