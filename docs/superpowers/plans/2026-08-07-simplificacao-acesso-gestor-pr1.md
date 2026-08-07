@@ -24,7 +24,13 @@ Spec: `docs/superpowers/specs/2026-08-07-simplificacao-acesso-gestor-design.md`
 
 ## Ordem de implantação (importa)
 
-**Aplicar as migrations ANTES de subir o front.** Durante a janela, o banco deixa de exigir a feature e o front ainda exige — as 10 IES sem linha continuam bloqueadas, exatamente como hoje, sem erro novo. Na ordem inversa, o front liberaria e o banco recusaria: tela de erro para usuário real.
+**As duas migrations deste PR não são um bloco só — a ordem certa tem três passos.** A versão anterior desta seção dizia só "aplicar as migrations antes de subir o front": isso está certo para a primeira migration e **errado** para a segunda, que não pode ser tratada como parte do mesmo bloco.
+
+1. **Aplicar `20260807030000`** (as 11 RPCs `get_gestor_*` param de exigir `gestao.enabled`). O banco deixa de exigir a feature; o front (`useAccessRules.ts:35` na `main`, antes da Task 1 abaixo) ainda exige — nada muda para o usuário: quem tinha a feature ligada continua vendo o portal, quem não tinha continua sem ver. Esta é uma janela **sem efeito perceptível**.
+2. **Subir o front** — a mudança de `pr1/front` (Task 1: `useAccessRules.ts` passa a usar `hasExperience`, não mais `hasFeature('gestao.enabled')`). O front para de ler a chave.
+3. **Aplicar `20260807031000`** (apaga as 3 chaves de `gestao.*` e a helper órfã) — só agora. Apagar a linha de `gestao.enabled` faz `hasFeature('gestao.enabled')` devolver `false` para **qualquer IES** (`coalesce(bool_or(enabled), false)` sobre zero linhas). Se o passo 2 ainda não tiver acontecido, **todo gestor perde o portal** até o front subir — não é uma janela invisível, é queda total e imediata para 100% dos gestores. Ver o cabeçalho da própria `20260807031000` para o pré-requisito **adicional** (GestorLayout.tsx / botões Exportar e IA), que se soma a este e não o substitui.
+
+Dentro de cada par a ordem também é obrigatória — RPC antes do front que a lê; front antes do `DELETE` que apaga o que ele ainda lê — e a `20260807031000` nunca pode ser aplicada fora da posição 3.
 
 ---
 
