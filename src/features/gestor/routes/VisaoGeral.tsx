@@ -193,14 +193,19 @@ export default function VisaoGeral() {
   /**
    * Semestres que têm ao menos um aluno com resultado. Alimenta o dropdown do
    * filtro para ele não oferecer recorte que leva a tela vazia.
+   *
+   * A fonte preferida é `visao.semestresComResultado`, que a RPC calcula SEM o
+   * recorte vigente. Derivar de `dispersao` (o caminho antigo, mantido como
+   * fallback para RPC antiga/mock de teste) só funcionava enquanto o filtro
+   * `6ano` não recortava nada: agora que ele recorta, `dispersao` em "6º ano"
+   * só traz 11º e 12º — e o dropdown ofereceria apenas esses dois, sem caminho
+   * de volta para os demais semestres.
    */
-  const semestresComResultado = React.useMemo(
-    () =>
-      visao
-        ? [...new Set((visao.dispersao ?? []).map((ponto) => ponto.semestre))].sort((a, b) => a - b)
-        : undefined,
-    [visao],
-  );
+  const semestresComResultado = React.useMemo(() => {
+    if (!visao) return undefined;
+    if (Array.isArray(visao.semestresComResultado)) return visao.semestresComResultado;
+    return [...new Set((visao.dispersao ?? []).map((ponto) => ponto.semestre))].sort((a, b) => a - b);
+  }, [visao]);
 
   const colunasSimulados = React.useMemo(
     () => (visao?.evolucao ?? []).map((ponto) => ({ id: ponto.simuladoId, nome: ponto.nome })),
@@ -374,6 +379,11 @@ export default function VisaoGeral() {
         {visao ? (
           <VisaoDeAlunos
             distribuicao={visao.distribuicaoAlunos}
+            /* Mesma contagem que o KPI "Simulados realizados" exibe
+               (`contarSimuladosComNotaReal`, já aplicada por `useVisaoGeral`):
+               a nota de contexto do bloco e o indicador do topo não podem
+               dizer números diferentes sobre a mesma pergunta. */
+            totalSimulados={visao.kpis.simulados.realizados}
             onAlternarDetalhe={aoAlternarDetalhe}
             detalheAberto={detalheAberto}
           />

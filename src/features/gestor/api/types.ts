@@ -132,6 +132,21 @@ export interface VisaoGeral {
      */
     simulados: { realizados: number; contratados: number | null };
   };
+  /**
+   * Semestres da IES que têm ao menos um aluno com nota de proficiência —
+   * SEM o recorte vigente aplicado. Alimenta o dropdown "Por semestre".
+   *
+   * Existe porque o dropdown era montado a partir de `dispersao`, que É
+   * recortada: desde que o filtro `6ano` passou a valer de verdade
+   * (migration `20260807200000_gestor_recorte_6ano_e_conceito_geral.sql`),
+   * derivar as opções de `dispersao` faria o gestor em "6º ano" ver só 11º e
+   * 12º no dropdown — as outras dez sumiriam justamente porque o recorte
+   * começou a funcionar, e não haveria caminho de volta.
+   *
+   * Opcional no tipo: RPCs antigas (e mocks de teste) não devolvem o campo, e
+   * nesse caso o consumidor volta a derivar de `dispersao`.
+   */
+  semestresComResultado?: number[];
   evolucao: {
     simuladoId: string;
     nome: string;

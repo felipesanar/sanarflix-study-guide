@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useDiagnostico } from '@/features/gestor/api/queries';
-import { ChipNivel } from '@/features/gestor/components/ChipNivel';
 import { Icon } from '@/features/gestor/components/Icon';
 import { TagCoberturaParcial, TagNivel } from '@/features/gestor/components/Tag';
 import { ROTULO_NIVEL } from '@/features/gestor/lib/rotulos';
@@ -21,6 +20,20 @@ import type {
 
 /** Ordem fixa de exibição dos 3 níveis de desempenho (spec §4.4). */
 const ORDEM_NIVEL: NivelDesempenho[] = ['excelente', 'mediano', 'critico'];
+
+/**
+ * Semáforo do cartão de nível: `--gp-*` cheio no ponto, `--gp-*-on` no texto.
+ *
+ * A referência crava o par (#149142 ponto / #0C5728 texto e irmãos) — os
+ * mesmos dois tons que os tokens semânticos do portal já carregam. Nunca a
+ * paleta de GRÁFICO (`--chart-*`), que é cor de série, não de status, e nunca
+ * hex cru, que não acompanharia o tema escuro.
+ */
+const COR_NIVEL: Record<NivelDesempenho, { ponto: string; texto: string }> = {
+  excelente: { ponto: 'var(--gp-success)', texto: 'var(--gp-success-on)' },
+  mediano: { ponto: 'var(--gp-warning)', texto: 'var(--gp-warning-on)' },
+  critico: { ponto: 'var(--gp-danger)', texto: 'var(--gp-danger-on)' },
+};
 
 type AreaResumo = VisaoGeral['diagnosticoResumo'][number]['areas'][number];
 
@@ -330,7 +343,12 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
   const [nivelOrigem, setNivelOrigem] = React.useState<NivelDesempenho | null>(null);
   const [nodeAberto, setNodeAberto] = React.useState<string | null>(null);
 
-  const abrirCascata = (nivel: NivelDesempenho) => {
+  /**
+   * `nivel === null` abre a cascata SEM recorte de nível — as grandes áreas
+   * todas, que é o que o "Ver por nível de desempenho" do cabeçalho promete.
+   * Com um nível, recorta ao grupo daquele cartão (comportamento de sempre).
+   */
+  const abrirCascata = (nivel: NivelDesempenho | null) => {
     const fechar = cascataAberta && nivelOrigem === nivel;
     setCascataAberta(!fechar);
     setNivelOrigem(fechar ? null : nivel);
@@ -375,14 +393,51 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
   const filtros: FiltrosGestor = { iesId: recorte.iesId, semestre: recorte.semestre, simulados: [] };
 
   return (
-    <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico" className="space-y-3">
-      <div>
-        <h2 id="titulo-diagnostico" className="text-sm font-semibold">
-          Diagnóstico Curricular
-        </h2>
-        <p className="text-xs text-muted-foreground">Desempenho por grande área, em percentual de acerto.</p>
-      </div>
-
+    /*
+     * O bloco inteiro num card só, com o título, a nota de contexto e o CTA na
+     * MESMA linha — a anatomia da referência (`<!-- Diagnóstico (promovido) -->`
+     * em docs/handoff/gestor/design/extracted/LIGHT.markup.html). Antes o
+     * cabeçalho flutuava sobre o fundo da página e os três cartões eram cards
+     * soltos embaixo; agora é um bloco só, igual à Visão de Alunos logo abaixo
+     * e ao gráfico protagonista logo acima.
+     */
+    <section data-testid="bloco-diagnostico" aria-labelledby="titulo-diagnostico">
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
+          <h2 id="titulo-diagnostico" style={{ fontSize: 16, fontWeight: 700 }}>
+            Diagnóstico Curricular
+          </h2>
+          {/* Nota de contexto INLINE, ao lado do título — não uma segunda linha
+              de subtítulo. Na referência ela é um aposto de 11px que qualifica
+              o título, e é isso que mantém o cabeçalho em uma linha só. */}
+          <span className="ml-1.5 min-w-0 truncate text-[11px] text-muted-foreground">
+            {/* A UNIDADE fica na nota, não some com o encurtamento: área,
+                especialidade e tema são sempre percentual de acerto, nunca
+                proficiência (spec §4.1 / caso crítico nº14). É a única coisa
+                que este bloco afirma sobre como ler os números dele. */}
+            desempenho por grande área no período, em percentual de acerto
+          </span>
+          {/* Entrada única para a cascata completa, sem recorte de nível — as
+              setas por cartão continuam existindo (cada uma recortando ao seu
+              grupo), esta abre TODAS as grandes áreas. */}
+          <button
+            type="button"
+            data-testid="diagnostico-ver-niveis"
+            aria-expanded={cascataAberta && nivelOrigem === null}
+            onClick={() => abrirCascata(null)}
+            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+          >
+            {cascataAberta && nivelOrigem === null ? 'Fechar' : 'Ver por nível de desempenho'}
+            <Icon
+              name={cascataAberta && nivelOrigem === null ? 'expand_more' : 'chevron_right'}
+              variant="outlined"
+              size={14}
+              box={14}
+            />
+          </button>
+        </CardHeader>
+        <CardContent className="pt-0">
       {totalAreas === 0 ? (
         <div data-testid="diagnostico-sem-classificacao">
           <EstadoVazio
@@ -405,44 +460,75 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
            * dois quer dizer. Abaixo de `lg` o grid externo já é de 1 coluna, e
            * os três voltam a caber lado a lado.
            */}
-          <div className={cn('grid gap-3 sm:grid-cols-3', cascataAberta && 'lg:grid-cols-1')}>
+          <div className={cn('grid gap-3.5 sm:grid-cols-3', cascataAberta && 'lg:grid-cols-1')}>
             {ORDEM_NIVEL.map((nivel) => {
               const areas = porNivel.get(nivel) ?? [];
               const setaAberta = cascataAberta && nivelOrigem === nivel;
               return (
-                /* O card que abriu a cascata fica visivelmente marcado: sem
-                   isso, com o detalhe ao lado, nada dizia de QUAL dos três
-                   cards aquela lista tinha saído. */
-                <Card
+                /* Cartão de nível na anatomia da referência: CONTAGEM primeiro
+                   (número grande no canto superior esquerdo, com "áreas" em
+                   cinza claro colado nele), a classificação logo abaixo com o
+                   ponto do semáforo, e só então a lista de áreas. A ordem
+                   importa: o cartão responde "quantas?" antes de "quais?", e
+                   era isso que a tag de nível no topo invertia.
+
+                   `<div>` e não `<Card>`: é um cartão DENTRO de um card, com
+                   raio e respiro menores (12px/16px na referência, contra
+                   16px/24px do bloco) — a casca do `Card` traria a sombra e o
+                   padding do nível de fora. */
+                <div
                   key={nivel}
+                  data-testid={`cartao-nivel-${nivel}`}
                   data-selecionado={setaAberta ? 'true' : 'false'}
-                  className={cn(setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]')}
-                  style={setaAberta ? { background: 'var(--gp-brand-surface-soft)' } : undefined}
+                  className={cn(
+                    'flex flex-col gap-2.5 border border-border p-4',
+                    setaAberta && 'ring-1 ring-[color:var(--gp-brand-border)]',
+                  )}
+                  style={{
+                    borderRadius: 12,
+                    background: setaAberta ? 'var(--gp-brand-surface-soft)' : undefined,
+                  }}
                 >
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                    <div className="flex items-center gap-2">
-                      <ChipNivel nivel={nivel} />
-                      <span className="text-xs text-muted-foreground">
-                        {areas.length} {areas.length === 1 ? 'área' : 'áreas'}
+                  {/* A contagem + a classificação SÃO o gatilho da cascata.
+                      A referência não desenha nenhum "Ver áreas" no cartão —
+                      o CTA de texto migrou para o cabeçalho do bloco. Manter
+                      o controle (com o mesmo nome acessível de sempre) sobre
+                      o corpo do cartão preserva a entrada por NÍVEL, que é o
+                      que o painel ao lado recorta. */}
+                  <button
+                    type="button"
+                    aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
+                    aria-expanded={setaAberta}
+                    onClick={() => abrirCascata(nivel)}
+                    className="-m-1 flex flex-col items-start gap-2.5 rounded-md p-1 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="tabular-nums" style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>
+                        {areas.length}
                       </span>
-                    </div>
-                    {/* Chevron nu não dizia o que faria. O rótulo visível diz —
-                        e diz também como sair, que era a queixa maior da visão
-                        expandida. `aria-label` continua igual: é ele o nome
-                        acessível do controle, e o texto visível é reforço. */}
-                    <button
-                      type="button"
-                      aria-label={`Abrir cascata de ${ROTULO_NIVEL[nivel].toLowerCase()}`}
-                      aria-expanded={setaAberta}
-                      onClick={() => abrirCascata(nivel)}
-                      className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 py-1 transition-colors hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      style={{ fontSize: 12, fontWeight: 600, color: 'var(--gp-brand-on-dark)' }}
+                      <span className="text-xs text-muted-foreground">
+                        {areas.length === 1 ? 'área' : 'áreas'}
+                      </span>
+                    </span>
+                    <span
+                      className="flex items-center gap-[7px]"
+                      style={{ fontSize: 12, fontWeight: 600, color: COR_NIVEL[nivel].texto }}
                     >
-                      {setaAberta ? 'Fechar' : 'Ver áreas'}
-                      <Icon name={setaAberta ? 'expand_more' : 'chevron_right'} variant="outlined" size={14} box={14} />
-                    </button>
-                  </CardHeader>
-                  <CardContent className="pt-0">
+                      <span
+                        aria-hidden="true"
+                        className="inline-block shrink-0"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 2,
+                          background: COR_NIVEL[nivel].ponto,
+                        }}
+                      />
+                      {ROTULO_NIVEL[nivel]}
+                    </span>
+                  </button>
+
+                  <div>
                     {areas.length > 0 ? (
                       <ul className="flex flex-wrap gap-1.5">
                         {areas.map((area) => (
@@ -490,14 +576,17 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                         }
                       />
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
 
           {cascataAberta ? (
-            <Card data-testid="cascata" className="max-h-[560px] overflow-y-auto">
+            /* `shadow-none` porque a cascata agora vive DENTRO do card do
+               bloco: a sombra do `Card` é do nível de fora, e repetida aqui
+               dentro dava a leitura de "card sobre card". */
+            <Card data-testid="cascata" className="max-h-[560px] overflow-y-auto shadow-none">
               {/* Cabeçalho e trilha ficam FIXOS ao rolar (handoff §04-componentes):
                   com um ramo aberto e a lista rolada, é a trilha que diz onde
                   a gestora está. */}
@@ -514,7 +603,7 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
                   <button
                     type="button"
                     data-testid="cascata-fechar"
-                    onClick={() => abrirCascata(nivelOrigem ?? 'critico')}
+                    onClick={() => abrirCascata(nivelOrigem)}
                     className="gp-hover-surface ml-auto inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Icon name="close" variant="outlined" size={14} box={14} />
@@ -554,6 +643,8 @@ export function CascataDiagnostico({ resumo, recorte, onAbrirTemas }: CascataDia
           ) : null}
         </div>
       )}
+        </CardContent>
+      </Card>
     </section>
   );
 }

@@ -54,6 +54,25 @@ export function rotuloSituacao(situacao: AlunoNoSimulado['situacao']): string {
 }
 
 /**
+ * Forma PLURAL e minúscula do grupo de evolução, para o texto corrido dos
+ * cartões da Visão de Alunos ("48 alunos consistentemente proficientes",
+ * "consistentemente proficientes 46%"). A referência de design escreve o
+ * grupo assim — em minúscula, dentro de uma frase — e não como tag.
+ *
+ * Deliberadamente derivado do MESMO vocabulário de `rotuloGrupo`, não do
+ * texto da referência: ela usa "em alternância" e "abaixo do limiar" para o
+ * 2º e o 3º grupo, mas "abaixo do limiar" já é o rótulo de OUTRA coisa no
+ * portal (`rotuloSituacao` — situação do aluno em UM simulado, que inclui
+ * "aguardando resultado"). Repetir o termo com outro significado na mesma
+ * tela é o tipo de ambiguidade que `rotulos.ts` existe para evitar.
+ */
+export const ROTULO_GRUPO_PLURAL: Record<GrupoEvolucao, string> = {
+  consistentemente_proficiente: 'consistentemente proficientes',
+  em_variacao: 'em variação',
+  consistentemente_nao_proficiente: 'consistentemente não proficientes',
+};
+
+/**
  * Rótulo pt-BR de `LinhaAluno.grupo` (achado 4 da revisão de 03/08).
  *
  * `grupo` é anulável: `null` é o aluno que ainda não tem NENHUM resultado de

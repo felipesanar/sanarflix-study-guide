@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { EstadoVazio } from '@/features/gestor/components/EstadoVazio';
 import { Icon } from '@/features/gestor/components/Icon';
 import { formatNumero, formatPct } from '@/features/gestor/lib/formatters';
-import { rotuloGrupo } from '@/features/gestor/lib/rotulos';
+import { ROTULO_GRUPO_PLURAL, rotuloGrupo } from '@/features/gestor/lib/rotulos';
 import type { GrupoEvolucao, VisaoGeral } from '@/features/gestor/api/types';
 
 /**
@@ -32,6 +32,14 @@ export interface VisaoDeAlunosProps {
   onAlternarDetalhe?: () => void;
   /** Só faz sentido com `onAlternarDetalhe`: dita o rótulo e o `aria-expanded`. */
   detalheAberto?: boolean;
+  /**
+   * Quantos simulados COM RESULTADO entram no recorte — a segunda metade da
+   * nota de contexto do cabeçalho ("104 alunos · 3 simulados", na referência).
+   * `undefined` quando o chamador não sabe: a nota mostra só a contagem de
+   * alunos, nunca um "0 simulados" inventado sobre dado que ninguém mediu
+   * (§4.10).
+   */
+  totalSimulados?: number;
 }
 
 /** Ordem fixa de exibição dos 3 grupos de evolução (mesmo espírito do `ORDEM_NIVEL` de `CascataDiagnostico`). */
@@ -65,22 +73,31 @@ export function VisaoDeAlunos({
   alvoDetalhe = '#alunos-detalhe',
   onAlternarDetalhe,
   detalheAberto = false,
+  totalSimulados,
 }: VisaoDeAlunosProps) {
   const porGrupo = new Map(distribuicao.map((item) => [item.grupo, item]));
+
+  /** Base da nota de contexto e do denominador implícito da barra empilhada. */
+  const totalAlunos = distribuicao.reduce((soma, item) => soma + item.quantidade, 0);
+  const proficientes = porGrupo.get('consistentemente_proficiente')?.quantidade ?? null;
 
   /**
    * Mesma roupa nos dois desfechos (botão que abre a tabela · âncora que
    * navega até ela): a diferença é de mecânica, não de aparência, e o CTA não
    * pode mudar de peso conforme quem o monta.
+   *
+   * Voltou a ser LINK de texto (07/08, refino sobre a referência): o botão
+   * contornado que ele virou em 06/08 competia com o CTA do Diagnóstico logo
+   * acima, e a referência desenha os dois iguais — 12px/600 na cor da marca,
+   * com o chevron colado, ancorados à direita do cabeçalho do bloco.
    */
   const ROUPA_CTA = {
     className:
-      'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-3.5 py-2 transition-colors hover:bg-[color:var(--gp-brand-surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'ml-auto inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
     style: {
       fontSize: 12,
       fontWeight: 600,
       color: 'var(--gp-brand-on-dark)',
-      border: '1px solid var(--gp-brand-border)',
     } satisfies React.CSSProperties,
   };
 
@@ -99,24 +116,25 @@ export function VisaoDeAlunos({
      */
     <section data-testid="bloco-visao-alunos" aria-labelledby="titulo-visao-alunos">
       <Card>
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 pb-3">
-          <div className="min-w-0">
-            <h2 id="titulo-visao-alunos" style={{ fontSize: 16, fontWeight: 700 }}>
-              Visão de Alunos
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Distribuição por grupo de evolução e dispersão de proficiência por semestre.
-            </p>
-          </div>
-          {/*
-           * CTA com corpo de botão, não link de texto.
-           *
-           * É a única ponte entre o resumo e a tabela de alunos lá embaixo, e
-           * como texto de 12px encostado na borda direita ele desaparecia ao
-           * lado de "Ver temas", "Ver cronograma" e do resto da tela.
-           * Continua sendo um `<a>` com âncora de verdade (abre em nova aba,
-           * copia endereço, funciona sem JS) — muda a rou­pa, não a natureza.
-           */}
+        <CardHeader className="flex flex-row flex-wrap items-center gap-2 pb-4">
+          <h2 id="titulo-visao-alunos" style={{ fontSize: 16, fontWeight: 700 }}>
+            Visão de Alunos
+          </h2>
+          {/* Nota de contexto INLINE, ao lado do título — o mesmo aposto de
+              11px do cabeçalho do Diagnóstico. Trocou a frase que descrevia o
+              método ("distribuição por grupo de evolução e dispersão...") pelo
+              TAMANHO do recorte, que é o que a gestora precisa saber para ler
+              os números logo abaixo. A dispersão saiu deste bloco em 07/08 e a
+              frase antiga ainda a prometia. */}
+          <span
+            data-testid="visao-alunos-contexto"
+            className="ml-1.5 min-w-0 truncate text-[11px] text-muted-foreground"
+          >
+            {formatNumero(totalAlunos)} {totalAlunos === 1 ? 'aluno' : 'alunos'}
+            {totalSimulados === undefined
+              ? null
+              : ` · ${formatNumero(totalSimulados)} ${totalSimulados === 1 ? 'simulado' : 'simulados'}`}
+          </span>
           {onAlternarDetalhe ? (
             <button
               type="button"
@@ -144,52 +162,98 @@ export function VisaoDeAlunos({
                 <EstadoVazio titulo="Sem alunos com resultado neste recorte" className="border-none p-0" />
               </div>
             ) : (
-              <ul className="grid gap-3 sm:grid-cols-3">
-                {ORDEM_GRUPO.map((grupo) => {
-                  const item = porGrupo.get(grupo);
-                  const quantidade = item?.quantidade ?? null;
-                  const percentual = item?.percentual ?? null;
-                  return (
-                    <li key={grupo}>
-                      <div data-testid={`grupo-${grupo}`} className="space-y-2 rounded-md border border-border p-3">
-                        <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span
-                            aria-hidden="true"
-                            className="h-2.5 w-2.5 rounded-sm"
-                            style={{ background: COR_GRUPO[grupo] }}
-                          />
-                          {rotuloGrupo(grupo)}
-                        </span>
-                        <span className="flex items-baseline gap-2">
-                          <span className="text-2xl font-semibold tabular-nums">{formatNumero(quantidade)}</span>
-                          <span className="text-xs tabular-nums text-muted-foreground">{formatPct(percentual)}</span>
-                        </span>
+              /*
+               * Duas colunas, como na referência: a leitura de UMA linha à
+               * esquerda (a barra empilhada + o número que ela destaca) e o
+               * detalhe por grupo à direita.
+               *
+               * As três barrinhas individuais que existiam aqui — uma
+               * progressbar por cartão, cada uma com seu próprio trilho — não
+               * compunham nada: três percentuais de um mesmo total desenhados
+               * em três réguas separadas obrigam a somar de cabeça para ver
+               * que dão 100%. A barra EMPILHADA é a mesma informação em uma
+               * figura só, e é ela que responde "como está dividida a
+               * instituição" de relance.
+               */
+              <div className="grid items-center gap-6 lg:grid-cols-[1.1fr_2fr] lg:gap-7">
+                <div className="flex flex-col gap-3">
+                  {/*
+                   * Uma progressbar só, sobre o grupo que o número grande logo
+                   * abaixo nomeia — os outros dois segmentos são leitura visual
+                   * da mesma divisão, já anunciada nos cartões ao lado com
+                   * número e percentual próprios. Repetir três `role=progressbar`
+                   * empilhados faria o leitor de tela ler a divisão duas vezes.
+                   */}
+                  <div
+                    data-testid="barra-empilhada"
+                    role="progressbar"
+                    aria-label={`Participação de ${rotuloGrupo('consistentemente_proficiente')}`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={
+                      porGrupo.get('consistentemente_proficiente')?.percentual == null
+                        ? undefined
+                        : Math.round(porGrupo.get('consistentemente_proficiente')!.percentual!)
+                    }
+                    className="flex overflow-hidden"
+                    style={{ height: 18, borderRadius: 'var(--gp-radius-pill)', gap: 2 }}
+                  >
+                    {ORDEM_GRUPO.map((grupo) => (
+                      <div
+                        key={grupo}
+                        style={{
+                          width: `${porGrupo.get(grupo)?.percentual ?? 0}%`,
+                          background: COR_GRUPO[grupo],
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: '30px' }}>
+                    <span className="tabular-nums">{formatNumero(proficientes)}</span>{' '}
+                    <span style={{ fontSize: 14, fontWeight: 400, color: 'var(--gp-text-3)' }}>
+                      {`${proficientes === 1 ? 'aluno' : 'alunos'} ${ROTULO_GRUPO_PLURAL.consistentemente_proficiente}`}
+                    </span>
+                  </p>
+                </div>
+
+                <ul className="grid gap-3.5 sm:grid-cols-3">
+                  {ORDEM_GRUPO.map((grupo) => {
+                    const item = porGrupo.get(grupo);
+                    const quantidade = item?.quantidade ?? null;
+                    const percentual = item?.percentual ?? null;
+                    return (
+                      <li key={grupo}>
                         <div
-                          role="progressbar"
-                          aria-label={`Participação de ${rotuloGrupo(grupo)}`}
-                          aria-valuemin={0}
-                          aria-valuemax={100}
-                          /**
-                           * `percentual: null` é ausência de medida, não zero
-                           * (§4.10). Omitir `aria-valuenow` deixa a progressbar
-                           * INDETERMINADA por WAI-ARIA — o leitor de tela não
-                           * anuncia "0 por cento" para dado que ninguém mediu,
-                           * igual ao rótulo visível, que já mostra TRACO. A
-                           * largura da barra cai a 0 porque é só decoração.
-                           */
-                          aria-valuenow={percentual === null ? undefined : Math.round(percentual)}
-                          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                          data-testid={`grupo-${grupo}`}
+                          className="border border-border p-3.5"
+                          style={{ borderRadius: 12 }}
                         >
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${percentual ?? 0}%`, background: COR_GRUPO[grupo] }}
-                          />
+                          {/* Ponto + número no topo; o rótulo desce para a
+                              legenda, em 11px — a ordem da referência. O que o
+                              cartão responde primeiro é "quantos", e o nome do
+                              grupo qualifica esse número, não o contrário. */}
+                          <span className="flex items-center gap-[7px]">
+                            <span
+                              aria-hidden="true"
+                              className="inline-block shrink-0"
+                              style={{ width: 10, height: 10, borderRadius: 3, background: COR_GRUPO[grupo] }}
+                            />
+                            <span className="tabular-nums" style={{ fontSize: 20, fontWeight: 700 }}>
+                              {formatNumero(quantidade)}
+                            </span>
+                          </span>
+                          <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">
+                            {ROTULO_GRUPO_PLURAL[grupo]}{' '}
+                            <span className="tabular-nums" style={{ color: 'var(--gp-text-2)', fontWeight: 600 }}>
+                              {formatPct(percentual)}
+                            </span>
+                          </p>
                         </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
           </div>
 

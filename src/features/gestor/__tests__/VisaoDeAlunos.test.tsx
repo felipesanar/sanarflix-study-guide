@@ -11,17 +11,24 @@ vi.mock('@/features/gestor/api/queries', () => ({
 }));
 
 describe('VisaoDeAlunos', () => {
+  /**
+   * O rótulo do cartão passou a ser a forma PLURAL e minúscula
+   * (`ROTULO_GRUPO_PLURAL`, 07/08): na anatomia da referência ele é legenda de
+   * 11px sob o número, dentro de uma frase ("consistentemente proficientes
+   * 46%"), não uma tag. Continua vindo de `lib/rotulos.ts` — o que este teste
+   * tranca é que nenhum cartão escreva rótulo próprio.
+   */
   it('mostra a distribuição pelos 3 grupos de evolução com quantidade e percentual', () => {
     render(<VisaoDeAlunos distribuicao={visaoGeralFake.distribuicaoAlunos} />);
 
     const proficiente = screen.getByTestId('grupo-consistentemente_proficiente');
-    expect(proficiente).toHaveTextContent('Consistentemente proficiente');
+    expect(proficiente).toHaveTextContent('consistentemente proficientes');
     expect(proficiente).toHaveTextContent('48');
     expect(proficiente).toHaveTextContent('42%');
 
-    expect(screen.getByTestId('grupo-em_variacao')).toHaveTextContent('Em variação');
+    expect(screen.getByTestId('grupo-em_variacao')).toHaveTextContent('em variação');
     expect(screen.getByTestId('grupo-consistentemente_nao_proficiente')).toHaveTextContent(
-      'Consistentemente não proficiente',
+      'consistentemente não proficientes',
     );
   });
 
@@ -103,27 +110,36 @@ describe('VisaoDeAlunos', () => {
    * deu zero"; ausência tem que continuar ausência nos dois canais (spec
    * §4.10). WAI-ARIA: progressbar sem `aria-valuenow` é indeterminada — é
    * exatamente o estado deste dado.
+   *
+   * Desde 07/08 a progressbar é UMA só (a barra empilhada da referência,
+   * `barra-empilhada`), sobre o grupo que o número grande ao lado nomeia — as
+   * três barrinhas por cartão saíram. A regra que este teste guarda não muda
+   * de dono: percentual ausente não pode virar "0 por cento" no canal
+   * assistivo.
    */
   it('percentual ausente não anuncia 0% na barra: aria-valuenow fica indeterminado', () => {
-    render(
+    const { rerender } = render(
       <VisaoDeAlunos
         distribuicao={[
           { grupo: 'consistentemente_proficiente', quantidade: 0, percentual: null },
           { grupo: 'em_variacao', quantidade: 5, percentual: 100 },
           { grupo: 'consistentemente_nao_proficiente', quantidade: 3, percentual: 60 },
         ]}
-       
       />,
     );
 
-    const semDado = screen
-      .getByTestId('grupo-consistentemente_proficiente')
-      .querySelector('[role="progressbar"]');
-    expect(semDado).not.toBeNull();
-    expect(semDado).not.toHaveAttribute('aria-valuenow');
+    expect(screen.getByTestId('barra-empilhada')).not.toHaveAttribute('aria-valuenow');
 
     // Com dado real, o valor continua sendo anunciado.
-    const comDado = screen.getByTestId('grupo-em_variacao').querySelector('[role="progressbar"]');
-    expect(comDado).toHaveAttribute('aria-valuenow', '100');
+    rerender(
+      <VisaoDeAlunos
+        distribuicao={[
+          { grupo: 'consistentemente_proficiente', quantidade: 5, percentual: 100 },
+          { grupo: 'em_variacao', quantidade: 0, percentual: 0 },
+          { grupo: 'consistentemente_nao_proficiente', quantidade: 0, percentual: 0 },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('barra-empilhada')).toHaveAttribute('aria-valuenow', '100');
   });
 });
