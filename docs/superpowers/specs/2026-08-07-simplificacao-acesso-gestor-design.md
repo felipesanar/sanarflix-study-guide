@@ -118,7 +118,35 @@ foi adicionada depois e o filtro por persona existe **só dentro** da RPC
 
 Acrescentar o filtro de `publico_alvo` à policy de SELECT.
 
-### PR 2 — as 9 policies que autorizam pela função errada
+### PR 2 — CANCELADO em 07/08, substituído por uma invariante
+
+**Esta seção descreve o desenho original. Ele não vai acontecer.** Fica registrado porque
+a lacuna que ele fecharia continua aberta, e quem ler isto depois precisa saber que é
+decisão, não esquecimento.
+
+O que mudou: medimos o estado em produção antes de executar. **Zero** usuários com papel
+`gestor` puro e linha em `user_groups`; **zero** linhas em `user_groups` pertencendo a
+quem não é `gestor_grupo`. O furo é real e é zero-instância.
+
+Com esse dado, reescrever nove policies de RLS **que o aluno também lê** deixou de ser a
+melhor troca: um erro ali não é "o gestor não vê o portal", é "o aluno não vê o simulado",
+para fechar um buraco que ninguém ocupa. A correção passou a atacar a causa — **impedir
+que o estado exista**, com uma invariante em `user_groups` (só quem tem `gestor_grupo`
+pode ter linha lá), que entrou no PR 1.
+
+**As 9 policies continuam autorizando por `get_accessible_ies`.** Com a invariante
+garantida, `get_accessible_ies` devolve o conjunto certo para os dois papéis e o furo
+deixa de ser explorável. Sem ela, volta a ser — é por isso que a invariante não é
+opcional, e é por isso que remover a trigger no futuro reabre isto.
+
+Migrar as nove para `gestor_pode_acessar_ies` continua sendo o desenho mais correto, como
+defesa em profundidade e para não depender de uma única trigger. Fica como follow-up de
+prioridade baixa, a ser feito com teste de execução real — nunca com análise estática, que
+não prova RLS.
+
+---
+
+### Desenho original (não executado) — as 9 policies que autorizam pela função errada
 
 Nove RLS policies em seis tabelas (`answer_progress`, `questoes_simulado`,
 `resultados_alunos_tri`, `resultados_ies_tri`, `simulados_admin`, `simulados_finalizados`)
