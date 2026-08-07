@@ -34,16 +34,40 @@ const UM_SEMESTRE: VisaoGeral['dispersao'] = [
 ];
 
 describe('prepararPontos', () => {
-  it('não aplica jitter quando há mais de um semestre', () => {
+  /**
+   * O jitter passou a valer para TODO recorte (reunião de 07/08), não só para
+   * o de um semestre: o eixo X é discreto, então cada semestre virava uma
+   * coluna de 1px com dezenas de alunos empilhados no mesmo pixel — a nuvem
+   * lia como uma régua. Era justamente onde há MAIS alunos que ele faltava.
+   */
+  it('espalha os pontos dentro de cada semestre, também com mais de um semestre', () => {
     const preparados = prepararPontos(DOIS_SEMESTRES);
-    expect(preparados.map((p) => p.x)).toEqual([11, 11, 11, 12, 12, 12]);
+
+    const doOnze = preparados.filter((p) => p.semestre === 11).map((p) => p.x);
+    const doDoze = preparados.filter((p) => p.semestre === 12).map((p) => p.x);
+    expect(new Set(doOnze).size).toBe(doOnze.length);
+    expect(new Set(doDoze).size).toBe(doDoze.length);
+
+    // Cada nuvem fica dentro da sua coluna: as duas nunca se encostam.
+    expect(Math.max(...doOnze)).toBeLessThan(Math.min(...doDoze));
+  });
+
+  /** O deslocamento nunca ultrapassa a meia-distância entre duas colunas. */
+  it('mantém cada ponto perto do seu próprio semestre', () => {
+    prepararPontos(DOIS_SEMESTRES).forEach((p) => {
+      // 0.3001: a subtração reintroduz ruído de float mesmo com `x` já
+      // arredondado (10.7 - 11 = -0.30000000000000071). O limite real é 0.3.
+      expect(Math.abs(p.x - p.semestre)).toBeLessThanOrEqual(0.3001);
+    });
   });
 
   it('aplica jitter determinístico quando há um único semestre', () => {
     const preparados = prepararPontos(UM_SEMESTRE);
     const xs = preparados.map((p) => p.x);
     expect(new Set(xs).size).toBe(3);
-    xs.forEach((x) => expect(Math.abs(x - 11)).toBeLessThan(0.25));
+    xs.forEach((x) => expect(Math.abs(x - 11)).toBeLessThanOrEqual(0.3001));
+    // Determinístico: a mesma entrada devolve exatamente as mesmas posições.
+    expect(prepararPontos(UM_SEMESTRE).map((p) => p.x)).toEqual(xs);
   });
 });
 
@@ -85,12 +109,19 @@ describe('DispersaoChart (modo Aluno)', () => {
     expect(circulos[1].getAttribute('stroke')).toBe('var(--gp-brand)');
   });
 
-  it('desenha o corte de proficiência tracejado, com rótulo dentro do plot', () => {
+  /**
+   * Cores trocadas entre meta e mediana (reunião de 07/08): "do jeito que tá
+   * hoje induz o cara a olhar mais pra essa mediana, mas na verdade o que
+   * importa pra ele é a meta". A meta é o corte de negócio e agora leva a
+   * linha sólida de marca; a mediana, que é descritiva, virou o traço neutro.
+   */
+  it('a meta de proficiência é a linha de MARCA, sólida — não o tracejado neutro', () => {
     const { container } = render(<DispersaoChart pontos={DOIS_SEMESTRES} {...DIM} />);
     const corte = container.querySelector('.recharts-reference-line-line');
     expect(corte).not.toBeNull();
-    expect(corte?.getAttribute('stroke-dasharray')).toBe('6 5');
-    expect(corte?.getAttribute('stroke-width')).toBe('1.5');
+    expect(corte?.getAttribute('stroke')).toBe('var(--gp-brand)');
+    expect(corte?.getAttribute('stroke-width')).toBe('2');
+    expect(corte?.getAttribute('stroke-dasharray')).toBeNull();
     expect(container.querySelector('.recharts-reference-line text')?.textContent).toBe(
       'meta de proficiência · 60',
     );

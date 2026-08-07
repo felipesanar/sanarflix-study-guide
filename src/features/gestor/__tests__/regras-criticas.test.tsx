@@ -401,14 +401,32 @@ describe('§12 — casos de teste críticos do Portal do Gestor v2', () => {
 
   // ── Caso 9 ─────────────────────────────────────────────────────────────
   describe('caso 9 — semestre único: controles multi-semestre somem; comparação vira distribuição (§4.5)', () => {
-    it('prepararPontos: multi-semestre não recebe jitter (x === semestre exato)', () => {
+    /**
+     * ATUALIZADO em 07/08: o jitter passou a valer para TODO recorte, não só
+     * para o de um semestre. O eixo X é discreto (11º, 12º — nunca 11,4º),
+     * então sem jitter cada semestre virava UMA coluna de 1px com todos os
+     * alunos empilhados no mesmo pixel; era justamente onde há mais alunos
+     * que ele faltava. O que o caso 9 protege continua valendo e está nas
+     * duas asserções de baixo: cada ponto pertence visualmente ao SEU
+     * semestre, e as nuvens de semestres vizinhos nunca se encostam.
+     */
+    it('prepararPontos: multi-semestre espalha DENTRO da coluna, sem invadir a vizinha', () => {
       const preparados = prepararPontos(VISAO_GERAL.dispersao);
-      preparados.forEach((p, i) => expect(p.x).toBe(VISAO_GERAL.dispersao[i].semestre));
+
+      // 0.3001 por ruído de float na subtração; o limite real do jitter é 0.3.
+      preparados.forEach((p) => expect(Math.abs(p.x - p.semestre)).toBeLessThanOrEqual(0.3001));
+
+      const semestres = [...new Set(preparados.map((p) => p.semestre))].sort((a, b) => a - b);
+      semestres.slice(0, -1).forEach((semestre, i) => {
+        const atual = preparados.filter((p) => p.semestre === semestre).map((p) => p.x);
+        const proximo = preparados.filter((p) => p.semestre === semestres[i + 1]).map((p) => p.x);
+        expect(Math.max(...atual)).toBeLessThan(Math.min(...proximo));
+      });
     });
 
     it('prepararPontos: semestre único aplica jitter determinístico ao redor do semestre (evita sobreposição total)', () => {
       const preparados = prepararPontos(DISPERSAO_SEMESTRE_UNICO);
-      const esperado = [10.82, 10.88, 10.94, 11, 11.06];
+      const esperado = [10.7, 10.775, 10.85, 10.925, 11];
       preparados.forEach((p, i) => expect(p.x).toBeCloseTo(esperado[i], 5));
       expect(new Set(preparados.map((p) => p.x)).size).toBe(preparados.length);
     });

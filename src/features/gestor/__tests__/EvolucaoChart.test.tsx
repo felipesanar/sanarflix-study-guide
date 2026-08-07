@@ -33,12 +33,24 @@ const raios = (container: HTMLElement, seletor: string) =>
   Array.from(container.querySelectorAll(seletor)).map((no) => no.getAttribute('r'));
 
 describe('EvolucaoChart (modo Geral)', () => {
-  it('é acessível como imagem com título e descrição', () => {
+  /**
+   * O nome vem do `role="img" aria-label` do contêiner; a descrição longa,
+   * do `<desc>` do SVG. O `<title>` fica VAZIO de propósito: com texto, todo
+   * navegador o transforma em tooltip nativo no hover, e ele pousava por cima
+   * do tooltip de dado justamente quando o gestor ia ler o ponto. Não custa
+   * acessibilidade — `role="img"` no contêiner torna todo descendente
+   * presentational (ARIA 1.2), então aquele `<title>` nunca esteve na árvore.
+   *
+   * O elemento em si não some: `Surface` do Recharts renderiza `<title>`
+   * incondicionalmente (`container/Surface.js`). O que se controla é o
+   * conteúdo.
+   */
+  it('é acessível como imagem com descrição no SVG, e com <title> vazio (sem tooltip nativo)', () => {
     const { container } = render(<EvolucaoChart pontos={visaoGeralFake.evolucao} {...DIM} />);
     const figura = screen.getByRole('img', { name: /Evolução da proficiência institucional/i });
     expect(figura).toBeInTheDocument();
-    expect(container.querySelector('svg title')?.textContent).toMatch(/Evolução da proficiência institucional/i);
     expect(container.querySelector('svg desc')?.textContent).toMatch(/escala 0 a 100/i);
+    expect(container.querySelector('svg title')?.textContent).toBe('');
   });
 
   it('desenha linha, área e a linha de meta tracejada com 2+ simulados', () => {

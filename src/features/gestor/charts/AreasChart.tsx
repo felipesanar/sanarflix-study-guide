@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { formatPct } from '@/features/gestor/lib/formatters';
+import { SUPERFICIE_TOOLTIP } from '@/features/gestor/components/Dica';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import { MolduraVazia } from '@/features/gestor/charts/MolduraVazia';
 import type { VisaoGeral } from '@/features/gestor/api/types';
@@ -100,15 +101,22 @@ const ESMAECIDA_STROKE_OPACITY = 0.18;
  * é ali que o gestor precisa parar de ler a linha e começar a agir.
  */
 function PontoArea(props: {
-  cx?: number;
-  cy?: number;
+  cx?: number | null;
+  cy?: number | null;
   index?: number;
   cor: string;
   critica: boolean;
   ultimoIndice: number;
 }) {
   const { cx, cy, index, cor, critica, ultimoIndice } = props;
-  if (cx === undefined || cy === undefined) return null;
+  /**
+   * `== null`, não `=== undefined` — ver a explicação completa em
+   * `PontoAtual` (`charts/EvolucaoChart.tsx`). Era aqui que o sintoma
+   * aparecia: neste gráfico o buraco é a regra, não a exceção (cada área tem
+   * seu próprio conjunto de simulados), e cada ponto nulo virava um círculo
+   * colado no topo do plot, sem representar área nenhuma.
+   */
+  if (cx == null || cy == null) return null;
 
   if (critica && index === ultimoIndice) {
     return (
@@ -265,7 +273,8 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
       data={dados}
       width={largura}
       height={largura ? altura : undefined}
-      title={TITULO}
+      /* SEM `title` (tooltip nativo do navegador sobrepondo o tooltip de
+         dado) — ver a explicação completa em `charts/EvolucaoChart.tsx`. */
       desc={descricao}
       margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
     >
@@ -305,13 +314,19 @@ export function AreasChart({ areas, largura, altura = 300 }: AreasChartProps) {
       />
       <Tooltip
         formatter={(valor: number, nome: string) => [formatPct(valor), nome]}
+        /* Mesma superfície escura do tooltip de `EvolucaoChart` e de todo
+           tooltip do portal. `itemStyle`/`labelStyle` são obrigatórios: o
+           tooltip padrão do Recharts pinta o rótulo e os itens com cor
+           própria, que ficaria escura sobre fundo escuro. */
         contentStyle={{
-          background: 'var(--gp-surface-1)',
-          border: '1px solid var(--gp-border-strong)',
+          ...SUPERFICIE_TOOLTIP,
+          border: 'none',
           borderRadius: 'var(--gp-radius-md)',
-          boxShadow: 'var(--gp-shadow-card)',
           fontSize: '12px',
+          padding: '10px 14px',
         }}
+        labelStyle={{ color: 'var(--gp-tooltip-value)', fontWeight: 600, marginBottom: 4 }}
+        itemStyle={{ color: 'var(--gp-tooltip-label)', padding: 0 }}
       />
       {areas.map((area, indice) => (
         <Line

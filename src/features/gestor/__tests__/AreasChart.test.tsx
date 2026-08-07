@@ -98,11 +98,48 @@ describe('AreasChart (modo Grande área)', () => {
    * `EvolucaoChart` e `DispersaoChart` já traziam; este era o único sem — o
    * `aria-label` do `<figure>` sozinho dá nome, mas não a descrição longa.
    */
-  it('é acessível como imagem com título e descrição no SVG', () => {
+  /**
+   * Regressão da "bolinha no topo".
+   *
+   * `Line.renderDots` do Recharts percorre TODOS os pontos, inclusive os de
+   * valor nulo, e passa `cy: null` para eles (`cartesian/Line.js`). O guard
+   * do `PontoArea` testava `=== undefined`, deixava o `null` passar, e o
+   * `<circle>` saía sem atributo `cy` — que em SVG vale 0, ou seja, um ponto
+   * colado no topo do plot sem série nenhuma por trás. Aqui é o cenário
+   * comum deste gráfico: cada área tem o seu próprio conjunto de simulados,
+   * então buraco é a regra (§4.10 — buraco nunca vira zero).
+   */
+  it('ponto sem valor não vira bolinha solta no topo do gráfico', () => {
+    const comBuraco: VisaoGeral['evolucaoPorArea'] = [
+      {
+        area: 'Clínica Médica',
+        critica: false,
+        pontos: [
+          { rotulo: 'Simulado 1', valor: 70 },
+          { rotulo: 'Simulado 2', valor: 72 },
+        ],
+      },
+      // Não tem o Simulado 1: a linha desta área nasce com um buraco.
+      { area: 'Pediatria', critica: false, pontos: [{ rotulo: 'Simulado 2', valor: 41 }] },
+    ];
+
+    const { container } = render(<AreasChart areas={comBuraco} {...DIM} />);
+    const bolinhas = Array.from(container.querySelectorAll('.recharts-line-dots circle'));
+
+    expect(bolinhas.length).toBeGreaterThan(0);
+    bolinhas.forEach((bolinha) => {
+      expect(bolinha.getAttribute('cy')).not.toBeNull();
+      expect(bolinha.getAttribute('cx')).not.toBeNull();
+    });
+  });
+
+  it('é acessível como imagem com descrição no SVG, e com <title> vazio (sem tooltip nativo)', () => {
     const { container } = render(<AreasChart areas={evolucaoPorAreaFake} {...DIM} />);
     expect(screen.getByRole('img', { name: /Desempenho por grande área/i })).toBeInTheDocument();
-    expect(container.querySelector('svg title')?.textContent).toMatch(/Desempenho por grande área/i);
     expect(container.querySelector('svg desc')?.textContent).toMatch(/percentual de acerto/i);
+    // Ver a explicação em `EvolucaoChart.test.tsx`: `<title>` COM TEXTO vira
+    // tooltip nativo do navegador e sobrepõe o tooltip de dado.
+    expect(container.querySelector('svg title')?.textContent).toBe('');
   });
 
   it('rotula a métrica como desempenho em % de acerto, e nunca como proficiência', () => {

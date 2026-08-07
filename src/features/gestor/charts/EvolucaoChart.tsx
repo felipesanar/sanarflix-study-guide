@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import { formatData, formatNumero } from '@/features/gestor/lib/formatters';
+import { SUPERFICIE_TOOLTIP } from '@/features/gestor/components/Dica';
 import { MolduraVazia } from '@/features/gestor/charts/MolduraVazia';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
@@ -49,9 +50,25 @@ interface DadoEvolucao {
  * dentro, branco fora) que existia aqui antes lia como "todos os pontos são o
  * atual".
  */
-function PontoAtual(props: { cx?: number; cy?: number; index?: number; ultimoIndice: number }) {
+function PontoAtual(props: {
+  cx?: number | null;
+  cy?: number | null;
+  index?: number;
+  ultimoIndice: number;
+}) {
   const { cx, cy, index, ultimoIndice } = props;
-  if (cx === undefined || cy === undefined) return null;
+  /**
+   * `== null` cobre `null` E `undefined`, e é o `null` que importa aqui.
+   *
+   * `Line.renderDots` do Recharts percorre TODOS os pontos, inclusive os de
+   * valor nulo, e para esses passa `cy: null` (`y: isNil(value) ? null :
+   * scale(value)`, cartesian/Line.js). Com o teste antigo (`=== undefined`)
+   * o `null` passava batido, o `<circle>` saía sem atributo `cy`, e SVG
+   * assume `cy=0` — um ponto solto colado no TOPO do gráfico, sem série
+   * nenhuma por trás. Aparece sempre que a série tem buraco (§4.10: buraco
+   * nunca vira zero), que é o caso comum do modo "Grande área".
+   */
+  if (cx == null || cy == null) return null;
 
   if (index !== ultimoIndice) {
     return (
@@ -95,20 +112,32 @@ export function TooltipEvolucao(props: { active?: boolean; payload?: { payload: 
 
   return (
     <div
-      className="rounded-xl px-3 py-2 text-xs"
+      data-testid="tooltip-evolucao"
+      className="px-3.5 py-2.5 text-xs"
       style={{
-        background: 'var(--gp-surface-1)',
-        border: '1px solid var(--gp-border-strong)',
-        boxShadow: 'var(--gp-shadow-card)',
+        /* Superfície ESCURA nos dois temas, como todo tooltip do portal
+           (referência LIGHT.html; os mesmos tokens de `TooltipRastreabilidade`
+           e de `Dica`). O card branco de antes se confundia com o próprio
+           fundo do gráfico e sumia por cima da linha. */
+        ...SUPERFICIE_TOOLTIP,
+        border: 'none',
+        borderRadius: 'var(--gp-radius-md)',
       }}
     >
-      <p className="font-semibold" style={{ color: 'var(--gp-text-1)' }}>
+      <p className="flex items-center gap-1.5 font-semibold" style={{ color: 'var(--gp-tooltip-value)' }}>
+        {/* Ponto da cor da série, como na referência: liga o balão à linha de
+            onde ele saiu — necessário quando houver mais de uma série. */}
+        <span
+          aria-hidden="true"
+          className="inline-block h-2 w-2 shrink-0 rounded-full"
+          style={{ background: 'var(--gp-brand)' }}
+        />
         {ponto.rotulo}
       </p>
-      <p className="tabular-nums" style={{ color: 'var(--gp-text-3)' }}>
+      <p className="mt-0.5 tabular-nums" style={{ color: 'var(--gp-tooltip-label)' }}>
         {`${formatNumero(ponto.valor)} de proficiência · ${formatNumero(ponto.participantes)} alunos`}
       </p>
-      <p style={{ color: 'var(--gp-text-3)' }}>{formatData(ponto.data)}</p>
+      <p style={{ color: 'var(--gp-tooltip-label)' }}>{formatData(ponto.data)}</p>
     </div>
   );
 }
@@ -237,7 +266,22 @@ export function EvolucaoChart({ pontos, largura, altura = 300 }: EvolucaoChartPr
       data={dados}
       width={largura}
       height={largura ? altura : undefined}
-      title={TITULO}
+      /*
+       * SEM `title`, com `desc` — não é descuido.
+       *
+       * `title` vira um `<title>` como primeiro filho do `<svg>`, e todo
+       * navegador transforma isso num TOOLTIP NATIVO ao passar o mouse: um
+       * balão preto do sistema, com a frase inteira do título, pousando por
+       * cima do nosso tooltip de dado justo quando o gestor foi ler o ponto.
+       * Era ele que cobria o nome do simulado no balão.
+       *
+       * Não custa acessibilidade: o contêiner do desenho é
+       * `role="img" aria-label={TITULO}` (abaixo), e `role="img"` torna todo
+       * descendente presentational (ARIA 1.2) — o `<title>` já não
+       * participava da árvore, só do hover. `desc` fica: não gera tooltip
+       * nativo e mantém a descrição longa no SVG, como o checklist da §11
+       * pede.
+       */
       desc={descricao}
       margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
     >

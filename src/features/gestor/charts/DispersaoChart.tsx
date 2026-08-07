@@ -2,6 +2,7 @@ import * as React from 'react';
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { PROFICIENCIA_MINIMA } from '@/features/gestor/lib/regras';
 import { formatNumero } from '@/features/gestor/lib/formatters';
+import { SUPERFICIE_TOOLTIP } from '@/features/gestor/components/Dica';
 import { MolduraVazia } from '@/features/gestor/charts/MolduraVazia';
 import type { VisaoGeral } from '@/features/gestor/api/types';
 
@@ -33,25 +34,56 @@ const TITULO = 'Dispersão de proficiência por semestre, um ponto por aluno';
 const OPACIDADE_PONTO = 0.75;
 
 /**
+ * Amplitude do jitter horizontal, em unidades de semestre (±0.3 = 60% da
+ * meia-distância entre duas colunas). Larga o bastante para separar dezenas
+ * de alunos, estreita o bastante para nunca deixar dúvida sobre a qual
+ * semestre a nuvem pertence — as colunas ficam a 1.0 de distância e o domínio
+ * do eixo tem 0.5 de folga em cada ponta.
+ */
+const JITTER = 0.3;
+
+/** Quantas faixas o jitter usa antes de repetir. Ímpar, para haver coluna central. */
+const FAIXAS_JITTER = 9;
+
+/**
  * Converte os pontos brutos em coordenadas de plotagem.
  *
- * §4.5: com um único semestre no recorte, não há eixo X para dispersar — o
- * gráfico vira "distribuição interna" daquele semestre. Sem jitter, todo
- * aluno cairia na mesma coluna vertical e os pontos se sobreporiam
- * inteiramente. O jitter é determinístico (por índice, não aleatório) para o
- * mesmo recorte sempre desenhar os mesmos pontos nos mesmos lugares.
+ * O jitter vale para TODO recorte, não só para o de um semestre. O eixo X é
+ * discreto (semestre é 11º ou 12º, nunca 11,4º), então sem jitter cada
+ * semestre vira uma única coluna de 1px com dezenas de alunos empilhados no
+ * mesmo lugar — a nuvem lia como uma régua e a distribuição, que é a única
+ * coisa que este gráfico tem para dizer, sumia. Isso já estava resolvido para
+ * o caso de UM semestre (§4.5) e faltava justamente onde há mais alunos.
+ *
+ * A troca do eixo X por uma grandeza CONTÍNUA — que resolveria a sobreposição
+ * pela raiz — é decisão de produto em aberto (reunião de 07/08); o jitter é o
+ * que dá para fazer sem inventar eixo novo.
+ *
+ * Determinístico (por índice, não aleatório): o mesmo recorte sempre desenha
+ * os mesmos pontos nos mesmos lugares, entre renders e entre sessões.
  */
 export function prepararPontos(
   pontos: PontoDispersao[],
 ): { alunoId: string; x: number; y: number; semestre: number }[] {
-  const semestres = Array.from(new Set(pontos.map((ponto) => ponto.semestre)));
-  const semestreUnico = semestres.length === 1;
-  return pontos.map((ponto, indice) => ({
-    alunoId: ponto.alunoId,
-    semestre: ponto.semestre,
-    x: semestreUnico ? ponto.semestre + ((indice % 7) - 3) * 0.06 : ponto.semestre,
-    y: ponto.nota,
-  }));
+  /** Índice do aluno DENTRO do seu semestre — senão as colunas herdariam o
+   *  deslocamento uma da outra e ficariam com nuvens de formatos diferentes. */
+  const porSemestre = new Map<number, number>();
+
+  return pontos.map((ponto) => {
+    const posicao = porSemestre.get(ponto.semestre) ?? 0;
+    porSemestre.set(ponto.semestre, posicao + 1);
+    const faixa = (posicao % FAIXAS_JITTER) - (FAIXAS_JITTER - 1) / 2;
+    const deslocamento = (faixa / ((FAIXAS_JITTER - 1) / 2)) * JITTER;
+    return {
+      alunoId: ponto.alunoId,
+      semestre: ponto.semestre,
+      /* Arredondado: sem isso o próprio limite do jitter estoura por ruído de
+         ponto flutuante (0.1*3 = 0.30000000000000004), e o `x` vira um número
+         diferente a cada leitura do mesmo dado. */
+      x: Math.round((ponto.semestre + deslocamento) * 1e4) / 1e4,
+      y: ponto.nota,
+    };
+  });
 }
 
 /** Mediana das notas do recorte — só usada no modo "semestre único" (§4.5). */
@@ -113,7 +145,8 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
     <ScatterChart
       width={largura}
       height={largura ? altura : undefined}
-      title={TITULO}
+      /* SEM `title` (tooltip nativo do navegador sobrepondo o tooltip de
+         dado) — ver a explicação completa em `charts/EvolucaoChart.tsx`. */
       desc={`${pontos.length} alunos, proficiência de 0 a 100, semestres ${semestres.join(', ')}.`}
       margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
     >
@@ -145,29 +178,39 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
         axisLine={false}
         tickLine={false}
       />
-      {/* Corte discreto: linha fina tracejada com o rótulo DENTRO do plot. */}
+      {/*
+        Cores TROCADAS entre meta e mediana (reunião de 07/08).
+        "Do jeito que tá hoje induz o cara a olhar mais pra essa mediana, mas
+        na verdade o que importa pra ele é a meta."
+
+        A meta de proficiência é o corte de NEGÓCIO — a régua contra a qual a
+        instituição é avaliada — e estava em cinza tracejado, o desenho de um
+        detalhe de fundo. A mediana é descritiva: diz onde a turma está, não
+        onde deveria estar. Agora a marca está na meta (linha sólida de 2px) e
+        a mediana é o traço neutro.
+      */}
       <ReferenceLine
         y={PROFICIENCIA_MINIMA}
-        stroke="var(--gp-border-input)"
-        strokeWidth={1.5}
-        strokeDasharray="6 5"
+        stroke="var(--gp-brand)"
+        strokeWidth={2}
         label={{
           value: `meta de proficiência · ${PROFICIENCIA_MINIMA}`,
           position: 'insideTopRight',
           fontSize: 11,
-          fill: 'var(--gp-text-3)',
+          fill: 'var(--gp-brand-on-dark)',
         }}
       />
       {mediana !== null ? (
         <ReferenceLine
           y={mediana}
-          stroke="var(--gp-brand)"
-          strokeWidth={2}
+          stroke="var(--gp-border-input)"
+          strokeWidth={1.5}
+          strokeDasharray="6 5"
           label={{
             value: 'Mediana',
             position: 'insideBottomRight',
             fontSize: 11,
-            fill: 'var(--gp-brand)',
+            fill: 'var(--gp-text-3)',
           }}
         />
       ) : null}
@@ -175,13 +218,17 @@ export function DispersaoChart({ pontos, tendencia, largura, altura = 300, onSel
         // Só os dois eixos (Semestre, Proficiência) chegam ao formatter — o
         // ponto sempre traz `alunoId`, mas o Tooltip nunca lê essa chave.
         formatter={(valor: number, nome: string) => [nome === 'Semestre' ? `${Math.round(valor)}º` : formatNumero(valor), nome]}
+        /* Mesma superfície escura dos outros dois modos do gráfico
+           protagonista — ver `charts/EvolucaoChart.tsx`. */
         contentStyle={{
-          background: 'var(--gp-surface-1)',
-          border: '1px solid var(--gp-border-strong)',
+          ...SUPERFICIE_TOOLTIP,
+          border: 'none',
           borderRadius: 'var(--gp-radius-md)',
-          boxShadow: 'var(--gp-shadow-card)',
           fontSize: '12px',
+          padding: '10px 14px',
         }}
+        labelStyle={{ color: 'var(--gp-tooltip-value)', fontWeight: 600 }}
+        itemStyle={{ color: 'var(--gp-tooltip-label)', padding: 0 }}
       />
       <Scatter
         name="Alunos"
